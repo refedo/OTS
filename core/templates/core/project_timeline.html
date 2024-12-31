@@ -1,0 +1,288 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    .timeline-container {
+        padding: 20px;
+        font-family: Arial, sans-serif;
+        background: #f8f9fa;
+    }
+    
+    .project-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+        padding: 25px;
+        border: 1px solid #e1e8ed;
+    }
+    
+    .project-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 35px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f1f1f1;
+    }
+    
+    .project-title {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #2c3e50;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+    }
+    
+    .project-status {
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .not-started { background: #95a5a6; color: white; }
+    .in-progress { background: #3498db; color: white; }
+    .delayed { background: #e74c3c; color: white; }
+    .completed { background: #2ecc71; color: white; }
+    
+    .timeline {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        margin: 60px 0 40px;
+        padding: 0;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 4px;
+        background: linear-gradient(to right, 
+            #3498db 0%, #3498db 12.5%,    /* Contract */
+            #2ecc71 12.5%, #2ecc71 25%,    /* Payment */
+            #9b59b6 25%, #9b59b6 50%,      /* Design */
+            #e67e22 50%, #e67e22 62.5%,    /* Production */
+            #1abc9c 62.5%, #1abc9c 75%,    /* Quality */
+            #f1c40f 75%, #f1c40f 87.5%,    /* Planning */
+            #e74c3c 87.5%, #e74c3c 100%    /* Actual */
+        );
+        z-index: 1;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .timeline-event {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: calc(100% / 8);
+        z-index: 2;
+    }
+    
+    .timeline-point {
+        position: relative;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid;
+        margin-bottom: 15px;
+        z-index: 3;
+        box-shadow: 0 0 0 4px rgba(255,255,255,0.9);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: transparent;
+    }
+    
+    .timeline-point.completed {
+        background: #10b981; /* Emerald green */
+        border-color: #10b981;
+        transform: scale(1.2);
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        color: white;
+    }
+    
+    .timeline-point::before {
+        content: '✓';
+        font-weight: bold;
+    }
+    
+    .timeline-content {
+        text-align: center;
+        padding: 12px;
+        background: white;
+        border-radius: 8px;
+        width: 130px;
+        margin-top: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 2px solid;
+        transition: all 0.3s ease;
+    }
+    
+    .timeline-event:hover .timeline-content {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Event Category Colors */
+    .timeline-event.contract { color: #3498db; }
+    .timeline-event.payment { color: #2ecc71; }
+    .timeline-event.design { color: #9b59b6; }
+    .timeline-event.production { color: #e67e22; }
+    .timeline-event.quality { color: #1abc9c; }
+    .timeline-event.planning { color: #f1c40f; }
+    .timeline-event.actual { color: #e74c3c; }
+    
+    .event-date {
+        font-size: 0.85em;
+        color: #7f8c8d;
+        margin-top: 5px;
+        font-weight: 500;
+    }
+    
+    .event-title {
+        font-weight: bold;
+        color: currentColor;
+        font-size: 0.95em;
+        margin-bottom: 5px;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.05);
+    }
+    
+    .event-status {
+        font-size: 0.85em;
+        text-transform: uppercase;
+        margin-top: 3px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+    }
+    
+    .event-status.pending {
+        color: #95a5a6;
+        font-style: italic;
+    }
+    
+    .timeline-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 30px;
+        padding: 15px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.9em;
+        margin-right: 15px;
+        padding: 5px 10px;
+        border-radius: 15px;
+        background: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    
+    .legend-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .no-events {
+        text-align: center;
+        color: #7f8c8d;
+        padding: 30px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        font-size: 1.1em;
+    }
+    
+    h1 {
+        color: #2c3e50;
+        margin-bottom: 30px;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+        font-size: 2em;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #e1e8ed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="timeline-container">
+    <h1>Project Timelines</h1>
+    
+    <div class="timeline-legend">
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #3498db;"></div>
+            <span>Contract</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #2ecc71;"></div>
+            <span>Payment</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #9b59b6;"></div>
+            <span>Design</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #e67e22;"></div>
+            <span>Production</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #1abc9c;"></div>
+            <span>Quality</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #e74c3c;"></div>
+            <span>Completion</span>
+        </div>
+    </div>
+    
+    {% for project in projects %}
+    <div class="project-card">
+        <div class="project-header">
+            <div class="project-title">{{ project.project_number }} - {{ project.name }}</div>
+            <div class="project-status {{ project.status_class }}">{{ project.status }}</div>
+        </div>
+        
+        <div class="timeline">
+            {% for event in project.timeline_events %}
+            <div class="timeline-event {{ event.category }}">
+                <div class="timeline-point {% if event.date %}completed{% endif %}"></div>
+                <div class="timeline-content">
+                    <div class="event-title">{{ event.event }}</div>
+                    {% if event.date %}
+                        <div class="event-date">{{ event.date|date:"M d, Y" }}</div>
+                    {% else %}
+                        <div class="event-status pending">Pending</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="no-events">No projects found</div>
+    {% endfor %}
+</div>
+{% endblock %}
