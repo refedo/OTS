@@ -1,0 +1,42 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+    django.jQuery(document).ready(function($) {
+        function updateErectionFields(isErectable) {
+            // Get all inline forms
+            $('.inline-related').each(function() {
+                var $inline = $(this);
+                
+                // Find erection-related fields
+                var $erectionFields = $inline.find('.field-erection_start_date, .field-erection_end_date, .field-erection_applicable');
+                var $subcontractorField = $inline.find('.field-subcontractor_name');
+                
+                if (isErectable) {
+                    $erectionFields.show();
+                    $subcontractorField.show();
+                } else {
+                    $erectionFields.hide();
+                    $subcontractorField.hide();
+                    
+                    // Clear fields
+                    $erectionFields.find('input').val('');
+                    $subcontractorField.find('input').val('');
+                }
+            });
+        }
+
+        // Initial state
+        var $erectableCheckbox = $('#id_erectable');
+        updateErectionFields($erectableCheckbox.is(':checked'));
+
+        // Handle checkbox changes
+        $erectableCheckbox.on('change', function() {
+            var isErectable = $(this).is(':checked');
+            updateErectionFields(isErectable);
+        });
+    });
+</script>
+{% endblock %}
