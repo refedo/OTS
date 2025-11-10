@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +50,7 @@ const DISPATCH_TYPE_CODES: { [key: string]: string } = {
   'Dispatched to Customer': 'DCU',
 };
 
-export default function LogProductionPage() {
+function LogProductionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedPartId = searchParams.get('partId');
@@ -518,5 +518,17 @@ export default function LogProductionPage() {
           </div>
         </form>
     </div>
+  );
+}
+
+export default function LogProductionPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <LogProductionPageContent />
+    </Suspense>
   );
 }
