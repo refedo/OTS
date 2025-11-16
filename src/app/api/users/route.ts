@@ -19,7 +19,7 @@ const createSchema = z.object({
 export async function GET() {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-  const session = token ? verifySession(token) : null;
+  const session = token ? await verifySession(token) : null;
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   // Admin: full access. Manager: only same department. Engineer/Operator: self
   if (session.role === 'Admin') {
@@ -43,7 +43,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-  const session = token ? verifySession(token) : null;
+  const session = token ? await verifySession(token) : null;
   if (!session || session.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
