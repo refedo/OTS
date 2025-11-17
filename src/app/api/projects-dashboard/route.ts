@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-    const session = token ? verifySession(token) : null;
+    const session = token ? await verifySession(token) : null;
 
     if (!session) {
       console.log('No session found');
