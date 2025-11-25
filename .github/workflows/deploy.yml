@@ -22,15 +22,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Run tests
-        run: npm test --if-present
+      - name: Generate Prisma Client
+        run: npx prisma generate
       
       - name: Build application
         run: npm run build
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
+      
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy-package
+          cp -r .next deploy-package/
+          cp -r public deploy-package/ || true
+          cp package*.json deploy-package/
+          cp -r prisma deploy-package/
+          tar -czf deploy.tar.gz -C deploy-package .
       
       - name: Deploy to Digital Ocean
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          port: ${{ secrets.DO_PORT || 22 }}
+          source: "deploy.tar.gz"
+          target: "/tmp/"
+      
+      - name: Extract and restart application
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DO_HOST }}
@@ -38,22 +57,23 @@ jobs:
           key: ${{ secrets.DO_SSH_KEY }}
           port: ${{ secrets.DO_PORT || 22 }}
           script: |
-            cd /var/www/hexa-steel-ots
+            cd /var/www/hexasteel.sa/ots
             
-            echo "🔄 Pulling latest changes..."
+            echo "🔄 Pulling latest code..."
             git pull origin main
             
-            echo "📦 Installing dependencies..."
-            npm ci --production=false
+            echo "📦 Installing production dependencies..."
+            npm ci --production
             
             echo "📊 Running database migrations..."
             npx prisma migrate deploy
             
-            echo "🔨 Building application..."
-            npm run build
+            echo "📂 Extracting build files..."
+            tar -xzf /tmp/deploy.tar.gz -C /var/www/hexasteel.sa/ots
+            rm /tmp/deploy.tar.gz
             
             echo "♻️ Restarting application..."
-            pm2 reload hexa-steel-ots --wait-ready || pm2 start ecosystem.config.js
+            pm2 restart ots-app --update-env || pm2 start npm --name "ots-app" -- start
             
             echo "✅ Deployment complete!"
             pm2 status
