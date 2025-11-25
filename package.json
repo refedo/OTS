@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "NODE_OPTIONS='--max-old-space-size=2048' next build",
-    "build:turbo": "NODE_OPTIONS='--max-old-space-size=2048' next build --turbopack",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=2048 next build",
+    "build:turbo": "cross-env NODE_OPTIONS=--max-old-space-size=2048 next build --turbopack",
     "start": "next start",
     "lint": "eslint",
     "prisma:generate": "prisma generate",
@@ -54,6 +54,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",
