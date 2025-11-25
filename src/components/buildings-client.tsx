@@ -1,0 +1,259 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Building2, Search, ExternalLink, LayoutGrid, List } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+
+type Building = {
+  id: string;
+  designation: string;
+  name: string;
+  description: string | null;
+  projectId: string;
+  project: {
+    id: string;
+    projectNumber: string;
+    name: string;
+    status: string;
+    client: {
+      id: string;
+      name: string;
+    };
+  };
+};
+
+const statusColors = {
+  Draft: 'bg-gray-100 text-gray-800 border-gray-300',
+  Active: 'bg-blue-100 text-blue-800 border-blue-300',
+  Completed: 'bg-green-100 text-green-800 border-green-300',
+  'On Hold': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  Cancelled: 'bg-red-100 text-red-800 border-red-300',
+};
+
+type BuildingsClientProps = {
+  initialBuildings: Building[];
+};
+
+export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
+  const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+
+  const filteredBuildings = useMemo(() => {
+    if (!search) return initialBuildings;
+    
+    const searchLower = search.toLowerCase();
+    return initialBuildings.filter(
+      (building) =>
+        building.designation.toLowerCase().includes(searchLower) ||
+        building.name.toLowerCase().includes(searchLower) ||
+        building.description?.toLowerCase().includes(searchLower) ||
+        building.project.projectNumber.toLowerCase().includes(searchLower) ||
+        building.project.name.toLowerCase().includes(searchLower) ||
+        building.project.client.name.toLowerCase().includes(searchLower)
+    );
+  }, [initialBuildings, search]);
+
+  // Group buildings by project
+  const buildingsByProject = useMemo(() => {
+    const grouped = new Map<string, { project: Building['project']; buildings: Building[] }>();
+    
+    filteredBuildings.forEach((building) => {
+      const projectId = building.project.id;
+      if (!grouped.has(projectId)) {
+        grouped.set(projectId, {
+          project: building.project,
+          buildings: [],
+        });
+      }
+      grouped.get(projectId)!.buildings.push(building);
+    });
+    
+    return Array.from(grouped.values());
+  }, [filteredBuildings]);
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-20">
+        {/* Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <Building2 className="size-8" />
+              All Buildings
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Overview of all buildings across projects
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-sm">
+              {filteredBuildings.length} {filteredBuildings.length === 1 ? 'Building' : 'Buildings'}
+            </Badge>
+            <Badge variant="secondary" className="text-sm">
+              {buildingsByProject.length} {buildingsByProject.length === 1 ? 'Project' : 'Projects'}
+            </Badge>
+            <div className="flex gap-1 ml-2">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+              >
+                <List className="size-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Search */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search buildings, projects, or clients..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Buildings Display */}
+        {filteredBuildings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Building2 className="size-12 mx-auto mb-4 text-muted-foreground opacity-20" />
+              <p className="text-muted-foreground">
+                {search ? 'No buildings found matching your search' : 'No buildings found'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : viewMode === 'table' ? (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project Name</TableHead>
+                    <TableHead>Project Number</TableHead>
+                    <TableHead>Building Name</TableHead>
+                    <TableHead>Building Designation</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredBuildings.map((building) => (
+                    <TableRow key={building.id}>
+                      <TableCell className="font-medium">{building.project.name}</TableCell>
+                      <TableCell>{building.project.projectNumber}</TableCell>
+                      <TableCell>{building.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{building.designation}</Badge>
+                      </TableCell>
+                      <TableCell>{building.project.client.name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={statusColors[building.project.status as keyof typeof statusColors]}
+                        >
+                          {building.project.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/projects/${building.project.id}`}>
+                            <ExternalLink className="size-4" />
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {buildingsByProject.map(({ project, buildings }) => (
+              <Card key={project.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-lg">
+                          {project.projectNumber} - {project.name}
+                        </CardTitle>
+                        <Badge
+                          variant="outline"
+                          className={statusColors[project.status as keyof typeof statusColors]}
+                        >
+                          {project.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Client: {project.client.name}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/projects/${project.id}`}>
+                        View Project
+                        <ExternalLink className="size-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {buildings.map((building) => (
+                      <Card key={building.id} className="border-2">
+                        <CardContent className="pt-6">
+                          <div className="flex items-start gap-3">
+                            <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <span className="font-bold text-primary text-lg">
+                                {building.designation}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold truncate">{building.name}</h4>
+                              {building.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                                  {building.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

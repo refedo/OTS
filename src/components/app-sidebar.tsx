@@ -1,0 +1,360 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  Users,
+  Shield,
+  ListChecks,
+  Building2,
+  Settings,
+  ChevronLeft,
+  ChevronDown,
+  ChevronRight,
+  Home,
+  Network,
+  FolderKanban,
+  Plus,
+  ClipboardCheck,
+  FileCheck,
+  List,
+  FileText,
+  Menu,
+  LogOut,
+  Factory,
+  Upload,
+  Activity,
+  Calendar,
+  AlertTriangle,
+  Target,
+  TrendingUp,
+  Wand2,
+  Clock,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
+
+type NavigationItem = {
+  name: string;
+  href: string;
+  icon: any;
+};
+
+type NavigationSection = {
+  name: string;
+  icon: any;
+  items: NavigationItem[];
+};
+
+const singleNavigation: NavigationItem[] = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Tasks', href: '/tasks', icon: ListChecks },
+];
+
+const navigationSections: NavigationSection[] = [
+  {
+    name: 'Production',
+    icon: Factory,
+    items: [
+      { name: 'Dashboard', href: '/production', icon: Activity },
+      { name: 'Production Status', href: '/production/status', icon: Activity },
+      { name: 'Raw Data', href: '/production/assembly-parts', icon: List },
+      { name: 'Production Logs', href: '/production/logs', icon: Activity },
+      { name: 'Dispatch Reports', href: '/production/dispatch-reports', icon: FileText },
+      { name: 'Daily Report (PDR)', href: '/production/reports/daily', icon: Calendar },
+      { name: 'Period Report', href: '/production/reports/period', icon: TrendingUp },
+      { name: 'Mass Log', href: '/production/mass-log', icon: List },
+    ],
+  },
+  {
+    name: 'Quality Control',
+    icon: ClipboardCheck,
+    items: [
+      { name: 'QC Dashboard', href: '/qc', icon: Activity },
+      { name: 'Material Inspection', href: '/qc/material', icon: FileCheck },
+      { name: 'Welding QC', href: '/qc/welding', icon: FileCheck },
+      { name: 'Dimensional QC', href: '/qc/dimensional', icon: FileCheck },
+      { name: 'NDT Inspection', href: '/qc/ndt', icon: FileCheck },
+      { name: 'RFI List', href: '/qc/rfi', icon: FileCheck },
+      { name: 'NCR List', href: '/qc/ncr', icon: FileText },
+      { name: 'ITP List', href: '/itp', icon: FileCheck },
+      { name: 'Create ITP', href: '/itp/new', icon: Plus },
+      { name: 'WPS List', href: '/wps', icon: FileCheck },
+      { name: 'Create WPS', href: '/wps/new', icon: Plus },
+    ],
+  },
+  {
+    name: 'Projects',
+    icon: FolderKanban,
+    items: [
+      { name: 'List Projects', href: '/projects', icon: FolderKanban },
+      { name: 'Create Project', href: '/projects/wizard', icon: Plus },
+      { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
+      { name: 'Project Planning', href: '/planning', icon: Calendar },
+      { name: 'Timeline', href: '/timeline', icon: Calendar },
+      { name: 'Operations Timeline (New)', href: '/operations/dashboard', icon: Clock },
+      { name: 'Event Management', href: '/operations/events', icon: Calendar },
+      { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
+      { name: 'List Buildings', href: '/buildings', icon: Building2 },
+    ],
+  },
+  {
+    name: 'Documentation',
+    icon: FileText,
+    items: [
+      { name: 'Document Library', href: '/documents', icon: FileText },
+      { name: 'Upload Document', href: '/documents/upload', icon: Plus },
+      { name: 'Categories', href: '/documents/categories', icon: List },
+    ],
+  },
+  {
+    name: 'KPI & Performance',
+    icon: Activity,
+    items: [
+      { name: 'KPI Dashboard', href: '/kpi/dashboard', icon: Activity },
+      { name: 'KPI Definitions', href: '/kpi/definitions', icon: List },
+      { name: 'Manual Entries', href: '/kpi/manual', icon: FileText },
+      { name: 'Alerts', href: '/kpi/alerts', icon: AlertTriangle },
+    ],
+  },
+  {
+    name: 'Initiatives',
+    icon: Target,
+    items: [
+      { name: 'All Initiatives', href: '/initiatives', icon: Target },
+      { name: 'Dashboard', href: '/initiatives/dashboard', icon: TrendingUp },
+      { name: 'New Initiative', href: '/initiatives/new', icon: Plus },
+    ],
+  },
+  {
+    name: 'Organization',
+    icon: Network,
+    items: [
+      { name: 'Users', href: '/users', icon: Users },
+      { name: 'Roles', href: '/roles', icon: Shield },
+      { name: 'Organization Chart', href: '/organization', icon: Network },
+    ],
+  },
+  {
+    name: 'Settings',
+    icon: Settings,
+    items: [
+      { name: 'Settings', href: '/settings', icon: Settings },
+    ],
+  },
+];
+
+export function AppSidebar() {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  
+  // Find which section contains the active route
+  const getActiveSections = () => {
+    const activeSections: string[] = [];
+    navigationSections.forEach(section => {
+      const hasActiveItem = section.items.some(
+        item => pathname === item.href || pathname.startsWith(item.href + '/')
+      );
+      if (hasActiveItem) {
+        activeSections.push(section.name);
+      }
+    });
+    return activeSections;
+  };
+  
+  const [expandedSections, setExpandedSections] = useState<string[]>(getActiveSections());
+
+  // Update expanded sections when pathname changes
+  useEffect(() => {
+    const activeSections = getActiveSections();
+    if (activeSections.length > 0) {
+      setExpandedSections(prev => {
+        // Add active sections if not already expanded
+        const newSections = [...prev];
+        activeSections.forEach(section => {
+          if (!newSections.includes(section)) {
+            newSections.push(section);
+          }
+        });
+        return newSections;
+      });
+    }
+  }, [pathname]);
+
+  const toggleSection = (sectionName: string) => {
+    setExpandedSections(prev =>
+      prev.includes(sectionName)
+        ? prev.filter(name => name !== sectionName)
+        : [...prev, sectionName]
+    );
+  };
+
+  return (
+    <>
+      {/* Mobile menu button */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <Menu className="size-5" />
+        </Button>
+      </div>
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-40 h-screen bg-card border-r transition-all duration-300',
+          collapsed ? 'w-0 lg:w-16' : 'w-64',
+          'max-lg:shadow-lg'
+        )}
+      >
+        <div className="flex h-full flex-col">
+          {/* Header */}
+          <div className="flex h-16 items-center justify-between border-b px-4">
+            {!collapsed && (
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold text-sm">HS</span>
+                </div>
+                <span className="font-semibold">Hexa Steel</span>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCollapsed(!collapsed)}
+              className="ml-auto"
+            >
+              <ChevronLeft className={cn('size-4 transition-transform', collapsed && 'rotate-180')} />
+            </Button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+            {/* Single navigation items */}
+            {singleNavigation.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    collapsed && 'justify-center'
+                  )}
+                  title={collapsed ? item.name : undefined}
+                >
+                  <Icon className="size-5 shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                </Link>
+              );
+            })}
+
+            {/* Collapsible sections */}
+            {!collapsed && navigationSections.map((section) => {
+              const SectionIcon = section.icon;
+              const isExpanded = expandedSections.includes(section.name);
+              const hasActiveItem = section.items.some(
+                item => pathname === item.href || pathname.startsWith(item.href + '/')
+              );
+
+              return (
+                <div key={section.name} className="space-y-1">
+                  <button
+                    onClick={() => toggleSection(section.name)}
+                    className={cn(
+                      'flex items-center justify-between w-full gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      hasActiveItem
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <SectionIcon className="size-5 shrink-0" />
+                      <span>{section.name}</span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronDown className="size-4 shrink-0" />
+                    ) : (
+                      <ChevronRight className="size-4 shrink-0" />
+                    )}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="ml-4 space-y-1 border-l-2 border-muted pl-2">
+                      {section.items.map((item) => {
+                        const ItemIcon = item.icon;
+                        // Special handling for dashboards - only exact match
+                        const isActive = (item.href === '/qc' || item.href === '/production')
+                          ? pathname === item.href
+                          : pathname === item.href || pathname.startsWith(item.href + '/');
+
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className={cn(
+                              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                              isActive
+                                ? 'bg-primary text-primary-foreground font-medium'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            )}
+                          >
+                            <ItemIcon className="size-4 shrink-0" />
+                            <span>{item.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Footer */}
+          <div className="border-t p-2">
+            <form action="/api/auth/logout" method="POST">
+              <Button
+                type="submit"
+                variant="ghost"
+                className={cn(
+                  'w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted',
+                  collapsed && 'justify-center px-2'
+                )}
+                title={collapsed ? 'Logout' : undefined}
+              >
+                <LogOut className="size-5 shrink-0" />
+                {!collapsed && <span className="ml-3">Logout</span>}
+              </Button>
+            </form>
+            
+            {!collapsed && (
+              <div className="mt-2 px-3 text-xs text-muted-foreground">
+                <p className="font-medium">Hexa Steel OTS</p>
+                <p>v1.0.0</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* Overlay for mobile */}
+      {!collapsed && (
+        <div
+          className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
+    </>
+  );
+}
