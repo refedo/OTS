@@ -117,6 +117,27 @@ export async function POST(req: Request) {
     return NextResponse.json(itp, { status: 201 });
   } catch (error) {
     console.error('Error creating ITP:', error);
+    
+    // Handle Prisma unique constraint errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'P2002') {
+        const meta = 'meta' in error ? error.meta as any : null;
+        const field = meta?.target?.[0] || 'field';
+        
+        if (field === 'itpNumber') {
+          return NextResponse.json({ 
+            error: 'Duplicate ITP Number', 
+            message: 'An ITP with this number already exists. Please use a different ITP number.' 
+          }, { status: 409 });
+        }
+        
+        return NextResponse.json({ 
+          error: 'Duplicate Entry', 
+          message: `An ITP with this ${field} already exists.` 
+        }, { status: 409 });
+      }
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to create ITP', 
       message: error instanceof Error ? error.message : 'Unknown error' 
