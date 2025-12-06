@@ -76,6 +76,23 @@ export default async function EditWPSPage({ params }: { params: { id: string } }
     orderBy: { name: 'asc' },
   });
 
+  // Serialize WPS data to convert Decimal objects to numbers
+  const serializedWPS = {
+    ...wps,
+    materialThickness: wps.materialThickness ? Number(wps.materialThickness) : null,
+    thicknessGroove: wps.thicknessGroove ? Number(wps.thicknessGroove) : null,
+    thicknessFillet: wps.thicknessFillet ? Number(wps.thicknessFillet) : null,
+    diameter: wps.diameter ? Number(wps.diameter) : null,
+    flowRate: wps.flowRate ? Number(wps.flowRate) : null,
+    rootOpening: wps.rootOpening ? Number(wps.rootOpening) : null,
+    passes: wps.passes.map(pass => ({
+      ...pass,
+      diameter: pass.diameter ? Number(pass.diameter) : null,
+      travelSpeed: pass.travelSpeed ? Number(pass.travelSpeed) : null,
+      heatInput: pass.heatInput ? Number(pass.heatInput) : null,
+    })),
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
       <div className="container mx-auto p-6 lg:p-8 max-w-7xl max-lg:pt-20">
@@ -86,7 +103,7 @@ export default async function EditWPSPage({ params }: { params: { id: string } }
           </p>
         </div>
 
-        <WPSForm projects={projects} users={users} wps={wps} />
+        <WPSForm projects={projects} users={users} wps={serializedWPS} />
       </div>
     </main>
   );

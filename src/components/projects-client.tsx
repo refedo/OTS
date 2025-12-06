@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List } from 'lucide-react';
+import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -40,12 +40,14 @@ type Project = {
 };
 
 const statusColors = {
-  Draft: 'bg-gray-100 text-gray-800 border-gray-300',
-  Active: 'bg-blue-100 text-blue-800 border-blue-300',
-  Completed: 'bg-green-100 text-green-800 border-green-300',
-  'On Hold': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  Cancelled: 'bg-red-100 text-red-800 border-red-300',
+  Draft: 'bg-slate-100 text-slate-700 border-slate-300',
+  Active: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+  Completed: 'bg-blue-100 text-blue-700 border-blue-300',
+  'On-Hold': 'bg-amber-100 text-amber-700 border-amber-300',
+  Cancelled: 'bg-rose-100 text-rose-700 border-rose-300',
 };
+
+const statusOptions = ['Draft', 'Active', 'On-Hold', 'Completed', 'Cancelled'];
 
 export function ProjectsClient() {
   const router = useRouter();
@@ -54,6 +56,8 @@ export function ProjectsClient() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -102,6 +106,70 @@ export function ProjectsClient() {
     }
   }
 
+  // Multi-select functions
+  function toggleSelectProject(id: string) {
+    const newSelected = new Set(selectedProjects);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedProjects(newSelected);
+  }
+
+  function toggleSelectAll() {
+    if (selectedProjects.size === filteredProjects.length) {
+      setSelectedProjects(new Set());
+    } else {
+      setSelectedProjects(new Set(filteredProjects.map(p => p.id)));
+    }
+  }
+
+  // Bulk operations
+  async function handleBulkDelete() {
+    if (selectedProjects.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedProjects.size} project(s)?`)) return;
+
+    setBulkActionLoading(true);
+    try {
+      const deletePromises = Array.from(selectedProjects).map(id =>
+        fetch(`/api/projects/${id}`, { method: 'DELETE' })
+      );
+      
+      await Promise.all(deletePromises);
+      setSelectedProjects(new Set());
+      fetchProjects();
+    } catch (error) {
+      alert('Failed to delete some projects');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
+
+  async function handleBulkStatusChange(newStatus: string) {
+    if (selectedProjects.size === 0) return;
+
+    setBulkActionLoading(true);
+    try {
+      const updatePromises = Array.from(selectedProjects).map(id =>
+        fetch(`/api/projects/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      setSelectedProjects(new Set());
+      fetchProjects();
+    } catch (error) {
+      alert('Failed to update some projects');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
+
   const filteredProjects = projects.filter((project) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
@@ -119,6 +187,62 @@ export function ProjectsClient() {
 
   return (
     <div className="space-y-6">
+      {/* Bulk Actions Bar */}
+      {selectedProjects.size > 0 && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium">
+                  {selectedProjects.size} project{selectedProjects.size !== 1 ? 's' : ''} selected
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedProjects(new Set())}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={bulkActionLoading}>
+                      <RefreshCw className="size-4 mr-2" />
+                      Change Status
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {statusOptions.map((status) => (
+                      <DropdownMenuItem
+                        key={status}
+                        onClick={() => handleBulkStatusChange(status)}
+                      >
+                        <Badge
+                          variant="outline"
+                          className={cn('mr-2', statusColors[status as keyof typeof statusColors])}
+                        >
+                          {status}
+                        </Badge>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={bulkActionLoading}
+                >
+                  <Trash className="size-4 mr-2" />
+                  Delete Selected
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -198,6 +322,20 @@ export function ProjectsClient() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={toggleSelectAll}
+                      className="h-8 w-8 p-0"
+                    >
+                      {selectedProjects.size === filteredProjects.length && filteredProjects.length > 0 ? (
+                        <CheckSquare className="size-4" />
+                      ) : (
+                        <Square className="size-4" />
+                      )}
+                    </Button>
+                  </TableHead>
                   <TableHead>Project Number</TableHead>
                   <TableHead>Project Name</TableHead>
                   <TableHead>Client</TableHead>
@@ -211,7 +349,27 @@ export function ProjectsClient() {
               </TableHeader>
               <TableBody>
                 {filteredProjects.map((project) => (
-                  <TableRow key={project.id}>
+                  <TableRow 
+                    key={project.id}
+                    className={cn(
+                      'cursor-pointer transition-colors',
+                      selectedProjects.has(project.id) && 'bg-primary/5'
+                    )}
+                  >
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleSelectProject(project.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        {selectedProjects.has(project.id) ? (
+                          <CheckSquare className="size-4 text-primary" />
+                        ) : (
+                          <Square className="size-4" />
+                        )}
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="font-mono">
                         {project.projectNumber}

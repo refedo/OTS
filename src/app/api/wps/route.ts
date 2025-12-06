@@ -4,34 +4,48 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 
+// Helper to transform empty strings to null
+const emptyStringToNull = z.string().transform(val => val.trim() === '' ? null : val).nullable();
+
 const wpsSchema = z.object({
   wpsNumber: z.string().min(1),
   revision: z.number().int().min(0).default(0),
   projectId: z.string().uuid(),
   type: z.enum(['STANDARD', 'CUSTOM']).default('CUSTOM'),
   weldingProcess: z.string().min(1),
-  supportingPQR: z.string().optional().nullable(),
-  baseMaterial: z.string().optional().nullable(),
-  thicknessGroove: z.number().optional().nullable(),
-  thicknessFillet: z.number().optional().nullable(),
-  diameter: z.number().optional().nullable(),
-  fillerMetalSpec: z.string().optional().nullable(),
-  fillerClass: z.string().optional().nullable(),
-  shieldingGas: z.string().optional().nullable(),
+  supportingPQR: emptyStringToNull.optional(),
+  // New base metal fields
+  materialSpec: emptyStringToNull.optional(),
+  materialGroup: emptyStringToNull.optional(),
+  thicknessRange: emptyStringToNull.optional(),
+  baseMetalGroove: emptyStringToNull.optional(),
+  baseMetalFillet: emptyStringToNull.optional(),
+  materialThickness: z.number().nullable().optional(),
+  jointDiagram: emptyStringToNull.optional(),
+  backingUsed: emptyStringToNull.optional(),
+  backingType2: emptyStringToNull.optional(),
+  // Legacy fields
+  baseMaterial: emptyStringToNull.optional(),
+  thicknessGroove: z.number().nullable().optional(),
+  thicknessFillet: z.number().nullable().optional(),
+  diameter: z.number().nullable().optional(),
+  fillerMetalSpec: emptyStringToNull.optional(),
+  fillerClass: emptyStringToNull.optional(),
+  shieldingGas: emptyStringToNull.optional(),
   flowRate: z.number().optional().nullable(),
-  currentType: z.string().optional().nullable(),
+  currentType: emptyStringToNull.optional(),
   preheatTempMin: z.number().int().optional().nullable(),
   interpassTempMin: z.number().int().optional().nullable(),
   interpassTempMax: z.number().int().optional().nullable(),
   postWeldTemp: z.number().int().optional().nullable(),
-  position: z.string().optional().nullable(),
-  jointType: z.string().optional().nullable(),
+  position: emptyStringToNull.optional(),
+  jointType: emptyStringToNull.optional(),
   grooveAngle: z.number().int().optional().nullable(),
   rootOpening: z.number().optional().nullable(),
-  backingType: z.string().optional().nullable(),
-  remarks: z.string().optional().nullable(),
-  approvedById: z.string().uuid().optional().nullable(),
-  clientApprovedBy: z.string().optional().nullable(),
+  backingType: emptyStringToNull.optional(),
+  remarks: emptyStringToNull.optional(),
+  approvedById: z.string().uuid().nullable().or(z.literal('')).transform(val => val === '' ? null : val).optional(),
+  clientApprovedBy: emptyStringToNull.optional(),
 });
 
 export async function GET(req: Request) {

@@ -66,8 +66,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('general');
-  
-  // Form state
+  const [imagePreview, setImagePreview] = useState<string | null>(wps?.jointDiagram || null);
   const [selectedProject, setSelectedProject] = useState(wps?.projectId || '');
   const [wpsNumber, setWpsNumber] = useState(wps?.wpsNumber || '');
   const [revision, setRevision] = useState(wps?.revision || 0);
@@ -125,35 +124,83 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
 
     const formData = new FormData(e.currentTarget);
     
+    // Helper to convert empty strings to null
+    const getStringOrNull = (value: string | null): string | null => {
+      return value && value.trim() !== '' ? value : null;
+    };
+
+    // Helper to parse numbers safely
+    const getNumberOrNull = (value: string | null, parser: (v: string) => number): number | null => {
+      if (!value || value.trim() === '') return null;
+      const parsed = parser(value);
+      return isNaN(parsed) ? null : parsed;
+    };
+
+    // Handle file upload first if present
+    let jointDiagramPath = wps?.jointDiagram || null;
+    const jointDiagramFile = formData.get('jointDiagram') as File;
+    if (jointDiagramFile && jointDiagramFile.size > 0) {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', jointDiagramFile);
+      uploadFormData.append('folder', 'wps-diagrams');
+      
+      try {
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          jointDiagramPath = uploadData.filePath;
+        }
+      } catch (uploadError) {
+        console.error('File upload error:', uploadError);
+      }
+    }
+
     const data = {
       wpsNumber,
-      revision: parseInt(formData.get('revision') as string) || 0,
+      revision: getNumberOrNull(formData.get('revision') as string, parseInt) ?? 0,
       projectId: selectedProject,
-      type: formData.get('type') as string,
+      type: (formData.get('type') as string) || 'CUSTOM',
       weldingProcess,
-      supportingPQR: formData.get('supportingPQR') as string || null,
-      baseMaterial: formData.get('baseMaterial') as string || null,
-      thicknessGroove: parseFloat(formData.get('thicknessGroove') as string) || null,
-      thicknessFillet: parseFloat(formData.get('thicknessFillet') as string) || null,
-      diameter: parseFloat(formData.get('diameter') as string) || null,
-      fillerMetalSpec: formData.get('fillerMetalSpec') as string || null,
-      fillerClass: formData.get('fillerClass') as string || null,
-      shieldingGas: formData.get('shieldingGas') as string || null,
-      flowRate: parseFloat(formData.get('flowRate') as string) || null,
-      currentType: formData.get('currentType') as string || null,
-      preheatTempMin: parseInt(formData.get('preheatTempMin') as string) || null,
-      interpassTempMin: parseInt(formData.get('interpassTempMin') as string) || null,
-      interpassTempMax: parseInt(formData.get('interpassTempMax') as string) || null,
-      postWeldTemp: parseInt(formData.get('postWeldTemp') as string) || null,
-      position: formData.get('position') as string || null,
-      jointType: formData.get('jointType') as string || null,
-      grooveAngle: parseInt(formData.get('grooveAngle') as string) || null,
-      rootOpening: parseFloat(formData.get('rootOpening') as string) || null,
-      backingType: formData.get('backingType') as string || null,
-      remarks: formData.get('remarks') as string || null,
-      approvedById: formData.get('approvedById') as string || null,
-      clientApprovedBy: formData.get('clientApprovedBy') as string || null,
+      supportingPQR: getStringOrNull(formData.get('supportingPQR') as string),
+      // New base metal fields
+      materialSpec: getStringOrNull(formData.get('materialSpec') as string),
+      materialGroup: getStringOrNull(formData.get('materialGroup') as string),
+      thicknessRange: getStringOrNull(formData.get('thicknessRange') as string),
+      baseMetalGroove: getStringOrNull(formData.get('baseMetalGroove') as string),
+      baseMetalFillet: getStringOrNull(formData.get('baseMetalFillet') as string),
+      materialThickness: getNumberOrNull(formData.get('materialThickness') as string, parseFloat),
+      jointDiagram: jointDiagramPath,
+      backingUsed: getStringOrNull(formData.get('backingUsed') as string),
+      backingType2: getStringOrNull(formData.get('backingType2') as string),
+      // Legacy fields
+      baseMaterial: getStringOrNull(formData.get('baseMaterial') as string),
+      thicknessGroove: getNumberOrNull(formData.get('thicknessGroove') as string, parseFloat),
+      thicknessFillet: getNumberOrNull(formData.get('thicknessFillet') as string, parseFloat),
+      diameter: getNumberOrNull(formData.get('diameter') as string, parseFloat),
+      fillerMetalSpec: getStringOrNull(formData.get('fillerMetalSpec') as string),
+      fillerClass: getStringOrNull(formData.get('fillerClass') as string),
+      shieldingGas: getStringOrNull(formData.get('shieldingGas') as string),
+      flowRate: getNumberOrNull(formData.get('flowRate') as string, parseFloat),
+      currentType: getStringOrNull(formData.get('currentType') as string),
+      preheatTempMin: getNumberOrNull(formData.get('preheatTempMin') as string, parseInt),
+      interpassTempMin: getNumberOrNull(formData.get('interpassTempMin') as string, parseInt),
+      interpassTempMax: getNumberOrNull(formData.get('interpassTempMax') as string, parseInt),
+      postWeldTemp: getNumberOrNull(formData.get('postWeldTemp') as string, parseInt),
+      position: getStringOrNull(formData.get('position') as string),
+      jointType: getStringOrNull(formData.get('jointType') as string),
+      grooveAngle: getNumberOrNull(formData.get('grooveAngle') as string, parseInt),
+      rootOpening: getNumberOrNull(formData.get('rootOpening') as string, parseFloat),
+      backingType: getStringOrNull(formData.get('backingType') as string),
+      remarks: getStringOrNull(formData.get('remarks') as string),
+      approvedById: getStringOrNull(formData.get('approvedById') as string),
+      clientApprovedBy: getStringOrNull(formData.get('clientApprovedBy') as string),
     };
+
+    console.log('Submitting WPS data:', data);
 
     try {
       // Create/Update WPS
@@ -165,7 +212,11 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
 
       if (!wpsResponse.ok) {
         const errorData = await wpsResponse.json();
-        throw new Error(errorData.error || 'Failed to save WPS');
+        console.error('WPS API Error:', errorData);
+        const errorMessage = errorData.details 
+          ? `${errorData.error}: ${JSON.stringify(errorData.details)}` 
+          : errorData.error || 'Failed to save WPS';
+        throw new Error(errorMessage);
       }
 
       const savedWPS = await wpsResponse.json();
@@ -344,59 +395,163 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
         <TabsContent value="base-metal" className="space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Joint Diagram</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="jointDiagram">Upload Joint Diagram</Label>
+                <Input
+                  id="jointDiagram"
+                  name="jointDiagram"
+                  type="file"
+                  accept="image/*"
+                  disabled={loading}
+                  className="cursor-pointer"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setImagePreview(reader.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Upload a photo or diagram showing joint configuration (e.g., B-U3-GF, TC-U5-GF)
+                </p>
+              </div>
+              
+              {imagePreview && (
+                <div className="mt-4">
+                  <Label>Preview</Label>
+                  <div className="mt-2 flex justify-center">
+                    <img 
+                      src={imagePreview} 
+                      alt="Joint Diagram Preview" 
+                      className="max-w-sm h-auto rounded-lg border shadow-sm"
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Backing & Type</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="backingUsed">Backing</Label>
+                  <select
+                    id="backingUsed"
+                    name="backingUsed"
+                    defaultValue={wps?.backingUsed || ''}
+                    disabled={loading}
+                    className="w-full h-10 px-3 rounded-md border bg-background"
+                  >
+                    <option value="">Select</option>
+                    <option value="YES">YES</option>
+                    <option value="NO">NO</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="backingType2">Type</Label>
+                  <select
+                    id="backingType2"
+                    name="backingType2"
+                    defaultValue={wps?.backingType2 || ''}
+                    disabled={loading}
+                    className="w-full h-10 px-3 rounded-md border bg-background"
+                  >
+                    <option value="">Select</option>
+                    <option value="Base Metal">Base Metal</option>
+                    <option value="Weld Metal">Weld Metal</option>
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Base Metal Specifications</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="baseMaterial">Base Material</Label>
+                <Label htmlFor="materialSpec">Material Spec:</Label>
                 <Input
-                  id="baseMaterial"
-                  name="baseMaterial"
-                  placeholder="e.g., ASTM A36 to ASTM A36"
-                  defaultValue={wps?.baseMaterial || ''}
+                  id="materialSpec"
+                  name="materialSpec"
+                  placeholder="e.g., ASTM A572 to ASTM A572"
+                  defaultValue={wps?.materialSpec || ''}
                   disabled={loading}
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="thicknessGroove">Thickness - Groove (in)</Label>
+                  <Label htmlFor="materialGroup">Material Group:</Label>
                   <Input
-                    id="thicknessGroove"
-                    name="thicknessGroove"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    defaultValue={wps?.thicknessGroove || ''}
+                    id="materialGroup"
+                    name="materialGroup"
+                    placeholder="e.g., I to I"
+                    defaultValue={wps?.materialGroup || ''}
                     disabled={loading}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="thicknessFillet">Thickness - Fillet (in)</Label>
+                  <Label htmlFor="thicknessRange">Thick. Range (mm):</Label>
                   <Input
-                    id="thicknessFillet"
-                    name="thicknessFillet"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    defaultValue={wps?.thicknessFillet || ''}
+                    id="thicknessRange"
+                    name="thicknessRange"
+                    placeholder="e.g., 3 mm to Unlimited"
+                    defaultValue={wps?.thicknessRange || ''}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="baseMetalGroove">Base Metal: Groove:</Label>
+                  <Input
+                    id="baseMetalGroove"
+                    name="baseMetalGroove"
+                    placeholder="e.g., With"
+                    defaultValue={wps?.baseMetalGroove || ''}
                     disabled={loading}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="diameter">Diameter (in)</Label>
+                  <Label htmlFor="baseMetalFillet">Fillet:</Label>
                   <Input
-                    id="diameter"
-                    name="diameter"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    defaultValue={wps?.diameter || ''}
+                    id="baseMetalFillet"
+                    name="baseMetalFillet"
+                    placeholder="e.g., N/A"
+                    defaultValue={wps?.baseMetalFillet || ''}
                     disabled={loading}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="materialThickness">Material Thick (mm)</Label>
+                <Input
+                  id="materialThickness"
+                  name="materialThickness"
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g., 20"
+                  defaultValue={wps?.materialThickness || ''}
+                  disabled={loading}
+                />
               </div>
             </CardContent>
           </Card>
@@ -444,7 +599,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="flowRate">Flow Rate (CFH)</Label>
+                  <Label htmlFor="flowRate">Flow Rate (L/min)</Label>
                   <Input
                     id="flowRate"
                     name="flowRate"
@@ -487,7 +642,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="preheatTempMin">Preheat Temp Min (°F)</Label>
+                  <Label htmlFor="preheatTempMin">Preheat Temp Min (°C)</Label>
                   <Input
                     id="preheatTempMin"
                     name="preheatTempMin"
@@ -499,7 +654,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="postWeldTemp">Post-Weld Temp (°F)</Label>
+                  <Label htmlFor="postWeldTemp">Post-Weld Temp (°C)</Label>
                   <Input
                     id="postWeldTemp"
                     name="postWeldTemp"
@@ -511,7 +666,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="interpassTempMin">Interpass Temp Min (°F)</Label>
+                  <Label htmlFor="interpassTempMin">Interpass Temp Min (°C)</Label>
                   <Input
                     id="interpassTempMin"
                     name="interpassTempMin"
@@ -523,7 +678,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="interpassTempMax">Interpass Temp Max (°F)</Label>
+                  <Label htmlFor="interpassTempMax">Interpass Temp Max (°C)</Label>
                   <Input
                     id="interpassTempMax"
                     name="interpassTempMax"
@@ -595,13 +750,13 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="rootOpening">Root Opening (in)</Label>
+                  <Label htmlFor="rootOpening">Root Opening (mm)</Label>
                   <Input
                     id="rootOpening"
                     name="rootOpening"
                     type="number"
-                    step="0.01"
-                    placeholder="0.00"
+                    step="0.1"
+                    placeholder="0.0"
                     defaultValue={wps?.rootOpening || ''}
                     disabled={loading}
                   />
@@ -659,12 +814,12 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                       <TableHead className="w-16">Layer</TableHead>
                       <TableHead>Process</TableHead>
                       <TableHead>Electrode Class</TableHead>
-                      <TableHead>Dia. (in)</TableHead>
+                      <TableHead>Dia. (mm)</TableHead>
                       <TableHead>Polarity</TableHead>
                       <TableHead>Amps</TableHead>
                       <TableHead>Volts</TableHead>
-                      <TableHead>Travel (in/min)</TableHead>
-                      <TableHead>Heat (kJ/in)</TableHead>
+                      <TableHead>Travel (mm/min)</TableHead>
+                      <TableHead>Heat (kJ/mm)</TableHead>
                       <TableHead className="w-16"></TableHead>
                     </TableRow>
                   </TableHeader>

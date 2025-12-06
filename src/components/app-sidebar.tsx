@@ -28,10 +28,12 @@ import {
   Activity,
   Calendar,
   AlertTriangle,
+  BookOpen,
   Target,
   TrendingUp,
   Wand2,
   Clock,
+  Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -110,22 +112,18 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    name: 'KPI & Performance',
-    icon: Activity,
+    name: 'Business Planning',
+    icon: Lightbulb,
     items: [
-      { name: 'KPI Dashboard', href: '/kpi/dashboard', icon: Activity },
-      { name: 'KPI Definitions', href: '/kpi/definitions', icon: List },
-      { name: 'Manual Entries', href: '/kpi/manual', icon: FileText },
-      { name: 'Alerts', href: '/kpi/alerts', icon: AlertTriangle },
-    ],
-  },
-  {
-    name: 'Initiatives',
-    icon: Target,
-    items: [
-      { name: 'All Initiatives', href: '/initiatives', icon: Target },
-      { name: 'Dashboard', href: '/initiatives/dashboard', icon: TrendingUp },
-      { name: 'New Initiative', href: '/initiatives/new', icon: Plus },
+      { name: 'Dashboard', href: '/business-planning/dashboard', icon: TrendingUp },
+      { name: '📖 Quick Guide', href: '/business-planning/guide', icon: BookOpen },
+      { name: 'Strategic Foundation', href: '/business-planning/foundation', icon: Target },
+      { name: 'SWOT Analysis', href: '/business-planning/swot', icon: Activity },
+      { name: 'Objectives (OKRs)', href: '/business-planning/objectives', icon: Target },
+      { name: 'KPIs', href: '/business-planning/kpis', icon: TrendingUp },
+      { name: 'Initiatives', href: '/business-planning/initiatives', icon: Lightbulb },
+      { name: 'Department Plans', href: '/business-planning/departments', icon: Network },
+      { name: 'Weekly Issues', href: '/business-planning/issues', icon: AlertTriangle },
     ],
   },
   {

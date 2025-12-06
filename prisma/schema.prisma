@@ -34,6 +34,9 @@ model Department {
   users       User[]
   tasks       Task[]
   initiatives Initiative[] @relation("InitiativeDepartment")
+  departmentPlans DepartmentPlan[] @relation("DepartmentPlanDept")
+  annualInitiatives AnnualInitiative[] @relation("AnnualInitiativeDepartment")
+  weeklyIssues WeeklyIssue[] @relation("WeeklyIssueDept")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -98,6 +101,17 @@ model User {
   submittedDocuments DocumentSubmission[] @relation("DocumentSubmitter")
   submittedRevisions DocumentRevision[] @relation("RevisionSubmitter")
   handledRevisions   DocumentRevision[] @relation("RevisionHandler")
+  ownedObjectives    CompanyObjective[] @relation("ObjectiveOwner")
+  keyResultProgress  KeyResultProgress[] @relation("KeyResultProgressRecorder")
+  ownedBSCKPIs       BalancedScorecardKPI[] @relation("BSCKPIOwner")
+  bscKPIMeasurements BSCKPIMeasurement[] @relation("BSCKPIMeasurementRecorder")
+  ownedAnnualInitiatives AnnualInitiative[] @relation("AnnualInitiativeOwner")
+  ownedDeptObjectives DepartmentObjective[] @relation("DeptObjectiveOwner")
+  ownedDeptKPIs      DepartmentKPI[] @relation("DeptKPIOwner")
+  deptKPIMeasurements DepartmentKPIMeasurement[] @relation("DeptKPIMeasurementRecorder")
+  ownedDeptInitiatives DepartmentInitiative[] @relation("DeptInitiativeOwner")
+  raisedWeeklyIssues WeeklyIssue[] @relation("WeeklyIssueRaisedBy")
+  assignedWeeklyIssues WeeklyIssue[] @relation("WeeklyIssueAssignedTo")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -398,9 +412,18 @@ model WPS {
   
   // Base Material
   baseMaterial          String?       // e.g., "ASTM A36 to ASTM A36"
-  thicknessGroove       Decimal?      @db.Decimal(10, 2) // inches or mm
-  thicknessFillet       Decimal?      @db.Decimal(10, 2)
-  diameter              Decimal?      @db.Decimal(10, 2)
+  materialSpec          String?       // Material Spec (e.g., "ASTM A572 to ASTM A572")
+  materialGroup         String?       // Material Group (e.g., "I to I")
+  thicknessRange        String?       // Thickness Range (e.g., "3 mm to Unlimited")
+  baseMetalGroove       String?       // Base Metal Groove (e.g., "With")
+  baseMetalFillet       String?       // Base Metal Fillet (e.g., "N/A")
+  materialThickness     Decimal?      @db.Decimal(10, 2) // Material Thickness in mm
+  jointDiagram          String?       // Path to uploaded joint diagram image
+  backingUsed           String?       // Backing: YES or NO
+  backingType2          String?       // Type: Base Metal or Weld Metal
+  thicknessGroove       Decimal?      @db.Decimal(10, 2) // inches or mm (legacy)
+  thicknessFillet       Decimal?      @db.Decimal(10, 2) // (legacy)
+  diameter              Decimal?      @db.Decimal(10, 2) // (legacy)
   
   // Filler Metal
   fillerMetalSpec       String?       // e.g., "AWS A5.1"
@@ -1428,4 +1451,406 @@ model SystemVersion {
   @@index([deployedAt])
   @@index([version])
   @@map("system_versions")
+}
+
+// ============================================
+// BUSINESS PLANNING MODULE (HSPS)
+// Hexa Strategic Planning System
+// ============================================
+
+// A. Strategic Foundation (Static - Company Level)
+model StrategicFoundation {
+  id                String   @id @default(uuid()) @db.Char(36)
+  vision            String   @db.Text // Company vision statement
+  mission           String   @db.Text // Company mission statement
+  coreValues        Json     // Array of core values (DNA)
+  bhag              String?  @db.Text // Big Hairy Audacious Goal (10-25 years)
+  threeYearOutlook  String?  @db.Text // 3-year picture
+  strategicPillars  Json?    // Array of strategic pillars/principles
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("strategic_foundation")
+}
+
+// B. SWOT Analysis (Per Year)
+model SwotAnalysis {
+  id                String   @id @default(uuid()) @db.Char(36)
+  year              Int      // e.g., 2025
+  strengths         Json     // Array of strength items
+  weaknesses        Json     // Array of weakness items
+  opportunities     Json     // Array of opportunity items
+  threats           Json     // Array of threat items
+  strategies        Json?    // Recommended strategies derived from SWOT
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([year])
+  @@map("swot_analysis")
+}
+
+// C. Annual Plans (DEPRECATED - Kept for historical reference only)
+// NOTE: Objectives are now top-level, not under annual plans
+// This table is kept for backward compatibility but is no longer the primary structure
+model AnnualPlan {
+  id                String   @id @default(uuid()) @db.Char(36)
+  year              Int      // e.g., 2025, 2026
+  theme             String   // Main theme for the year (e.g., "Digital Transformation & Operational Excellence")
+  strategicPriorities Json?  // Array of 3-7 key priorities for the year
+  status            String   @default("Draft") // Draft | Active | Completed | Archived
+  
+  departmentPlans   DepartmentPlan[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([year])
+  @@index([year])
+  @@index([status])
+  @@map("annual_plans")
+}
+
+// Company Objectives (OKRs) - TOP LEVEL
+// Objectives define WHAT Hexa Steel must achieve
+model CompanyObjective {
+  id                String   @id @default(uuid()) @db.Char(36)
+  year              Int      // Year this objective applies to (e.g., 2026)
+  title             String
+  description       String?  @db.Text
+  category          String   // Financial | Customer | Internal Process | Learning & Growth
+  ownerId           String   @db.Char(36)
+  tags              Json?    // Array of tags (strategy pillar, department)
+  priority          String   @default("Medium") // Low | Medium | High | Critical
+  status            String   @default("Not Started") // Not Started | On Track | At Risk | Behind | Completed
+  progress          Float    @default(0) // 0-100%
+  quarterlyActions  Json?    // Q1-Q4 action plans: {Q1: [], Q2: [], Q3: [], Q4: []}
+  
+  owner             User       @relation("ObjectiveOwner", fields: [ownerId], references: [id])
+  keyResults        KeyResult[]
+  departmentObjectives DepartmentObjective[]
+  initiatives       AnnualInitiative[]
+  kpis              BalancedScorecardKPI[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([year])
+  @@index([ownerId])
+  @@index([category])
+  @@index([status])
+  @@map("company_objectives")
+}
+
+// Key Results (Measurable outcomes for OKRs)
+model KeyResult {
+  id                String   @id @default(uuid()) @db.Char(36)
+  objectiveId       String   @db.Char(36)
+  title             String
+  description       String?  @db.Text
+  targetValue       Float    // Target number
+  currentValue      Float    @default(0) // Current progress value
+  unit              String   // %, count, $, tons, etc.
+  measurementType   String   @default("Numeric") // Numeric | Milestone | Boolean
+  status            String   @default("Not Started") // Not Started | On Track | At Risk | Behind | Completed
+  dueDate           DateTime?
+  
+  objective         CompanyObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  progressUpdates   KeyResultProgress[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([objectiveId])
+  @@index([status])
+  @@map("key_results")
+}
+
+// Progress tracking for Key Results
+model KeyResultProgress {
+  id                String   @id @default(uuid()) @db.Char(36)
+  keyResultId       String   @db.Char(36)
+  value             Float
+  notes             String?  @db.Text
+  recordedBy        String   @db.Char(36)
+  recordedDate      DateTime @default(now())
+  
+  keyResult         KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  recordedByUser    User      @relation("KeyResultProgressRecorder", fields: [recordedBy], references: [id])
+  
+  @@index([keyResultId])
+  @@index([recordedDate])
+  @@map("key_result_progress")
+}
+
+// Balanced Scorecard KPIs (Company Level)
+// KPIs measure progress toward objectives
+model BalancedScorecardKPI {
+  id                String   @id @default(uuid()) @db.Char(36)
+  year              Int      // Year this KPI applies to
+  objectiveId       String?  @db.Char(36) // Optional link to specific objective
+  name              String
+  description       String?  @db.Text
+  category          String   // Financial | Customer | Internal Process | Learning & Growth
+  targetValue       Float
+  currentValue      Float    @default(0)
+  unit              String   // %, $, count, tons, etc.
+  frequency         String   // Monthly | Quarterly | Annually
+  ownerId           String   @db.Char(36)
+  formula           String?  @db.Text // Calculation formula or data source
+  status            String   @default("On Track") // On Track | At Risk | Behind
+  
+  objective         CompanyObjective? @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
+  owner             User       @relation("BSCKPIOwner", fields: [ownerId], references: [id])
+  measurements      BSCKPIMeasurement[]
+  departmentKPIs    DepartmentKPI[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([year])
+  @@index([objectiveId])
+  @@index([category])
+  @@index([ownerId])
+  @@index([status])
+  @@map("balanced_scorecard_kpis")
+}
+
+// KPI Measurements (tracking over time)
+model BSCKPIMeasurement {
+  id                String   @id @default(uuid()) @db.Char(36)
+  kpiId             String   @db.Char(36)
+  value             Float
+  period            String   // e.g., "2025-Q1", "2025-01"
+  notes             String?  @db.Text
+  recordedBy        String   @db.Char(36)
+  recordedDate      DateTime @default(now())
+  
+  kpi               BalancedScorecardKPI @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  recordedByUser    User                 @relation("BSCKPIMeasurementRecorder", fields: [recordedBy], references: [id])
+  
+  @@index([kpiId])
+  @@index([period])
+  @@index([recordedDate])
+  @@map("bsc_kpi_measurements")
+}
+
+// Annual Initiatives (Strategic Projects)
+// Initiatives define HOW objectives will be achieved
+model AnnualInitiative {
+  id                String   @id @default(uuid()) @db.Char(36)
+  year              Int      // Year this initiative applies to
+  objectiveId       String   @db.Char(36) // Must link to company objective
+  name              String
+  description       String?  @db.Text
+  expectedImpact    String?  @db.Text
+  startDate         DateTime?
+  endDate           DateTime?
+  ownerId           String   @db.Char(36)
+  departmentId      String?  @db.Char(36)
+  status            String   @default("Planned") // Planned | In Progress | On Hold | Completed | Cancelled
+  progress          Float    @default(0) // 0-100%
+  budget            Float?   @default(0)
+  
+  objective         CompanyObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  owner             User             @relation("AnnualInitiativeOwner", fields: [ownerId], references: [id])
+  department        Department?      @relation("AnnualInitiativeDepartment", fields: [departmentId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([year])
+  @@index([objectiveId])
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([status])
+  @@map("annual_initiatives")
+}
+
+// D. Department Plans (Per Year, Per Department)
+model DepartmentPlan {
+  id                String   @id @default(uuid()) @db.Char(36)
+  annualPlanId      String   @db.Char(36)
+  departmentId      String   @db.Char(36)
+  year              Int
+  name              String?  @db.VarChar(255) // Plan name/title to distinguish multiple plans
+  vision            String?  @db.Text // Department strategic focus for this plan
+  priorities        Json?    // Array of department priorities
+  risks             Json?    // Array of risks and blockers
+  dependencies      Json?    // Array of dependencies with other teams
+  
+  annualPlan        AnnualPlan @relation(fields: [annualPlanId], references: [id], onDelete: Cascade)
+  department        Department @relation("DepartmentPlanDept", fields: [departmentId], references: [id])
+  objectives        DepartmentObjective[]
+  kpis              DepartmentKPI[]
+  initiatives       DepartmentInitiative[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([annualPlanId])
+  @@index([departmentId])
+  @@index([year])
+  @@map("department_plans")
+}
+
+// Department Objectives (aligned to Company OKRs)
+model DepartmentObjective {
+  id                String   @id @default(uuid()) @db.Char(36)
+  departmentPlanId  String   @db.Char(36)
+  companyObjectiveId String? @db.Char(36) // Linked to company objective
+  title             String
+  description       String?  @db.Text
+  ownerId           String   @db.Char(36)
+  status            String   @default("Not Started") // Not Started | On Track | At Risk | Behind | Completed
+  progress          Float    @default(0) // 0-100%
+  
+  departmentPlan    DepartmentPlan    @relation(fields: [departmentPlanId], references: [id], onDelete: Cascade)
+  companyObjective  CompanyObjective? @relation(fields: [companyObjectiveId], references: [id], onDelete: SetNull)
+  owner             User              @relation("DeptObjectiveOwner", fields: [ownerId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([departmentPlanId])
+  @@index([companyObjectiveId])
+  @@index([ownerId])
+  @@index([status])
+  @@map("department_objectives")
+}
+
+// Department KPIs (BSC-aligned)
+model DepartmentKPI {
+  id                String   @id @default(uuid()) @db.Char(36)
+  departmentPlanId  String   @db.Char(36)
+  companyKPIId      String?  @db.Char(36) // Linked to company BSC KPI
+  name              String
+  description       String?  @db.Text
+  category          String   // Financial | Customer | Internal Process | Learning & Growth
+  targetValue       Float
+  currentValue      Float    @default(0)
+  unit              String
+  frequency         String   // Monthly | Quarterly
+  ownerId           String   @db.Char(36)
+  status            String   @default("On Track") // On Track | At Risk | Behind
+  
+  departmentPlan    DepartmentPlan        @relation(fields: [departmentPlanId], references: [id], onDelete: Cascade)
+  companyKPI        BalancedScorecardKPI? @relation(fields: [companyKPIId], references: [id], onDelete: SetNull)
+  owner             User                  @relation("DeptKPIOwner", fields: [ownerId], references: [id])
+  measurements      DepartmentKPIMeasurement[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([departmentPlanId])
+  @@index([companyKPIId])
+  @@index([ownerId])
+  @@index([category])
+  @@index([status])
+  @@map("department_kpis")
+}
+
+// Department KPI Measurements
+model DepartmentKPIMeasurement {
+  id                String   @id @default(uuid()) @db.Char(36)
+  kpiId             String   @db.Char(36)
+  value             Float
+  period            String   // e.g., "2025-Q1", "2025-01"
+  notes             String?  @db.Text
+  recordedBy        String   @db.Char(36)
+  recordedDate      DateTime @default(now())
+  
+  kpi               DepartmentKPI @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  recordedByUser    User          @relation("DeptKPIMeasurementRecorder", fields: [recordedBy], references: [id])
+  
+  @@index([kpiId])
+  @@index([period])
+  @@index([recordedDate])
+  @@map("department_kpi_measurements")
+}
+
+// Department Initiatives
+model DepartmentInitiative {
+  id                String   @id @default(uuid()) @db.Char(36)
+  departmentPlanId  String   @db.Char(36)
+  name              String
+  description       String?  @db.Text
+  startDate         DateTime?
+  endDate           DateTime?
+  ownerId           String   @db.Char(36)
+  status            String   @default("Planned") // Planned | In Progress | On Hold | Completed | Cancelled
+  progress          Float    @default(0) // 0-100%
+  
+  departmentPlan    DepartmentPlan @relation(fields: [departmentPlanId], references: [id], onDelete: Cascade)
+  owner             User           @relation("DeptInitiativeOwner", fields: [ownerId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([departmentPlanId])
+  @@index([ownerId])
+  @@index([status])
+  @@map("department_initiatives")
+}
+
+// E. Execution Layer - Weekly Issues (EOS Style)
+model WeeklyIssue {
+  id                String   @id @default(uuid()) @db.Char(36)
+  title             String
+  description       String?  @db.Text
+  departmentId      String?  @db.Char(36)
+  raisedById        String   @db.Char(36)
+  assignedToId      String?  @db.Char(36)
+  priority          String   @default("Medium") // Low | Medium | High | Critical
+  status            String   @default("Open") // Open | In Progress | Resolved | Closed
+  dueDate           DateTime?
+  resolvedDate      DateTime?
+  resolution        String?  @db.Text
+  
+  department        Department? @relation("WeeklyIssueDept", fields: [departmentId], references: [id])
+  raisedBy          User        @relation("WeeklyIssueRaisedBy", fields: [raisedById], references: [id])
+  assignedTo        User?       @relation("WeeklyIssueAssignedTo", fields: [assignedToId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([departmentId])
+  @@index([raisedById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@map("weekly_issues")
+}
+
+// System Settings
+model SystemSettings {
+  id                String   @id @default(uuid()) @db.Char(36)
+  
+  // Company Information
+  companyName       String   @default("HEXA STEEL")
+  companyTagline    String   @default("THRIVE DIFFERENT")
+  companyLogo       String?  // Path to logo file
+  companyAddress    String?  @db.Text
+  companyPhone      String?
+  companyEmail      String?
+  companyWebsite    String?
+  
+  // Report Settings
+  defaultReportTheme String  @default("blue") // blue | green | orange | purple | red
+  reportFooterText   String  @default("HEXA STEEL - Professional Report")
+  
+  // System Settings
+  dateFormat        String   @default("DD-MM-YYYY")
+  timezone          String   @default("UTC+03:00")
+  currency          String   @default("SAR")
+  
+  // Notification Settings
+  emailNotifications Boolean @default(true)
+  smsNotifications   Boolean @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("system_settings")
 }

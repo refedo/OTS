@@ -13,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Edit, FileText, CheckCircle, Clock } from 'lucide-react';
+import { Edit, CheckCircle, Clock } from 'lucide-react';
+import { WPSExportButton } from '@/components/wps-export-button';
 
 export default async function WPSDetailsPage({ params }: { params: { id: string } }) {
   const store = await cookies();
@@ -102,10 +103,7 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
                 </Button>
               </Link>
             )}
-            <Button variant="outline">
-              <FileText className="mr-2 h-4 w-4" />
-              Export PDF
-            </Button>
+            <WPSExportButton wps={wps} />
           </div>
         </div>
 
@@ -160,34 +158,96 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
             </CardContent>
           </Card>
 
+          {/* Joint Diagram */}
+          {wps.jointDiagram && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Joint Diagram</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center">
+                  <a 
+                    href={wps.jointDiagram} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                  >
+                    <img 
+                      src={wps.jointDiagram} 
+                      alt="Joint Diagram" 
+                      className="max-w-md h-auto rounded-lg border shadow-sm hover:shadow-md transition-shadow"
+                      title="Click to enlarge"
+                    />
+                  </a>
+                </div>
+                <p className="text-xs text-center text-muted-foreground mt-2">
+                  Click image to view full size
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Backing & Type */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Backing & Type</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {wps.backingUsed && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Backing</p>
+                  <p className="font-medium">{wps.backingUsed}</p>
+                </div>
+              )}
+              {wps.backingType2 && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Type</p>
+                  <p className="font-medium">{wps.backingType2}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Base Metal */}
           <Card>
             <CardHeader>
               <CardTitle>Base Metal</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {wps.baseMaterial && (
+              {wps.materialSpec && (
                 <div className="md:col-span-2">
-                  <p className="text-sm text-muted-foreground">Base Material</p>
-                  <p className="font-medium">{wps.baseMaterial}</p>
+                  <p className="text-sm text-muted-foreground">Material Spec:</p>
+                  <p className="font-medium">{wps.materialSpec}</p>
                 </div>
               )}
-              {wps.thicknessGroove && (
+              {wps.materialGroup && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Thickness - Groove</p>
-                  <p className="font-medium">{wps.thicknessGroove} in</p>
+                  <p className="text-sm text-muted-foreground">Material Group:</p>
+                  <p className="font-medium">{wps.materialGroup}</p>
                 </div>
               )}
-              {wps.thicknessFillet && (
+              {wps.thicknessRange && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Thickness - Fillet</p>
-                  <p className="font-medium">{wps.thicknessFillet} in</p>
+                  <p className="text-sm text-muted-foreground">Thick. Range (mm):</p>
+                  <p className="font-medium">{wps.thicknessRange}</p>
                 </div>
               )}
-              {wps.diameter && (
+              {wps.baseMetalGroove && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Diameter</p>
-                  <p className="font-medium">{wps.diameter} in</p>
+                  <p className="text-sm text-muted-foreground">Base Metal: Groove:</p>
+                  <p className="font-medium">{wps.baseMetalGroove}</p>
+                </div>
+              )}
+              {wps.baseMetalFillet && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Fillet:</p>
+                  <p className="font-medium">{wps.baseMetalFillet}</p>
+                </div>
+              )}
+              {wps.materialThickness && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Material Thick (mm)</p>
+                  <p className="font-medium">{Number(wps.materialThickness)} mm</p>
                 </div>
               )}
             </CardContent>
@@ -220,7 +280,7 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               {wps.flowRate && (
                 <div>
                   <p className="text-sm text-muted-foreground">Flow Rate</p>
-                  <p className="font-medium">{wps.flowRate} CFH</p>
+                  <p className="font-medium">{Number(wps.flowRate)} L/min</p>
                 </div>
               )}
             </CardContent>
@@ -241,25 +301,25 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               {wps.preheatTempMin && (
                 <div>
                   <p className="text-sm text-muted-foreground">Preheat Temperature Min</p>
-                  <p className="font-medium">{wps.preheatTempMin}°F</p>
+                  <p className="font-medium">{wps.preheatTempMin}°C</p>
                 </div>
               )}
               {wps.interpassTempMin && (
                 <div>
                   <p className="text-sm text-muted-foreground">Interpass Temperature Min</p>
-                  <p className="font-medium">{wps.interpassTempMin}°F</p>
+                  <p className="font-medium">{wps.interpassTempMin}°C</p>
                 </div>
               )}
               {wps.interpassTempMax && (
                 <div>
                   <p className="text-sm text-muted-foreground">Interpass Temperature Max</p>
-                  <p className="font-medium">{wps.interpassTempMax}°F</p>
+                  <p className="font-medium">{wps.interpassTempMax}°C</p>
                 </div>
               )}
               {wps.postWeldTemp && (
                 <div>
                   <p className="text-sm text-muted-foreground">Post-Weld Temperature</p>
-                  <p className="font-medium">{wps.postWeldTemp}°F</p>
+                  <p className="font-medium">{wps.postWeldTemp}°C</p>
                 </div>
               )}
             </CardContent>
@@ -292,7 +352,7 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               {wps.rootOpening && (
                 <div>
                   <p className="text-sm text-muted-foreground">Root Opening</p>
-                  <p className="font-medium">{wps.rootOpening} in</p>
+                  <p className="font-medium">{Number(wps.rootOpening)} mm</p>
                 </div>
               )}
               {wps.backingType && (
@@ -320,12 +380,12 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
                         <TableHead>Layer</TableHead>
                         <TableHead>Process</TableHead>
                         <TableHead>Electrode Class</TableHead>
-                        <TableHead>Diameter (in)</TableHead>
+                        <TableHead>Diameter (mm)</TableHead>
                         <TableHead>Polarity</TableHead>
                         <TableHead>Amperage</TableHead>
                         <TableHead>Voltage</TableHead>
-                        <TableHead>Travel Speed (in/min)</TableHead>
-                        <TableHead>Heat Input (kJ/in)</TableHead>
+                        <TableHead>Travel Speed (mm/min)</TableHead>
+                        <TableHead>Heat Input (kJ/mm)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -334,12 +394,12 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
                           <TableCell className="font-medium">{pass.layerNo}</TableCell>
                           <TableCell>{pass.process}</TableCell>
                           <TableCell>{pass.electrodeClass || '-'}</TableCell>
-                          <TableCell>{pass.diameter || '-'}</TableCell>
+                          <TableCell>{pass.diameter ? Number(pass.diameter) : '-'}</TableCell>
                           <TableCell>{pass.polarity || '-'}</TableCell>
                           <TableCell>{pass.amperage || '-'}</TableCell>
                           <TableCell>{pass.voltage || '-'}</TableCell>
-                          <TableCell>{pass.travelSpeed || '-'}</TableCell>
-                          <TableCell>{pass.heatInput || '-'}</TableCell>
+                          <TableCell>{pass.travelSpeed ? Number(pass.travelSpeed) : '-'}</TableCell>
+                          <TableCell>{pass.heatInput ? Number(pass.heatInput) : '-'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

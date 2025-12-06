@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { ProjectsClient } from '@/components/projects-client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Plus, Wand2 } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 
 export default async function ProjectsPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -17,6 +17,7 @@ export default async function ProjectsPage() {
   }
 
   const canCreate = ['Admin', 'Manager'].includes(session.role);
+  const canImportExport = ['Admin', 'PMO'].includes(session.role);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -29,14 +30,24 @@ export default async function ProjectsPage() {
               Manage and track all your projects
             </p>
           </div>
-          {canCreate && (
-            <Link href="/projects/wizard">
-              <Button>
-                <Plus className="size-4 mr-2" />
-                Create Project
-              </Button>
-            </Link>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {canImportExport && (
+              <Link href="/projects/migration">
+                <Button variant="outline">
+                  <Upload className="size-4 mr-2" />
+                  Import/Export
+                </Button>
+              </Link>
+            )}
+            {canCreate && (
+              <Link href="/projects/wizard">
+                <Button>
+                  <Plus className="size-4 mr-2" />
+                  Create Project
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Projects List */}
