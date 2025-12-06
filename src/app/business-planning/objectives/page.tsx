@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Target, Plus, TrendingUp, Activity, X } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Target, Plus, TrendingUp, Activity, X, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -22,6 +23,10 @@ export default function ObjectivesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [editingObjective, setEditingObjective] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [objectiveToDelete, setObjectiveToDelete] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
   
   const [formData, setFormData] = useState({
     year: new Date().getFullYear(),
@@ -102,18 +107,24 @@ export default function ObjectivesPage() {
 
     setSaving(true);
     try {
+      const method = editingObjective ? 'PUT' : 'POST';
+      const payload = editingObjective 
+        ? { ...formData, id: editingObjective.id }
+        : formData;
+
       const res = await fetch('/api/business-planning/objectives', {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         toast({
           title: 'Success',
-          description: 'Objective created successfully',
+          description: editingObjective ? 'Objective updated successfully' : 'Objective created successfully',
         });
         setDialogOpen(false);
+        setEditingObjective(null);
         setFormData({
           year: new Date().getFullYear(),
           title: '',
@@ -126,16 +137,84 @@ export default function ObjectivesPage() {
         });
         fetchObjectives();
       } else {
-        throw new Error('Failed to create objective');
+        throw new Error(editingObjective ? 'Failed to update objective' : 'Failed to create objective');
       }
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create objective',
+        description: editingObjective ? 'Failed to update objective' : 'Failed to create objective',
         variant: 'destructive',
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEdit = (objective: any) => {
+    setEditingObjective(objective);
+    setFormData({
+      year: objective.year,
+      title: objective.title,
+      description: objective.description || '',
+      category: objective.category,
+      ownerId: objective.ownerId,
+      priority: objective.priority,
+      keyResults: objective.keyResults.map((kr: any) => ({
+        title: kr.title,
+        targetValue: kr.targetValue,
+        currentValue: kr.currentValue,
+        unit: kr.unit,
+      })),
+      quarterlyActions: objective.quarterlyActions || { Q1: [], Q2: [], Q3: [], Q4: [] },
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!objectiveToDelete) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/business-planning/objectives?id=${objectiveToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        toast({
+          title: 'Success',
+          description: 'Objective deleted successfully',
+        });
+        setDeleteDialogOpen(false);
+        setObjectiveToDelete(null);
+        fetchObjectives();
+      } else {
+        throw new Error('Failed to delete objective');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete objective',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingObjective(null);
+      setFormData({
+        year: new Date().getFullYear(),
+        title: '',
+        description: '',
+        category: 'Financial',
+        ownerId: '',
+        priority: 'Medium',
+        keyResults: [],
+        quarterlyActions: { Q1: [], Q2: [], Q3: [], Q4: [] },
+      });
     }
   };
 
@@ -206,7 +285,7 @@ export default function ObjectivesPage() {
             </SelectContent>
           </Select>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -215,9 +294,9 @@ export default function ObjectivesPage() {
             </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Objective</DialogTitle>
+              <DialogTitle>{editingObjective ? 'Edit Objective' : 'Create New Objective'}</DialogTitle>
               <DialogDescription>
-                Define a company objective with measurable key results
+                {editingObjective ? 'Update the objective details and key results' : 'Define a company objective with measurable key results'}
               </DialogDescription>
             </DialogHeader>
             
@@ -382,11 +461,11 @@ export default function ObjectivesPage() {
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button variant="outline" onClick={() => handleDialogClose(false)}>
                 Cancel
               </Button>
               <Button onClick={handleSubmit} disabled={saving}>
-                {saving ? 'Creating...' : 'Create Objective'}
+                {saving ? (editingObjective ? 'Updating...' : 'Creating...') : (editingObjective ? 'Update Objective' : 'Create Objective')}
               </Button>
             </div>
           </DialogContent>
@@ -546,9 +625,28 @@ export default function ObjectivesPage() {
                   <span>•</span>
                   <span>{objective._count?.initiatives || 0} initiatives</span>
                 </div>
-                <Button variant="ghost" size="sm">
-                  View Details
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => handleEdit(objective)}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setObjectiveToDelete(objective);
+                      setDeleteDialogOpen(true);
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -560,13 +658,35 @@ export default function ObjectivesPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Target className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No objectives found</p>
-            <Button className="mt-4">
+            <Button className="mt-4" onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create First Objective
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Objective</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{objectiveToDelete?.title}"? This action cannot be undone and will also delete all associated key results.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
