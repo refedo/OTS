@@ -223,3 +223,45 @@ export async function POST(req: Request) {
     }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const idsParam = searchParams.get('ids');
+    
+    if (!idsParam) {
+      return NextResponse.json({ error: 'No log IDs provided' }, { status: 400 });
+    }
+
+    const ids = idsParam.split(',');
+
+    // Delete the production logs
+    const result = await prisma.productionLog.deleteMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      deletedCount: result.count,
+      message: `Successfully deleted ${result.count} production log(s)` 
+    });
+  } catch (error) {
+    console.error('Error deleting production logs:', error);
+    return NextResponse.json({ 
+      error: 'Failed to delete production logs', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
+  }
+}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Activity, Search, Filter, Package, FileCheck, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity, Search, Filter, Package, FileCheck, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { getProcessColor } from '@/lib/process-colors';
 import {
   Dialog,
@@ -17,6 +17,17 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type ProductionLog = {
   id: string;
@@ -64,6 +75,9 @@ export default function ProductionLogsPage() {
   const [qcStatusFilter, setQcStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [isProcessStatsCollapsed, setIsProcessStatsCollapsed] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchLogs();
@@ -240,6 +254,45 @@ export default function ProductionLogsPage() {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedLogs.size === 0) return;
+
+    setDeleting(true);
+    try {
+      const ids = Array.from(selectedLogs).join(',');
+      const response = await fetch(`/api/production/logs?ids=${ids}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: data.message || `Deleted ${data.deletedCount} production log(s)`,
+        });
+        setShowDeleteDialog(false);
+        setSelectedLogs(new Set());
+        fetchLogs();
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to delete production logs',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting production logs:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete production logs',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getQCStatusBadge = (status: string) => {
     switch (status) {
       case 'Pending Inspection':
@@ -349,10 +402,20 @@ export default function ProductionLogsPage() {
           </h1>
           <div className="flex gap-2">
             {selectedLogs.size > 0 && (
-              <Button onClick={handleRequestQC} variant="outline" size="sm">
-                <FileCheck className="mr-2 h-4 w-4" />
-                Request QC
-              </Button>
+              <>
+                <Button onClick={handleRequestQC} variant="outline" size="sm">
+                  <FileCheck className="mr-2 h-4 w-4" />
+                  Request QC
+                </Button>
+                <Button 
+                  onClick={() => setShowDeleteDialog(true)} 
+                  variant="destructive" 
+                  size="sm"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete ({selectedLogs.size})
+                </Button>
+              </>
             )}
             <Link href="/production/mass-log">
               <Button size="sm">
@@ -766,6 +829,38 @@ export default function ProductionLogsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Production Logs</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedLogs.size} production log(s)? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteSelected}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
