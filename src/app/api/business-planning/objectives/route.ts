@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET - Fetch Company Objectives
 export async function GET(request: NextRequest) {
@@ -15,6 +13,8 @@ export async function GET(request: NextRequest) {
     if (year) where.year = parseInt(year);
     if (category) where.category = category;
     if (status) where.status = status;
+
+    console.log('[Objectives API] Fetching with filters:', where);
 
     const objectives = await prisma.companyObjective.findMany({
       where,
@@ -40,11 +40,16 @@ export async function GET(request: NextRequest) {
       orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
     });
 
+    console.log(`[Objectives API] Found ${objectives.length} objectives`);
     return NextResponse.json(objectives);
   } catch (error) {
-    console.error('Error fetching objectives:', error);
+    console.error('[Objectives API] Error fetching objectives:', error);
+    console.error('[Objectives API] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch objectives' },
+      { error: 'Failed to fetch objectives', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

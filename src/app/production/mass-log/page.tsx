@@ -8,7 +8,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Activity, Loader2, CheckCircle, Search, Package, ArrowLeft } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Activity, Loader2, CheckCircle, Search, Package, ArrowLeft, Plus } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type AssemblyPart = {
   id: string;
@@ -50,15 +65,24 @@ const DISPATCH_TYPE_CODES: { [key: string]: string } = {
 
 export default function MassLogProductionPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [parts, setParts] = useState<AssemblyPart[]>([]);
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   const [selectedPartIds, setSelectedPartIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [processType, setProcessType] = useState('Preparation');
   const [partQuantities, setPartQuantities] = useState<{ [key: string]: number }>({});
   const [partBalances, setPartBalances] = useState<{ [key: string]: { processed: number; remaining: number } }>({});
   const [partReportNumbers, setPartReportNumbers] = useState<{ [key: string]: string }>({});
+  
+  // Quick add dialogs
+  const [showAddTeam, setShowAddTeam] = useState(false);
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newLocationName, setNewLocationName] = useState('');
 
   const [commonData, setCommonData] = useState({
     dateProcessed: new Date().toISOString().split('T')[0],
@@ -92,6 +116,7 @@ export default function MassLogProductionPage() {
 
   useEffect(() => {
     fetchParts();
+    fetchTeamsAndLocations();
   }, []);
 
   useEffect(() => {
@@ -127,6 +152,39 @@ export default function MassLogProductionPage() {
     }
   };
 
+  const fetchTeamsAndLocations = async () => {
+    try {
+      const [teamsRes, locationsRes] = await Promise.all([
+        fetch('/api/settings/production/teams?activeOnly=true'),
+        fetch('/api/settings/production/locations?activeOnly=true'),
+      ]);
+
+      if (teamsRes.ok) {
+        const teamsData = await teamsRes.json();
+        setTeams(teamsData);
+        
+        // Set default team if exists
+        const defaultTeam = teamsData.find((t: any) => t.isDefault);
+        if (defaultTeam) {
+          setCommonData(prev => ({ ...prev, processingTeam: defaultTeam.name }));
+        }
+      }
+
+      if (locationsRes.ok) {
+        const locationsData = await locationsRes.json();
+        setLocations(locationsData);
+        
+        // Set default location if exists
+        const defaultLocation = locationsData.find((l: any) => l.isDefault);
+        if (defaultLocation) {
+          setCommonData(prev => ({ ...prev, processingLocation: defaultLocation.name }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching teams and locations:', error);
+    }
+  };
+
   const calculateBalancesForAllParts = () => {
     const balances: { [key: string]: { processed: number; remaining: number } } = {};
     
@@ -142,6 +200,68 @@ export default function MassLogProductionPage() {
     }
     
     setPartBalances(balances);
+  };
+
+  const handleAddTeam = async () => {
+    if (!newTeamName.trim()) return;
+    
+    try {
+      const response = await fetch('/api/settings/production/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newTeamName, isActive: true }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add team');
+
+      const newTeam = await response.json();
+      setTeams([...teams, newTeam]);
+      setCommonData({ ...commonData, processingTeam: newTeam.name });
+      setNewTeamName('');
+      setShowAddTeam(false);
+      
+      toast({
+        title: 'Success',
+        description: 'Team added successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to add team',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAddLocation = async () => {
+    if (!newLocationName.trim()) return;
+    
+    try {
+      const response = await fetch('/api/settings/production/locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newLocationName, isActive: true }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add location');
+
+      const newLocation = await response.json();
+      setLocations([...locations, newLocation]);
+      setCommonData({ ...commonData, processingLocation: newLocation.name });
+      setNewLocationName('');
+      setShowAddLocation(false);
+      
+      toast({
+        title: 'Success',
+        description: 'Location added successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to add location',
+        variant: 'destructive',
+      });
+    }
   };
 
   const generateReportNumbersForSelectedParts = async () => {
@@ -310,6 +430,7 @@ export default function MassLogProductionPage() {
   const selectedParts = parts.filter(p => selectedPartIds.has(p.id));
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center gap-4">
           <Link href="/production/log">
@@ -532,29 +653,73 @@ export default function MassLogProductionPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="processingTeam">Processing Team</Label>
-                    <Input
-                      id="processingTeam"
-                      value={commonData.processingTeam}
-                      onChange={(e) =>
-                        setCommonData({ ...commonData, processingTeam: e.target.value })
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="processingTeam">Processing Team</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAddTeam(true)}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add New
+                      </Button>
+                    </div>
+                    <Select
+                      value={commonData.processingTeam || 'none'}
+                      onValueChange={(value) =>
+                        setCommonData({ ...commonData, processingTeam: value === 'none' ? '' : value })
                       }
-                      placeholder="e.g., Team A, Shift 1"
                       disabled={loading}
-                    />
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select team..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {teams.map((team) => (
+                          <SelectItem key={team.id} value={team.name}>
+                            {team.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="processingLocation">Processing Location</Label>
-                    <Input
-                      id="processingLocation"
-                      value={commonData.processingLocation}
-                      onChange={(e) =>
-                        setCommonData({ ...commonData, processingLocation: e.target.value })
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="processingLocation">Processing Location</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAddLocation(true)}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add New
+                      </Button>
+                    </div>
+                    <Select
+                      value={commonData.processingLocation || 'none'}
+                      onValueChange={(value) =>
+                        setCommonData({ ...commonData, processingLocation: value === 'none' ? '' : value })
                       }
-                      placeholder="e.g., Workshop A, Bay 3"
                       disabled={loading}
-                    />
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select location..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {locations.map((location) => (
+                          <SelectItem key={location.id} value={location.name}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -602,5 +767,74 @@ export default function MassLogProductionPage() {
           </div>
         </form>
     </div>
+
+      {/* Quick Add Team Dialog */}
+      <Dialog open={showAddTeam} onOpenChange={setShowAddTeam}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Team</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-team-name">Team Name *</Label>
+              <Input
+                id="new-team-name"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="e.g., Team A, Shift 1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddTeam();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowAddTeam(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleAddTeam} disabled={!newTeamName.trim()}>
+              Add Team
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add Location Dialog */}
+      <Dialog open={showAddLocation} onOpenChange={setShowAddLocation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Location</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-location-name">Location Name *</Label>
+              <Input
+                id="new-location-name"
+                value={newLocationName}
+                onChange={(e) => setNewLocationName(e.target.value)}
+                placeholder="e.g., Workshop A, Bay 3"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddLocation();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowAddLocation(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleAddLocation} disabled={!newLocationName.trim()}>
+              Add Location
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

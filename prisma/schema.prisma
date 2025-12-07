@@ -1854,3 +1854,27 @@ model SystemSettings {
   
   @@map("system_settings")
 }
+
+model ProcessingTeam {
+  id          String   @id @default(uuid()) @db.Char(36)
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("processing_teams")
+}
+
+model ProcessingLocation {
+  id          String   @id @default(uuid()) @db.Char(36)
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("processing_locations")
+}

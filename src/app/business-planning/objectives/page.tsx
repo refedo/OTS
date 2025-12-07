@@ -53,11 +53,20 @@ export default function ObjectivesPage() {
   const fetchObjectives = async () => {
     try {
       const res = await fetch(`/api/business-planning/objectives?year=${selectedYear}`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch objectives: ${res.status}`);
+      }
       const data = await res.json();
-      setObjectives(data);
+      setObjectives(Array.isArray(data) ? data : []);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching objectives:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load objectives. Please try again.',
+        variant: 'destructive',
+      });
+      setObjectives([]);
       setLoading(false);
     }
   };

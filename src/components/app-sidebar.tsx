@@ -67,7 +67,9 @@ const navigationSections: NavigationSection[] = [
       { name: 'Dispatch Reports', href: '/production/dispatch-reports', icon: FileText },
       { name: 'Daily Report (PDR)', href: '/production/reports/daily', icon: Calendar },
       { name: 'Period Report', href: '/production/reports/period', icon: TrendingUp },
+      { name: 'Status by Name', href: '/production/reports/status-by-name', icon: TrendingUp },
       { name: 'Mass Log', href: '/production/mass-log', icon: List },
+      { name: 'Production Settings', href: '/settings/production', icon: Settings },
     ],
   },
   {
