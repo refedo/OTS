@@ -85,6 +85,7 @@ export async function GET(req: Request) {
     const projectId = searchParams.get('projectId');
     const buildingId = searchParams.get('buildingId');
     const status = searchParams.get('status');
+    const includeLogs = searchParams.get('includeLogs') === 'true';
 
     const assemblyParts = await prisma.assemblyPart.findMany({
       where: {
@@ -102,6 +103,14 @@ export async function GET(req: Request) {
         createdBy: {
           select: { id: true, name: true },
         },
+        ...(includeLogs && {
+          productionLogs: {
+            select: {
+              processType: true,
+              processedQty: true,
+            },
+          },
+        }),
         _count: {
           select: { productionLogs: true },
         },

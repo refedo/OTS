@@ -20,6 +20,7 @@ type AssemblyPart = {
   status: string;
   project: { name: string; projectNumber: string; galvanized: boolean };
   building: { name: string; designation: string } | null;
+  productionLogs?: { processType: string; processedQty: number }[];
   _count: { productionLogs: number };
 };
 
@@ -94,11 +95,12 @@ export default function MassLogProductionPage() {
   }, []);
 
   useEffect(() => {
-    // Fetch balances for selected parts when process type changes
-    if (selectedPartIds.size > 0) {
-      fetchBalancesForSelectedParts();
+    // Calculate balances for all parts when process type or parts change
+    if (parts.length > 0) {
+      calculateBalancesForAllParts();
     }
-  }, [processType, selectedPartIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processType, parts]);
 
   useEffect(() => {
     // Generate report numbers for dispatch processes (except to customer)
@@ -115,7 +117,7 @@ export default function MassLogProductionPage() {
 
   const fetchParts = async () => {
     try {
-      const response = await fetch('/api/production/assembly-parts');
+      const response = await fetch('/api/production/assembly-parts?includeLogs=true');
       if (response.ok) {
         const data = await response.json();
         setParts(data);
@@ -125,26 +127,18 @@ export default function MassLogProductionPage() {
     }
   };
 
-  const fetchBalancesForSelectedParts = async () => {
+  const calculateBalancesForAllParts = () => {
     const balances: { [key: string]: { processed: number; remaining: number } } = {};
     
-    for (const partId of Array.from(selectedPartIds)) {
-      try {
-        const response = await fetch(`/api/production/assembly-parts/${partId}`);
-        if (response.ok) {
-          const data = await response.json();
-          const processed = data.productionLogs
-            .filter((log: any) => log.processType === processType)
-            .reduce((sum: number, log: any) => sum + log.processedQty, 0);
-          
-          balances[partId] = {
-            processed,
-            remaining: data.quantity - processed,
-          };
-        }
-      } catch (error) {
-        console.error(`Error fetching balance for part ${partId}:`, error);
-      }
+    for (const part of parts) {
+      const processed = (part.productionLogs || [])
+        .filter((log: any) => log.processType === processType)
+        .reduce((sum: number, log: any) => sum + log.processedQty, 0);
+      
+      balances[part.id] = {
+        processed,
+        remaining: part.quantity - processed,
+      };
     }
     
     setPartBalances(balances);
@@ -180,13 +174,41 @@ export default function MassLogProductionPage() {
   };
 
   const filteredParts = useMemo(() => {
-    if (!searchQuery) return parts;
-    return parts.filter(part =>
-      part.partDesignation.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      part.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      part.project.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [parts, searchQuery]);
+    // Filter out parts where remaining quantity for current process is 0
+    let availableParts = parts.filter(part => {
+      const balance = partBalances[part.id];
+      // If we have balance info, check if there's remaining quantity
+      if (balance) {
+        return balance.remaining > 0;
+      }
+      // If no balance info yet, include the part (it will be filtered after balance is fetched)
+      return true;
+    });
+    
+    if (!searchQuery) return availableParts;
+    
+    // Check if search query contains commas (multiple search terms)
+    if (searchQuery.includes(',')) {
+      const searchTerms = searchQuery.split(',').map(term => term.trim().toLowerCase()).filter(term => term.length > 0);
+      
+      // Part matches if it EXACTLY matches ANY of the search terms (case-insensitive)
+      return availableParts.filter(part => 
+        searchTerms.some(term => 
+          part.partDesignation.toLowerCase() === term ||
+          part.assemblyMark.toLowerCase() === term ||
+          part.partMark.toLowerCase() === term ||
+          part.name.toLowerCase() === term
+        )
+      );
+    } else {
+      // Single search term - use partial matching
+      const query = searchQuery.toLowerCase();
+      return availableParts.filter(part =>
+        part.partDesignation.toLowerCase().includes(query) ||
+        part.name.toLowerCase().includes(query)
+      );
+    }
+  }, [parts, searchQuery, partBalances]);
 
   const toggleSelectPart = (partId: string) => {
     const newSelected = new Set(selectedPartIds);
@@ -374,7 +396,7 @@ export default function MassLogProductionPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by part designation, name, or project..."
+                    placeholder="Search by part designation or name... (use commas for multiple parts)"
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}

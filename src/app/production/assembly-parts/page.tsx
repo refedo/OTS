@@ -35,6 +35,9 @@ type AssemblyPart = {
   currentProcess: string | null;
   project: { id: string; name: string; projectNumber: string };
   building: { id: string; name: string; designation: string } | null;
+  createdBy: { id: string; name: string };
+  createdAt: string;
+  updatedAt: string;
   _count: { productionLogs: number };
 };
 
@@ -420,6 +423,9 @@ export default function AssemblyPartsPage() {
                   <th className="p-3 text-left text-sm font-medium">Project</th>
                   <th className="p-3 text-left text-sm font-medium">Building</th>
                   <th className="p-3 text-left text-sm font-medium">Qty</th>
+                  <th className="p-3 text-left text-sm font-medium">Uploaded By</th>
+                  <th className="p-3 text-left text-sm font-medium">Upload Date</th>
+                  <th className="p-3 text-left text-sm font-medium">Last Updated</th>
                   <th className="p-3 text-left text-sm font-medium">Status</th>
                   <th className="p-3 text-left text-sm font-medium">Actions</th>
                 </tr>
@@ -445,6 +451,9 @@ export default function AssemblyPartsPage() {
                     <td className="p-3 text-sm">{part.project.name}</td>
                     <td className="p-3 text-sm">{part.building?.name || 'N/A'}</td>
                     <td className="p-3 text-sm">{part.quantity}</td>
+                    <td className="p-3 text-sm">{part.createdBy?.name || 'N/A'}</td>
+                    <td className="p-3 text-sm">{new Date(part.createdAt).toLocaleDateString()}</td>
+                    <td className="p-3 text-sm">{new Date(part.updatedAt).toLocaleDateString()}</td>
                     <td className="p-3">
                       <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${getStatusColor(part.status)}`}>
                         {getStatusIcon(part.status)}
