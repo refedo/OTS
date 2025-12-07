@@ -5,7 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Activity, Loader2, Download, Search } from 'lucide-react';
+import { Activity, Loader2, Download, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type Project = {
   id: string;
@@ -38,13 +48,14 @@ type PartStatus = {
 };
 
 const PROCESS_COLUMNS = [
-  { key: 'Preparation', label: 'Laser Cutting', color: 'bg-blue-500' },
-  { key: 'Fit-up', label: 'Fit-up', color: 'bg-purple-500' },
-  { key: 'Welding', label: 'Welding', color: 'bg-orange-500' },
-  { key: 'Visualization', label: 'Visual Progress', color: 'bg-yellow-500' },
-  { key: 'Sandblasting', label: 'Sandblasting', color: 'bg-gray-500' },
-  { key: 'Painting', label: 'Painting', color: 'bg-pink-500' },
-  { key: 'Galvanization', label: 'Galvanization', color: 'bg-cyan-500' },
+  { key: 'Preparation', label: 'Laser Cutting', color: 'bg-blue-600', textColor: 'text-white' },
+  { key: 'Fit-up', label: 'Fit-Up', color: 'bg-yellow-400', textColor: 'text-black' },
+  { key: 'Welding', label: 'Welding', color: 'bg-red-600', textColor: 'text-white' },
+  { key: 'Visualization', label: 'Visualization', color: 'bg-green-600', textColor: 'text-white' },
+  { key: 'Dispatch to Sandblasting', label: 'Dispatched to sandblasting', color: 'bg-cyan-500', textColor: 'text-white' },
+  { key: 'Dispatch to Galvanization', label: 'Dispatched to galvanization', color: 'bg-gray-500', textColor: 'text-white' },
+  { key: 'Dispatch to Customer', label: 'Dispatched to customer', color: 'bg-purple-600', textColor: 'text-white' },
+  { key: 'Painting', label: 'Painting', color: 'bg-orange-500', textColor: 'text-white' },
 ];
 
 export default function ProductionStatusPage() {
@@ -56,6 +67,21 @@ export default function ProductionStatusPage() {
   const [statusData, setStatusData] = useState<PartStatus[]>([]);
   const [projectData, setProjectData] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [selectedParts, setSelectedParts] = useState<Set<string>>(new Set());
+  const [showLogDialog, setShowLogDialog] = useState(false);
+  const [selectedProcess, setSelectedProcess] = useState('');
+  const [logging, setLogging] = useState(false);
+  const [commonData, setCommonData] = useState({
+    dateProcessed: new Date().toISOString().split('T')[0],
+    processingTeam: '',
+    processingLocation: '',
+  });
+  const [partQuantities, setPartQuantities] = useState<{[key: string]: number}>({});
+  const [partRemarks, setPartRemarks] = useState<{[key: string]: string}>({});
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchProjects();
@@ -142,18 +168,266 @@ export default function ProductionStatusPage() {
     alert('Export to Excel functionality - to be implemented');
   };
 
-  // Filter data based on search query
+  const handleSelectPart = (partId: string) => {
+    const newSelected = new Set(selectedParts);
+    if (newSelected.has(partId)) {
+      newSelected.delete(partId);
+    } else {
+      newSelected.add(partId);
+    }
+    setSelectedParts(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedParts.size === sortedData.length && sortedData.length > 0) {
+      setSelectedParts(new Set());
+    } else {
+      setSelectedParts(new Set(sortedData.map(part => part.id)));
+    }
+  };
+
+  const handleOpenLogDialog = () => {
+    if (selectedParts.size === 0) {
+      toast({
+        title: 'No parts selected',
+        description: 'Please select at least one part to log',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Initialize quantities for all selected parts
+    const initialQuantities: {[key: string]: number} = {};
+    selectedParts.forEach(partId => {
+      initialQuantities[partId] = 1;
+    });
+    setPartQuantities(initialQuantities);
+    setPartRemarks({});
+    setShowLogDialog(true);
+  };
+
+  const handleLogAllProduction = async () => {
+    if (!selectedProcess) {
+      toast({
+        title: 'No process selected',
+        description: 'Please select a process type',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const selectedPartsArray = sortedData.filter(part => selectedParts.has(part.id));
+    
+    setLogging(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      // Log all parts in parallel
+      const promises = selectedPartsArray.map(async (part) => {
+        try {
+          const payload = {
+            assemblyPartId: part.id,
+            processType: selectedProcess,
+            dateProcessed: commonData.dateProcessed,
+            processedQty: partQuantities[part.id] || 1,
+            processingTeam: commonData.processingTeam || null,
+            processingLocation: commonData.processingLocation || null,
+            remarks: partRemarks[part.id] || null,
+          };
+
+          console.log(`Logging ${part.partDesignation}:`, payload);
+
+          const response = await fetch('/api/production/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+          });
+
+          const responseText = await response.text();
+          console.log(`Response for ${part.partDesignation} (${response.status}):`, responseText);
+
+          if (!response.ok) {
+            let errorMessage = 'Unknown error';
+            try {
+              const error = JSON.parse(responseText);
+              errorMessage = error.error || error.message || JSON.stringify(error);
+            } catch (e) {
+              errorMessage = responseText || `HTTP ${response.status}`;
+            }
+            
+            console.error(`Failed to log ${part.partDesignation}:`, errorMessage);
+            errorCount++;
+            return { success: false, part: part.partDesignation, error: errorMessage };
+          }
+          
+          successCount++;
+          return { success: true, part: part.partDesignation };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Network error';
+          console.error(`Error logging ${part.partDesignation}:`, errorMsg);
+          errorCount++;
+          return { success: false, part: part.partDesignation, error: errorMsg };
+        }
+      });
+
+      const results = await Promise.all(promises);
+
+      // Collect error details
+      const errors = results.filter(r => !r.success);
+      const errorDetails = errors.map(e => `${e.part}: ${e.error}`).join('\n');
+
+      // Show results
+      if (errorCount === 0) {
+        toast({
+          title: 'Success',
+          description: `Successfully logged ${successCount} part(s)`,
+        });
+      } else {
+        // Show detailed error message
+        const errorMessage = `Logged ${successCount} part(s), ${errorCount} failed:\n\n${errorDetails}`;
+        
+        toast({
+          title: 'Partial Success',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        
+        // Also show alert for better visibility
+        alert(`Production Logging Results:\n\nSuccess: ${successCount}\nFailed: ${errorCount}\n\nErrors:\n${errorDetails}`);
+      }
+
+      // Close dialog and refresh
+      setShowLogDialog(false);
+      setSelectedParts(new Set());
+      setSelectedProcess('');
+      setPartQuantities({});
+      setPartRemarks({});
+      setCommonData({
+        dateProcessed: new Date().toISOString().split('T')[0],
+        processingTeam: '',
+        processingLocation: '',
+      });
+      fetchStatusReport();
+    } catch (error) {
+      console.error('Error logging production:', error);
+      toast({
+        title: 'Error',
+        description: 'An error occurred while logging production',
+        variant: 'destructive',
+      });
+    } finally {
+      setLogging(false);
+    }
+  };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 inline opacity-40" />;
+    }
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4 ml-1 inline" /> : 
+      <ArrowDown className="h-4 w-4 ml-1 inline" />;
+  };
+
+  // Filter and sort data
   const filteredData = statusData.filter((part) => {
     if (!searchQuery) return true;
     
-    const query = searchQuery.toLowerCase();
-    return (
-      part.partDesignation.toLowerCase().includes(query) ||
-      part.assemblyMark.toLowerCase().includes(query) ||
-      part.partMark.toLowerCase().includes(query) ||
-      part.name.toLowerCase().includes(query) ||
-      (part.profile && part.profile.toLowerCase().includes(query))
-    );
+    // Check if search query contains commas (multiple search terms)
+    if (searchQuery.includes(',')) {
+      const searchTerms = searchQuery.split(',').map(term => term.trim().toLowerCase()).filter(term => term.length > 0);
+      
+      // Part matches if it EXACTLY matches ANY of the search terms (case-insensitive)
+      return searchTerms.some(term => 
+        part.partDesignation.toLowerCase() === term ||
+        part.assemblyMark.toLowerCase() === term ||
+        part.partMark.toLowerCase() === term ||
+        part.name.toLowerCase() === term ||
+        (part.profile && part.profile.toLowerCase() === term)
+      );
+    } else {
+      // Single search term - use partial matching
+      const query = searchQuery.toLowerCase();
+      return (
+        part.partDesignation.toLowerCase().includes(query) ||
+        part.assemblyMark.toLowerCase().includes(query) ||
+        part.partMark.toLowerCase().includes(query) ||
+        part.name.toLowerCase().includes(query) ||
+        (part.profile && part.profile.toLowerCase().includes(query))
+      );
+    }
+  });
+
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (!sortColumn) return 0;
+
+    let aValue: any;
+    let bValue: any;
+
+    // Handle process columns
+    if (sortColumn.startsWith('process_')) {
+      const processKey = sortColumn.replace('process_', '');
+      aValue = a.processes[processKey]?.percentage || 0;
+      bValue = b.processes[processKey]?.percentage || 0;
+    } else {
+      // Handle regular columns
+      switch (sortColumn) {
+        case 'partDesignation':
+          aValue = a.partDesignation;
+          bValue = b.partDesignation;
+          break;
+        case 'assemblyMark':
+          aValue = a.assemblyMark;
+          bValue = b.assemblyMark;
+          break;
+        case 'name':
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case 'profile':
+          aValue = a.profile || '';
+          bValue = b.profile || '';
+          break;
+        case 'quantity':
+          aValue = a.quantity;
+          bValue = b.quantity;
+          break;
+        case 'processedQty':
+          aValue = a.processedQty;
+          bValue = b.processedQty;
+          break;
+        case 'weight':
+          aValue = a.weight || 0;
+          bValue = b.weight || 0;
+          break;
+        default:
+          return 0;
+      }
+    }
+
+    // Compare values
+    if (typeof aValue === 'string') {
+      return sortDirection === 'asc' 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    } else {
+      return sortDirection === 'asc' 
+        ? aValue - bValue
+        : bValue - aValue;
+    }
   });
 
   const totalQuantity = filteredData.reduce((sum, part) => sum + part.quantity, 0);
@@ -222,7 +496,7 @@ export default function ProductionStatusPage() {
                   <Input
                     id="search"
                     type="text"
-                    placeholder="Search by part designation, mark, name, or profile..."
+                    placeholder="Search by part designation, mark, name, or profile... (use commas for multiple parts)"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -232,6 +506,15 @@ export default function ProductionStatusPage() {
             </div>
             
             <div className="mt-4 flex items-center gap-2">
+              {selectedParts.size > 0 && (
+                <Button
+                  onClick={handleOpenLogDialog}
+                  variant="default"
+                >
+                  <Activity className="mr-2 h-4 w-4" />
+                  Log Production ({selectedParts.size})
+                </Button>
+              )}
               <Button
                 onClick={exportToExcel}
                 disabled={statusData.length === 0}
@@ -294,8 +577,8 @@ export default function ProductionStatusPage() {
                     <div>
                       <p className="text-sm text-muted-foreground">Total Items</p>
                       <p className="text-lg font-semibold">
-                        {filteredData.length}
-                        {searchQuery && statusData.length !== filteredData.length && (
+                        {sortedData.length}
+                        {searchQuery && statusData.length !== sortedData.length && (
                           <span className="text-sm text-muted-foreground ml-1">
                             / {statusData.length}
                           </span>
@@ -318,32 +601,93 @@ export default function ProductionStatusPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 sticky top-0">
                       <tr>
-                        <th className="px-3 py-3 text-left font-semibold border-r">Part Designation</th>
-                        <th className="px-3 py-3 text-left font-semibold border-r">Bundle</th>
+                        <th className="px-3 py-3 text-center font-semibold border-r">
+                          <button
+                            onClick={handleSelectAll}
+                            className="hover:opacity-70"
+                            title="Select/Deselect All"
+                          >
+                            {selectedParts.size === sortedData.length && sortedData.length > 0 ? (
+                              <CheckSquare className="h-5 w-5" />
+                            ) : (
+                              <Square className="h-5 w-5" />
+                            )}
+                          </button>
+                        </th>
+                        <th 
+                          className="px-3 py-3 text-left font-semibold border-r cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSort('partDesignation')}
+                        >
+                          Part Designation {getSortIcon('partDesignation')}
+                        </th>
+                        <th 
+                          className="px-3 py-3 text-left font-semibold border-r cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSort('assemblyMark')}
+                        >
+                          Bundle {getSortIcon('assemblyMark')}
+                        </th>
                         <th className="px-3 py-3 text-left font-semibold border-r">Building Name</th>
-                        <th className="px-3 py-3 text-left font-semibold border-r">Assembly Part</th>
-                        <th className="px-3 py-3 text-left font-semibold border-r">Profile</th>
-                        <th className="px-3 py-3 text-center font-semibold border-r">Qty</th>
-                        <th className="px-3 py-3 text-center font-semibold border-r">Processed Qty</th>
-                        <th className="px-3 py-3 text-center font-semibold border-r">Weight</th>
+                        <th 
+                          className="px-3 py-3 text-left font-semibold border-r cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSort('name')}
+                        >
+                          Assembly Part {getSortIcon('name')}
+                        </th>
+                        <th 
+                          className="px-3 py-3 text-left font-semibold border-r cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSort('profile')}
+                        >
+                          Profile {getSortIcon('profile')}
+                        </th>
+                        <th 
+                          className="px-3 py-3 text-center font-semibold border-r cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSort('quantity')}
+                        >
+                          Qty {getSortIcon('quantity')}
+                        </th>
+                        <th 
+                          className="px-3 py-3 text-center font-semibold border-r cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSort('processedQty')}
+                        >
+                          Processed Qty {getSortIcon('processedQty')}
+                        </th>
+                        <th 
+                          className="px-3 py-3 text-center font-semibold border-r cursor-pointer hover:bg-muted/70"
+                          onClick={() => handleSort('weight')}
+                        >
+                          Weight {getSortIcon('weight')}
+                        </th>
                         {PROCESS_COLUMNS.map((process) => (
                           <th
                             key={process.key}
-                            className="px-3 py-3 text-center font-semibold border-r min-w-[120px]"
+                            className={`px-3 py-3 text-center font-semibold border-r min-w-[120px] cursor-pointer hover:opacity-80 ${process.color} ${process.textColor}`}
+                            onClick={() => handleSort(`process_${process.key}`)}
                           >
-                            {process.label}
+                            {process.label} {getSortIcon(`process_${process.key}`)}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredData.map((part, index) => (
+                      {sortedData.map((part, index) => (
                         <tr
                           key={part.id}
                           className={`border-b hover:bg-muted/30 ${
                             index % 2 === 0 ? 'bg-white' : 'bg-muted/10'
-                          }`}
+                          } ${selectedParts.has(part.id) ? 'bg-blue-50' : ''}`}
                         >
+                          <td className="px-3 py-2 text-center border-r">
+                            <button
+                              onClick={() => handleSelectPart(part.id)}
+                              className="hover:opacity-70"
+                            >
+                              {selectedParts.has(part.id) ? (
+                                <CheckSquare className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <Square className="h-5 w-5" />
+                              )}
+                            </button>
+                          </td>
                           <td className="px-3 py-2 font-medium border-r">{part.partDesignation}</td>
                           <td className="px-3 py-2 border-r">{part.assemblyMark}</td>
                           <td className="px-3 py-2 border-r">{projectData?.building || '-'}</td>
@@ -382,6 +726,162 @@ export default function ProductionStatusPage() {
           </Card>
         </>
       )}
+
+      {/* Log Production Dialog */}
+      <Dialog open={showLogDialog} onOpenChange={setShowLogDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          {(() => {
+            const selectedPartsArray = sortedData.filter(part => selectedParts.has(part.id));
+            
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Log Production - {selectedPartsArray.length} Part(s)</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details below to log production for all selected parts
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-4">
+                  {/* Common Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="processType">Process Type *</Label>
+                      <select
+                        id="processType"
+                        value={selectedProcess}
+                        onChange={(e) => setSelectedProcess(e.target.value)}
+                        className="w-full h-10 px-3 rounded-md border bg-background"
+                      >
+                        <option value="">Select Process</option>
+                        <option value="Preparation">Preparation</option>
+                        <option value="Fit-up">Fit-up</option>
+                        <option value="Welding">Welding</option>
+                        <option value="Visualization">Visualization</option>
+                        <option value="Sandblasting">Sandblasting</option>
+                        <option value="Painting">Painting</option>
+                        <option value="Galvanization">Galvanization</option>
+                        <option value="Dispatched to Sandblasting">Dispatched to Sandblasting</option>
+                        <option value="Dispatched to Galvanization">Dispatched to Galvanization</option>
+                        <option value="Dispatched to Painting">Dispatched to Painting</option>
+                        <option value="Dispatched to Site">Dispatched to Site</option>
+                        <option value="Dispatched to Customer">Dispatched to Customer</option>
+                        <option value="Erection">Erection</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="dateProcessed">Date Processed *</Label>
+                      <Input
+                        id="dateProcessed"
+                        type="date"
+                        value={commonData.dateProcessed}
+                        onChange={(e) => setCommonData({ ...commonData, dateProcessed: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="processingTeam">Processing Team</Label>
+                      <Input
+                        id="processingTeam"
+                        value={commonData.processingTeam}
+                        onChange={(e) => setCommonData({ ...commonData, processingTeam: e.target.value })}
+                        placeholder="Team name"
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-3">
+                      <Label htmlFor="processingLocation">Processing Location</Label>
+                      <Input
+                        id="processingLocation"
+                        value={commonData.processingLocation}
+                        onChange={(e) => setCommonData({ ...commonData, processingLocation: e.target.value })}
+                        placeholder="Workshop, bay, or area"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Parts Table */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold">Part Designation</th>
+                          <th className="px-3 py-2 text-left font-semibold">Name</th>
+                          <th className="px-3 py-2 text-center font-semibold">Total Qty</th>
+                          <th className="px-3 py-2 text-center font-semibold">Qty to Log *</th>
+                          <th className="px-3 py-2 text-left font-semibold">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPartsArray.map((part, index) => (
+                          <tr key={part.id} className={index % 2 === 0 ? 'bg-white' : 'bg-muted/20'}>
+                            <td className="px-3 py-2 font-medium">{part.partDesignation}</td>
+                            <td className="px-3 py-2 text-sm">{part.name}</td>
+                            <td className="px-3 py-2 text-center">{part.quantity}</td>
+                            <td className="px-3 py-2">
+                              <Input
+                                type="number"
+                                min="1"
+                                max={part.quantity}
+                                value={partQuantities[part.id] || 1}
+                                onChange={(e) => setPartQuantities({
+                                  ...partQuantities,
+                                  [part.id]: parseInt(e.target.value) || 1
+                                })}
+                                className="w-20 text-center"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <Input
+                                value={partRemarks[part.id] || ''}
+                                onChange={(e) => setPartRemarks({
+                                  ...partRemarks,
+                                  [part.id]: e.target.value
+                                })}
+                                placeholder="Optional notes"
+                                className="w-full"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowLogDialog(false);
+                setSelectedProcess('');
+                setPartQuantities({});
+                setPartRemarks({});
+              }}
+              disabled={logging}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleLogAllProduction} disabled={!selectedProcess || logging}>
+              {logging ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging {selectedPartsArray.length} part(s)...
+                </>
+              ) : (
+                <>
+                  <Activity className="mr-2 h-4 w-4" />
+                  Log All ({selectedPartsArray.length})
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
