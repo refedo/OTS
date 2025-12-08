@@ -1,4 +1,7 @@
+'use client';
+
 import { AppSidebar } from '@/components/app-sidebar';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 
 export default function DocumentTimelineLayout({
   children,
@@ -6,9 +9,11 @@ export default function DocumentTimelineLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <AppSidebar />
-      <div className="lg:pl-64">{children}</div>
-    </>
+    <NotificationProvider>
+      <>
+        <AppSidebar />
+        <div className="lg:pl-64">{children}</div>
+      </>
+    </NotificationProvider>
   );
 }
