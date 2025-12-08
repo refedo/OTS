@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 type NavigationItem = {
   name: string;
@@ -56,8 +57,8 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Tasks', href: '/tasks', icon: ListChecks },
   { name: 'Notifications', href: '/notifications', icon: Bell },
+  { name: 'Tasks', href: '/tasks', icon: ListChecks },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
 
@@ -156,8 +157,8 @@ const navigationSections: NavigationSection[] = [
 export function AppSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const { unreadCount } = useNotifications();
   
   // Find which section contains the active route
   const getActiveSections = () => {
@@ -175,18 +176,6 @@ export function AppSidebar() {
   
   const [expandedSections, setExpandedSections] = useState<string[]>(getActiveSections());
 
-  // Fetch unread notification count
-  const fetchUnreadCount = async () => {
-    try {
-      const response = await fetch('/api/notifications?isRead=false&limit=1');
-      if (response.ok) {
-        const data = await response.json();
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
-    }
-  };
 
   // Update expanded sections when pathname changes
   useEffect(() => {
@@ -205,12 +194,9 @@ export function AppSidebar() {
     }
   }, [pathname]);
 
-  // Set mounted state and fetch unread count
+  // Set mounted state
   useEffect(() => {
     setIsMounted(true);
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000); // Every 30 seconds
-    return () => clearInterval(interval);
   }, []);
 
   const toggleSection = (sectionName: string) => {
@@ -385,7 +371,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-2 px-3 text-xs text-muted-foreground">
                 <p className="font-medium">Hexa Steel OTS</p>
-                <p>v1.1.0</p>
+                <p>v1.2.0</p>
               </div>
             )}
           </div>

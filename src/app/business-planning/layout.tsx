@@ -1,4 +1,7 @@
+'use client';
+
 import { AppSidebar } from "@/components/app-sidebar";
+import { NotificationProvider } from '@/contexts/NotificationContext';
 
 export default function BusinessPlanningLayout({
   children,
@@ -6,11 +9,13 @@ export default function BusinessPlanningLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <AppSidebar />
-      <main className="lg:pl-64 min-h-screen bg-gray-50">
-        {children}
-      </main>
-    </>
+    <NotificationProvider>
+      <>
+        <AppSidebar />
+        <main className="lg:pl-64 min-h-screen bg-gray-50">
+          {children}
+        </main>
+      </>
+    </NotificationProvider>
   );
 }

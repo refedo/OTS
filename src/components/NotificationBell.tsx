@@ -5,7 +5,7 @@
  * Displays notification icon with badge count and dropdown panel
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,32 +14,11 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import NotificationPanel from './NotificationPanel';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 export default function NotificationBell() {
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-
-  // Fetch unread count
-  const fetchUnreadCount = async () => {
-    try {
-      const response = await fetch('/api/notifications?isRead=false&limit=1');
-      if (response.ok) {
-        const data = await response.json();
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchUnreadCount();
-
-    // Poll every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const { unreadCount } = useNotifications();
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -53,8 +32,8 @@ export default function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end">
-        <NotificationPanel onClose={() => setIsOpen(false)} onUpdate={fetchUnreadCount} />
+      <PopoverContent className="w-[420px] p-0" align="end">
+        <NotificationPanel onClose={() => setIsOpen(false)} />
       </PopoverContent>
     </Popover>
   );

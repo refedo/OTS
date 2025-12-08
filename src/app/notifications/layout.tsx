@@ -1,4 +1,7 @@
+'use client';
+
 import { AppSidebar } from '@/components/app-sidebar';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 
 export default function NotificationsLayout({
   children,
@@ -6,11 +9,13 @@ export default function NotificationsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
-      <AppSidebar />
-      <div className="flex-1 lg:pl-64">
-        {children}
+    <NotificationProvider>
+      <div className="flex min-h-screen">
+        <AppSidebar />
+        <div className="flex-1 lg:pl-64">
+          {children}
+        </div>
       </div>
-    </div>
+    </NotificationProvider>
   );
 }

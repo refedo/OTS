@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 interface Notification {
   id: string;
@@ -38,14 +39,14 @@ interface Notification {
 
 interface NotificationPanelProps {
   onClose?: () => void;
-  onUpdate?: () => void;
 }
 
-export default function NotificationPanel({ onClose, onUpdate }: NotificationPanelProps) {
+export default function NotificationPanel({ onClose }: NotificationPanelProps) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('notifications');
+  const { refreshUnreadCount } = useNotifications();
 
   const fetchNotifications = async (filters: string = '') => {
     try {
@@ -71,17 +72,14 @@ export default function NotificationPanel({ onClose, onUpdate }: NotificationPan
     let filters = '';
 
     switch (tab) {
-      case 'unread':
-        filters = 'isRead=false&isArchived=false';
+      case 'tasks':
+        filters = 'type=TASK_ASSIGNED&isArchived=false';
         break;
       case 'approvals':
         filters = 'type=APPROVAL_REQUIRED&isArchived=false';
         break;
       case 'deadlines':
         filters = 'type=DEADLINE_WARNING&isArchived=false';
-        break;
-      case 'archived':
-        filters = 'isArchived=true';
         break;
       default:
         filters = 'isArchived=false';
@@ -100,7 +98,7 @@ export default function NotificationPanel({ onClose, onUpdate }: NotificationPan
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
         );
-        onUpdate?.();
+        refreshUnreadCount();
       }
     } catch (error) {
       console.error('Error marking as read:', error);
@@ -115,7 +113,7 @@ export default function NotificationPanel({ onClose, onUpdate }: NotificationPan
 
       if (response.ok) {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
-        onUpdate?.();
+        refreshUnreadCount();
       }
     } catch (error) {
       console.error('Error archiving notification:', error);
@@ -130,7 +128,7 @@ export default function NotificationPanel({ onClose, onUpdate }: NotificationPan
 
       if (response.ok) {
         fetchNotifications();
-        onUpdate?.();
+        refreshUnreadCount();
       }
     } catch (error) {
       console.error('Error marking all as read:', error);
@@ -216,24 +214,41 @@ export default function NotificationPanel({ onClose, onUpdate }: NotificationPan
   return (
     <div className="flex flex-col h-[500px]">
       {/* Header */}
-      <div className="p-4 border-b">
+      <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Notifications</h3>
-          <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-            <CheckCheck className="h-4 w-4 mr-2" />
-            Mark all read
+          <h3 className="font-semibold text-base">Notifications</h3>
+          <Button 
+            variant="link" 
+            size="sm" 
+            onClick={markAllAsRead}
+            className="text-blue-600 hover:text-blue-700 p-0 h-auto font-normal"
+          >
+            Mark as read
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
-        <TabsList className="w-full justify-start rounded-none border-b px-4">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="unread">Unread</TabsTrigger>
-          <TabsTrigger value="approvals">Approvals</TabsTrigger>
-          <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
-          <TabsTrigger value="archived">Archived</TabsTrigger>
+        <TabsList className="w-full justify-start rounded-none border-b px-4 bg-transparent h-auto p-0">
+          <TabsTrigger 
+            value="notifications" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-4 py-2"
+          >
+            Notifications
+          </TabsTrigger>
+          <TabsTrigger 
+            value="tasks" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-4 py-2"
+          >
+            Tasks
+          </TabsTrigger>
+          <TabsTrigger 
+            value="approvals" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-4 py-2"
+          >
+            Approvals
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="flex-1 m-0">
@@ -250,44 +265,36 @@ export default function NotificationPanel({ onClose, onUpdate }: NotificationPan
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-muted/50 cursor-pointer transition-colors ${
-                      !notification.isRead ? 'bg-blue-50/50' : ''
+                    className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${
+                      !notification.isRead ? 'border-l-green-500 bg-green-50/30' : 'border-l-transparent'
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        {getNotificationIcon(notification.type)}
+                      <div className="flex-shrink-0 mt-0.5">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          notification.type === 'APPROVED' ? 'bg-green-100' :
+                          notification.type === 'REJECTED' ? 'bg-blue-100' :
+                          notification.type === 'DEADLINE_WARNING' ? 'bg-orange-100' :
+                          'bg-blue-100'
+                        }`}>
+                          {getNotificationIcon(notification.type)}
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h4 className="font-medium text-sm">{notification.title}</h4>
-                          {!notification.isRead && (
-                            <div className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
-                          )}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-sm text-gray-900 mb-0.5">
+                              {notification.title}
+                            </h4>
+                            <p className="text-sm text-gray-600 line-clamp-2 mb-1">
+                              {notification.message}
+                            </p>
+                            <span className="text-xs text-gray-500">
+                              {formatTimeAgo(notification.createdAt)}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {notification.message}
-                        </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-muted-foreground">
-                            {formatTimeAgo(notification.createdAt)}
-                          </span>
-                          {getDeadlineBadge(notification.deadlineAt)}
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            archiveNotification(notification.id);
-                          }}
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   </div>

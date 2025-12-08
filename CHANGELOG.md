@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Project Dashboard Module** (v1.0)
+- **Project Dashboard Module** (v2.0)
   - Unified single-project dashboard showing all project data in one place
   - Dynamic project selector with deep linking support (`?projectId=xxx`)
   - 8 specialized widgets: ProjectHeader, WPS Status, ITP Status, Production Progress, QC Progress, Buildings Status, Documentation Status, Tasks Overview
@@ -22,6 +22,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Interactive charts for production and QC trends
   - Per-building status breakdown
   - Task filtering (all, my tasks, non-completed, completed)
+  - Enhanced widget performance with optimized data fetching
+  - Improved error handling and loading states
+  - Better mobile responsiveness
+
+- **Dashboard Widget System Updates**
+  - Standardized widget architecture across all dashboard types
+  - Consistent loading and error states
+  - Unified refresh mechanism for all widgets
+  - Improved data caching and performance
+  - Better visual consistency with updated color schemes
+  - Enhanced accessibility features
+
+- **Notification Center Enhancements** (v1.2)
+  - Real-time badge updates without page refresh
+  - Redesigned notification panel with improved UI/UX matching modern design patterns
+  - Tab reordering: Notifications tab now appears first before Tasks
+  - Enhanced visual design with colored circular icon backgrounds (green, blue, orange)
+  - Green left border indicator for unread notifications
+  - Improved notification icons and better visual hierarchy
+  - Better notification categorization and filtering
+  - Optimized performance with context-based state management
+  - Automatic unread count synchronization across all pages
+  - Polling mechanism for real-time updates (30-second intervals)
+  - Navigation reordering: Notifications moved before Tasks in sidebar
+  - NotificationContext provider for centralized state management
+  - Integrated across all 20+ authenticated layouts
+  - Immediate badge updates when marking notifications as read/archived
+  - Cleaner header design with blue "Mark as read" link button
+  - Improved tab styling with blue bottom border for active state
+
+### Changed
+- **Navigation Structure**
+  - Reordered main navigation: Dashboard → **Notifications** → Tasks → AI Assistant
+  - Previously: Dashboard → Tasks → Notifications → AI Assistant
+  - Notifications now more prominent in user workflow
+
+### Technical Improvements
+- **NotificationContext Architecture**
+  - Created centralized React Context for notification state management
+  - Eliminated redundant API calls across components
+  - Single source of truth for unread count
+  - Automatic cleanup and memory management
+  - Efficient re-rendering with optimized context updates
+
+- **Layout Integration**
+  - Added NotificationProvider to all authenticated layouts
+  - Prevents runtime errors across the application
+  - Ensures consistent notification state across all pages
+  - Supports nested routing without state loss
 
 ### Planned
 - **Reporting & Analytics Module**
@@ -216,5 +265,5 @@ For issues or questions about any version:
 
 ---
 
-**Current Version:** 1.1.0  
-**Last Updated:** December 8, 2024
+**Current Version:** 1.2.0  
+**Last Updated:** December 9, 2024
