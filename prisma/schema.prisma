@@ -98,6 +98,7 @@ model User {
   responsibleMilestones InitiativeMilestone[] @relation("MilestoneResponsible")
   assignedInitiativeTasks InitiativeTask[] @relation("InitiativeTaskAssignee")
   handledDocuments   DocumentSubmission[] @relation("DocumentHandler")
+  aiInteractions     AIInteraction[] @relation("UserAIInteractions")
   submittedDocuments DocumentSubmission[] @relation("DocumentSubmitter")
   submittedRevisions DocumentRevision[] @relation("RevisionSubmitter")
   handledRevisions   DocumentRevision[] @relation("RevisionHandler")
@@ -112,6 +113,8 @@ model User {
   ownedDeptInitiatives DepartmentInitiative[] @relation("DeptInitiativeOwner")
   raisedWeeklyIssues WeeklyIssue[] @relation("WeeklyIssueRaisedBy")
   assignedWeeklyIssues WeeklyIssue[] @relation("WeeklyIssueAssignedTo")
+  notifications      Notification[] @relation("UserNotifications")
+  dashboardWidgets   UserDashboardWidget[] @relation("UserDashboardWidgets")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -1877,4 +1880,102 @@ model ProcessingLocation {
   updatedAt   DateTime @updatedAt
   
   @@map("processing_locations")
+}
+
+// ============================================
+// AI ASSISTANT MODULE
+// ============================================
+
+model AIInteraction {
+  id              String   @id @default(uuid()) @db.Char(36)
+  userId          String   @db.Char(36)
+  conversationId  String?  @db.Char(36) // Group messages into conversations
+  role            String   // 'user' or 'assistant'
+  message         String   @db.LongText
+  response        String?  @db.LongText
+  contextType     String?  // 'projects' | 'tasks' | 'kpis' | 'initiatives' | 'departments'
+  contextMeta     Json?    // Store context data used for this interaction
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation("UserAIInteractions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("ai_interactions")
+}
+
+// ============================================
+// NOTIFICATION CENTER MODULE
+// ============================================
+
+enum NotificationType {
+  TASK_ASSIGNED
+  APPROVAL_REQUIRED
+  DEADLINE_WARNING
+  APPROVED
+  REJECTED
+  SYSTEM
+}
+
+model Notification {
+  id              String           @id @default(uuid()) @db.Char(36)
+  userId          String           @db.Char(36)
+  type            NotificationType
+  title           String
+  message         String           @db.Text
+  
+  // Related entity tracking (polymorphic)
+  relatedEntityType String?        // 'project' | 'building' | 'task' | 'rfi' | 'ncr' | 'qc' | 'document' | etc.
+  relatedEntityId   String?        @db.Char(36)
+  
+  // Status tracking
+  isRead          Boolean          @default(false)
+  readAt          DateTime?
+  isArchived      Boolean          @default(false)
+  archivedAt      DateTime?
+  
+  // Deadline tracking
+  deadlineAt      DateTime?
+  
+  // Additional metadata (JSON for flexibility)
+  metadata        Json?            // Store dynamic info like project name, building designation, etc.
+  
+  // Relations
+  user            User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([isArchived])
+  @@index([createdAt])
+  @@index([deadlineAt])
+  @@map("notifications")
+}
+
+// ============================================
+// DASHBOARD WIDGETS MODULE
+// ============================================
+
+model UserDashboardWidget {
+  id              String   @id @default(uuid()) @db.Char(36)
+  userId          String   @db.Char(36)
+  widgetType      String   // PROJECT_SUMMARY | TASK_SUMMARY | KPI_SUMMARY | OBJECTIVE_SUMMARY | WEEKLY_PRODUCTION | CUSTOM
+  widgetSize      String   @default("medium") // small | medium | large
+  position        Int      // Order position on dashboard
+  isVisible       Boolean  @default(true)
+  settings        Json?    // Widget-specific settings (refresh interval, filters, etc.)
+  
+  user            User     @relation("UserDashboardWidgets", fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([widgetType])
+  @@index([position])
+  @@map("user_dashboard_widgets")
 }

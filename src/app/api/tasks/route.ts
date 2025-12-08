@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import NotificationService from '@/lib/services/notification.service';
 
 const createSchema = z.object({
   title: z.string().min(2),
@@ -135,6 +136,26 @@ export async function POST(req: Request) {
     });
 
     console.log('Task created successfully:', task.id);
+
+    // Send notification to assigned user
+    if (task.assignedToId && task.assignedTo) {
+      try {
+        await NotificationService.notifyTaskAssigned({
+          taskId: task.id,
+          assignedToId: task.assignedToId,
+          taskTitle: task.title,
+          assignedByName: task.createdBy.name,
+          dueDate: task.dueDate || undefined,
+          projectName: task.project?.name,
+          buildingName: task.building?.name,
+        });
+        console.log('Notification sent to:', task.assignedTo.name);
+      } catch (notifError) {
+        console.error('Failed to send notification:', notifError);
+        // Don't fail the task creation if notification fails
+      }
+    }
+
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     console.error('Error creating task:', error);

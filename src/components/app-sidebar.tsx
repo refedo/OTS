@@ -34,6 +34,10 @@ import {
   Wand2,
   Clock,
   Lightbulb,
+  Bot,
+  Sparkles,
+  Bell,
+  FileCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -53,6 +57,8 @@ type NavigationSection = {
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Tasks', href: '/tasks', icon: ListChecks },
+  { name: 'Notifications', href: '/notifications', icon: Bell },
+  { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
 
 const navigationSections: NavigationSection[] = [
@@ -142,6 +148,7 @@ const navigationSections: NavigationSection[] = [
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Changelog', href: '/changelog', icon: FileCode },
     ],
   },
 ];
@@ -149,6 +156,8 @@ const navigationSections: NavigationSection[] = [
 export function AppSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
   
   // Find which section contains the active route
   const getActiveSections = () => {
@@ -166,6 +175,19 @@ export function AppSidebar() {
   
   const [expandedSections, setExpandedSections] = useState<string[]>(getActiveSections());
 
+  // Fetch unread notification count
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch('/api/notifications?isRead=false&limit=1');
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
   // Update expanded sections when pathname changes
   useEffect(() => {
     const activeSections = getActiveSections();
@@ -182,6 +204,14 @@ export function AppSidebar() {
       });
     }
   }, [pathname]);
+
+  // Set mounted state and fetch unread count
+  useEffect(() => {
+    setIsMounted(true);
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleSection = (sectionName: string) => {
     setExpandedSections(prev =>
@@ -239,13 +269,14 @@ export function AppSidebar() {
             {singleNavigation.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              const isNotifications = item.href === '/notifications';
               
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors relative',
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -255,6 +286,19 @@ export function AppSidebar() {
                 >
                   <Icon className="size-5 shrink-0" />
                   {!collapsed && <span>{item.name}</span>}
+                  {isMounted && isNotifications && unreadCount > 0 && (
+                    <span className={cn(
+                      'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold',
+                      isActive ? 'bg-primary-foreground text-primary' : 'bg-red-500 text-white'
+                    )}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                  {isMounted && collapsed && isNotifications && unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -341,7 +385,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-2 px-3 text-xs text-muted-foreground">
                 <p className="font-medium">Hexa Steel OTS</p>
-                <p>v1.0.0</p>
+                <p>v1.1.0</p>
               </div>
             )}
           </div>

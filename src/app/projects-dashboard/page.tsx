@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
-import { ProjectsDashboardClient } from '@/components/projects/ProjectsDashboardClient';
+import { SingleProjectDashboard } from '@/components/project-dashboard/SingleProjectDashboard';
 
 export default async function ProjectsDashboardPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -18,14 +18,14 @@ export default async function ProjectsDashboardPage() {
       <div className="container mx-auto p-6 lg:p-8 space-y-8 max-lg:pt-20">
         {/* Header */}
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Projects Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Project Dashboard</h1>
           <p className="text-muted-foreground">
-            Track contract dates and building-level progress across all projects
+            Comprehensive view of all project data in one unified dashboard
           </p>
         </div>
 
         {/* Dashboard Content */}
-        <ProjectsDashboardClient />
+        <SingleProjectDashboard />
       </div>
     </main>
   );
