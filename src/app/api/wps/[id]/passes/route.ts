@@ -18,9 +18,10 @@ const passSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
@@ -30,7 +31,7 @@ export async function GET(
     }
 
     const passes = await prisma.wPSPass.findMany({
-      where: { wpsId: params.id },
+      where: { wpsId: id },
       orderBy: { layerNo: 'asc' },
     });
 
@@ -46,9 +47,10 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
@@ -70,7 +72,7 @@ export async function POST(
     const pass = await prisma.wPSPass.create({
       data: {
         ...parsed.data,
-        wpsId: params.id,
+        wpsId: id,
       },
     });
 
@@ -86,9 +88,10 @@ export async function POST(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
@@ -99,7 +102,7 @@ export async function DELETE(
 
     // Delete all passes for this WPS
     await prisma.wPSPass.deleteMany({
-      where: { wpsId: params.id },
+      where: { wpsId: id },
     });
 
     return NextResponse.json({ message: 'All passes deleted successfully' });

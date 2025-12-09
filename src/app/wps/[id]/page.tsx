@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import { Edit, CheckCircle, Clock } from 'lucide-react';
 import { WPSExportButton } from '@/components/wps-export-button';
+import { WPSApproveButton } from '@/components/wps-approve-button';
 
 export default async function WPSDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,6 +26,8 @@ export default async function WPSDetailsPage({ params }: { params: Promise<{ id:
   if (!session) {
     redirect('/login');
   }
+
+  const canApprove = ['Admin', 'Manager'].includes(session.role);
 
   const wps = await prisma.wPS.findUnique({
     where: { id },
@@ -115,12 +118,17 @@ export default async function WPSDetailsPage({ params }: { params: Promise<{ id:
           </div>
           <div className="flex gap-2">
             {wpsData.status === 'Draft' && (
-              <Link href={`/wps/${wpsData.id}/edit`}>
-                <Button>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Button>
-              </Link>
+              <>
+                <Link href={`/wps/${wpsData.id}/edit`}>
+                  <Button variant="outline">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                </Link>
+                {canApprove && (
+                  <WPSApproveButton wpsId={wpsData.id} wpsNumber={wpsData.wpsNumber} />
+                )}
+              </>
             )}
             <WPSExportButton wps={wpsData} />
           </div>
