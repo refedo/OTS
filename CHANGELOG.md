@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Session Validation System** (v1.2.1)
+  - Automatic session validation on every page load
+  - Session refresh API endpoint (`/api/auth/session`)
+  - SessionProvider component for app-wide session management
+  - Automatic token refresh when user data changes (role, department)
+  - Graceful handling of expired or invalid sessions
+  - Loading state during session validation
+  - Prevents access with stale or invalid sessions
+
+### Added
 - **Project Dashboard Module** (v2.0)
   - Unified single-project dashboard showing all project data in one place
   - Dynamic project selector with deep linking support (`?projectId=xxx`)
@@ -71,6 +81,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents runtime errors across the application
   - Ensures consistent notification state across all pages
   - Supports nested routing without state loss
+
+- **Session Management**
+  - SessionProvider validates sessions on app initialization
+  - Automatic detection of stale or outdated session data
+  - Token refresh mechanism for seamless user experience
+  - Proper handling of deactivated users
+  - Network error resilience
+
+### Fixed
+- **Session Authentication Issue**
+  - Fixed issue where users could access the system but couldn't perform tasks
+  - Sessions now automatically validate and refresh on page load
+  - Stale user data (role, department) is automatically updated
+  - Invalid or expired sessions properly redirect to login
+  - Eliminated need for manual logout/login to refresh session
 
 ### Planned
 - **Reporting & Analytics Module**
