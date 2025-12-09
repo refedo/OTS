@@ -83,3 +83,31 @@ export async function POST(
     }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+    
+    if (!session || !['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Delete all passes for this WPS
+    await prisma.wPSPass.deleteMany({
+      where: { wpsId: params.id },
+    });
+
+    return NextResponse.json({ message: 'All passes deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting WPS passes:', error);
+    return NextResponse.json({ 
+      error: 'Failed to delete passes', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
+  }
+}

@@ -62,6 +62,22 @@ export default async function WPSListPage() {
   const projects = await getProjects();
   const canApprove = ['Admin', 'Manager'].includes(session.role);
 
+  // Serialize WPS data to convert Decimal objects to numbers
+  const serializedWpsList = wpsList.map(wps => ({
+    ...wps,
+    materialThickness: wps.materialThickness ? Number(wps.materialThickness) : null,
+    thicknessGroove: wps.thicknessGroove ? Number(wps.thicknessGroove) : null,
+    thicknessFillet: wps.thicknessFillet ? Number(wps.thicknessFillet) : null,
+    diameter: wps.diameter ? Number(wps.diameter) : null,
+    flowRate: wps.flowRate ? Number(wps.flowRate) : null,
+    grooveAngle: wps.grooveAngle ? Number(wps.grooveAngle) : null,
+    rootOpening: wps.rootOpening ? Number(wps.rootOpening) : null,
+    preheatTempMin: wps.preheatTempMin ? Number(wps.preheatTempMin) : null,
+    interpassTempMin: wps.interpassTempMin ? Number(wps.interpassTempMin) : null,
+    interpassTempMax: wps.interpassTempMax ? Number(wps.interpassTempMax) : null,
+    postWeldTemp: wps.postWeldTemp ? Number(wps.postWeldTemp) : null,
+  }));
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
       <div className="container mx-auto p-6 lg:p-8 max-w-7xl max-lg:pt-20">
@@ -80,7 +96,7 @@ export default async function WPSListPage() {
           </Link>
         </div>
 
-        {wpsList.length === 0 ? (
+        {serializedWpsList.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
@@ -97,7 +113,7 @@ export default async function WPSListPage() {
             </CardContent>
           </Card>
         ) : (
-          <WPSList wpsList={wpsList} projects={projects} canApprove={canApprove} />
+          <WPSList wpsList={serializedWpsList} projects={projects} canApprove={canApprove} />
         )}
       </div>
     </main>

@@ -180,17 +180,15 @@ export function WPSList({ wpsList, projects, canApprove }: WPSListProps) {
             </Button>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <div
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-input rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
             onClick={toggleAll}
           >
             <Checkbox
               checked={selectedWPS.size === filteredWPS.length && filteredWPS.length > 0}
-              className="mr-2"
             />
-            {selectedWPS.size === filteredWPS.length && filteredWPS.length > 0 ? 'Deselect All' : 'Select All'}
-          </Button>
+            <span>{selectedWPS.size === filteredWPS.length && filteredWPS.length > 0 ? 'Deselect All' : 'Select All'}</span>
+          </div>
         </div>
 
         {selectedWPS.size > 0 && (

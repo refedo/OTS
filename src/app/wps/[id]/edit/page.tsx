@@ -4,7 +4,8 @@ import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { WPSForm } from '@/components/wps-form';
 
-export default async function EditWPSPage({ params }: { params: { id: string } }) {
+export default async function EditWPSPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
@@ -14,7 +15,7 @@ export default async function EditWPSPage({ params }: { params: { id: string } }
   }
 
   const wps = await prisma.wPS.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       project: {
         select: {
@@ -84,10 +85,17 @@ export default async function EditWPSPage({ params }: { params: { id: string } }
     thicknessFillet: wps.thicknessFillet ? Number(wps.thicknessFillet) : null,
     diameter: wps.diameter ? Number(wps.diameter) : null,
     flowRate: wps.flowRate ? Number(wps.flowRate) : null,
+    grooveAngle: wps.grooveAngle ? Number(wps.grooveAngle) : null,
     rootOpening: wps.rootOpening ? Number(wps.rootOpening) : null,
+    preheatTempMin: wps.preheatTempMin ? Number(wps.preheatTempMin) : null,
+    interpassTempMin: wps.interpassTempMin ? Number(wps.interpassTempMin) : null,
+    interpassTempMax: wps.interpassTempMax ? Number(wps.interpassTempMax) : null,
+    postWeldTemp: wps.postWeldTemp ? Number(wps.postWeldTemp) : null,
     passes: wps.passes.map(pass => ({
       ...pass,
       diameter: pass.diameter ? Number(pass.diameter) : null,
+      amperage: pass.amperage ? Number(pass.amperage) : null,
+      voltage: pass.voltage ? Number(pass.voltage) : null,
       travelSpeed: pass.travelSpeed ? Number(pass.travelSpeed) : null,
       heatInput: pass.heatInput ? Number(pass.heatInput) : null,
     })),

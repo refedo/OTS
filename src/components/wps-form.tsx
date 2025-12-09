@@ -65,30 +65,58 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [activeTab, setActiveTab] = useState('general');
   const [imagePreview, setImagePreview] = useState<string | null>(wps?.jointDiagram || null);
   const [selectedProject, setSelectedProject] = useState(wps?.projectId || '');
   const [wpsNumber, setWpsNumber] = useState(wps?.wpsNumber || '');
   const [revision, setRevision] = useState(wps?.revision || 0);
+  const [wpsType, setWpsType] = useState(wps?.type || 'CUSTOM');
   const [weldingProcess, setWeldingProcess] = useState(wps?.weldingProcess || 'SMAW');
   const [supportingPQR, setSupportingPQR] = useState(wps?.supportingPQR || '');
+  const [currentWpsId, setCurrentWpsId] = useState(wps?.id || null);
+  
+  // Base Metal fields
+  const [materialSpec, setMaterialSpec] = useState(wps?.materialSpec || '');
+  const [materialGroup, setMaterialGroup] = useState(wps?.materialGroup || '');
+  const [thicknessRange, setThicknessRange] = useState(wps?.thicknessRange || '');
+  const [baseMetalGroove, setBaseMetalGroove] = useState(wps?.baseMetalGroove || '');
+  const [baseMetalFillet, setBaseMetalFillet] = useState(wps?.baseMetalFillet || '');
+  const [materialThickness, setMaterialThickness] = useState(wps?.materialThickness || '');
+  const [backingUsed, setBackingUsed] = useState(wps?.backingUsed || '');
+  const [backingType2, setBackingType2] = useState(wps?.backingType2 || '');
+  
+  // Filler Metal fields
+  const [baseMaterial, setBaseMaterial] = useState(wps?.baseMaterial || '');
+  const [fillerMetalSpec, setFillerMetalSpec] = useState(wps?.fillerMetalSpec || '');
+  const [fillerClass, setFillerClass] = useState(wps?.fillerClass || '');
+  const [diameter, setDiameter] = useState(wps?.diameter || '');
+  const [shieldingGas, setShieldingGas] = useState(wps?.shieldingGas || '');
+  const [flowRate, setFlowRate] = useState(wps?.flowRate || '');
+  
+  // Electrical fields
+  const [currentType, setCurrentType] = useState(wps?.currentType || '');
+  const [preheatTempMin, setPreheatTempMin] = useState(wps?.preheatTempMin || '');
+  const [interpassTempMin, setInterpassTempMin] = useState(wps?.interpassTempMin || '');
+  const [interpassTempMax, setInterpassTempMax] = useState(wps?.interpassTempMax || '');
+  const [postWeldTemp, setPostWeldTemp] = useState(wps?.postWeldTemp || '');
+  
+  // Technique fields
+  const [position, setPosition] = useState(wps?.position || '');
+  const [jointType, setJointType] = useState(wps?.jointType || '');
+  const [thicknessGroove, setThicknessGroove] = useState(wps?.thicknessGroove || '');
+  const [thicknessFillet, setThicknessFillet] = useState(wps?.thicknessFillet || '');
+  const [grooveAngle, setGrooveAngle] = useState(wps?.grooveAngle || '');
+  const [rootOpening, setRootOpening] = useState(wps?.rootOpening || '');
+  const [backingType, setBackingType] = useState(wps?.backingType || '');
+  const [remarks, setRemarks] = useState(wps?.remarks || '');
+  
+  // Approval fields
+  const [approvedById, setApprovedById] = useState(wps?.approvedById || '');
+  const [clientApprovedBy, setClientApprovedBy] = useState(wps?.clientApprovedBy || '');
   
   // Passes
-  const [passes, setPasses] = useState<Pass[]>(
-    wps?.passes || [
-      {
-        layerNo: 1,
-        process: 'SMAW',
-        electrodeClass: 'E7018',
-        diameter: 0.125,
-        polarity: 'DCEP',
-        amperage: 90,
-        voltage: 22,
-        travelSpeed: 8,
-        heatInput: 1.5,
-      },
-    ]
-  );
+  const [passes, setPasses] = useState<Pass[]>(wps?.passes || []);
 
   const addPass = () => {
     setPasses([
@@ -117,95 +145,76 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
     setPasses(updated);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // Save without redirecting
+  const handleSave = async (shouldRedirect = false) => {
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
-    const formData = new FormData(e.currentTarget);
-    
     // Helper to convert empty strings to null
-    const getStringOrNull = (value: string | null): string | null => {
-      return value && value.trim() !== '' ? value : null;
+    const getStringOrNull = (value: string | number): string | null => {
+      const str = String(value);
+      return str && str.trim() !== '' ? str : null;
     };
 
     // Helper to parse numbers safely
-    const getNumberOrNull = (value: string | null, parser: (v: string) => number): number | null => {
-      if (!value || value.trim() === '') return null;
-      const parsed = parser(value);
+    const getNumberOrNull = (value: string | number): number | null => {
+      if (!value || String(value).trim() === '') return null;
+      const parsed = typeof value === 'number' ? value : parseFloat(value);
       return isNaN(parsed) ? null : parsed;
     };
 
-    // Handle file upload first if present
-    let jointDiagramPath = wps?.jointDiagram || null;
-    const jointDiagramFile = formData.get('jointDiagram') as File;
-    if (jointDiagramFile && jointDiagramFile.size > 0) {
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', jointDiagramFile);
-      uploadFormData.append('folder', 'wps-diagrams');
-      
-      try {
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: uploadFormData,
-        });
-        
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          jointDiagramPath = uploadData.filePath;
-        }
-      } catch (uploadError) {
-        console.error('File upload error:', uploadError);
-      }
-    }
-
     const data = {
       wpsNumber,
-      revision: getNumberOrNull(formData.get('revision') as string, parseInt) ?? 0,
+      revision: revision ?? 0,
       projectId: selectedProject,
-      type: (formData.get('type') as string) || 'CUSTOM',
+      type: wpsType,
       weldingProcess,
-      supportingPQR: getStringOrNull(formData.get('supportingPQR') as string),
-      // New base metal fields
-      materialSpec: getStringOrNull(formData.get('materialSpec') as string),
-      materialGroup: getStringOrNull(formData.get('materialGroup') as string),
-      thicknessRange: getStringOrNull(formData.get('thicknessRange') as string),
-      baseMetalGroove: getStringOrNull(formData.get('baseMetalGroove') as string),
-      baseMetalFillet: getStringOrNull(formData.get('baseMetalFillet') as string),
-      materialThickness: getNumberOrNull(formData.get('materialThickness') as string, parseFloat),
-      jointDiagram: jointDiagramPath,
-      backingUsed: getStringOrNull(formData.get('backingUsed') as string),
-      backingType2: getStringOrNull(formData.get('backingType2') as string),
-      // Legacy fields
-      baseMaterial: getStringOrNull(formData.get('baseMaterial') as string),
-      thicknessGroove: getNumberOrNull(formData.get('thicknessGroove') as string, parseFloat),
-      thicknessFillet: getNumberOrNull(formData.get('thicknessFillet') as string, parseFloat),
-      diameter: getNumberOrNull(formData.get('diameter') as string, parseFloat),
-      fillerMetalSpec: getStringOrNull(formData.get('fillerMetalSpec') as string),
-      fillerClass: getStringOrNull(formData.get('fillerClass') as string),
-      shieldingGas: getStringOrNull(formData.get('shieldingGas') as string),
-      flowRate: getNumberOrNull(formData.get('flowRate') as string, parseFloat),
-      currentType: getStringOrNull(formData.get('currentType') as string),
-      preheatTempMin: getNumberOrNull(formData.get('preheatTempMin') as string, parseInt),
-      interpassTempMin: getNumberOrNull(formData.get('interpassTempMin') as string, parseInt),
-      interpassTempMax: getNumberOrNull(formData.get('interpassTempMax') as string, parseInt),
-      postWeldTemp: getNumberOrNull(formData.get('postWeldTemp') as string, parseInt),
-      position: getStringOrNull(formData.get('position') as string),
-      jointType: getStringOrNull(formData.get('jointType') as string),
-      grooveAngle: getNumberOrNull(formData.get('grooveAngle') as string, parseInt),
-      rootOpening: getNumberOrNull(formData.get('rootOpening') as string, parseFloat),
-      backingType: getStringOrNull(formData.get('backingType') as string),
-      remarks: getStringOrNull(formData.get('remarks') as string),
-      approvedById: getStringOrNull(formData.get('approvedById') as string),
-      clientApprovedBy: getStringOrNull(formData.get('clientApprovedBy') as string),
+      supportingPQR: getStringOrNull(supportingPQR),
+      // Base metal fields
+      materialSpec: getStringOrNull(materialSpec),
+      materialGroup: getStringOrNull(materialGroup),
+      thicknessRange: getStringOrNull(thicknessRange),
+      baseMetalGroove: getStringOrNull(baseMetalGroove),
+      baseMetalFillet: getStringOrNull(baseMetalFillet),
+      materialThickness: getNumberOrNull(materialThickness),
+      jointDiagram: imagePreview,
+      backingUsed: getStringOrNull(backingUsed),
+      backingType2: getStringOrNull(backingType2),
+      // Filler metal fields
+      baseMaterial: getStringOrNull(baseMaterial),
+      thicknessGroove: getNumberOrNull(thicknessGroove),
+      thicknessFillet: getNumberOrNull(thicknessFillet),
+      diameter: getNumberOrNull(diameter),
+      fillerMetalSpec: getStringOrNull(fillerMetalSpec),
+      fillerClass: getStringOrNull(fillerClass),
+      shieldingGas: getStringOrNull(shieldingGas),
+      flowRate: getNumberOrNull(flowRate),
+      // Electrical fields
+      currentType: getStringOrNull(currentType),
+      preheatTempMin: getNumberOrNull(preheatTempMin),
+      interpassTempMin: getNumberOrNull(interpassTempMin),
+      interpassTempMax: getNumberOrNull(interpassTempMax),
+      postWeldTemp: getNumberOrNull(postWeldTemp),
+      // Technique fields
+      position: getStringOrNull(position),
+      jointType: getStringOrNull(jointType),
+      grooveAngle: getNumberOrNull(grooveAngle),
+      rootOpening: getNumberOrNull(rootOpening),
+      backingType: getStringOrNull(backingType),
+      remarks: getStringOrNull(remarks),
+      // Approval fields
+      approvedById: getStringOrNull(approvedById),
+      clientApprovedBy: getStringOrNull(clientApprovedBy),
     };
 
     console.log('Submitting WPS data:', data);
 
     try {
       // Create/Update WPS
-      const wpsResponse = await fetch(wps ? `/api/wps/${wps.id}` : '/api/wps', {
-        method: wps ? 'PATCH' : 'POST',
+      const wpsId = currentWpsId || wps?.id;
+      const wpsResponse = await fetch(wpsId ? `/api/wps/${wpsId}` : '/api/wps', {
+        method: wpsId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -220,20 +229,38 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
       }
 
       const savedWPS = await wpsResponse.json();
-
-      // Save passes
-      if (!wps) {
-        for (const pass of passes) {
-          await fetch(`/api/wps/${savedWPS.id}/passes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(pass),
-          });
-        }
+      
+      // Store the WPS ID for future saves
+      if (!currentWpsId) {
+        setCurrentWpsId(savedWPS.id);
       }
 
-      router.push(`/wps/${savedWPS.id}`);
-      router.refresh();
+      // Save passes - always update passes when saving
+      const wpsIdToUse = savedWPS.id || wpsId;
+      
+      // Delete existing passes first (for updates)
+      if (wpsId) {
+        await fetch(`/api/wps/${wpsIdToUse}/passes`, {
+          method: 'DELETE',
+        });
+      }
+      
+      // Create new passes
+      for (const pass of passes) {
+        await fetch(`/api/wps/${wpsIdToUse}/passes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pass),
+        });
+      }
+
+      setSuccessMessage('WPS saved successfully!');
+      
+      // Only redirect if requested
+      if (shouldRedirect) {
+        router.push(`/wps/${savedWPS.id}`);
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -241,8 +268,46 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
     }
   };
 
+  // Handle form submit (Save & Close)
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await handleSave(true);
+  };
+
+  // Tab navigation
+  const tabs = ['general', 'base-metal', 'filler', 'electrical', 'technique', 'passes'];
+  const currentTabIndex = tabs.indexOf(activeTab);
+  const isFirstTab = currentTabIndex === 0;
+  const isLastTab = currentTabIndex === tabs.length - 1;
+
+  const goToNextTab = async () => {
+    // Save current data before moving to next tab
+    await handleSave(false);
+    if (!isLastTab) {
+      setActiveTab(tabs[currentTabIndex + 1]);
+    }
+  };
+
+  const goToPreviousTab = () => {
+    if (!isFirstTab) {
+      setActiveTab(tabs[currentTabIndex - 1]);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit}>
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-md">
+          {successMessage}
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-md">
+          {error}
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="general">General</TabsTrigger>
@@ -305,7 +370,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     name="revision"
                     type="number"
                     min="0"
-                    defaultValue={revision}
+                    value={revision}
+                    onChange={(e) => setRevision(parseInt(e.target.value) || 0)}
                     disabled={loading}
                   />
                 </div>
@@ -315,7 +381,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   <select
                     id="type"
                     name="type"
-                    defaultValue={wps?.type || 'CUSTOM'}
+                    value={wpsType}
+                    onChange={(e) => setWpsType(e.target.value)}
                     disabled={loading}
                     className="w-full h-10 px-3 rounded-md border bg-background"
                   >
@@ -361,7 +428,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   <select
                     id="approvedById"
                     name="approvedById"
-                    defaultValue={wps?.approvedById || ''}
+                    value={approvedById}
+                    onChange={(e) => setApprovedById(e.target.value)}
                     disabled={loading || wps?.status === 'Approved'}
                     className="w-full h-10 px-3 rounded-md border bg-background"
                   >
@@ -382,7 +450,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="clientApprovedBy"
                     name="clientApprovedBy"
                     placeholder="Client representative name"
-                    defaultValue={wps?.clientApprovedBy || ''}
+                    value={clientApprovedBy}
+                    onChange={(e) => setClientApprovedBy(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -449,7 +518,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   <select
                     id="backingUsed"
                     name="backingUsed"
-                    defaultValue={wps?.backingUsed || ''}
+                    value={backingUsed}
+                    onChange={(e) => setBackingUsed(e.target.value)}
                     disabled={loading}
                     className="w-full h-10 px-3 rounded-md border bg-background"
                   >
@@ -464,7 +534,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   <select
                     id="backingType2"
                     name="backingType2"
-                    defaultValue={wps?.backingType2 || ''}
+                    value={backingType2}
+                    onChange={(e) => setBackingType2(e.target.value)}
                     disabled={loading}
                     className="w-full h-10 px-3 rounded-md border bg-background"
                   >
@@ -488,7 +559,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   id="materialSpec"
                   name="materialSpec"
                   placeholder="e.g., ASTM A572 to ASTM A572"
-                  defaultValue={wps?.materialSpec || ''}
+                  value={materialSpec}
+                  onChange={(e) => setMaterialSpec(e.target.value)}
                   disabled={loading}
                 />
               </div>
@@ -500,7 +572,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="materialGroup"
                     name="materialGroup"
                     placeholder="e.g., I to I"
-                    defaultValue={wps?.materialGroup || ''}
+                    value={materialGroup}
+                    onChange={(e) => setMaterialGroup(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -511,7 +584,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="thicknessRange"
                     name="thicknessRange"
                     placeholder="e.g., 3 mm to Unlimited"
-                    defaultValue={wps?.thicknessRange || ''}
+                    value={thicknessRange}
+                    onChange={(e) => setThicknessRange(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -524,7 +598,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="baseMetalGroove"
                     name="baseMetalGroove"
                     placeholder="e.g., With"
-                    defaultValue={wps?.baseMetalGroove || ''}
+                    value={baseMetalGroove}
+                    onChange={(e) => setBaseMetalGroove(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -535,7 +610,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="baseMetalFillet"
                     name="baseMetalFillet"
                     placeholder="e.g., N/A"
-                    defaultValue={wps?.baseMetalFillet || ''}
+                    value={baseMetalFillet}
+                    onChange={(e) => setBaseMetalFillet(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -549,7 +625,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   type="number"
                   step="0.1"
                   placeholder="e.g., 20"
-                  defaultValue={wps?.materialThickness || ''}
+                  value={materialThickness}
+                  onChange={(e) => setMaterialThickness(e.target.value)}
                   disabled={loading}
                 />
               </div>
@@ -571,7 +648,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="fillerMetalSpec"
                     name="fillerMetalSpec"
                     placeholder="e.g., AWS A5.1"
-                    defaultValue={wps?.fillerMetalSpec || ''}
+                    value={fillerMetalSpec}
+                    onChange={(e) => setFillerMetalSpec(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -582,7 +660,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="fillerClass"
                     name="fillerClass"
                     placeholder="e.g., E7018"
-                    defaultValue={wps?.fillerClass || ''}
+                    value={fillerClass}
+                    onChange={(e) => setFillerClass(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -593,7 +672,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     id="shieldingGas"
                     name="shieldingGas"
                     placeholder="e.g., CO2, Ar + 2% O2"
-                    defaultValue={wps?.shieldingGas || ''}
+                    value={shieldingGas}
+                    onChange={(e) => setShieldingGas(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -606,7 +686,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     type="number"
                     step="0.1"
                     placeholder="0.0"
-                    defaultValue={wps?.flowRate || ''}
+                    value={flowRate}
+                    onChange={(e) => setFlowRate(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -627,7 +708,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                 <select
                   id="currentType"
                   name="currentType"
-                  defaultValue={wps?.currentType || ''}
+                  value={currentType}
+                  onChange={(e) => setCurrentType(e.target.value)}
                   disabled={loading}
                   className="w-full h-10 px-3 rounded-md border bg-background"
                 >
@@ -648,7 +730,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     name="preheatTempMin"
                     type="number"
                     placeholder="0"
-                    defaultValue={wps?.preheatTempMin || ''}
+                    value={preheatTempMin}
+                    onChange={(e) => setPreheatTempMin(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -660,7 +743,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     name="postWeldTemp"
                     type="number"
                     placeholder="0"
-                    defaultValue={wps?.postWeldTemp || ''}
+                    value={postWeldTemp}
+                    onChange={(e) => setPostWeldTemp(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -672,7 +756,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     name="interpassTempMin"
                     type="number"
                     placeholder="0"
-                    defaultValue={wps?.interpassTempMin || ''}
+                    value={interpassTempMin}
+                    onChange={(e) => setInterpassTempMin(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -684,7 +769,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     name="interpassTempMax"
                     type="number"
                     placeholder="0"
-                    defaultValue={wps?.interpassTempMax || ''}
+                    value={interpassTempMax}
+                    onChange={(e) => setInterpassTempMax(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -706,7 +792,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   <select
                     id="position"
                     name="position"
-                    defaultValue={wps?.position || ''}
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
                     disabled={loading}
                     className="w-full h-10 px-3 rounded-md border bg-background"
                   >
@@ -724,7 +811,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   <select
                     id="jointType"
                     name="jointType"
-                    defaultValue={wps?.jointType || ''}
+                    value={jointType}
+                    onChange={(e) => setJointType(e.target.value)}
                     disabled={loading}
                     className="w-full h-10 px-3 rounded-md border bg-background"
                   >
@@ -744,7 +832,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     name="grooveAngle"
                     type="number"
                     placeholder="0"
-                    defaultValue={wps?.grooveAngle || ''}
+                    value={grooveAngle}
+                    onChange={(e) => setGrooveAngle(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -757,7 +846,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                     type="number"
                     step="0.1"
                     placeholder="0.0"
-                    defaultValue={wps?.rootOpening || ''}
+                    value={rootOpening}
+                    onChange={(e) => setRootOpening(e.target.value)}
                     disabled={loading}
                   />
                 </div>
@@ -767,7 +857,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   <select
                     id="backingType"
                     name="backingType"
-                    defaultValue={wps?.backingType || ''}
+                    value={backingType}
+                    onChange={(e) => setBackingType(e.target.value)}
                     disabled={loading}
                     className="w-full h-10 px-3 rounded-md border bg-background"
                   >
@@ -788,7 +879,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   name="remarks"
                   rows={4}
                   placeholder="Additional notes or special requirements..."
-                  defaultValue={wps?.remarks || ''}
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
                   disabled={loading}
                 />
               </div>
@@ -801,10 +893,23 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Welding Pass Details</CardTitle>
-              <Button type="button" onClick={addPass} disabled={loading} size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Pass
-              </Button>
+              <div className="flex gap-2">
+                {passes.length > 0 && (
+                  <Button 
+                    type="button" 
+                    onClick={() => setPasses([])} 
+                    disabled={loading} 
+                    size="sm"
+                    variant="outline"
+                  >
+                    Clear All
+                  </Button>
+                )}
+                <Button type="button" onClick={addPass} disabled={loading} size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Pass
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -851,7 +956,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                         </TableCell>
                         <TableCell>
                           <Input
-                            value={pass.electrodeClass}
+                            value={pass.electrodeClass || ''}
                             onChange={(e) => updatePass(index, 'electrodeClass', e.target.value)}
                             placeholder="E7018"
                             disabled={loading}
@@ -861,15 +966,15 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                           <Input
                             type="number"
                             step="0.001"
-                            value={pass.diameter}
-                            onChange={(e) => updatePass(index, 'diameter', parseFloat(e.target.value))}
+                            value={pass.diameter || ''}
+                            onChange={(e) => updatePass(index, 'diameter', parseFloat(e.target.value) || 0)}
                             className="w-20"
                             disabled={loading}
                           />
                         </TableCell>
                         <TableCell>
                           <select
-                            value={pass.polarity}
+                            value={pass.polarity || ''}
                             onChange={(e) => updatePass(index, 'polarity', e.target.value)}
                             className="w-full h-9 px-2 rounded-md border bg-background text-sm"
                             disabled={loading}
@@ -884,8 +989,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                         <TableCell>
                           <Input
                             type="number"
-                            value={pass.amperage}
-                            onChange={(e) => updatePass(index, 'amperage', parseInt(e.target.value))}
+                            value={pass.amperage || ''}
+                            onChange={(e) => updatePass(index, 'amperage', parseInt(e.target.value) || 0)}
                             className="w-20"
                             disabled={loading}
                           />
@@ -893,18 +998,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                         <TableCell>
                           <Input
                             type="number"
-                            value={pass.voltage}
-                            onChange={(e) => updatePass(index, 'voltage', parseInt(e.target.value))}
-                            className="w-20"
-                            disabled={loading}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={pass.travelSpeed}
-                            onChange={(e) => updatePass(index, 'travelSpeed', parseFloat(e.target.value))}
+                            value={pass.voltage || ''}
+                            onChange={(e) => updatePass(index, 'voltage', parseInt(e.target.value) || 0)}
                             className="w-20"
                             disabled={loading}
                           />
@@ -913,8 +1008,18 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                           <Input
                             type="number"
                             step="0.1"
-                            value={pass.heatInput}
-                            onChange={(e) => updatePass(index, 'heatInput', parseFloat(e.target.value))}
+                            value={pass.travelSpeed || ''}
+                            onChange={(e) => updatePass(index, 'travelSpeed', parseFloat(e.target.value) || 0)}
+                            className="w-20"
+                            disabled={loading}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={pass.heatInput || ''}
+                            onChange={(e) => updatePass(index, 'heatInput', parseFloat(e.target.value) || 0)}
                             className="w-20"
                             disabled={loading}
                           />
@@ -941,7 +1046,8 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
       </Tabs>
 
       {/* Action Buttons */}
-      <div className="flex justify-end gap-4 mt-6">
+      <div className="flex justify-between items-center mt-6">
+        {/* Left side - Cancel button */}
         <Button
           type="button"
           variant="outline"
@@ -950,11 +1056,51 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          <Save className="mr-2 h-4 w-4" />
-          {wps ? 'Update WPS' : 'Create WPS'}
-        </Button>
+
+        {/* Right side - Navigation and Save buttons */}
+        <div className="flex gap-2">
+          {/* Previous Button */}
+          {!isFirstTab && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={goToPreviousTab}
+              disabled={loading}
+            >
+              Previous
+            </Button>
+          )}
+
+          {/* Save Draft Button (always visible) */}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => handleSave(false)}
+            disabled={loading}
+          >
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Save className="mr-2 h-4 w-4" />
+            Save Draft
+          </Button>
+
+          {/* Next Button or Save & Close */}
+          {!isLastTab ? (
+            <Button
+              type="button"
+              onClick={goToNextTab}
+              disabled={loading}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save & Next
+            </Button>
+          ) : (
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" />
+              Save & Close
+            </Button>
+          )}
+        </div>
       </div>
     </form>
   );

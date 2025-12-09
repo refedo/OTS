@@ -51,8 +51,9 @@ const updateSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
@@ -63,7 +64,7 @@ export async function GET(
     }
 
     const wps = await prisma.wPS.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         project: {
           select: {
@@ -103,8 +104,9 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
@@ -125,7 +127,7 @@ export async function PATCH(
     }
 
     const wps = await prisma.wPS.update({
-      where: { id: params.id },
+      where: { id },
       data: parsed.data,
       include: {
         project: {

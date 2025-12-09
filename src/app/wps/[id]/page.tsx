@@ -16,7 +16,8 @@ import {
 import { Edit, CheckCircle, Clock } from 'lucide-react';
 import { WPSExportButton } from '@/components/wps-export-button';
 
-export default async function WPSDetailsPage({ params }: { params: { id: string } }) {
+export default async function WPSDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
@@ -26,7 +27,7 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
   }
 
   const wps = await prisma.wPS.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       project: {
         select: {
@@ -53,6 +54,24 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
   if (!wps) {
     notFound();
   }
+
+  // Convert Prisma Decimal to number for client components
+  const wpsData = {
+    ...wps,
+    materialThickness: wps.materialThickness ? Number(wps.materialThickness) : null,
+    thicknessGroove: wps.thicknessGroove ? Number(wps.thicknessGroove) : null,
+    thicknessFillet: wps.thicknessFillet ? Number(wps.thicknessFillet) : null,
+    diameter: wps.diameter ? Number(wps.diameter) : null,
+    flowRate: wps.flowRate ? Number(wps.flowRate) : null,
+    grooveAngle: wps.grooveAngle ? Number(wps.grooveAngle) : null,
+    rootOpening: wps.rootOpening ? Number(wps.rootOpening) : null,
+    passes: wps.passes?.map(pass => ({
+      ...pass,
+      diameter: Number(pass.diameter),
+      travelSpeed: Number(pass.travelSpeed),
+      heatInput: Number(pass.heatInput),
+    })) || [],
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -83,11 +102,11 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
         <div className="flex items-start justify-between mb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold tracking-tight">{wps.wpsNumber}</h1>
-              <span className="text-lg text-muted-foreground">Rev. {wps.revision}</span>
-              <div className={`flex items-center gap-1 px-3 py-1 rounded-md border text-sm font-medium ${getStatusColor(wps.status)}`}>
-                {getStatusIcon(wps.status)}
-                {wps.status}
+              <h1 className="text-3xl font-bold tracking-tight">{wpsData.wpsNumber}</h1>
+              <span className="text-lg text-muted-foreground">Rev. {wpsData.revision}</span>
+              <div className={`flex items-center gap-1 px-3 py-1 rounded-md border text-sm font-medium ${getStatusColor(wpsData.status)}`}>
+                {getStatusIcon(wpsData.status)}
+                {wpsData.status}
               </div>
             </div>
             <p className="text-muted-foreground">
@@ -95,15 +114,15 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
             </p>
           </div>
           <div className="flex gap-2">
-            {wps.status === 'Draft' && (
-              <Link href={`/wps/${wps.id}/edit`}>
+            {wpsData.status === 'Draft' && (
+              <Link href={`/wps/${wpsData.id}/edit`}>
                 <Button>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </Button>
               </Link>
             )}
-            <WPSExportButton wps={wps} />
+            <WPSExportButton wps={wpsData} />
           </div>
         </div>
 
@@ -115,21 +134,37 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Project Number</p>
-                <p className="font-medium">{wps.project.projectNumber}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Project Name</p>
-                <p className="font-medium">{wps.project.name}</p>
+                <p className="text-sm text-muted-foreground">Project</p>
+                <p className="font-medium">{wpsData.project.projectNumber} - {wpsData.project.name}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Client</p>
-                <p className="font-medium">{wps.project.client.name}</p>
+                <p className="font-medium">{wpsData.project.client.name}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Type</p>
-                <p className="font-medium">{wps.type === 'STANDARD' ? 'HEXA Standard' : 'Client Custom'}</p>
+                <p className="text-sm text-muted-foreground">Process</p>
+                <p className="font-medium">{wpsData.weldingProcess}</p>
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Supporting PQR</p>
+                <p className="font-medium">{wpsData.supportingPQR || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Prepared By</p>
+                <p className="font-medium">{wpsData.preparedBy.name}</p>
+              </div>
+              {wpsData.approvedBy && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Approved By</p>
+                  <p className="font-medium">{wpsData.approvedBy.name}</p>
+                </div>
+              )}
+              {wpsData.dateIssued && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Date Issued</p>
+                  <p className="font-medium">{new Date(wpsData.dateIssued).toLocaleDateString()}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -141,25 +176,25 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Welding Process</p>
-                <p className="font-medium">{wps.weldingProcess}</p>
+                <p className="font-medium">{wpsData.weldingProcess}</p>
               </div>
-              {wps.supportingPQR && (
+              {wpsData.supportingPQR && (
                 <div>
                   <p className="text-sm text-muted-foreground">Supporting PQR</p>
-                  <p className="font-medium">{wps.supportingPQR}</p>
+                  <p className="font-medium">{wpsData.supportingPQR}</p>
                 </div>
               )}
-              {wps.dateIssued && (
+              {wpsData.dateIssued && (
                 <div>
                   <p className="text-sm text-muted-foreground">Date Issued</p>
-                  <p className="font-medium">{new Date(wps.dateIssued).toLocaleDateString()}</p>
+                  <p className="font-medium">{new Date(wpsData.dateIssued).toLocaleDateString()}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Joint Diagram */}
-          {wps.jointDiagram && (
+          {wpsData.jointDiagram && (
             <Card>
               <CardHeader>
                 <CardTitle>Joint Diagram</CardTitle>
@@ -167,13 +202,13 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               <CardContent>
                 <div className="flex justify-center">
                   <a 
-                    href={wps.jointDiagram} 
+                    href={wpsData.jointDiagram} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="cursor-pointer hover:opacity-80 transition-opacity"
                   >
                     <img 
-                      src={wps.jointDiagram} 
+                      src={wpsData.jointDiagram} 
                       alt="Joint Diagram" 
                       className="max-w-md h-auto rounded-lg border shadow-sm hover:shadow-md transition-shadow"
                       title="Click to enlarge"
@@ -193,16 +228,16 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               <CardTitle>Backing & Type</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {wps.backingUsed && (
+              {wpsData.backingUsed && (
                 <div>
                   <p className="text-sm text-muted-foreground">Backing</p>
-                  <p className="font-medium">{wps.backingUsed}</p>
+                  <p className="font-medium">{wpsData.backingUsed}</p>
                 </div>
               )}
-              {wps.backingType2 && (
+              {wpsData.backingType2 && (
                 <div>
                   <p className="text-sm text-muted-foreground">Type</p>
-                  <p className="font-medium">{wps.backingType2}</p>
+                  <p className="font-medium">{wpsData.backingType2}</p>
                 </div>
               )}
             </CardContent>
@@ -214,40 +249,40 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               <CardTitle>Base Metal</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {wps.materialSpec && (
+              {wpsData.materialSpec && (
                 <div className="md:col-span-2">
                   <p className="text-sm text-muted-foreground">Material Spec:</p>
-                  <p className="font-medium">{wps.materialSpec}</p>
+                  <p className="font-medium">{wpsData.materialSpec}</p>
                 </div>
               )}
-              {wps.materialGroup && (
+              {wpsData.materialGroup && (
                 <div>
                   <p className="text-sm text-muted-foreground">Material Group:</p>
-                  <p className="font-medium">{wps.materialGroup}</p>
+                  <p className="font-medium">{wpsData.materialGroup}</p>
                 </div>
               )}
-              {wps.thicknessRange && (
+              {wpsData.thicknessRange && (
                 <div>
                   <p className="text-sm text-muted-foreground">Thick. Range (mm):</p>
-                  <p className="font-medium">{wps.thicknessRange}</p>
+                  <p className="font-medium">{wpsData.thicknessRange}</p>
                 </div>
               )}
-              {wps.baseMetalGroove && (
+              {wpsData.baseMetalGroove && (
                 <div>
                   <p className="text-sm text-muted-foreground">Base Metal: Groove:</p>
-                  <p className="font-medium">{wps.baseMetalGroove}</p>
+                  <p className="font-medium">{wpsData.baseMetalGroove}</p>
                 </div>
               )}
-              {wps.baseMetalFillet && (
+              {wpsData.baseMetalFillet && (
                 <div>
                   <p className="text-sm text-muted-foreground">Fillet:</p>
-                  <p className="font-medium">{wps.baseMetalFillet}</p>
+                  <p className="font-medium">{wpsData.baseMetalFillet}</p>
                 </div>
               )}
-              {wps.materialThickness && (
+              {wpsData.materialThickness && (
                 <div>
                   <p className="text-sm text-muted-foreground">Material Thick (mm)</p>
-                  <p className="font-medium">{Number(wps.materialThickness)} mm</p>
+                  <p className="font-medium">{Number(wpsData.materialThickness)} mm</p>
                 </div>
               )}
             </CardContent>
@@ -259,28 +294,28 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               <CardTitle>Filler Metal & Shielding</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {wps.fillerMetalSpec && (
+              {wpsData.fillerMetalSpec && (
                 <div>
                   <p className="text-sm text-muted-foreground">Filler Metal Specification</p>
-                  <p className="font-medium">{wps.fillerMetalSpec}</p>
+                  <p className="font-medium">{wpsData.fillerMetalSpec}</p>
                 </div>
               )}
-              {wps.fillerClass && (
+              {wpsData.fillerClass && (
                 <div>
                   <p className="text-sm text-muted-foreground">Filler Metal Classification</p>
-                  <p className="font-medium">{wps.fillerClass}</p>
+                  <p className="font-medium">{wpsData.fillerClass}</p>
                 </div>
               )}
-              {wps.shieldingGas && (
+              {wpsData.shieldingGas && (
                 <div>
                   <p className="text-sm text-muted-foreground">Shielding Gas</p>
-                  <p className="font-medium">{wps.shieldingGas}</p>
+                  <p className="font-medium">{wpsData.shieldingGas}</p>
                 </div>
               )}
-              {wps.flowRate && (
+              {wpsData.flowRate && (
                 <div>
                   <p className="text-sm text-muted-foreground">Flow Rate</p>
-                  <p className="font-medium">{Number(wps.flowRate)} L/min</p>
+                  <p className="font-medium">{Number(wpsData.flowRate)} L/min</p>
                 </div>
               )}
             </CardContent>
@@ -292,34 +327,34 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               <CardTitle>Electrical Characteristics & Temperature</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {wps.currentType && (
+              {wpsData.currentType && (
                 <div>
                   <p className="text-sm text-muted-foreground">Current Type</p>
-                  <p className="font-medium">{wps.currentType}</p>
+                  <p className="font-medium">{wpsData.currentType}</p>
                 </div>
               )}
-              {wps.preheatTempMin && (
+              {wpsData.preheatTempMin && (
                 <div>
                   <p className="text-sm text-muted-foreground">Preheat Temperature Min</p>
-                  <p className="font-medium">{wps.preheatTempMin}°C</p>
+                  <p className="font-medium">{wpsData.preheatTempMin}°C</p>
                 </div>
               )}
-              {wps.interpassTempMin && (
+              {wpsData.interpassTempMin && (
                 <div>
                   <p className="text-sm text-muted-foreground">Interpass Temperature Min</p>
-                  <p className="font-medium">{wps.interpassTempMin}°C</p>
+                  <p className="font-medium">{wpsData.interpassTempMin}°C</p>
                 </div>
               )}
-              {wps.interpassTempMax && (
+              {wpsData.interpassTempMax && (
                 <div>
                   <p className="text-sm text-muted-foreground">Interpass Temperature Max</p>
-                  <p className="font-medium">{wps.interpassTempMax}°C</p>
+                  <p className="font-medium">{wpsData.interpassTempMax}°C</p>
                 </div>
               )}
-              {wps.postWeldTemp && (
+              {wpsData.postWeldTemp && (
                 <div>
                   <p className="text-sm text-muted-foreground">Post-Weld Temperature</p>
-                  <p className="font-medium">{wps.postWeldTemp}°C</p>
+                  <p className="font-medium">{wpsData.postWeldTemp}°C</p>
                 </div>
               )}
             </CardContent>
@@ -331,34 +366,34 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               <CardTitle>Welding Technique</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {wps.position && (
+              {wpsData.position && (
                 <div>
                   <p className="text-sm text-muted-foreground">Position</p>
-                  <p className="font-medium">{wps.position}</p>
+                  <p className="font-medium">{wpsData.position}</p>
                 </div>
               )}
-              {wps.jointType && (
+              {wpsData.jointType && (
                 <div>
                   <p className="text-sm text-muted-foreground">Joint Type</p>
-                  <p className="font-medium">{wps.jointType}</p>
+                  <p className="font-medium">{wpsData.jointType}</p>
                 </div>
               )}
-              {wps.grooveAngle && (
+              {wpsData.grooveAngle && (
                 <div>
                   <p className="text-sm text-muted-foreground">Groove Angle</p>
-                  <p className="font-medium">{wps.grooveAngle}°</p>
+                  <p className="font-medium">{wpsData.grooveAngle}°</p>
                 </div>
               )}
-              {wps.rootOpening && (
+              {wpsData.rootOpening && (
                 <div>
                   <p className="text-sm text-muted-foreground">Root Opening</p>
-                  <p className="font-medium">{Number(wps.rootOpening)} mm</p>
+                  <p className="font-medium">{Number(wpsData.rootOpening)} mm</p>
                 </div>
               )}
-              {wps.backingType && (
+              {wpsData.backingType && (
                 <div>
                   <p className="text-sm text-muted-foreground">Backing Type</p>
-                  <p className="font-medium">{wps.backingType}</p>
+                  <p className="font-medium">{wpsData.backingType}</p>
                 </div>
               )}
             </CardContent>
@@ -370,7 +405,7 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
               <CardTitle>Welding Pass Details</CardTitle>
             </CardHeader>
             <CardContent>
-              {wps.passes.length === 0 ? (
+              {wpsData.passes.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No welding passes defined</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -389,7 +424,7 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {wps.passes.map((pass) => (
+                      {wpsData.passes.map((pass) => (
                         <TableRow key={pass.id}>
                           <TableCell className="font-medium">{pass.layerNo}</TableCell>
                           <TableCell>{pass.process}</TableCell>
@@ -417,35 +452,35 @@ export default async function WPSDetailsPage({ params }: { params: { id: string 
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Prepared By</p>
-                <p className="font-medium">{wps.preparedBy.name}</p>
-                {wps.preparedBy.position && (
-                  <p className="text-xs text-muted-foreground">{wps.preparedBy.position}</p>
+                <p className="font-medium">{wpsData.preparedBy.name}</p>
+                {wpsData.preparedBy.position && (
+                  <p className="text-xs text-muted-foreground">{wpsData.preparedBy.position}</p>
                 )}
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Approved By</p>
-                <p className="font-medium">{wps.approvedBy?.name || 'Pending Approval'}</p>
-                {wps.approvedBy?.position && (
-                  <p className="text-xs text-muted-foreground">{wps.approvedBy.position}</p>
+                <p className="font-medium">{wpsData.approvedBy?.name || 'Pending Approval'}</p>
+                {wpsData.approvedBy?.position && (
+                  <p className="text-xs text-muted-foreground">{wpsData.approvedBy.position}</p>
                 )}
               </div>
-              {wps.clientApprovedBy && (
+              {wpsData.clientApprovedBy && (
                 <div>
                   <p className="text-sm text-muted-foreground">Client Approved By</p>
-                  <p className="font-medium">{wps.clientApprovedBy}</p>
+                  <p className="font-medium">{wpsData.clientApprovedBy}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Remarks */}
-          {wps.remarks && (
+          {wpsData.remarks && (
             <Card>
               <CardHeader>
                 <CardTitle>Remarks</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="whitespace-pre-wrap">{wps.remarks}</p>
+                <p className="whitespace-pre-wrap">{wpsData.remarks}</p>
               </CardContent>
             </Card>
           )}
