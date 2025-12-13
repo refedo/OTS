@@ -1,0 +1,85 @@
+/**
+ * Project Summary Report - Specific Styles
+ * Extends global.css with report-specific styling
+ */
+
+/* Additional spacing for project summary */
+.project-info .info-box {
+  min-height: 80px;
+}
+
+/* Building table enhancements */
+.buildings-table tbody tr:hover {
+  background-color: #EDF2F7;
+  cursor: default;
+}
+
+/* Production summary cards */
+.production-card {
+  border-left: 4px solid var(--secondary-color);
+  padding-left: 15px;
+}
+
+/* QC Summary specific styling */
+.qc-summary .progress-bar {
+  transition: width 0.5s ease-in-out;
+}
+
+/* Dispatch summary styling */
+.dispatch-summary .info-box {
+  border-left-color: var(--success-color);
+}
+
+/* Signature boxes */
+.signature-box {
+  min-height: 120px;
+}
+
+.signature-line {
+  border-top: 2px solid var(--text-primary);
+  margin-top: 60px;
+  padding-top: 10px;
+}
+
+/* Status badge colors */
+.badge.badge-active {
+  background: var(--success-color);
+}
+
+.badge.badge-completed {
+  background: var(--primary-color);
+}
+
+.badge.badge-on-hold {
+  background: var(--warning-color);
+}
+
+.badge.badge-cancelled {
+  background: var(--danger-color);
+}
+
+/* Progress bar color classes */
+.progress-bar.high {
+  background: var(--success-color);
+}
+
+.progress-bar.medium {
+  background: var(--warning-color);
+}
+
+.progress-bar.low {
+  background: var(--danger-color);
+}
+
+/* Arabic-specific adjustments */
+body[lang="ar"] .production-card {
+  border-left: none;
+  border-right: 4px solid var(--secondary-color);
+  padding-left: 0;
+  padding-right: 15px;
+}
+
+body[lang="ar"] .dispatch-summary .info-box {
+  border-left: none;
+  border-right-color: var(--success-color);
+}

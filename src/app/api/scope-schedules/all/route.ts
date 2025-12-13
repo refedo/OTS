@@ -3,7 +3,7 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
@@ -13,7 +13,26 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get query parameters
+    const { searchParams } = new URL(req.url);
+    const buildingId = searchParams.get('buildingId');
+    const projectId = searchParams.get('projectId');
+    const scopeType = searchParams.get('scopeType');
+
+    // Build where clause
+    const whereClause: any = {};
+    if (buildingId) {
+      whereClause.buildingId = buildingId;
+    }
+    if (projectId) {
+      whereClause.projectId = projectId;
+    }
+    if (scopeType) {
+      whereClause.scopeType = scopeType;
+    }
+
     const scopeSchedules = await prisma.scopeSchedule.findMany({
+      where: whereClause,
       include: {
         project: {
           select: {

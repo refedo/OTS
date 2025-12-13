@@ -1,0 +1,102 @@
+  <!-- Building Summary Table -->
+  <div class="building-summary-section">
+    <table class="building-summary-table">
+      <thead>
+        <tr class="header-red">
+          <th>{{translations.buildingName}}</th>
+          <th>{{translations.buildingWeight}}</th>
+          <th>{{translations.shipmentWeight}}</th>
+          <th>{{translations.previousShipments}}</th>
+          <th>{{translations.currentShipment}}</th>
+          <th>{{translations.totalShipments}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each buildings}}
+        <tr>
+          <td class="text-bold">{{this.name}}</td>
+          <td>{{this.totalWeight}}</td>
+          <td>{{this.shipmentWeight}}</td>
+          <td>{{this.previousShipments}}</td>
+          <td class="highlight">{{this.currentShipmentPercent}}%</td>
+          <td class="highlight-orange">{{this.totalShipmentsPercent}}%</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Shipment Details Section -->
+  <div class="shipment-details-section">
+    <div class="shipment-summary-row">
+      <div class="summary-box green">
+        <div class="box-label">{{translations.projectWeight}}</div>
+        <div class="box-value">{{shipmentSummary.projectWeight}}</div>
+      </div>
+      <div class="summary-box blue">
+        <div class="box-label">{{translations.shipmentWeight}}</div>
+        <div class="box-value">{{shipmentSummary.shipmentWeight}}</div>
+      </div>
+      <div class="summary-box">
+        <div class="box-label">{{translations.shipmentPcsCount}}</div>
+        <div class="box-value">{{shipmentSummary.pcsCount}}</div>
+      </div>
+    </div>
+
+    <table class="driver-info-table">
+      <tr>
+        <td class="label">{{translations.driverName}}</td>
+        <td class="value">{{driver.name}}</td>
+        <td class="label">{{translations.mobileNumber}}</td>
+        <td class="value">{{driver.mobile}}</td>
+      </tr>
+      <tr>
+        <td class="label">{{translations.vehicleType}}</td>
+        <td class="value">{{driver.vehicleType}}</td>
+        <td class="label">{{translations.iqamaNumber}}</td>
+        <td class="value">{{driver.iqama}}</td>
+      </tr>
+      <tr>
+        <td class="label">{{translations.carNumber}}</td>
+        <td class="value">{{driver.carNumber}}</td>
+        <td class="label">{{translations.signature}}</td>
+        <td class="value signature-cell"></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Items Table -->
+  <div class="items-section">
+    <table class="items-table">
+      <thead>
+        <tr class="header-dark">
+          <th>{{translations.pos}}</th>
+          <th>{{translations.pid}}</th>
+          <th>{{translations.partName}}</th>
+          <th>{{translations.itemDesignation}}</th>
+          <th>{{translations.itemProfile}}</th>
+          <th>{{translations.totalQty}}</th>
+          <th>{{translations.dispatchedQty}}</th>
+          <th>{{translations.weightPerPc}}</th>
+          <th>{{translations.totalWeight}}</th>
+          <th>{{translations.buildingName}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+        <tr>
+          <td class="text-center">{{this.position}}</td>
+          <td>{{this.pid}}</td>
+          <td>{{this.partName}}</td>
+          <td>{{this.itemDesignation}}</td>
+          <td>{{this.itemProfile}}</td>
+          <td class="text-center">{{this.totalQty}}</td>
+          <td class="text-center">{{this.dispatchedQty}}</td>
+          <td class="text-right">{{this.weightPerPc}}</td>
+          <td class="text-right text-bold">{{this.totalWeight}}</td>
+          <td>{{this.buildingName}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>

@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { generateWPSPDF } from '@/lib/wps-pdf-generator';
+import { generateAWSWPSPDF } from '@/lib/wps-aws-d1-pdf-generator';
 
 type WPSExportButtonProps = {
   wps: any;
@@ -37,7 +38,7 @@ export function WPSExportButton({ wps }: WPSExportButtonProps) {
     });
   };
 
-  const handleExport = async (theme: 'blue' | 'green' | 'orange' | 'purple' | 'red') => {
+  const handleExport = async (format: 'aws' | 'blue' | 'green' | 'orange' | 'purple' | 'red') => {
     setLoading(true);
     try {
       // Fetch settings
@@ -54,7 +55,11 @@ export function WPSExportButton({ wps }: WPSExportButtonProps) {
         }
       }
 
-      const blob = generateWPSPDF(wps, theme, settings, logoBase64);
+      // Use AWS D1.1 format or themed format
+      const blob = format === 'aws' 
+        ? generateAWSWPSPDF(wps, settings, logoBase64)
+        : generateWPSPDF(wps, format, settings, logoBase64);
+        
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -89,12 +94,20 @@ export function WPSExportButton({ wps }: WPSExportButtonProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Select Theme</DropdownMenuLabel>
+        <DropdownMenuLabel>Select Format</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleExport('aws')}>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-gray-800 flex items-center justify-center text-white text-[8px] font-bold">AWS</div>
+            AWS D1.1-2020 (Official)
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Themed Formats</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => handleExport('blue')}>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-blue-600"></div>
-            Blue (Default)
+            Blue
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport('green')}>

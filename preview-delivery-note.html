@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Note - Live Preview</title>
+  <style>
+    /* Copy from global.css */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    :root {
+      --primary-color: #2C3E50;
+      --secondary-color: #0071BC;
+      --success-color: #00A651;
+      --warning-color: #FFC000;
+      --danger-color: #E74C3C;
+      --text-primary: #2C3E50;
+      --text-secondary: #7F8C8D;
+      --border-color: #E1E8ED;
+      --table-stripe-bg: #F7F9FA;
+      --page-bg: #FFFFFF;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text-primary);
+      background: var(--page-bg);
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    /* HEADER SECTION */
+    .delivery-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 20px;
+      border-bottom: 2px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .header-left {
+      flex: 1;
+    }
+
+    .company-logo {
+      height: 60px;
+      width: auto;
+      margin-bottom: 5px;
+    }
+
+    .company-name {
+      font-size: 14pt;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    .header-center {
+      flex: 1;
+      text-align: center;
+    }
+
+    .document-title {
+      font-size: 28pt;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .header-right {
+      flex: 1;
+      text-align: right;
+    }
+
+    .header-info-table {
+      display: inline-block;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+
+    .header-info-table td {
+      padding: 5px 10px;
+      border: none;
+    }
+
+    .header-info-table .label {
+      font-weight: bold;
+      text-align: right;
+      padding-right: 10px;
+    }
+
+    .header-info-table .value {
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    /* PROJECT INFO SECTION */
+    .project-info-section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #F7F9FA;
+      border-radius: 4px;
+    }
+
+    .project-info-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+
+    .project-info-table td {
+      padding: 8px 15px;
+      border: none;
+    }
+
+    .project-info-table .label {
+      font-weight: bold;
+      width: 150px;
+      color: var(--text-secondary);
+    }
+
+    .project-info-table .value {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* BUILDING SUMMARY TABLE */
+    .building-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin-bottom: 20px;
+    }
+
+    .building-summary-table thead tr.header-red {
+      background: #E74C3C;
+      color: white;
+    }
+
+    .building-summary-table th {
+      padding: 10px;
+      text-align: center;
+      font-weight: bold;
+      border: 1px solid #E74C3C;
+    }
+
+    .building-summary-table td {
+      padding: 8px 10px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .building-summary-table td.highlight {
+      background: #E8F5E9;
+      font-weight: bold;
+      color: var(--success-color);
+    }
+
+    .building-summary-table td.highlight-orange {
+      background: #FFF3E0;
+      font-weight: bold;
+      color: var(--warning-color);
+    }
+
+    /* SHIPMENT SUMMARY */
+    .shipment-summary-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .summary-box {
+      flex: 1;
+      padding: 15px;
+      background: #F7F9FA;
+      border-radius: 4px;
+      text-align: center;
+      border: 2px solid var(--border-color);
+    }
+
+    .summary-box.green {
+      background: #E8F5E9;
+      border-color: var(--success-color);
+    }
+
+    .summary-box.blue {
+      background: #E3F2FD;
+      border-color: var(--secondary-color);
+    }
+
+    .box-label {
+      font-size: 9pt;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .box-value {
+      font-size: 16pt;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    /* DRIVER INFO TABLE */
+    .driver-info-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      background: white;
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .driver-info-table td {
+      padding: 10px 15px;
+      border: 1px solid var(--border-color);
+    }
+
+    .driver-info-table .label {
+      font-weight: bold;
+      background: #F7F9FA;
+      width: 150px;
+      color: var(--text-secondary);
+    }
+
+    .driver-info-table .value {
+      color: var(--text-primary);
+    }
+
+    /* ITEMS TABLE */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+    }
+
+    .items-table thead tr.header-dark {
+      background: #2C3E50;
+      color: white;
+    }
+
+    .items-table th {
+      padding: 10px 8px;
+      text-align: center;
+      font-weight: bold;
+      border: 1px solid #2C3E50;
+      font-size: 8pt;
+    }
+
+    .items-table td {
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      font-size: 8pt;
+    }
+
+    .items-table tbody tr:nth-child(even) {
+      background-color: var(--table-stripe-bg);
+    }
+
+    .text-center {
+      text-align: center !important;
+    }
+
+    .text-right {
+      text-align: right !important;
+    }
+
+    .text-bold {
+      font-weight: bold !important;
+    }
+
+    /* EDIT MODE STYLES */
+    .edit-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100vh;
+      background: #fff;
+      border-left: 2px solid #ddd;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .edit-panel h3 {
+      margin-bottom: 15px;
+      color: var(--primary-color);
+    }
+
+    .edit-group {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .edit-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: var(--text-secondary);
+    }
+
+    .edit-group input[type="color"],
+    .edit-group input[type="number"],
+    .edit-group input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .edit-group button {
+      width: 100%;
+      padding: 10px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .edit-group button:hover {
+      background: var(--secondary-color);
+    }
+
+    .main-content {
+      margin-right: 320px;
+    }
+  </style>
+</head>
+<body>
+  <!-- EDIT PANEL -->
+  <div class="edit-panel">
+    <h3>🎨 Live Editor</h3>
+    
+    <div class="edit-group">
+      <label>Red Header Color</label>
+      <input type="color" id="redHeaderColor" value="#E74C3C">
+    </div>
+
+    <div class="edit-group">
+      <label>Yellow Header Color</label>
+      <input type="color" id="yellowHeaderColor" value="#FFC000">
+    </div>
+
+    <div class="edit-group">
+      <label>Green Box Color</label>
+      <input type="color" id="greenBoxColor" value="#00A651">
+    </div>
+
+    <div class="edit-group">
+      <label>Dark Table Header Color</label>
+      <input type="color" id="darkHeaderColor" value="#2C3E50">
+    </div>
+
+    <div class="edit-group">
+      <label>Header Padding (px)</label>
+      <input type="number" id="headerPadding" value="20" min="0" max="100">
+    </div>
+
+    <div class="edit-group">
+      <label>Title Font Size (pt)</label>
+      <input type="number" id="titleSize" value="28" min="10" max="50">
+    </div>
+
+    <div class="edit-group">
+      <button onclick="applyChanges()">Apply Changes</button>
+      <button onclick="resetDefaults()" style="background: #E74C3C; margin-top: 10px;">Reset to Default</button>
+    </div>
+
+    <div class="edit-group">
+      <button onclick="downloadPDF()" style="background: #00A651;">Generate PDF</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <!-- HEADER -->
+    <div class="delivery-header" id="deliveryHeader">
+      <div class="header-left">
+        <div style="height: 60px; width: 120px; background: #2C3E50; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">LOGO</div>
+        <div class="company-name">Horizons</div>
+      </div>
+      <div class="header-center">
+        <h1 class="document-title" id="documentTitle">Delivery Note</h1>
+      </div>
+      <div class="header-right">
+        <table class="header-info-table">
+          <tr>
+            <td class="label">Date</td>
+            <td class="value">Wed-13-Aug-2025</td>
+          </tr>
+          <tr>
+            <td class="label">Delivery #</td>
+            <td class="value">HU-DN-2908-0463</td>
+          </tr>
+          <tr>
+            <td class="label">Delivery Count</td>
+            <td class="value">6</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROJECT INFO -->
+    <div class="project-info-section">
+      <table class="project-info-table">
+        <tr>
+          <td class="label">Project #</td>
+          <td class="value">271</td>
+        </tr>
+        <tr>
+          <td class="label">Project Name</td>
+          <td class="value">Incoterm</td>
+        </tr>
+        <tr>
+          <td class="label">Incoterm</td>
+          <td class="value">DDP</td>
+        </tr>
+        <tr>
+          <td class="label">Approved By</td>
+          <td class="value">Ehab Samir</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- BUILDING SUMMARY -->
+    <table class="building-summary-table" id="buildingSummaryTable">
+      <thead>
+        <tr class="header-red">
+          <th>Building(s) Name</th>
+          <th>Building Weight (T)</th>
+          <th>Shipment Weight (T)</th>
+          <th>Previous Shipments</th>
+          <th>Current Shipment %</th>
+          <th>Total Shipments %</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-bold">Building 02</td>
+          <td>32.42</td>
+          <td>3.43</td>
+          <td>28.85</td>
+          <td class="highlight">11%</td>
+          <td class="highlight-orange">100%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- SHIPMENT SUMMARY -->
+    <div class="shipment-summary-row">
+      <div class="summary-box green" id="greenBox1">
+        <div class="box-label">Project Weight (T)</div>
+        <div class="box-value">3.43</div>
+      </div>
+      <div class="summary-box blue">
+        <div class="box-label">Shipment Weight (T)</div>
+        <div class="box-value">3.43</div>
+      </div>
+      <div class="summary-box">
+        <div class="box-label">Shipment Pcs Count</div>
+        <div class="box-value">4.00</div>
+      </div>
+    </div>
+
+    <!-- DRIVER INFO -->
+    <table class="driver-info-table">
+      <tr>
+        <td class="label">Driver Name</td>
+        <td class="value">محمد علي عبدالله</td>
+        <td class="label">Mobile #</td>
+        <td class="value">5V1234438</td>
+      </tr>
+      <tr>
+        <td class="label">Vehicle Type</td>
+        <td class="value">Low Bed</td>
+        <td class="label">Iqama #</td>
+        <td class="value">2320070396</td>
+      </tr>
+      <tr>
+        <td class="label">Car No.</td>
+        <td class="value">9103 NNA</td>
+        <td class="label">Signature</td>
+        <td class="value"></td>
+      </tr>
+    </table>
+
+    <!-- ITEMS TABLE -->
+    <table class="items-table" id="itemsTable">
+      <thead>
+        <tr class="header-dark">
+          <th>Pos.</th>
+          <th>PID</th>
+          <th>Part Name</th>
+          <th>Item Designation</th>
+          <th>Item Profile</th>
+          <th>Total Qty</th>
+          <th>Dispatched Qty</th>
+          <th>Weight/Pc</th>
+          <th>Total Weight</th>
+          <th>Building Name</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-center">1</td>
+          <td>31146</td>
+          <td>271-B2-BM-J3</td>
+          <td>BEAM</td>
+          <td>IPE270</td>
+          <td class="text-center">1.00</td>
+          <td class="text-center">1.00</td>
+          <td class="text-right">769.0</td>
+          <td class="text-right text-bold">769.0</td>
+          <td>Building 02</td>
+        </tr>
+        <tr>
+          <td class="text-center">2</td>
+          <td>31147</td>
+          <td>271-B2-BM-J4</td>
+          <td>BEAM</td>
+          <td>IPE270</td>
+          <td class="text-center">1.00</td>
+          <td class="text-center">1.00</td>
+          <td class="text-right">769.0</td>
+          <td class="text-right text-bold">769.0</td>
+          <td>Building 02</td>
+        </tr>
+        <tr>
+          <td class="text-center">3</td>
+          <td>31148</td>
+          <td>271-B2-BM-J5</td>
+          <td>BEAM</td>
+          <td>IPE270</td>
+          <td class="text-center">1.00</td>
+          <td class="text-center">1.00</td>
+          <td class="text-right">767.0</td>
+          <td class="text-right text-bold">767.0</td>
+          <td>Building 02</td>
+        </tr>
+        <tr>
+          <td class="text-center">4</td>
+          <td>31149</td>
+          <td>271-B2-BM-20</td>
+          <td>BEAM</td>
+          <td>IPE360</td>
+          <td class="text-center">1.00</td>
+          <td class="text-center">1.00</td>
+          <td class="text-right">1,120.0</td>
+          <td class="text-right text-bold">1,120.0</td>
+          <td>Building 02</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    function applyChanges() {
+      // Get values
+      const redColor = document.getElementById('redHeaderColor').value;
+      const yellowColor = document.getElementById('yellowHeaderColor').value;
+      const greenColor = document.getElementById('greenBoxColor').value;
+      const darkColor = document.getElementById('darkHeaderColor').value;
+      const headerPadding = document.getElementById('headerPadding').value;
+      const titleSize = document.getElementById('titleSize').value;
+
+      // Apply changes
+      document.querySelector('.building-summary-table thead tr.header-red').style.background = redColor;
+      document.querySelector('.building-summary-table td.highlight-orange').style.background = yellowColor + '40';
+      document.querySelector('.summary-box.green').style.borderColor = greenColor;
+      document.querySelector('.summary-box.green').style.background = greenColor + '20';
+      document.querySelector('.items-table thead tr.header-dark').style.background = darkColor;
+      document.getElementById('deliveryHeader').style.padding = headerPadding + 'px';
+      document.getElementById('documentTitle').style.fontSize = titleSize + 'pt';
+
+      alert('✅ Changes applied! You can now generate PDF with these settings.');
+    }
+
+    function resetDefaults() {
+      document.getElementById('redHeaderColor').value = '#E74C3C';
+      document.getElementById('yellowHeaderColor').value = '#FFC000';
+      document.getElementById('greenBoxColor').value = '#00A651';
+      document.getElementById('darkHeaderColor').value = '#2C3E50';
+      document.getElementById('headerPadding').value = '20';
+      document.getElementById('titleSize').value = '28';
+      applyChanges();
+    }
+
+    function downloadPDF() {
+      alert('To generate PDF:\n\n1. Copy your color values\n2. Update styles.css in your project\n3. Run: node test-delivery-note.js\n\nOr use the API endpoint with your custom styles!');
+    }
+  </script>
+</body>
+</html>

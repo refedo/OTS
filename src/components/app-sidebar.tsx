@@ -58,6 +58,7 @@ type NavigationSection = {
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Notifications', href: '/notifications', icon: Bell },
+  { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Tasks', href: '/tasks', icon: ListChecks },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
@@ -68,12 +69,14 @@ const navigationSections: NavigationSection[] = [
     icon: Factory,
     items: [
       { name: 'Dashboard', href: '/production', icon: Activity },
+      { name: 'Work Orders', href: '/production/work-orders', icon: ClipboardCheck },
       { name: 'Production Status', href: '/production/status', icon: Activity },
       { name: 'Raw Data', href: '/production/assembly-parts', icon: List },
       { name: 'Production Logs', href: '/production/logs', icon: Activity },
       { name: 'Dispatch Reports', href: '/production/dispatch-reports', icon: FileText },
       { name: 'Daily Report (PDR)', href: '/production/reports/daily', icon: Calendar },
       { name: 'Period Report', href: '/production/reports/period', icon: TrendingUp },
+      { name: 'Production Plan', href: '/production/reports/production-plan', icon: Calendar },
       { name: 'Status by Name', href: '/production/reports/status-by-name', icon: TrendingUp },
       { name: 'Mass Log', href: '/production/mass-log', icon: List },
       { name: 'Production Settings', href: '/settings/production', icon: Settings },

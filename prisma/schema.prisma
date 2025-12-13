@@ -115,6 +115,8 @@ model User {
   assignedWeeklyIssues WeeklyIssue[] @relation("WeeklyIssueAssignedTo")
   notifications      Notification[] @relation("UserNotifications")
   dashboardWidgets   UserDashboardWidget[] @relation("UserDashboardWidgets")
+  workOrdersEngineered WorkOrder[] @relation("WorkOrderEngineer")
+  createdWorkOrders  WorkOrder[] @relation("WorkOrderCreatedBy")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -261,6 +263,7 @@ model Project {
   projectPlans                    ProjectPlan[]
   documentSubmissions             DocumentSubmission[]
   operationEvents                 OperationEvent[]
+  workOrders                      WorkOrder[]
   
   createdAt                       DateTime                        @default(now())
   updatedAt                       DateTime                        @updatedAt
@@ -284,6 +287,7 @@ model Building {
   scopeSchedules ScopeSchedule[]
   documentSubmissions DocumentSubmission[]
   operationEvents OperationEvent[]
+  workOrders    WorkOrder[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -611,6 +615,7 @@ model AssemblyPart {
   project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
   building              Building?             @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   productionLogs        ProductionLog[]
+  workOrderParts        WorkOrderPart[]
   
   // Audit fields
   createdById           String                @db.Char(36)
@@ -1978,4 +1983,89 @@ model UserDashboardWidget {
   @@index([widgetType])
   @@index([position])
   @@map("user_dashboard_widgets")
+}
+
+// ============================================
+// WORK ORDER MODULE
+// ============================================
+
+model WorkOrder {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  workOrderNumber       String                @unique // Auto-generated: WO-YYYY-NNNN
+  projectId             String                @db.Char(36)
+  buildingId            String                @db.Char(36)
+  
+  // Work Order Details
+  name                  String                // Auto-generated based on groups
+  description           String?               @db.Text
+  
+  // Groups and Parts
+  selectedGroups        Json                  // Array of selected group names (e.g., ["Columns", "Rafters"])
+  
+  // Responsibility
+  productionEngineerId  String                @db.Char(36)
+  processingLocation    String?
+  processingTeam        String?
+  
+  // Weight and Progress
+  totalWeight           Decimal               @db.Decimal(10, 2) // kg
+  weightPercentage      Decimal               @db.Decimal(5, 2) // % of building/project weight
+  
+  // Timeline (from production plan)
+  plannedStartDate      DateTime
+  plannedEndDate        DateTime
+  actualStartDate       DateTime?
+  actualEndDate         DateTime?
+  
+  // Status
+  status                String                @default("Pending") // Pending, In Progress, Completed, Cancelled
+  progress              Decimal               @default(0)         @db.Decimal(5, 2) // 0-100%
+  
+  // Relations
+  project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building              Building              @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  productionEngineer    User                  @relation("WorkOrderEngineer", fields: [productionEngineerId], references: [id])
+  parts                 WorkOrderPart[]
+  
+  // Audit
+  createdById           String                @db.Char(36)
+  createdBy             User                  @relation("WorkOrderCreatedBy", fields: [createdById], references: [id])
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([projectId])
+  @@index([buildingId])
+  @@index([productionEngineerId])
+  @@index([status])
+  @@index([plannedStartDate])
+  @@index([plannedEndDate])
+}
+
+model WorkOrderPart {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  workOrderId           String                @db.Char(36)
+  assemblyPartId        String                @db.Char(36)
+  
+  // Part details (denormalized for performance)
+  partDesignation       String
+  assemblyMark          String
+  partMark              String
+  quantity              Int
+  weight                Decimal               @db.Decimal(10, 2) // kg
+  
+  // Progress tracking
+  processedQuantity     Int                   @default(0)
+  status                String                @default("Pending") // Pending, In Progress, Completed
+  
+  // Relations
+  workOrder             WorkOrder             @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  assemblyPart          AssemblyPart          @relation(fields: [assemblyPartId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([workOrderId])
+  @@index([assemblyPartId])
+  @@index([status])
+  @@unique([workOrderId, assemblyPartId])
 }

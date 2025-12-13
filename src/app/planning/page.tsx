@@ -12,6 +12,8 @@ import {
   Plus,
   Trash2,
   Save,
+  Upload,
+  Download,
 } from 'lucide-react';
 
 type Project = {
@@ -57,6 +59,7 @@ export default function PlanningDashboardPage() {
   const [schedules, setSchedules] = useState<ScopeSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [selectedScope, setSelectedScope] = useState<string>('');
@@ -303,6 +306,77 @@ export default function PlanningDashboardPage() {
     }
   };
 
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/scope-schedules/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to import schedules');
+      }
+
+      const result = await response.json();
+      
+      // Show results
+      let message = `Import completed!\n\nSuccess: ${result.results.success}\nFailed: ${result.results.failed}`;
+      if (result.results.errors.length > 0) {
+        message += '\n\nErrors:\n' + result.results.errors.slice(0, 10).join('\n');
+        if (result.results.errors.length > 10) {
+          message += `\n... and ${result.results.errors.length - 10} more errors`;
+        }
+      }
+      alert(message);
+
+      // Refresh data
+      if (result.results.success > 0) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Error importing schedules:', error);
+      alert(error instanceof Error ? error.message : 'Failed to import schedules');
+    } finally {
+      setImporting(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  const downloadTemplate = () => {
+    // Create CSV template
+    const headers = ['Project', 'Building', 'Activity', 'Start Date', 'End Date'];
+    const sampleData = [
+      ['270', 'BLD1', 'Fabrication', '2025-01-15', '2025-02-15'],
+      ['270', 'BLD1', 'Painting', '2025-02-16', '2025-03-01'],
+      ['275', 'WH', 'Design', '2025-01-01', '2025-01-31'],
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...sampleData.map(row => row.join(',')),
+    ].join('\n');
+
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'schedule-import-template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
@@ -389,7 +463,40 @@ export default function PlanningDashboardPage() {
             )}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              onClick={downloadTemplate}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Template
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              disabled={importing}
+              onClick={() => document.getElementById('file-upload')?.click()}
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import Excel
+                </>
+              )}
+            </Button>
+            <input
+              id="file-upload"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileImport}
+              className="hidden"
+            />
+            
             <Button onClick={addSchedule} disabled={projects.length === 0}>
               <Plus className="mr-2 h-4 w-4" />
               Add Schedule

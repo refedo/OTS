@@ -1,0 +1,522 @@
+/**
+ * Hexa Steel® Global CSS Theme
+ * Professional PDF Report Styling
+ */
+
+/* ============================================
+   FONTS
+   ============================================ */
+@font-face {
+  font-family: 'Cairo';
+  src: url('../fonts/Cairo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* ============================================
+   ROOT VARIABLES - HEXA STEEL® BRAND
+   ============================================ */
+:root {
+  --primary-color: #2C3E50;
+  --secondary-color: #0071BC;
+  --background-color: #FFFFFF;
+  --table-stripe-bg: #F7F9FA;
+  --text-primary: #2C3E50;
+  --text-secondary: #5A6C7D;
+  --border-color: #E1E8ED;
+  --success-color: #27AE60;
+  --warning-color: #F39C12;
+  --danger-color: #E74C3C;
+  --header-height: 80px;
+  --footer-height: 40px;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 10pt;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background-color: var(--background-color);
+}
+
+/* Arabic Language Support */
+body[lang="ar"] {
+  font-family: 'Cairo', sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+/* ============================================
+   PAGE LAYOUT
+   ============================================ */
+@page {
+  size: A4;
+  margin: 20mm 15mm 40mm 15mm;
+}
+
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 20px;
+  background: white;
+  position: relative;
+}
+
+.page-break {
+  page-break-after: always;
+  break-after: page;
+}
+
+.no-break {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* ============================================
+   HEADER STYLES
+   ============================================ */
+.report-header {
+  height: var(--header-height);
+  background: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  margin: -20px -20px 30px -20px;
+}
+
+.report-header .logo {
+  height: 50px;
+  width: auto;
+}
+
+.report-header .project-info {
+  text-align: right;
+}
+
+body[lang="ar"] .report-header .project-info {
+  text-align: left;
+}
+
+.report-header .project-number {
+  font-size: 18pt;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.report-header .project-name {
+  font-size: 11pt;
+  opacity: 0.9;
+}
+
+/* ============================================
+   FOOTER STYLES
+   ============================================ */
+.report-footer {
+  height: var(--footer-height);
+  background: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  font-size: 8pt;
+  margin: 30px -20px -20px -20px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.report-footer .confidential {
+  opacity: 0.8;
+}
+
+.report-footer .page-number {
+  font-weight: bold;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+h1 {
+  font-size: 20pt;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  border-bottom: 3px solid var(--secondary-color);
+  padding-bottom: 10px;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-top: 25px;
+  margin-bottom: 15px;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+p {
+  margin-bottom: 10px;
+  line-height: 1.8;
+}
+
+.text-muted {
+  color: var(--text-secondary);
+  font-size: 9pt;
+}
+
+.text-bold {
+  font-weight: bold;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* ============================================
+   TABLES
+   ============================================ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+  font-size: 9pt;
+  page-break-inside: auto;
+}
+
+thead {
+  display: table-header-group;
+  background: var(--primary-color);
+  color: white;
+}
+
+tbody {
+  display: table-row-group;
+}
+
+tr {
+  page-break-inside: avoid;
+  page-break-after: auto;
+}
+
+th {
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: bold;
+  border: 1px solid var(--primary-color);
+}
+
+body[lang="ar"] th {
+  text-align: right;
+}
+
+td {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+body[lang="ar"] td {
+  text-align: right;
+}
+
+tbody tr:nth-child(even) {
+  background-color: var(--table-stripe-bg);
+}
+
+tbody tr:hover {
+  background-color: #EDF2F7;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+/* ============================================
+   SECTIONS & CARDS
+   ============================================ */
+.section {
+  margin-bottom: 30px;
+  page-break-inside: avoid;
+}
+
+.card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  font-size: 13pt;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--secondary-color);
+}
+
+/* ============================================
+   GRID LAYOUT
+   ============================================ */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -10px;
+}
+
+.col {
+  flex: 1;
+  padding: 0 10px;
+}
+
+.col-2 {
+  flex: 0 0 50%;
+  max-width: 50%;
+  padding: 0 10px;
+}
+
+.col-3 {
+  flex: 0 0 33.333%;
+  max-width: 33.333%;
+  padding: 0 10px;
+}
+
+.col-4 {
+  flex: 0 0 25%;
+  max-width: 25%;
+  padding: 0 10px;
+}
+
+/* ============================================
+   INFO BOXES
+   ============================================ */
+.info-box {
+  padding: 15px;
+  border-left: 4px solid var(--secondary-color);
+  background: var(--table-stripe-bg);
+  margin-bottom: 15px;
+}
+
+body[lang="ar"] .info-box {
+  border-left: none;
+  border-right: 4px solid var(--secondary-color);
+}
+
+.info-box .label {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.info-box .value {
+  font-size: 14pt;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+/* ============================================
+   BADGES & STATUS
+   ============================================ */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 8pt;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.badge-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.badge-warning {
+  background: var(--warning-color);
+  color: white;
+}
+
+.badge-danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+.badge-info {
+  background: var(--secondary-color);
+  color: white;
+}
+
+/* ============================================
+   PROGRESS BARS
+   ============================================ */
+.progress {
+  height: 20px;
+  background: var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 8pt;
+  font-weight: bold;
+  transition: width 0.3s ease;
+}
+
+.progress-bar.success {
+  background: var(--success-color);
+}
+
+.progress-bar.warning {
+  background: var(--warning-color);
+}
+
+.progress-bar.danger {
+  background: var(--danger-color);
+}
+
+/* ============================================
+   SIGNATURES
+   ============================================ */
+.signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 50px;
+  page-break-inside: avoid;
+}
+
+.signature-box {
+  width: 45%;
+  text-align: center;
+}
+
+.signature-line {
+  border-top: 2px solid var(--text-primary);
+  margin-top: 60px;
+  padding-top: 10px;
+}
+
+.signature-label {
+  font-size: 10pt;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.signature-date {
+  font-size: 8pt;
+  color: var(--text-secondary);
+  margin-top: 5px;
+}
+
+/* ============================================
+   CHARTS & IMAGES
+   ============================================ */
+.chart-container {
+  width: 100%;
+  margin: 20px 0;
+  text-align: center;
+  page-break-inside: avoid;
+}
+
+.chart-container img,
+.chart-container svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================================
+   QR CODE
+   ============================================ */
+.qr-code {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.qr-code img {
+  width: 100px;
+  height: 100px;
+}
+
+/* ============================================
+   UTILITIES
+   ============================================ */
+.mt-10 { margin-top: 10px; }
+.mt-20 { margin-top: 20px; }
+.mt-30 { margin-top: 30px; }
+.mb-10 { margin-bottom: 10px; }
+.mb-20 { margin-bottom: 20px; }
+.mb-30 { margin-bottom: 30px; }
+.p-10 { padding: 10px; }
+.p-20 { padding: 20px; }
+
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+
+.font-small { font-size: 8pt; }
+.font-normal { font-size: 10pt; }
+.font-large { font-size: 12pt; }
+
+.color-primary { color: var(--primary-color); }
+.color-secondary { color: var(--secondary-color); }
+.color-success { color: var(--success-color); }
+.color-warning { color: var(--warning-color); }
+.color-danger { color: var(--danger-color); }
+
+/* ============================================
+   PRINT OPTIMIZATIONS
+   ============================================ */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  .page-break {
+    page-break-after: always;
+  }
+}
