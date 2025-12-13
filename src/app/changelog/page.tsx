@@ -12,10 +12,40 @@ import { CheckCircle, AlertCircle, Sparkles, Wrench, FileText } from 'lucide-rea
 
 const versions = [
   {
+    version: '1.2.1',
+    date: 'December 14, 2025',
+    type: 'patch',
+    status: 'current',
+    highlights: [
+      'Deployment stability fixes',
+      'OpenAI SDK dependency compatibility',
+      'Reduced production cache issues',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Deployment Improvements',
+          items: [
+            'Deployment troubleshooting documentation for production',
+            'Recommended clean install workflow (remove node_modules + lockfile on dependency conflicts)',
+            'PM2 restart guidance to avoid stale runtime artifacts after build',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed npm dependency resolution error (ERESOLVE) caused by zod v4 conflicting with OpenAI SDK peer dependency (zod v3)',
+        'Reduced risk of Next.js Server Action ID mismatch after deployment by recommending cache-clearing deployment flow',
+      ],
+      changed: [
+        'Downgraded zod dependency to ^3.23.8 for OpenAI SDK compatibility',
+      ],
+    },
+  },
+  {
     version: '1.2.0',
     date: 'December 9, 2024',
     type: 'minor',
-    status: 'current',
+    status: 'stable',
     highlights: [
       'Real-time Notifications',
       'Project Dashboard v2.0',
