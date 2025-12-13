@@ -5,7 +5,7 @@ import { verifySession } from '@/lib/jwt';
 
 // Calculate progress for each scope type
 async function calculateProgress(schedule: any): Promise<number> {
-  const { scopeType, buildingId, projectId } = schedule;
+  const { scopeType, buildingId } = schedule;
 
   try {
     // For fabrication: average of fit-up, welding, visualization
@@ -29,7 +29,6 @@ async function calculateProgress(schedule: any): Promise<number> {
       const totalQuantity = parts.reduce((sum, p) => sum + (p.quantity || 0), 0);
       if (totalQuantity === 0) return 0;
 
-      // Calculate progress for each process
       const processes = ['Fit-up', 'Welding', 'Visualization'];
       const processProgress = processes.map(processType => {
         const processedQty = parts.reduce((sum, part) => {
@@ -40,11 +39,10 @@ async function calculateProgress(schedule: any): Promise<number> {
         return (processedQty / totalQuantity) * 100;
       });
 
-      // Return average of the 3 processes
       return processProgress.reduce((sum, p) => sum + p, 0) / processes.length;
     }
 
-    // For painting: check painting process in production logs
+    // For painting
     if (scopeType === 'painting') {
       const parts = await prisma.assemblyPart.findMany({
         where: { buildingId },
@@ -71,7 +69,7 @@ async function calculateProgress(schedule: any): Promise<number> {
       return (processedQty / totalQuantity) * 100;
     }
 
-    // For galvanization: check galvanization process in production logs
+    // For galvanization
     if (scopeType === 'galvanization') {
       const parts = await prisma.assemblyPart.findMany({
         where: { buildingId },
@@ -98,11 +96,10 @@ async function calculateProgress(schedule: any): Promise<number> {
       return (processedQty / totalQuantity) * 100;
     }
 
-    // For design and shop drawing: check document timeline
+    // For design and shop drawing
     if (scopeType === 'design' || scopeType === 'shopDrawing') {
       const documentType = scopeType === 'design' ? 'Design' : 'Shop Drawing';
       
-      // Get all documents for this building and type
       const documents = await prisma.document.findMany({
         where: {
           buildingId,
@@ -122,7 +119,6 @@ async function calculateProgress(schedule: any): Promise<number> {
 
       if (documents.length === 0) return 0;
 
-      // Count documents with approved latest revision
       const approvedDocs = documents.filter(doc => {
         const latestRevision = doc.revisions[0];
         return latestRevision && latestRevision.clientResponse === 'Approved';
@@ -131,7 +127,6 @@ async function calculateProgress(schedule: any): Promise<number> {
       return (approvedDocs.length / documents.length) * 100;
     }
 
-    // For other scopes, return 0 for now
     return 0;
   } catch (error) {
     console.error(`Error calculating progress for ${scopeType}:`, error);
@@ -149,26 +144,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(req.url);
-    const buildingId = searchParams.get('buildingId');
-    const projectId = searchParams.get('projectId');
-    const scopeType = searchParams.get('scopeType');
+    const now = new Date();
 
-    // Build where clause
-    const whereClause: any = {};
-    if (buildingId) {
-      whereClause.buildingId = buildingId;
-    }
-    if (projectId) {
-      whereClause.projectId = projectId;
-    }
-    if (scopeType) {
-      whereClause.scopeType = scopeType;
-    }
-
+    // Get all scope schedules
     const scopeSchedules = await prisma.scopeSchedule.findMany({
-      where: whereClause,
       include: {
         project: {
           select: {
@@ -186,27 +165,74 @@ export async function GET(req: Request) {
         },
       },
       orderBy: {
-        startDate: 'asc',
+        endDate: 'asc',
       },
     });
 
-    // Calculate progress for each schedule
-    const schedulesWithProgress = await Promise.all(
-      scopeSchedules.map(async (schedule) => {
-        const progress = await calculateProgress(schedule);
-        return {
-          ...schedule,
-          progress: Math.round(progress * 10) / 10, // Round to 1 decimal place
-        };
-      })
-    );
+    // Calculate progress and filter underperforming schedules
+    const underperformingSchedules = [];
 
-    return NextResponse.json(schedulesWithProgress);
+    for (const schedule of scopeSchedules) {
+      const progress = await calculateProgress(schedule);
+      
+      const start = new Date(schedule.startDate);
+      const end = new Date(schedule.endDate);
+      
+      // Calculate time elapsed percentage
+      const totalDuration = end.getTime() - start.getTime();
+      const elapsed = now.getTime() - start.getTime();
+      const timeElapsedPercent = (elapsed / totalDuration) * 100;
+      
+      // Calculate expected progress
+      const progressGap = timeElapsedPercent - progress;
+      
+      let status: 'critical' | 'at-risk' | null = null;
+      
+      // If past deadline and not 100% complete
+      if (now > end && progress < 100) {
+        status = 'critical';
+      }
+      // If progress is significantly behind schedule (>20% gap)
+      else if (progressGap > 20) {
+        status = 'critical';
+      }
+      // If progress is moderately behind schedule (10-20% gap)
+      else if (progressGap > 10) {
+        status = 'at-risk';
+      }
+      
+      // Only include underperforming schedules
+      if (status) {
+        const daysOverdue = now > end ? Math.floor((now.getTime() - end.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        
+        underperformingSchedules.push({
+          id: schedule.id,
+          scopeType: schedule.scopeType,
+          scopeLabel: schedule.scopeLabel,
+          startDate: schedule.startDate,
+          endDate: schedule.endDate,
+          progress: Math.round(progress * 10) / 10,
+          expectedProgress: Math.round(Math.max(0, Math.min(100, timeElapsedPercent)) * 10) / 10,
+          progressGap: Math.round(progressGap * 10) / 10,
+          status,
+          daysOverdue,
+          project: schedule.project,
+          building: schedule.building,
+        });
+      }
+    }
+
+    return NextResponse.json({
+      schedules: underperformingSchedules,
+      total: underperformingSchedules.length,
+      critical: underperformingSchedules.filter(s => s.status === 'critical').length,
+      atRisk: underperformingSchedules.filter(s => s.status === 'at-risk').length,
+    });
   } catch (error) {
-    console.error('Error fetching scope schedules:', error);
+    console.error('Error fetching underperforming schedules:', error);
     return NextResponse.json(
       { 
-        error: 'Failed to fetch scope schedules',
+        error: 'Failed to fetch underperforming schedules',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

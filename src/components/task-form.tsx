@@ -72,7 +72,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       buildingId: (formData.get('buildingId') as string) || null,
       departmentId: (formData.get('departmentId') as string) || null,
       taskInputDate: (formData.get('taskInputDate') as string) || null,
-      dueDate: (formData.get('dueDate') as string) || null,
+      dueDate: formData.get('dueDate') as string,
       priority: formData.get('priority') as string,
       status: formData.get('status') as string,
     };
@@ -264,12 +264,15 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
 
             {/* Due Date */}
             <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date</Label>
+              <Label htmlFor="dueDate">
+                Due Date <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="dueDate"
                 name="dueDate"
                 type="date"
                 defaultValue={task?.dueDate ? task.dueDate.split('T')[0] : ''}
+                required
                 disabled={loading}
               />
             </div>

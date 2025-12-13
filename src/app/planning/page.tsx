@@ -39,6 +39,7 @@ type ScopeSchedule = {
   endDate: string;
   projectId: string;
   buildingId: string;
+  progress?: number;
   isNew?: boolean;
 };
 
@@ -195,6 +196,52 @@ export default function PlanningDashboardPage() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const getScheduleStatus = (schedule: ScopeSchedule): 'on-track' | 'at-risk' | 'critical' => {
+    if (!schedule.startDate || !schedule.endDate || schedule.progress === undefined) {
+      return 'on-track';
+    }
+
+    const now = new Date();
+    const start = new Date(schedule.startDate);
+    const end = new Date(schedule.endDate);
+    
+    // Calculate time elapsed percentage
+    const totalDuration = end.getTime() - start.getTime();
+    const elapsed = now.getTime() - start.getTime();
+    const timeElapsedPercent = (elapsed / totalDuration) * 100;
+    
+    // Calculate expected progress (should match time elapsed)
+    const progressGap = timeElapsedPercent - schedule.progress;
+    
+    // If past deadline and not 100% complete
+    if (now > end && schedule.progress < 100) {
+      return 'critical';
+    }
+    
+    // If progress is significantly behind schedule (>20% gap)
+    if (progressGap > 20) {
+      return 'critical';
+    }
+    
+    // If progress is moderately behind schedule (10-20% gap)
+    if (progressGap > 10) {
+      return 'at-risk';
+    }
+    
+    return 'on-track';
+  };
+
+  const getStatusColor = (status: 'on-track' | 'at-risk' | 'critical'): string => {
+    switch (status) {
+      case 'critical':
+        return 'bg-red-50 border-l-4 border-l-red-500';
+      case 'at-risk':
+        return 'bg-amber-50 border-l-4 border-l-amber-500';
+      default:
+        return '';
+    }
   };
 
   const addSchedule = () => {
@@ -535,6 +582,7 @@ export default function PlanningDashboardPage() {
                       <th className="px-4 py-3 text-left font-semibold">Start Date</th>
                       <th className="px-4 py-3 text-left font-semibold">End Date</th>
                       <th className="px-4 py-3 text-center font-semibold">Duration</th>
+                      <th className="px-4 py-3 text-center font-semibold">Progress %</th>
                       <th className="px-4 py-3 text-center font-semibold">Actions</th>
                     </tr>
                   </thead>
@@ -548,11 +596,15 @@ export default function PlanningDashboardPage() {
                       const isNewSchedule = schedule.isNew || schedule.id?.startsWith('temp-');
                       const projectBuildings = allBuildings.filter(b => b.projectId === schedule.projectId);
                       
+                      // Get schedule status for color coding
+                      const scheduleStatus = !isNewSchedule ? getScheduleStatus(schedule) : 'on-track';
+                      const statusColor = getStatusColor(scheduleStatus);
+                      
                       return (
                         <tr
                           key={schedule.id}
-                          className={`border-b ${
-                            index % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                          className={`border-b ${statusColor} ${
+                            !statusColor && (index % 2 === 0 ? 'bg-white' : 'bg-muted/10')
                           }`}
                         >
                           <td className="px-4 py-3">
@@ -667,6 +719,29 @@ export default function PlanningDashboardPage() {
                             <span className="font-semibold text-primary">
                               {duration > 0 ? `${duration} days` : '-'}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {!isNewSchedule && schedule.progress !== undefined ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-24 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full ${
+                                      schedule.progress >= 100 ? 'bg-green-500' :
+                                      schedule.progress >= 75 ? 'bg-blue-500' :
+                                      schedule.progress >= 50 ? 'bg-yellow-500' :
+                                      schedule.progress >= 25 ? 'bg-orange-500' :
+                                      'bg-red-500'
+                                    }`}
+                                    style={{ width: `${Math.min(schedule.progress, 100)}%` }}
+                                  />
+                                </div>
+                                <span className="font-semibold text-sm min-w-[3rem]">
+                                  {schedule.progress.toFixed(1)}%
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-2">

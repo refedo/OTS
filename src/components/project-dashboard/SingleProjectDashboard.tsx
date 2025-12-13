@@ -11,6 +11,7 @@ import { QCProgressWidget } from './QCProgressWidget';
 import { BuildingsStatusWidget } from './BuildingsStatusWidget';
 import { DocumentationStatusWidget } from './DocumentationStatusWidget';
 import { TasksOverviewWidget } from './TasksOverviewWidget';
+import { WorkOrdersWidget } from './WorkOrdersWidget';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -85,7 +86,7 @@ export function SingleProjectDashboard() {
       };
 
       // Fetch all dashboard data in parallel
-      const [summary, wps, itp, production, qc, buildings, documentation, tasks] = await Promise.all([
+      const [summary, wps, itp, production, qc, buildings, documentation, tasks, workOrders] = await Promise.all([
         fetchEndpoint('summary'),
         fetchEndpoint('wps'),
         fetchEndpoint('itp'),
@@ -94,6 +95,7 @@ export function SingleProjectDashboard() {
         fetchEndpoint('buildings'),
         fetchEndpoint('documents'),
         fetchEndpoint('tasks'),
+        fetchEndpoint('work-orders'),
       ]);
 
       setDashboardData({
@@ -105,6 +107,7 @@ export function SingleProjectDashboard() {
         buildings,
         documentation,
         tasks,
+        workOrders,
       });
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -251,6 +254,13 @@ export function SingleProjectDashboard() {
       {/* Buildings Status (Full Width) */}
       <BuildingsStatusWidget 
         data={dashboardData.buildings} 
+        onRefresh={() => fetchDashboardData(projectId)}
+      />
+
+      {/* Work Orders (Full Width) */}
+      <WorkOrdersWidget 
+        data={dashboardData.workOrders} 
+        projectId={projectId}
         onRefresh={() => fetchDashboardData(projectId)}
       />
 

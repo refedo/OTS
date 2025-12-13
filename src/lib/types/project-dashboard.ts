@@ -203,6 +203,31 @@ export interface TasksOverviewResponse {
 }
 
 // ============================================
+// WORK ORDERS TYPES
+// ============================================
+
+export interface WorkOrderPart {
+  id: string;
+  partDesignation: string;
+  quantity: number;
+  status: string;
+}
+
+export interface WorkOrder {
+  id: string;
+  workOrderNumber: string;
+  status: string;
+  priority: string;
+  targetDate: string | null;
+  assignedTo: {
+    id: string;
+    name: string;
+  } | null;
+  parts: WorkOrderPart[];
+  createdAt: string;
+}
+
+// ============================================
 // COMBINED DASHBOARD RESPONSE
 // ============================================
 
@@ -215,4 +240,5 @@ export interface ProjectDashboardData {
   buildings: BuildingStatus[];
   documentation: DocumentationStatus;
   tasks: TasksOverviewResponse;
+  workOrders: WorkOrder[];
 }

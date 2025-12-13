@@ -161,7 +161,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const { unreadCount } = useNotifications();
+  const { unreadCount, totalAlertCount } = useNotifications();
   
   // Find which section contains the active route
   const getActiveSections = () => {
@@ -275,17 +275,17 @@ export function AppSidebar() {
                 >
                   <Icon className="size-5 shrink-0" />
                   {!collapsed && <span>{item.name}</span>}
-                  {isMounted && isNotifications && unreadCount > 0 && (
+                  {isMounted && isNotifications && totalAlertCount > 0 && (
                     <span className={cn(
                       'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold',
                       isActive ? 'bg-primary-foreground text-primary' : 'bg-red-500 text-white'
                     )}>
-                      {unreadCount > 99 ? '99+' : unreadCount}
+                      {totalAlertCount > 99 ? '99+' : totalAlertCount}
                     </span>
                   )}
-                  {isMounted && collapsed && isNotifications && unreadCount > 0 && (
+                  {isMounted && collapsed && isNotifications && totalAlertCount > 0 && (
                     <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-                      {unreadCount > 9 ? '9+' : unreadCount}
+                      {totalAlertCount > 9 ? '9+' : totalAlertCount}
                     </span>
                   )}
                 </Link>

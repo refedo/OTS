@@ -323,7 +323,8 @@ export default function NewWorkOrderPage() {
         router.push('/production/work-orders');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create work order');
+        console.error('Server error:', error);
+        alert(`${error.error || 'Failed to create work order'}\n\nDetails: ${error.message || 'Unknown'}`);
       }
     } catch (error) {
       console.error('Error creating work order:', error);

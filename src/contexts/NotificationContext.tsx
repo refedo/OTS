@@ -9,6 +9,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 
 interface NotificationContextType {
   unreadCount: number;
+  totalAlertCount: number; // Total of delayed tasks + underperforming schedules
   refreshUnreadCount: () => Promise<void>;
   decrementUnreadCount: () => void;
   resetUnreadCount: () => void;
@@ -18,14 +19,35 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
+  const [totalAlertCount, setTotalAlertCount] = useState(0);
 
   const refreshUnreadCount = useCallback(async () => {
     try {
+      // Fetch unread notifications
       const response = await fetch('/api/notifications?isRead=false&limit=1');
       if (response.ok) {
         const data = await response.json();
         setUnreadCount(data.unreadCount || 0);
       }
+
+      // Fetch delayed tasks count
+      const delayedTasksRes = await fetch('/api/notifications/delayed-tasks');
+      let delayedTasksCount = 0;
+      if (delayedTasksRes.ok) {
+        const delayedData = await delayedTasksRes.json();
+        delayedTasksCount = delayedData.total || 0;
+      }
+
+      // Fetch underperforming schedules count
+      const schedulesRes = await fetch('/api/notifications/underperforming-schedules');
+      let schedulesCount = 0;
+      if (schedulesRes.ok) {
+        const schedulesData = await schedulesRes.json();
+        schedulesCount = schedulesData.total || 0;
+      }
+
+      // Set total alert count (delayed tasks + underperforming schedules)
+      setTotalAlertCount(delayedTasksCount + schedulesCount);
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
@@ -52,6 +74,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     <NotificationContext.Provider
       value={{
         unreadCount,
+        totalAlertCount,
         refreshUnreadCount,
         decrementUnreadCount,
         resetUnreadCount,

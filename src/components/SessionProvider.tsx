@@ -2,11 +2,14 @@
 
 /**
  * Session Provider Component
- * Validates user session on mount and shows loading state
+ * Validates user session ONCE on initial load only
+ * Does NOT re-validate on every route change to prevent refresh issues
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { NotificationProvider } from '@/contexts/NotificationContext';
+import { SessionActivityProvider } from './session-activity-provider';
 
 interface SessionProviderProps {
   children: React.ReactNode;
@@ -19,6 +22,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const pathname = usePathname();
   const [isValidating, setIsValidating] = useState(true);
   const [sessionValid, setSessionValid] = useState(false);
+  const hasValidated = useRef(false);
 
   useEffect(() => {
     // Skip validation for public paths
@@ -27,6 +31,13 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setSessionValid(true);
       return;
     }
+
+    // Only validate ONCE on initial mount, not on every route change
+    if (hasValidated.current) {
+      return;
+    }
+
+    hasValidated.current = true;
 
     async function validateSession() {
       try {
@@ -45,10 +56,6 @@ export function SessionProvider({ children }: SessionProviderProps) {
         
         if (data.valid) {
           setSessionValid(true);
-          
-          if (data.refreshed) {
-            console.log('Session refreshed with updated user data');
-          }
         } else {
           router.push(`/login?next=${encodeURIComponent(pathname)}`);
         }
@@ -64,7 +71,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     validateSession();
   }, [pathname, router]);
 
-  // Show loading state while validating
+  // Show loading state while validating (only on initial load)
   if (isValidating && !PUBLIC_PATHS.includes(pathname)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -73,6 +80,17 @@ export function SessionProvider({ children }: SessionProviderProps) {
           <p className="mt-4 text-sm text-gray-600">Validating session...</p>
         </div>
       </div>
+    );
+  }
+
+  // For authenticated pages, wrap with activity tracker and notification provider
+  if (sessionValid && !PUBLIC_PATHS.includes(pathname)) {
+    return (
+      <NotificationProvider>
+        <SessionActivityProvider>
+          {children}
+        </SessionActivityProvider>
+      </NotificationProvider>
     );
   }
 

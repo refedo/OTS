@@ -130,6 +130,8 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    console.log('Work Order Request Body:', JSON.stringify(body, null, 2));
+    
     const {
       projectId,
       buildingId,
@@ -143,10 +145,22 @@ export async function POST(req: Request) {
       plannedEndDate,
     } = body;
 
+    console.log('Parsed values:', {
+      projectId,
+      buildingId,
+      selectedGroups,
+      selectedPartIdsCount: selectedPartIds?.length,
+      productionEngineerId,
+      plannedStartDate,
+      plannedEndDate,
+    });
+
     // Validate required fields
     if (!projectId || !buildingId || !selectedPartIds || selectedPartIds.length === 0 || !productionEngineerId) {
+      console.log('Validation failed:', { projectId, buildingId, selectedPartIdsLength: selectedPartIds?.length, productionEngineerId });
       return NextResponse.json({ 
-        error: 'Missing required fields' 
+        error: 'Missing required fields',
+        details: { projectId: !!projectId, buildingId: !!buildingId, selectedPartIds: selectedPartIds?.length || 0, productionEngineerId: !!productionEngineerId }
       }, { status: 400 });
     }
 
@@ -225,10 +239,10 @@ export async function POST(req: Request) {
         workOrderNumber,
         name: workOrderName,
         description,
-        projectId,
-        buildingId,
+        project: { connect: { id: projectId } },
+        building: { connect: { id: buildingId } },
         selectedGroups: selectedGroups || [],
-        productionEngineerId,
+        productionEngineer: { connect: { id: productionEngineerId } },
         processingLocation,
         processingTeam,
         totalWeight,
@@ -237,10 +251,10 @@ export async function POST(req: Request) {
         plannedEndDate: endDate,
         status: 'Pending',
         progress: 0,
-        createdById: session.userId,
+        createdBy: { connect: { id: session.sub } },
         parts: {
           create: parts.map(part => ({
-            assemblyPartId: part.id,
+            assemblyPart: { connect: { id: part.id } },
             partDesignation: part.partDesignation,
             assemblyMark: part.assemblyMark,
             partMark: part.partMark,
@@ -266,6 +280,7 @@ export async function POST(req: Request) {
         },
         productionEngineer: {
           select: {
+            id: true,
             name: true,
           },
         },
@@ -273,12 +288,29 @@ export async function POST(req: Request) {
       },
     });
 
+    // Create notification for assigned production engineer
+    await prisma.notification.create({
+      data: {
+        type: 'WORK_ORDER_ASSIGNED',
+        title: `New Work Order Assigned: ${workOrderNumber}`,
+        message: `You have been assigned to work order ${workOrderNumber} for ${workOrder.project.projectNumber} - ${workOrder.building.designation}. ${parts.length} part(s) included.`,
+        userId: productionEngineerId,
+        relatedEntityType: 'WorkOrder',
+        relatedEntityId: workOrder.id,
+        actionUrl: `/production/work-orders/${workOrder.id}`,
+        isRead: false,
+        isArchived: false,
+      },
+    });
+
     return NextResponse.json(workOrder);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating work order:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return NextResponse.json({ 
       error: 'Failed to create work order', 
-      message: error instanceof Error ? error.message : 'Unknown error' 
+      message: error instanceof Error ? error.message : 'Unknown error',
+      details: error?.code || error?.meta || null
     }, { status: 500 });
   }
 }

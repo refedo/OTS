@@ -294,6 +294,11 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       return;
     }
 
+    if (!quickAddData.dueDate) {
+      alert('Please enter a due date');
+      return;
+    }
+
     try {
       setCreating(true);
       const response = await fetch('/api/tasks', {
@@ -306,7 +311,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           departmentId: quickAddData.departmentId || null,
           priority: quickAddData.priority,
           taskInputDate: quickAddData.taskInputDate || null,
-          dueDate: quickAddData.dueDate || null,
+          dueDate: quickAddData.dueDate,
           status: 'Pending',
         }),
       });
@@ -764,8 +769,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           type="date"
                           value={quickAddData.dueDate}
                           onChange={(e) => setQuickAddData({ ...quickAddData, dueDate: e.target.value })}
-                          className="h-9 text-sm"
+                          className={cn("h-9 text-sm", !quickAddData.dueDate && "border-red-300")}
                           disabled={creating}
+                          required
                         />
                       </TableCell>
                       <TableCell>-</TableCell>
