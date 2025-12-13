@@ -49,7 +49,8 @@ const versions = [
             'Notifications now a collapsible menu in sidebar',
             'Quick access sub-items: Delayed Tasks, Approvals, Deadlines',
             'URL-based tab navigation for direct linking',
-            'Badge count displayed on section header',
+            'Total badge count displayed on Notifications section header',
+            'Per-item sidebar badges for: All Notifications (unread), Delayed Tasks, Deadlines',
           ],
         },
         {
@@ -67,6 +68,9 @@ const versions = [
       fixed: [
         'Logout button now correctly redirects to production URL (ots.hexasteel.sa) instead of localhost',
         'Sidebar version now syncs with changelog version',
+        'Fixed User Preferences menu not appearing by aligning UserMenu parsing with /api/auth/me response shape',
+        'Updated Version badge to reflect current release (v1.2.2)',
+        'Expanded middleware route protection to ensure expired sessions redirect to /login across all protected pages (Notifications, Reports, AI Assistant, QC, etc.)',
       ],
       changed: [
         'Notifications moved from single nav item to collapsible section',
