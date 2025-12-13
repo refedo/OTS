@@ -75,6 +75,7 @@ const versions = [
       ],
       changed: [
         'Notifications moved from single nav item to collapsible section',
+        'Sidebar navigation improved: Projects section moved before Production, Projects Dashboard moved to top, and Reports moved into Production menu',
         'AI Summary card redesigned with purple gradient theme',
         'Generate Summary button now shows loading spinner',
       ],

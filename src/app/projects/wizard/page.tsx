@@ -383,7 +383,8 @@ export default function ProjectSetupWizard() {
       const coatingCount = coatingCoats.length;
       
       alert(`Project created successfully!\n\n✓ ${buildingCount} building(s) added\n✓ ${scopeScheduleCount} scope schedule(s) saved\n✓ ${coatingCount} coating coat(s) specified`);
-      router.push(`/projects/${project.id}`);
+      router.push('/projects');
+      router.refresh();
     } catch (error) {
       console.error('Error creating project:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

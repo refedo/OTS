@@ -70,7 +70,11 @@ export function ProjectForm({ project, projectManagers, salesEngineers }: Projec
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Failed to save project');
 
-      router.push(`/projects/${result.id}`);
+      if (project?.id) {
+        router.push(`/projects/${result.id}`);
+      } else {
+        router.push('/projects');
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

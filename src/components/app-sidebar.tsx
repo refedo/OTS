@@ -59,7 +59,6 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Tasks', href: '/tasks', icon: ListChecks },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
@@ -76,10 +75,26 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
+    name: 'Projects',
+    icon: FolderKanban,
+    items: [
+      { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
+      { name: 'List Projects', href: '/projects', icon: FolderKanban },
+      { name: 'Create Project', href: '/projects/wizard', icon: Plus },
+      { name: 'Project Planning', href: '/planning', icon: Calendar },
+      { name: 'Timeline', href: '/timeline', icon: Calendar },
+      { name: 'Operations Timeline (New)', href: '/operations/dashboard', icon: Clock },
+      { name: 'Event Management', href: '/operations/events', icon: Calendar },
+      { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
+      { name: 'List Buildings', href: '/buildings', icon: Building2 },
+    ],
+  },
+  {
     name: 'Production',
     icon: Factory,
     items: [
       { name: 'Dashboard', href: '/production', icon: Activity },
+      { name: 'Reports', href: '/reports', icon: FileText },
       { name: 'Work Orders', href: '/production/work-orders', icon: ClipboardCheck },
       { name: 'Production Status', href: '/production/status', icon: Activity },
       { name: 'Raw Data', href: '/production/assembly-parts', icon: List },
@@ -108,21 +123,6 @@ const navigationSections: NavigationSection[] = [
       { name: 'Create ITP', href: '/itp/new', icon: Plus },
       { name: 'WPS List', href: '/wps', icon: FileCheck },
       { name: 'Create WPS', href: '/wps/new', icon: Plus },
-    ],
-  },
-  {
-    name: 'Projects',
-    icon: FolderKanban,
-    items: [
-      { name: 'List Projects', href: '/projects', icon: FolderKanban },
-      { name: 'Create Project', href: '/projects/wizard', icon: Plus },
-      { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
-      { name: 'Project Planning', href: '/planning', icon: Calendar },
-      { name: 'Timeline', href: '/timeline', icon: Calendar },
-      { name: 'Operations Timeline (New)', href: '/operations/dashboard', icon: Clock },
-      { name: 'Event Management', href: '/operations/events', icon: Calendar },
-      { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
-      { name: 'List Buildings', href: '/buildings', icon: Building2 },
     ],
   },
   {
