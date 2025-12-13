@@ -172,7 +172,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const { unreadCount, totalAlertCount } = useNotifications();
+  const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
   
   // Find which section contains the active route
   const getActiveSections = () => {
@@ -346,21 +346,49 @@ export function AppSidebar() {
                         // Special handling for dashboards - only exact match
                         const isActive = (item.href === '/qc' || item.href === '/production')
                           ? pathname === item.href
-                          : pathname === item.href || pathname.startsWith(item.href + '/');
+                          : pathname === item.href || pathname.startsWith(item.href.split('?')[0] + '/');
+
+                        // Determine badge count for notification sub-items
+                        let badgeCount = 0;
+                        if (isNotificationSection) {
+                          if (item.name === 'Delayed Tasks') {
+                            badgeCount = delayedTasksCount;
+                          } else if (item.name === 'Deadlines') {
+                            badgeCount = deadlinesCount;
+                          } else if (item.name === 'All Notifications') {
+                            badgeCount = unreadCount;
+                          }
+                        }
 
                         return (
                           <Link
                             key={item.name}
                             href={item.href}
                             className={cn(
-                              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                              'flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                               isActive
                                 ? 'bg-primary text-primary-foreground font-medium'
                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                             )}
                           >
-                            <ItemIcon className="size-4 shrink-0" />
-                            <span>{item.name}</span>
+                            <div className="flex items-center gap-3">
+                              <ItemIcon className="size-4 shrink-0" />
+                              <span>{item.name}</span>
+                            </div>
+                            {isMounted && badgeCount > 0 && (
+                              <span className={cn(
+                                'flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold',
+                                isActive 
+                                  ? 'bg-primary-foreground text-primary' 
+                                  : item.name === 'Delayed Tasks' 
+                                    ? 'bg-orange-500 text-white'
+                                    : item.name === 'Deadlines'
+                                      ? 'bg-red-500 text-white'
+                                      : 'bg-blue-500 text-white'
+                              )}>
+                                {badgeCount > 99 ? '99+' : badgeCount}
+                              </span>
+                            )}
                           </Link>
                         );
                       })}

@@ -10,6 +10,8 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 interface NotificationContextType {
   unreadCount: number;
   totalAlertCount: number; // Total of delayed tasks + underperforming schedules
+  delayedTasksCount: number;
+  deadlinesCount: number;
   refreshUnreadCount: () => Promise<void>;
   decrementUnreadCount: () => void;
   resetUnreadCount: () => void;
@@ -20,6 +22,8 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalAlertCount, setTotalAlertCount] = useState(0);
+  const [delayedTasksCount, setDelayedTasksCount] = useState(0);
+  const [deadlinesCount, setDeadlinesCount] = useState(0);
 
   const refreshUnreadCount = useCallback(async () => {
     try {
@@ -32,22 +36,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
       // Fetch delayed tasks count
       const delayedTasksRes = await fetch('/api/notifications/delayed-tasks');
-      let delayedTasksCount = 0;
+      let delayedCount = 0;
       if (delayedTasksRes.ok) {
         const delayedData = await delayedTasksRes.json();
-        delayedTasksCount = delayedData.total || 0;
+        delayedCount = delayedData.total || 0;
       }
+      setDelayedTasksCount(delayedCount);
 
-      // Fetch underperforming schedules count
+      // Fetch underperforming schedules count (deadlines)
       const schedulesRes = await fetch('/api/notifications/underperforming-schedules');
       let schedulesCount = 0;
       if (schedulesRes.ok) {
         const schedulesData = await schedulesRes.json();
         schedulesCount = schedulesData.total || 0;
       }
+      setDeadlinesCount(schedulesCount);
 
       // Set total alert count (delayed tasks + underperforming schedules)
-      setTotalAlertCount(delayedTasksCount + schedulesCount);
+      setTotalAlertCount(delayedCount + schedulesCount);
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
@@ -75,6 +81,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       value={{
         unreadCount,
         totalAlertCount,
+        delayedTasksCount,
+        deadlinesCount,
         refreshUnreadCount,
         decrementUnreadCount,
         resetUnreadCount,

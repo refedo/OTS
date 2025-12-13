@@ -43,7 +43,13 @@ export function UserMenu() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          setUser(data.user);
+          // API returns flat user data, not nested under 'user' key
+          setUser({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            role: { name: data.role }
+          });
         }
       } catch (error) {
         console.error('Error fetching user:', error);

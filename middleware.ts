@@ -44,7 +44,15 @@ export function middleware(req: NextRequest) {
                           pathname.startsWith('/documents') ||
                           pathname.startsWith('/production') ||
                           pathname.startsWith('/buildings') ||
-                          pathname.startsWith('/settings');
+                          pathname.startsWith('/settings') ||
+                          pathname.startsWith('/notifications') ||
+                          pathname.startsWith('/reports') ||
+                          pathname.startsWith('/ai-assistant') ||
+                          pathname.startsWith('/qc') ||
+                          pathname.startsWith('/business-planning') ||
+                          pathname.startsWith('/changelog') ||
+                          pathname.startsWith('/initiatives') ||
+                          pathname.startsWith('/rfis');
   const isProtectedApi = pathname.startsWith('/api') && !pathname.startsWith('/api/auth');
 
   if (isProtectedPage || isProtectedApi) {
