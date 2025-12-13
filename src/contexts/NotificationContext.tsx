@@ -27,11 +27,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const refreshUnreadCount = useCallback(async () => {
     try {
+      let unread = 0;
       // Fetch unread notifications
       const response = await fetch('/api/notifications?isRead=false&limit=1');
       if (response.ok) {
         const data = await response.json();
-        setUnreadCount(data.unreadCount || 0);
+        unread = data.unreadCount || 0;
+        setUnreadCount(unread);
       }
 
       // Fetch delayed tasks count
@@ -52,8 +54,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       }
       setDeadlinesCount(schedulesCount);
 
-      // Set total alert count (delayed tasks + underperforming schedules)
-      setTotalAlertCount(delayedCount + schedulesCount);
+      // Set total count for sidebar section badge (unread notifications + delayed tasks + deadlines)
+      setTotalAlertCount(unread + delayedCount + schedulesCount);
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }

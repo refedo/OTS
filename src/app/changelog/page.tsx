@@ -70,6 +70,7 @@ const versions = [
         'Sidebar version now syncs with changelog version',
         'Fixed User Preferences menu not appearing by aligning UserMenu parsing with /api/auth/me response shape',
         'Updated Version badge to reflect current release (v1.2.2)',
+        'Fixed Notifications sidebar section total badge to match the sum of visible sub-badges (Unread + Delayed Tasks + Deadlines)',
         'Expanded middleware route protection to ensure expired sessions redirect to /login across all protected pages (Notifications, Reports, AI Assistant, QC, etc.)',
       ],
       changed: [
