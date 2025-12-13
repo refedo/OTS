@@ -68,10 +68,12 @@ const versions = [
         {
           title: 'Login Page Branding',
           items: [
-            'Hexa Steel logo displayed prominently on login screen',
-            'Operations Tracking System title with modern styling',
-            'Slogan: Hexa Steel® — "Forward Thinking"',
-            'Dark gradient background for professional appearance',
+            'Dolibarr-style login page with white card on dark (#2c3e50) background',
+            'Logo displayed inside white card for better visibility',
+            'Configurable login logo via Settings → Company → Login Page Logo',
+            'Fallback to "HEXA STEEL® - THRIVE DIFFERENT" text if no logo uploaded',
+            'Motivational footer with slogan: Hexa Steel® — "Forward Thinking"',
+            'Version header showing current system version',
           ],
         },
       ],

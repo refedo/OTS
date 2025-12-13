@@ -1,18 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { User, Lock } from 'lucide-react';
 
 export function LoginForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loginLogo, setLoginLogo] = useState<string | null>(null);
+
+  // Fetch login logo from settings
+  useEffect(() => {
+    const fetchLoginLogo = async () => {
+      try {
+        const res = await fetch('/api/settings/login-logo');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.logoUrl) {
+            setLoginLogo(data.logoUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching login logo:', error);
+      }
+    };
+    fetchLoginLogo();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -34,20 +53,17 @@ export function LoginForm() {
       });
 
       if (!response.ok) {
-        // Try to parse JSON error, but handle HTML responses
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
           throw new Error(data.error || 'Login failed');
         } else {
-          // Server returned HTML (likely an error page)
           const text = await response.text();
           console.error('Server error:', text);
           throw new Error('Server error. Please check the console and try again.');
         }
       }
 
-      // Successful login - redirect to dashboard
       router.push('/dashboard');
       router.refresh();
     } catch (err: any) {
@@ -58,33 +74,37 @@ export function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <div className="w-full max-w-md">
-        {/* Branding Section */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Image
-              src="/uploads/company-logo/logo.png"
-              alt="Hexa Steel Logo"
-              width={180}
-              height={60}
-              className="h-16 w-auto"
-              priority
-            />
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Operations Tracking System
-          </h1>
-          <p className="mt-2 text-lg text-slate-300 italic">
-            Hexa Steel<sup>®</sup> — <span className="font-semibold">"Forward Thinking"</span>
-          </p>
-        </div>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#2c3e50' }}>
+      {/* Version Header */}
+      <div className="text-center py-3">
+        <span className="text-slate-400 text-sm">Operations Tracking System v1.2.2</span>
+      </div>
 
-        <Card className="border-0 shadow-2xl">
-          <CardHeader>
-            <CardTitle className="text-center">Sign in to your account</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* White Card - Dolibarr Style */}
+          <div className="bg-white rounded-lg shadow-2xl p-8">
+            {/* Logo inside card */}
+            <div className="flex justify-center mb-6">
+              {loginLogo ? (
+                <Image
+                  src={loginLogo}
+                  alt="Company Logo"
+                  width={200}
+                  height={70}
+                  className="h-16 w-auto object-contain"
+                  priority
+                />
+              ) : (
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-slate-800">HEXA STEEL<sup className="text-xs">®</sup></h2>
+                  <p className="text-xs text-slate-500 tracking-widest">THRIVE DIFFERENT</p>
+                </div>
+              )}
+            </div>
+
+            {/* Login Form */}
             <form className="space-y-4" onSubmit={handleSubmit}>
               {error && (
                 <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
@@ -92,54 +112,82 @@ export function LoginForm() {
                 </div>
               )}
               
-              <div className="space-y-1">
-                <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                 <Input 
                   id="email" 
                   name="email" 
                   type="email" 
+                  placeholder="Email"
                   required 
                   disabled={loading}
                   autoComplete="email"
+                  className="pl-10 h-11 border-slate-300"
                 />
               </div>
               
-              <div className="space-y-1">
-                <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                 <Input 
                   id="password" 
                   name="password" 
                   type="password" 
+                  placeholder="Password"
                   required 
                   disabled={loading}
                   autoComplete="current-password"
+                  className="pl-10 h-11 border-slate-300"
                 />
               </div>
               
-              <div className="flex items-center justify-between">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input 
-                    type="checkbox" 
-                    name="remember" 
-                    className="rounded" 
-                    disabled={loading}
-                  />
-                  <span>Remember me</span>
-                </label>
+              <div className="flex items-center justify-center pt-2">
+                <Button 
+                  type="submit" 
+                  variant="outline"
+                  className="px-8 border-slate-400 hover:bg-slate-100"
+                  disabled={loading}
+                >
+                  {loading ? 'Signing in...' : 'LOGIN'}
+                </Button>
+              </div>
+
+              <div className="text-center pt-2">
                 <Link 
                   href="/forgot-password" 
                   className="text-sm text-blue-600 hover:underline"
                 >
-                  Forgot password?
+                  Password forgotten?
                 </Link>
               </div>
-              
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign in'}
-              </Button>
+
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <input 
+                  type="checkbox" 
+                  name="remember" 
+                  id="remember"
+                  className="rounded border-slate-300" 
+                  disabled={loading}
+                />
+                <label htmlFor="remember" className="text-sm text-slate-600">
+                  Remember me
+                </label>
+              </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer with Slogan */}
+      <div className="text-center py-6 space-y-2">
+        <p className="text-slate-300 text-sm">
+          Keep Motivated, Keep Up, Stay Tuned
+        </p>
+        <p className="text-slate-400 text-sm">
+          Don't confuse movement with progress.
+        </p>
+        <p className="text-white font-medium mt-4">
+          Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
+        </p>
       </div>
     </div>
   );

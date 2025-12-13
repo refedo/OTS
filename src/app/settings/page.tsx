@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Upload, Building2, FileText, Bell, Globe } from 'lucide-react';
+import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type Settings = {
@@ -35,11 +35,14 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingLoginLogo, setUploadingLoginLogo] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [loginLogoPreview, setLoginLogoPreview] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
+    fetchLoginLogo();
   }, []);
 
   const fetchSettings = async () => {
@@ -54,6 +57,18 @@ export default function SettingsPage() {
       console.error('Error fetching settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLoginLogo = async () => {
+    try {
+      const response = await fetch('/api/settings/login-logo');
+      if (response.ok) {
+        const data = await response.json();
+        setLoginLogoPreview(data.logoUrl);
+      }
+    } catch (error) {
+      console.error('Error fetching login logo:', error);
     }
   };
 
@@ -84,6 +99,56 @@ export default function SettingsPage() {
       alert('Failed to upload logo');
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const handleLoginLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLoginLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+
+      const response = await fetch('/api/settings/login-logo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLoginLogoPreview(data.logoUrl);
+        alert('Login logo uploaded successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to upload login logo');
+      }
+    } catch (error) {
+      console.error('Error uploading login logo:', error);
+      alert('Failed to upload login logo');
+    } finally {
+      setUploadingLoginLogo(false);
+    }
+  };
+
+  const handleDeleteLoginLogo = async () => {
+    if (!confirm('Are you sure you want to remove the login logo?')) return;
+
+    try {
+      const response = await fetch('/api/settings/login-logo', {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setLoginLogoPreview(null);
+        alert('Login logo removed successfully!');
+      } else {
+        alert('Failed to remove login logo');
+      }
+    } catch (error) {
+      console.error('Error deleting login logo:', error);
+      alert('Failed to remove login logo');
     }
   };
 
@@ -304,6 +369,67 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Login Page Logo */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Login Page Logo</CardTitle>
+                <CardDescription>
+                  Upload a logo for the login page. Use a version that looks good on a white background.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-4">
+                  {loginLogoPreview ? (
+                    <div className="w-48 h-24 border rounded-lg flex items-center justify-center bg-white overflow-hidden p-2">
+                      <img 
+                        src={loginLogoPreview} 
+                        alt="Login Logo" 
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-48 h-24 border rounded-lg flex items-center justify-center bg-muted">
+                      <span className="text-muted-foreground text-sm">No logo set</span>
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      id="loginLogo"
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      onChange={handleLoginLogoUpload}
+                      disabled={uploadingLoginLogo}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Recommended: PNG with transparent background, or colored logo that works on white
+                    </p>
+                    {uploadingLoginLogo && (
+                      <p className="text-xs text-blue-600 flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Uploading...
+                      </p>
+                    )}
+                    {loginLogoPreview && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDeleteLoginLogo}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remove Logo
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  If no login logo is set, the system will display "HEXA STEEL® - THRIVE DIFFERENT" as text.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
