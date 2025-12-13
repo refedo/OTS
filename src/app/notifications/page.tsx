@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Bell,
   CheckCheck,
@@ -90,8 +90,90 @@ interface UnderperformingSchedule {
   };
 }
 
+// Component to format AI summary with colors and structure
+function FormattedAISummary({ summary }: { summary: string }) {
+  // Parse the summary into sections
+  const formatSummary = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const sections: { type: 'header' | 'urgent' | 'warning' | 'info' | 'text'; content: string }[] = [];
+    
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      
+      // Detect headers (lines ending with : or starting with numbers like "1.")
+      if (/^(\d+\.|#{1,3}|•|\*\*).+:?$/.test(trimmed) || trimmed.endsWith(':')) {
+        sections.push({ type: 'header', content: trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '') });
+      }
+      // Detect urgent items (containing urgent, critical, overdue, immediately)
+      else if (/urgent|critical|overdue|immediate|asap/i.test(trimmed)) {
+        sections.push({ type: 'urgent', content: trimmed.replace(/^[-•*]\s*/, '') });
+      }
+      // Detect warning items (containing warning, soon, pending, deadline)
+      else if (/warning|soon|pending|deadline|approaching/i.test(trimmed)) {
+        sections.push({ type: 'warning', content: trimmed.replace(/^[-•*]\s*/, '') });
+      }
+      // Detect info items (bullet points or numbered items)
+      else if (/^[-•*]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
+        sections.push({ type: 'info', content: trimmed.replace(/^[-•*\d.]\s*/, '') });
+      }
+      // Regular text
+      else {
+        sections.push({ type: 'text', content: trimmed });
+      }
+    });
+
+    return sections;
+  };
+
+  const sections = formatSummary(summary);
+
+  return (
+    <div className="space-y-3">
+      {sections.map((section, index) => {
+        switch (section.type) {
+          case 'header':
+            return (
+              <h4 key={index} className="font-semibold text-gray-900 border-b border-gray-200 pb-1 mt-3 first:mt-0">
+                {section.content}
+              </h4>
+            );
+          case 'urgent':
+            return (
+              <div key={index} className="flex items-start gap-2 p-2 bg-red-50 border-l-4 border-red-500 rounded-r">
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                <span className="text-sm text-red-800">{section.content}</span>
+              </div>
+            );
+          case 'warning':
+            return (
+              <div key={index} className="flex items-start gap-2 p-2 bg-orange-50 border-l-4 border-orange-500 rounded-r">
+                <Clock className="h-4 w-4 text-orange-600 mt-0.5 shrink-0" />
+                <span className="text-sm text-orange-800">{section.content}</span>
+              </div>
+            );
+          case 'info':
+            return (
+              <div key={index} className="flex items-start gap-2 p-2 bg-blue-50 border-l-4 border-blue-400 rounded-r">
+                <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                <span className="text-sm text-blue-800">{section.content}</span>
+              </div>
+            );
+          default:
+            return (
+              <p key={index} className="text-sm text-gray-700 leading-relaxed">
+                {section.content}
+              </p>
+            );
+        }
+      })}
+    </div>
+  );
+}
+
 export default function NotificationsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [delayedTasks, setDelayedTasks] = useState<DelayedTask[]>([]);
   const [delayedTasksStats, setDelayedTasksStats] = useState({ total: 0, critical: 0, warning: 0, minor: 0 });
@@ -101,10 +183,18 @@ export default function NotificationsPage() {
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const [collapsedActivities, setCollapsedActivities] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState(tabParam || 'all');
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
+
+  // Handle tab parameter from URL
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+      handleTabChange(tabParam);
+    }
+  }, [tabParam]);
 
   const fetchDelayedTasks = async () => {
     try {
@@ -349,13 +439,15 @@ export default function NotificationsPage() {
       </div>
 
       {/* AI Summary Card */}
-      <Card className="mb-6">
+      <Card className="mb-6 border-purple-200 bg-gradient-to-r from-purple-50/50 to-blue-50/50">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+              </div>
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-500" />
+                <CardTitle className="flex items-center gap-2 text-purple-900">
                   AI Summary
                 </CardTitle>
                 <CardDescription>
@@ -380,17 +472,27 @@ export default function NotificationsPage() {
               <Button
                 onClick={fetchAISummary}
                 disabled={loadingSummary}
-                variant="outline"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
               >
-                {loadingSummary ? 'Generating...' : 'Generate Summary'}
+                {loadingSummary ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Summary
+                  </>
+                )}
               </Button>
             </div>
           </div>
         </CardHeader>
         {aiSummary && !isSummaryCollapsed && (
           <CardContent>
-            <div className="prose prose-sm max-w-none">
-              <p className="whitespace-pre-line">{aiSummary}</p>
+            <div className="bg-white rounded-lg p-4 border border-purple-100 shadow-sm">
+              <FormattedAISummary summary={aiSummary} />
             </div>
           </CardContent>
         )}

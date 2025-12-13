@@ -38,10 +38,12 @@ import {
   Sparkles,
   Bell,
   FileCode,
+  CheckCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { UserMenu } from '@/components/user-menu';
 
 type NavigationItem = {
   name: string;
@@ -57,13 +59,22 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Notifications', href: '/notifications', icon: Bell },
   { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Tasks', href: '/tasks', icon: ListChecks },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
 
 const navigationSections: NavigationSection[] = [
+  {
+    name: 'Notifications',
+    icon: Bell,
+    items: [
+      { name: 'All Notifications', href: '/notifications', icon: Bell },
+      { name: 'Delayed Tasks', href: '/notifications?tab=delayed-tasks', icon: AlertTriangle },
+      { name: 'Approvals', href: '/notifications?tab=approvals', icon: CheckCircle },
+      { name: 'Deadlines', href: '/notifications?tab=deadlines', icon: Clock },
+    ],
+  },
   {
     name: 'Production',
     icon: Factory,
@@ -297,8 +308,9 @@ export function AppSidebar() {
               const SectionIcon = section.icon;
               const isExpanded = expandedSections.includes(section.name);
               const hasActiveItem = section.items.some(
-                item => pathname === item.href || pathname.startsWith(item.href + '/')
+                item => pathname === item.href || pathname.startsWith(item.href.split('?')[0] + '/')
               );
+              const isNotificationSection = section.name === 'Notifications';
 
               return (
                 <div key={section.name} className="space-y-1">
@@ -314,6 +326,11 @@ export function AppSidebar() {
                     <div className="flex items-center gap-3">
                       <SectionIcon className="size-5 shrink-0" />
                       <span>{section.name}</span>
+                      {isMounted && isNotificationSection && totalAlertCount > 0 && (
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                          {totalAlertCount > 99 ? '99+' : totalAlertCount}
+                        </span>
+                      )}
                     </div>
                     {isExpanded ? (
                       <ChevronDown className="size-4 shrink-0" />
@@ -356,25 +373,31 @@ export function AppSidebar() {
 
           {/* Footer */}
           <div className="border-t p-2">
-            <form action="/api/auth/logout" method="POST">
-              <Button
-                type="submit"
-                variant="ghost"
-                className={cn(
-                  'w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted',
-                  collapsed && 'justify-center px-2'
-                )}
-                title={collapsed ? 'Logout' : undefined}
-              >
-                <LogOut className="size-5 shrink-0" />
-                {!collapsed && <span className="ml-3">Logout</span>}
-              </Button>
-            </form>
+            {/* User Menu */}
+            {!collapsed && (
+              <div className="mb-2">
+                <UserMenu />
+              </div>
+            )}
+            
+            {/* Collapsed: Show logout button only */}
+            {collapsed && (
+              <form action="/api/auth/logout" method="POST">
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  className="w-full justify-center px-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  title="Logout"
+                >
+                  <LogOut className="size-5 shrink-0" />
+                </Button>
+              </form>
+            )}
             
             {!collapsed && (
               <div className="mt-2 px-3 text-xs text-muted-foreground">
                 <p className="font-medium">Hexa Steel OTS</p>
-                <p>v1.2.0</p>
+                <p>v1.2.2</p>
               </div>
             )}
           </div>

@@ -12,10 +12,74 @@ import { CheckCircle, AlertCircle, Sparkles, Wrench, FileText } from 'lucide-rea
 
 const versions = [
   {
+    version: '1.2.2',
+    date: 'December 14, 2025',
+    type: 'minor',
+    status: 'current',
+    highlights: [
+      'Work Orders Module',
+      'Enhanced Notification Center',
+      'User Preferences Menu',
+      'AI Summary Improvements',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Work Orders Module',
+          items: [
+            'New Work Orders page under Production module',
+            'Create, view, and manage production work orders',
+            'Work order status tracking and assignment',
+            'Integration with production planning workflow',
+          ],
+        },
+        {
+          title: 'User Preferences Menu',
+          items: [
+            'New user dropdown menu accessible from sidebar',
+            'Quick access to profile settings',
+            'Change password functionality with secure validation',
+            'Direct links to notifications and settings',
+            'One-click sign out option',
+          ],
+        },
+        {
+          title: 'Notification Center Restructure',
+          items: [
+            'Notifications now a collapsible menu in sidebar',
+            'Quick access sub-items: Delayed Tasks, Approvals, Deadlines',
+            'URL-based tab navigation for direct linking',
+            'Badge count displayed on section header',
+          ],
+        },
+        {
+          title: 'AI Summary Enhancements',
+          items: [
+            'Colorized and structured AI summary display',
+            'Automatic detection of urgent items (red highlighting)',
+            'Warning items highlighted in orange',
+            'Info items displayed in blue',
+            'Section headers with visual separation',
+            'Improved readability with icons and borders',
+          ],
+        },
+      ],
+      fixed: [
+        'Logout button now correctly redirects to production URL (ots.hexasteel.sa) instead of localhost',
+        'Sidebar version now syncs with changelog version',
+      ],
+      changed: [
+        'Notifications moved from single nav item to collapsible section',
+        'AI Summary card redesigned with purple gradient theme',
+        'Generate Summary button now shows loading spinner',
+      ],
+    },
+  },
+  {
     version: '1.2.1',
     date: 'December 14, 2025',
     type: 'patch',
-    status: 'current',
+    status: 'stable',
     highlights: [
       'Deployment stability fixes',
       'OpenAI SDK dependency compatibility',
