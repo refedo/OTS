@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -31,25 +31,39 @@ interface UserData {
   };
 }
 
+// Cache user data to avoid refetching on every mount
+let cachedUser: UserData | null = null;
+
 export function UserMenu() {
   const router = useRouter();
-  const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UserData | null>(cachedUser);
+  const [loading, setLoading] = useState(!cachedUser);
   const { unreadCount } = useNotifications();
+  const hasFetched = useRef(false);
 
   useEffect(() => {
+    // Skip if already cached or already fetching
+    if (cachedUser || hasFetched.current) {
+      setUser(cachedUser);
+      setLoading(false);
+      return;
+    }
+
+    hasFetched.current = true;
+
     const fetchUser = async () => {
       try {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          // API returns flat user data, not nested under 'user' key
-          setUser({
+          const userData: UserData = {
             id: data.id,
             name: data.name,
             email: data.email,
             role: { name: data.role }
-          });
+          };
+          cachedUser = userData;
+          setUser(userData);
         }
       } catch (error) {
         console.error('Error fetching user:', error);

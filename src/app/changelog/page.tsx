@@ -76,6 +76,15 @@ const versions = [
             'Version header showing current system version',
           ],
         },
+        {
+          title: 'Dashboard Improvements',
+          items: [
+            'New Work Orders widget showing pending, in-progress, completed, and overdue counts',
+            'Widget remove functionality - hover over widget to see remove button',
+            'Improved mobile-responsive grid layout for dashboard widgets',
+            'Collapsed sidebar now shows all module icons (not just 3)',
+          ],
+        },
       ],
       fixed: [
         'Logout button now correctly redirects to production URL (ots.hexasteel.sa) instead of localhost',
@@ -84,6 +93,9 @@ const versions = [
         'Updated Version badge to reflect current release (v1.2.2)',
         'Fixed Notifications sidebar section total badge to match the sum of visible sub-badges (Unread + Delayed Tasks + Deadlines)',
         'Expanded middleware route protection to ensure expired sessions redirect to /login across all protected pages (Notifications, Reports, AI Assistant, QC, etc.)',
+        'Fixed collapsed sidebar showing only 3 icons - now shows all module section icons',
+        'Fixed UserMenu slow loading by caching user data after first fetch',
+        'Improved dashboard mobile responsiveness with optimized grid layout',
       ],
       changed: [
         'Notifications moved from single nav item to collapsible section',

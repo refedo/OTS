@@ -304,13 +304,38 @@ export function AppSidebar() {
             })}
 
             {/* Collapsible sections */}
-            {!collapsed && navigationSections.map((section) => {
+            {navigationSections.map((section) => {
               const SectionIcon = section.icon;
               const isExpanded = expandedSections.includes(section.name);
               const hasActiveItem = section.items.some(
                 item => pathname === item.href || pathname.startsWith(item.href.split('?')[0] + '/')
               );
               const isNotificationSection = section.name === 'Notifications';
+
+              // When collapsed, show only section icons as links to first item
+              if (collapsed) {
+                const firstItem = section.items[0];
+                return (
+                  <Link
+                    key={section.name}
+                    href={firstItem.href}
+                    className={cn(
+                      'flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors relative',
+                      hasActiveItem
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                    title={section.name}
+                  >
+                    <SectionIcon className="size-5 shrink-0" />
+                    {isMounted && isNotificationSection && totalAlertCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                        {totalAlertCount > 9 ? '9+' : totalAlertCount}
+                      </span>
+                    )}
+                  </Link>
+                );
+              }
 
               return (
                 <div key={section.name} className="space-y-1">

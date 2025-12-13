@@ -6,8 +6,9 @@ import TaskSummaryWidget from './widgets/TaskSummaryWidget';
 import KPISummaryWidget from './widgets/KPISummaryWidget';
 import ObjectivesSummaryWidget from './widgets/ObjectivesSummaryWidget';
 import WeeklyProductionWidget from './widgets/WeeklyProductionWidget';
+import WorkOrdersWidget from './widgets/WorkOrdersWidget';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, X, GripVertical } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ const WIDGET_COMPONENTS: { [key: string]: React.ComponentType } = {
   KPI_SUMMARY: KPISummaryWidget,
   OBJECTIVE_SUMMARY: ObjectivesSummaryWidget,
   WEEKLY_PRODUCTION: WeeklyProductionWidget,
+  WORK_ORDERS: WorkOrdersWidget,
 };
 
 const WIDGET_DEFINITIONS = [
@@ -39,6 +41,7 @@ const WIDGET_DEFINITIONS = [
   { type: 'KPI_SUMMARY', name: 'KPI Dashboard', description: 'Performance indicators', size: 'large' },
   { type: 'OBJECTIVE_SUMMARY', name: 'Company Objectives', description: 'Strategic goals tracking', size: 'medium' },
   { type: 'WEEKLY_PRODUCTION', name: 'Weekly Production', description: 'Production trends and metrics', size: 'large' },
+  { type: 'WORK_ORDERS', name: 'Work Orders', description: 'Ongoing work orders status', size: 'medium' },
 ];
 
 export default function WidgetContainer() {
@@ -159,14 +162,34 @@ export default function WidgetContainer() {
         </Dialog>
       </div>
 
-      {/* Widgets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Widgets Grid - Mobile optimized */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {widgets.map((widget) => {
           const WidgetComponent = WIDGET_COMPONENTS[widget.widgetType];
+          const widgetDef = WIDGET_DEFINITIONS.find(d => d.type === widget.widgetType);
           if (!WidgetComponent) return null;
 
           return (
-            <div key={widget.id} className={getGridClass(widget.widgetSize)}>
+            <div 
+              key={widget.id} 
+              className={`relative group ${widget.widgetSize === 'large' ? 'sm:col-span-2' : 'col-span-1'}`}
+            >
+              {/* Remove button - visible on hover */}
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute -top-2 -right-2 z-10 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (confirm(`Remove "${widgetDef?.name || 'this widget'}" from dashboard?`)) {
+                    removeWidget(widget.id);
+                  }
+                }}
+                title="Remove widget"
+              >
+                <X className="size-3" />
+              </Button>
               <WidgetComponent />
             </div>
           );
