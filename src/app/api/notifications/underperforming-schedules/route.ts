@@ -96,35 +96,37 @@ async function calculateProgress(schedule: any): Promise<number> {
       return (processedQty / totalQuantity) * 100;
     }
 
-    // For design and shop drawing
+    // For design and shop drawing - use DocumentSubmission model which has buildingId
     if (scopeType === 'design' || scopeType === 'shopDrawing') {
       const documentType = scopeType === 'design' ? 'Design' : 'Shop Drawing';
       
-      const documents = await prisma.document.findMany({
+      const submissions = await prisma.documentSubmission.findMany({
         where: {
           buildingId,
           documentType,
         },
         include: {
           revisions: {
-            orderBy: { revisionNumber: 'desc' },
+            orderBy: { revision: 'desc' },
             take: 1,
             select: {
-              revisionNumber: true,
+              revision: true,
               clientResponse: true,
             }
           }
         }
       });
 
-      if (documents.length === 0) return 0;
+      if (submissions.length === 0) return 0;
 
-      const approvedDocs = documents.filter(doc => {
+      const approvedDocs = submissions.filter(doc => {
+        // Check latest revision or the submission's own clientResponse
         const latestRevision = doc.revisions[0];
-        return latestRevision && latestRevision.clientResponse === 'Approved';
+        const response = latestRevision?.clientResponse || doc.clientResponse;
+        return response === 'Approved' || response === 'Approved with Comments';
       });
 
-      return (approvedDocs.length / documents.length) * 100;
+      return (approvedDocs.length / submissions.length) * 100;
     }
 
     return 0;
