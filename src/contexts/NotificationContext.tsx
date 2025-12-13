@@ -27,34 +27,36 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const refreshUnreadCount = useCallback(async () => {
     try {
+      // Fetch all counts in parallel for faster loading
+      const [notificationsRes, delayedTasksRes, schedulesRes] = await Promise.all([
+        fetch('/api/notifications?isRead=false&limit=1'),
+        fetch('/api/notifications/delayed-tasks'),
+        fetch('/api/notifications/underperforming-schedules'),
+      ]);
+
       let unread = 0;
-      // Fetch unread notifications
-      const response = await fetch('/api/notifications?isRead=false&limit=1');
-      if (response.ok) {
-        const data = await response.json();
+      let delayedCount = 0;
+      let schedulesCount = 0;
+
+      if (notificationsRes.ok) {
+        const data = await notificationsRes.json();
         unread = data.unreadCount || 0;
-        setUnreadCount(unread);
       }
 
-      // Fetch delayed tasks count
-      const delayedTasksRes = await fetch('/api/notifications/delayed-tasks');
-      let delayedCount = 0;
       if (delayedTasksRes.ok) {
         const delayedData = await delayedTasksRes.json();
         delayedCount = delayedData.total || 0;
       }
-      setDelayedTasksCount(delayedCount);
 
-      // Fetch underperforming schedules count (deadlines)
-      const schedulesRes = await fetch('/api/notifications/underperforming-schedules');
-      let schedulesCount = 0;
       if (schedulesRes.ok) {
         const schedulesData = await schedulesRes.json();
         schedulesCount = schedulesData.total || 0;
       }
-      setDeadlinesCount(schedulesCount);
 
-      // Set total count for sidebar section badge (unread notifications + delayed tasks + deadlines)
+      // Update all states
+      setUnreadCount(unread);
+      setDelayedTasksCount(delayedCount);
+      setDeadlinesCount(schedulesCount);
       setTotalAlertCount(unread + delayedCount + schedulesCount);
     } catch (error) {
       console.error('Error fetching unread count:', error);

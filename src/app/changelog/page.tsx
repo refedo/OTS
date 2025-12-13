@@ -21,6 +21,7 @@ const versions = [
       'Enhanced Notification Center',
       'User Preferences Menu',
       'AI Summary Improvements',
+      'Login Page Branding',
     ],
     changes: {
       added: [
@@ -64,6 +65,15 @@ const versions = [
             'Improved readability with icons and borders',
           ],
         },
+        {
+          title: 'Login Page Branding',
+          items: [
+            'Hexa Steel logo displayed prominently on login screen',
+            'Operations Tracking System title with modern styling',
+            'Slogan: Hexa Steel® — "Forward Thinking"',
+            'Dark gradient background for professional appearance',
+          ],
+        },
       ],
       fixed: [
         'Logout button now correctly redirects to production URL (ots.hexasteel.sa) instead of localhost',
@@ -78,6 +88,7 @@ const versions = [
         'Sidebar navigation improved: Projects section moved before Production, Projects Dashboard moved to top, and Reports moved into Production menu',
         'AI Summary card redesigned with purple gradient theme',
         'Generate Summary button now shows loading spinner',
+        'Notification badge API calls now run in parallel for faster sidebar loading',
       ],
     },
   },

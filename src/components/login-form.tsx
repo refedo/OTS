@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -57,11 +58,31 @@ export function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="w-full max-w-md">
-        <Card>
+        {/* Branding Section */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/uploads/company-logo/logo.png"
+              alt="Hexa Steel Logo"
+              width={180}
+              height={60}
+              className="h-16 w-auto"
+              priority
+            />
+          </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">
+            Operations Tracking System
+          </h1>
+          <p className="mt-2 text-lg text-slate-300 italic">
+            Hexa Steel<sup>®</sup> — <span className="font-semibold">"Forward Thinking"</span>
+          </p>
+        </div>
+
+        <Card className="border-0 shadow-2xl">
           <CardHeader>
-            <CardTitle>Sign in</CardTitle>
+            <CardTitle className="text-center">Sign in to your account</CardTitle>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={handleSubmit}>
