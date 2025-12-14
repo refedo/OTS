@@ -228,6 +228,48 @@ export interface WorkOrder {
 }
 
 // ============================================
+// PLANNING ACTIVITIES / SCHEDULES TYPES
+// ============================================
+
+export interface BuildingScheduleProgress {
+  id: string;
+  name: string;
+  designation: string;
+  progress: number;
+  expectedProgress: number;
+  status: 'not-started' | 'on-track' | 'at-risk' | 'critical' | 'completed';
+  startDate: string;
+  endDate: string;
+  daysRemaining: number;
+  daysOverdue: number;
+}
+
+export interface ActivitySummary {
+  scopeType: string;
+  scopeLabel: string;
+  buildingCount: number;
+  avgProgress: number;
+  avgExpectedProgress: number;
+  status: 'not-started' | 'on-track' | 'at-risk' | 'critical' | 'completed';
+  buildings: BuildingScheduleProgress[];
+}
+
+export interface ScheduleStats {
+  totalActivities: number;
+  completed: number;
+  onTrack: number;
+  atRisk: number;
+  critical: number;
+  notStarted: number;
+  overallProgress: number;
+}
+
+export interface SchedulesResponse {
+  summary: ActivitySummary[];
+  stats: ScheduleStats;
+}
+
+// ============================================
 // COMBINED DASHBOARD RESPONSE
 // ============================================
 
@@ -241,4 +283,5 @@ export interface ProjectDashboardData {
   documentation: DocumentationStatus;
   tasks: TasksOverviewResponse;
   workOrders: WorkOrder[];
+  schedules: SchedulesResponse;
 }

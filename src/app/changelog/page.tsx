@@ -22,6 +22,7 @@ const versions = [
       'User Preferences Menu',
       'AI Summary Improvements',
       'Login Page Branding',
+      'Planning Activities Widget',
     ],
     changes: {
       added: [
@@ -83,6 +84,17 @@ const versions = [
             'Widget remove functionality - hover over widget to see remove button',
             'Improved mobile-responsive grid layout for dashboard widgets',
             'Collapsed sidebar now shows all module icons (not just 3)',
+          ],
+        },
+        {
+          title: 'Planning Activities Widget',
+          items: [
+            'New Planning Activities widget in Project Dashboard',
+            'Shows all scope schedules (Design, Shop Drawing, Fabrication, Galvanization, Painting)',
+            'Real-time progress calculation based on actual production data',
+            'Overall project progress with status breakdown (Completed, On Track, At Risk, Critical)',
+            'Expandable building-level details for each activity type',
+            'Visual progress bars and status indicators',
           ],
         },
       ],

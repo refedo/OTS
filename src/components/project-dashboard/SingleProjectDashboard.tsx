@@ -12,6 +12,7 @@ import { BuildingsStatusWidget } from './BuildingsStatusWidget';
 import { DocumentationStatusWidget } from './DocumentationStatusWidget';
 import { TasksOverviewWidget } from './TasksOverviewWidget';
 import { WorkOrdersWidget } from './WorkOrdersWidget';
+import { PlanningActivitiesWidget } from './PlanningActivitiesWidget';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -86,7 +87,7 @@ export function SingleProjectDashboard() {
       };
 
       // Fetch all dashboard data in parallel
-      const [summary, wps, itp, production, qc, buildings, documentation, tasks, workOrders] = await Promise.all([
+      const [summary, wps, itp, production, qc, buildings, documentation, tasks, workOrders, schedules] = await Promise.all([
         fetchEndpoint('summary'),
         fetchEndpoint('wps'),
         fetchEndpoint('itp'),
@@ -96,6 +97,7 @@ export function SingleProjectDashboard() {
         fetchEndpoint('documents'),
         fetchEndpoint('tasks'),
         fetchEndpoint('work-orders'),
+        fetchEndpoint('schedules'),
       ]);
 
       setDashboardData({
@@ -108,6 +110,7 @@ export function SingleProjectDashboard() {
         documentation,
         tasks,
         workOrders,
+        schedules,
       });
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -221,6 +224,12 @@ export function SingleProjectDashboard() {
 
       {/* Project Header */}
       <ProjectHeader summary={dashboardData.summary} />
+
+      {/* Planning Activities (Full Width) */}
+      <PlanningActivitiesWidget 
+        data={dashboardData.schedules} 
+        onRefresh={() => fetchDashboardData(projectId)}
+      />
 
       {/* Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
