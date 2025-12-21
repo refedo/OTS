@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
 const updateSchema = z.object({
   title: z.string().min(2).optional(),
@@ -129,6 +130,13 @@ export async function PATCH(
       },
     },
   });
+
+  // Sync WorkUnit status if status was updated (non-blocking)
+  if (parsed.data.status) {
+    WorkUnitSyncService.syncTaskStatusUpdate(params.id, parsed.data.status).catch((err) => {
+      console.error('WorkUnit status sync failed:', err);
+    });
+  }
 
   return NextResponse.json(updatedTask);
 }

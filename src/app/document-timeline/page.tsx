@@ -22,7 +22,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Upload,
 } from 'lucide-react';
+import { ImportModal } from '@/components/ImportModal';
 import Link from 'next/link';
 
 type DocumentSubmission = {
@@ -150,6 +152,8 @@ export default function DocumentTimelinePage() {
     documentType: [] as string[],
     comments: '',
   });
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importProjectId, setImportProjectId] = useState('');
 
   useEffect(() => {
     fetchProjects();
@@ -812,6 +816,10 @@ export default function DocumentTimelinePage() {
             <Button onClick={addNewSubmission}>
               <Plus className="h-4 w-4 mr-2" />
               Quick Add
+            </Button>
+            <Button variant="outline" onClick={() => setShowImportModal(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import
             </Button>
             <Link href="/document-timeline/new">
               <Button variant="outline">
@@ -1622,6 +1630,75 @@ export default function DocumentTimelinePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Import Modal */}
+        <ImportModal
+          isOpen={showImportModal}
+          onClose={() => {
+            setShowImportModal(false);
+            setImportProjectId('');
+            fetchSubmissions();
+          }}
+          title="Import Document Submissions"
+          fields={[
+            { key: 'title', label: 'Title', required: true },
+            { key: 'documentType', label: 'Document Type' },
+            { key: 'section', label: 'Section' },
+            { key: 'revision', label: 'Revision' },
+            { key: 'submissionDate', label: 'Submission Date' },
+            { key: 'reviewDueDate', label: 'Review Due Date' },
+            { key: 'approvalDate', label: 'Approval Date' },
+            { key: 'status', label: 'Status' },
+            { key: 'clientCode', label: 'Client Code' },
+            { key: 'clientResponse', label: 'Client Response' },
+            { key: 'building', label: 'Building' },
+            { key: 'handler', label: 'Handler' },
+            { key: 'submitter', label: 'Submitter' },
+          ]}
+          onImport={async (data, mapping) => {
+            if (!importProjectId) {
+              throw new Error('Please select a project first');
+            }
+            const res = await fetch('/api/document-submissions/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data, mapping, projectId: importProjectId }),
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || 'Import failed');
+            }
+            const result = await res.json();
+            return result.results;
+          }}
+          sampleData="Title,Document Type,Section,Revision,Submission Date,Status,Building,Handler"
+        />
+
+        {/* Project Selection for Import */}
+        {showImportModal && !importProjectId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Select Project for Import</h3>
+              <select
+                value={importProjectId}
+                onChange={(e) => setImportProjectId(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border bg-background mb-4"
+              >
+                <option value="">Select a project...</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.projectNumber} - {p.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowImportModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

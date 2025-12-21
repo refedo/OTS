@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Search, ExternalLink, LayoutGrid, List } from 'lucide-react';
+import { Building2, Search, ExternalLink, LayoutGrid, List, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import {
   Table,
@@ -15,6 +15,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type Building = {
   id: string;
@@ -47,14 +57,19 @@ type BuildingsClientProps = {
 };
 
 export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
+  const { toast } = useToast();
+  const [buildings, setBuildings] = useState<Building[]>(initialBuildings);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredBuildings = useMemo(() => {
-    if (!search) return initialBuildings;
+    if (!search) return buildings;
     
     const searchLower = search.toLowerCase();
-    return initialBuildings.filter(
+    return buildings.filter(
       (building) =>
         building.designation.toLowerCase().includes(searchLower) ||
         building.name.toLowerCase().includes(searchLower) ||
@@ -63,7 +78,68 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
         building.project.name.toLowerCase().includes(searchLower) ||
         building.project.client.name.toLowerCase().includes(searchLower)
     );
-  }, [initialBuildings, search]);
+  }, [buildings, search]);
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredBuildings.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredBuildings.map(b => b.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch('/api/buildings', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: 'Delete Failed',
+          description: data.details || data.error || 'Failed to delete buildings',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Remove deleted buildings from state
+      setBuildings(prev => prev.filter(b => !selectedIds.has(b.id)));
+      setSelectedIds(new Set());
+      setShowDeleteDialog(false);
+      
+      toast({
+        title: 'Buildings Deleted',
+        description: data.message,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete buildings',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Group buildings by project
   const buildingsByProject = useMemo(() => {
@@ -98,6 +174,16 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="size-4 mr-2" />
+                Delete ({selectedIds.size})
+              </Button>
+            )}
             <Badge variant="secondary" className="text-sm">
               {filteredBuildings.length} {filteredBuildings.length === 1 ? 'Building' : 'Buildings'}
             </Badge>
@@ -154,6 +240,12 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={filteredBuildings.length > 0 && selectedIds.size === filteredBuildings.length}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Project Name</TableHead>
                     <TableHead>Project Number</TableHead>
                     <TableHead>Building Name</TableHead>
@@ -165,7 +257,13 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
                 </TableHeader>
                 <TableBody>
                   {filteredBuildings.map((building) => (
-                    <TableRow key={building.id}>
+                    <TableRow key={building.id} className={selectedIds.has(building.id) ? 'bg-muted/50' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(building.id)}
+                          onCheckedChange={() => toggleSelect(building.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{building.project.name}</TableCell>
                       <TableCell>{building.project.projectNumber}</TableCell>
                       <TableCell>{building.name}</TableCell>
@@ -254,6 +352,53 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="size-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedIds.size} building{selectedIds.size !== 1 ? 's' : ''}? 
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-48 overflow-auto border rounded-md p-2 bg-muted/50">
+            <ul className="text-sm space-y-1">
+              {filteredBuildings
+                .filter(b => selectedIds.has(b.id))
+                .map(b => (
+                  <li key={b.id} className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">{b.designation}</Badge>
+                    <span>{b.name}</span>
+                    <span className="text-muted-foreground">({b.project.projectNumber})</span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-4 mr-2" />
+                  Delete {selectedIds.size} Building{selectedIds.size !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

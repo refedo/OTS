@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { verifySession } from '@/lib/jwt';
 import { z } from 'zod';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
 const documentSubmissionSchema = z.object({
   projectId: z.string().uuid(),
@@ -203,6 +204,19 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+    });
+
+    // Sync to WorkUnit for Operations Control (non-blocking)
+    WorkUnitSyncService.syncFromDocumentSubmission({
+      id: submission.id,
+      projectId: validated.projectId,
+      submitterId: session.sub,
+      handledBy: validated.handledBy || null,
+      submissionDate: new Date(validated.submissionDate),
+      reviewDueDate: validated.reviewDueDate ? new Date(validated.reviewDueDate) : null,
+      status: validated.status,
+    }).catch((err) => {
+      console.error('WorkUnit sync failed:', err);
     });
 
     return NextResponse.json(submission, { status: 201 });

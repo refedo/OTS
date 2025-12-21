@@ -40,12 +40,19 @@ export default async function EditTaskPage({ params }: { params: { id: string } 
     dueDate: taskData.dueDate ? new Date(taskData.dueDate).toISOString() : null,
   };
 
-  // Fetch users for assignment
+  // Fetch users for assignment with department info
   let users;
   if (session.role === 'Admin') {
     users = await prisma.user.findMany({
       where: { status: 'active' },
-      select: { id: true, name: true, email: true, position: true },
+      select: { 
+        id: true, 
+        name: true, 
+        email: true, 
+        position: true,
+        departmentId: true,
+        department: { select: { id: true, name: true } }
+      },
       orderBy: { name: 'asc' },
     });
   } else {
@@ -54,7 +61,14 @@ export default async function EditTaskPage({ params }: { params: { id: string } 
       include: {
         subordinates: {
           where: { status: 'active' },
-          select: { id: true, name: true, email: true, position: true },
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            position: true,
+            departmentId: true,
+            department: { select: { id: true, name: true } }
+          },
         },
       },
     });
@@ -68,6 +82,18 @@ export default async function EditTaskPage({ params }: { params: { id: string } 
     orderBy: { projectNumber: 'asc' },
   });
 
+  // Fetch buildings with projectId
+  const buildings = await prisma.building.findMany({
+    select: { id: true, designation: true, name: true, projectId: true },
+    orderBy: { designation: 'asc' },
+  });
+
+  // Fetch departments
+  const departments = await prisma.department.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="container mx-auto p-6 lg:p-8 max-w-3xl max-lg:pt-20">
@@ -78,7 +104,7 @@ export default async function EditTaskPage({ params }: { params: { id: string } 
           </p>
         </div>
 
-        <TaskForm users={users} projects={projects} task={task} />
+        <TaskForm users={users} projects={projects} buildings={buildings} departments={departments} task={task} />
       </div>
     </main>
   );

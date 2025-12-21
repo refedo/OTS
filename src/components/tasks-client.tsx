@@ -58,6 +58,8 @@ type User = {
   name: string;
   email: string;
   position: string | null;
+  departmentId: string | null;
+  department: { id: string; name: string } | null;
 };
 
 type Project = {
@@ -70,6 +72,7 @@ type Building = {
   id: string;
   designation: string;
   name: string;
+  projectId: string;
 };
 
 type Department = {
@@ -91,7 +94,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('In Progress');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [projectFilter, setProjectFilter] = useState<string>('');
   const [buildingFilter, setBuildingFilter] = useState<string>('');
@@ -102,6 +105,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     title: '',
     assignedToId: '',
     projectId: '',
+    buildingId: '',
     departmentId: '',
     priority: 'Medium',
     taskInputDate: new Date().toISOString().split('T')[0],
@@ -308,11 +312,12 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           title: quickAddData.title,
           assignedToId: quickAddData.assignedToId || null,
           projectId: quickAddData.projectId || null,
+          buildingId: quickAddData.buildingId || null,
           departmentId: quickAddData.departmentId || null,
           priority: quickAddData.priority,
           taskInputDate: quickAddData.taskInputDate || null,
           dueDate: quickAddData.dueDate,
-          status: 'Pending',
+          status: 'In Progress',
         }),
       });
 
@@ -324,6 +329,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         title: '', 
         assignedToId: '', 
         projectId: '', 
+        buildingId: '',
         departmentId: '', 
         priority: 'Medium', 
         taskInputDate: new Date().toISOString().split('T')[0],
@@ -677,6 +683,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Project</TableHead>
+                    <TableHead>Building</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Input Date</TableHead>
@@ -704,7 +711,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       <TableCell>
                         <select
                           value={quickAddData.assignedToId}
-                          onChange={(e) => setQuickAddData({ ...quickAddData, assignedToId: e.target.value })}
+                          onChange={(e) => {
+                            const selectedUser = allUsers.find(u => u.id === e.target.value);
+                            setQuickAddData({ 
+                              ...quickAddData, 
+                              assignedToId: e.target.value,
+                              departmentId: selectedUser?.departmentId || ''
+                            });
+                          }}
                           className="w-full h-9 px-2 rounded-md border bg-background text-sm"
                           disabled={creating}
                         >
@@ -730,7 +744,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       <TableCell>
                         <select
                           value={quickAddData.projectId}
-                          onChange={(e) => setQuickAddData({ ...quickAddData, projectId: e.target.value })}
+                          onChange={(e) => {
+                            const newProjectId = e.target.value;
+                            setQuickAddData({ 
+                              ...quickAddData, 
+                              projectId: newProjectId,
+                              buildingId: '' // Reset building when project changes
+                            });
+                          }}
                           className="w-full h-9 px-2 rounded-md border bg-background text-sm"
                           disabled={creating}
                         >
@@ -738,6 +759,21 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           {allProjects.map((project) => (
                             <option key={project.id} value={project.id}>{project.projectNumber}</option>
                           ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.buildingId}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, buildingId: e.target.value })}
+                          className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating || !quickAddData.projectId}
+                        >
+                          <option value="">{quickAddData.projectId ? 'No Building' : 'Select Project First'}</option>
+                          {allBuildings
+                            .filter(building => !quickAddData.projectId || building.projectId === quickAddData.projectId)
+                            .map((building) => (
+                              <option key={building.id} value={building.id}>{building.designation}</option>
+                            ))}
                         </select>
                       </TableCell>
                       <TableCell>
@@ -753,7 +789,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         </select>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800">In Progress</Badge>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -850,6 +886,16 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           <div>
                             <p className="text-sm">{task.project.projectNumber}</p>
                             <p className="text-xs text-muted-foreground">{task.project.name}</p>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {task.building ? (
+                          <div>
+                            <p className="text-sm">{task.building.designation}</p>
+                            <p className="text-xs text-muted-foreground">{task.building.name}</p>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>

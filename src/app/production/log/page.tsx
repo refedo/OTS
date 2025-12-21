@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Activity, Loader2, CheckCircle, Search } from 'lucide-react';
+import { Activity, Loader2, CheckCircle, Search, FileSpreadsheet } from 'lucide-react';
+import Link from 'next/link';
 
 type AssemblyPart = {
   id: string;
@@ -179,11 +180,12 @@ function LogProductionPageContent() {
 
   const fetchParts = async () => {
     try {
-      const response = await fetch('/api/production/assembly-parts');
+      const response = await fetch('/api/production/assembly-parts?limit=10000');
       if (response.ok) {
-        const data = await response.json();
-        // Show all parts - they can be logged for different processes
-        setParts(data);
+        const result = await response.json();
+        // API now returns { data: [...], pagination: {...} }
+        const partsArray = Array.isArray(result) ? result : (result.data || []);
+        setParts(partsArray);
       }
     } catch (error) {
       console.error('Error fetching parts:', error);
@@ -238,7 +240,8 @@ function LogProductionPageContent() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div>
+      <div className="flex items-start justify-between">
+        <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <Activity className="h-8 w-8" />
             Log Production Activity
@@ -247,6 +250,13 @@ function LogProductionPageContent() {
             Record production process for assembly parts
           </p>
         </div>
+        <Link href="/pts-sync-simple/map-logs?mode=logs">
+          <Button variant="outline" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-orange-500" />
+            Import Logs from PTS
+          </Button>
+        </Link>
+      </div>
 
         {success && (
           <Card className="mb-6 border-green-200 bg-green-50">

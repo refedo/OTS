@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Package, Search, Filter, CheckCircle, Clock, AlertCircle, Upload, Trash2, Edit, LayoutGrid, List } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Package, Search, Filter, CheckCircle, Clock, AlertCircle, Upload, Trash2, Edit, LayoutGrid, List, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudDownload, Database } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,8 @@ type AssemblyPart = {
   netWeightTotal: number | null;
   status: string;
   currentProcess: string | null;
+  source: string | null;
+  externalRef: string | null;
   project: { id: string; name: string; projectNumber: string };
   building: { id: string; name: string; designation: string } | null;
   createdBy: { id: string; name: string };
@@ -41,10 +44,18 @@ type AssemblyPart = {
   _count: { productionLogs: number };
 };
 
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export default function AssemblyPartsPage() {
   const [parts, setParts] = useState<AssemblyPart[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [buildingFilter, setBuildingFilter] = useState('all');
@@ -53,11 +64,36 @@ export default function AssemblyPartsPage() {
   const [selectedParts, setSelectedParts] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 100, total: 0, totalPages: 0 });
+
+  const fetchParts = useCallback(async (page = 1, search = searchQuery) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('page', page.toString());
+      params.set('limit', '100');
+      if (search) params.set('search', search);
+      if (projectFilter !== 'all') params.set('projectId', projectFilter);
+      if (buildingFilter !== 'all') params.set('buildingId', buildingFilter);
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+
+      const response = await fetch(`/api/production/assembly-parts?${params}`);
+      if (response.ok) {
+        const result = await response.json();
+        setParts(result.data || []);
+        setPagination(result.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 });
+      }
+    } catch (error) {
+      console.error('Error fetching parts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, projectFilter, buildingFilter, statusFilter]);
 
   useEffect(() => {
-    fetchParts();
+    fetchParts(1);
     fetchProjects();
-  }, []);
+  }, [projectFilter, buildingFilter, statusFilter]);
 
   useEffect(() => {
     if (projectFilter && projectFilter !== 'all') {
@@ -68,23 +104,20 @@ export default function AssemblyPartsPage() {
     }
   }, [projectFilter]);
 
-  const fetchParts = async () => {
-    try {
-      const response = await fetch('/api/production/assembly-parts');
-      console.log('Assembly parts API response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Assembly parts data received:', data.length, 'parts');
-        setParts(data);
-      } else {
-        const errorText = await response.text();
-        console.error('Assembly parts API error:', response.status, errorText);
-      }
-    } catch (error) {
-      console.error('Error fetching parts:', error);
-    } finally {
-      setLoading(false);
+  const handleSearch = () => {
+    setSearchQuery(searchInput);
+    fetchParts(1, searchInput);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= pagination.totalPages) {
+      fetchParts(page);
     }
   };
 
@@ -113,10 +146,10 @@ export default function AssemblyPartsPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedParts.size === filteredParts.length) {
+    if (selectedParts.size === parts.length) {
       setSelectedParts(new Set());
     } else {
-      setSelectedParts(new Set(filteredParts.map(p => p.id)));
+      setSelectedParts(new Set(parts.map(p => p.id)));
     }
   };
 
@@ -151,19 +184,23 @@ export default function AssemblyPartsPage() {
     }
   };
 
-  const filteredParts = parts.filter((part) => {
-    const matchesSearch =
-      part.partDesignation.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      part.assemblyMark.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      part.partMark.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      part.name.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || part.status === statusFilter;
-    const matchesProject = projectFilter === 'all' || part.project.id === projectFilter;
-    const matchesBuilding = buildingFilter === 'all' || (part.building && part.building.id === buildingFilter);
-
-    return matchesSearch && matchesStatus && matchesProject && matchesBuilding;
-  });
+  // Parts are now filtered server-side, so we use parts directly
+  const getSourceBadge = (source: string | null) => {
+    if (source === 'PTS') {
+      return (
+        <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 text-xs">
+          <CloudDownload className="h-3 w-3 mr-1" />
+          PTS
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 text-xs">
+        <Database className="h-3 w-3 mr-1" />
+        OTS
+      </Badge>
+    );
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -252,10 +289,15 @@ export default function AssemblyPartsPage() {
             <Input
               placeholder="Search by part designation, assembly mark, part mark, or name..."
               className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyPress={handleKeyPress}
             />
           </div>
+          <Button onClick={handleSearch}>
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </Button>
           <div className="flex gap-1 border rounded-md p-1">
             <Button
               variant={viewMode === 'card' ? 'default' : 'ghost'}
@@ -319,63 +361,89 @@ export default function AssemblyPartsPage() {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{filteredParts.length}</div>
+              <div className="text-2xl font-bold">{pagination.total}</div>
               <p className="text-xs text-muted-foreground">Total Parts</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-purple-600">
-                {(filteredParts.reduce((sum, p) => sum + (Number(p.netWeightTotal) || 0), 0) / 1000).toFixed(2)}
+                {(parts.reduce((sum, p) => sum + (Number(p.netWeightTotal) || 0), 0) / 1000).toFixed(2)}
               </div>
-              <p className="text-xs text-muted-foreground">Total Weight (tons)</p>
+              <p className="text-xs text-muted-foreground">Page Weight (tons)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-indigo-600">
-                {filteredParts.reduce((sum, p) => sum + (Number(p.netAreaTotal) || 0), 0).toFixed(2)}
+                {parts.reduce((sum, p) => sum + (Number(p.netAreaTotal) || 0), 0).toFixed(2)}
               </div>
-              <p className="text-xs text-muted-foreground">Total Area (m²)</p>
+              <p className="text-xs text-muted-foreground">Page Area (m²)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-yellow-600">
-                {filteredParts.filter((p) => p.status === 'Pending').length}
+                {parts.filter((p) => p.status === 'Pending').length}
               </div>
-              <p className="text-xs text-muted-foreground">Pending</p>
+              <p className="text-xs text-muted-foreground">Pending (page)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-blue-600">
-                {filteredParts.filter((p) => p.status === 'In Progress').length}
+                {parts.filter((p) => p.status === 'In Progress').length}
               </div>
-              <p className="text-xs text-muted-foreground">In Progress</p>
+              <p className="text-xs text-muted-foreground">In Progress (page)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-green-600">
-                {filteredParts.filter((p) => p.status === 'Completed').length}
+                {parts.filter((p) => p.status === 'Completed').length}
               </div>
-              <p className="text-xs text-muted-foreground">Completed</p>
+              <p className="text-xs text-muted-foreground">Completed (page)</p>
             </CardContent>
           </Card>
       </div>
 
+      {/* Pagination Controls */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} parts
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => goToPage(1)} disabled={pagination.page === 1}>
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.page - 1)} disabled={pagination.page === 1}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm px-2">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.page + 1)} disabled={pagination.page === pagination.totalPages}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.totalPages)} disabled={pagination.page === pagination.totalPages}>
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Select All */}
-      {filteredParts.length > 0 && (
+      {parts.length > 0 && (
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={selectedParts.size === filteredParts.length && filteredParts.length > 0}
+              checked={selectedParts.size === parts.length && parts.length > 0}
               onChange={toggleSelectAll}
               className="h-4 w-4 rounded border-gray-300"
             />
             <label className="text-sm font-medium">
-              Select All ({filteredParts.length} parts)
+              Select All on Page ({parts.length} parts)
             </label>
           </div>
       )}
@@ -387,7 +455,7 @@ export default function AssemblyPartsPage() {
               <p className="text-muted-foreground">Loading...</p>
             </CardContent>
           </Card>
-        ) : filteredParts.length === 0 ? (
+        ) : parts.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -413,25 +481,24 @@ export default function AssemblyPartsPage() {
                   <th className="p-3 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedParts.size === filteredParts.length && filteredParts.length > 0}
+                      checked={selectedParts.size === parts.length && parts.length > 0}
                       onChange={toggleSelectAll}
                       className="h-4 w-4 rounded border-gray-300"
                     />
                   </th>
                   <th className="p-3 text-left text-sm font-medium">Part Designation</th>
                   <th className="p-3 text-left text-sm font-medium">Name</th>
+                  <th className="p-3 text-left text-sm font-medium">Source</th>
                   <th className="p-3 text-left text-sm font-medium">Project</th>
                   <th className="p-3 text-left text-sm font-medium">Building</th>
                   <th className="p-3 text-left text-sm font-medium">Qty</th>
-                  <th className="p-3 text-left text-sm font-medium">Uploaded By</th>
                   <th className="p-3 text-left text-sm font-medium">Upload Date</th>
-                  <th className="p-3 text-left text-sm font-medium">Last Updated</th>
                   <th className="p-3 text-left text-sm font-medium">Status</th>
                   <th className="p-3 text-left text-sm font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredParts.map((part) => (
+                {parts.map((part) => (
                   <tr key={part.id} className={`border-t hover:bg-muted/50 ${selectedParts.has(part.id) ? 'bg-primary/5' : ''}`}>
                     <td className="p-3">
                       <input
@@ -448,12 +515,11 @@ export default function AssemblyPartsPage() {
                       </div>
                     </td>
                     <td className="p-3 text-sm">{part.name}</td>
+                    <td className="p-3">{getSourceBadge(part.source)}</td>
                     <td className="p-3 text-sm">{part.project.name}</td>
                     <td className="p-3 text-sm">{part.building?.name || 'N/A'}</td>
                     <td className="p-3 text-sm">{part.quantity}</td>
-                    <td className="p-3 text-sm">{part.createdBy?.name || 'N/A'}</td>
                     <td className="p-3 text-sm">{new Date(part.createdAt).toLocaleDateString()}</td>
-                    <td className="p-3 text-sm">{new Date(part.updatedAt).toLocaleDateString()}</td>
                     <td className="p-3">
                       <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${getStatusColor(part.status)}`}>
                         {getStatusIcon(part.status)}
@@ -483,7 +549,7 @@ export default function AssemblyPartsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-            {filteredParts.map((part) => (
+            {parts.map((part) => (
               <Card key={part.id} className={`hover:shadow-md transition-shadow ${selectedParts.has(part.id) ? 'ring-2 ring-primary' : ''}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -501,6 +567,7 @@ export default function AssemblyPartsPage() {
                           <CardTitle className="text-lg">
                             {part.partDesignation}
                           </CardTitle>
+                          {getSourceBadge(part.source)}
                           <div
                             className={`flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${getStatusColor(
                               part.status

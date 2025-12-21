@@ -14,6 +14,10 @@ import {
   Save,
   Upload,
   Download,
+  Edit,
+  X,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 
 type Project = {
@@ -67,6 +71,9 @@ export default function PlanningDashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [allBuildings, setAllBuildings] = useState<Building[]>([]);
+  const [selectedSchedules, setSelectedSchedules] = useState<Set<string>>(new Set());
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<Partial<ScopeSchedule>>({});
 
   useEffect(() => {
     fetchData();
@@ -262,6 +269,116 @@ export default function PlanningDashboardPage() {
       isNew: true,
     };
     setSchedules([...schedules, newSchedule]);
+  };
+
+  const toggleSelectSchedule = (id: string) => {
+    setSelectedSchedules(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSchedules.size === filteredSchedules.filter(s => !s.isNew && !s.id?.startsWith('temp-')).length) {
+      setSelectedSchedules(new Set());
+    } else {
+      const allIds = filteredSchedules
+        .filter(s => !s.isNew && !s.id?.startsWith('temp-'))
+        .map(s => s.id!)
+        .filter(Boolean);
+      setSelectedSchedules(new Set(allIds));
+    }
+  };
+
+  const deleteSelectedSchedules = async () => {
+    if (selectedSchedules.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedSchedules.size} schedule(s)?`)) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const ids = Array.from(selectedSchedules);
+      const response = await fetch('/api/scope-schedules/bulk-delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setSchedules(prev => prev.filter(s => !selectedSchedules.has(s.id!)));
+        setSelectedSchedules(new Set());
+        alert(`Deleted ${result.deletedCount} schedule(s)`);
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete schedules: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting schedules:', error);
+      alert('Failed to delete schedules');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEditing = (schedule: ScopeSchedule) => {
+    setEditingScheduleId(schedule.id!);
+    setEditingData({
+      startDate: schedule.startDate,
+      endDate: schedule.endDate,
+      scopeType: schedule.scopeType,
+      scopeLabel: schedule.scopeLabel,
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingScheduleId(null);
+    setEditingData({});
+  };
+
+  const saveEditing = async () => {
+    if (!editingScheduleId) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/scope-schedules/${editingScheduleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingData),
+      });
+
+      if (response.ok) {
+        const updatedSchedule = await response.json();
+        setSchedules(prev => prev.map(s => 
+          s.id === editingScheduleId 
+            ? { 
+                ...s, 
+                ...editingData,
+                startDate: updatedSchedule.startDate?.split('T')[0] || editingData.startDate,
+                endDate: updatedSchedule.endDate?.split('T')[0] || editingData.endDate,
+              }
+            : s
+        ));
+        setEditingScheduleId(null);
+        setEditingData({});
+        alert('Schedule updated successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Failed to update schedule: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error updating schedule:', error);
+      alert('Failed to update schedule');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const removeSchedule = async (id: string) => {
@@ -544,6 +661,16 @@ export default function PlanningDashboardPage() {
               className="hidden"
             />
             
+            {selectedSchedules.size > 0 && (
+              <Button 
+                variant="destructive" 
+                onClick={deleteSelectedSchedules}
+                disabled={saving}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete ({selectedSchedules.size})
+              </Button>
+            )}
             <Button onClick={addSchedule} disabled={projects.length === 0}>
               <Plus className="mr-2 h-4 w-4" />
               Add Schedule
@@ -576,6 +703,19 @@ export default function PlanningDashboardPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
+                      <th className="px-4 py-3 text-center w-12">
+                        <button
+                          onClick={toggleSelectAll}
+                          className="p-1 hover:bg-gray-200 rounded"
+                          title="Select all"
+                        >
+                          {selectedSchedules.size === filteredSchedules.filter(s => !s.isNew && !s.id?.startsWith('temp-')).length && selectedSchedules.size > 0 ? (
+                            <CheckSquare className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Square className="h-4 w-4 text-gray-400" />
+                          )}
+                        </button>
+                      </th>
                       <th className="px-4 py-3 text-left font-semibold">Project</th>
                       <th className="px-4 py-3 text-left font-semibold">Building</th>
                       <th className="px-4 py-3 text-left font-semibold">Scope</th>
@@ -605,8 +745,22 @@ export default function PlanningDashboardPage() {
                           key={schedule.id}
                           className={`border-b ${statusColor} ${
                             !statusColor && (index % 2 === 0 ? 'bg-white' : 'bg-muted/10')
-                          }`}
+                          } ${selectedSchedules.has(schedule.id!) ? 'bg-blue-50' : ''}`}
                         >
+                          <td className="px-4 py-3 text-center">
+                            {!isNewSchedule && (
+                              <button
+                                onClick={() => toggleSelectSchedule(schedule.id!)}
+                                className="p-1 hover:bg-gray-200 rounded"
+                              >
+                                {selectedSchedules.has(schedule.id!) ? (
+                                  <CheckSquare className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <Square className="h-4 w-4 text-gray-400" />
+                                )}
+                              </button>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             {isNewSchedule ? (
                               <select
@@ -692,11 +846,17 @@ export default function PlanningDashboardPage() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {isNewSchedule ? (
+                            {isNewSchedule || editingScheduleId === schedule.id ? (
                               <Input
                                 type="date"
-                                value={schedule.startDate}
-                                onChange={(e) => updateSchedule(schedule.id!, 'startDate', e.target.value)}
+                                value={editingScheduleId === schedule.id ? editingData.startDate || '' : schedule.startDate}
+                                onChange={(e) => {
+                                  if (editingScheduleId === schedule.id) {
+                                    setEditingData(prev => ({ ...prev, startDate: e.target.value }));
+                                  } else {
+                                    updateSchedule(schedule.id!, 'startDate', e.target.value);
+                                  }
+                                }}
                                 className="h-9 text-sm"
                               />
                             ) : (
@@ -704,11 +864,17 @@ export default function PlanningDashboardPage() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {isNewSchedule ? (
+                            {isNewSchedule || editingScheduleId === schedule.id ? (
                               <Input
                                 type="date"
-                                value={schedule.endDate}
-                                onChange={(e) => updateSchedule(schedule.id!, 'endDate', e.target.value)}
+                                value={editingScheduleId === schedule.id ? editingData.endDate || '' : schedule.endDate}
+                                onChange={(e) => {
+                                  if (editingScheduleId === schedule.id) {
+                                    setEditingData(prev => ({ ...prev, endDate: e.target.value }));
+                                  } else {
+                                    updateSchedule(schedule.id!, 'endDate', e.target.value);
+                                  }
+                                }}
                                 className="h-9 text-sm"
                               />
                             ) : (
@@ -745,23 +911,66 @@ export default function PlanningDashboardPage() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              {isNewSchedule && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => saveSchedule(schedule.id!)}
-                                  disabled={saving}
-                                >
-                                  <Save className="h-4 w-4" />
-                                </Button>
+                              {isNewSchedule ? (
+                                <>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => saveSchedule(schedule.id!)}
+                                    disabled={saving}
+                                    title="Save"
+                                  >
+                                    <Save className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeSchedule(schedule.id!)}
+                                    title="Cancel"
+                                  >
+                                    <X className="h-4 w-4 text-gray-500" />
+                                  </Button>
+                                </>
+                              ) : editingScheduleId === schedule.id ? (
+                                <>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={saveEditing}
+                                    disabled={saving}
+                                    title="Save changes"
+                                  >
+                                    <Save className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={cancelEditing}
+                                    title="Cancel"
+                                  >
+                                    <X className="h-4 w-4 text-gray-500" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditing(schedule)}
+                                    title="Edit"
+                                  >
+                                    <Edit className="h-4 w-4 text-blue-500" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeSchedule(schedule.id!)}
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeSchedule(schedule.id!)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
                             </div>
                           </td>
                         </tr>

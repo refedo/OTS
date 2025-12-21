@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
+import { WorkTrackingValidatorService } from '@/lib/services/work-tracking-validator.service';
 
 // Generate work order number
 async function generateWorkOrderNumber(): Promise<string> {
@@ -164,6 +166,28 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // Validate work tracking ("No Silent Work" rule)
+    const validation = await WorkTrackingValidatorService.validateWorkOrderCreation(
+      projectId,
+      buildingId,
+      selectedPartIds
+    );
+
+    // Log warnings for tracking
+    if (validation.warnings.length > 0) {
+      console.log('[WorkOrder] Tracking warnings:', validation.warnings);
+    }
+
+    // Block if critical validation issues
+    if (!validation.isValid) {
+      const criticalWarnings = validation.warnings.filter(w => w.severity === 'critical');
+      return NextResponse.json({
+        error: 'Work order validation failed',
+        warnings: criticalWarnings,
+        message: criticalWarnings[0]?.message || 'Critical validation issues detected',
+      }, { status: 400 });
+    }
+
     // Use provided dates or get from fabrication schedule
     let startDate: Date;
     let endDate: Date;
@@ -291,7 +315,7 @@ export async function POST(req: Request) {
     // Create notification for assigned production engineer
     await prisma.notification.create({
       data: {
-        type: 'WORK_ORDER_ASSIGNED',
+        type: 'TASK_ASSIGNED',
         title: `New Work Order Assigned: ${workOrderNumber}`,
         message: `You have been assigned to work order ${workOrderNumber} for ${workOrder.project.projectNumber} - ${workOrder.building.designation}. ${parts.length} part(s) included.`,
         userId: productionEngineerId,
@@ -303,14 +327,108 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json(workOrder);
+    // Sync to WorkUnit for Operations Control (non-blocking)
+    WorkUnitSyncService.syncFromWorkOrder({
+      id: workOrder.id,
+      projectId: projectId,
+      productionEngineerId: productionEngineerId,
+      plannedStartDate: startDate,
+      plannedEndDate: endDate,
+      status: workOrder.status,
+      totalWeight: workOrder.totalWeight ? Number(workOrder.totalWeight) : null,
+    }).catch((err) => {
+      console.error('WorkUnit sync failed:', err);
+    });
+
+    // Return work order with any non-critical warnings
+    // Convert Decimal fields to numbers for JSON serialization
+    const nonCriticalWarnings = validation.warnings.filter(w => w.severity !== 'critical');
+    const serializedWorkOrder = {
+      ...workOrder,
+      totalWeight: workOrder.totalWeight ? Number(workOrder.totalWeight) : null,
+      weightPercentage: workOrder.weightPercentage ? Number(workOrder.weightPercentage) : null,
+      progress: workOrder.progress ? Number(workOrder.progress) : 0,
+      parts: workOrder.parts?.map(p => ({
+        ...p,
+        weight: p.weight ? Number(p.weight) : 0,
+      })),
+      _warnings: nonCriticalWarnings.length > 0 ? nonCriticalWarnings : undefined,
+    };
+    return NextResponse.json(serializedWorkOrder);
   } catch (error: any) {
     console.error('Error creating work order:', error);
-    console.error('Error details:', JSON.stringify(error, null, 2));
+    console.error('Error stack:', error?.stack);
+    console.error('Error code:', error?.code);
+    console.error('Error meta:', error?.meta);
+    
+    // Build a meaningful error message
+    let errorMessage = 'Unknown error';
+    let errorDetails = null;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    if (error?.code) {
+      errorDetails = { code: error.code, meta: error.meta };
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to create work order', 
+      message: errorMessage,
+      details: errorDetails
+    }, { status: 500 });
+  }
+}
+
+// DELETE - Delete work orders (single or bulk)
+export async function DELETE(req: Request) {
+  try {
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { ids } = body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'No work order IDs provided' }, { status: 400 });
+    }
+
+    // First delete related WorkOrderParts
+    await prisma.workOrderPart.deleteMany({
+      where: {
+        workOrderId: { in: ids },
+      },
+    });
+
+    // Delete related WorkUnits (Operations Control)
+    await prisma.workUnit.deleteMany({
+      where: {
+        referenceModule: 'WorkOrder',
+        referenceId: { in: ids },
+      },
+    });
+
+    // Delete the work orders
+    const result = await prisma.workOrder.deleteMany({
+      where: {
+        id: { in: ids },
+      },
+    });
+
+    return NextResponse.json({ 
+      message: `${result.count} work order(s) deleted successfully`,
+      deletedCount: result.count,
+    });
+  } catch (error: any) {
+    console.error('Error deleting work orders:', error);
+    return NextResponse.json({ 
+      error: 'Failed to delete work orders', 
       message: error instanceof Error ? error.message : 'Unknown error',
-      details: error?.code || error?.meta || null
     }, { status: 500 });
   }
 }

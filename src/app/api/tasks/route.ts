@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import NotificationService from '@/lib/services/notification.service';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
 const createSchema = z.object({
   title: z.string().min(2),
@@ -152,9 +153,22 @@ export async function POST(req: Request) {
         console.log('Notification sent to:', task.assignedTo.name);
       } catch (notifError) {
         console.error('Failed to send notification:', notifError);
-        // Don't fail the task creation if notification fails
       }
     }
+
+    // Sync to WorkUnit for Operations Control (non-blocking)
+    WorkUnitSyncService.syncFromTask({
+      id: task.id,
+      projectId: task.projectId,
+      createdById: task.createdById,
+      assignedToId: task.assignedToId,
+      taskInputDate: task.taskInputDate,
+      dueDate: task.dueDate,
+      status: task.status,
+      departmentId: task.departmentId,
+    }).catch((err) => {
+      console.error('WorkUnit sync failed:', err);
+    });
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {

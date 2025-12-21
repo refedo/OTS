@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { recalculateProductionKPIs } from '@/lib/kpi/hooks';
+import { WorkTrackingValidatorService } from '@/lib/services/work-tracking-validator.service';
 
 const productionLogSchema = z.object({
   assemblyPartId: z.string().uuid(),
@@ -40,7 +41,41 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get('search');
+    const processFilter = searchParams.get('process');
+    const projectId = searchParams.get('projectId');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '100');
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {};
+
+    if (processFilter && processFilter !== 'all') {
+      where.processType = processFilter;
+    }
+
+    if (projectId && projectId !== 'all') {
+      where.assemblyPart = { projectId };
+    }
+
+    if (search) {
+      where.OR = [
+        { assemblyPart: { partDesignation: { contains: search } } },
+        { assemblyPart: { assemblyMark: { contains: search } } },
+        { assemblyPart: { name: { contains: search } } },
+        { processingTeam: { contains: search } },
+      ];
+    }
+
+    // Get total count for pagination
+    const total = await prisma.productionLog.count({ where });
+
     const logs = await prisma.productionLog.findMany({
+      where,
+      skip,
+      take: limit,
       include: {
         assemblyPart: {
           select: {
@@ -52,6 +87,7 @@ export async function GET(req: Request) {
             quantity: true,
             netWeightTotal: true,
             netAreaTotal: true,
+            source: true,
             project: {
               select: {
                 id: true,
@@ -84,7 +120,15 @@ export async function GET(req: Request) {
       },
     });
 
-    return NextResponse.json(logs);
+    return NextResponse.json({
+      data: logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching production logs:', error);
     return NextResponse.json({ 
@@ -115,6 +159,17 @@ export async function POST(req: Request) {
     }
 
     const { assemblyPartId, processedQty, dateProcessed, ...logData } = parsed.data;
+
+    // Validate work tracking ("No Silent Work" rule)
+    const validation = await WorkTrackingValidatorService.validateProductionLogCreation(
+      assemblyPartId,
+      logData.processType
+    );
+
+    // Log warnings for tracking (non-blocking)
+    if (validation.warnings.length > 0) {
+      console.log('[ProductionLog] Tracking warnings:', validation.warnings);
+    }
 
     // Get the assembly part
     const assemblyPart = await prisma.assemblyPart.findUnique({
@@ -214,7 +269,11 @@ export async function POST(req: Request) {
       console.error('KPI recalculation failed:', error);
     });
 
-    return NextResponse.json(productionLog, { status: 201 });
+    // Return production log with any warnings
+    return NextResponse.json({
+      ...productionLog,
+      _warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
+    }, { status: 201 });
   } catch (error) {
     console.error('Error creating production log:', error);
     return NextResponse.json({ 

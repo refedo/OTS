@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
 // Process types in order of production flow
 const PROCESS_ORDER = [
@@ -178,6 +179,11 @@ export async function GET(
           actualEndDate: woStatus === 'Completed' && !workOrder.actualEndDate ? new Date() : workOrder.actualEndDate,
         },
       });
+
+      // Sync WorkUnit status (non-blocking)
+      WorkUnitSyncService.syncWorkOrderStatusUpdate(id, woStatus).catch((err) => {
+        console.error('WorkUnit status sync failed:', err);
+      });
     }
 
     return NextResponse.json({
@@ -236,6 +242,13 @@ export async function PATCH(
         parts: true,
       },
     });
+
+    // Sync WorkUnit status if status was updated (non-blocking)
+    if (body.status) {
+      WorkUnitSyncService.syncWorkOrderStatusUpdate(id, body.status).catch((err) => {
+        console.error('WorkUnit status sync failed:', err);
+      });
+    }
 
     return NextResponse.json(workOrder);
   } catch (error) {

@@ -39,6 +39,9 @@ import {
   Bell,
   FileCode,
   CheckCircle,
+  Zap,
+  FileSpreadsheet,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -55,20 +58,38 @@ type NavigationSection = {
   name: string;
   icon: any;
   items: NavigationItem[];
+  badge?: string;
 };
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: '⚡ Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Tasks', href: '/tasks', icon: ListChecks },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
 
 const navigationSections: NavigationSection[] = [
   {
+    name: 'Operations Control',
+    icon: AlertTriangle,
+    badge: 'AUTO',
+    items: [
+      { name: 'Risk Dashboard', href: '/operations-control', icon: AlertTriangle },
+      { name: 'Intelligence', href: '/operations-control/intelligence', icon: Activity },
+      { name: 'Work Units', href: '/operations-control/work-units', icon: ListChecks },
+      { name: 'Dependencies', href: '/operations-control/dependencies', icon: Network },
+      { name: 'Capacity', href: '/operations-control/capacity', icon: Activity },
+      { name: 'AI Risk Digest', href: '/operations-control/ai-digest', icon: Bot },
+      { name: 'Quick Guide', href: '/operations-control/guide', icon: BookOpen },
+    ],
+  },
+  {
     name: 'Notifications',
     icon: Bell,
     items: [
       { name: 'All Notifications', href: '/notifications', icon: Bell },
+      { name: 'System Events', href: '/events', icon: Activity },
+      { name: 'Governance Center', href: '/governance', icon: Shield },
       { name: 'Delayed Tasks', href: '/notifications?tab=delayed-tasks', icon: AlertTriangle },
       { name: 'Approvals', href: '/notifications?tab=approvals', icon: CheckCircle },
       { name: 'Deadlines', href: '/notifications?tab=deadlines', icon: Clock },
@@ -99,6 +120,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Production Status', href: '/production/status', icon: Activity },
       { name: 'Raw Data', href: '/production/assembly-parts', icon: List },
       { name: 'Production Logs', href: '/production/logs', icon: Activity },
+      { name: 'PTS Sync', href: '/pts-sync-simple', icon: FileSpreadsheet },
       { name: 'Dispatch Reports', href: '/production/dispatch-reports', icon: FileText },
       { name: 'Daily Report (PDR)', href: '/production/reports/daily', icon: Calendar },
       { name: 'Period Report', href: '/production/reports/period', icon: TrendingUp },
@@ -351,6 +373,11 @@ export function AppSidebar() {
                     <div className="flex items-center gap-3">
                       <SectionIcon className="size-5 shrink-0" />
                       <span>{section.name}</span>
+                      {section.badge && (
+                        <span className="flex h-5 items-center justify-center rounded-full bg-green-500 px-1.5 text-xs font-bold text-white">
+                          {section.badge}
+                        </span>
+                      )}
                       {isMounted && isNotificationSection && totalAlertCount > 0 && (
                         <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
                           {totalAlertCount > 99 ? '99+' : totalAlertCount}
@@ -450,7 +477,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-2 px-3 text-xs text-muted-foreground">
                 <p className="font-medium">Hexa Steel OTS</p>
-                <p>v1.2.2</p>
+                <p>v2.5.0</p>
               </div>
             )}
           </div>

@@ -13,7 +13,8 @@ const updateSchema = z.object({
   roleId: z.string().uuid().optional(),
   departmentId: z.string().uuid().nullable().optional(),
   reportsToId: z.string().uuid().nullable().optional(),
-  status: z.enum(['active', 'inactive']).optional()
+  status: z.enum(['active', 'inactive']).optional(),
+  customPermissions: z.array(z.string()).nullable().optional()
 });
 
 export async function GET(
@@ -59,13 +60,17 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid input', details: parsed.error }, { status: 400 });
   }
 
-  const { password, departmentId, ...rest } = parsed.data;
+  const { password, departmentId, customPermissions, ...rest } = parsed.data;
   
   // Build update data
   const updateData: any = { ...rest };
   
   if (departmentId !== undefined) {
     updateData.departmentId = departmentId;
+  }
+  
+  if (customPermissions !== undefined) {
+    updateData.customPermissions = customPermissions;
   }
   
   if (password) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { verifySession } from '@/lib/jwt';
 import { z } from 'zod';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
 const updateSchema = z.object({
   status: z.string().optional(),
@@ -157,6 +158,13 @@ export async function PATCH(
         },
       },
     });
+
+    // Sync WorkUnit status if status was updated (non-blocking)
+    if (validated.status) {
+      WorkUnitSyncService.syncDocumentSubmissionStatusUpdate(params.id, validated.status).catch((err) => {
+        console.error('WorkUnit status sync failed:', err);
+      });
+    }
 
     return NextResponse.json(submission);
   } catch (error) {

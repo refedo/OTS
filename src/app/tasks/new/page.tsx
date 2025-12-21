@@ -19,12 +19,19 @@ export default async function NewTaskPage() {
     redirect('/tasks');
   }
 
-  // Fetch users for assignment (subordinates for managers, all for admins)
+  // Fetch users for assignment (subordinates for managers, all for admins) with department info
   let users;
   if (session.role === 'Admin') {
     users = await prisma.user.findMany({
       where: { status: 'active' },
-      select: { id: true, name: true, email: true, position: true },
+      select: { 
+        id: true, 
+        name: true, 
+        email: true, 
+        position: true,
+        departmentId: true,
+        department: { select: { id: true, name: true } }
+      },
       orderBy: { name: 'asc' },
     });
   } else {
@@ -34,7 +41,14 @@ export default async function NewTaskPage() {
       include: {
         subordinates: {
           where: { status: 'active' },
-          select: { id: true, name: true, email: true, position: true },
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            position: true,
+            departmentId: true,
+            department: { select: { id: true, name: true } }
+          },
         },
       },
     });

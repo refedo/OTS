@@ -13,7 +13,8 @@ const createSchema = z.object({
   roleId: z.string().uuid(),
   departmentId: z.string().uuid().nullable().optional(),
   reportsToId: z.string().uuid().nullable().optional(),
-  status: z.enum(['active', 'inactive']).optional()
+  status: z.enum(['active', 'inactive']).optional(),
+  customPermissions: z.array(z.string()).nullable().optional()
 });
 
 export async function GET() {
@@ -50,14 +51,15 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
 
-  const { password, departmentId, reportsToId, status, ...rest } = parsed.data;
+  const { password, departmentId, reportsToId, status, customPermissions, ...rest } = parsed.data;
   const user = await prisma.user.create({
     data: { 
       ...rest, 
       password: await hashPassword(password),
       departmentId: departmentId || null,
       reportsToId: reportsToId || null,
-      status: status || 'active'
+      status: status || 'active',
+      customPermissions: customPermissions || null
     },
     include: {
       role: true,

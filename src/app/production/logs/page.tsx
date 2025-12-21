@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Activity, Search, Filter, Package, FileCheck, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Activity, Search, Filter, Package, FileCheck, Loader2, ChevronDown, ChevronUp, Trash2, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudDownload, Database } from 'lucide-react';
+import { ImportModal } from '@/components/ImportModal';
 import { getProcessColor } from '@/lib/process-colors';
 import {
   Dialog,
@@ -41,6 +43,8 @@ type ProductionLog = {
   qcStatus: string;
   qcRequired: boolean;
   createdAt: string;
+  source: string | null;
+  externalRef: string | null;
   assemblyPart: {
     id: string;
     partDesignation: string;
@@ -48,8 +52,9 @@ type ProductionLog = {
     quantity: number;
     netWeightTotal: number | null;
     netAreaTotal: number | null;
-    project: { name: string; projectNumber: string };
-    building: { name: string; designation: string } | null;
+    source: string | null;
+    project: { id: string; name: string; projectNumber: string };
+    building: { id: string; name: string; designation: string } | null;
   };
   rfiProductionLogs: Array<{
     rfiRequest: {
@@ -59,16 +64,25 @@ type ProductionLog = {
   }>;
 };
 
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export default function ProductionLogsPage() {
   const [logs, setLogs] = useState<ProductionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [processFilter, setProcessFilter] = useState('all');
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [showRFIDialog, setShowRFIDialog] = useState(false);
   const [creatingRFI, setCreatingRFI] = useState(false);
   const [qcUsers, setQcUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [assignedQCId, setAssignedQCId] = useState('');
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 100, total: 0, totalPages: 0 });
   const [showRectifyDialog, setShowRectifyDialog] = useState(false);
   const [rectifyingLog, setRectifyingLog] = useState<ProductionLog | null>(null);
   const [rectifyRemarks, setRectifyRemarks] = useState('');
@@ -77,24 +91,83 @@ export default function ProductionLogsPage() {
   const [isProcessStatsCollapsed, setIsProcessStatsCollapsed] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importProjectId, setImportProjectId] = useState('');
+  const [projects, setProjects] = useState<Array<{ id: string; projectNumber: string; name: string }>>([]);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async (page = 1, search = searchQuery) => {
+    setLoading(true);
     try {
-      const response = await fetch('/api/production/logs');
+      const params = new URLSearchParams();
+      params.set('page', page.toString());
+      params.set('limit', '100');
+      if (search) params.set('search', search);
+      if (processFilter !== 'all') params.set('process', processFilter);
+      if (projectFilter !== 'all') params.set('projectId', projectFilter);
+
+      const response = await fetch(`/api/production/logs?${params}`);
       if (response.ok) {
-        const data = await response.json();
-        setLogs(data);
+        const result = await response.json();
+        setLogs(result.data || []);
+        setPagination(result.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 });
       }
     } catch (error) {
       console.error('Error fetching logs:', error);
     } finally {
       setLoading(false);
     }
+  }, [searchQuery, processFilter, projectFilter]);
+
+  useEffect(() => {
+    fetchLogs(1);
+    fetchProjects();
+  }, [processFilter, projectFilter]);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects');
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput);
+    fetchLogs(1, searchInput);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= pagination.totalPages) {
+      fetchLogs(page);
+    }
+  };
+
+  const getSourceBadge = (source: string | null) => {
+    if (source === 'PTS') {
+      return (
+        <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 text-xs">
+          <CloudDownload className="h-3 w-3 mr-1" />
+          PTS
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 text-xs">
+        <Database className="h-3 w-3 mr-1" />
+        OTS
+      </Badge>
+    );
   };
 
   const fetchQCUsers = async () => {
@@ -306,19 +379,10 @@ export default function ProductionLogsPage() {
     }
   };
 
+  // Logs are now filtered server-side, apply only QC status filter client-side
   const filteredLogs = logs.filter((log) => {
-    const matchesSearch =
-      log.assemblyPart.partDesignation.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.assemblyPart.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.processType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.processingTeam?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.processingLocation?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesProcess = processFilter === 'all' || log.processType === processFilter;
     const matchesQCStatus = qcStatusFilter === 'all' || log.qcStatus === qcStatusFilter;
-    const matchesProject = projectFilter === 'all' || log.assemblyPart.project.projectNumber === projectFilter;
-
-    return matchesSearch && matchesProcess && matchesQCStatus && matchesProject;
+    return matchesQCStatus;
   });
 
   const uniqueProcessTypes = Array.from(new Set(logs.map(log => log.processType))).sort();
@@ -417,6 +481,10 @@ export default function ProductionLogsPage() {
                 </Button>
               </>
             )}
+            <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Button>
             <Link href="/production/mass-log">
               <Button size="sm">
                 <Activity className="mr-2 h-4 w-4" />
@@ -433,10 +501,15 @@ export default function ProductionLogsPage() {
             <Input
               placeholder="Search..."
               className="pl-10 h-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyPress={handleKeyPress}
             />
           </div>
+          <Button onClick={handleSearch} size="sm">
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </Button>
           <select
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
@@ -475,11 +548,37 @@ export default function ProductionLogsPage() {
         </div>
       </div>
 
+      {/* Pagination Controls */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} logs
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => goToPage(1)} disabled={pagination.page === 1}>
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.page - 1)} disabled={pagination.page === 1}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm px-2">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.page + 1)} disabled={pagination.page === pagination.totalPages}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.totalPages)} disabled={pagination.page === pagination.totalPages}>
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Metrics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{pagination.total}</div>
             <p className="text-xs text-muted-foreground">Total Logs</p>
           </CardContent>
         </Card>
@@ -605,13 +704,13 @@ export default function ProductionLogsPage() {
                     />
                   </th>
                   <th className="p-3 text-left text-sm font-medium">Part Designation</th>
+                  <th className="p-3 text-left text-sm font-medium">Source</th>
                   <th className="p-3 text-left text-sm font-medium">Process</th>
                   <th className="p-3 text-left text-sm font-medium">Date</th>
                   <th className="p-3 text-left text-sm font-medium">Processed Qty</th>
                   <th className="p-3 text-left text-sm font-medium">Total Qty</th>
                   <th className="p-3 text-left text-sm font-medium">QC Status</th>
                   <th className="p-3 text-left text-sm font-medium">Team</th>
-                  <th className="p-3 text-left text-sm font-medium">Location</th>
                   <th className="p-3 text-left text-sm font-medium">Actions</th>
                 </tr>
               </thead>
@@ -638,6 +737,9 @@ export default function ProductionLogsPage() {
                           <p className="text-xs text-muted-foreground">{log.assemblyPart.name}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="p-3">
+                      {getSourceBadge(log.assemblyPart.source)}
                     </td>
                     <td className="p-3">
                       <div className="inline-flex px-2 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium">
@@ -861,6 +963,74 @@ export default function ProductionLogsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Import Modal */}
+        <ImportModal
+          isOpen={showImportModal}
+          onClose={() => {
+            setShowImportModal(false);
+            setImportProjectId('');
+            fetchLogs();
+          }}
+          title="Import Production Logs"
+          fields={[
+            { key: 'partDesignation', label: 'Part Designation', required: true },
+            { key: 'assemblyMark', label: 'Assembly Mark' },
+            { key: 'partMark', label: 'Part Mark' },
+            { key: 'processType', label: 'Process Type' },
+            { key: 'dateProcessed', label: 'Date Processed' },
+            { key: 'processedQty', label: 'Processed Qty' },
+            { key: 'remainingQty', label: 'Remaining Qty' },
+            { key: 'processingTeam', label: 'Processing Team' },
+            { key: 'processingLocation', label: 'Processing Location' },
+            { key: 'remarks', label: 'Remarks' },
+            { key: 'qcStatus', label: 'QC Status' },
+            { key: 'qcRequired', label: 'QC Required' },
+          ]}
+          onImport={async (data, mapping) => {
+            if (!importProjectId) {
+              throw new Error('Please select a project first');
+            }
+            const res = await fetch('/api/production/logs/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data, mapping, projectId: importProjectId }),
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              throw new Error(error.message || 'Import failed');
+            }
+            const result = await res.json();
+            return result.results;
+          }}
+          sampleData="Part Designation,Process Type,Date Processed,Processed Qty,Remaining Qty,Processing Team"
+        />
+
+        {/* Project Selection for Import */}
+        {showImportModal && !importProjectId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Select Project for Import</h3>
+              <select
+                value={importProjectId}
+                onChange={(e) => setImportProjectId(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border bg-background mb-4"
+              >
+                <option value="">Select a project...</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.projectNumber} - {p.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowImportModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ type User = {
   name: string;
   email: string;
   position: string | null;
+  departmentId: string | null;
+  department: { id: string; name: string } | null;
 };
 
 type Project = {
@@ -57,6 +59,10 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState(task?.assignedToId || '');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(task?.projectId || '');
+  const [selectedBuildingId, setSelectedBuildingId] = useState('');
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -144,7 +150,15 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               <select
                 id="assignedToId"
                 name="assignedToId"
-                defaultValue={task?.assignedToId || ''}
+                value={selectedUserId}
+                onChange={(e) => {
+                  const userId = e.target.value;
+                  setSelectedUserId(userId);
+                  const selectedUser = users.find(u => u.id === userId);
+                  if (selectedUser?.departmentId) {
+                    setSelectedDepartmentId(selectedUser.departmentId);
+                  }
+                }}
                 disabled={loading}
                 className="w-full h-10 px-3 rounded-md border bg-background"
               >
@@ -163,7 +177,12 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               <select
                 id="projectId"
                 name="projectId"
-                defaultValue={task?.projectId || ''}
+                value={selectedProjectId}
+                onChange={(e) => {
+                  const newProjectId = e.target.value;
+                  setSelectedProjectId(newProjectId);
+                  setSelectedBuildingId(''); // Reset building when project changes
+                }}
                 disabled={loading}
                 className="w-full h-10 px-3 rounded-md border bg-background"
               >
@@ -203,7 +222,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               <select
                 id="status"
                 name="status"
-                defaultValue={task?.status || 'Pending'}
+                defaultValue={task?.status || 'In Progress'}
                 required
                 disabled={loading}
                 className="w-full h-10 px-3 rounded-md border bg-background"
@@ -220,16 +239,25 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               <select
                 id="buildingId"
                 name="buildingId"
-                disabled={loading}
+                value={selectedBuildingId}
+                onChange={(e) => setSelectedBuildingId(e.target.value)}
+                disabled={loading || !selectedProjectId}
                 className="w-full h-10 px-3 rounded-md border bg-background"
               >
-                <option value="">No Building</option>
-                {buildings.map((building) => (
-                  <option key={building.id} value={building.id}>
-                    {building.designation} - {building.name}
-                  </option>
-                ))}
+                <option value="">{selectedProjectId ? 'No Building' : 'Select Project First'}</option>
+                {buildings
+                  .filter(building => !selectedProjectId || building.projectId === selectedProjectId)
+                  .map((building) => (
+                    <option key={building.id} value={building.id}>
+                      {building.designation} - {building.name}
+                    </option>
+                  ))}
               </select>
+              {!selectedProjectId && (
+                <p className="text-xs text-muted-foreground">
+                  Please select a project first to see available buildings
+                </p>
+              )}
             </div>
 
             {/* Department */}
@@ -238,6 +266,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               <select
                 id="departmentId"
                 name="departmentId"
+                value={selectedDepartmentId}
+                onChange={(e) => setSelectedDepartmentId(e.target.value)}
                 disabled={loading}
                 className="w-full h-10 px-3 rounded-md border bg-background"
               >

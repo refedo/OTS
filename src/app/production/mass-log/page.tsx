@@ -142,10 +142,11 @@ export default function MassLogProductionPage() {
 
   const fetchParts = async () => {
     try {
-      const response = await fetch('/api/production/assembly-parts?includeLogs=true');
+      const response = await fetch('/api/production/assembly-parts?includeLogs=true&limit=10000');
       if (response.ok) {
         const data = await response.json();
-        setParts(data);
+        // Handle paginated response - API returns { data: [...], pagination: {...} }
+        setParts(Array.isArray(data) ? data : (data.data || []));
       }
     } catch (error) {
       console.error('Error fetching parts:', error);

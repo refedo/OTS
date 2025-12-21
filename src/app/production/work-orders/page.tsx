@@ -14,6 +14,11 @@ import {
   Package,
   TrendingUp,
   Eye,
+  Trash2,
+  Table,
+  LayoutGrid,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 
 type WorkOrder = {
@@ -51,6 +56,9 @@ export default function WorkOrdersPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -130,6 +138,60 @@ export default function WorkOrdersPage() {
     totalWeight: workOrders.reduce((sum, wo) => sum + Number(wo.totalWeight), 0),
   };
 
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === workOrders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(workOrders.map(wo => wo.id)));
+    }
+  };
+
+  const handleDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    const confirmMessage = selectedIds.size === 1 
+      ? 'Are you sure you want to delete this work order?' 
+      : `Are you sure you want to delete ${selectedIds.size} work orders?`;
+    
+    if (!confirm(confirmMessage)) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch('/api/work-orders', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(result.message);
+        setSelectedIds(new Set());
+        fetchWorkOrders();
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting work orders:', error);
+      alert('Failed to delete work orders');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -143,12 +205,46 @@ export default function WorkOrdersPage() {
             Manage and track production work orders
           </p>
         </div>
-        <Link href="/production/work-orders/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Work Order
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete ({selectedIds.size})
+            </Button>
+          )}
+          <div className="flex border rounded-md">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+              className="rounded-r-none"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="rounded-l-none"
+            >
+              <Table className="h-4 w-4" />
+            </Button>
+          </div>
+          <Link href="/production/work-orders/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Work Order
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
@@ -239,7 +335,24 @@ export default function WorkOrdersPage() {
       {/* Work Orders List */}
       <Card>
         <CardHeader>
-          <CardTitle>Work Orders List</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Work Orders List</CardTitle>
+            {workOrders.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSelectAll}
+                className="text-muted-foreground"
+              >
+                {selectedIds.size === workOrders.length ? (
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                ) : (
+                  <Square className="mr-2 h-4 w-4" />
+                )}
+                {selectedIds.size === workOrders.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -257,12 +370,107 @@ export default function WorkOrdersPage() {
                 </Button>
               </Link>
             </div>
+          ) : viewMode === 'table' ? (
+            /* Table View */
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="p-3 text-left w-10">
+                      <button onClick={toggleSelectAll} className="p-1">
+                        {selectedIds.size === workOrders.length ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </button>
+                    </th>
+                    <th className="p-3 text-left font-medium">WO Number</th>
+                    <th className="p-3 text-left font-medium">Name</th>
+                    <th className="p-3 text-left font-medium">Project</th>
+                    <th className="p-3 text-left font-medium">Building</th>
+                    <th className="p-3 text-left font-medium">Engineer</th>
+                    <th className="p-3 text-left font-medium">Weight</th>
+                    <th className="p-3 text-left font-medium">Progress</th>
+                    <th className="p-3 text-left font-medium">Status</th>
+                    <th className="p-3 text-left font-medium">Timeline</th>
+                    <th className="p-3 text-left font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workOrders.map((wo) => (
+                    <tr 
+                      key={wo.id} 
+                      className={`border-b hover:bg-muted/30 ${selectedIds.has(wo.id) ? 'bg-primary/5' : ''}`}
+                    >
+                      <td className="p-3">
+                        <button onClick={() => toggleSelection(wo.id)} className="p-1">
+                          {selectedIds.has(wo.id) ? (
+                            <CheckSquare className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Square className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </td>
+                      <td className="p-3 font-medium">{wo.workOrderNumber}</td>
+                      <td className="p-3 max-w-[200px] truncate" title={wo.name}>{wo.name}</td>
+                      <td className="p-3">{wo.project.projectNumber}</td>
+                      <td className="p-3">{wo.building.designation}</td>
+                      <td className="p-3">{wo.productionEngineer.name}</td>
+                      <td className="p-3">{(Number(wo.totalWeight) / 1000).toFixed(2)}t</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${getProgressColor(wo.progress)}`}
+                              style={{ width: `${wo.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs">{wo.progress.toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(wo.status)}`}>
+                          {wo.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-xs">
+                        {formatDate(wo.plannedStartDate)}
+                      </td>
+                      <td className="p-3">
+                        <Link href={`/production/work-orders/${wo.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
+            /* Cards View */
             <div className="space-y-4">
               {workOrders.map((wo) => (
-                <Card key={wo.id} className="hover:shadow-md transition-shadow">
+                <Card 
+                  key={wo.id} 
+                  className={`hover:shadow-md transition-shadow ${selectedIds.has(wo.id) ? 'ring-2 ring-primary' : ''}`}
+                >
                   <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      {/* Selection Checkbox */}
+                      <button 
+                        onClick={() => toggleSelection(wo.id)} 
+                        className="mt-1 p-1 hover:bg-muted rounded"
+                      >
+                        {selectedIds.has(wo.id) ? (
+                          <CheckSquare className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Square className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </button>
+                      
                       <div className="flex-1 space-y-3">
                         {/* Header */}
                         <div className="flex items-start justify-between">

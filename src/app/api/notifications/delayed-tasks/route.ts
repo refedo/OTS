@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { cache } from '@/lib/cache';
 
 // GET - Fetch delayed tasks (past due date and not completed)
 export async function GET(req: Request) {
@@ -12,6 +13,13 @@ export async function GET(req: Request) {
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check cache first (30 second TTL)
+    const cacheKey = 'delayed-tasks';
+    const cached = cache.get(cacheKey, 30000);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
     const now = new Date();
@@ -63,13 +71,18 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({
+    const result = {
       tasks: tasksWithDelay,
       total: tasksWithDelay.length,
       critical: tasksWithDelay.filter(t => t.delayStatus === 'critical').length,
       warning: tasksWithDelay.filter(t => t.delayStatus === 'warning').length,
       minor: tasksWithDelay.filter(t => t.delayStatus === 'minor').length,
-    });
+    };
+
+    // Cache the result
+    cache.set(cacheKey, result);
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching delayed tasks:', error);
     return NextResponse.json({ 

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { cache } from '@/lib/cache';
+
+// Cache for assembly parts to avoid N+1 queries
+const assemblyPartsCache = new Map<string, any[]>();
 
 // Calculate progress for each scope type
 async function calculateProgress(schedule: any): Promise<number> {
@@ -10,19 +14,24 @@ async function calculateProgress(schedule: any): Promise<number> {
   try {
     // For fabrication: average of fit-up, welding, visualization
     if (scopeType === 'fabrication') {
-      const parts = await prisma.assemblyPart.findMany({
-        where: { buildingId },
-        select: { 
-          id: true, 
-          quantity: true,
-          productionLogs: {
-            select: {
-              processType: true,
-              processedQty: true,
+      // Check cache first
+      let parts = assemblyPartsCache.get(buildingId);
+      if (!parts) {
+        parts = await prisma.assemblyPart.findMany({
+          where: { buildingId },
+          select: { 
+            id: true, 
+            quantity: true,
+            productionLogs: {
+              select: {
+                processType: true,
+                processedQty: true,
+              }
             }
-          }
-        },
-      });
+          },
+        });
+        assemblyPartsCache.set(buildingId, parts);
+      }
 
       if (parts.length === 0) return 0;
 
@@ -44,17 +53,22 @@ async function calculateProgress(schedule: any): Promise<number> {
 
     // For painting
     if (scopeType === 'painting') {
-      const parts = await prisma.assemblyPart.findMany({
-        where: { buildingId },
-        select: { 
-          id: true, 
-          quantity: true,
-          productionLogs: {
-            where: { processType: 'Painting' },
-            select: { processedQty: true }
-          }
-        },
-      });
+      // Check cache first
+      let parts = assemblyPartsCache.get(buildingId);
+      if (!parts) {
+        parts = await prisma.assemblyPart.findMany({
+          where: { buildingId },
+          select: { 
+            id: true, 
+            quantity: true,
+            productionLogs: {
+              where: { processType: 'Painting' },
+              select: { processedQty: true }
+            }
+          },
+        });
+        assemblyPartsCache.set(buildingId, parts);
+      }
 
       if (parts.length === 0) return 0;
 
@@ -71,17 +85,22 @@ async function calculateProgress(schedule: any): Promise<number> {
 
     // For galvanization
     if (scopeType === 'galvanization') {
-      const parts = await prisma.assemblyPart.findMany({
-        where: { buildingId },
-        select: { 
-          id: true, 
-          quantity: true,
-          productionLogs: {
-            where: { processType: 'Galvanization' },
-            select: { processedQty: true }
-          }
-        },
-      });
+      // Check cache first
+      let parts = assemblyPartsCache.get(buildingId);
+      if (!parts) {
+        parts = await prisma.assemblyPart.findMany({
+          where: { buildingId },
+          select: { 
+            id: true, 
+            quantity: true,
+            productionLogs: {
+              where: { processType: 'Galvanization' },
+              select: { processedQty: true }
+            }
+          },
+        });
+        assemblyPartsCache.set(buildingId, parts);
+      }
 
       if (parts.length === 0) return 0;
 
@@ -146,6 +165,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check cache first (30 second TTL)
+    const cacheKey = 'underperforming-schedules';
+    const cached = cache.get(cacheKey, 30000);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const now = new Date();
 
     // Get all scope schedules
@@ -173,6 +199,9 @@ export async function GET(req: Request) {
 
     // Calculate progress and filter underperforming schedules
     const underperformingSchedules = [];
+
+    // Clear the cache for this request
+    assemblyPartsCache.clear();
 
     for (const schedule of scopeSchedules) {
       const progress = await calculateProgress(schedule);
@@ -224,12 +253,17 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({
+    const result = {
       schedules: underperformingSchedules,
       total: underperformingSchedules.length,
       critical: underperformingSchedules.filter(s => s.status === 'critical').length,
       atRisk: underperformingSchedules.filter(s => s.status === 'at-risk').length,
-    });
+    };
+
+    // Cache the result
+    cache.set(cacheKey, result);
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching underperforming schedules:', error);
     return NextResponse.json(

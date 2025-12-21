@@ -24,10 +24,17 @@ export default async function TasksPage() {
 
   const tasks = response.ok ? await response.json() : [];
 
-  // Fetch all users for assignment dropdown
+  // Fetch all users for assignment dropdown with department info
   const users = await prisma.user.findMany({
     where: { status: 'active' },
-    select: { id: true, name: true, email: true, position: true },
+    select: { 
+      id: true, 
+      name: true, 
+      email: true, 
+      position: true,
+      departmentId: true,
+      department: { select: { id: true, name: true } }
+    },
     orderBy: { name: 'asc' },
   });
 
@@ -38,9 +45,9 @@ export default async function TasksPage() {
     orderBy: { projectNumber: 'asc' },
   });
 
-  // Fetch all buildings
+  // Fetch all buildings with projectId for filtering
   const buildings = await prisma.building.findMany({
-    select: { id: true, designation: true, name: true },
+    select: { id: true, designation: true, name: true, projectId: true },
     orderBy: { designation: 'asc' },
   });
 

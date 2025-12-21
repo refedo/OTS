@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, User, Shield } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PermissionsMatrix } from '@/components/permissions-matrix';
+import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +22,7 @@ type Role = {
   id: string;
   name: string;
   description: string | null;
+  permissions?: any;
 };
 
 type Department = {
@@ -47,6 +51,9 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
   const [showDeptDialog, setShowDeptDialog] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
   const [addingDept, setAddingDept] = useState(false);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
+  const [customPermissions, setCustomPermissions] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState('basic');
 
   async function handleAddDepartment() {
     if (!newDeptName.trim()) return;
@@ -72,6 +79,9 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
     }
   }
 
+  const selectedRole = roles.find(r => r.id === selectedRoleId);
+  const rolePermissions = selectedRole ? (DEFAULT_ROLE_PERMISSIONS[selectedRole.name] || []) : [];
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -87,6 +97,7 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
       departmentId: formData.get('departmentId') as string || null,
       reportsToId: formData.get('reportsToId') as string || null,
       status: formData.get('status') as string,
+      customPermissions: customPermissions.length > 0 ? customPermissions : null,
     };
 
     try {
@@ -115,6 +126,19 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="basic">
+            <User className="size-4" />
+            Basic Information
+          </TabsTrigger>
+          <TabsTrigger value="permissions">
+            <Shield className="size-4" />
+            Custom Permissions
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="basic" className="space-y-6 mt-6">
       {error && (
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
           {error}
@@ -196,6 +220,8 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
             name="roleId"
             required
             disabled={loading}
+            value={selectedRoleId}
+            onChange={(e) => setSelectedRoleId(e.target.value)}
             className="w-full h-9 px-3 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
           >
             <option value="">Select a role</option>
@@ -306,9 +332,41 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
           </select>
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="permissions" className="space-y-6 mt-6">
+          {!selectedRoleId ? (
+            <div className="p-6 rounded-lg border border-dashed text-center">
+              <Shield className="size-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">
+                Please select a role in the Basic Information tab first.
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                The role will determine the default permissions, which you can then customize here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-muted/50 border">
+                <h3 className="font-semibold text-sm mb-1">Custom Permissions Override</h3>
+                <p className="text-sm text-muted-foreground">
+                  By default, this user will inherit permissions from the <strong>{selectedRole?.name}</strong> role.
+                  Use the matrix below to customize permissions for this specific user.
+                </p>
+              </div>
+              <PermissionsMatrix
+                selectedPermissions={customPermissions}
+                onChange={setCustomPermissions}
+                rolePermissions={rolePermissions}
+                disabled={loading}
+              />
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Actions */}
-      <div className="flex items-center gap-3 pt-4 border-t">
+      <div className="flex items-center gap-3 pt-4 border-t mt-6">
         <Button type="submit" disabled={loading}>
           {loading && <Loader2 className="size-4 animate-spin" />}
           Create User

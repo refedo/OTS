@@ -86,14 +86,57 @@ export async function GET(req: Request) {
     const buildingId = searchParams.get('buildingId');
     const status = searchParams.get('status');
     const includeLogs = searchParams.get('includeLogs') === 'true';
+    const search = searchParams.get('search');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '100');
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      ...(projectId && { projectId }),
+      ...(buildingId && { buildingId }),
+      ...(status && { status }),
+    };
+
+    // Add search filter (MySQL is case-insensitive by default for contains)
+    if (search) {
+      where.OR = [
+        { partDesignation: { contains: search } },
+        { assemblyMark: { contains: search } },
+        { partMark: { contains: search } },
+        { name: { contains: search } },
+      ];
+    }
+
+    // Get total count for pagination
+    const total = await prisma.assemblyPart.count({ where });
 
     const assemblyParts = await prisma.assemblyPart.findMany({
-      where: {
-        ...(projectId && { projectId }),
-        ...(buildingId && { buildingId }),
-        ...(status && { status }),
-      },
-      include: {
+      where,
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        partDesignation: true,
+        assemblyMark: true,
+        subAssemblyMark: true,
+        partMark: true,
+        quantity: true,
+        name: true,
+        profile: true,
+        grade: true,
+        lengthMm: true,
+        netAreaPerUnit: true,
+        netAreaTotal: true,
+        singlePartWeight: true,
+        netWeightTotal: true,
+        status: true,
+        source: true,
+        externalRef: true,
+        projectId: true,
+        buildingId: true,
+        createdAt: true,
+        updatedAt: true,
         project: {
           select: { id: true, name: true, projectNumber: true, galvanized: true },
         },
@@ -121,7 +164,15 @@ export async function GET(req: Request) {
       ],
     });
 
-    return NextResponse.json(assemblyParts);
+    return NextResponse.json({
+      data: assemblyParts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching assembly parts:', error);
     return NextResponse.json({ 

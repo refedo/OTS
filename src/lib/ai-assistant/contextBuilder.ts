@@ -30,6 +30,17 @@ export interface AIContext {
   };
   logistics?: any[];
   departments?: any[];
+  // Predictive Operations Control System data
+  predictiveOps?: {
+    riskEvents: any[];
+    riskSummary: {
+      totalActive: number;
+      bySeverity: { severity: string; count: number }[];
+      byType: { type: string; count: number }[];
+    };
+    workUnits: any[];
+    capacityOverloads: any[];
+  };
 }
 
 /**
@@ -101,6 +112,13 @@ export async function buildAIContext(
       
       if (production.status === 'fulfilled') context.production = production.value;
       if (qc.status === 'fulfilled') context.qc = qc.value;
+    }
+
+    // Always add Predictive Operations Control System data
+    const predictiveOps = await getPredictiveOpsContext();
+    if (predictiveOps) {
+      context.predictiveOps = predictiveOps;
+      console.log(`[AI Context] Predictive Ops: ${predictiveOps.riskEvents.length} risks, ${predictiveOps.workUnits.length} work units`);
     }
   } catch (error) {
     console.error('Error building context:', error);
@@ -376,4 +394,197 @@ async function getDepartmentsContext(userId: string, role: string) {
   });
 
   return departments;
+}
+
+/**
+ * Get Predictive Operations Control System context
+ * Includes: RiskEvents, WorkUnits, Dependencies, Capacity analysis
+ */
+async function getPredictiveOpsContext() {
+  try {
+    // Get active (unresolved) risk events
+    const riskEvents = await prisma.riskEvent.findMany({
+      where: { resolvedAt: null },
+      select: {
+        id: true,
+        severity: true,
+        type: true,
+        affectedProjectIds: true,
+        affectedWorkUnitIds: true,
+        reason: true,
+        recommendedAction: true,
+        detectedAt: true,
+        metadata: true,
+      },
+      orderBy: [
+        { severity: 'desc' },
+        { detectedAt: 'desc' },
+      ],
+      take: 20, // Limit to top 20 risks
+    });
+
+    // Get risk summary by severity and type
+    const [bySeverity, byType] = await Promise.all([
+      prisma.riskEvent.groupBy({
+        by: ['severity'],
+        where: { resolvedAt: null },
+        _count: { id: true },
+      }),
+      prisma.riskEvent.groupBy({
+        by: ['type'],
+        where: { resolvedAt: null },
+        _count: { id: true },
+      }),
+    ]);
+
+    const totalActive = bySeverity.reduce((sum, s) => sum + s._count.id, 0);
+
+    // Get at-risk WorkUnits (not started but should have, or blocked)
+    const now = new Date();
+    const workUnits = await prisma.workUnit.findMany({
+      where: {
+        OR: [
+          { status: 'BLOCKED' },
+          {
+            status: 'NOT_STARTED',
+            plannedStart: { lt: now },
+          },
+          {
+            status: 'IN_PROGRESS',
+            plannedEnd: { lt: now },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        type: true,
+        referenceModule: true,
+        referenceId: true,
+        status: true,
+        plannedStart: true,
+        plannedEnd: true,
+        actualStart: true,
+        project: {
+          select: {
+            id: true,
+            projectNumber: true,
+            name: true,
+          },
+        },
+        owner: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: { plannedEnd: 'asc' },
+      take: 15,
+    });
+
+    // Get capacity overloads (resources with high utilization)
+    const capacityOverloads = await getCapacityOverloadsForAI();
+
+    return {
+      riskEvents: riskEvents.map((r) => ({
+        ...r,
+        // Parse JSON fields for readability
+        affectedProjectIds: r.affectedProjectIds as string[],
+        affectedWorkUnitIds: r.affectedWorkUnitIds as string[],
+      })),
+      riskSummary: {
+        totalActive,
+        bySeverity: bySeverity.map((s) => ({
+          severity: s.severity,
+          count: s._count.id,
+        })),
+        byType: byType.map((t) => ({
+          type: t.type,
+          count: t._count.id,
+        })),
+      },
+      workUnits,
+      capacityOverloads,
+    };
+  } catch (error) {
+    console.error('Error fetching predictive ops context:', error);
+    return null;
+  }
+}
+
+/**
+ * Get capacity overloads for AI context
+ */
+async function getCapacityOverloadsForAI() {
+  try {
+    const now = new Date();
+    const fourWeeksLater = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000);
+
+    // Get active resources
+    const resources = await prisma.resourceCapacity.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        resourceType: true,
+        resourceName: true,
+        capacityPerDay: true,
+        unit: true,
+        workingDaysPerWeek: true,
+      },
+    });
+
+    // For each resource, check if any week is overloaded
+    const overloads: any[] = [];
+
+    for (const resource of resources) {
+      // Simplified: just check if there are WorkUnits that might cause overload
+      // Full calculation is in ResourceCapacityService
+      const workUnitTypes = getWorkUnitTypesForResource(resource.resourceType);
+      
+      const workUnitCount = await prisma.workUnit.count({
+        where: {
+          type: { in: workUnitTypes as any[] },
+          status: { in: ['NOT_STARTED', 'IN_PROGRESS'] },
+          plannedStart: { lte: fourWeeksLater },
+          plannedEnd: { gte: now },
+        },
+      });
+
+      // If there are many work units, flag as potential overload
+      // This is a simplified heuristic for AI context
+      const weeklyCapacity = resource.capacityPerDay * resource.workingDaysPerWeek;
+      const estimatedWeeklyLoad = workUnitCount * 8; // Rough estimate
+
+      if (estimatedWeeklyLoad > weeklyCapacity * 0.8) {
+        overloads.push({
+          resourceId: resource.id,
+          resourceType: resource.resourceType,
+          resourceName: resource.resourceName,
+          unit: resource.unit,
+          weeklyCapacity,
+          estimatedLoad: estimatedWeeklyLoad,
+          utilizationEstimate: Math.round((estimatedWeeklyLoad / weeklyCapacity) * 100),
+          workUnitCount,
+        });
+      }
+    }
+
+    return overloads;
+  } catch (error) {
+    console.error('Error fetching capacity overloads:', error);
+    return [];
+  }
+}
+
+/**
+ * Map resource type to work unit types
+ */
+function getWorkUnitTypesForResource(resourceType: string): string[] {
+  const typeMap: Record<string, string[]> = {
+    DESIGNER: ['DESIGN', 'DOCUMENTATION'],
+    LASER: ['PRODUCTION'],
+    WELDER: ['PRODUCTION'],
+    QC: ['QC'],
+    PROCUREMENT: ['PROCUREMENT'],
+  };
+  return typeMap[resourceType] || [];
 }

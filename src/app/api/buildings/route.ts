@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
@@ -87,6 +87,77 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { 
         error: 'Failed to create building',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { ids } = body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: 'Building IDs are required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if any buildings have assembly parts
+    const buildingsWithParts = await prisma.building.findMany({
+      where: {
+        id: { in: ids },
+        assemblyParts: { some: {} },
+      },
+      select: {
+        id: true,
+        name: true,
+        designation: true,
+        _count: { select: { assemblyParts: true } },
+      },
+    });
+
+    if (buildingsWithParts.length > 0) {
+      return NextResponse.json(
+        { 
+          error: 'Cannot delete buildings with assembly parts',
+          details: `${buildingsWithParts.length} building(s) have assembly parts and cannot be deleted`,
+          buildingsWithParts: buildingsWithParts.map(b => ({
+            name: b.name,
+            designation: b.designation,
+            partsCount: b._count.assemblyParts,
+          })),
+        },
+        { status: 400 }
+      );
+    }
+
+    // Delete buildings
+    const result = await prisma.building.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      deleted: result.count,
+      message: `Successfully deleted ${result.count} building(s)`,
+    });
+  } catch (error) {
+    console.error('Error deleting buildings:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to delete buildings',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

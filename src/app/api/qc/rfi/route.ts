@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
 // Get process-to-inspection type mapping
 function getInspectionType(processType: string): string {
@@ -249,6 +250,18 @@ export async function POST(request: Request) {
 
       rfis.push(rfi);
       rfiCounter++;
+
+      // Sync to WorkUnit for Operations Control (non-blocking)
+      WorkUnitSyncService.syncFromRFI({
+        id: rfi.id,
+        projectId: rfi.projectId,
+        requestedById: session.sub,
+        assignedToId: rfi.assignedToId,
+        requestDate: rfi.requestDate,
+        status: rfi.status,
+      }).catch((err) => {
+        console.error('WorkUnit sync failed:', err);
+      });
     }
 
     return NextResponse.json({

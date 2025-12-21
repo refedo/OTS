@@ -181,6 +181,9 @@ export default function NotificationsPage() {
   const [underperformingSchedules, setUnderperformingSchedules] = useState<UnderperformingSchedule[]>([]);
   const [scheduleStats, setScheduleStats] = useState({ total: 0, critical: 0, atRisk: 0 });
   const [loadingSchedules, setLoadingSchedules] = useState(true);
+  const [operationsRisks, setOperationsRisks] = useState<any[]>([]);
+  const [operationsStats, setOperationsStats] = useState({ total: 0, critical: 0, high: 0 });
+  const [loadingOperations, setLoadingOperations] = useState(true);
   const [collapsedActivities, setCollapsedActivities] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(tabParam || 'all');
@@ -273,10 +276,31 @@ export default function NotificationsPage() {
     }
   };
 
+  const fetchOperationsRisks = async () => {
+    try {
+      setLoadingOperations(true);
+      const response = await fetch('/api/operations-control');
+      if (response.ok) {
+        const data = await response.json();
+        setOperationsRisks(data.risks || []);
+        setOperationsStats({
+          total: data.summary?.totalRisks || 0,
+          critical: data.summary?.bySeverity?.critical || 0,
+          high: data.summary?.bySeverity?.high || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching operations risks:', error);
+    } finally {
+      setLoadingOperations(false);
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
     fetchDelayedTasks();
     fetchUnderperformingSchedules();
+    fetchOperationsRisks();
   }, []);
 
   const handleTabChange = (tab: string) => {
@@ -531,6 +555,14 @@ export default function NotificationsPage() {
             {scheduleStats.total > 0 && (
               <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-red-500 text-white">
                 {scheduleStats.total}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="operations" className="relative">
+            Operations Risks
+            {operationsStats.total > 0 && (
+              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full text-white ${operationsStats.critical > 0 ? 'bg-red-500' : 'bg-orange-500'}`}>
+                {operationsStats.total}
               </span>
             )}
           </TabsTrigger>
@@ -1138,6 +1170,129 @@ export default function NotificationsPage() {
                 </div>
                 </>
               )}
+            </>
+          )}
+        </TabsContent>
+
+        {/* Operations Risks Tab Content */}
+        <TabsContent value="operations">
+          {loadingOperations ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading operations risks...</p>
+            </div>
+          ) : operationsRisks.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">No Active Risks</h3>
+                <p className="text-muted-foreground">
+                  All operations are within normal parameters. The Early Warning Engine is monitoring your work.
+                </p>
+                <Button
+                  onClick={() => router.push('/operations-control')}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  View Operations Control Dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Stats Summary */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <Card className="bg-red-50 border-red-200">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-red-700">{operationsStats.critical}</div>
+                    <div className="text-sm text-red-600">Critical</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-orange-50 border-orange-200">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-orange-700">{operationsStats.high}</div>
+                    <div className="text-sm text-orange-600">High</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-gray-700">{operationsStats.total}</div>
+                    <div className="text-sm text-gray-600">Total Risks</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Risk List */}
+              <div className="space-y-3">
+                {operationsRisks.map((risk) => (
+                  <Card
+                    key={risk.id}
+                    className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${
+                      risk.severity === 'CRITICAL' ? 'border-l-red-500 bg-red-50/30' :
+                      risk.severity === 'HIGH' ? 'border-l-orange-500 bg-orange-50/30' :
+                      risk.severity === 'MEDIUM' ? 'border-l-yellow-500 bg-yellow-50/30' :
+                      'border-l-blue-500 bg-blue-50/30'
+                    }`}
+                    onClick={() => router.push('/operations-control')}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 mt-1">
+                          <AlertTriangle className={`h-5 w-5 ${
+                            risk.severity === 'CRITICAL' ? 'text-red-500' :
+                            risk.severity === 'HIGH' ? 'text-orange-500' :
+                            risk.severity === 'MEDIUM' ? 'text-yellow-500' :
+                            'text-blue-500'
+                          }`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                  risk.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                  risk.severity === 'HIGH' ? 'bg-orange-100 text-orange-700' :
+                                  risk.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {risk.severity}
+                                </span>
+                                <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">
+                                  {risk.type}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-900">{risk.reason}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-3">
+                            {risk.affectedProjects?.map((proj: string) => (
+                              <span key={proj} className="px-2 py-0.5 text-xs rounded-full bg-gray-100 font-mono">
+                                {proj}
+                              </span>
+                            ))}
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              Detected: {new Date(risk.detectedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {risk.recommendedAction && (
+                            <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-800">
+                              <strong>Recommended:</strong> {risk.recommendedAction}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Link to full dashboard */}
+              <div className="mt-6 text-center">
+                <Button onClick={() => router.push('/operations-control')} variant="outline">
+                  View Full Operations Control Dashboard
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
             </>
           )}
         </TabsContent>

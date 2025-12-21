@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
 export async function PATCH(
   request: Request,
@@ -91,6 +92,11 @@ export async function PATCH(
           },
         },
         data: { qcStatus },
+      });
+
+      // Sync WorkUnit status (non-blocking)
+      WorkUnitSyncService.syncRFIStatusUpdate(id, status).catch((err) => {
+        console.error('WorkUnit status sync failed:', err);
       });
     }
 

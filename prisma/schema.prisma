@@ -51,6 +51,7 @@ model User {
   roleId        String   @db.Char(36)
   departmentId  String?  @db.Char(36)
   reportsToId   String?  @db.Char(36) // Manager/Supervisor this user reports to
+  customPermissions Json?   // Custom per-user permissions override (if null, uses role permissions)
   role          Role     @relation(fields: [roleId], references: [id])
   department    Department? @relation(fields: [departmentId], references: [id])
   managedDept   Department? @relation("DepartmentManager")
@@ -117,6 +118,16 @@ model User {
   dashboardWidgets   UserDashboardWidget[] @relation("UserDashboardWidgets")
   workOrdersEngineered WorkOrder[] @relation("WorkOrderEngineer")
   createdWorkOrders  WorkOrder[] @relation("WorkOrderCreatedBy")
+  ownedWorkUnits     WorkUnit[] @relation("WorkUnitOwner")
+  systemEvents       SystemEvent[] @relation("SystemEventUser")
+  
+  // EGS - Enterprise Governance Spine relations
+  auditLogs          AuditLog[] @relation("AuditLogPerformedBy")
+  entityVersions     EntityVersion[] @relation("EntityVersionCreatedBy")
+  deletedProjects    Project[] @relation("ProjectDeletedBy")
+  deletedBuildings   Building[] @relation("BuildingDeletedBy")
+  deletedAssemblyParts AssemblyPart[] @relation("AssemblyPartDeletedBy")
+  
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -264,9 +275,17 @@ model Project {
   documentSubmissions             DocumentSubmission[]
   operationEvents                 OperationEvent[]
   workOrders                      WorkOrder[]
+  workUnits                       WorkUnit[]
+  systemEvents                    SystemEvent[]
   
   createdAt                       DateTime                        @default(now())
   updatedAt                       DateTime                        @updatedAt
+  
+  // EGS - Soft delete
+  deletedAt                       DateTime?
+  deletedById                     String?                         @db.Char(36)
+  deletedBy                       User?                           @relation("ProjectDeletedBy", fields: [deletedById], references: [id])
+  deleteReason                    String?                         @db.VarChar(500)
 }
 
 /// Building model (structures under a project)
@@ -291,6 +310,12 @@ model Building {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // EGS - Soft delete
+  deletedAt     DateTime?
+  deletedById   String?   @db.Char(36)
+  deletedBy     User?     @relation("BuildingDeletedBy", fields: [deletedById], references: [id])
+  deleteReason  String?   @db.VarChar(500)
   
   @@index([projectId])
   @@unique([projectId, designation])
@@ -611,6 +636,10 @@ model AssemblyPart {
   status                String                @default("Pending") // Pending, In Progress, Completed
   currentProcess        String?               // Current process stage
   
+  // Source tracking (PTS sync or OTS manual entry)
+  source                String?               // PTS or OTS
+  externalRef           String?               // External reference ID from PTS
+  
   // Relations
   project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
   building              Building?             @relation(fields: [buildingId], references: [id], onDelete: SetNull)
@@ -624,6 +653,12 @@ model AssemblyPart {
   updatedBy             User?                 @relation("AssemblyPartUpdatedBy", fields: [updatedById], references: [id])
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
+  
+  // EGS - Soft delete
+  deletedAt             DateTime?
+  deletedById           String?               @db.Char(36)
+  deletedBy             User?                 @relation("AssemblyPartDeletedBy", fields: [deletedById], references: [id])
+  deleteReason          String?               @db.VarChar(500)
   
   @@index([projectId])
   @@index([buildingId])
@@ -655,6 +690,10 @@ model ProductionLog {
   qcStatus              String                @default("Not Required") // Not Required, Pending Inspection, Approved, Rejected
   qcRequired            Boolean               @default(false)
   
+  // Sync Metadata (for PTS integration and clean cutover)
+  source                String                @default("OTS") // PTS | OTS - where the log originated
+  externalRef           String?               // External reference (e.g., PTS sheet row number, UUID)
+  
   // Relations
   assemblyPart          AssemblyPart          @relation(fields: [assemblyPartId], references: [id], onDelete: Cascade)
   rfiProductionLogs     RFIProductionLog[]    // Many-to-many with RFI
@@ -673,6 +712,8 @@ model ProductionLog {
   @@index([processType])
   @@index([dateProcessed])
   @@index([qcStatus])
+  @@index([source])
+  @@index([externalRef])
 }
 
 model RFIRequest {
@@ -2068,4 +2109,444 @@ model WorkOrderPart {
   @@index([assemblyPartId])
   @@index([status])
   @@unique([workOrderId, assemblyPartId])
+}
+
+// ============================================
+// PREDICTIVE OPERATIONS CONTROL SYSTEM
+// WorkUnit Abstraction Layer
+// ============================================
+
+enum WorkUnitType {
+  DESIGN
+  PROCUREMENT
+  PRODUCTION
+  QC
+  DOCUMENTATION
+}
+
+enum WorkUnitStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+}
+
+model WorkUnit {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  projectId             String                @db.Char(36)
+  
+  // Type and Reference to existing modules
+  type                  WorkUnitType
+  referenceModule       String                // e.g., "AssemblyPart", "DocumentSubmission", "RFIRequest"
+  referenceId           String                @db.Char(36) // ID in the referenced module
+  
+  // Ownership
+  ownerId               String                @db.Char(36)
+  
+  // Timeline
+  plannedStart          DateTime
+  plannedEnd            DateTime
+  actualStart           DateTime?
+  actualEnd             DateTime?
+  
+  // Metrics (optional, depends on type)
+  quantity              Float?
+  weight                Float?                // in kg or tons
+  
+  // Status
+  status                WorkUnitStatus        @default(NOT_STARTED)
+  
+  // Relations
+  project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner                 User                  @relation("WorkUnitOwner", fields: [ownerId], references: [id])
+  
+  // Dependency relations
+  dependenciesFrom      WorkUnitDependency[]  @relation("DependencyFrom")
+  dependenciesTo        WorkUnitDependency[]  @relation("DependencyTo")
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([projectId])
+  @@index([ownerId])
+  @@index([type])
+  @@index([status])
+  @@index([referenceModule, referenceId])
+  @@index([plannedStart])
+  @@index([plannedEnd])
+  @@map("work_units")
+}
+
+// Dependency Type Enum
+// FS = Finish-to-Start (most common: B cannot start until A finishes)
+// SS = Start-to-Start (B cannot start until A starts)
+// FF = Finish-to-Finish (B cannot finish until A finishes)
+enum DependencyType {
+  FS
+  SS
+  FF
+}
+
+model WorkUnitDependency {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  
+  // The predecessor (upstream) WorkUnit
+  fromWorkUnitId        String                @db.Char(36)
+  
+  // The successor (downstream) WorkUnit
+  toWorkUnitId          String                @db.Char(36)
+  
+  // Type of dependency relationship
+  dependencyType        DependencyType        @default(FS)
+  
+  // Optional lag time in days (positive = delay, negative = overlap)
+  lagDays               Int                   @default(0)
+  
+  // Relations
+  fromWorkUnit          WorkUnit              @relation("DependencyFrom", fields: [fromWorkUnitId], references: [id], onDelete: Cascade)
+  toWorkUnit            WorkUnit              @relation("DependencyTo", fields: [toWorkUnitId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime              @default(now())
+  
+  @@unique([fromWorkUnitId, toWorkUnitId])
+  @@index([fromWorkUnitId])
+  @@index([toWorkUnitId])
+  @@map("work_unit_dependencies")
+}
+
+// ============================================
+// RESOURCE CAPACITY MODEL
+// Lightweight capacity tracking for load analysis
+// ============================================
+
+enum ResourceType {
+  DESIGNER
+  LASER
+  WELDER
+  QC
+  PROCUREMENT
+}
+
+enum CapacityUnit {
+  HOURS
+  TONS
+  DRAWINGS
+}
+
+model ResourceCapacity {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  
+  // Resource identification
+  resourceType          ResourceType
+  resourceId            String?               @db.Char(36) // Optional FK to User or Machine
+  resourceName          String                // Human-readable name (e.g., "Laser Machine 1", "Design Team A")
+  
+  // Capacity definition
+  capacityPerDay        Float                 // Available capacity per working day
+  unit                  CapacityUnit          // Unit of measurement
+  
+  // Availability (optional constraints)
+  workingDaysPerWeek    Int                   @default(5)
+  isActive              Boolean               @default(true)
+  
+  // Metadata
+  notes                 String?               @db.Text
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([resourceType])
+  @@index([resourceId])
+  @@index([isActive])
+  @@map("resource_capacities")
+}
+
+// ============================================
+// DEPENDENCY BLUEPRINT SYSTEM
+// Templates for automatic dependency creation
+// ============================================
+
+model DependencyBlueprint {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  
+  // Blueprint identification
+  name                  String                @unique // e.g., "Standard Steel Fabrication", "PEB Project"
+  description           String?               @db.Text
+  structureType         String?               // Optional: link to specific structure types
+  
+  // Status
+  isActive              Boolean               @default(true)
+  isDefault             Boolean               @default(false) // If true, applies when no specific blueprint matches
+  
+  // Relations
+  steps                 DependencyBlueprintStep[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([isActive])
+  @@index([structureType])
+  @@map("dependency_blueprints")
+}
+
+model DependencyBlueprintStep {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  blueprintId           String                @db.Char(36)
+  
+  // Step definition
+  fromType              WorkUnitType          // Predecessor type (e.g., DESIGN)
+  toType                WorkUnitType          // Successor type (e.g., PRODUCTION)
+  dependencyType        DependencyType        @default(FS)
+  lagDays               Int                   @default(0)
+  
+  // Optional: more specific matching
+  fromReferenceModule   String?               // e.g., "Task" - for more precise matching
+  toReferenceModule     String?               // e.g., "WorkOrder"
+  
+  // Ordering
+  sequenceOrder         Int                   @default(0)
+  
+  // Relations
+  blueprint             DependencyBlueprint   @relation(fields: [blueprintId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime              @default(now())
+  
+  @@index([blueprintId])
+  @@index([fromType])
+  @@index([toType])
+  @@map("dependency_blueprint_steps")
+}
+
+// ============================================
+// EARLY WARNING ENGINE
+// RiskEvent Model for system-generated alerts
+// ============================================
+
+enum RiskSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskType {
+  DELAY           // Late start or approaching deadline
+  BOTTLENECK      // Resource constraint
+  DEPENDENCY      // Upstream delay affecting downstream
+  OVERLOAD        // Capacity exceeded
+}
+
+model RiskEvent {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  
+  // Risk classification
+  severity              RiskSeverity
+  type                  RiskType
+  
+  // Affected entities (JSON arrays of IDs)
+  affectedProjectIds    Json                  // String[] of project IDs
+  affectedWorkUnitIds   Json                  // String[] of work unit IDs
+  
+  // Risk details
+  reason                String                @db.Text
+  recommendedAction     String                @db.Text
+  
+  // Fingerprint for idempotency (prevents duplicate alerts)
+  fingerprint           String                @unique @db.VarChar(255)
+  
+  // Timestamps
+  detectedAt            DateTime              @default(now())
+  resolvedAt            DateTime?
+  
+  // Metadata
+  metadata              Json?                 // Additional context data
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([severity])
+  @@index([type])
+  @@index([detectedAt])
+  @@index([resolvedAt])
+  @@map("risk_events")
+}
+
+// ============================================
+// PTS (Production Tracking System) SYNC
+// Google Sheets integration for legacy PTS data
+// ============================================
+
+model PTSSyncConfig {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  
+  // Configuration name
+  name                  String                // e.g., "Main PTS Sheet", "Project 257 Tracking"
+  
+  // Google Sheets connection
+  spreadsheetId         String                // Google Sheets ID from URL
+  sheetName             String                // Tab/sheet name within the spreadsheet
+  
+  // Project mapping
+  projectId             String                @db.Char(36)
+  
+  // Column mapping (JSON object)
+  columnMapping         Json                  // PTSColumnMapping object
+  
+  // Row configuration
+  headerRow             Int                   @default(1)
+  dataStartRow          Int                   @default(2)
+  
+  // Sync settings
+  syncInterval          Int                   @default(0) // Minutes (0 = manual only)
+  lastSyncAt            DateTime?
+  isActive              Boolean               @default(true)
+  autoCreateParts       Boolean               @default(true) // Auto-create assembly parts if not found
+  
+  // Relations
+  syncLogs              PTSSyncLog[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([projectId])
+  @@index([isActive])
+  @@map("pts_sync_configs")
+}
+
+model PTSSyncLog {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  configId              String                @db.Char(36)
+  
+  // Sync results
+  status                String                // success, partial, failed
+  totalRows             Int
+  syncedRows            Int
+  skippedRows           Int
+  errors                Json                  // Array of error messages
+  duration              Int                   // Milliseconds
+  
+  // Timestamp
+  syncedAt              DateTime              @default(now())
+  
+  // Relations
+  config                PTSSyncConfig         @relation(fields: [configId], references: [id], onDelete: Cascade)
+  
+  @@index([configId])
+  @@index([syncedAt])
+  @@map("pts_sync_logs")
+}
+
+// ============================================================================
+// ENTERPRISE GOVERNANCE SPINE (EGS)
+// ============================================================================
+
+// Audit Action Types
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  APPROVE
+  REJECT
+  SYNC
+}
+
+// Audit Severity Levels
+enum AuditSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+// AuditLog - Tracks all changes to critical entities with field-level detail
+model AuditLog {
+  id              String        @id @default(uuid()) @db.Char(36)
+  
+  // Entity reference
+  entityType      String        // "Project", "AssemblyPart", "ProductionLog", etc.
+  entityId        String        @db.Char(36)
+  
+  // Action details
+  action          AuditAction
+  changes         Json?         // { fieldName: { old: value, new: value } }
+  
+  // Context
+  performedById   String        @db.Char(36)
+  performedBy     User          @relation("AuditLogPerformedBy", fields: [performedById], references: [id])
+  performedAt     DateTime      @default(now())
+  
+  // Tracing
+  requestId       String?       @db.VarChar(64)  // For request tracing
+  sourceModule    String?       @db.VarChar(100) // API, UI, SYNC, AI, etc.
+  
+  // Additional context
+  reason          String?       @db.Text         // Optional justification
+  metadata        Json?                          // Additional context data
+  
+  @@index([entityType, entityId])
+  @@index([performedById])
+  @@index([performedAt])
+  @@index([action])
+  @@index([requestId])
+}
+
+// EntityVersion - Stores full snapshots of entities for point-in-time recovery
+model EntityVersion {
+  id              String        @id @default(uuid()) @db.Char(36)
+  
+  // Entity reference
+  entityType      String        // "Project", "Building", "QCInspection", etc.
+  entityId        String        @db.Char(36)
+  
+  // Version info
+  versionNumber   Int           // Incrementing version number per entity
+  snapshot        Json          // Full entity state at this version
+  
+  // Context
+  changeReason    String?       @db.VarChar(500)
+  createdById     String        @db.Char(36)
+  createdBy       User          @relation("EntityVersionCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime      @default(now())
+  
+  @@unique([entityType, entityId, versionNumber])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// System Events - tracks all system activities
+model SystemEvent {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  
+  // Event classification
+  eventType             String                // created, updated, deleted, uploaded, synced, exported, etc.
+  category              String                // file, record, sync, export, auth, etc.
+  severity              AuditSeverity         @default(INFO)
+  
+  // Event details
+  title                 String                @db.VarChar(255)
+  requestId             String?               @db.VarChar(64)  // For request tracing
+  description           String?               @db.Text
+  metadata              Json?                 // Additional event-specific data
+  
+  // Entity reference (optional)
+  entityType            String?               // AssemblyPart, ProductionLog, Project, etc.
+  entityId              String?               @db.Char(36)
+  
+  // Project context (optional)
+  projectId             String?               @db.Char(36)
+  project               Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  // User who triggered the event
+  userId                String                @db.Char(36)
+  user                  User                  @relation("SystemEventUser", fields: [userId], references: [id])
+  
+  createdAt             DateTime              @default(now())
+  
+  @@index([eventType])
+  @@index([category])
+  @@index([entityType])
+  @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
 }
