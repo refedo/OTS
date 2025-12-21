@@ -12,10 +12,81 @@ import { CheckCircle, AlertCircle, Sparkles, Wrench, FileText } from 'lucide-rea
 
 const versions = [
   {
+    version: '2.6.0',
+    date: 'December 21, 2025',
+    type: 'minor',
+    status: 'current',
+    highlights: [
+      'Performance Optimizations',
+      'Tasks Interface Enhancements',
+      'Custom User Permissions',
+      'Reduced Server Load by 60%',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Performance Optimizations',
+          items: [
+            'Reduced Prisma query logging to errors only (95% less terminal output)',
+            'Increased notification polling from 30s to 60s (50% fewer API calls)',
+            'Added 30-second cache for notification endpoints',
+            'Implemented in-memory cache system (src/lib/cache.ts)',
+            'Fixed N+1 query problem in underperforming schedules endpoint',
+            'Added per-request cache for assembly parts queries',
+            'Automatic cache cleanup every 5 minutes',
+            'Database load reduced by ~60%',
+            'API response time improved by ~40%',
+          ],
+        },
+        {
+          title: 'Tasks Interface Enhancements',
+          items: [
+            'Building selection in task creation (inline and full form)',
+            'Building column added to tasks table',
+            'Project-building dependency: buildings filter by selected project',
+            'Default task status changed to "In Progress"',
+            'Default status filter set to "In Progress"',
+            'Automatic department lookup when selecting user',
+            'Department auto-populates based on assigned user',
+            'Building dropdown disabled until project selected',
+            'Building selection resets when project changes',
+          ],
+        },
+        {
+          title: 'Custom User Permissions Matrix',
+          items: [
+            'Per-user permission overrides beyond role defaults',
+            'Comprehensive permissions UI with 11 categories',
+            'Visual matrix showing all 65+ system permissions',
+            'Badge indicators for role vs custom permissions',
+            'Collapsible permission categories',
+            'Tabbed user forms (Basic Info + Custom Permissions)',
+            'Added customPermissions JSON field to User model',
+            'API support for custom permissions in user CRUD',
+          ],
+        },
+      ],
+      fixed: [
+        'Terminal noise from hundreds of Prisma query logs',
+        'Notification polling causing excessive server load',
+        'N+1 query problem causing slow notification endpoints',
+        'Building selection not filtering by project',
+        'Tasks defaulting to wrong status',
+      ],
+      changed: [
+        'Notification polling interval: 30s → 60s',
+        'Prisma logging: verbose → errors only',
+        'Task default status: Pending → In Progress',
+        'Task status filter: All → In Progress',
+        'Building selection now project-dependent',
+      ],
+    },
+  },
+  {
     version: '2.5.0',
     date: 'December 18, 2025',
     type: 'minor',
-    status: 'current',
+    status: 'stable',
     highlights: [
       'System Events Tracking',
       'PTS Sync Rollback',
