@@ -155,6 +155,35 @@ export default function DocumentTimelinePage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importProjectId, setImportProjectId] = useState('');
 
+  const downloadTemplate = () => {
+    const headers = [
+      'Project Number',
+      'Building Name',
+      'Title',
+      'Document Type',
+      'Section',
+      'Revision',
+      'Submission Date',
+      'Review Due Date',
+      'Approval Date',
+      'Status',
+      'Client Code',
+      'Client Response',
+      'Handler',
+      'Submitter'
+    ];
+    const csvContent = headers.join(',') + '\n';
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'document-submissions-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     fetchProjects();
     fetchUsers();
@@ -816,6 +845,10 @@ export default function DocumentTimelinePage() {
             <Button onClick={addNewSubmission}>
               <Plus className="h-4 w-4 mr-2" />
               Quick Add
+            </Button>
+            <Button variant="outline" onClick={downloadTemplate}>
+              <FileText className="h-4 w-4 mr-2" />
+              Download Template
             </Button>
             <Button variant="outline" onClick={() => setShowImportModal(true)}>
               <Upload className="h-4 w-4 mr-2" />
@@ -1641,6 +1674,8 @@ export default function DocumentTimelinePage() {
           }}
           title="Import Document Submissions"
           fields={[
+            { key: 'projectNumber', label: 'Project Number', required: true },
+            { key: 'buildingName', label: 'Building Name', required: true },
             { key: 'title', label: 'Title', required: true },
             { key: 'documentType', label: 'Document Type' },
             { key: 'section', label: 'Section' },
@@ -1651,18 +1686,14 @@ export default function DocumentTimelinePage() {
             { key: 'status', label: 'Status' },
             { key: 'clientCode', label: 'Client Code' },
             { key: 'clientResponse', label: 'Client Response' },
-            { key: 'building', label: 'Building' },
             { key: 'handler', label: 'Handler' },
             { key: 'submitter', label: 'Submitter' },
           ]}
           onImport={async (data, mapping) => {
-            if (!importProjectId) {
-              throw new Error('Please select a project first');
-            }
-            const res = await fetch('/api/document-submissions/import', {
+            const res = await fetch('/api/document-submissions/import-multi', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data, mapping, projectId: importProjectId }),
+              body: JSON.stringify({ data, mapping }),
             });
             if (!res.ok) {
               const error = await res.json();
@@ -1671,34 +1702,9 @@ export default function DocumentTimelinePage() {
             const result = await res.json();
             return result.results;
           }}
-          sampleData="Title,Document Type,Section,Revision,Submission Date,Status,Building,Handler"
+          sampleData="Project Number,Building Name,Title,Document Type,Section,Revision,Submission Date,Status,Handler"
         />
 
-        {/* Project Selection for Import */}
-        {showImportModal && !importProjectId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">Select Project for Import</h3>
-              <select
-                value={importProjectId}
-                onChange={(e) => setImportProjectId(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border bg-background mb-4"
-              >
-                <option value="">Select a project...</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.projectNumber} - {p.name}
-                  </option>
-                ))}
-              </select>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowImportModal(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
     </div>
   );
 }

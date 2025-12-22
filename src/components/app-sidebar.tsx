@@ -76,7 +76,6 @@ const navigationSections: NavigationSection[] = [
   {
     name: 'Operations Control',
     icon: AlertTriangle,
-    badge: 'AUTO',
     items: [
       { name: 'Risk Dashboard', href: '/operations-control', icon: AlertTriangle },
       { name: 'Intelligence', href: '/operations-control/intelligence', icon: Activity },
@@ -109,7 +108,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
       { name: 'Project Planning', href: '/planning', icon: Calendar },
       { name: 'Timeline', href: '/timeline', icon: Calendar },
-      { name: 'Operations Timeline (New)', href: '/operations/dashboard', icon: Clock },
+      { name: 'Operations Timeline', href: '/operations/dashboard', icon: Clock },
       { name: 'Event Management', href: '/operations/events', icon: Calendar },
       { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
     ],
@@ -173,6 +172,14 @@ const navigationSections: NavigationSection[] = [
       { name: 'Initiatives', href: '/business-planning/initiatives', icon: Lightbulb },
       { name: 'Department Plans', href: '/business-planning/departments', icon: Network },
       { name: 'Weekly Issues', href: '/business-planning/issues', icon: AlertTriangle },
+    ],
+  },
+  {
+    name: 'Knowledge Center',
+    icon: BookOpen,
+    items: [
+      { name: 'Knowledge Center', href: '/knowledge-center', icon: BookOpen, isNew: true },
+      { name: 'New Entry', href: '/knowledge-center/new', icon: Plus, isNew: true },
     ],
   },
   {
@@ -493,7 +500,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v2.7.0
+                  Hexa Steel® OTS v2.9.0
                 </p>
               </div>
             )}

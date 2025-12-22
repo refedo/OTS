@@ -36,8 +36,8 @@ export async function GET(req: Request) {
   let whereClause: any = {};
 
   // Role-based filtering
-  if (session.role === 'Admin' || session.role === 'Manager') {
-    // Admins and Managers see all tasks (or can filter)
+  if (session.role === 'Admin' || session.role === 'Manager' || session.role === 'CEO') {
+    // Admins, Managers, and CEO see all tasks (or can filter)
     if (assignedTo) whereClause.assignedToId = assignedTo;
   } else {
     // Engineers/Operators only see their assigned tasks

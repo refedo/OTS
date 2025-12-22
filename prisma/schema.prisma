@@ -132,6 +132,12 @@ model User {
   ptsSyncBatches     PTSSyncBatch[] @relation("PTSSyncBatchUser")
   rolledBackSyncs    PTSSyncBatch[] @relation("PTSSyncBatchRolledBackBy")
   
+  // Knowledge Center relations
+  reportedKnowledge  KnowledgeEntry[] @relation("KnowledgeReportedBy")
+  ownedKnowledge     KnowledgeEntry[] @relation("KnowledgeOwner")
+  validatedKnowledge KnowledgeEntry[] @relation("KnowledgeValidatedBy")
+  knowledgeApplications KnowledgeApplication[] @relation("KnowledgeApplicationUser")
+  
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -281,6 +287,8 @@ model Project {
   workOrders                      WorkOrder[]
   workUnits                       WorkUnit[]
   systemEvents                    SystemEvent[]
+  knowledgeEntries                KnowledgeEntry[]
+  knowledgeApplications           KnowledgeApplication[]
   
   createdAt                       DateTime                        @default(now())
   updatedAt                       DateTime                        @updatedAt
@@ -311,6 +319,7 @@ model Building {
   documentSubmissions DocumentSubmission[]
   operationEvents OperationEvent[]
   workOrders    WorkOrder[]
+  knowledgeEntries KnowledgeEntry[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2172,6 +2181,10 @@ model WorkUnit {
   dependenciesFrom      WorkUnitDependency[]  @relation("DependencyFrom")
   dependenciesTo        WorkUnitDependency[]  @relation("DependencyTo")
   
+  // Knowledge Center relations
+  knowledgeEntries      KnowledgeEntry[]
+  knowledgeApplications KnowledgeApplication[]
+  
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   
@@ -2683,4 +2696,169 @@ model ProductBacklogItem {
   @@index([category])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================================================
+// KNOWLEDGE CENTER MODULE - Operational Intelligence
+// ============================================================================
+
+enum KnowledgeEntryType {
+  CHALLENGE
+  ISSUE
+  LESSON
+  BEST_PRACTICE
+}
+
+enum KnowledgeStatus {
+  Open
+  InProgress
+  PendingValidation
+  Validated
+  Archived
+}
+
+enum KnowledgeSeverity {
+  Low
+  Medium
+  High
+  Critical
+}
+
+enum KnowledgeProcess {
+  Design
+  Detailing
+  Procurement
+  Production
+  QC
+  Erection
+}
+
+model KnowledgeEntry {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  type                  KnowledgeEntryType
+  title                 String
+  summary               String                @db.Text
+  rootCause             String?               @db.Text
+  resolution            String?               @db.Text
+  recommendation        String?               @db.Text
+  
+  severity              KnowledgeSeverity
+  status                KnowledgeStatus
+  process               KnowledgeProcess
+  
+  // Optional project/building/work unit linkage
+  projectId             String?               @db.Char(36)
+  buildingId            String?               @db.Char(36)
+  workUnitId            String?               @db.Char(36)
+  
+  // Evidence links (stored as JSON array of references)
+  evidenceLinks         Json?                 // Array of {type: "NCR"|"ProductionLog"|"QC"|"RFI", id: string, label: string}
+  
+  // Tags for categorization and search
+  tags                  Json?                 // Array of strings
+  
+  // Ownership and validation
+  reportedById          String                @db.Char(36)
+  ownerId               String?               @db.Char(36)
+  validatedById         String?               @db.Char(36)
+  
+  // Promotion tracking (Phase 2)
+  promotionSourceIssueId String?              @db.Char(36)
+  promotedFromIssue     KnowledgeEntry?       @relation("IssuePromotion", fields: [promotionSourceIssueId], references: [id], onDelete: SetNull)
+  promotedToLessons     KnowledgeEntry[]      @relation("IssuePromotion")
+  
+  // Relations
+  project               Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  building              Building?             @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  workUnit              WorkUnit?             @relation(fields: [workUnitId], references: [id], onDelete: SetNull)
+  reportedBy            User                  @relation("KnowledgeReportedBy", fields: [reportedById], references: [id])
+  owner                 User?                 @relation("KnowledgeOwner", fields: [ownerId], references: [id])
+  validatedBy           User?                 @relation("KnowledgeValidatedBy", fields: [validatedById], references: [id])
+  
+  // Usage tracking (Phase 2)
+  applications          KnowledgeApplication[]
+  
+  // Risk pattern linkage (Phase 3)
+  riskPatterns          RiskPatternEntry[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  validatedAt           DateTime?
+  
+  @@index([type])
+  @@index([status])
+  @@index([process])
+  @@index([severity])
+  @@index([projectId])
+  @@index([buildingId])
+  @@index([workUnitId])
+  @@index([reportedById])
+  @@index([validatedById])
+  @@index([createdAt])
+}
+
+// Phase 2: Usage Tracking
+model KnowledgeApplication {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  knowledgeEntryId      String                @db.Char(36)
+  projectId             String                @db.Char(36)
+  workUnitId            String?               @db.Char(36)
+  appliedById           String                @db.Char(36)
+  outcomeNotes          String?               @db.Text
+  
+  knowledgeEntry        KnowledgeEntry        @relation(fields: [knowledgeEntryId], references: [id], onDelete: Cascade)
+  project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workUnit              WorkUnit?             @relation(fields: [workUnitId], references: [id], onDelete: SetNull)
+  appliedBy             User                  @relation("KnowledgeApplicationUser", fields: [appliedById], references: [id])
+  
+  appliedAt             DateTime              @default(now())
+  
+  @@index([knowledgeEntryId])
+  @@index([projectId])
+  @@index([appliedById])
+  @@index([appliedAt])
+}
+
+// Phase 3: Risk Pattern Detection (System-Derived)
+enum RiskPatternStatus {
+  Observed
+  Escalated
+  Addressed
+}
+
+model RiskPattern {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  patternKey            String                @unique // Hash of process + tags + category
+  process               KnowledgeProcess
+  tags                  Json                  // Array of common tags
+  occurrenceCount       Int
+  timeWindow            String                // e.g., "6 months"
+  status                RiskPatternStatus     @default(Observed)
+  
+  // Linked entries
+  linkedEntries         RiskPatternEntry[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([process])
+  @@index([status])
+  @@index([occurrenceCount])
+  @@index([createdAt])
+}
+
+// Junction table for RiskPattern and KnowledgeEntry
+model RiskPatternEntry {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  riskPatternId         String                @db.Char(36)
+  knowledgeEntryId      String                @db.Char(36)
+  
+  riskPattern           RiskPattern           @relation(fields: [riskPatternId], references: [id], onDelete: Cascade)
+  knowledgeEntry        KnowledgeEntry        @relation(fields: [knowledgeEntryId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime              @default(now())
+  
+  @@unique([riskPatternId, knowledgeEntryId])
+  @@index([riskPatternId])
+  @@index([knowledgeEntryId])
 }
