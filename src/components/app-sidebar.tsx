@@ -42,6 +42,9 @@ import {
   Zap,
   FileSpreadsheet,
   RefreshCw,
+  Layers,
+  Crown,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -52,6 +55,7 @@ type NavigationItem = {
   name: string;
   href: string;
   icon: any;
+  isNew?: boolean;
 };
 
 type NavigationSection = {
@@ -101,13 +105,13 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
       { name: 'List Projects', href: '/projects', icon: FolderKanban },
+      { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
       { name: 'Project Planning', href: '/planning', icon: Calendar },
       { name: 'Timeline', href: '/timeline', icon: Calendar },
       { name: 'Operations Timeline (New)', href: '/operations/dashboard', icon: Clock },
       { name: 'Event Management', href: '/operations/events', icon: Calendar },
       { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
-      { name: 'List Buildings', href: '/buildings', icon: Building2 },
     ],
   },
   {
@@ -172,12 +176,21 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
+    name: 'Product Backlog',
+    icon: Layers,
+    items: [
+      { name: 'Create Backlog', href: '/backlog/new', icon: Plus, isNew: true },
+      { name: 'Backlog Board', href: '/backlog', icon: Layers, isNew: true },
+      { name: 'CEO Control Center', href: '/ceo-control-center', icon: Crown, isNew: true },
+    ],
+  },
+  {
     name: 'Organization',
     icon: Network,
     items: [
       { name: 'Users', href: '/users', icon: Users },
       { name: 'Roles', href: '/roles', icon: Shield },
-      { name: 'Organization Chart', href: '/organization', icon: Network },
+      { name: 'Organization Chart', href: '/organization', icon: Network, isNew: true },
     ],
   },
   {
@@ -426,6 +439,9 @@ export function AppSidebar() {
                             <div className="flex items-center gap-3">
                               <ItemIcon className="size-4 shrink-0" />
                               <span>{item.name}</span>
+                              {item.isNew && (
+                                <Star className="size-3 fill-yellow-400 text-yellow-400 animate-pulse" />
+                              )}
                             </div>
                             {isMounted && badgeCount > 0 && (
                               <span className={cn(
@@ -475,9 +491,10 @@ export function AppSidebar() {
             )}
             
             {!collapsed && (
-              <div className="mt-2 px-3 text-xs text-muted-foreground">
-                <p className="font-medium">Hexa Steel OTS</p>
-                <p>v2.5.0</p>
+              <div className="mt-auto p-4 border-t">
+                <p className="text-xs text-muted-foreground text-center">
+                  Hexa Steel® OTS v2.7.0
+                </p>
               </div>
             )}
           </div>

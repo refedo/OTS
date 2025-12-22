@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     const result = await softDeleteService.restore({
       entityType,
       entityId,
-      userId: session.userId,
+      userId: session.sub,
     });
 
     if (!result.success) {

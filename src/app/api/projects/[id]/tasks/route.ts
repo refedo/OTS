@@ -38,7 +38,7 @@ export async function GET(
     }
 
     if (filterMyTasks) {
-      whereClause.assignedToId = session.userId;
+      whereClause.assignedToId = session.sub;
     }
 
     // Fetch tasks

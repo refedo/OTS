@@ -7,11 +7,339 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.0] - 2025-12-22
+
+### 🚀 Product Backlog Module Complete Redesign & Enhancements
+
+Complete overhaul of the Product Backlog module with modern UI, AI-powered features, task management, and CEO insights dashboard.
+
+**Highlights:**
+- AI-Powered Backlog Creation
+- Modern Card-Based UI Design
+- Task Creation & Management
+- Color-Coded Status System
+- CEO Control Center Access Fix
+
+#### Added
+
+**Product Backlog Module**
+- **AI Generation Features**
+  - AI-powered title generation from description
+  - AI-powered expected value generation
+  - AI-powered affected modules suggestion
+  - Integrated OpenAI GPT-4o-mini for intelligent suggestions
+
+- **Modern Backlog Detail Page**
+  - Card-based layout matching system design language
+  - Color-coded badges for all metadata:
+    - Status badges (Approved=Green, Under Review=Orange, etc.)
+    - Category badges (11 distinct colors for different modules)
+    - Type badges (8 distinct colors for backlog types)
+    - Priority badges (Critical, High, Medium, Low)
+  - Enhanced visual hierarchy with icons
+  - Gradient "WHY This Exists" section highlighting business value
+  - Removed duplicate Expected Value section
+
+- **Task Creation for Backlog Items**
+  - Inline task creation form on backlog detail page
+  - Available when backlog status is Approved/Planned/In Progress/Completed
+  - Task fields: title, description, priority
+  - Automatic linking to backlog item
+  - Modern confirmation dialogs for success/error feedback
+
+- **Enhanced Error Handling**
+  - Detailed server-side logging for debugging
+  - Client-side error display with specifics
+  - Validation error details in API responses
+  - Session authentication improvements
+
+**CEO Control Center**
+- Fixed access control to check both session and database roles
+- Added comprehensive logging for role verification
+- Sidebar navigation integration
+- Proper layout alignment with system design
+
+**Role Management**
+- CEO can now create and manage roles (previously Admin-only)
+- Fixed null description validation in role creation
+- Enhanced error messages with validation details
+
+#### Fixed
+
+- **Backlog Creation Errors**
+  - Fixed BacklogType enum validation (removed invalid IMPROVEMENT type)
+  - Fixed BacklogCategory enum validation (updated to match Prisma schema)
+  - Added valid types: FEATURE, BUG, TECH_DEBT, PERFORMANCE, REPORTING, REFACTOR, COMPLIANCE, INSIGHT
+  - Added valid categories: CORE_SYSTEM, PRODUCTION, DESIGN, DETAILING, PROCUREMENT, QC, LOGISTICS, FINANCE, REPORTING, AI, GOVERNANCE
+
+- **Task Creation API**
+  - Fixed 400 error when creating tasks from backlog
+  - Added backlogItemId field support
+  - Priority normalization (MEDIUM/HIGH/CRITICAL → Medium/High)
+  - Accept both uppercase and lowercase priority values
+
+- **Session Authentication**
+  - Fixed session.userId to session.sub across all API routes
+  - Updated backlog API routes
+  - Updated operations event routes
+  - Updated projects tasks routes
+  - Updated governance deleted routes
+
+- **Build Errors**
+  - Fixed "Unterminated regexp literal" error in backlog detail page
+  - Proper file structure with 536 lines
+  - Clean JSX syntax
+
+#### Updated
+
+- **API Routes Enhanced Logging**
+  - `/api/backlog` - Comprehensive error logging
+  - `/api/tasks` - Priority normalization and backlog support
+  - `/api/roles` - CEO access and null description handling
+  - `/api/backlog/ceo-insights` - Role verification logging
+
+- **UI Components**
+  - Backlog form with AI generation buttons
+  - Modern confirmation dialogs replacing alerts
+  - Color-coded badge system
+  - Responsive card layouts
+
+---
+
+## [2.7.0] - 2025-12-22
+
+### 🎨 UI/UX Enhancements & Modern Dialog System
+
+Major UI/UX improvements across the entire system with unified design language, enhanced user experience, and a beautiful modern dialog system.
+
+- Modern Dialog System
+- Navigation & Sidebar Improvements
+- Project Management Enhancements
+- Organization Chart Flowchart View
+- Backlog Module Fixes
+
+#### Added
+
+**Modern Dialog Components**
+- **Beautiful UI Design**
+  - Glassmorphism backdrop with blur effect
+  - Smooth animations and transitions
+  - Color-coded icons for different dialog types (Success, Error, Warning, Info, Confirm)
+  - Rounded corners and modern shadows
+  - Responsive design for all screen sizes
+
+- **Dialog Types**
+  - **Success**: Green theme with checkmark icon
+  - **Error**: Red theme with alert icon
+  - **Warning**: Amber theme with warning triangle icon
+  - **Info**: Blue theme with info icon
+  - **Confirm**: Blue theme with question icon and two-button layout
+
+- **Global Dialog Provider**
+  - `useDialog()` hook available throughout the application
+  - `showAlert()` for notifications and messages
+  - `showConfirm()` for user confirmations with Promise-based API
+  - Centralized dialog management
+
+**Enhanced Project Deletion**
+- Detailed error messages showing all blocking records
+- Lists specific counts: tasks, buildings, assignments, WPS, ITP, document submissions, scope schedules
+- Beautiful confirmation dialogs for single and bulk deletions
+- Success/error feedback with appropriate styling
+
+**Navigation & Sidebar Improvements**
+- ⭐ **New Feature Badges**: Star indicators on recently added/updated features
+  - Backlog Board (new)
+  - CEO Control Center (new)
+  - Organization Chart (enhanced with flowchart view)
+- Reorganized navigation structure
+  - "List Buildings" moved under "List Projects" for better hierarchy
+- Animated star badges with pulse effect for high visibility
+
+**Project Management Enhancements**
+- **Clickable Project Numbers**: Project # in projects list now links directly to project details
+- **Delete Button on Project Card**: Quick access to delete projects from detail page
+- **Enhanced Project Card Design**:
+  - Structured payment schedule table with percentages and terms
+  - Dedicated coating system section with paint specifications
+  - Color-coded section headers (Finance in red, Coating in yellow)
+  - Improved readability with grid layouts
+
+**Organization Chart Improvements**
+- ⭐ **New Flowchart View**: Professional org chart with connected boxes
+  - Blue color scheme matching corporate design
+  - Visual hierarchy with connecting lines
+  - Set as default view for better first impression
+  - Multiple view options: Flowchart, Hierarchy, Tree, List, Grid
+
+**Backlog Module Fixes**
+- Fixed "New Backlog Item" button functionality
+- Consistent design language matching other system modules
+- Proper sidebar spacing and layout
+
+#### Benefits
+- ✨ Modern, professional user interface
+- 🎯 Consistent user experience across the entire system
+- 📱 Better mobile experience (native dialogs are problematic on mobile)
+- 🔍 More informative error messages
+- ♿ Better accessibility
+- 🎨 Unified design system throughout all modules
+- ⭐ Clear visibility of new features for users
+- 🚀 Improved navigation and discoverability
+
+---
+
+## [2.6.0] - 2025-12-21
+
+### 🎯 Product Backlog Module & CEO Control Center
+
+A comprehensive product management system that serves as the **single source of truth** for all system evolution, features, bugs, technical debt, and improvements.
+
+- Product Backlog Module
+- CEO Control Center
+- Backlog Item Management
+- Task Linking & Tracking
+
+#### Added
+
+**Product Backlog Module**
+- **Backlog Board** (`/backlog`)
+  - Complete backlog management interface with advanced filtering
+  - Filter by: Type, Category, Status, Priority, Search
+  - Color-coded priority indicators (Critical, High, Medium, Low)
+  - Status workflow enforcement (Idea → Under Review → Approved → Planned → In Progress → Completed)
+  - Real-time task linking and progress tracking
+  - Summary statistics dashboard
+
+- **Backlog Item Detail Page** (`/backlog/[id]`)
+  - Prominent "WHY" section highlighting business reason
+  - Complete item information with description and expected value
+  - Linked tasks with progress tracking
+  - Status timeline showing approval, planning, and completion dates
+  - Quick actions for status and priority changes
+  - Affected modules visualization
+  - Progress indicator based on task completion
+
+**CEO Control Center** (`/ceo-control-center`)
+- **Section 1: Strategic Snapshot**
+  - Total backlog items overview
+  - Approved vs not approved items
+  - High/Critical priority count
+  - Compliance-related items tracking
+  - Tech debt percentage indicator
+
+- **Section 2: Priority Radar**
+  - Top 10 high/critical priority items
+  - Risk indicators and alerts
+  - Highlights items with no tasks, approved but not planned, or in progress too long
+  - Direct navigation to backlog items
+
+- **Section 3: WHY Dashboard**
+  - Groups backlog by business reason themes:
+    - Reduce Delays
+    - Increase Visibility
+    - Compliance
+    - Performance
+    - Automation
+    - Risk Reduction
+  - Helps CEO understand system evolution drivers
+
+- **Section 4: Investment Insight**
+  - Backlog distribution by Category (Production, QC, Design, etc.)
+  - Backlog distribution by Type (Features, Bugs, Tech Debt, etc.)
+  - Backlog distribution by Module
+  - Visual percentage breakdowns with progress bars
+
+- **Section 5: Silent Operations Health**
+  - Automation focus percentage
+  - Visibility & prediction improvement percentage
+  - Manual reduction items count
+  - Indicators of progress toward self-managing operations
+
+**Database Schema**
+- New `ProductBacklogItem` model with comprehensive fields
+- Enums: `BacklogType`, `BacklogCategory`, `BacklogPriority`, `BacklogStatus`, `RiskLevel`
+- Task integration via optional `backlogItemId` field
+- Unique code generation (OTS-BL-XXX format)
+
+**API Endpoints**
+- `GET /api/backlog` - List backlog items with filtering
+- `POST /api/backlog` - Create new backlog item
+- `GET /api/backlog/[id]` - Get single backlog item
+- `PATCH /api/backlog/[id]` - Update backlog item
+- `DELETE /api/backlog/[id]` - Delete backlog item (CEO/Admin only)
+- `GET /api/backlog/ceo-insights` - CEO analytics and insights (CEO only)
+
+**RBAC Enforcement**
+- CEO/Admin: Full access, approval authority, priority changes
+- Regular users: Can create IDEA status items only
+- Status workflow validation on backend
+- Approval tracking with timestamps
+
+**Navigation**
+- Added "Product Backlog" section to sidebar
+- Two menu items: "Backlog Board" and "CEO Control Center"
+- Crown icon for CEO Control Center
+
+#### Key Features
+
+**Backlog Workflow**
+```
+IDEA → UNDER_REVIEW → APPROVED → PLANNED → IN_PROGRESS → COMPLETED
+```
+- Only CEO/Admin can approve items
+- Tasks can only be linked after approval
+- Completion requires all linked tasks to be completed
+
+**Business Reason Tracking**
+- Every backlog item must answer "WHY does this exist?"
+- Business reason field is mandatory and prominent
+- CEO dashboard groups items by business themes
+- Helps maintain strategic alignment
+
+**Task Integration**
+- Tasks can be linked to backlog items
+- Backend validation ensures system development tasks reference backlog
+- Progress tracking based on linked task completion
+- Prevents unplanned system development work
+
+**Strategic Insights**
+- Real-time analytics for CEO decision-making
+- Investment distribution across categories and modules
+- Silent operations health indicators
+- Priority radar with risk alerts
+
+#### Technical Details
+- Database migration: `20251221202218_add_product_backlog_module`
+- Files created:
+  - `src/app/api/backlog/route.ts`
+  - `src/app/api/backlog/[id]/route.ts`
+  - `src/app/api/backlog/ceo-insights/route.ts`
+  - `src/app/backlog/page.tsx`
+  - `src/app/backlog/[id]/page.tsx`
+  - `src/app/ceo-control-center/page.tsx`
+- Updated: `src/components/app-sidebar.tsx`
+- Schema: `prisma/schema.prisma`
+
+#### Benefits
+- **Single Source of Truth**: All system evolution tracked in one place
+- **Strategic Oversight**: CEO can understand what, why, and where effort is invested
+- **Traceability**: Every feature/bug/improvement has a clear business reason
+- **Prioritization**: Data-driven priority management with risk indicators
+- **Silent Operations**: Track progress toward automation and self-management
+
+---
+
 ## [2.5.0] - 2025-12-21
 
 ### ⚡ Performance Optimizations
 
 Significantly reduced server load and terminal noise from background processes.
+
+- Performance Optimizations
+- Tasks Interface Enhancements
+- Custom User Permissions
+- Reduced Server Load by 60%
 
 #### Optimizations
 - **Reduced Prisma Query Logging**
@@ -160,10 +488,14 @@ Enhanced user management with granular per-user permission controls, allowing cu
 - Temporary permission grants for specific projects or tasks
 
 ---
-
 ## [2.4.0] - 2025-12-18
 
 ### 🔄 Streamlined PTS Sync - One-Click Sync with Validation
+
+- Streamlined PTS Sync
+- Selective Project/Building Sync
+- Pagination for Large Datasets
+- PTS/OTS Source Indicators
 
 Major enhancement to PTS sync with simplified workflow and 2-phase sync (Raw Data → Logs).
 
@@ -199,6 +531,11 @@ Major enhancement to PTS sync with simplified workflow and 2-phase sync (Raw Dat
 ## [2.3.0] - 2025-12-17
 
 ### 🔄 PTS Sync - Google Sheets Integration
+
+- Google Sheets Integration
+- PTS Data Sync
+- Field Mapping Wizard
+- Production Logs Sync
 
 Seamlessly sync production tracking data from Google Sheets (PTS) to OTS without manual export/import.
 
@@ -257,6 +594,11 @@ Seamlessly sync production tracking data from Google Sheets (PTS) to OTS without
 
 ### 🚀 Import Functions, Early Warning Fixes & Planning Enhancements
 
+- Import Functions with Field Mapping
+- Early Warning System Fixes
+- Project Planning Enhancements
+- Multi-select & Inline Editing
+
 #### Added
 - **Import/Upload Functions with Field Mapping**
   - Document Timeline Import (`/document-timeline`) - Import document submissions from CSV with column mapping
@@ -297,7 +639,12 @@ Seamlessly sync production tracking data from Google Sheets (PTS) to OTS without
 
 This release brings **true automation** to the Operations Control System, eliminating manual dependency entry and enabling automatic capacity consumption.
 
-### Added
+- Dependency Blueprints
+- Load Estimation Rules
+- Capacity Auto-Consumption
+- Operations Intelligence Dashboard
+
+#### Added
 - **Dependency Blueprint System**
   - New `DependencyBlueprint` and `DependencyBlueprintStep` Prisma models
   - Template-based automatic dependency creation
@@ -358,7 +705,13 @@ This release brings **true automation** to the Operations Control System, elimin
 
 This release transforms OTS from a recording/reporting system into a **predictive, flow-aware operational control system** with early warning capabilities.
 
-### Added
+- Predictive Operations Control
+- WorkUnit Abstraction Layer
+- Early Warning Engine
+- Resource Capacity Planning
+- Operations Control Dashboard
+
+#### Added
 - **Predictive Operations Control System - Phase 1 & 2** (WorkUnit + Dependencies)
   - New `WorkUnit` Prisma model for cross-project work tracking abstraction
   - Enums: `WorkUnitType` (DESIGN, PROCUREMENT, PRODUCTION, QC, DOCUMENTATION)
@@ -551,58 +904,201 @@ This release transforms OTS from a recording/reporting system into a **predictiv
 
 ---
 
+## [1.2.2] - 2025-12-14
+
+### 🎯 Work Orders, Notifications & Dashboard Enhancements
+
+- Work Orders Module
+- Enhanced Notification Center
+- User Preferences Menu
+- AI Summary Improvements
+- Login Page Branding
+- Planning Activities Widget
+
+#### Added
+- **Work Orders Module**
+  - New Work Orders page under Production module
+  - Create, view, and manage production work orders
+  - Work order status tracking and assignment
+  - Integration with production planning workflow
+
+- **User Preferences Menu**
+  - New user dropdown menu accessible from sidebar
+  - Quick access to profile settings
+  - Change password functionality with secure validation
+  - Direct links to notifications and settings
+  - One-click sign out option
+
+- **Notification Center Restructure**
+  - Notifications now a collapsible menu in sidebar
+  - Quick access sub-items: Delayed Tasks, Approvals, Deadlines
+  - URL-based tab navigation for direct linking
+  - Total badge count displayed on Notifications section header
+  - Per-item sidebar badges for: All Notifications (unread), Delayed Tasks, Deadlines
+
+- **AI Summary Enhancements**
+  - Colorized and structured AI summary display
+  - Automatic detection of urgent items (red highlighting)
+  - Warning items highlighted in orange
+  - Info items displayed in blue
+  - Section headers with visual separation
+  - Improved readability with icons and borders
+
+- **Login Page Branding**
+  - Dolibarr-style login page with white card on dark (#2c3e50) background
+  - Logo displayed inside white card for better visibility
+  - Configurable login logo via Settings → Company → Login Page Logo
+  - Fallback to "HEXA STEEL® - THRIVE DIFFERENT" text if no logo uploaded
+  - Motivational footer with slogan: Hexa Steel® — "Forward Thinking"
+  - Version header showing current system version
+
+- **Dashboard Improvements**
+  - New Work Orders widget showing pending, in-progress, completed, and overdue counts
+  - Widget remove functionality - hover over widget to see remove button
+  - Improved mobile-responsive grid layout for dashboard widgets
+  - Collapsed sidebar now shows all module icons (not just 3)
+
+- **Planning Activities Widget**
+  - New Planning Activities widget in Project Dashboard
+  - Shows all scope schedules (Design, Shop Drawing, Fabrication, Galvanization, Painting)
+  - Real-time progress calculation based on actual production data
+  - Overall project progress with status breakdown (Completed, On Track, At Risk, Critical)
+  - Expandable building-level details for each activity type
+  - Visual progress bars and status indicators
+
+#### Fixed
+- Logout button now correctly redirects to production URL (ots.hexasteel.sa) instead of localhost
+- Sidebar version now syncs with changelog version
+- Fixed User Preferences menu not appearing by aligning UserMenu parsing with /api/auth/me response shape
+- Updated Version badge to reflect current release (v1.2.2)
+- Fixed Notifications sidebar section total badge to match the sum of visible sub-badges (Unread + Delayed Tasks + Deadlines)
+- Expanded middleware route protection to ensure expired sessions redirect to /login across all protected pages (Notifications, Reports, AI Assistant, QC, etc.)
+- Fixed collapsed sidebar showing only 3 icons - now shows all module section icons
+- Fixed UserMenu slow loading by caching user data after first fetch
+- Improved dashboard mobile responsiveness with optimized grid layout
+
+#### Changed
+- Notifications moved from single nav item to collapsible section
+- Sidebar navigation improved: Projects section moved before Production, Projects Dashboard moved to top, and Reports moved into Production menu
+- AI Summary card redesigned with purple gradient theme
+- Generate Summary button now shows loading spinner
+- Notification badge API calls now run in parallel for faster sidebar loading
+
+---
+
+## [1.2.1] - 2025-12-14
+
+### 🔧 Deployment Stability & Dependency Fixes
+
+- Deployment stability fixes
+- OpenAI SDK dependency compatibility
+- Reduced production cache issues
+
+#### Added
+- **Deployment Improvements**
+  - Deployment troubleshooting documentation for production
+  - Recommended clean install workflow (remove node_modules + lockfile on dependency conflicts)
+  - PM2 restart guidance to avoid stale runtime artifacts after build
+
+#### Fixed
+- Fixed npm dependency resolution error (ERESOLVE) caused by zod v4 conflicting with OpenAI SDK peer dependency (zod v3)
+- Reduced risk of Next.js Server Action ID mismatch after deployment by recommending cache-clearing deployment flow
+
+#### Changed
+- Downgraded zod dependency to ^3.23.8 for OpenAI SDK compatibility
+
+---
+
+## [1.2.0] - 2024-12-09
+
+### 🔔 Real-time Notifications & Dashboard v2.0
+
+- Real-time Notifications
+- Project Dashboard v2.0
+- Enhanced UI/UX
+
+#### Added
+- **Notification Center Enhancements**
+  - Real-time badge updates without page refresh
+  - Redesigned notification panel with modern UI/UX
+  - Colored circular icon backgrounds (green, blue, orange)
+  - Green left border indicator for unread notifications
+  - NotificationContext for centralized state management
+  - Integrated across all 20+ authenticated layouts
+  - Immediate badge updates when marking as read/archived
+  - Polling mechanism for real-time updates (30-second intervals)
+  - Automatic unread count synchronization across all pages
+
+- **Project Dashboard Module v2.0**
+  - Enhanced widget performance with optimized data fetching
+  - Improved error handling and loading states
+  - Better mobile responsiveness
+  - Interactive charts for production and QC trends
+  - Per-building status breakdown
+  - Task filtering (all, my tasks, non-completed, completed)
+
+- **Dashboard Widget System Updates**
+  - Standardized widget architecture across all dashboard types
+  - Consistent loading and error states
+  - Unified refresh mechanism for all widgets
+  - Improved data caching and performance
+  - Better visual consistency with updated color schemes
+  - Enhanced accessibility features
+
+#### Fixed
+- Runtime error when using notifications on pages without NotificationProvider
+- Notification badge not updating without page refresh
+- Inconsistent notification state across different pages
+
+#### Changed
+- Navigation reordering: Notifications now appears before Tasks in sidebar
+- Tab reordering: Notifications tab now first in notification panel
+- Cleaner header design with blue "Mark as read" link button
+- Improved tab styling with blue bottom border for active state
+
+---
+
 ## [1.1.0] - 2024-12-08
 
-### Added
+### 🔔 Notification Center Module
+
+- Notification Center Module
+- AI-powered summaries
+- Automatic deadline warnings
+
+#### Added
 - **Notification Center Module**
   - Real-time notification system for tasks, approvals, and deadlines
   - Notification bell with unread count badge
-  - Dropdown notification panel with 5 tabs (All, Unread, Approvals, Deadlines, Archived)
-  - Full-page notification center at `/notifications`
+  - Dropdown notification panel with 5 tabs
+  - Full-page notification center at /notifications
   - AI-powered notification summaries using OpenAI GPT-4
   - Automatic deadline scanner (runs daily at 8:00 AM)
   - 6 notification types: Task Assigned, Approval Required, Deadline Warning, Approved, Rejected, System
-  - Mark as read/archive functionality
-  - Bulk operations (mark all as read)
-  - Click-to-navigate to related entities
-  - Deadline countdown badges
-  - Time-ago formatting
 
 - **Database Changes**
-  - New `notifications` table with indexes
-  - New `NotificationType` enum
+  - New notifications table with indexes
+  - New NotificationType enum
   - Foreign key relationship to users table
 
 - **API Endpoints**
-  - `GET /api/notifications` - List notifications with filters
-  - `PATCH /api/notifications/[id]/read` - Mark as read
-  - `PATCH /api/notifications/[id]/archive` - Archive notification
-  - `POST /api/notifications/bulk-read` - Mark all as read
-  - `GET /api/notifications/summary` - AI-powered summary
-
-- **Services**
-  - NotificationService with trigger methods for all notification types
-  - DeadlineSchedulerService for automatic deadline warnings
-  - Integration points for Tasks, RFI, NCR, Documents, ITP/WPS
-
-- **Documentation**
-  - Complete module documentation
-  - Integration examples for all modules
-  - Quick start guide
-  - Deployment checklist
-
-### Technical Details
-- Frontend: React 19, Next.js 14, TypeScript, Tailwind CSS, ShadCN UI
-- Backend: Next.js API Routes, Prisma ORM
-- Database: MySQL with optimized indexes
-- Scheduling: node-cron
-- AI: OpenAI API (GPT-4o-mini)
+  - GET /api/notifications - List notifications with filters
+  - PATCH /api/notifications/[id]/read - Mark as read
+  - PATCH /api/notifications/[id]/archive - Archive notification
+  - POST /api/notifications/bulk-read - Mark all as read
+  - GET /api/notifications/summary - AI-powered summary
 
 ---
 
 ## [1.0.0] - 2024-11-25
 
-### Added
+### 🚀 Initial Release
+
+- Initial Release
+- Core System
+- All Major Modules
+
+#### Added
 - **Core System**
   - Project management with multi-building support
   - Client management

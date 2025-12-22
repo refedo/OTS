@@ -76,7 +76,7 @@ export async function POST(
         description,
         status: status || 'Completed',
         eventSource: 'manual',
-        createdBy: session.userId,
+        createdBy: session.sub,
       },
       include: {
         project: {

@@ -83,6 +83,24 @@ interface ProjectSyncStats {
   completionPercent: number;
 }
 
+interface SyncBatchHistory {
+  id: string;
+  syncType: string;
+  status: string;
+  partsCreated: number;
+  partsUpdated: number;
+  logsCreated: number;
+  logsUpdated: number;
+  errorsCount: number;
+  projectNumbers: string[];
+  durationMs: number;
+  rolledBack: boolean;
+  rolledBackAt: Date | null;
+  createdAt: Date;
+  user: { id: string; name: string; email: string };
+  rolledBackBy: { id: string; name: string; email: string } | null;
+}
+
 interface SyncResult {
   success: boolean;
   partsCreated: number;
@@ -132,6 +150,11 @@ export default function PTSSyncSimplePage() {
   const [showRollbackDialog, setShowRollbackDialog] = useState(false);
   const [rollbackProject, setRollbackProject] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState(false);
+  
+  // Sync history
+  const [syncHistory, setSyncHistory] = useState<SyncBatchHistory[]>([]);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Initialize selections when validation completes
   useEffect(() => {
@@ -364,6 +387,24 @@ export default function PTSSyncSimplePage() {
     return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
   };
 
+  const fetchSyncHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch('/api/pts-sync/history');
+      if (response.ok) {
+        const data = await response.json();
+        setSyncHistory(data.syncBatches);
+        setShowHistoryDialog(true);
+      } else {
+        alert('Failed to fetch sync history');
+      }
+    } catch (error) {
+      alert('Failed to fetch sync history: Network error');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const handleRollback = async (projectNumber: string) => {
     setIsRollingBack(true);
     try {
@@ -378,6 +419,35 @@ export default function PTSSyncSimplePage() {
         alert(`Rollback complete: ${result.partsDeleted} parts and ${result.logsDeleted} logs deleted`);
         setShowRollbackDialog(false);
         setRollbackProject(null);
+        fetchSyncHistory(); // Refresh history
+      } else {
+        const err = await response.json();
+        alert(`Rollback failed: ${err.error}`);
+      }
+    } catch (error) {
+      alert('Rollback failed: Network error');
+    } finally {
+      setIsRollingBack(false);
+    }
+  };
+
+  const handleRollbackBatch = async (batchId: string) => {
+    if (!confirm('Are you sure you want to rollback this entire sync batch? All synced data from this batch will be deleted.')) {
+      return;
+    }
+    
+    setIsRollingBack(true);
+    try {
+      const response = await fetch('/api/pts-sync/rollback-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Rollback complete: ${result.partsDeleted} parts and ${result.logsDeleted} logs deleted`);
+        fetchSyncHistory(); // Refresh history
       } else {
         const err = await response.json();
         alert(`Rollback failed: ${err.error}`);
@@ -402,6 +472,14 @@ export default function PTSSyncSimplePage() {
                 Sync production data from Google Sheets PTS to OTS
               </p>
             </div>
+            <Button variant="outline" onClick={fetchSyncHistory} disabled={loadingHistory}>
+              {loadingHistory ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <BarChart3 className="h-4 w-4 mr-2" />
+              )}
+              Sync History
+            </Button>
           </div>
 
       {/* Main Sync Card */}
@@ -1158,6 +1236,133 @@ export default function PTSSyncSimplePage() {
                   Confirm Rollback
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sync History Dialog */}
+      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              PTS Sync History
+            </DialogTitle>
+            <DialogDescription>
+              Recent sync operations with rollback capability
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {syncHistory.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No sync history found</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Projects</TableHead>
+                    <TableHead>Parts</TableHead>
+                    <TableHead>Logs</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {syncHistory.map((batch) => (
+                    <TableRow key={batch.id} className={batch.rolledBack ? 'opacity-50' : ''}>
+                      <TableCell className="text-xs">
+                        {new Date(batch.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {batch.syncType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {Array.isArray(batch.projectNumbers) 
+                          ? batch.projectNumbers.join(', ') 
+                          : 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <div className="space-y-1">
+                          {batch.partsCreated > 0 && (
+                            <div className="text-green-600">+{batch.partsCreated}</div>
+                          )}
+                          {batch.partsUpdated > 0 && (
+                            <div className="text-blue-600">~{batch.partsUpdated}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <div className="space-y-1">
+                          {batch.logsCreated > 0 && (
+                            <div className="text-green-600">+{batch.logsCreated}</div>
+                          )}
+                          {batch.logsUpdated > 0 && (
+                            <div className="text-blue-600">~{batch.logsUpdated}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {formatDuration(batch.durationMs)}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {batch.user.name}
+                      </TableCell>
+                      <TableCell>
+                        {batch.rolledBack ? (
+                          <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
+                            Rolled Back
+                          </Badge>
+                        ) : batch.status === 'completed' ? (
+                          <Badge variant="outline" className="text-green-600 border-green-300 text-xs">
+                            Completed
+                          </Badge>
+                        ) : batch.status === 'failed' ? (
+                          <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
+                            Failed
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                            Partial
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {!batch.rolledBack && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRollbackBatch(batch.id)}
+                            disabled={isRollingBack}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Rollback
+                          </Button>
+                        )}
+                        {batch.rolledBack && batch.rolledBackBy && (
+                          <div className="text-xs text-muted-foreground">
+                            By {batch.rolledBackBy.name}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowHistoryDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

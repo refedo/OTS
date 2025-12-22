@@ -630,7 +630,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   <option value="">All Buildings</option>
                   {allBuildings.map((building) => (
                     <option key={building.id} value={building.id}>
-                      {building.designation} - {building.name}
+                      {building.name} ({building.designation})
                     </option>
                   ))}
                 </select>
@@ -894,8 +894,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       <TableCell>
                         {task.building ? (
                           <div>
-                            <p className="text-sm">{task.building.designation}</p>
-                            <p className="text-xs text-muted-foreground">{task.building.name}</p>
+                            <p className="text-sm">{task.building.name}</p>
+                            <p className="text-xs text-muted-foreground">{task.building.designation}</p>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>

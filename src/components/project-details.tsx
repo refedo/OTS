@@ -16,9 +16,12 @@ import {
   ChevronRight,
   Plus,
   Clock,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 const statusColors = {
   Draft: 'bg-gray-100 text-gray-800 border-gray-300',
@@ -76,6 +79,10 @@ function InfoRow({ label, value }: { label: string; value: any }) {
 }
 
 export function ProjectDetails({ project }: ProjectDetailsProps) {
+  const router = useRouter();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const formatDate = (date: string | null) => {
     if (!date) return null;
     const d = new Date(date);
@@ -88,6 +95,26 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const formatCurrency = (amount: number | null) => {
     if (!amount) return null;
     return `$${amount.toLocaleString()}`;
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        router.push('/projects');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to delete project');
+      }
+    } catch (error) {
+      alert('Failed to delete project. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -133,6 +160,14 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                 Edit Project
               </Button>
             </Link>
+            <Button 
+              variant="destructive"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="size-4" />
+              Delete
+            </Button>
           </div>
         </div>
 
@@ -243,27 +278,68 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
             </dl>
           </CollapsibleSection>
 
-          {/* Financial */}
-          <CollapsibleSection title="Financial Information" icon={DollarSign}>
-            <dl className="space-y-0">
-              <InfoRow label="Contract Value" value={formatCurrency(project.contractValue)} />
-              <InfoRow label="Incoterm" value={project.incoterm} />
-              <InfoRow label="Down Payment" value={formatCurrency(project.downPayment)} />
-              <InfoRow label="Down Payment Ack" value={project.downPaymentAck} />
-              {[2, 3, 4, 5, 6].map((num) => {
-                const payment = (project as any)[`payment${num}`];
-                const ack = (project as any)[`payment${num}Ack`];
-                if (!payment) return null;
-                return (
-                  <div key={num}>
-                    <InfoRow label={`Payment ${num}`} value={formatCurrency(payment)} />
-                    <InfoRow label={`Payment ${num} Ack`} value={ack} />
-                  </div>
-                );
-              })}
-              <InfoRow label="Preliminary Retention" value={formatCurrency(project.preliminaryRetention)} />
-              <InfoRow label="H.O Retention" value={formatCurrency(project.hoRetention)} />
-            </dl>
+          {/* Financial & Payment Terms */}
+          <CollapsibleSection title="Finance" icon={DollarSign} defaultOpen>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Contract Value</p>
+                  <p className="text-lg font-semibold">{formatCurrency(project.contractValue) || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Incoterm</p>
+                  <p className="text-lg font-semibold">{project.incoterm || '-'}</p>
+                </div>
+              </div>
+              
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3 text-red-700 bg-red-50 px-3 py-2 rounded">Payment Schedule</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Schedule</th>
+                        <th className="px-3 py-2 text-left font-medium">Percentage</th>
+                        <th className="px-3 py-2 text-left font-medium">Terms</th>
+                        <th className="px-3 py-2 text-left font-medium">Payment Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      <tr>
+                        <td className="px-3 py-2 font-medium">Down Payment</td>
+                        <td className="px-3 py-2">{project.downPayment ? `${((project.downPayment / (project.contractValue || 1)) * 100).toFixed(0)}%` : '-'}</td>
+                        <td className="px-3 py-2">down payment to be paid upon the signing of contract.</td>
+                        <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
+                      </tr>
+                      {[2, 3, 4, 5, 6].map((num) => {
+                        const payment = (project as any)[`payment${num}`];
+                        const ack = (project as any)[`payment${num}Ack`];
+                        if (!payment) return null;
+                        return (
+                          <tr key={num}>
+                            <td className="px-3 py-2 font-medium">Payment {num}</td>
+                            <td className="px-3 py-2">{((payment / (project.contractValue || 1)) * 100).toFixed(0)}%</td>
+                            <td className="px-3 py-2">{ack || 'of the value to be loaded after production'}</td>
+                            <td className="px-3 py-2">-</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">Preliminary Retention</p>
+                  <p className="font-semibold">{formatCurrency(project.preliminaryRetention) || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">H.O Retention</p>
+                  <p className="font-semibold">{formatCurrency(project.hoRetention) || '-'}</p>
+                </div>
+              </div>
+            </div>
           </CollapsibleSection>
 
           {/* Technical Specifications */}
@@ -277,11 +353,37 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               <InfoRow label="Galvanized" value={project.galvanized} />
               {project.galvanized && (
                 <>
+                  <InfoRow label="Galvanization Finish" value={project.galvanizationFinish || 'no'} />
                   <InfoRow label="Galvanization Microns" value={project.galvanizationMicrons} />
                   <InfoRow label="Area (m²)" value={project.area} />
                   <InfoRow label="m²/Ton" value={project.m2PerTon} />
                 </>
               )}
+              
+              {/* Coating System Section */}
+              <div className="border-t mt-4 pt-4">
+                <h4 className="font-semibold mb-3 text-yellow-800 bg-yellow-50 px-3 py-2 rounded">Coating</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Paint Name</th>
+                        <th className="px-3 py-2 text-left font-medium">Microns</th>
+                        <th className="px-3 py-2 text-left font-medium">RAL#</th>
+                        <th className="px-3 py-2 text-left font-medium">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      <tr>
+                        <td className="px-3 py-2">{project.paintName || 'Grey Oxide Primer'}</td>
+                        <td className="px-3 py-2">{project.galvanizationMicrons || '70'}</td>
+                        <td className="px-3 py-2">{project.ralNumber || '-'}</td>
+                        <td className="px-3 py-2">{project.coatingNotes || '-'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
               <InfoRow label="Welding Process" value={project.weldingProcess} />
               <InfoRow label="Welding Wire AWS Class" value={project.weldingWireAwsClass} />
               <InfoRow label="PQR Number" value={project.pqrNumber} />
@@ -301,6 +403,18 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete this project?"
+        description="This project will be permanently deleted from your system and cannot be recovered."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDelete}
+        type="danger"
+      />
     </main>
   );
 }

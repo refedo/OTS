@@ -128,6 +128,10 @@ model User {
   deletedBuildings   Building[] @relation("BuildingDeletedBy")
   deletedAssemblyParts AssemblyPart[] @relation("AssemblyPartDeletedBy")
   
+  // PTS Sync tracking
+  ptsSyncBatches     PTSSyncBatch[] @relation("PTSSyncBatchUser")
+  rolledBackSyncs    PTSSyncBatch[] @relation("PTSSyncBatchRolledBackBy")
+  
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -375,6 +379,10 @@ model Task {
   // Department relation (optional)
   departmentId  String?  @db.Char(36)
   department    Department? @relation(fields: [departmentId], references: [id])
+  
+  // Backlog item relation (optional - for system development tasks)
+  backlogItemId String?  @db.Char(36)
+  backlogItem   ProductBacklogItem? @relation("BacklogItemTasks", fields: [backlogItemId], references: [id])
   
   // Task details
   taskInputDate DateTime? // When the task was entered/created
@@ -2548,5 +2556,131 @@ model SystemEvent {
   @@index([entityType])
   @@index([projectId])
   @@index([userId])
+  @@index([createdAt])
+}
+
+// PTS Sync History - tracks all PTS sync operations
+model PTSSyncBatch {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  
+  // Sync details
+  syncType              String                // 'parts', 'logs', 'full'
+  status                String                // 'completed', 'failed', 'partial'
+  
+  // Statistics
+  partsCreated          Int                   @default(0)
+  partsUpdated          Int                   @default(0)
+  logsCreated           Int                   @default(0)
+  logsUpdated           Int                   @default(0)
+  errorsCount           Int                   @default(0)
+  
+  // Projects synced
+  projectNumbers        Json                  // Array of project numbers synced
+  
+  // Duration and metadata
+  durationMs            Int                   // Duration in milliseconds
+  metadata              Json?                 // Additional sync metadata (errors, skipped items, etc.)
+  
+  // User who initiated sync
+  userId                String                @db.Char(36)
+  user                  User                  @relation("PTSSyncBatchUser", fields: [userId], references: [id])
+  
+  // Rollback tracking
+  rolledBack            Boolean               @default(false)
+  rolledBackAt          DateTime?
+  rolledBackById        String?               @db.Char(36)
+  rolledBackBy          User?                 @relation("PTSSyncBatchRolledBackBy", fields: [rolledBackById], references: [id])
+  
+  createdAt             DateTime              @default(now())
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@index([rolledBack])
+}
+
+// ============================================================================
+// PRODUCT BACKLOG MODULE
+// ============================================================================
+
+enum BacklogType {
+  FEATURE
+  BUG
+  TECH_DEBT
+  PERFORMANCE
+  REPORTING
+  REFACTOR
+  COMPLIANCE
+  INSIGHT
+}
+
+enum BacklogCategory {
+  CORE_SYSTEM
+  PRODUCTION
+  DESIGN
+  DETAILING
+  PROCUREMENT
+  QC
+  LOGISTICS
+  FINANCE
+  REPORTING
+  AI
+  GOVERNANCE
+}
+
+enum BacklogPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum BacklogStatus {
+  IDEA
+  UNDER_REVIEW
+  APPROVED
+  PLANNED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  DROPPED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model ProductBacklogItem {
+  id                String            @id @default(uuid()) @db.Char(36)
+  code              String            @unique // e.g. OTS-BL-001
+  title             String
+  description       String            @db.Text
+  type              BacklogType
+  category          BacklogCategory
+  businessReason    String            @db.Text // WHY this exists
+  expectedValue     String?           @db.Text // qualitative value
+  priority          BacklogPriority
+  status            BacklogStatus
+
+  affectedModules   Json              // Array of strings e.g. ["Design","Production","QC","AI"]
+  riskLevel         RiskLevel
+  complianceFlag    Boolean           @default(false)
+
+  linkedObjectiveId String?           @db.Char(36)
+  linkedKpiId       String?           @db.Char(36)
+
+  createdById       String            @db.Char(36)
+  createdAt         DateTime          @default(now())
+  approvedById      String?           @db.Char(36)
+  approvedAt        DateTime?
+  plannedAt         DateTime?
+  completedAt       DateTime?
+
+  tasks             Task[]            @relation("BacklogItemTasks")
+
+  @@index([type, status, priority])
+  @@index([category])
+  @@index([status])
   @@index([createdAt])
 }

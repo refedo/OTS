@@ -50,7 +50,7 @@ export async function PATCH(
         newStatus: status || existingEvent.status,
         oldDate: existingEvent.eventDate,
         newDate: eventDate ? new Date(eventDate) : existingEvent.eventDate,
-        changedBy: session.userId,
+        changedBy: session.sub,
         changeReason,
       },
     });

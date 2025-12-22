@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useDialog } from '@/contexts/DialogContext';
 
 type Project = {
   id: string;
@@ -51,6 +52,7 @@ const statusOptions = ['Draft', 'Active', 'On-Hold', 'Completed', 'Cancelled'];
 
 export function ProjectsClient() {
   const router = useRouter();
+  const { showAlert, showConfirm } = useDialog();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -88,7 +90,14 @@ export function ProjectsClient() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this project?')) return;
+    const confirmed = await showConfirm(
+      'Delete this project?',
+      'This project will be permanently deleted from your system and cannot be recovered.',
+      'Delete',
+      'Cancel'
+    );
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/projects/${id}`, {
@@ -96,13 +105,15 @@ export function ProjectsClient() {
       });
 
       if (response.ok) {
+        showAlert('Success!', 'Project deleted successfully', 'success');
         fetchProjects();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to delete project');
+        const message = error.message || error.error || 'Failed to delete project';
+        showAlert('Cannot Delete Project', message, 'error');
       }
     } catch (error) {
-      alert('Failed to delete project');
+      showAlert('Error', 'Failed to delete project. Please try again.', 'error');
     }
   }
 
@@ -129,19 +140,55 @@ export function ProjectsClient() {
   async function handleBulkDelete() {
     if (selectedProjects.size === 0) return;
     
-    if (!confirm(`Are you sure you want to delete ${selectedProjects.size} project(s)?`)) return;
+    const confirmed = await showConfirm(
+      `Delete ${selectedProjects.size} project(s)?`,
+      `These ${selectedProjects.size} project(s) will be permanently deleted from your system and cannot be recovered.`,
+      'Delete All',
+      'Cancel'
+    );
+    
+    if (!confirmed) return;
 
     setBulkActionLoading(true);
+    const errors: string[] = [];
+    
     try {
-      const deletePromises = Array.from(selectedProjects).map(id =>
-        fetch(`/api/projects/${id}`, { method: 'DELETE' })
+      const deleteResults = await Promise.allSettled(
+        Array.from(selectedProjects).map(async (id) => {
+          const response = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+          if (!response.ok) {
+            const errorData = await response.json();
+            const project = projects.find(p => p.id === id);
+            const projectName = project ? `${project.name} (${project.projectNumber})` : id;
+            throw new Error(`${projectName}: ${errorData.message || errorData.error}`);
+          }
+          return response;
+        })
       );
-      
-      await Promise.all(deletePromises);
+
+      // Collect errors
+      deleteResults.forEach((result) => {
+        if (result.status === 'rejected') {
+          errors.push(result.reason.message);
+        }
+      });
+
+      // Show results
+      if (errors.length > 0) {
+        const successCount = deleteResults.filter(r => r.status === 'fulfilled').length;
+        const errorMessage = 
+          `Successfully deleted: ${successCount} project(s)\n` +
+          `Failed: ${errors.length} project(s)\n\n` +
+          `Errors:\n${errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}`;
+        showAlert('Deletion Results', errorMessage, successCount > 0 ? 'warning' : 'error');
+      } else {
+        showAlert('Success!', `Successfully deleted ${selectedProjects.size} project(s)`, 'success');
+      }
+
       setSelectedProjects(new Set());
       fetchProjects();
     } catch (error) {
-      alert('Failed to delete some projects');
+      showAlert('Error', 'Failed to delete projects. Please try again.', 'error');
     } finally {
       setBulkActionLoading(false);
     }
@@ -371,9 +418,11 @@ export function ProjectsClient() {
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="font-mono">
-                        {project.projectNumber}
-                      </Badge>
+                      <Link href={`/projects/${project.id}`}>
+                        <Badge variant="outline" className="font-mono hover:bg-primary/10 cursor-pointer transition-colors">
+                          {project.projectNumber}
+                        </Badge>
+                      </Link>
                     </TableCell>
                     <TableCell className="font-medium">{project.name}</TableCell>
                     <TableCell>{project.client.name}</TableCell>

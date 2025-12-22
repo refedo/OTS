@@ -5,12 +5,27 @@
  * Displays system version history and updates
  */
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, AlertCircle, Sparkles, Wrench, FileText } from 'lucide-react';
 
-const versions = [
+type ChangelogVersion = {
+  version: string;
+  date: string;
+  type: string;
+  status: string;
+  highlights: string[];
+  mainTitle?: string;
+  changes: {
+    added: Array<{ title: string; items: string[] }>;
+    fixed: string[];
+    changed: string[];
+  };
+};
+
+const hardcodedVersions = [
   {
     version: '2.6.0',
     date: 'December 21, 2025',
@@ -810,6 +825,40 @@ const getStatusBadge = (status: string) => {
 };
 
 export default function ChangelogPage() {
+  const [versions, setVersions] = useState<ChangelogVersion[]>(hardcodedVersions);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchChangelog() {
+      try {
+        const response = await fetch('/api/changelog');
+        if (response.ok) {
+          const data = await response.json();
+          setVersions(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch changelog:', error);
+        // Keep using hardcoded versions as fallback
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchChangelog();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8 px-4 max-w-5xl">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading changelog...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
       <div className="mb-8">

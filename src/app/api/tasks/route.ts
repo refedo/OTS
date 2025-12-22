@@ -13,9 +13,10 @@ const createSchema = z.object({
   projectId: z.string().uuid().optional().nullable(),
   buildingId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
+  backlogItemId: z.string().uuid().optional().nullable(),
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
-  priority: z.enum(['Low', 'Medium', 'High']).optional(),
+  priority: z.enum(['Low', 'Medium', 'High', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   status: z.enum(['Pending', 'In Progress', 'Completed']).optional(),
 });
 
@@ -110,9 +111,24 @@ export async function POST(req: Request) {
     if (parsed.data.projectId) taskData.projectId = parsed.data.projectId;
     if (parsed.data.buildingId) taskData.buildingId = parsed.data.buildingId;
     if (parsed.data.departmentId) taskData.departmentId = parsed.data.departmentId;
+    if (parsed.data.backlogItemId) taskData.backlogItemId = parsed.data.backlogItemId;
     if (parsed.data.taskInputDate) taskData.taskInputDate = new Date(parsed.data.taskInputDate);
     if (parsed.data.dueDate) taskData.dueDate = new Date(parsed.data.dueDate);
-    if (parsed.data.priority) taskData.priority = parsed.data.priority;
+    
+    // Normalize priority to database format (capitalize first letter)
+    if (parsed.data.priority) {
+      const priorityMap: Record<string, string> = {
+        'LOW': 'Low',
+        'MEDIUM': 'Medium',
+        'HIGH': 'High',
+        'CRITICAL': 'High', // Map CRITICAL to High
+        'Low': 'Low',
+        'Medium': 'Medium',
+        'High': 'High',
+      };
+      taskData.priority = priorityMap[parsed.data.priority] || 'Medium';
+    }
+    
     if (parsed.data.status) taskData.status = parsed.data.status;
 
     const task = await prisma.task.create({

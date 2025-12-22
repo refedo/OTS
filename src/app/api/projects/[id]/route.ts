@@ -238,25 +238,102 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Check if project has tasks
+  // Check if project exists and get all related record counts
   const project = await prisma.project.findUnique({
     where: { id: params.id },
-    include: { _count: { select: { tasks: true } } },
+    include: { 
+      _count: { 
+        select: { 
+          tasks: true,
+          buildings: true,
+          assignments: true,
+        } 
+      } 
+    },
   });
 
   if (!project) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
+  // Check for related records that would prevent deletion
+  const blockingRecords: string[] = [];
+  
+  // Check tasks
   if (project._count.tasks > 0) {
+    blockingRecords.push(`${project._count.tasks} task${project._count.tasks > 1 ? 's' : ''}`);
+  }
+
+  // Check buildings
+  if (project._count.buildings > 0) {
+    blockingRecords.push(`${project._count.buildings} building${project._count.buildings > 1 ? 's' : ''}`);
+  }
+
+  // Check project assignments
+  if (project._count.assignments > 0) {
+    blockingRecords.push(`${project._count.assignments} project assignment${project._count.assignments > 1 ? 's' : ''}`);
+  }
+
+  // Check WPS records
+  const wpsCount = await prisma.wPS.count({
+    where: { projectId: params.id }
+  });
+  if (wpsCount > 0) {
+    blockingRecords.push(`${wpsCount} WPS record${wpsCount > 1 ? 's' : ''}`);
+  }
+
+  // Check ITP records
+  const itpCount = await prisma.iTP.count({
+    where: { projectId: params.id }
+  });
+  if (itpCount > 0) {
+    blockingRecords.push(`${itpCount} ITP record${itpCount > 1 ? 's' : ''}`);
+  }
+
+  // Check document submissions
+  const docSubmissionCount = await prisma.documentSubmission.count({
+    where: { projectId: params.id }
+  });
+  if (docSubmissionCount > 0) {
+    blockingRecords.push(`${docSubmissionCount} document submission${docSubmissionCount > 1 ? 's' : ''}`);
+  }
+
+  // Check scope schedules
+  const scopeScheduleCount = await prisma.scopeSchedule.count({
+    where: { projectId: params.id }
+  });
+  if (scopeScheduleCount > 0) {
+    blockingRecords.push(`${scopeScheduleCount} scope schedule${scopeScheduleCount > 1 ? 's' : ''}`);
+  }
+
+  // If there are blocking records, return detailed error
+  if (blockingRecords.length > 0) {
     return NextResponse.json({ 
-      error: 'Cannot delete project with existing tasks' 
+      error: 'Cannot delete project with existing related records',
+      message: `This project has the following related records that must be deleted first: ${blockingRecords.join(', ')}.`,
+      details: {
+        projectName: project.name,
+        projectNumber: project.projectNumber,
+        blockingRecords: blockingRecords
+      }
     }, { status: 400 });
   }
 
-  await prisma.project.delete({
-    where: { id: params.id },
-  });
+  // If no blocking records, proceed with deletion
+  try {
+    await prisma.project.delete({
+      where: { id: params.id },
+    });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: 'Project deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    return NextResponse.json({ 
+      error: 'Failed to delete project',
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    }, { status: 500 });
+  }
 }
