@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import prisma from '@/lib/db';
 
 // GET - Fetch login logo URL (public, no auth required for login page)
 export async function GET() {
   try {
+    if (!prisma) {
+      return NextResponse.json({ logoUrl: null });
+    }
+    
     const setting = await prisma.systemSetting.findUnique({
       where: { key: 'login_logo' },
     });

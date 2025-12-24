@@ -23,22 +23,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type for images
+    // Validate file type - allow common document and image formats
     const allowedTypes = [
+      // Images
       'image/jpeg',
       'image/jpg',
       'image/png',
       'image/gif',
       'image/webp',
       'image/svg+xml',
+      'image/bmp',
+      // Documents
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      // Text files
+      'text/plain',
+      'text/csv',
+      // Archives
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/x-rar-compressed',
+      // CAD files
+      'application/acad',
+      'application/x-dwg',
+      'image/vnd.dwg',
+      // Other
+      'application/octet-stream', // Generic binary
     ];
 
-    if (!allowedTypes.includes(file.type)) {
+    // For knowledge-center folder, allow all file types (less restrictive)
+    if (folder !== 'knowledge-center' && !allowedTypes.includes(file.type)) {
       return NextResponse.json({ 
-        error: 'Invalid file type. Only images, PDF, and Word documents are allowed.' 
+        error: 'Invalid file type. Only images, PDF, and Office documents are allowed.' 
       }, { status: 400 });
     }
 

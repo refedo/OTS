@@ -322,7 +322,10 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to create task');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create task');
+      }
 
       const newTask = await response.json();
       setTasks([newTask, ...tasks]);
@@ -336,9 +339,11 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         taskInputDate: new Date().toISOString().split('T')[0],
         dueDate: '' 
       });
-      router.refresh();
+      setShowQuickAdd(false);
+      // Don't use router.refresh() as it causes redirect
     } catch (error) {
-      alert('Failed to create task');
+      alert(error instanceof Error ? error.message : 'Failed to create task');
+      console.error('Task creation error:', error);
     } finally {
       setCreating(false);
     }
