@@ -27,10 +27,69 @@ type ChangelogVersion = {
 
 const hardcodedVersions = [
   {
+    version: '2.10.0',
+    date: 'December 24, 2025',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🚀 GitHub Release Management & System Improvements',
+    highlights: [
+      'GitHub Release Management System',
+      'Version Manager Script & Automation',
+      'Knowledge Center File Attachments',
+      'Permission-Based Task Creation',
+      'Navigation Permission Fixes',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'GitHub Release Management System',
+          items: [
+            'Version Manager Script for automated version bumping (patch/minor/major)',
+            'GitHub Actions workflow for automatic release creation',
+            'Version Management UI at /settings/version',
+            'Deployment package generation (.tar.gz)',
+            'Comprehensive documentation (RELEASE_QUICK_START.md, RELEASE_MANAGEMENT.md)',
+            'Production deployment guide',
+          ],
+        },
+        {
+          title: 'Knowledge Center Enhancements',
+          items: [
+            'File attachment support for lessons learned entries',
+            'Multiple file upload capability',
+            'File metadata tracking (fileName, filePath, uploadedAt)',
+            'Visual file list with remove capability',
+            'Upload progress indication',
+          ],
+        },
+        {
+          title: 'Permission System Improvements',
+          items: [
+            'Navigation permissions for notification tabs (Delayed Tasks, Approvals, Deadlines)',
+            'Permission mapping for Version Management page',
+            'Query parameter routes now properly mapped to permissions',
+          ],
+        },
+      ],
+      fixed: [
+        'Version inconsistency across package.json, CHANGELOG.md, and UI components',
+        'Missing "Delayed Tasks" and "Deadlines" in sidebar for Admin/CEO roles',
+        'Quick Add Task and Full Form buttons not appearing despite having task permissions',
+        'Version Management link not appearing in Settings section',
+        'Navigation permission filtering for notification sub-items',
+      ],
+      changed: [
+        'Version display updated to v2.10.0 across all UI components',
+        'Task creation buttons now use permission-based visibility instead of role-based',
+        'Navigation permissions system extended to support query parameter routes',
+      ],
+    },
+  },
+  {
     version: '2.6.0',
     date: 'December 21, 2025',
     type: 'minor',
-    status: 'current',
+    status: 'stable',
     highlights: [
       'Performance Optimizations',
       'Tasks Interface Enhancements',

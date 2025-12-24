@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Project {
@@ -34,6 +34,8 @@ export default function NewKnowledgeEntryPage() {
     projectId: '',
     tags: '',
   });
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -51,11 +53,47 @@ export default function NewKnowledgeEntryPage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Upload attachments first if any
+      let uploadedFiles: any[] = [];
+      if (attachments.length > 0) {
+        setUploading(true);
+        for (const file of attachments) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('folder', 'knowledge-center');
+
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            uploadedFiles.push({
+              fileName: file.name,
+              filePath: uploadData.filePath,
+              uploadedAt: new Date().toISOString(),
+            });
+          }
+        }
+        setUploading(false);
+      }
+
       const payload = {
         ...formData,
         projectId: formData.projectId || null,
@@ -63,6 +101,7 @@ export default function NewKnowledgeEntryPage() {
         resolution: formData.resolution || null,
         recommendation: formData.recommendation || null,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
       };
 
       console.log('Submitting knowledge entry:', payload);
@@ -278,6 +317,39 @@ export default function NewKnowledgeEntryPage() {
                 Tags help categorize and search for entries
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="attachments">Attachments (Optional)</Label>
+              <div className="space-y-2">
+                <Input
+                  id="attachments"
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  className="cursor-pointer"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Upload supporting documents, images, or files
+                </p>
+                {attachments.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 border rounded">
+                        <span className="text-sm truncate flex-1">{file.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAttachment(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -290,9 +362,9 @@ export default function NewKnowledgeEntryPage() {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || uploading}>
             <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Creating...' : 'Create Entry'}
+            {uploading ? 'Uploading files...' : loading ? 'Creating...' : 'Create Entry'}
           </Button>
         </div>
       </form>

@@ -2757,6 +2757,9 @@ model KnowledgeEntry {
   // Tags for categorization and search
   tags                  Json?                 // Array of strings
   
+  // File attachments
+  attachments           Json?                 // Array of {fileName: string, filePath: string, uploadedAt: string}
+  
   // Ownership and validation
   reportedById          String                @db.Char(36)
   ownerId               String?               @db.Char(36)

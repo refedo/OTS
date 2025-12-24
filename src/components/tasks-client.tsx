@@ -88,9 +88,10 @@ type TasksClientProps = {
   allProjects: Project[];
   allBuildings: Building[];
   allDepartments: Department[];
+  userPermissions: string[];
 };
 
-export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments }: TasksClientProps) {
+export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions }: TasksClientProps) {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [search, setSearch] = useState('');
@@ -115,7 +116,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const canCreateTask = ['Admin', 'Manager'].includes(userRole);
+  const canCreateTask = userPermissions.includes('tasks.create');
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {

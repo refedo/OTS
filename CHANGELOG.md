@@ -1,22 +1,112 @@
-# C
-## [2.10.0] - 2025-12-24
-
-### Added
-- 
-
-### Changed
-- 
-
-### Fixed
-- 
-
----
-hangelog - Hexa Steel OTS
+# Changelog - Hexa Steel OTS
 
 All notable changes to the Hexa Steel Operation Tracking System will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0).
+
+---
+
+## [2.10.0] - 2025-12-24
+
+### 🚀 GitHub Release Management & System Improvements
+
+Complete implementation of GitHub release management system with automated workflows, version tracking, and enhanced permission-based navigation.
+
+#### Added
+
+**GitHub Release Management System**
+- **Version Manager Script** (`scripts/version-manager.js`)
+  - Automated version bumping (patch/minor/major)
+  - Updates package.json, CHANGELOG.md, and all UI components simultaneously
+  - Ensures version consistency across entire codebase
+  - Prevents version hallucination and mismatches
+  - Guided Git tagging workflow
+
+- **GitHub Actions Release Workflow** (`.github/workflows/release.yml`)
+  - Automatic release creation on version tag push
+  - Builds application and generates Prisma client
+  - Creates deployment package (.tar.gz) with all necessary files
+  - Extracts version-specific changelog entries
+  - Generates deployment instructions with rollback procedures
+  - Publishes GitHub Release with artifacts (90-day retention)
+
+- **Version Management UI** (`/settings/version`)
+  - Visual version status dashboard showing current version and consistency
+  - Step-by-step release creation guide with copy-paste commands
+  - GitHub releases integration and documentation links
+  - Production deployment workflow instructions
+  - Version bump decision matrix (patch/minor/major)
+  - Added to Settings navigation in sidebar
+
+- **Comprehensive Documentation**
+  - `RELEASE_QUICK_START.md` - Quick reference guide for releases
+  - `docs/RELEASE_MANAGEMENT.md` - Complete release management guide (400+ lines)
+  - `docs/PRODUCTION_DEPLOYMENT.md` - Production server deployment guide
+  - `docs/PERMISSION_SYSTEM_GUIDE.md` - Permission integration guide
+
+**Knowledge Center Enhancements**
+- **File Attachment Support**
+  - Multiple file upload capability for lessons learned entries
+  - Attachments stored in `public/uploads/knowledge-center/`
+  - File metadata tracking (fileName, filePath, uploadedAt)
+  - Visual file list with remove capability before submission
+  - Upload progress indication
+  - Database schema updated with `attachments` JSON field
+
+**Permission System Improvements**
+- **Navigation Permission Mapping**
+  - Added permissions for notification tabs (Delayed Tasks, Approvals, Deadlines)
+  - Added permission for Version Management page
+  - Fixed missing navigation items for users with full permissions
+  - Query parameter routes now properly mapped to permissions
+
+**Task Management Fixes**
+- **Permission-Based Task Creation**
+  - Changed from role-based to permission-based access control
+  - Quick Add Task button now respects `tasks.create` permission
+  - Full Form button visibility based on permissions
+  - Fixed issue where users with task permissions couldn't create tasks
+
+#### Changed
+- Version display updated from v1.2.0 to v2.9.0 across all UI components
+- Sidebar footer now shows v2.10.0
+- Login page header now shows v2.10.0
+- Task creation buttons now use permission-based visibility instead of role-based
+- Navigation permissions system extended to support query parameter routes
+
+#### Fixed
+- Fixed version inconsistency across package.json, CHANGELOG.md, and UI components
+- Fixed missing "Delayed Tasks" and "Deadlines" in sidebar navigation for Admin/CEO roles
+- Fixed "Quick Add Task" and "Full Form" buttons not appearing despite having task permissions
+- Fixed Version Management link not appearing in Settings section
+- Fixed navigation permission filtering for notification sub-items
+- Fixed GitBranch icon import in sidebar component
+
+#### Technical Details
+- **Database Schema Changes**
+  - Added `attachments` field to `KnowledgeEntry` model (JSON type)
+  - Stores array of file metadata objects
+
+- **API Enhancements**
+  - Knowledge Center API now handles file attachments
+  - Upload API supports knowledge-center folder
+
+- **Component Updates**
+  - TasksClient component now accepts `userPermissions` prop
+  - Tasks page fetches user permissions via `getUserPermissions`
+  - Knowledge Center form includes file upload UI with preview
+
+- **Permission Mappings Added**
+  - `/notifications?tab=delayed-tasks` → `notifications.view`
+  - `/notifications?tab=approvals` → `notifications.view`
+  - `/notifications?tab=deadlines` → `notifications.view`
+  - `/settings/version` → `settings.view`
+
+#### Security
+- File uploads restricted to authenticated users
+- Permission-based access control for all task operations
+- Version management requires `settings.view` permission
 
 ---
 

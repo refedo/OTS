@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { TasksClient } from '@/components/tasks-client';
 import prisma from '@/lib/db';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function TasksPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -13,6 +14,9 @@ export default async function TasksPage() {
   if (!session) {
     redirect('/login');
   }
+
+  // Get user permissions
+  const userPermissions = await getCurrentUserPermissions();
 
   // Fetch tasks
   const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/tasks`, {
@@ -66,6 +70,7 @@ export default async function TasksPage() {
       allProjects={projects}
       allBuildings={buildings}
       allDepartments={departments}
+      userPermissions={userPermissions}
     />
   );
 }
