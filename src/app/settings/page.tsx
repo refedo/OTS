@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2 } from 'lucide-react';
+import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type Settings = {
@@ -255,6 +255,10 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications">
               <Bell className="mr-2 h-4 w-4" />
               Notifications
+            </TabsTrigger>
+            <TabsTrigger value="version">
+              <GitBranch className="mr-2 h-4 w-4" />
+              Version
             </TabsTrigger>
           </TabsList>
 
@@ -566,6 +570,27 @@ export default function SettingsPage() {
                     className="h-4 w-4"
                   />
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Version Management */}
+          <TabsContent value="version" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Version Management</CardTitle>
+                <CardDescription>
+                  Track system version and create GitHub releases
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={() => router.push('/settings/version')}
+                  className="w-full"
+                >
+                  <GitBranch className="mr-2 h-4 w-4" />
+                  Open Version Management
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
