@@ -151,6 +151,105 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'risk_management',
+    name: 'Risk Management & Early Warning',
+    permissions: [
+      { id: 'risk.view_dashboard', name: 'View Risk Dashboard', description: 'Access early warning and risk dashboard', category: 'risk_management' },
+      { id: 'risk.view_alerts', name: 'View Risk Alerts', description: 'View risk alerts and warnings', category: 'risk_management' },
+      { id: 'risk.manage', name: 'Manage Risks', description: 'Create and manage risk items', category: 'risk_management' },
+    ],
+  },
+  {
+    id: 'operations_control',
+    name: 'Operations Control',
+    permissions: [
+      { id: 'operations.view_dashboard', name: 'View Operations Dashboard', description: 'Access operations control dashboard', category: 'operations_control' },
+      { id: 'operations.view_intelligence', name: 'View Intelligence', description: 'Access operations intelligence data', category: 'operations_control' },
+      { id: 'operations.view_work_units', name: 'View Work Units', description: 'View work units and assignments', category: 'operations_control' },
+      { id: 'operations.manage_work_units', name: 'Manage Work Units', description: 'Create and manage work units', category: 'operations_control' },
+      { id: 'operations.view_dependencies', name: 'View Dependencies', description: 'View project dependencies', category: 'operations_control' },
+      { id: 'operations.manage_dependencies', name: 'Manage Dependencies', description: 'Manage project dependencies', category: 'operations_control' },
+      { id: 'operations.view_capacity', name: 'View Capacity', description: 'View capacity planning', category: 'operations_control' },
+      { id: 'operations.ai_digest', name: 'AI Risk Digest', description: 'Access AI-generated risk digests', category: 'operations_control' },
+    ],
+  },
+  {
+    id: 'business_planning',
+    name: 'Business Planning & Strategy',
+    permissions: [
+      { id: 'business.view_dashboard', name: 'View Business Dashboard', description: 'Access business planning dashboard', category: 'business_planning' },
+      { id: 'business.view_foundation', name: 'View Strategic Foundation', description: 'View strategic foundation and vision', category: 'business_planning' },
+      { id: 'business.edit_foundation', name: 'Edit Strategic Foundation', description: 'Edit strategic foundation', category: 'business_planning' },
+      { id: 'business.view_swot', name: 'View SWOT Analysis', description: 'View SWOT analysis', category: 'business_planning' },
+      { id: 'business.edit_swot', name: 'Edit SWOT Analysis', description: 'Create and edit SWOT analysis', category: 'business_planning' },
+      { id: 'business.view_objectives', name: 'View Objectives (OKRs)', description: 'View company objectives and key results', category: 'business_planning' },
+      { id: 'business.manage_objectives', name: 'Manage Objectives', description: 'Create and manage OKRs', category: 'business_planning' },
+      { id: 'business.view_kpis', name: 'View KPIs', description: 'View business KPIs', category: 'business_planning' },
+      { id: 'business.manage_kpis', name: 'Manage KPIs', description: 'Create and manage KPIs', category: 'business_planning' },
+      { id: 'business.view_initiatives', name: 'View Initiatives', description: 'View business initiatives', category: 'business_planning' },
+      { id: 'business.manage_initiatives', name: 'Manage Initiatives', description: 'Create and manage initiatives', category: 'business_planning' },
+      { id: 'business.view_dept_plans', name: 'View Department Plans', description: 'View department plans', category: 'business_planning' },
+      { id: 'business.manage_dept_plans', name: 'Manage Department Plans', description: 'Create and manage department plans', category: 'business_planning' },
+      { id: 'business.view_issues', name: 'View Weekly Issues', description: 'View weekly issues', category: 'business_planning' },
+      { id: 'business.manage_issues', name: 'Manage Weekly Issues', description: 'Create and manage weekly issues', category: 'business_planning' },
+    ],
+  },
+  {
+    id: 'knowledge_center',
+    name: 'Knowledge Center',
+    permissions: [
+      { id: 'knowledge.view', name: 'View Knowledge', description: 'Access knowledge center and entries', category: 'knowledge_center' },
+      { id: 'knowledge.create', name: 'Create Knowledge', description: 'Create new knowledge entries', category: 'knowledge_center' },
+      { id: 'knowledge.edit', name: 'Edit Knowledge', description: 'Edit knowledge entries', category: 'knowledge_center' },
+      { id: 'knowledge.delete', name: 'Delete Knowledge', description: 'Delete knowledge entries', category: 'knowledge_center' },
+      { id: 'knowledge.validate', name: 'Validate Knowledge', description: 'Validate and approve knowledge entries', category: 'knowledge_center' },
+    ],
+  },
+  {
+    id: 'product_backlog',
+    name: 'Product Backlog & Development',
+    permissions: [
+      { id: 'backlog.view', name: 'View Backlog', description: 'View product backlog board', category: 'product_backlog' },
+      { id: 'backlog.create', name: 'Create Backlog Items', description: 'Create new backlog items', category: 'product_backlog' },
+      { id: 'backlog.edit', name: 'Edit Backlog Items', description: 'Edit backlog items', category: 'product_backlog' },
+      { id: 'backlog.delete', name: 'Delete Backlog Items', description: 'Delete backlog items', category: 'product_backlog' },
+      { id: 'backlog.prioritize', name: 'Prioritize Backlog', description: 'Set priorities and manage backlog order', category: 'product_backlog' },
+      { id: 'backlog.ceo_center', name: 'CEO Control Center', description: 'Access CEO control center', category: 'product_backlog' },
+    ],
+  },
+  {
+    id: 'notifications',
+    name: 'Notifications & Events',
+    permissions: [
+      { id: 'notifications.view', name: 'View Notifications', description: 'View own notifications', category: 'notifications' },
+      { id: 'notifications.view_all', name: 'View All Notifications', description: 'View all system notifications', category: 'notifications' },
+      { id: 'notifications.manage', name: 'Manage Notifications', description: 'Create and manage system notifications', category: 'notifications' },
+      { id: 'events.view', name: 'View System Events', description: 'View system events log', category: 'notifications' },
+      { id: 'events.manage', name: 'Manage Events', description: 'Manage system events', category: 'notifications' },
+      { id: 'governance.view', name: 'View Governance', description: 'Access governance center', category: 'notifications' },
+    ],
+  },
+  {
+    id: 'ai_assistant',
+    name: 'AI Assistant',
+    permissions: [
+      { id: 'ai.use', name: 'Use AI Assistant', description: 'Access and use AI assistant', category: 'ai_assistant' },
+      { id: 'ai.view_history', name: 'View AI History', description: 'View AI conversation history', category: 'ai_assistant' },
+      { id: 'ai.admin', name: 'AI Administration', description: 'Manage AI settings and configurations', category: 'ai_assistant' },
+    ],
+  },
+  {
+    id: 'timeline',
+    name: 'Timeline & Scheduling',
+    permissions: [
+      { id: 'timeline.view', name: 'View Timeline', description: 'View project timelines', category: 'timeline' },
+      { id: 'timeline.edit', name: 'Edit Timeline', description: 'Edit project timelines', category: 'timeline' },
+      { id: 'timeline.operations', name: 'Operations Timeline', description: 'Access operations timeline', category: 'timeline' },
+      { id: 'timeline.engineering', name: 'Engineering Timeline', description: 'Access engineering document timeline', category: 'timeline' },
+      { id: 'timeline.events', name: 'Event Management', description: 'Manage timeline events', category: 'timeline' },
+    ],
+  },
+  {
     id: 'settings',
     name: 'System Settings',
     permissions: [
@@ -248,6 +347,57 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Reports
     'reports.view',
     'reports.export',
+    // Risk Management
+    'risk.view_dashboard',
+    'risk.view_alerts',
+    'risk.manage',
+    // Operations Control
+    'operations.view_dashboard',
+    'operations.view_intelligence',
+    'operations.view_work_units',
+    'operations.manage_work_units',
+    'operations.view_dependencies',
+    'operations.manage_dependencies',
+    'operations.view_capacity',
+    'operations.ai_digest',
+    // Business Planning
+    'business.view_dashboard',
+    'business.view_foundation',
+    'business.view_swot',
+    'business.view_objectives',
+    'business.manage_objectives',
+    'business.view_kpis',
+    'business.manage_kpis',
+    'business.view_initiatives',
+    'business.manage_initiatives',
+    'business.view_dept_plans',
+    'business.manage_dept_plans',
+    'business.view_issues',
+    'business.manage_issues',
+    // Knowledge Center
+    'knowledge.view',
+    'knowledge.create',
+    'knowledge.edit',
+    'knowledge.validate',
+    // Product Backlog
+    'backlog.view',
+    'backlog.create',
+    'backlog.edit',
+    'backlog.prioritize',
+    // Notifications
+    'notifications.view',
+    'notifications.view_all',
+    'events.view',
+    'governance.view',
+    // AI Assistant
+    'ai.use',
+    'ai.view_history',
+    // Timeline
+    'timeline.view',
+    'timeline.edit',
+    'timeline.operations',
+    'timeline.engineering',
+    'timeline.events',
   ],
   Engineer: [
     // Basic Access
@@ -281,6 +431,40 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'documents.upload',
     // Reports
     'reports.view',
+    // Risk Management
+    'risk.view_dashboard',
+    'risk.view_alerts',
+    // Operations Control
+    'operations.view_dashboard',
+    'operations.view_intelligence',
+    'operations.view_work_units',
+    'operations.view_dependencies',
+    'operations.view_capacity',
+    // Business Planning (View Only)
+    'business.view_dashboard',
+    'business.view_foundation',
+    'business.view_swot',
+    'business.view_objectives',
+    'business.view_kpis',
+    'business.view_initiatives',
+    // Knowledge Center
+    'knowledge.view',
+    'knowledge.create',
+    'knowledge.edit',
+    // Product Backlog
+    'backlog.view',
+    'backlog.create',
+    'backlog.edit',
+    // Notifications
+    'notifications.view',
+    'events.view',
+    // AI Assistant
+    'ai.use',
+    'ai.view_history',
+    // Timeline
+    'timeline.view',
+    'timeline.operations',
+    'timeline.engineering',
   ],
   Operator: [
     // Basic Access
@@ -301,5 +485,20 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'quality.view_wps',
     // Document View
     'documents.view',
+    // Risk Management (View Only)
+    'risk.view_dashboard',
+    'risk.view_alerts',
+    // Operations Control (View Only)
+    'operations.view_dashboard',
+    'operations.view_work_units',
+    // Knowledge Center (View Only)
+    'knowledge.view',
+    // Notifications
+    'notifications.view',
+    // AI Assistant
+    'ai.use',
+    // Timeline (View Only)
+    'timeline.view',
+    'timeline.operations',
   ],
 };

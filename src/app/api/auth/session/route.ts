@@ -39,6 +39,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found or inactive' }, { status: 401 });
     }
 
+    // Get user permissions: custom permissions override role permissions
+    const permissions = user.customPermissions 
+      ? (user.customPermissions as string[])
+      : (user.role.permissions as string[] || []);
+
     // Check if session data needs refresh (role or department changed)
     const needsRefresh = 
       session.role !== user.role.name || 
@@ -66,7 +71,8 @@ export async function GET(request: NextRequest) {
           email: user.email,
           role: user.role.name,
           departmentId: user.departmentId,
-          department: user.department?.name
+          department: user.department?.name,
+          permissions: permissions
         }
       });
 
@@ -88,7 +94,8 @@ export async function GET(request: NextRequest) {
         email: user.email,
         role: user.role.name,
         departmentId: user.departmentId,
-        department: user.department?.name
+        department: user.department?.name,
+        permissions: permissions
       }
     });
   } catch (error) {

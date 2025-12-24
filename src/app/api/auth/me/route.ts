@@ -16,11 +16,17 @@ export async function GET() {
   });
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Get user permissions: custom permissions override role permissions
+  const permissions = user.customPermissions 
+    ? (user.customPermissions as string[])
+    : (user.role.permissions as string[] || []);
+
   return NextResponse.json({
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role.name,
-    department: user.department?.name ?? null
+    department: user.department?.name ?? null,
+    permissions: permissions
   });
 }
