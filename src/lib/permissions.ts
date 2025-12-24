@@ -501,4 +501,53 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'timeline.view',
     'timeline.operations',
   ],
+  'Document Controller': [
+    // Basic Access
+    'users.view',
+    'departments.view',
+    // Project Access
+    'projects.view',
+    'projects.view_all',
+    'buildings.view',
+    // Task Management
+    'tasks.view',
+    'tasks.view_all',
+    'tasks.create',
+    'tasks.edit',
+    'tasks.assign',
+    // Document Management (Full Access)
+    'documents.view',
+    'documents.upload',
+    'documents.edit',
+    'documents.approve',
+    'documents.manage_categories',
+    // Quality Control (Document Related)
+    'quality.view_itp',
+    'quality.view_wps',
+    'quality.view_rfi',
+    'quality.view_ncr',
+    // Project Planning
+    'planning.view',
+    // Reports
+    'reports.view',
+    'reports.export',
+    // Knowledge Center
+    'knowledge.view',
+    'knowledge.create',
+    'knowledge.edit',
+    // Notifications
+    'notifications.view',
+    'notifications.view_all',
+    'events.view',
+    'governance.view',
+    // AI Assistant
+    'ai.use',
+    'ai.view_history',
+    // Timeline
+    'timeline.view',
+    'timeline.engineering',
+    'timeline.events',
+    // Settings
+    'settings.view',
+  ],
 };

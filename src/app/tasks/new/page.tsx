@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import prisma from '@/lib/db';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function NewTaskPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -14,8 +15,9 @@ export default async function NewTaskPage() {
     redirect('/login');
   }
 
-  // Only Admins and Managers can create tasks
-  if (!['Admin', 'Manager'].includes(session.role)) {
+  // Check if user has permission to create tasks
+  const userPermissions = await getCurrentUserPermissions();
+  if (!userPermissions.includes('tasks.create')) {
     redirect('/tasks');
   }
 
