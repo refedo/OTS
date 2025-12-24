@@ -257,7 +257,7 @@ This project is proprietary software owned by Hexa Steel®.
 
 ## 👥 Authors
 
-- **Hexa Steel® Development Team**
+- **Walid Dami - Hexa Steel® Development Team**
 
 ## 🙏 Acknowledgments
 
