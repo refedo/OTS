@@ -38,6 +38,7 @@ import {
   Sparkles,
   Bell,
   FileCode,
+  GitBranch,
   CheckCircle,
   Zap,
   FileSpreadsheet,
@@ -206,6 +207,7 @@ const navigationSections: NavigationSection[] = [
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Version Management', href: '/settings/version', icon: GitBranch },
       { name: 'Changelog', href: '/changelog', icon: FileCode },
     ],
   },
@@ -528,7 +530,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v1.2.0
+                  Hexa Steel® OTS v2.10.0
                 </p>
               </div>
             )}

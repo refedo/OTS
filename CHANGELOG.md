@@ -1,4 +1,17 @@
-# Changelog - Hexa Steel OTS
+# C
+## [2.10.0] - 2025-12-24
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+---
+hangelog - Hexa Steel OTS
 
 All notable changes to the Hexa Steel Operation Tracking System will be documented in this file.
 
