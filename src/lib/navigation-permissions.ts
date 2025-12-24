@@ -25,6 +25,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   
   // Notifications
   '/notifications': ['notifications.view'],
+  '/notifications?tab=delayed-tasks': ['notifications.view'],
+  '/notifications?tab=approvals': ['notifications.view'],
+  '/notifications?tab=deadlines': ['notifications.view'],
   '/events': ['events.view'],
   '/governance': ['governance.view'],
   
@@ -100,6 +103,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   
   // Settings
   '/settings': ['settings.view'],
+  '/settings/version': ['settings.view'],
   '/changelog': null, // Public - Everyone can view changelog
 };
 
