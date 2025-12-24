@@ -111,7 +111,7 @@ export async function PATCH(
     }
 
     const isOwner = existingEntry.reportedById === session.sub || existingEntry.ownerId === session.sub;
-    const isSupervisorOrAbove = ['Supervisor', 'Manager', 'Admin', 'CEO'].includes(session.role);
+    const isSupervisorOrAbove = ['Supervisor', 'Manager', 'Admin', 'CEO', 'Document Controller'].includes(session.role);
 
     if (!isOwner && !isSupervisorOrAbove) {
       return NextResponse.json({ error: 'Unauthorized to update this entry' }, { status: 403 });
@@ -120,7 +120,7 @@ export async function PATCH(
     const updateData: any = { ...validated };
 
     if (validated.status === 'Validated' && !isSupervisorOrAbove) {
-      return NextResponse.json({ error: 'Only Supervisor or above can validate entries' }, { status: 403 });
+      return NextResponse.json({ error: 'Only Supervisor, Manager, Document Controller or above can validate entries' }, { status: 403 });
     }
 
     if (validated.status === 'Validated' && existingEntry.status !== 'Validated') {
