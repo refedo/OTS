@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import NotificationService from '@/lib/services/notification.service';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const createSchema = z.object({
   title: z.string().min(2),
@@ -84,9 +85,14 @@ export async function POST(req: Request) {
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    // Only Admins and Managers can create tasks
-    if (!session || !['Admin', 'Manager'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check if user has permission to create tasks
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('tasks.create')) {
+      return NextResponse.json({ error: 'Forbidden - You do not have permission to create tasks' }, { status: 403 });
     }
 
     const body = await req.json();

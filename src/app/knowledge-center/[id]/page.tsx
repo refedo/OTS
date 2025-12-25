@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Save, Edit, CheckCircle, Trash2, Clock } from 'lucide-react';
+import { ArrowLeft, Save, Edit, CheckCircle, Trash2, Clock, Paperclip, Download, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -38,6 +38,11 @@ interface KnowledgeEntry {
   projectId?: string;
   tags?: string[];
   evidenceLinks?: any[];
+  attachments?: Array<{
+    fileName: string;
+    filePath: string;
+    uploadedAt: string;
+  }>;
   reportedBy: {
     id: string;
     name: string;
@@ -457,12 +462,23 @@ export default function KnowledgeEntryDetailPage() {
                 </div>
               )}
 
-              {entry.tags && entry.tags.length > 0 && (
+              {entry.attachments && entry.attachments.length > 0 && (
                 <div>
-                  <Label className="text-muted-foreground">Tags</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {entry.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary">{tag}</Badge>
+                  <Label className="text-muted-foreground">Attachments</Label>
+                  <div className="mt-2 space-y-2">
+                    {entry.attachments.map((attachment, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                        <span className="flex-1 text-sm">{attachment.fileName}</span>
+                        <a
+                          href={attachment.filePath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Download className="h-4 w-4" />
+                        </a>
+                      </div>
                     ))}
                   </div>
                 </div>

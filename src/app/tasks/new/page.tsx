@@ -21,9 +21,10 @@ export default async function NewTaskPage() {
     redirect('/tasks');
   }
 
-  // Fetch users for assignment (subordinates for managers, all for admins) with department info
+  // Fetch users for assignment with department info
   let users;
-  if (session.role === 'Admin') {
+  if (session.role === 'Admin' || session.role === 'Document Controller' || session.role === 'CEO') {
+    // Admin, Document Controller, and CEO see all active users
     users = await prisma.user.findMany({
       where: { status: 'active' },
       select: { 
