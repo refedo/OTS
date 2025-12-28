@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { comparePassword } from '@/lib/password';
 import { signSession } from '@/lib/jwt';
+import { logSystemEvent } from '@/lib/api-utils';
 
 const schema = z.object({
   email: z.string().email(),
@@ -60,6 +61,16 @@ export async function POST(req: Request) {
     const secure = process.env.COOKIE_SECURE === 'true';
     const domain = process.env.COOKIE_DOMAIN || undefined;
     const maxAge = parsed.data.remember ? 60*60*24*30 : 60*60*24;
+
+    // Log login event
+    await logSystemEvent({
+      eventType: 'login',
+      category: 'auth',
+      title: `User logged in: ${user.name}`,
+      description: `${user.email} logged in successfully`,
+      userId: user.id,
+      metadata: { email: user.email, role: user.role.name },
+    });
 
     // For JSON requests, return success with cookie
     if (contentType.includes('application/json')) {

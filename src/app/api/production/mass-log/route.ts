@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { logSystemEvent } from '@/lib/api-utils';
 
 const massLogSchema = z.object({
   logs: z.array(z.object({
@@ -204,6 +205,23 @@ export async function POST(req: Request) {
         results.failedCount++;
         results.errors.push(`Error processing part: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    }
+
+    // Log mass production event
+    if (results.successCount > 0) {
+      const processTypes = [...new Set(parsed.data.logs.map(l => l.processType))];
+      await logSystemEvent({
+        eventType: 'created',
+        category: 'production',
+        title: `Mass logged ${results.successCount} production entries`,
+        description: `Processes: ${processTypes.join(', ')}${results.failedCount > 0 ? ` (${results.failedCount} failed)` : ''}`,
+        userId: session.sub,
+        metadata: {
+          successCount: results.successCount,
+          failedCount: results.failedCount,
+          processTypes,
+        },
+      });
     }
 
     return NextResponse.json(results, { status: 201 });

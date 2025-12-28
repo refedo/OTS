@@ -6,6 +6,7 @@ import { verifySession } from '@/lib/jwt';
 import NotificationService from '@/lib/services/notification.service';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import { logActivity } from '@/lib/api-utils';
 
 const createSchema = z.object({
   title: z.string().min(2),
@@ -193,6 +194,21 @@ export async function POST(req: Request) {
       departmentId: task.departmentId,
     }).catch((err) => {
       console.error('WorkUnit sync failed:', err);
+    });
+
+    // Log audit trail and system event
+    await logActivity({
+      action: 'CREATE',
+      entityType: 'Task',
+      entityId: task.id,
+      entityName: task.title,
+      userId: session.sub,
+      projectId: task.projectId || undefined,
+      metadata: { 
+        assignedTo: task.assignedTo?.name,
+        priority: task.priority,
+        status: task.status,
+      },
     });
 
     return NextResponse.json(task, { status: 201 });

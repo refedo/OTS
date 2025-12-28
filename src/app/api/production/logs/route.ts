@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { recalculateProductionKPIs } from '@/lib/kpi/hooks';
 import { WorkTrackingValidatorService } from '@/lib/services/work-tracking-validator.service';
+import { logActivity } from '@/lib/api-utils';
 
 const productionLogSchema = z.object({
   assemblyPartId: z.string().uuid(),
@@ -269,6 +270,21 @@ export async function POST(req: Request) {
       console.error('KPI recalculation failed:', error);
     });
 
+    // Log audit trail
+    await logActivity({
+      action: 'CREATE',
+      entityType: 'ProductionLog',
+      entityId: productionLog.id,
+      entityName: `${logData.processType} - ${productionLog.assemblyPart.partMark}`,
+      userId: session.sub,
+      projectId: assemblyPart.projectId,
+      metadata: {
+        processType: logData.processType,
+        processedQty,
+        partDesignation: assemblyPart.partDesignation,
+      },
+    });
+
     // Return production log with any warnings
     return NextResponse.json({
       ...productionLog,
@@ -302,6 +318,12 @@ export async function DELETE(req: Request) {
 
     const ids = idsParam.split(',');
 
+    // Get logs info before deletion for audit
+    const logsToDelete = await prisma.productionLog.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, processType: true, assemblyPart: { select: { partDesignation: true, projectId: true } } },
+    });
+
     // Delete the production logs
     const result = await prisma.productionLog.deleteMany({
       where: {
@@ -310,6 +332,20 @@ export async function DELETE(req: Request) {
         },
       },
     });
+
+    // Log deletion event
+    if (result.count > 0) {
+      await logActivity({
+        action: 'DELETE',
+        entityType: 'ProductionLog',
+        entityId: ids[0],
+        entityName: `${result.count} production log(s)`,
+        userId: session.sub,
+        projectId: logsToDelete[0]?.assemblyPart?.projectId,
+        reason: 'Production logs deleted',
+        metadata: { deletedCount: result.count, processTypes: logsToDelete.map(l => l.processType) },
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 

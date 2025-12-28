@@ -117,16 +117,36 @@ export default function EventsPage() {
     }
   };
 
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-    return date.toLocaleDateString();
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -224,15 +244,15 @@ export default function EventsPage() {
         </CardContent>
       </Card>
 
-      {/* Events List */}
+      {/* Events List - Dolibarr Style Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Recent Activity</CardTitle>
+          <CardTitle className="text-lg">Event Log</CardTitle>
           <CardDescription>
             Showing {events.length} of {total} events
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading events...</div>
           ) : events.length === 0 ? (
@@ -241,55 +261,98 @@ export default function EventsPage() {
               <p>No events found</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-start gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                >
-                  <div className="mt-1">
-                    {EVENT_TYPE_ICONS[event.eventType] || <Activity className="h-4 w-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-sm">{event.title}</p>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${CATEGORY_COLORS[event.category] || ''}`}
-                      >
-                        {event.category}
-                      </Badge>
-                    </div>
-                    {event.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
-                    )}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {event.user.name}
-                      </span>
-                      {event.project && (
-                        <span className="flex items-center gap-1">
-                          <FolderOpen className="h-3 w-3" />
-                          {event.project.projectNumber}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Ref</th>
+                    <th className="text-left p-3 font-medium">Owner</th>
+                    <th className="text-left p-3 font-medium">Type</th>
+                    <th className="text-left p-3 font-medium">Title</th>
+                    <th className="text-left p-3 font-medium">Date</th>
+                    <th className="text-left p-3 font-medium">Time</th>
+                    <th className="text-left p-3 font-medium">Project</th>
+                    <th className="text-left p-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((event, index) => (
+                    <tr 
+                      key={event.id}
+                      className="border-b hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          {EVENT_TYPE_ICONS[event.eventType] || <Activity className="h-4 w-4" />}
+                          <span className="text-xs text-muted-foreground">
+                            #{((page - 1) * limit) + index + 1}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{event.user.name}</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${CATEGORY_COLORS[event.category] || ''}`}
+                        >
+                          {event.category}
+                        </Badge>
+                      </td>
+                      <td className="p-3 max-w-md">
+                        <div>
+                          <p className="font-medium">{event.title}</p>
+                          {event.description && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {event.description}
+                            </p>
+                          )}
+                          {event.entityType && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Entity: {event.entityType}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        <span className="text-sm">{formatDate(event.createdAt)}</span>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        <span className="text-sm text-muted-foreground">
+                          {formatTime(event.createdAt)}
                         </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(event.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                      </td>
+                      <td className="p-3">
+                        {event.project ? (
+                          <div className="flex items-center gap-1">
+                            <FolderOpen className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs">{event.project.projectNumber}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {event.eventType}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between p-4 border-t bg-muted/20">
               <p className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
+                Page {page} of {totalPages} • Total: {total} events
               </p>
               <div className="flex gap-2">
                 <Button
@@ -298,7 +361,8 @@ export default function EventsPage() {
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
                 </Button>
                 <Button
                   variant="outline"
@@ -306,7 +370,8 @@ export default function EventsPage() {
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             </div>

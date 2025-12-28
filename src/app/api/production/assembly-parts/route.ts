@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { logActivity, logSystemEvent } from '@/lib/api-utils';
 
 const assemblyPartSchema = z.object({
   projectId: z.string().uuid(),
@@ -234,6 +235,23 @@ export async function POST(req: Request) {
         }
       }
 
+      // Log bulk import event
+      if (results.length > 0) {
+        await logSystemEvent({
+          eventType: 'imported',
+          category: 'production',
+          title: `Bulk imported ${results.length} assembly parts`,
+          description: `Successfully imported ${results.length} assembly parts${errors.length > 0 ? `, ${errors.length} failed` : ''}`,
+          userId: session.sub,
+          projectId: results[0]?.projectId,
+          metadata: { 
+            successCount: results.length, 
+            failedCount: errors.length,
+            partDesignations: results.slice(0, 10).map((p: any) => p.partDesignation),
+          },
+        });
+      }
+
       return NextResponse.json({
         success: results.length,
         failed: errors.length,
@@ -273,6 +291,17 @@ export async function POST(req: Request) {
           select: { id: true, name: true },
         },
       },
+    });
+
+    // Log audit trail
+    await logActivity({
+      action: 'CREATE',
+      entityType: 'AssemblyPart',
+      entityId: assemblyPart.id,
+      entityName: assemblyPart.partDesignation,
+      userId: session.sub,
+      projectId: assemblyPart.projectId,
+      metadata: { partMark: assemblyPart.partMark, quantity: assemblyPart.quantity },
     });
 
     return NextResponse.json(assemblyPart, { status: 201 });

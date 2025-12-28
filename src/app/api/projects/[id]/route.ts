@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { logActivity } from '@/lib/api-utils';
 
 const updateSchema = z.object({
   projectNumber: z.string().min(1).optional().nullable(),
@@ -205,6 +206,12 @@ export async function PATCH(
     }
   });
 
+    // Get old data for audit trail
+    const oldProject = await prisma.project.findUnique({
+      where: { id: params.id },
+      select: { projectNumber: true, name: true, status: true },
+    });
+
     const project = await prisma.project.update({
       where: { id: params.id },
       data: updateData,
@@ -214,6 +221,19 @@ export async function PATCH(
         salesEngineer: { select: { id: true, name: true } },
         buildings: true,
       },
+    });
+
+    // Log audit trail and system event
+    await logActivity({
+      action: 'UPDATE',
+      entityType: 'Project',
+      entityId: project.id,
+      entityName: `${project.projectNumber} - ${project.name}`,
+      userId: session.sub,
+      projectId: project.id,
+      changes: oldProject ? {
+        status: { old: oldProject.status, new: project.status },
+      } : undefined,
     });
 
     return NextResponse.json(project);
@@ -323,6 +343,16 @@ export async function DELETE(
   try {
     await prisma.project.delete({
       where: { id: params.id },
+    });
+
+    // Log audit trail and system event
+    await logActivity({
+      action: 'DELETE',
+      entityType: 'Project',
+      entityId: params.id,
+      entityName: `${project.projectNumber} - ${project.name}`,
+      userId: session.sub,
+      reason: 'Project deleted by admin',
     });
 
     return NextResponse.json({ 

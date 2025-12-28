@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.11.0] - 2025-12-28
+
+### 🔍 Enterprise Audit Trail & Event Management System
+
+Comprehensive audit trail and event management system with Dolibarr-style interface, bulk operation logging, and complete governance documentation.
+
+#### Added
+
+**Enterprise Audit Trail System**
+- Automatic audit logging for all CRUD operations on critical entities
+- Field-level change tracking with before/after values
+- User context and request tracing for all operations
+- Audit logging integrated into Projects, Tasks, Buildings, Assembly Parts, Production Logs
+- Login/Logout event tracking
+- System event logging for bulk operations
+- API utility helpers: logActivity(), logAuditEvent(), logSystemEvent()
+
+**Dolibarr-Style Event Management**
+- Redesigned /events page with professional table layout
+- Proper date and time display in separate columns (MM/DD/YYYY, HH:MM:SS AM/PM)
+- Event reference numbers with icons
+- Owner/user tracking for each event
+- Category badges (production, auth, record, QC, etc.)
+- Entity type and project association display
+- Enhanced filtering by category and event type
+- Improved pagination with total counts
+
+**Bulk Operation Logging**
+- Bulk assembly part import logging
+- Mass production logging event tracking
+- Individual production log create/delete logging
+- Success/failure count tracking for bulk operations
+- Process type aggregation for mass operations
+
+**Governance Center Documentation**
+- Comprehensive Governance Center Guide (docs/GOVERNANCE_CENTER_GUIDE.md)
+- Quick Reference Guide (docs/GOVERNANCE_QUICK_GUIDE.md)
+- Audit trail usage documentation
+- Data recovery procedures
+- Version history explanation
+- Best practices for governance
+- Troubleshooting guide
+- Permission matrix documentation
+
+#### Fixed
+- Missing dates in events table - now displays properly
+- Bulk assembly part uploads not appearing in audit trail
+- Mass production logging not creating system events
+- Individual production log operations not tracked
+- Event timestamps showing relative time instead of actual dates
+
+#### Changed
+- Events page redesigned with table view (similar to Dolibarr ERP)
+- Date formatting improved for better readability
+- Event display now shows all relevant metadata
+- Pagination enhanced with better navigation
+
+---
+
 ## [2.10.0] - 2025-12-24
 
 ### 🚀 GitHub Release Management & System Improvements

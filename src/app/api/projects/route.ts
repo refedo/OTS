@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { logActivity } from '@/lib/api-utils';
 
 const createSchema = z.object({
   projectNumber: z.string().min(1),
@@ -212,6 +213,17 @@ export async function POST(req: Request) {
         projectManager: { select: { id: true, name: true, position: true } },
         salesEngineer: { select: { id: true, name: true } },
       },
+    });
+
+    // Log audit trail and system event
+    await logActivity({
+      action: 'CREATE',
+      entityType: 'Project',
+      entityId: project.id,
+      entityName: `${project.projectNumber} - ${project.name}`,
+      userId: session.sub,
+      projectId: project.id,
+      metadata: { projectNumber: project.projectNumber, name: project.name },
     });
 
     return NextResponse.json(project, { status: 201 });

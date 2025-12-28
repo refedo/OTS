@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { logActivity } from '@/lib/api-utils';
 
 export async function GET(req: Request) {
   const store = await cookies();
@@ -79,6 +80,20 @@ export async function POST(req: Request) {
         designation,
         description: description || null,
       },
+      include: {
+        project: { select: { projectNumber: true } },
+      },
+    });
+
+    // Log audit trail
+    await logActivity({
+      action: 'CREATE',
+      entityType: 'Building',
+      entityId: building.id,
+      entityName: `${building.designation} - ${building.name}`,
+      userId: session.sub,
+      projectId: building.projectId,
+      metadata: { designation: building.designation, projectNumber: building.project?.projectNumber },
     });
 
     return NextResponse.json(building);
@@ -143,10 +158,29 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Get building info for logging before deletion
+    const buildingsToDelete = await prisma.building.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, designation: true, projectId: true },
+    });
+
     // Delete buildings
     const result = await prisma.building.deleteMany({
       where: { id: { in: ids } },
     });
+
+    // Log audit trail for each deleted building
+    for (const b of buildingsToDelete) {
+      await logActivity({
+        action: 'DELETE',
+        entityType: 'Building',
+        entityId: b.id,
+        entityName: `${b.designation} - ${b.name}`,
+        userId: session.sub,
+        projectId: b.projectId,
+        reason: 'Building deleted',
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 

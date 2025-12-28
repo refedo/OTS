@@ -251,10 +251,19 @@ export default function GovernancePage() {
             Enterprise audit trail, version history, and data recovery
           </p>
         </div>
-        <Button variant="outline" onClick={() => { fetchStats(); if (activeTab === 'audit') fetchAuditLogs(); }}>
-          <RefreshCw className="size-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => window.open('/docs/GOVERNANCE_QUICK_GUIDE.md', '_blank')}
+          >
+            <FileText className="size-4 mr-2" />
+            Quick Guide
+          </Button>
+          <Button variant="outline" onClick={() => { fetchStats(); if (activeTab === 'audit') fetchAuditLogs(); }}>
+            <RefreshCw className="size-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}

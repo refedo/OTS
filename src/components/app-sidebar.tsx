@@ -228,6 +228,7 @@ export function AppSidebar() {
   const [isMounted, setIsMounted] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
+  const [riskCount, setRiskCount] = useState(0);
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
   
   // Find which section contains the active route
@@ -290,6 +291,25 @@ export function AppSidebar() {
     }
 
     fetchPermissions();
+  }, []);
+
+  // Fetch risk count
+  useEffect(() => {
+    async function fetchRiskCount() {
+      try {
+        const response = await fetch('/api/risk-events');
+        if (response.ok) {
+          const data = await response.json();
+          setRiskCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch risk count:', error);
+      }
+    }
+
+    fetchRiskCount();
+    const interval = setInterval(fetchRiskCount, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const toggleSection = (sectionName: string) => {
@@ -373,9 +393,19 @@ export function AppSidebar() {
                       {totalAlertCount > 99 ? '99+' : totalAlertCount}
                     </span>
                   )}
+                  {isMounted && item.href === '/risk-dashboard' && riskCount > 0 && !collapsed && (
+                    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                      {riskCount > 99 ? '99+' : riskCount}
+                    </span>
+                  )}
                   {isMounted && collapsed && isNotifications && totalAlertCount > 0 && (
                     <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
                       {totalAlertCount > 9 ? '9+' : totalAlertCount}
+                    </span>
+                  )}
+                  {isMounted && collapsed && item.href === '/risk-dashboard' && riskCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                      {riskCount > 9 ? '9+' : riskCount}
                     </span>
                   )}
                 </Link>
@@ -539,7 +569,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v2.10.0
+                  Hexa Steel® OTS v2.11.0
                 </p>
               </div>
             )}
