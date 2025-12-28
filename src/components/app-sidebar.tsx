@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Users,
+  User,
   Shield,
   ListChecks,
   Building2,

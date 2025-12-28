@@ -5,7 +5,9 @@ import { TasksClient } from '@/components/tasks-client';
 import prisma from '@/lib/db';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
-export default async function TasksPage() {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
+  const params = await searchParams;
+  const filterMyTasks = params.filter === 'my-tasks';
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;

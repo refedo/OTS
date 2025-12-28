@@ -77,6 +77,9 @@ export default function KnowledgeEntryDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [existingAttachments, setExistingAttachments] = useState<Array<{fileName: string; filePath: string; uploadedAt: string}>>([]);
+  const [newAttachments, setNewAttachments] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -101,6 +104,7 @@ export default function KnowledgeEntryDetailPage() {
           status: data.status,
           process: data.process,
         });
+        setExistingAttachments(data.attachments || []);
       } else {
         toast({
           title: 'Error',
@@ -121,18 +125,63 @@ export default function KnowledgeEntryDetailPage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setNewAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+  };
+
+  const removeExistingAttachment = (index: number) => {
+    setExistingAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeNewAttachment = (index: number) => {
+    setNewAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Upload new attachments first
+      let uploadedFiles: any[] = [...existingAttachments];
+      if (newAttachments.length > 0) {
+        setUploading(true);
+        for (const file of newAttachments) {
+          const formDataUpload = new FormData();
+          formDataUpload.append('file', file);
+          formDataUpload.append('folder', 'knowledge-center');
+
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: formDataUpload,
+          });
+
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            uploadedFiles.push({
+              fileName: file.name,
+              filePath: uploadData.filePath,
+              uploadedAt: new Date().toISOString(),
+            });
+          }
+        }
+        setUploading(false);
+      }
+
       const response = await fetch(`/api/knowledge/${params.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
+        }),
       });
 
       if (response.ok) {
         const updated = await response.json();
         setEntry(updated);
+        setExistingAttachments(updated.attachments || []);
+        setNewAttachments([]);
         setEditing(false);
         toast({
           title: 'Success',
@@ -304,9 +353,9 @@ export default function KnowledgeEntryDetailPage() {
               <Button variant="outline" onClick={() => setEditing(false)} disabled={saving}>
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={saving}>
+              <Button onClick={handleSave} disabled={saving || uploading}>
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
+                {uploading ? 'Uploading files...' : saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </>
           )}
@@ -422,52 +471,18 @@ export default function KnowledgeEntryDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-muted-foreground">Severity</Label>
-                  <p className="font-medium">{entry.severity}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Process</Label>
-                  <p className="font-medium">{entry.process}</p>
-                </div>
-              </div>
 
-              <div>
-                <Label className="text-muted-foreground">Summary</Label>
-                <p className="mt-1">{entry.summary}</p>
-              </div>
+              <Separator />
 
-              {entry.rootCause && (
-                <div>
-                  <Label className="text-muted-foreground">Root Cause</Label>
-                  <p className="mt-1">{entry.rootCause}</p>
-                </div>
-              )}
-
-              {entry.resolution && (
-                <div>
-                  <Label className="text-muted-foreground">Resolution</Label>
-                  <p className="mt-1">{entry.resolution}</p>
-                </div>
-              )}
-
-              {entry.recommendation && (
-                <div>
-                  <Label className="text-muted-foreground">Recommendation</Label>
-                  <p className="mt-1">{entry.recommendation}</p>
-                </div>
-              )}
-
-              {entry.attachments && entry.attachments.length > 0 && (
-                <div>
-                  <Label className="text-muted-foreground">Attachments</Label>
-                  <div className="mt-2 space-y-2">
-                    {entry.attachments.map((attachment, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+              <div className="space-y-2">
+                <Label>Attachments</Label>
+                
+                {/* Existing Attachments */}
+                {existingAttachments.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Current attachments:</p>
+                    {existingAttachments.map((attachment, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
                         <Paperclip className="h-4 w-4 text-muted-foreground" />
                         <span className="flex-1 text-sm">{attachment.fileName}</span>
                         <a
@@ -478,10 +493,140 @@ export default function KnowledgeEntryDetailPage() {
                         >
                           <Download className="h-4 w-4" />
                         </a>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeExistingAttachment(index)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>
+                )}
+
+                {/* New Attachments */}
+                {newAttachments.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">New attachments to upload:</p>
+                    {newAttachments.map((file, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 border rounded-md border-dashed border-primary/50 bg-primary/5">
+                        <Paperclip className="h-4 w-4 text-primary" />
+                        <span className="flex-1 text-sm">{file.name}</span>
+                        <Badge variant="outline" className="text-xs">New</Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeNewAttachment(index)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload Input */}
+                <div className="mt-2">
+                  <Input
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    className="cursor-pointer"
+                    disabled={saving || uploading}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload supporting documents, images, or files
+                  </p>
                 </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Severity</Label>
+                  <Badge variant="outline" className={
+                    entry.severity === 'Critical' ? 'bg-red-100 text-red-800 border-red-300' :
+                    entry.severity === 'High' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                    entry.severity === 'Medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                    'bg-gray-100 text-gray-800 border-gray-300'
+                  }>
+                    {entry.severity}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wide">Process</Label>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    {entry.process}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="bg-muted/30 rounded-lg p-4 border">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wide">Summary</Label>
+                <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{entry.summary}</p>
+              </div>
+
+              {entry.rootCause && (
+                <div className="bg-amber-50/50 rounded-lg p-4 border border-amber-200/50">
+                  <Label className="text-amber-700 text-xs uppercase tracking-wide">Root Cause</Label>
+                  <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{entry.rootCause}</p>
+                </div>
+              )}
+
+              {entry.resolution && (
+                <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
+                  <Label className="text-green-700 text-xs uppercase tracking-wide">Resolution</Label>
+                  <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{entry.resolution}</p>
+                </div>
+              )}
+
+              {entry.recommendation && (
+                <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+                  <Label className="text-blue-700 text-xs uppercase tracking-wide">Recommendation</Label>
+                  <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap">{entry.recommendation}</p>
+                </div>
+              )}
+
+              {entry.attachments && entry.attachments.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wide flex items-center gap-2">
+                      <Paperclip className="h-3 w-3" />
+                      Attachments ({entry.attachments.length})
+                    </Label>
+                    <div className="mt-3 grid gap-2">
+                      {entry.attachments.map((attachment, index) => (
+                        <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors">
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Paperclip className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{attachment.fileName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <a
+                            href={attachment.filePath}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 rounded-md transition-colors"
+                          >
+                            <Download className="h-4 w-4" />
+                            <span>Download</span>
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </>
           )}

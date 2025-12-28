@@ -25,6 +25,11 @@ const createSchema = z.object({
   })).optional().nullable(),
   tags: z.array(z.string()).optional().nullable(),
   ownerId: z.string().uuid().optional().nullable(),
+  attachments: z.array(z.object({
+    fileName: z.string(),
+    filePath: z.string(),
+    uploadedAt: z.string()
+  })).optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -120,6 +125,7 @@ export async function POST(req: Request) {
         status: 'Open',
         evidenceLinks: validated.evidenceLinks || [],
         tags: validated.tags || [],
+        attachments: validated.attachments || [],
       },
       include: {
         reportedBy: {
