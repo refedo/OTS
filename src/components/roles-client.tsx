@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, MoreVertical, Shield, Users, Edit, Trash2, Key } from 'lucide-react';
+import { Plus, MoreVertical, Shield, Users, Edit, Trash2, Key, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -33,13 +33,33 @@ type RolesClientProps = {
 export function RolesClient({ roles }: RolesClientProps) {
   const router = useRouter();
 
-  const handleAction = async (action: string, roleId: string) => {
+  const handleAction = async (action: string, roleId: string, roleName?: string) => {
     switch (action) {
       case 'edit':
         router.push(`/roles/${roleId}/edit`);
         break;
       case 'permissions':
         router.push(`/roles/${roleId}/permissions`);
+        break;
+      case 'duplicate':
+        if (confirm(`Create a duplicate of "${roleName}"?`)) {
+          try {
+            const response = await fetch(`/api/roles/${roleId}/duplicate`, {
+              method: 'POST',
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to duplicate role');
+            }
+
+            const newRole = await response.json();
+            router.refresh();
+            router.push(`/roles/${newRole.id}/edit`);
+          } catch (error) {
+            alert('Failed to duplicate role. Please try again.');
+            console.error('Duplicate error:', error);
+          }
+        }
         break;
       case 'delete':
         if (confirm('Are you sure you want to delete this role? Users with this role will need to be reassigned.')) {
@@ -120,6 +140,10 @@ export function RolesClient({ roles }: RolesClientProps) {
                       <DropdownMenuItem onClick={() => handleAction('permissions', role.id)}>
                         <Key className="size-4 mr-2" />
                         Manage Permissions
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAction('duplicate', role.id, role.name)}>
+                        <Copy className="size-4 mr-2" />
+                        Duplicate Role
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
