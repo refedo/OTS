@@ -33,15 +33,18 @@ export async function GET(req: Request) {
   const priority = searchParams.get('priority');
   const projectId = searchParams.get('projectId');
 
-  // Build where clause based on role and filters
+  // Get user permissions
+  const userPermissions = await getCurrentUserPermissions();
+
+  // Build where clause based on permissions and filters
   let whereClause: any = {};
 
-  // Role-based filtering
-  if (session.role === 'Admin' || session.role === 'Manager' || session.role === 'CEO') {
-    // Admins, Managers, and CEO see all tasks (or can filter)
+  // Permission-based filtering
+  if (userPermissions.includes('tasks.view_all')) {
+    // Users with tasks.view_all can see all tasks (or can filter)
     if (assignedTo) whereClause.assignedToId = assignedTo;
   } else {
-    // Engineers/Operators only see their assigned tasks
+    // Users without tasks.view_all only see their assigned tasks
     whereClause.assignedToId = session.sub;
   }
 
