@@ -44,6 +44,7 @@ type Task = {
 const statusColors = {
   Pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
   'In Progress': 'bg-blue-100 text-blue-800 border-blue-300',
+  'Waiting for Approval': 'bg-purple-100 text-purple-800 border-purple-300',
   Completed: 'bg-green-100 text-green-800 border-green-300',
 };
 
@@ -89,9 +90,10 @@ type TasksClientProps = {
   allBuildings: Building[];
   allDepartments: Department[];
   userPermissions: string[];
+  filterMyTasks?: boolean;
 };
 
-export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions }: TasksClientProps) {
+export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false }: TasksClientProps) {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [search, setSearch] = useState('');
@@ -120,6 +122,11 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
+      // Filter for My Tasks - only show tasks assigned to current user
+      if (filterMyTasks && task.assignedTo?.id !== userId) {
+        return false;
+      }
+
       const matchesSearch = !search || 
         task.title.toLowerCase().includes(search.toLowerCase()) ||
         task.description?.toLowerCase().includes(search.toLowerCase()) ||
@@ -134,7 +141,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
       return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment;
     });
-  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter]);
+  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, filterMyTasks, userId]);
 
   const handleDelete = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;

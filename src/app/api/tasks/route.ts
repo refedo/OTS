@@ -18,7 +18,7 @@ const createSchema = z.object({
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
   priority: z.enum(['Low', 'Medium', 'High', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-  status: z.enum(['Pending', 'In Progress', 'Completed']).optional(),
+  status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
 });
 
 export async function GET(req: Request) {

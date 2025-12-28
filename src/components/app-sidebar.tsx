@@ -70,11 +70,19 @@ type NavigationSection = {
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: '⚡ Early Warning', href: '/risk-dashboard', icon: Zap },
-  { name: 'Tasks', href: '/tasks', icon: ListChecks },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
 
 const navigationSections: NavigationSection[] = [
+  {
+    name: 'Tasks',
+    icon: ListChecks,
+    items: [
+      { name: 'All Tasks', href: '/tasks', icon: ListChecks },
+      { name: 'My Tasks', href: '/tasks?filter=my-tasks', icon: User },
+      { name: 'Create Task', href: '/tasks/new', icon: Plus },
+    ],
+  },
   {
     name: 'Operations Control',
     icon: AlertTriangle,

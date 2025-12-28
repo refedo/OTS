@@ -12,6 +12,8 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/dashboard': null, // Everyone can access dashboard
   '/risk-dashboard': ['risk.view_dashboard', 'risk.view_alerts'],
   '/tasks': ['tasks.view', 'tasks.view_all'],
+  '/tasks?filter=my-tasks': ['tasks.view'],
+  '/tasks/new': ['tasks.create'],
   '/ai-assistant': ['ai.use'],
   
   // Operations Control

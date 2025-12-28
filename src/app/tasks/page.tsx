@@ -71,6 +71,7 @@ export default async function TasksPage() {
       allBuildings={buildings}
       allDepartments={departments}
       userPermissions={userPermissions}
+      filterMyTasks={filterMyTasks}
     />
   );
 }
