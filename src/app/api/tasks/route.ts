@@ -38,6 +38,11 @@ export async function GET(req: Request) {
 
   // Get user permissions
   const userPermissions = await getCurrentUserPermissions();
+  
+  // Debug logging
+  console.log('Session:', { sub: session.sub, role: session.role });
+  console.log('User permissions:', userPermissions);
+  console.log('Search params:', { assignedTo, status, priority, projectId });
 
   // Build where clause based on permissions and filters
   let whereClause: any = {};
@@ -78,6 +83,8 @@ export async function GET(req: Request) {
   if (priority) whereClause.priority = priority;
   if (projectId) whereClause.projectId = projectId;
 
+  console.log('Where clause:', JSON.stringify(whereClause, null, 2));
+  
   let tasks = await prisma.task.findMany({
     where: whereClause,
     include: {
@@ -98,6 +105,8 @@ export async function GET(req: Request) {
       },
     },
   });
+  
+  console.log('Found tasks:', tasks.length);
 
   // Try to add completedBy if the field exists in the database
   try {
