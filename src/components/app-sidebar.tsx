@@ -154,7 +154,9 @@ const navigationSections: NavigationSection[] = [
       { name: 'Dimensional QC', href: '/qc/dimensional', icon: FileCheck },
       { name: 'NDT Inspection', href: '/qc/ndt', icon: FileCheck },
       { name: 'RFI List', href: '/qc/rfi', icon: FileCheck },
+      { name: 'Create RFI', href: '/qc/rfi/new', icon: Plus, isNew: true },
       { name: 'NCR List', href: '/qc/ncr', icon: FileText },
+      { name: 'Create NCR', href: '/qc/ncr/new', icon: Plus, isNew: true },
       { name: 'ITP List', href: '/itp', icon: FileCheck },
       { name: 'Create ITP', href: '/itp/new', icon: Plus },
       { name: 'WPS List', href: '/wps', icon: FileCheck },
@@ -569,7 +571,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v2.11.1
+                  Hexa Steel® OTS v2.12.0
                 </p>
               </div>
             )}

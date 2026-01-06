@@ -46,6 +46,9 @@ type GroupedParts = {
   parts: Part[];
   count: number;
   totalWeight: number;
+  producedCount: number;
+  isFullyProduced: boolean;
+  progressPercent: number;
 };
 
 type User = {
@@ -456,29 +459,54 @@ export default function NewWorkOrderPage() {
                   {groupedParts.map((group) => (
                     <Card
                       key={group.groupName}
-                      className={`cursor-pointer transition-all ${
-                        selectedGroups.includes(group.groupName)
-                          ? 'border-primary bg-primary/5'
-                          : 'hover:border-primary/50'
+                      className={`transition-all ${
+                        group.isFullyProduced
+                          ? 'opacity-50 cursor-not-allowed bg-muted/50'
+                          : selectedGroups.includes(group.groupName)
+                          ? 'border-primary bg-primary/5 cursor-pointer'
+                          : 'hover:border-primary/50 cursor-pointer'
                       }`}
-                      onClick={() => toggleGroup(group.groupName)}
+                      onClick={() => !group.isFullyProduced && toggleGroup(group.groupName)}
                     >
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{group.groupName}</h3>
+                            <h3 className="font-semibold text-lg flex items-center gap-2">
+                              {group.groupName}
+                              {group.isFullyProduced && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-normal">
+                                  100% Produced
+                                </span>
+                              )}
+                            </h3>
                             <p className="text-sm text-muted-foreground mt-1">
                               {group.count} parts • {(group.totalWeight / 1000).toFixed(2)} tons
                             </p>
+                            {group.progressPercent > 0 && !group.isFullyProduced && (
+                              <div className="mt-2">
+                                <div className="flex items-center justify-between text-xs mb-1">
+                                  <span className="text-muted-foreground">Production Progress</span>
+                                  <span className="font-medium">{group.progressPercent}%</span>
+                                </div>
+                                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-blue-500 rounded-full transition-all"
+                                    style={{ width: `${group.progressPercent}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div
                             className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-                              selectedGroups.includes(group.groupName)
+                              group.isFullyProduced
+                                ? 'bg-green-500 border-green-500'
+                                : selectedGroups.includes(group.groupName)
                                 ? 'bg-primary border-primary'
                                 : 'border-muted-foreground'
                             }`}
                           >
-                            {selectedGroups.includes(group.groupName) && (
+                            {(selectedGroups.includes(group.groupName) || group.isFullyProduced) && (
                               <Check className="h-4 w-4 text-white" />
                             )}
                           </div>

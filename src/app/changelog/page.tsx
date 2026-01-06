@@ -27,10 +27,93 @@ type ChangelogVersion = {
 
 const hardcodedVersions = [
   {
+    version: '2.12.0',
+    date: 'January 6, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🔧 QC Enhancements & Work Order Improvements',
+    highlights: [
+      'Create RFI Page with Multi-Select',
+      'Create NCR Page with Severity Levels',
+      'Work Order Production Progress Tracking',
+      'CEO-Only Task Visibility',
+      'Task Audit Trail System',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Create RFI Page',
+          items: [
+            'New dedicated page for creating RFIs at /qc/rfi/new',
+            'Multi-select production logs for batch RFI creation',
+            'Search and filter production logs by part, name, or process',
+            'Select All / Deselect All functionality',
+            'Inspection type selection with 7 predefined types',
+            'QC Inspector assignment option',
+            'Sidebar link under Quality Control section',
+          ],
+        },
+        {
+          title: 'Create NCR Page',
+          items: [
+            'New dedicated page for creating NCRs at /qc/ncr/new',
+            'Single production log selection with search',
+            'Severity level selection: Critical, High, Medium, Low',
+            'Root cause analysis and corrective action fields',
+            'Assignee selection and deadline setting',
+            'Default deadline set to 7 days from creation',
+            'Sidebar link under Quality Control section',
+          ],
+        },
+        {
+          title: 'Work Order Production Progress',
+          items: [
+            'Groups now show production progress percentage',
+            'Fully produced groups (100%) are dimmed and unselectable',
+            'Progress bar visualization for partially produced groups',
+            'Green checkmark badge for completed groups',
+            'Prevents creating work orders for already produced parts',
+          ],
+        },
+        {
+          title: 'CEO-Only Task Visibility',
+          items: [
+            'New isCeoTask field for tasks visible only to CEO role',
+            'CEO can create and view CEO-only tasks',
+            'Non-CEO users cannot see CEO tasks even if assigned',
+            'API-level filtering for CEO task visibility',
+          ],
+        },
+        {
+          title: 'Task Audit Trail System',
+          items: [
+            'New TaskAuditLog model for tracking all task changes',
+            'Tracks: who made changes, when, and what was changed',
+            'Field-level change tracking with old/new values',
+            'Audit trail displayed on task details page',
+            'Actions logged: created, updated, status_changed, completed',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed NotificationProvider context error in dashboard',
+        'Fixed Prisma client generation issues',
+        'Fixed login 500 error after schema changes',
+        'Fixed task visibility filtering for private tasks',
+      ],
+      changed: [
+        'Quality Control sidebar now includes Create RFI and Create NCR links',
+        'Work order group selection now considers production status',
+        'Task details page shows completion info and audit trail',
+        'Enhanced task edit functionality with direct edit button',
+      ],
+    },
+  },
+  {
     version: '2.11.1',
     date: 'January 6, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'stable',
     mainTitle: '📋 Tasks Page Enhancements & UI Improvements',
     highlights: [
       'Enhanced Tasks Counter with Status Breakdown',
