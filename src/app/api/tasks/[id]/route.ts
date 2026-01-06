@@ -49,6 +49,9 @@ export async function GET(
       department: {
         select: { id: true, name: true },
       },
+      completedBy: {
+        select: { id: true, name: true, email: true, position: true },
+      },
     },
   });
 
@@ -115,6 +118,15 @@ export async function PATCH(
   const updateData: any = { ...parsed.data };
   if (parsed.data.dueDate) updateData.dueDate = new Date(parsed.data.dueDate);
   if (parsed.data.taskInputDate) updateData.taskInputDate = new Date(parsed.data.taskInputDate);
+  
+  // Handle completion tracking
+  if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
+    updateData.completedAt = new Date();
+    updateData.completedById = session.sub;
+  } else if (parsed.data.status !== 'Completed' && task.status === 'Completed') {
+    updateData.completedAt = null;
+    updateData.completedById = null;
+  }
 
   const updatedTask = await prisma.task.update({
     where: { id: params.id },
@@ -134,6 +146,9 @@ export async function PATCH(
       },
       department: {
         select: { id: true, name: true },
+      },
+      completedBy: {
+        select: { id: true, name: true, email: true, position: true },
       },
     },
   });

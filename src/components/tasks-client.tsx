@@ -38,6 +38,8 @@ type Task = {
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; designation: string; name: string } | null;
   department: { id: string; name: string } | null;
+  completedAt: string | null;
+  completedBy: { id: string; name: string; email: string; position: string | null } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1089,7 +1091,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       <TableCell>
                         {task.status === 'Completed' ? (
                           <div className="text-sm">
-                            <div className="font-medium">{formatDate(task.updatedAt)}</div>
+                            <div className="font-medium">{formatDate(task.completedAt || task.updatedAt)}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {task.completedBy ? (
+                                <>Completed by {task.completedBy.name}</>
+                              ) : (
+                                <>Completed by {task.createdBy.name}</>
+                              )}
+                            </div>
                             {(() => {
                               const completionStatus = getCompletionStatus(task);
                               return completionStatus ? (

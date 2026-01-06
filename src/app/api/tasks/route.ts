@@ -86,6 +86,9 @@ export async function GET(req: Request) {
       department: {
         select: { id: true, name: true },
       },
+      completedBy: {
+        select: { id: true, name: true, email: true, position: true },
+      },
     },
     orderBy: [
       { status: 'asc' }, // Pending first

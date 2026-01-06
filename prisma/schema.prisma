@@ -61,6 +61,7 @@ model User {
   projectAssignments ProjectAssignment[]
   assignedTasks      Task[]   @relation("AssignedTasks")
   createdTasks       Task[]   @relation("CreatedTasks")
+  completedTasks     Task[]   @relation("CompletedTasks")
   managedProjects    Project[] @relation("ProjectManager")
   salesProjects      Project[] @relation("SalesEngineer")
   createdITPs        ITP[]    @relation("ITPCreatedBy")
@@ -402,6 +403,11 @@ model Task {
   priority      String   @default("Medium") // Low, Medium, High
   status        String   @default("Pending") // Pending, In Progress, Completed
   isPrivate     Boolean  @default(false) // Private tasks only visible to creator and assignee
+  
+  // Completion tracking
+  completedAt   DateTime? // When the task was marked as completed
+  completedById String?   @db.Char(36) // Who marked the task as completed
+  completedBy   User?    @relation("CompletedTasks", fields: [completedById], references: [id])
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

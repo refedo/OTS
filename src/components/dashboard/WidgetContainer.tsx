@@ -17,6 +17,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/core';
 
 interface Widget {
   id: string;
@@ -44,10 +62,74 @@ const WIDGET_DEFINITIONS = [
   { type: 'WORK_ORDERS', name: 'Work Orders', description: 'Ongoing work orders status', size: 'medium' },
 ];
 
+// Sortable Widget Wrapper
+function SortableWidget({ widget, children }: { widget: Widget; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: widget.id });
+
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group ${widget.widgetSize === 'large' ? 'sm:col-span-2' : 'col-span-1'}`}
+      {...attributes}
+    >
+      {/* Drag Handle */}
+      <div
+        {...listeners}
+        className="absolute top-2 left-2 z-10 p-1 rounded cursor-move hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Drag to reorder"
+      >
+        <GripVertical className="size-4 text-muted-foreground" />
+      </div>
+      
+      {/* Remove button - visible on hover */}
+      <Button
+        variant="destructive"
+        size="icon"
+        className="absolute top-2 right-2 z-10 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const widgetDef = WIDGET_DEFINITIONS.find(d => d.type === widget.widgetType);
+          if (confirm(`Remove "${widgetDef?.name || 'this widget'}" from dashboard?`)) {
+            // This will be handled by the parent component
+            const event = new CustomEvent('removeWidget', { detail: widget.id });
+            window.dispatchEvent(event);
+          }
+        }}
+        title="Remove widget"
+      >
+        <X className="size-3" />
+      </Button>
+      {children}
+    </div>
+  );
+}
+
 export default function WidgetContainer() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const fetchWidgets = async () => {
     try {
@@ -66,6 +148,54 @@ export default function WidgetContainer() {
   useEffect(() => {
     fetchWidgets();
   }, []);
+
+  useEffect(() => {
+    // Listen for custom remove widget events
+    const handleRemoveWidget = (event: CustomEvent) => {
+      removeWidget(event.detail);
+    };
+    
+    window.addEventListener('removeWidget', handleRemoveWidget as EventListener);
+    return () => window.removeEventListener('removeWidget', handleRemoveWidget as EventListener);
+  }, []);
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = widgets.findIndex((widget) => widget.id === active.id);
+      const newIndex = widgets.findIndex((widget) => widget.id === over?.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newWidgets = arrayMove(widgets, oldIndex, newIndex);
+        
+        // Update positions in the array
+        const updatedWidgets = newWidgets.map((widget, index) => ({
+          ...widget,
+          position: index,
+        }));
+        
+        setWidgets(updatedWidgets);
+        
+        // Save to backend
+        try {
+          await Promise.all(
+            updatedWidgets.map(widget =>
+              fetch(`/api/dashboard/widgets/${widget.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ position: widget.position }),
+              })
+            )
+          );
+        } catch (error) {
+          console.error('Failed to update widget positions:', error);
+          // Revert to original positions if save fails
+          setWidgets(widgets);
+        }
+      }
+    }
+  };
 
   const addWidget = async (widgetType: string, widgetSize: string) => {
     try {
@@ -162,39 +292,30 @@ export default function WidgetContainer() {
         </Dialog>
       </div>
 
-      {/* Widgets Grid - Mobile optimized */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {widgets.map((widget) => {
-          const WidgetComponent = WIDGET_COMPONENTS[widget.widgetType];
-          const widgetDef = WIDGET_DEFINITIONS.find(d => d.type === widget.widgetType);
-          if (!WidgetComponent) return null;
+      {/* Widgets Grid - Mobile optimized with drag and drop */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={widgets.map(w => w.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {widgets.map((widget) => {
+              const WidgetComponent = WIDGET_COMPONENTS[widget.widgetType];
+              if (!WidgetComponent) return null;
 
-          return (
-            <div 
-              key={widget.id} 
-              className={`relative group ${widget.widgetSize === 'large' ? 'sm:col-span-2' : 'col-span-1'}`}
-            >
-              {/* Remove button - visible on hover */}
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute -top-2 -right-2 z-10 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (confirm(`Remove "${widgetDef?.name || 'this widget'}" from dashboard?`)) {
-                    removeWidget(widget.id);
-                  }
-                }}
-                title="Remove widget"
-              >
-                <X className="size-3" />
-              </Button>
-              <WidgetComponent />
-            </div>
-          );
-        })}
-      </div>
+              return (
+                <SortableWidget key={widget.id} widget={widget}>
+                  <WidgetComponent />
+                </SortableWidget>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {widgets.length === 0 && (
         <div className="text-center py-12">
