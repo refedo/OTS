@@ -22,6 +22,8 @@ const PACKAGE_JSON = path.join(ROOT_DIR, 'package.json');
 const CHANGELOG_MD = path.join(ROOT_DIR, 'CHANGELOG.md');
 const APP_SIDEBAR = path.join(ROOT_DIR, 'src', 'components', 'app-sidebar.tsx');
 const LOGIN_FORM = path.join(ROOT_DIR, 'src', 'components', 'login-form.tsx');
+const CHANGELOG_PAGE = path.join(ROOT_DIR, 'src', 'app', 'changelog', 'page.tsx');
+const SETTINGS_VERSION = path.join(ROOT_DIR, 'src', 'app', 'settings', 'version', 'page.tsx');
 
 // Colors for console output
 const colors = {
@@ -107,12 +109,48 @@ function updateSidebarVersion(newVersion) {
 function updateLoginForm(newVersion) {
   let content = fs.readFileSync(LOGIN_FORM, 'utf8');
   
-  // Update version in login page
+  // Update version in login page (both header and footer)
   const versionRegex = /Operations Tracking System v[\d.]+/g;
   content = content.replace(versionRegex, `Operations Tracking System v${newVersion}`);
   
+  // Update version footer
+  const footerRegex = /Version [\d.]+/g;
+  content = content.replace(footerRegex, `Version ${newVersion}`);
+  
   fs.writeFileSync(LOGIN_FORM, content);
   log(`✓ Updated login-form.tsx to v${newVersion}`, 'green');
+}
+
+function updateChangelogPage(newVersion) {
+  let content = fs.readFileSync(CHANGELOG_PAGE, 'utf8');
+  
+  // Update hardcoded versions in changelog page
+  const currentVersionRegex = /const CURRENT_VERSION = '[\d.]+'/;
+  const packageVersionRegex = /const PACKAGE_VERSION = '[\d.]+'/;
+  
+  content = content.replace(currentVersionRegex, `const CURRENT_VERSION = '${newVersion}'`);
+  content = content.replace(packageVersionRegex, `const PACKAGE_VERSION = '${newVersion}'`);
+  
+  fs.writeFileSync(CHANGELOG_PAGE, content);
+  log(`✓ Updated changelog/page.tsx to v${newVersion}`, 'green');
+}
+
+function updateSettingsVersion(newVersion) {
+  let content = fs.readFileSync(SETTINGS_VERSION, 'utf8');
+  
+  // Update version constants
+  const currentVersionRegex = /const CURRENT_VERSION = '[\d.]+'/;
+  const packageVersionRegex = /const PACKAGE_VERSION = '[\d.]+'/;
+  
+  content = content.replace(currentVersionRegex, `const CURRENT_VERSION = '${newVersion}'`);
+  content = content.replace(packageVersionRegex, `const PACKAGE_VERSION = '${newVersion}'`);
+  
+  // Update example versions in commands
+  const exampleVersionRegex = /v2\.\d+\.\d+/g;
+  content = content.replace(exampleVersionRegex, `v${newVersion}`);
+  
+  fs.writeFileSync(SETTINGS_VERSION, content);
+  log(`✓ Updated settings/version/page.tsx to v${newVersion}`, 'green');
 }
 
 function createGitTag(version) {
@@ -149,7 +187,7 @@ function showCurrentVersion() {
 function commitChanges(version) {
   try {
     // Stage all version-related files
-    execSync('git add package.json CHANGELOG.md src/components/app-sidebar.tsx src/components/login-form.tsx', { stdio: 'inherit' });
+    execSync('git add package.json CHANGELOG.md src/components/app-sidebar.tsx src/components/login-form.tsx src/app/changelog/page.tsx src/app/settings/version/page.tsx', { stdio: 'inherit' });
     
     // Commit with version message
     execSync(`git commit -m "chore: bump version to v${version}"`, { stdio: 'inherit' });
@@ -202,6 +240,8 @@ function main() {
     updateChangelog(newVersion);
     updateSidebarVersion(newVersion);
     updateLoginForm(newVersion);
+    updateChangelogPage(newVersion);
+    updateSettingsVersion(newVersion);
     
     log('─'.repeat(50), 'cyan');
     log(`\n✅ Version bump complete!`, 'green');

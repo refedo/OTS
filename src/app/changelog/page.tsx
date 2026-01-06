@@ -28,9 +28,47 @@ type ChangelogVersion = {
 const hardcodedVersions = [
   {
     version: '2.13.0',
+    date: 'January 7, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🔧 Version Consistency & Logout Fixes',
+    highlights: [
+      'Synchronized All Version Displays to 2.13.0',
+      'Fixed Production Logout Redirect',
+      'Package.json Version Updated',
+      'Settings/Version Page Synchronized',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Version Consistency System',
+          items: [
+            'Created comprehensive version synchronization across all components',
+            'Updated package.json to match UI version displays',
+            'Fixed login page OTS version display',
+            'Updated settings/version page with correct version numbers',
+            'All example commands now use current version 2.13.0',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed logout redirect to use ots.hexasteel.sa/login in production',
+        'Synchronized package.json version (was 2.12.0)',
+        'Fixed login page version display (was showing 2.12.0)',
+        'Fixed settings/version page (was showing 2.11.0)',
+        'Ensured all version displays are consistently 2.13.0',
+      ],
+      changed: [
+        'Updated changelog to reflect version consistency improvements',
+        'Standardized version update process for future releases',
+      ],
+    },
+  },
+  {
+    version: '2.13.0',
     date: 'January 6, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🎯 QC Dashboard & Process Management Updates',
     highlights: [
       'Process-Dependent Inspection Types',
