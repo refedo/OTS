@@ -68,15 +68,27 @@ export default function CreateRFIPage() {
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const inspectionTypes = [
-    'Visual Inspection',
-    'Dimensional Inspection',
-    'Welding Inspection',
-    'NDT Inspection',
-    'Material Inspection',
-    'Coating Inspection',
-    'Final Inspection',
+  const processTypes = [
+    'Fit-up',
+    'Welding',
+    'Visualization',
+    'Painting',
+    'Assembly',
+    'Inspection',
   ];
+
+  const inspectionTypesByProcess: { [key: string]: string[] } = {
+    'Fit-up': ['Dimensional Inspection', 'Visual Inspection', 'Alignment Check'],
+    'Welding': ['Welding Inspection', 'NDT Inspection', 'Visual Inspection', 'Dimensional Inspection'],
+    'Visualization': ['Visual Inspection', 'Surface Inspection', 'Coating Inspection'],
+    'Painting': ['Coating Inspection', 'Visual Inspection', 'Thickness Measurement'],
+    'Assembly': ['Dimensional Inspection', 'Visual Inspection', 'Final Inspection'],
+    'Inspection': ['Visual Inspection', 'Dimensional Inspection', 'Material Inspection', 'Final Inspection'],
+  };
+
+  const getInspectionTypesForProcess = (process: string) => {
+    return inspectionTypesByProcess[process] || [];
+  };
 
   useEffect(() => {
     fetchProjects();
@@ -100,6 +112,13 @@ export default function CreateRFIPage() {
       setSelectedLogs([]);
     }
   }, [selectedBuilding, selectedProcess]);
+
+  useEffect(() => {
+    // Reset inspection type when process changes
+    if (selectedProcess) {
+      setInspectionType('');
+    }
+  }, [selectedProcess]);
 
   const fetchProjects = async () => {
     try {
@@ -294,12 +313,11 @@ export default function CreateRFIPage() {
                       className="w-full h-10 px-3 rounded-md border bg-background disabled:opacity-50 mt-1"
                     >
                       <option value="">Select process...</option>
-                      <option value="Cutting">Cutting</option>
-                      <option value="Welding">Welding</option>
-                      <option value="Assembly">Assembly</option>
-                      <option value="Painting">Painting</option>
-                      <option value="Inspection">Inspection</option>
-                      <option value="Packaging">Packaging</option>
+                      {processTypes.map((process) => (
+                        <option key={process} value={process}>
+                          {process}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -402,10 +420,11 @@ export default function CreateRFIPage() {
                     id="inspectionType"
                     value={inspectionType}
                     onChange={(e) => setInspectionType(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md border bg-background mt-1"
+                    disabled={!selectedProcess}
+                    className="w-full h-10 px-3 rounded-md border bg-background disabled:opacity-50 mt-1"
                   >
                     <option value="">Select type...</option>
-                    {inspectionTypes.map((type) => (
+                    {selectedProcess && getInspectionTypesForProcess(selectedProcess).map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>

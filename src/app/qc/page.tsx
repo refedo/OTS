@@ -349,13 +349,11 @@ export default function QCDashboardPage() {
                     <p className="text-sm text-muted-foreground text-center py-4">No RFIs found</p>
                   ) : (
                     <div className="space-y-3">
-                      {dashboardData.rfi.recent.slice(0, 5).map((rfi: any) => {
-                        const firstLog = rfi.productionLogs?.[0]?.productionLog;
-                        return (
+                      {dashboardData.rfi.recent.slice(0, 5).map((rfi: any) => (
                         <div key={rfi.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex-1">
                             <p className="font-medium text-sm">
-                              {firstLog?.assemblyPart?.partDesignation || 'N/A'}
+                              {rfi.productionLog.assemblyPart.partDesignation}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {rfi.inspectionType} • {rfi.project.projectNumber}
@@ -365,7 +363,7 @@ export default function QCDashboardPage() {
                             {rfi.status}
                           </span>
                         </div>
-                      )})}
+                      ))}
                     </div>
                   )}
                   <Link href="/qc/rfi">
@@ -387,14 +385,12 @@ export default function QCDashboardPage() {
                     <p className="text-sm text-muted-foreground text-center py-4">No NCRs found</p>
                   ) : (
                     <div className="space-y-3">
-                      {dashboardData.ncr.recent.slice(0, 5).map((ncr: any) => {
-                        const firstLog = ncr.rfiRequest?.productionLogs?.[0]?.productionLog;
-                        return (
+                      {dashboardData.ncr.recent.slice(0, 5).map((ncr: any) => (
                         <div key={ncr.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex-1">
                             <p className="font-medium text-sm">{ncr.ncrNumber}</p>
                             <p className="text-xs text-muted-foreground">
-                              {firstLog?.assemblyPart?.partDesignation || 'N/A'} • {ncr.project.projectNumber}
+                              {ncr.productionLog.assemblyPart.partDesignation} • {ncr.project.projectNumber}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -406,7 +402,7 @@ export default function QCDashboardPage() {
                             </span>
                           </div>
                         </div>
-                      )})}
+                      ))}
                     </div>
                   )}
                   <Link href="/qc/ncr">
