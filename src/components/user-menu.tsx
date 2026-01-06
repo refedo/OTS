@@ -85,7 +85,7 @@ export function UserMenu() {
       }
       
       // Clear any pending timeouts/intervals
-      const highestTimeoutId = setTimeout(() => {});
+      const highestTimeoutId = setTimeout(() => {}) as unknown as number;
       for (let i = 0; i < highestTimeoutId; i++) {
         clearTimeout(i);
         clearInterval(i);
