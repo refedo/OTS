@@ -556,16 +556,21 @@ export function AppSidebar() {
             
             {/* Collapsed: Show logout button only */}
             {collapsed && (
-              <form action="/api/auth/logout" method="POST">
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  className="w-full justify-center px-2 text-muted-foreground hover:text-foreground hover:bg-muted"
-                  title="Logout"
-                >
-                  <LogOut className="size-5 shrink-0" />
-                </Button>
-              </form>
+              <Button
+                onClick={async () => {
+                  try {
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                    window.location.href = process.env.NODE_ENV === 'production' ? 'https://ots.hexasteel.sa/login' : '/login';
+                  } catch (error) {
+                    window.location.href = process.env.NODE_ENV === 'production' ? 'https://ots.hexasteel.sa/login' : '/login';
+                  }
+                }}
+                variant="ghost"
+                className="w-full justify-center px-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+                title="Logout"
+              >
+                <LogOut className="size-5 shrink-0" />
+              </Button>
             )}
             
             {!collapsed && (

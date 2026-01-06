@@ -77,13 +77,26 @@ export function UserMenu() {
 
   const handleLogout = async () => {
     try {
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/api/auth/logout';
-      document.body.appendChild(form);
-      form.submit();
+      // Call logout API
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      // Force full page redirect to login (not using router to ensure clean state)
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = 'https://ots.hexasteel.sa/login';
+      } else {
+        window.location.href = '/login';
+      }
     } catch (error) {
       console.error('Error logging out:', error);
+      // Force redirect even on error
+      if (process.env.NODE_ENV === 'production') {
+        window.location.href = 'https://ots.hexasteel.sa/login';
+      } else {
+        window.location.href = '/login';
+      }
     }
   };
 

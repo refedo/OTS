@@ -44,12 +44,21 @@ export async function POST(request: NextRequest) {
   const res = NextResponse.redirect(loginUrl, { status: 302 });
   
   // Clear the session cookie with all necessary attributes
+  // Use delete() method for more reliable cookie removal
+  res.cookies.delete({
+    name: cookieName,
+    path: '/',
+    domain: requestUrl.hostname === 'localhost' ? undefined : '.hexasteel.sa',
+  });
+  
+  // Also set to empty with maxAge 0 as backup
   res.cookies.set(cookieName, '', {
     httpOnly: true,
     secure: requestUrl.protocol === 'https:',
     sameSite: 'lax',
     path: '/',
     maxAge: 0,
+    expires: new Date(0),
   });
   
   return res;
