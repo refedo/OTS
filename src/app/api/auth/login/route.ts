@@ -63,14 +63,19 @@ export async function POST(req: Request) {
     const maxAge = parsed.data.remember ? 60*60*24*30 : 60*60*24;
 
     // Log login event
-    await logSystemEvent({
-      eventType: 'login',
-      category: 'auth',
-      title: `User logged in: ${user.name}`,
-      description: `${user.email} logged in successfully`,
-      userId: user.id,
-      metadata: { email: user.email, role: user.role.name },
-    });
+    try {
+      await logSystemEvent({
+        eventType: 'login',
+        category: 'auth',
+        title: `User logged in: ${user.name}`,
+        description: `${user.email} logged in successfully`,
+        userId: user.id,
+        metadata: { email: user.email, role: user.role.name },
+      });
+    } catch (error) {
+      console.error('Failed to log login event:', error);
+      // Continue with login even if logging fails
+    }
 
     // For JSON requests, return success with cookie
     if (contentType.includes('application/json')) {
