@@ -1,4 +1,17 @@
-# Changelog - Hexa Steel OTS
+# C
+## [3.0.0] - 2026-01-06
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+---
+hangelog - Hexa Steel OTS
 
 All notable changes to the Hexa Steel Operation Tracking System will be documented in this file.
 
@@ -7,31 +20,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.13.2] - 2026-01-07
+## [21.0.0] - 2026-01-07
 
-### Fixed
+### 🔧 Version Consistency & Dolibarr-Style Logout Fixes
+
+Major system update focusing on version management consistency and implementing enterprise-grade session termination similar to Dolibarr ERP.
+
+#### Fixed
 - Fixed logout session handling to properly end sessions in production
 - Enhanced cookie deletion with domain-specific settings for hexasteel.sa
 - Implemented client-side logout with full page redirect to prevent cached sessions
 - Updated both UserMenu and Sidebar logout buttons to use fetch API with forced redirect
 - Ensured logout redirects to ots.hexasteel.sa/login in production environment
-
-### Changed
-- Replaced form-based logout with fetch API for better session control
-- Added window.location.href redirect to bypass Next.js router cache
-
----
-
-## [2.13.1] - 2026-01-07
-
-### Fixed
 - Fixed duplicate version keys in changelog causing React error
 - Resolved "two children with the same key" warning in changelog page
-- Updated all version displays to consistent 2.13.1 across system
+
+#### Changed
+- Replaced form-based logout with fetch API for better session control
+- Added window.location.replace() redirect to bypass Next.js router cache
+- Implemented server-side session invalidation with token blacklist
+- Added comprehensive session cleanup (localStorage, sessionStorage, timeouts)
+- Restructured version numbering to reflect major module additions
+
+#### Technical Details
+- **Session Management**: Complete session termination prevents cached access
+- **Version Manager**: Enhanced automation for consistent version updates across all components
+- **TypeScript**: Fixed setTimeout return type issues and added jsonwebtoken types
 
 ---
 
-## [2.11.0] - 2025-12-28
+## [20.0.0] - 2025-12-28
 
 ### 🔍 Enterprise Audit Trail & Event Management System
 
@@ -90,7 +108,7 @@ Comprehensive audit trail and event management system with Dolibarr-style interf
 
 ---
 
-## [2.10.0] - 2025-12-24
+## [19.0.0] - 2025-12-24
 
 ### 🚀 GitHub Release Management & System Improvements
 
@@ -193,7 +211,7 @@ Complete implementation of GitHub release management system with automated workf
 
 ---
 
-## [2.9.0] - 2025-12-23
+## [18.0.0] - 2025-12-23
 
 ### 🧠 Knowledge Center Module - Operational Intelligence (Phase 1 MVP)
 
@@ -413,12 +431,6 @@ Complete overhaul of the Product Backlog module with modern UI, AI-powered featu
 - **UI Components**
   - Backlog form with AI generation buttons
   - Modern confirmation dialogs replacing alerts
-  - Color-coded badge system
-  - Responsive card layouts
-
----
-
-## [2.7.0] - 2025-12-22
 
 ### 🎨 UI/UX Enhancements & Modern Dialog System
 

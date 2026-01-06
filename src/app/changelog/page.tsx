@@ -27,12 +27,13 @@ type ChangelogVersion = {
 
 const hardcodedVersions = [
   {
-    version: '2.13.2',
+    version: '21.0.0',
     date: 'January 7, 2026',
-    type: 'patch',
+    type: 'major',
     status: 'current',
-    mainTitle: '🔐 Logout Session Handling Fix',
+    mainTitle: '🔧 Version Consistency & Dolibarr-Style Logout Fixes',
     highlights: [
+      'Restructured Version Numbering to Reflect Major Module Additions',
       'Fixed Production Logout Session Termination',
       'Enhanced Cookie Deletion with Domain Settings',
       'Client-Side Logout with Full Page Redirect',
@@ -40,6 +41,14 @@ const hardcodedVersions = [
     ],
     changes: {
       added: [
+        {
+          title: 'Version Management Restructure',
+          items: [
+            'Restructured version numbering to reflect major module additions (1.0=Core, 2.0=Production, 3.0=QC, etc.)',
+            'Updated all version displays across system to new major version structure',
+            'Enhanced version manager script for consistent updates',
+          ],
+        },
         {
           title: 'Session Management Improvements',
           items: [
@@ -53,12 +62,14 @@ const hardcodedVersions = [
       fixed: [
         'Fixed logout session handling to properly end sessions in production',
         'Replaced form-based logout with fetch API for better session control',
-        'Added window.location.href redirect to bypass Next.js router cache',
+        'Added window.location.replace() redirect to bypass Next.js router cache',
         'Prevented redirect back to dashboard after logout',
+        'Fixed duplicate version keys in changelog causing React error',
       ],
       changed: [
         'Updated logout mechanism to use fetch API instead of form submission',
         'Added domain-specific cookie deletion for production environment',
+        'Restructured version numbering to reflect major system milestones',
       ],
     },
   },
