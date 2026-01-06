@@ -156,7 +156,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'RFI List', href: '/qc/rfi', icon: FileCheck },
       { name: 'New RFI', href: '/qc/rfi/new', icon: Plus, isNew: true },
       { name: 'NCR List', href: '/qc/ncr', icon: FileText },
-      { name: 'New NCR', href: '/qc/ncr/new', icon: Plus, isNew: true },
+      { name: 'Create New NCR', href: '/qc/ncr/new', icon: Plus, isNew: true },
       { name: 'ITP List', href: '/itp', icon: FileCheck },
       { name: 'Create ITP', href: '/itp/new', icon: Plus },
       { name: 'WPS List', href: '/wps', icon: FileCheck },

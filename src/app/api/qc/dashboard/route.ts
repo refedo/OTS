@@ -97,10 +97,14 @@ export async function GET(request: Request) {
         project: {
           select: { projectNumber: true, name: true },
         },
-        productionLog: {
+        productionLogs: {
           include: {
-            assemblyPart: {
-              select: { partDesignation: true, name: true },
+            productionLog: {
+              include: {
+                assemblyPart: {
+                  select: { partDesignation: true, name: true },
+                },
+              },
             },
           },
         },
@@ -119,10 +123,18 @@ export async function GET(request: Request) {
         project: {
           select: { projectNumber: true, name: true },
         },
-        productionLog: {
+        rfiRequest: {
           include: {
-            assemblyPart: {
-              select: { partDesignation: true, name: true },
+            productionLogs: {
+              include: {
+                productionLog: {
+                  include: {
+                    assemblyPart: {
+                      select: { partDesignation: true, name: true },
+                    },
+                  },
+                },
+              },
             },
           },
         },
