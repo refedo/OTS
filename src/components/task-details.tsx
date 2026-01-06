@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -13,14 +13,33 @@ type Task = {
   id: string;
   title: string;
   description: string | null;
+  taskInputDate: string | null;
   dueDate: string | null;
   priority: string;
   status: string;
+  isPrivate: boolean;
+  isCeoTask?: boolean;
   assignedTo: { id: string; name: string; email: string; position: string | null } | null;
   createdBy: { id: string; name: string; email: string };
   project: { id: string; projectNumber: string; name: string } | null;
+  building: { id: string; designation: string; name: string } | null;
+  department: { id: string; name: string } | null;
+  completedAt: string | null;
+  completedBy: { id: string; name: string; email: string; position: string | null } | null;
   createdAt: string;
   updatedAt: string;
+};
+
+type AuditLog = {
+  id: string;
+  taskId: string;
+  userId: string;
+  user: { id: string; name: string; email: string };
+  action: string;
+  field: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
 };
 
 const statusColors = {
@@ -44,10 +63,70 @@ type TaskDetailsProps = {
 export function TaskDetails({ task, userRole, userId }: TaskDetailsProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(true);
 
   const canEdit = ['Admin', 'Manager'].includes(userRole);
   const canDelete = userRole === 'Admin';
   const isAssignedUser = task.assignedTo?.id === userId;
+
+  // Fetch audit logs
+  useEffect(() => {
+    const fetchAuditLogs = async () => {
+      try {
+        const response = await fetch(`/api/tasks/${task.id}/audit-logs`);
+        if (response.ok) {
+          const data = await response.json();
+          setAuditLogs(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch audit logs:', error);
+      } finally {
+        setLoadingAudit(false);
+      }
+    };
+    fetchAuditLogs();
+  }, [task.id]);
+
+  // Format field names for display
+  const formatFieldName = (field: string) => {
+    const fieldNames: Record<string, string> = {
+      title: 'Title',
+      description: 'Description',
+      assignedToId: 'Assigned To',
+      projectId: 'Project',
+      buildingId: 'Building',
+      departmentId: 'Department',
+      taskInputDate: 'Input Date',
+      dueDate: 'Due Date',
+      priority: 'Priority',
+      status: 'Status',
+      isPrivate: 'Private',
+      isCeoTask: 'CEO Task',
+    };
+    return fieldNames[field] || field;
+  };
+
+  // Format action for display
+  const formatAction = (action: string, field: string | null) => {
+    if (action === 'created') return 'Created task';
+    if (action === 'completed') return 'Marked as completed';
+    if (action === 'status_changed') return 'Changed status';
+    if (action === 'updated' && field) return `Updated ${formatFieldName(field)}`;
+    return action;
+  };
+
+  // Format date/time for audit log
+  const formatDateTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   const formatDate = (date: string | null) => {
     if (!date) return null;
@@ -285,8 +364,124 @@ export function TaskDetails({ task, userRole, userId }: TaskDetailsProps) {
                 </p>
               </CardContent>
             </Card>
+
+            {/* Completed By (if completed) */}
+            {task.status === 'Completed' && task.completedBy && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CheckCircle2 className="size-4 text-green-600" />
+                    Completed By
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-medium">{task.completedBy.name}</p>
+                  <p className="text-sm text-muted-foreground">{task.completedBy.email}</p>
+                  {task.completedAt && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {formatDate(task.completedAt)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Task Visibility */}
+            {(task.isPrivate || task.isCeoTask) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lock className="size-4 text-amber-600" />
+                    Visibility
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {task.isPrivate && (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                      Private Task
+                    </Badge>
+                  )}
+                  {task.isCeoTask && (
+                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 ml-2">
+                      CEO Only
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
+
+        {/* Activity Trail / Audit Log */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="size-5" />
+              Activity Trail
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingAudit ? (
+              <p className="text-muted-foreground text-sm">Loading activity...</p>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-8">
+                <History className="size-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No activity recorded yet</p>
+                <p className="text-muted-foreground text-xs mt-1">Changes to this task will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {auditLogs.map((log, index) => (
+                  <div key={log.id} className="flex gap-4">
+                    {/* Timeline connector */}
+                    <div className="flex flex-col items-center">
+                      <div className={cn(
+                        "w-3 h-3 rounded-full",
+                        log.action === 'completed' ? "bg-green-500" :
+                        log.action === 'created' ? "bg-blue-500" :
+                        log.action === 'status_changed' ? "bg-purple-500" :
+                        "bg-gray-400"
+                      )} />
+                      {index < auditLogs.length - 1 && (
+                        <div className="w-0.5 h-full bg-gray-200 mt-1" />
+                      )}
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1 pb-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{log.user.name}</span>
+                        <span className="text-muted-foreground text-sm">
+                          {formatAction(log.action, log.field)}
+                        </span>
+                      </div>
+                      
+                      {/* Show old -> new value for updates */}
+                      {log.oldValue !== null && log.newValue !== null && (
+                        <div className="mt-1 text-sm">
+                          <span className="text-red-600 line-through">{log.oldValue || '(empty)'}</span>
+                          <span className="text-muted-foreground mx-2">→</span>
+                          <span className="text-green-600">{log.newValue || '(empty)'}</span>
+                        </div>
+                      )}
+                      
+                      {/* Show only new value for creation or when old is null */}
+                      {log.oldValue === null && log.newValue !== null && log.action !== 'created' && (
+                        <div className="mt-1 text-sm">
+                          <span className="text-green-600">Set to: {log.newValue}</span>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDateTime(log.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

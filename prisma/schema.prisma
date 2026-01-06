@@ -124,6 +124,7 @@ model User {
   
   // EGS - Enterprise Governance Spine relations
   auditLogs          AuditLog[] @relation("AuditLogPerformedBy")
+  taskAuditLogs      TaskAuditLog[] @relation("TaskAuditLogs")
   entityVersions     EntityVersion[] @relation("EntityVersionCreatedBy")
   deletedProjects    Project[] @relation("ProjectDeletedBy")
   deletedBuildings   Building[] @relation("BuildingDeletedBy")
@@ -409,8 +410,35 @@ model Task {
   completedById String?   @db.Char(36) // Who marked the task as completed
   completedBy   User?    @relation("CompletedTasks", fields: [completedById], references: [id])
   
+  // CEO-only visibility
+  isCeoTask     Boolean  @default(false) // Tasks visible only to CEO role
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  // Audit trail
+  auditLogs     TaskAuditLog[]
+}
+
+// Task Audit Log - tracks all changes to tasks
+model TaskAuditLog {
+  id          String   @id @default(uuid()) @db.Char(36)
+  taskId      String   @db.Char(36)
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  userId      String   @db.Char(36)
+  user        User     @relation("TaskAuditLogs", fields: [userId], references: [id])
+  
+  action      String   // created, updated, status_changed, completed, etc.
+  field       String?  // Which field was changed (null for creation)
+  oldValue    String?  @db.Text // Previous value
+  newValue    String?  @db.Text // New value
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 /// Inspection & Test Plan (ITP) Models

@@ -17,7 +17,33 @@ const updateSchema = z.object({
   priority: z.enum(['Low', 'Medium', 'High']).optional(),
   status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
   isPrivate: z.boolean().optional(),
+  isCeoTask: z.boolean().optional(),
 });
+
+// Helper to create audit log entries
+async function createTaskAuditLog(
+  taskId: string,
+  userId: string,
+  action: string,
+  field?: string,
+  oldValue?: string | null,
+  newValue?: string | null
+) {
+  try {
+    await prisma.taskAuditLog.create({
+      data: {
+        taskId,
+        userId,
+        action,
+        field,
+        oldValue,
+        newValue,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create task audit log:', error);
+  }
+}
 
 export async function GET(
   req: Request,
@@ -151,6 +177,15 @@ export async function PATCH(
     // If database doesn't have these fields yet, skip completion tracking
     console.log('Completion tracking fields not available in database yet');
   }
+  
+  // CEO task visibility - only CEO can set/modify isCeoTask
+  if (parsed.data.isCeoTask !== undefined) {
+    if (session.role === 'CEO') {
+      updateData.isCeoTask = parsed.data.isCeoTask;
+    } else {
+      delete updateData.isCeoTask;
+    }
+  }
 
   const updatedTask = await prisma.task.update({
     where: { id },
@@ -199,6 +234,74 @@ export async function PATCH(
       console.error('WorkUnit status sync failed:', err);
     });
   }
+
+  // Create audit log entries for all changes (non-blocking)
+  const auditPromises: Promise<void>[] = [];
+  
+  // Helper to get display value for relations
+  const getDisplayValue = async (field: string, value: string | null) => {
+    if (!value) return null;
+    try {
+      if (field === 'assignedToId') {
+        const user = await prisma.user.findUnique({ where: { id: value }, select: { name: true } });
+        return user?.name || value;
+      }
+      if (field === 'projectId') {
+        const project = await prisma.project.findUnique({ where: { id: value }, select: { projectNumber: true, name: true } });
+        return project ? `${project.projectNumber} - ${project.name}` : value;
+      }
+      if (field === 'buildingId') {
+        const building = await prisma.building.findUnique({ where: { id: value }, select: { designation: true, name: true } });
+        return building ? `${building.designation} - ${building.name}` : value;
+      }
+      if (field === 'departmentId') {
+        const dept = await prisma.department.findUnique({ where: { id: value }, select: { name: true } });
+        return dept?.name || value;
+      }
+    } catch (e) {
+      return value;
+    }
+    return value;
+  };
+
+  // Track changes for audit log
+  const fieldsToTrack = ['title', 'description', 'assignedToId', 'projectId', 'buildingId', 'departmentId', 'taskInputDate', 'dueDate', 'priority', 'status', 'isPrivate', 'isCeoTask'];
+  
+  for (const field of fieldsToTrack) {
+    if (parsed.data[field] !== undefined) {
+      const oldVal = task[field as keyof typeof task];
+      const newVal = parsed.data[field];
+      
+      // Check if value actually changed
+      if (oldVal !== newVal) {
+        let oldDisplay = oldVal?.toString() || null;
+        let newDisplay = newVal?.toString() || null;
+        
+        // Get display values for relation fields
+        if (['assignedToId', 'projectId', 'buildingId', 'departmentId'].includes(field)) {
+          oldDisplay = await getDisplayValue(field, oldVal as string | null);
+          newDisplay = await getDisplayValue(field, newVal as string | null);
+        }
+        
+        // Format date fields
+        if (['taskInputDate', 'dueDate'].includes(field)) {
+          if (oldVal) oldDisplay = new Date(oldVal as Date).toISOString().split('T')[0];
+          if (newVal) newDisplay = new Date(newVal as string).toISOString().split('T')[0];
+        }
+        
+        // Determine action type
+        let action = 'updated';
+        if (field === 'status') {
+          action = newVal === 'Completed' ? 'completed' : 'status_changed';
+        }
+        
+        auditPromises.push(createTaskAuditLog(id, session.sub, action, field, oldDisplay, newDisplay));
+      }
+    }
+  }
+  
+  // Execute all audit logs (non-blocking)
+  Promise.all(auditPromises).catch(err => console.error('Audit logging failed:', err));
 
   return NextResponse.json(updatedTask);
 }

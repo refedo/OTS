@@ -117,6 +117,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     status: 'In Progress',
     taskInputDate: new Date().toISOString().split('T')[0],
     dueDate: '',
+    isPrivate: false,
   });
   const [assignedToFilter, setAssignedToFilter] = useState<string>('');
   const [creating, setCreating] = useState(false);
@@ -332,6 +333,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           taskInputDate: quickAddData.taskInputDate || null,
           dueDate: quickAddData.dueDate,
           status: quickAddData.status,
+          isPrivate: quickAddData.isPrivate,
         }),
       });
 
@@ -351,7 +353,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         priority: 'Medium',
         status: 'In Progress', 
         taskInputDate: new Date().toISOString().split('T')[0],
-        dueDate: '' 
+        dueDate: '',
+        isPrivate: false,
       });
       setShowQuickAdd(false);
       // Don't use router.refresh() as it causes redirect
@@ -947,7 +950,18 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           required
                         />
                       </TableCell>
-                      <TableCell>-</TableCell>
+                      <TableCell>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={quickAddData.isPrivate}
+                            onChange={(e) => setQuickAddData({ ...quickAddData, isPrivate: e.target.checked })}
+                            className="h-4 w-4 rounded border-gray-300"
+                            disabled={creating}
+                          />
+                          <Lock className="size-3.5 text-amber-600" />
+                        </label>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" onClick={handleQuickAdd} disabled={creating}>
@@ -1115,34 +1129,47 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="size-4" />
+                        <div className="flex items-center justify-end gap-1">
+                          {canCreateTask && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => router.push(`/tasks/${task.id}/edit`)}
+                              title="Edit task"
+                            >
+                              <Edit className="size-4 text-muted-foreground hover:text-primary" />
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
-                              <Eye className="size-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            {canCreateTask && (
-                              <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
-                                <Edit className="size-4" />
-                                Edit Task
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
+                                <Eye className="size-4" />
+                                View Details
                               </DropdownMenuItem>
-                            )}
-                            {userRole === 'Admin' && (
-                              <DropdownMenuItem
-                                onClick={() => handleDelete(task.id)}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="size-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {canCreateTask && (
+                                <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
+                                  <Edit className="size-4" />
+                                  Edit Task
+                                </DropdownMenuItem>
+                              )}
+                              {userRole === 'Admin' && (
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(task.id)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="size-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                     );

@@ -21,6 +21,7 @@ const createSchema = z.object({
   priority: z.enum(['Low', 'Medium', 'High', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
   isPrivate: z.boolean().optional(),
+  isCeoTask: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {
@@ -42,6 +43,8 @@ export async function GET(req: Request) {
   let whereClause: any = {};
 
   // Permission-based filtering
+  const isCeo = session.role === 'CEO';
+  
   if (userPermissions.includes('tasks.view_all')) {
     // Users with tasks.view_all can see all tasks (or can filter)
     // But still filter out private tasks that don't belong to them
@@ -49,6 +52,7 @@ export async function GET(req: Request) {
       whereClause.assignedToId = assignedTo;
     }
     // Filter private tasks - only show non-private OR tasks where user is creator/assignee
+    // Also filter CEO tasks - only CEO can see CEO tasks
     whereClause.AND = [
       {
         OR: [
@@ -57,10 +61,16 @@ export async function GET(req: Request) {
           { assignedToId: session.sub },
         ],
       },
+      // CEO task visibility: only CEO can see CEO tasks
+      isCeo ? {} : { isCeoTask: false },
     ];
   } else {
     // Users without tasks.view_all only see their assigned tasks
     whereClause.assignedToId = session.sub;
+    // Non-CEO users cannot see CEO tasks even if assigned
+    if (!isCeo) {
+      whereClause.isCeoTask = false;
+    }
   }
 
   // Apply additional filters
@@ -205,6 +215,11 @@ export async function POST(req: Request) {
     } else if (parsed.data.assignedToId && parsed.data.assignedToId === session.sub) {
       // Auto-mark as private when self-assigning
       taskData.isPrivate = true;
+    }
+    
+    // CEO task visibility - only CEO can create CEO tasks
+    if (parsed.data.isCeoTask && session.role === 'CEO') {
+      taskData.isCeoTask = true;
     }
 
     const task = await prisma.task.create({
