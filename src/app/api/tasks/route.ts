@@ -20,6 +20,7 @@ const createSchema = z.object({
   dueDate: z.string().optional().nullable(),
   priority: z.enum(['Low', 'Medium', 'High', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
+  isPrivate: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {
@@ -43,7 +44,20 @@ export async function GET(req: Request) {
   // Permission-based filtering
   if (userPermissions.includes('tasks.view_all')) {
     // Users with tasks.view_all can see all tasks (or can filter)
-    if (assignedTo) whereClause.assignedToId = assignedTo;
+    // But still filter out private tasks that don't belong to them
+    if (assignedTo) {
+      whereClause.assignedToId = assignedTo;
+    }
+    // Filter private tasks - only show non-private OR tasks where user is creator/assignee
+    whereClause.AND = [
+      {
+        OR: [
+          { isPrivate: false },
+          { createdById: session.sub },
+          { assignedToId: session.sub },
+        ],
+      },
+    ];
   } else {
     // Users without tasks.view_all only see their assigned tasks
     whereClause.assignedToId = session.sub;
@@ -140,6 +154,14 @@ export async function POST(req: Request) {
     }
     
     if (parsed.data.status) taskData.status = parsed.data.status;
+    
+    // Auto-mark as private if user is assigning to themselves, or if explicitly set
+    if (parsed.data.isPrivate !== undefined) {
+      taskData.isPrivate = parsed.data.isPrivate;
+    } else if (parsed.data.assignedToId && parsed.data.assignedToId === session.sub) {
+      // Auto-mark as private when self-assigning
+      taskData.isPrivate = true;
+    }
 
     const task = await prisma.task.create({
       data: taskData,

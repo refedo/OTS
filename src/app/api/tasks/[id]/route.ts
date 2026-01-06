@@ -15,7 +15,8 @@ const updateSchema = z.object({
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
   priority: z.enum(['Low', 'Medium', 'High']).optional(),
-  status: z.enum(['Pending', 'In Progress', 'Completed']).optional(),
+  status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
+  isPrivate: z.boolean().optional(),
 });
 
 export async function GET(
@@ -56,10 +57,16 @@ export async function GET(
   }
 
   // Check permissions: Admins/Managers see all, others only their assigned tasks
+  // Also check private task access
   if (session.role !== 'Admin' && session.role !== 'Manager') {
-    if (task.assignedToId !== session.sub) {
+    if (task.assignedToId !== session.sub && task.createdById !== session.sub) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+  }
+  
+  // For private tasks, only creator or assignee can view
+  if (task.isPrivate && task.createdById !== session.sub && task.assignedToId !== session.sub) {
+    return NextResponse.json({ error: 'Forbidden - This is a private task' }, { status: 403 });
   }
 
   return NextResponse.json(task);

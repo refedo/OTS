@@ -137,7 +137,10 @@ model User {
   ownedKnowledge     KnowledgeEntry[] @relation("KnowledgeOwner")
   validatedKnowledge KnowledgeEntry[] @relation("KnowledgeValidatedBy")
   knowledgeApplications KnowledgeApplication[] @relation("KnowledgeApplicationUser")
-  
+
+  // Product Backlog relations
+  createdBacklogItems ProductBacklogItem[] @relation("BacklogItemCreatedBy")
+
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -398,6 +401,7 @@ model Task {
   dueDate       DateTime?
   priority      String   @default("Medium") // Low, Medium, High
   status        String   @default("Pending") // Pending, In Progress, Completed
+  isPrivate     Boolean  @default(false) // Private tasks only visible to creator and assignee
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -2691,6 +2695,7 @@ model ProductBacklogItem {
   completedAt       DateTime?
 
   tasks             Task[]            @relation("BacklogItemTasks")
+  createdBy         User              @relation("BacklogItemCreatedBy", fields: [createdById], references: [id])
 
   @@index([type, status, priority])
   @@index([category])

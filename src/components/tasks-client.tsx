@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2 } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ type Task = {
   dueDate: string | null;
   priority: string;
   status: string;
+  isPrivate: boolean;
   assignedTo: { id: string; name: string; email: string; position: string | null } | null;
   createdBy: { id: string; name: string; email: string };
   project: { id: string; projectNumber: string; name: string } | null;
@@ -111,9 +112,11 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     buildingId: '',
     departmentId: '',
     priority: 'Medium',
+    status: 'In Progress',
     taskInputDate: new Date().toISOString().split('T')[0],
     dueDate: '',
   });
+  const [assignedToFilter, setAssignedToFilter] = useState<string>('');
   const [creating, setCreating] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -138,10 +141,11 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       const matchesProject = !projectFilter || task.project?.id === projectFilter;
       const matchesBuilding = !buildingFilter || task.building?.id === buildingFilter;
       const matchesDepartment = !departmentFilter || task.department?.id === departmentFilter;
+      const matchesAssignedTo = !assignedToFilter || task.assignedTo?.id === assignedToFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment;
+      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment && matchesAssignedTo;
     });
-  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, filterMyTasks, userId]);
+  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, assignedToFilter, filterMyTasks, userId]);
 
   const handleDelete = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
@@ -325,7 +329,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           priority: quickAddData.priority,
           taskInputDate: quickAddData.taskInputDate || null,
           dueDate: quickAddData.dueDate,
-          status: 'In Progress',
+          status: quickAddData.status,
         }),
       });
 
@@ -342,7 +346,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         projectId: '', 
         buildingId: '',
         departmentId: '', 
-        priority: 'Medium', 
+        priority: 'Medium',
+        status: 'In Progress', 
         taskInputDate: new Date().toISOString().split('T')[0],
         dueDate: '' 
       });
@@ -414,14 +419,32 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                <span className="text-2xl font-bold text-primary">{filteredTasks.length}</span>
+                <div className="text-xs text-muted-foreground">
+                  <div>{filteredTasks.length === 1 ? 'task' : 'tasks'}</div>
+                  {tasks.length !== filteredTasks.length && (
+                    <div className="text-primary/70">of {tasks.length} total</div>
+                  )}
+                </div>
+              </div>
+            </div>
             <p className="text-muted-foreground mt-1">
               Manage and track your tasks
             </p>
           </div>
           {canCreateTask && (
             <div className="flex gap-2">
-              <Button onClick={() => setShowQuickAdd(!showQuickAdd)}>
+              <Button 
+                onClick={() => setShowQuickAdd(!showQuickAdd)}
+                className={cn(
+                  showQuickAdd 
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white' 
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0'
+                )}
+              >
                 <Plus className="size-4 mr-2" />
                 {showQuickAdd ? 'Hide Quick Add' : 'Quick Add Task'}
               </Button>
@@ -561,23 +584,50 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   All
                 </Button>
                 <Button
-                  variant={statusFilter === 'Pending' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setStatusFilter('Pending')}
+                  className={cn(
+                    statusFilter === 'Pending' 
+                      ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600 hover:text-white' 
+                      : 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300'
+                  )}
                 >
                   Pending
                 </Button>
                 <Button
-                  variant={statusFilter === 'In Progress' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setStatusFilter('In Progress')}
+                  className={cn(
+                    statusFilter === 'In Progress' 
+                      ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:text-white' 
+                      : 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
+                  )}
                 >
                   In Progress
                 </Button>
                 <Button
-                  variant={statusFilter === 'Completed' ? 'default' : 'outline'}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStatusFilter('Waiting for Approval')}
+                  className={cn(
+                    statusFilter === 'Waiting for Approval' 
+                      ? 'bg-purple-500 text-white border-purple-500 hover:bg-purple-600 hover:text-white' 
+                      : 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300'
+                  )}
+                >
+                  Waiting for Approval
+                </Button>
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setStatusFilter('Completed')}
+                  className={cn(
+                    statusFilter === 'Completed' 
+                      ? 'bg-green-500 text-white border-green-500 hover:bg-green-600 hover:text-white' 
+                      : 'hover:bg-green-50 hover:text-green-700 hover:border-green-300'
+                  )}
                 >
                   Completed
                 </Button>
@@ -594,23 +644,38 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   All
                 </Button>
                 <Button
-                  variant={priorityFilter === 'High' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setPriorityFilter('High')}
+                  className={cn(
+                    priorityFilter === 'High' 
+                      ? 'bg-red-500 text-white border-red-500 hover:bg-red-600 hover:text-white' 
+                      : 'hover:bg-red-50 hover:text-red-700 hover:border-red-300'
+                  )}
                 >
                   High
                 </Button>
                 <Button
-                  variant={priorityFilter === 'Medium' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setPriorityFilter('Medium')}
+                  className={cn(
+                    priorityFilter === 'Medium' 
+                      ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:text-white' 
+                      : 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300'
+                  )}
                 >
                   Medium
                 </Button>
                 <Button
-                  variant={priorityFilter === 'Low' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setPriorityFilter('Low')}
+                  className={cn(
+                    priorityFilter === 'Low' 
+                      ? 'bg-gray-500 text-white border-gray-500 hover:bg-gray-600 hover:text-white' 
+                      : 'hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'
+                  )}
                 >
                   Low
                 </Button>
@@ -648,6 +713,20 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   ))}
                 </select>
 
+                {/* Assigned To Filter */}
+                <select
+                  value={assignedToFilter}
+                  onChange={(e) => setAssignedToFilter(e.target.value)}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                >
+                  <option value="">All Assignees</option>
+                  {allUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+
                 {/* Department Filter */}
                 <select
                   value={departmentFilter}
@@ -667,7 +746,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         </Card>
 
         {/* Tasks Display */}
-        {filteredTasks.length === 0 ? (
+        {filteredTasks.length === 0 && !showQuickAdd ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
@@ -677,7 +756,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
               </p>
             </CardContent>
           </Card>
-        ) : viewMode === 'table' ? (
+        ) : viewMode === 'table' || showQuickAdd ? (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -802,7 +881,17 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         </select>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800">In Progress</Badge>
+                        <select
+                          value={quickAddData.status}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, status: e.target.value })}
+                          className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Waiting for Approval">Waiting for Approval</option>
+                          <option value="Completed">Completed</option>
+                        </select>
                       </TableCell>
                       <TableCell>
                         <Input
@@ -867,7 +956,19 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{task.title}</p>
+                          <div className="flex items-center gap-1.5">
+                            {task.isPrivate && (
+                              <span title="Private task">
+                                <Lock className="size-3.5 text-amber-600" />
+                              </span>
+                            )}
+                            <Link 
+                              href={`/tasks/${task.id}`}
+                              className="font-medium hover:text-primary hover:underline cursor-pointer"
+                            >
+                              {task.title}
+                            </Link>
+                          </div>
                           {task.description && (
                             <p className="text-sm text-muted-foreground line-clamp-1">
                               {task.description}
@@ -1014,7 +1115,12 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
               <Card key={task.id} className="hover:shadow-lg transition-all">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-lg line-clamp-2">{task.title}</CardTitle>
+                    <CardTitle className="text-lg line-clamp-2">
+                      <Link href={`/tasks/${task.id}`} className="hover:text-primary hover:underline flex items-center gap-1.5">
+                        {task.isPrivate && <span title="Private task"><Lock className="size-3.5 text-amber-600" /></span>}
+                        {task.title}
+                      </Link>
+                    </CardTitle>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="size-8 flex-shrink-0">

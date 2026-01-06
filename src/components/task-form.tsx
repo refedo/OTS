@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type User = {
   id: string;
@@ -45,6 +46,7 @@ type Task = {
   dueDate: string | null;
   priority: string;
   status: string;
+  isPrivate?: boolean;
 };
 
 type TaskFormProps = {
@@ -63,6 +65,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState(task?.projectId || '');
   const [selectedBuildingId, setSelectedBuildingId] = useState('');
+  const [isPrivate, setIsPrivate] = useState(task?.isPrivate || false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -81,6 +84,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       dueDate: formData.get('dueDate') as string,
       priority: formData.get('priority') as string,
       status: formData.get('status') as string,
+      isPrivate: isPrivate,
     };
 
     try {
@@ -307,6 +311,25 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 disabled={loading}
               />
             </div>
+          </div>
+
+          {/* Private Task */}
+          <div className="flex items-center space-x-3 p-4 rounded-lg border bg-muted/50">
+            <Checkbox
+              id="isPrivate"
+              checked={isPrivate}
+              onCheckedChange={(checked) => setIsPrivate(checked === true)}
+              disabled={loading}
+            />
+            <div className="flex items-center gap-2">
+              <Lock className="size-4 text-muted-foreground" />
+              <Label htmlFor="isPrivate" className="cursor-pointer">
+                Private Task
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground ml-auto">
+              Only you and the assigned user can see this task
+            </p>
           </div>
 
           {/* Actions */}
