@@ -77,26 +77,44 @@ export function UserMenu() {
 
   const handleLogout = async () => {
     try {
+      // Stop session activity tracker immediately
+      const tracker = (window as any).__sessionActivityTracker;
+      if (tracker) {
+        tracker.stop();
+        delete (window as any).__sessionActivityTracker;
+      }
+      
+      // Clear any pending timeouts/intervals
+      const highestTimeoutId = setTimeout(() => {});
+      for (let i = 0; i < highestTimeoutId; i++) {
+        clearTimeout(i);
+        clearInterval(i);
+      }
+      
       // Call logout API
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
       
-      // Force full page redirect to login (not using router to ensure clean state)
-      if (process.env.NODE_ENV === 'production') {
-        window.location.href = 'https://ots.hexasteel.sa/login';
-      } else {
-        window.location.href = '/login';
-      }
+      // Clear all local storage and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Force full page redirect to login with cache busting
+      const loginUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
+        : '/login?t=' + Date.now();
+      
+      window.location.replace(loginUrl);
     } catch (error) {
       console.error('Error logging out:', error);
       // Force redirect even on error
-      if (process.env.NODE_ENV === 'production') {
-        window.location.href = 'https://ots.hexasteel.sa/login';
-      } else {
-        window.location.href = '/login';
-      }
+      const loginUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
+        : '/login?t=' + Date.now();
+      
+      window.location.replace(loginUrl);
     }
   };
 

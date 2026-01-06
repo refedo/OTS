@@ -9,6 +9,24 @@ export async function POST(request: NextRequest) {
   const token = request.cookies.get(cookieName)?.value;
   const session = token ? verifySession(token) : null;
   
+  // Invalidate session on server side by adding to invalidation list
+  if (token && session) {
+    try {
+      // Store invalidated token in a simple in-memory store (for production, use Redis)
+      const invalidatedTokens = (global as any).__invalidatedTokens || new Set();
+      invalidatedTokens.add(token);
+      (global as any).__invalidatedTokens = invalidatedTokens;
+      
+      // Clean up old tokens (keep only last 1000)
+      if (invalidatedTokens.size > 1000) {
+        const tokensArray = Array.from(invalidatedTokens);
+        (global as any).__invalidatedTokens = new Set(tokensArray.slice(-500));
+      }
+    } catch (error) {
+      console.error('Failed to invalidate session:', error);
+    }
+  }
+  
   // Log logout event if we have a session
   if (session) {
     try {

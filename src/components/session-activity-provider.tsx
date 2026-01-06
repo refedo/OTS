@@ -25,15 +25,24 @@ export function SessionActivityProvider({ children }: { children: React.ReactNod
         setShowWarning(true);
       },
       () => {
-        window.location.href = '/login?reason=idle';
+        // Clean up everything before redirect
+        (window as any).__sessionActivityTracker?.stop();
+        delete (window as any).__sessionActivityTracker;
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.replace('/login?reason=idle&t=' + Date.now());
       }
     );
 
     activityTracker.start();
     setTracker(activityTracker);
+    
+    // Store tracker globally for logout access
+    (window as any).__sessionActivityTracker = activityTracker;
 
     return () => {
       activityTracker.stop();
+      delete (window as any).__sessionActivityTracker;
     };
   }, []);
 

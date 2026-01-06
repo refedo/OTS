@@ -20,6 +20,12 @@ export function signSession(payload: SessionPayload, remember = false) {
 
 export function verifySession(token: string): SessionPayload | null {
   try {
+    // Check if token is invalidated
+    const invalidatedTokens = (global as any).__invalidatedTokens || new Set();
+    if (invalidatedTokens.has(token)) {
+      return null;
+    }
+    
     return jwt.verify(token, JWT_SECRET) as SessionPayload;
   } catch (e) {
     return null;
