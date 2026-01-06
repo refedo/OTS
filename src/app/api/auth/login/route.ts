@@ -37,6 +37,9 @@ export async function POST(req: Request) {
       include: { 
         role: {
           select: { id: true, name: true, description: true }
+        },
+        department: {
+          select: { id: true, name: true }
         }
       }
     });
