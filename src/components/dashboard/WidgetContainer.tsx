@@ -31,10 +31,8 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
   useSortable,
-} from '@dnd-kit/core';
+} from '@dnd-kit/sortable';
 
 interface Widget {
   id: string;
