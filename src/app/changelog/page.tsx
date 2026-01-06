@@ -27,10 +27,46 @@ type ChangelogVersion = {
 
 const hardcodedVersions = [
   {
-    version: '2.13.0',
+    version: '2.13.2',
     date: 'January 7, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '🔐 Logout Session Handling Fix',
+    highlights: [
+      'Fixed Production Logout Session Termination',
+      'Enhanced Cookie Deletion with Domain Settings',
+      'Client-Side Logout with Full Page Redirect',
+      'Prevents Cached Session Redirects',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Session Management Improvements',
+          items: [
+            'Enhanced cookie deletion with domain-specific settings for hexasteel.sa',
+            'Implemented client-side logout with full page redirect to prevent cached sessions',
+            'Updated both UserMenu and Sidebar logout buttons to use fetch API with forced redirect',
+            'Ensured logout redirects to ots.hexasteel.sa/login in production environment',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed logout session handling to properly end sessions in production',
+        'Replaced form-based logout with fetch API for better session control',
+        'Added window.location.href redirect to bypass Next.js router cache',
+        'Prevented redirect back to dashboard after logout',
+      ],
+      changed: [
+        'Updated logout mechanism to use fetch API instead of form submission',
+        'Added domain-specific cookie deletion for production environment',
+      ],
+    },
+  },
+  {
+    version: '2.13.0',
+    date: 'January 7, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '🔧 Version Consistency & Logout Fixes',
     highlights: [
       'Synchronized All Version Displays to 2.13.0',
