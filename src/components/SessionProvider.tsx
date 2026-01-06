@@ -84,7 +84,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   }
 
   // For authenticated pages, wrap with activity tracker and notification provider
-  if (sessionValid && !PUBLIC_PATHS.includes(pathname)) {
+  if (!PUBLIC_PATHS.includes(pathname)) {
     return (
       <NotificationProvider>
         <SessionActivityProvider>
