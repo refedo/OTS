@@ -61,6 +61,7 @@ export default function CreateRFIPage() {
 
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedBuilding, setSelectedBuilding] = useState('');
+  const [selectedProcess, setSelectedProcess] = useState('');
   const [selectedLogs, setSelectedLogs] = useState<string[]>([]);
   const [inspectionType, setInspectionType] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
@@ -92,13 +93,13 @@ export default function CreateRFIPage() {
   }, [selectedProject]);
 
   useEffect(() => {
-    if (selectedBuilding) {
-      fetchProductionLogs(selectedBuilding);
+    if (selectedBuilding && selectedProcess) {
+      fetchProductionLogs(selectedBuilding, selectedProcess);
     } else {
       setProductionLogs([]);
       setSelectedLogs([]);
     }
-  }, [selectedBuilding]);
+  }, [selectedBuilding, selectedProcess]);
 
   const fetchProjects = async () => {
     try {
@@ -124,10 +125,10 @@ export default function CreateRFIPage() {
     }
   };
 
-  const fetchProductionLogs = async (buildingId: string) => {
+  const fetchProductionLogs = async (buildingId: string, processType: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/production/logs?buildingId=${buildingId}&limit=500`);
+      const response = await fetch(`/api/production/logs?buildingId=${buildingId}&process=${processType}&limit=500`);
       if (response.ok) {
         const result = await response.json();
         // API returns { data: [...], pagination: {...} }
@@ -247,7 +248,7 @@ export default function CreateRFIPage() {
                 <CardTitle>Select Project & Building</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="project">Project *</Label>
                     <select
@@ -282,6 +283,25 @@ export default function CreateRFIPage() {
                       ))}
                     </select>
                   </div>
+
+                  <div>
+                    <Label htmlFor="process">Process Type *</Label>
+                    <select
+                      id="process"
+                      value={selectedProcess}
+                      onChange={(e) => setSelectedProcess(e.target.value)}
+                      disabled={!selectedBuilding}
+                      className="w-full h-10 px-3 rounded-md border bg-background disabled:opacity-50 mt-1"
+                    >
+                      <option value="">Select process...</option>
+                      <option value="Cutting">Cutting</option>
+                      <option value="Welding">Welding</option>
+                      <option value="Assembly">Assembly</option>
+                      <option value="Painting">Painting</option>
+                      <option value="Inspection">Inspection</option>
+                      <option value="Packaging">Packaging</option>
+                    </select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -304,9 +324,9 @@ export default function CreateRFIPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {!selectedBuilding ? (
+                {!selectedBuilding || !selectedProcess ? (
                   <p className="text-muted-foreground text-center py-8">
-                    Select a project and building first
+                    Select a project, building, and process type first
                   </p>
                 ) : loading ? (
                   <div className="flex items-center justify-center py-12">
