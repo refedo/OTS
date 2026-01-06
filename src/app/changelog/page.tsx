@@ -65,7 +65,7 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.13.0',
+    version: '2.12.1',
     date: 'January 6, 2026',
     type: 'minor',
     status: 'previous',

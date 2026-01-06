@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.1] - 2026-01-07
+
+### Fixed
+- Fixed duplicate version keys in changelog causing React error
+- Resolved "two children with the same key" warning in changelog page
+- Updated all version displays to consistent 2.13.1 across system
+
+---
+
 ## [2.11.0] - 2025-12-28
 
 ### 🔍 Enterprise Audit Trail & Event Management System

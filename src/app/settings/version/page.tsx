@@ -23,8 +23,8 @@ import {
   Rocket
 } from 'lucide-react';
 
-const CURRENT_VERSION = '2.13.0';
-const PACKAGE_VERSION = '2.13.0';
+const CURRENT_VERSION = '2.13.1';
+const PACKAGE_VERSION = '2.13.1';
 const GITHUB_REPO = 'refedo/OTS';
 
 export default function VersionManagementPage() {
@@ -262,21 +262,21 @@ export default function VersionManagementPage() {
                   </Button>
                 </div>
                 <div className="bg-slate-900 text-slate-100 p-3 rounded-lg font-mono text-sm flex items-center justify-between">
-                  <span>git commit -m "chore: release v2.13.0"</span>
+                  <span>git commit -m "chore: release v2.13.1"</span>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => copyToClipboard('git commit -m "chore: release v2.13.0"', 'commit')}
+                    onClick={() => copyToClipboard('git commit -m "chore: release v2.13.1"', 'commit')}
                   >
                     {copied === 'commit' ? 'Copied!' : 'Copy'}
                   </Button>
                 </div>
                 <div className="bg-slate-900 text-slate-100 p-3 rounded-lg font-mono text-sm flex items-center justify-between">
-                  <span>git tag -a v2.13.0 -m "Release v2.13.0"</span>
+                  <span>git tag -a v2.13.1 -m "Release v2.13.1"</span>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => copyToClipboard('git tag -a v2.13.0 -m "Release v2.13.0"', 'tag')}
+                    onClick={() => copyToClipboard('git tag -a v2.13.1 -m "Release v2.13.1"', 'tag')}
                   >
                     {copied === 'tag' ? 'Copied!' : 'Copy'}
                   </Button>
@@ -377,11 +377,11 @@ export default function VersionManagementPage() {
             <div className="space-y-2">
               <div className="bg-slate-900 text-slate-100 p-3 rounded-lg font-mono text-xs">
                 <div># 1. Download release</div>
-                <div>wget https://github.com/{GITHUB_REPO}/releases/download/v2.13.0/hexa-steel-ots-v2.13.0.tar.gz</div>
+                <div>wget https://github.com/{GITHUB_REPO}/releases/download/v2.13.1/hexa-steel-ots-v2.13.1.tar.gz</div>
                 <div className="mt-2"># 2. Stop app</div>
                 <div>pm2 stop ots-app</div>
                 <div className="mt-2"># 3. Extract</div>
-                <div>tar -xzf hexa-steel-ots-v2.13.0.tar.gz -C /var/www/hexasteel.sa/ots</div>
+                <div>tar -xzf hexa-steel-ots-v2.13.1.tar.gz -C /var/www/hexasteel.sa/ots</div>
                 <div className="mt-2"># 4. Install & migrate</div>
                 <div>cd /var/www/hexasteel.sa/ots</div>
                 <div>npm ci --production</div>
