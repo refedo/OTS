@@ -30,7 +30,16 @@ export async function POST(request: NextRequest) {
   // Use the request URL to determine the base
   const requestUrl = new URL(request.url);
   const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-  const loginUrl = new URL('/login', baseUrl);
+  
+  // In production, use the correct domain and base path
+  let loginUrl: string;
+  if (process.env.NODE_ENV === 'production') {
+    // Production: redirect to ots.hexasteel.sa/login
+    loginUrl = 'https://ots.hexasteel.sa/login';
+  } else {
+    // Development: use the request host
+    loginUrl = `${baseUrl}/login`;
+  }
   
   const res = NextResponse.redirect(loginUrl, { status: 302 });
   
