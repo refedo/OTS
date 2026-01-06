@@ -27,10 +27,58 @@ type ChangelogVersion = {
 
 const hardcodedVersions = [
   {
-    version: '2.12.0',
+    version: '2.13.0',
     date: 'January 6, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: '🎯 QC Dashboard & Process Management Updates',
+    highlights: [
+      'Process-Dependent Inspection Types',
+      'Enhanced Process Types (Fit-up, Welding, Visualization)',
+      'QC Dashboard Layout Optimization',
+      'Sidebar Navigation Permissions Fix',
+      'Production Logs Array Structure Handling',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'RFI Process & Inspection Management',
+          items: [
+            'Updated process types to include Fit-up, Welding, Visualization, Painting, Assembly, Inspection',
+            'Inspection types now dynamically update based on selected process type',
+            'Process-specific inspection types (e.g., NDT for Welding, Coating for Visualization)',
+            'Automatic inspection type reset when process changes',
+          ],
+        },
+        {
+          title: 'Navigation & Access Control',
+          items: [
+            'Added navigation permissions for RFI and NCR creation pages',
+            'Fixed sidebar items not showing due to missing permissions',
+            'Create New RFI and Create New NCR now properly visible in sidebar',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed QC dashboard error: "Cannot read properties of undefined (reading assemblyPart)"',
+        'Updated QC dashboard to handle productionLogs array structure instead of single productionLog',
+        'Fixed NCR recent items to access production logs through rfiRequest relationship',
+        'Resolved productionLogs.filter is not a function error on RFI/NCR pages',
+        'Fixed QC dashboard layout orientation to match system-wide layout pattern',
+        'Optimized QC dashboard width utilization with proper layout structure',
+      ],
+      changed: [
+        'Updated QC dashboard layout to use lg:pl-64 pattern for better width utilization',
+        'Standardized QC page structure to match production page layout',
+        'Improved error handling for missing production log data with fallback to "N/A"',
+      ],
+    },
+  },
+  {
+    version: '2.12.0',
+    date: 'January 6, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: '🔧 QC Enhancements & Work Order Improvements',
     highlights: [
       'Create RFI Page with Multi-Select',
