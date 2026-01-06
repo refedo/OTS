@@ -154,7 +154,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Dimensional QC', href: '/qc/dimensional', icon: FileCheck },
       { name: 'NDT Inspection', href: '/qc/ndt', icon: FileCheck },
       { name: 'RFI List', href: '/qc/rfi', icon: FileCheck },
-      { name: 'New RFI', href: '/qc/rfi/new', icon: Plus, isNew: true },
+      { name: 'Create New RFI', href: '/qc/rfi/new', icon: Plus, isNew: true },
       { name: 'NCR List', href: '/qc/ncr', icon: FileText },
       { name: 'Create New NCR', href: '/qc/ncr/new', icon: Plus, isNew: true },
       { name: 'ITP List', href: '/itp', icon: FileCheck },
