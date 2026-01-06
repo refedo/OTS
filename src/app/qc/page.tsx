@@ -162,10 +162,11 @@ export default function QCDashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
-      <div className="container mx-auto p-6 lg:p-8 max-w-[1800px] max-lg:pt-20">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
             <Activity className="h-8 w-8" />
             Quality Control Dashboard
           </h1>
@@ -173,6 +174,7 @@ export default function QCDashboardPage() {
             Monitor RFIs, NCRs, and quality metrics
           </p>
         </div>
+      </div>
 
         {/* Filters */}
         <Card className="mb-6">
@@ -426,7 +428,6 @@ export default function QCDashboardPage() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </main>
+    </div>
   );
 }
