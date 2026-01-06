@@ -68,7 +68,7 @@ export async function GET(req: Request) {
   if (priority) whereClause.priority = priority;
   if (projectId) whereClause.projectId = projectId;
 
-  const tasks = await prisma.task.findMany({
+  let tasks = await prisma.task.findMany({
     where: whereClause,
     include: {
       assignedTo: {
@@ -114,33 +114,31 @@ export async function GET(req: Request) {
     console.log('completedBy field not available in database yet');
   }
 
-  const finalTasks = await prisma.task.findMany({
-    where: whereClause,
-    include: {
-      assignedTo: {
-        select: { id: true, name: true, email: true, position: true },
-      },
-      createdBy: {
-        select: { id: true, name: true, email: true },
-      },
-      project: {
-        select: { id: true, projectNumber: true, name: true },
-      },
-      building: {
-        select: { id: true, designation: true, name: true },
-      },
-      department: {
-        select: { id: true, name: true },
-      },
-    },
-    orderBy: [
-      { status: 'asc' }, // Pending first
-      { priority: 'desc' }, // High priority first
-      { dueDate: 'asc' }, // Earliest due date first
-    ],
+  // Add orderBy to the original query
+  tasks = tasks.sort((a, b) => {
+    // Sort by status (Pending first)
+    const statusOrder = { 'Pending': 0, 'In Progress': 1, 'Waiting for Approval': 2, 'Completed': 3 };
+    if (statusOrder[a.status] !== statusOrder[b.status]) {
+      return statusOrder[a.status] - statusOrder[b.status];
+    }
+    
+    // Sort by priority (High first)
+    const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    }
+    
+    // Sort by due date (earliest first)
+    if (a.dueDate && b.dueDate) {
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    }
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    
+    return 0;
   });
 
-  return NextResponse.json(finalTasks);
+  return NextResponse.json(tasks);
 }
 
 export async function POST(req: Request) {
