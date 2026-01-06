@@ -27,10 +27,69 @@ type ChangelogVersion = {
 
 const hardcodedVersions = [
   {
+    version: '2.11.1',
+    date: 'January 6, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '📋 Tasks Page Enhancements & UI Improvements',
+    highlights: [
+      'Enhanced Tasks Counter with Status Breakdown',
+      'Colorized Filter Buttons for Better UX',
+      'Private Task Feature Implementation',
+      'Quick Add Task Improvements',
+      'Enhanced Task Management Features',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Tasks Counter Enhancement',
+          items: [
+            'Redesigned tasks counter to match project summary widget style',
+            'Added real-time status breakdown with colored indicators',
+            'Shows counts for Pending, In Progress, Waiting for Approval, and Completed tasks',
+            'Visual separation with gradient background and border',
+            'Total tasks count with filtered context display',
+          ],
+        },
+        {
+          title: 'Colorized Filter Buttons',
+          items: [
+            'Status filters: Pending (yellow), In Progress (blue), Waiting for Approval (purple), Completed (green)',
+            'Priority filters: High (red), Medium (orange), Low (gray)',
+            'Hover states with matching color themes',
+            'Improved visual feedback for active filters',
+          ],
+        },
+        {
+          title: 'Private Task Feature',
+          items: [
+            'Auto-mark tasks as private when user assigns to themselves',
+            'Manual private task checkbox in full task form',
+            'Private tasks only visible to creator and assignee',
+            'Lock icon indicator for private tasks in table and grid views',
+            'API-level permission enforcement for private task access',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed "Invalid input" error when creating task with "Waiting for Approval" status',
+        'Fixed Prisma query error for isPrivate field filtering',
+        'Fixed Quick Add Task not working when no previous tasks exist',
+        'Removed hardcoded API key from summarize-file route',
+      ],
+      changed: [
+        'Task titles now clickable links to task details page',
+        'Status selectable in Quick Add Task (no longer fixed to "In Progress")',
+        'Quick Add Task button with gradient green styling',
+        'Enhanced task counter display with prominent visual design',
+      ],
+    },
+  },
+  {
     version: '2.11.0',
     date: 'December 28, 2025',
     type: 'minor',
-    status: 'current',
+    status: 'stable',
     mainTitle: '🔍 Enterprise Audit Trail & Event Management System',
     highlights: [
       'Comprehensive Audit Trail System',

@@ -419,21 +419,54 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
-                <span className="text-2xl font-bold text-primary">{filteredTasks.length}</span>
-                <div className="text-xs text-muted-foreground">
-                  <div>{filteredTasks.length === 1 ? 'task' : 'tasks'}</div>
-                  {tasks.length !== filteredTasks.length && (
-                    <div className="text-primary/70">of {tasks.length} total</div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
             <p className="text-muted-foreground mt-1">
               Manage and track your tasks
             </p>
+            <div className="mt-4">
+              <div className="inline-flex items-center gap-6 p-4 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
+                {/* Main Stats */}
+                <div className="flex items-center gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Tasks</p>
+                    <p className="text-3xl font-bold text-primary">{filteredTasks.length}</p>
+                  </div>
+                  {tasks.length !== filteredTasks.length && (
+                    <div className="text-sm text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                      of {tasks.length} total
+                    </div>
+                  )}
+                </div>
+                
+                {/* Status Breakdown */}
+                <div className="flex items-center gap-4 pl-6 border-l border-primary/20">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <span className="text-sm">
+                      {filteredTasks.filter(t => t.status === 'Pending').length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-sm">
+                      {filteredTasks.filter(t => t.status === 'In Progress').length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                    <span className="text-sm">
+                      {filteredTasks.filter(t => t.status === 'Waiting for Approval').length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span className="text-sm">
+                      {filteredTasks.filter(t => t.status === 'Completed').length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           {canCreateTask && (
             <div className="flex gap-2">
