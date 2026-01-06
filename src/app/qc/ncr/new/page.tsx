@@ -128,7 +128,9 @@ export default function CreateNCRPage() {
       const response = await fetch(`/api/production/logs?buildingId=${buildingId}&limit=500`);
       if (response.ok) {
         const data = await response.json();
-        setProductionLogs(data.logs || data);
+        // API returns { logs: [...], total: number, ... } or just an array
+        const logs = Array.isArray(data) ? data : (data.logs || []);
+        setProductionLogs(logs);
       }
     } catch (error) {
       console.error('Error fetching production logs:', error);
