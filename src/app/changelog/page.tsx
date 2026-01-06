@@ -74,9 +74,9 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.13.0',
+    version: '20.0.0',
     date: 'January 7, 2026',
-    type: 'patch',
+    type: 'major',
     status: 'previous',
     mainTitle: '🔧 Version Consistency & Logout Fixes',
     highlights: [
@@ -112,9 +112,9 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.12.1',
+    version: '16.0.0',
     date: 'January 6, 2026',
-    type: 'minor',
+    type: 'major',
     status: 'previous',
     mainTitle: '🎯 QC Dashboard & Process Management Updates',
     highlights: [
@@ -160,9 +160,9 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.12.0',
+    version: '18.0.0',
     date: 'January 6, 2026',
-    type: 'minor',
+    type: 'major',
     status: 'previous',
     mainTitle: '🔧 QC Enhancements & Work Order Improvements',
     highlights: [
@@ -243,10 +243,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.11.1',
+    version: '17.0.0',
     date: 'January 6, 2026',
-    type: 'patch',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     mainTitle: '📋 Tasks Page Enhancements & UI Improvements',
     highlights: [
       'Enhanced Tasks Counter with Status Breakdown',
@@ -302,10 +302,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.11.0',
+    version: '20.0.0',
     date: 'December 28, 2025',
-    type: 'minor',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     mainTitle: '🔍 Enterprise Audit Trail & Event Management System',
     highlights: [
       'Comprehensive Audit Trail System',
@@ -381,10 +381,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.10.0',
+    version: '19.0.0',
     date: 'December 24, 2025',
-    type: 'minor',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     mainTitle: '🚀 GitHub Release Management & System Improvements',
     highlights: [
       'GitHub Release Management System',
@@ -440,10 +440,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.6.0',
+    version: '14.0.0',
     date: 'December 21, 2025',
-    type: 'minor',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     highlights: [
       'Performance Optimizations',
       'Tasks Interface Enhancements',
@@ -511,10 +511,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.5.0',
+    version: '16.0.0',
     date: 'December 18, 2025',
-    type: 'minor',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     highlights: [
       'System Events Tracking',
       'PTS Sync Rollback',
@@ -612,10 +612,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.4.0',
+    version: '17.0.0',
     date: 'December 18, 2025',
-    type: 'minor',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     highlights: [
       'Streamlined PTS Sync',
       'Selective Project/Building Sync',
@@ -665,10 +665,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.2.0',
+    version: '12.0.0',
     date: 'December 17, 2025',
-    type: 'minor',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     highlights: [
       'Import Functions with Field Mapping',
       'Early Warning System Fixes',
@@ -712,10 +712,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.1.0',
+    version: '13.0.0',
     date: 'December 17, 2025',
-    type: 'minor',
-    status: 'current',
+    type: 'major',
+    status: 'previous',
     highlights: [
       'Dependency Blueprints',
       'Load Estimation Rules',
@@ -779,10 +779,11 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '2.0.0',
+    version: '11.0.0',
     date: 'December 15, 2025',
     type: 'major',
-    status: 'stable',
+    status: 'previous',
+    mainTitle: '🚀 Predictive Operations Control System',
     highlights: [
       'Predictive Operations Control',
       'WorkUnit Abstraction Layer',
@@ -896,10 +897,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '1.2.2',
+    version: '6.0.0',
     date: 'December 14, 2025',
-    type: 'minor',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     highlights: [
       'Work Orders Module',
       'Enhanced Notification Center',
@@ -1003,10 +1004,10 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '1.2.1',
+    version: '5.0.0',
     date: 'December 14, 2025',
-    type: 'patch',
-    status: 'stable',
+    type: 'major',
+    status: 'previous',
     highlights: [
       'Deployment stability fixes',
       'OpenAI SDK dependency compatibility',
