@@ -75,64 +75,560 @@ const hardcodedVersions = [
     },
   },
   {
-    version: '20.0.0',
-    date: 'January 7, 2026',
+    version: '12.0.0',
+    date: 'December 22, 2025',
     type: 'major',
     status: 'previous',
-    mainTitle: '🔧 Version Consistency & Logout Fixes',
+    mainTitle: '🚀 Product Backlog Module & CEO Control Center',
     highlights: [
-      'Synchronized All Version Displays to 2.13.0',
-      'Fixed Production Logout Redirect',
-      'Package.json Version Updated',
-      'Settings/Version Page Synchronized',
+      'Product Backlog Module - Single Source of Truth',
+      'CEO Control Center - Strategic Insights Dashboard',
+      'Task Linking & Progress Tracking',
+      'Business Reason Workflow',
     ],
     changes: {
       added: [
         {
-          title: 'Version Consistency System',
+          title: 'Product Backlog Module',
           items: [
-            'Created comprehensive version synchronization across all components',
-            'Updated package.json to match UI version displays',
-            'Fixed login page OTS version display',
-            'Updated settings/version page with correct version numbers',
-            'All example commands now use current version 2.13.0',
+            'Complete backlog management interface with advanced filtering',
+            'Color-coded priority indicators and status workflow enforcement',
+            'Real-time task linking and progress tracking',
+            'Summary statistics dashboard',
+          ],
+        },
+        {
+          title: 'CEO Control Center',
+          items: [
+            'Strategic Snapshot with total backlog overview',
+            'Priority Radar with top 10 high/critical items',
+            'WHY Dashboard grouping by business reason themes',
+            'Investment Insight with visual percentage breakdowns',
           ],
         },
       ],
       fixed: [
-        'Fixed logout redirect to use ots.hexasteel.sa/login in production',
-        'Synchronized package.json version (was 2.12.0)',
-        'Fixed login page version display (was showing 2.12.0)',
-        'Fixed settings/version page (was showing 2.11.0)',
-        'Ensured all version displays are consistently 2.13.0',
+        'Fixed backlog creation errors with enum validation',
+        'Fixed task creation API with backlog support',
+        'Fixed session authentication across all routes',
       ],
       changed: [
-        'Updated changelog to reflect version consistency improvements',
-        'Standardized version update process for future releases',
+        'Product Backlog section added to sidebar navigation',
+        'Task sync includes backlog integration',
       ],
     },
   },
   {
-    version: '16.0.0',
-    date: 'January 6, 2026',
+    version: '11.0.0',
+    date: 'December 23, 2025',
     type: 'major',
     status: 'previous',
-    mainTitle: '🎯 QC Dashboard & Process Management Updates',
+    mainTitle: '🧠 Knowledge Center Module - Operational Intelligence',
     highlights: [
-      'Process-Dependent Inspection Types',
-      'Enhanced Process Types (Fit-up, Welding, Visualization)',
-      'QC Dashboard Layout Optimization',
-      'Sidebar Navigation Permissions Fix',
-      'Production Logs Array Structure Handling',
+      'Knowledge Center - Operational Memory System',
+      'Challenges, Issues, Lessons, Best Practices',
+      'Rule-based Validation Workflow',
+      'Dashboard Analytics Integration',
     ],
     changes: {
       added: [
         {
-          title: 'RFI Process & Inspection Management',
+          title: 'Knowledge Center Core Features',
           items: [
-            'Updated process types to include Fit-up, Welding, Visualization, Painting, Assembly, Inspection',
-            'Inspection types now dynamically update based on selected process type',
-            'Process-specific inspection types (e.g., NDT for Welding, Coating for Visualization)',
+            'Four entry types: CHALLENGE, ISSUE, LESSON, BEST_PRACTICE',
+            'Fast entry creation with minimum required fields',
+            'Status lifecycle: Open → InProgress → PendingValidation → Validated',
+            'Project and process linkage with tag-based categorization',
+          ],
+        },
+        {
+          title: 'Validation & Analytics',
+          items: [
+            'Role-based validation (Supervisor and above required)',
+            'Dashboard integration with key metrics widgets',
+            'Full-text search and advanced filtering',
+            'Visual status indicators and validation badges',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed knowledge entry creation validation',
+        'Fixed search functionality across all entry types',
+      ],
+      changed: [
+        'Knowledge Center section added to sidebar navigation',
+        'Enhanced dashboard with knowledge widgets',
+      ],
+    },
+  },
+  {
+    version: '10.0.0',
+    date: 'December 18, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '📊 PTS Sync Module - Data Integration',
+    highlights: [
+      'Streamlined PTS Sync with Selective Import',
+      'Pagination for Large Datasets',
+      'PTS/OTS Source Indicators',
+      'Field Mapping Wizard',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Streamlined PTS Sync',
+          items: [
+            'Simplified PTS Sync page with sidebar navigation',
+            'Two-phase sync: Assembly Parts first, then Production Logs',
+            'Selective sync: Choose which projects and buildings to sync',
+            'Live progress indicators with created/updated/errors counts',
+          ],
+        },
+        {
+          title: 'Performance & Usability',
+          items: [
+            'Pagination for Assembly Parts and Production Logs (100 items per page)',
+            'Server-side search across all pages',
+            'PTS/OTS source indicators for visual distinction',
+            'Pre-sync validation with matched/unmatched counts',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed version number in sidebar display',
+        'Fixed PTS Sync page navigation integration',
+      ],
+      changed: [
+        'PTS Sync moved to simplified interface',
+        'Assembly parts and logs sync in separate phases',
+      ],
+    },
+  },
+  {
+    version: '9.0.0',
+    date: 'December 15, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🎯 Operations Control System - Predictive Management',
+    highlights: [
+      'Predictive Operations Control',
+      'WorkUnit Abstraction Layer',
+      'Early Warning Engine',
+      'Resource Capacity Planning',
+      'Operations Control Dashboard',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Predictive Operations Control System',
+          items: [
+            'WorkUnit model for cross-project work tracking abstraction',
+            'WorkUnit types: DESIGN, PROCUREMENT, PRODUCTION, QC, DOCUMENTATION',
+            'Auto-sets actualStart/actualEnd on status transitions',
+            'At-risk detection: late start, approaching deadline, blocked items',
+          ],
+        },
+        {
+          title: 'Early Warning Engine',
+          items: [
+            'RiskEvent model for risk tracking with CRITICAL, HIGH, MEDIUM, LOW severities',
+            'Automated rule evaluation for risk detection',
+            'Automatic scheduler runs every hour with environment toggle',
+            'Auto-create WorkUnits from Tasks, WorkOrders, RFIs, DocumentSubmissions',
+          ],
+        },
+        {
+          title: 'Operations Control Dashboard',
+          items: [
+            'New /operations-control page with read-only view',
+            'Summary cards: total risks, critical, high, affected projects',
+            'Active risks table sorted by severity',
+            'Priority actions from CRITICAL/HIGH risks',
+          ],
+        },
+      ],
+      fixed: [
+        'All new API routes use custom JWT authentication',
+        'Consistent session verification across all endpoints',
+      ],
+      changed: [
+        'System transformed from recording/reporting to predictive control',
+        'Sidebar updated with Operations Control navigation link',
+      ],
+    },
+  },
+  {
+    version: '8.0.0',
+    date: 'December 17, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '⚡ Early Warning System - Risk Intelligence',
+    highlights: [
+      'Dependency Blueprint System',
+      'Load Estimation Rules',
+      'Capacity Auto-Consumption',
+      'Operations Intelligence Dashboard',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Dependency Blueprint System',
+          items: [
+            'Template-based automatic dependency creation',
+            'Blueprint matching by project structure type (PEB, Heavy Steel, etc.)',
+            'Workflow: DESIGN → PROCUREMENT → PRODUCTION → QC → DOCUMENTATION',
+            'Support for FS, SS, FF dependencies with configurable lag days',
+          ],
+        },
+        {
+          title: 'Load Estimation & Capacity',
+          items: [
+            'Smart quantity estimation based on work type and context',
+            'ResourceCapacityService automatically pulls load from WorkUnits',
+            'Early Warning Engine detects overloads based on actual work data',
+            'Real-time capacity utilization tracking',
+          ],
+        },
+        {
+          title: 'Operations Intelligence Dashboard',
+          items: [
+            'Unified view of WorkUnits, Dependencies, and Capacity',
+            'Three layout modes: Table, Network Graph, Split View',
+            'Interactive dependency network visualization',
+            'Create WorkUnit button with live impact preview',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed WorkUnitSyncService blueprint-based dependency creation',
+        'Fixed task sync with title for load estimation context',
+      ],
+      changed: [
+        'Legacy dependency logic retained as fallback',
+        'Enhanced dependency tracking with circular detection',
+      ],
+    },
+  },
+  {
+    version: '7.0.0',
+    date: 'December 14, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🤖 Operations Timeline & AI Assistant',
+    highlights: [
+      'AI-Powered Assistant Integration',
+      'Context-Aware Conversations',
+      'Conversation History Management',
+      'OpenAI GPT-4 Integration',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'AI Assistant System',
+          items: [
+            'Context-aware AI assistant with OpenAI GPT-4 integration',
+            'Conversation history management with session persistence',
+            'Context injection from projects, tasks, and production data',
+            'Smart suggestions for operational improvements',
+          ],
+        },
+        {
+          title: 'Operations Timeline',
+          items: [
+            'Real-time timeline view of all operational activities',
+            'Automatic event categorization and prioritization',
+            'Interactive timeline with drill-down capabilities',
+            'Export functionality for reporting',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed AI assistant context loading issues',
+        'Fixed timeline event synchronization',
+      ],
+      changed: [
+        'Enhanced AI response accuracy with better context',
+        'Improved timeline performance with optimized queries',
+      ],
+    },
+  },
+  {
+    version: '6.0.0',
+    date: 'December 14, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🔧 Engineering Module - ITP/WPS/Documents',
+    highlights: [
+      'ITP Management System',
+      'WPS Management',
+      'Document Management',
+      'Approval Workflows',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Engineering Document Management',
+          items: [
+            'ITP (Inspection Test Plan) management with status tracking',
+            'WPS (Welding Procedure Specification) management',
+            'Document upload, version control, and approval workflows',
+            'Engineering drawing management with revision tracking',
+          ],
+        },
+        {
+          title: 'Approval System',
+          items: [
+            'Multi-level approval workflows for engineering documents',
+            'Digital signature capabilities',
+            'Approval history tracking and audit trail',
+            'Automated notification system for pending approvals',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed document upload validation issues',
+        'Fixed approval workflow routing',
+      ],
+      changed: [
+        'Enhanced engineering module integration',
+        'Improved document search and filtering',
+      ],
+    },
+  },
+  {
+    version: '5.0.0',
+    date: 'December 14, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '📈 Business Planning Module - OKR & KPI',
+    highlights: [
+      'OKR System',
+      'Balanced Scorecard KPIs',
+      'Annual Plans and Initiatives',
+      'SWOT Analysis',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Strategic Planning Tools',
+          items: [
+            'OKR (Objectives and Key Results) management system',
+            'Balanced Scorecard with comprehensive KPI tracking',
+            'Annual plan creation and initiative management',
+            'SWOT analysis with action item tracking',
+          ],
+        },
+        {
+          title: 'Performance Analytics',
+          items: [
+            'Real-time KPI dashboards with visual indicators',
+            'Progress tracking against strategic objectives',
+            'Automated reporting and trend analysis',
+            'Executive summary generation',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed KPI calculation accuracy issues',
+        'Fixed OKR progress tracking',
+      ],
+      changed: [
+        'Enhanced strategic planning capabilities',
+        'Improved analytics performance',
+      ],
+    },
+  },
+  {
+    version: '4.0.0',
+    date: 'December 14, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🔍 Quality Control Module - RFI & NCR',
+    highlights: [
+      'RFI System',
+      'NCR Management',
+      'Material, Welding, Dimensional Inspections',
+      'Quality Dashboard',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Quality Control Management',
+          items: [
+            'RFI (Request for Information) system with tracking',
+            'NCR (Non-Conformance Report) management',
+            'Material, Welding, Dimensional, and NDT inspection types',
+            'Quality dashboard with real-time metrics',
+          ],
+        },
+        {
+          title: 'Inspection Workflows',
+          items: [
+            'Process-dependent inspection types',
+            'Multi-select production logs for batch RFI creation',
+            'Severity level management for NCRs',
+            'Root cause analysis and corrective action tracking',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed QC dashboard error handling',
+        'Fixed production logs array structure handling',
+      ],
+      changed: [
+        'Enhanced QC module integration',
+        'Improved inspection workflow efficiency',
+      ],
+    },
+  },
+  {
+    version: '3.0.0',
+    date: 'December 14, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🏭 Production Module - Manufacturing Management',
+    highlights: [
+      'Assembly Part Tracking',
+      'Production Log System',
+      'Mass Production Logging',
+      'Processing Teams and Locations',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Production Management',
+          items: [
+            'Assembly part tracking with weight and area calculations',
+            'Production log system with process tracking',
+            'Mass production logging capabilities',
+            'Processing teams and location management',
+          ],
+        },
+        {
+          title: 'Manufacturing Analytics',
+          items: [
+            'Real-time production progress tracking',
+            'Efficiency metrics and performance indicators',
+            'Production capacity planning',
+            'Quality control integration',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed production log validation',
+        'Fixed assembly part calculation accuracy',
+      ],
+      changed: [
+        'Enhanced production module capabilities',
+        'Improved manufacturing analytics',
+      ],
+    },
+  },
+  {
+    version: '2.0.0',
+    date: 'December 8, 2024',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🔔 Notification Center Module - Real-time Alerts',
+    highlights: [
+      'Real-time Notifications',
+      'AI-powered Summaries',
+      'Automatic Deadline Warnings',
+      'Task Assignment Alerts',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Notification System',
+          items: [
+            'Real-time notification system for tasks, approvals, and deadlines',
+            'Notification bell with unread count badge',
+            'Dropdown notification panel with 5 tabs',
+            'Full-page notification center at /notifications',
+          ],
+        },
+        {
+          title: 'AI Integration',
+          items: [
+            'AI-powered notification summaries using OpenAI GPT-4',
+            'Automatic deadline scanner (runs daily at 8:00 AM)',
+            'Six notification types with smart categorization',
+            'Intelligent priority-based notification routing',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed notification real-time updates',
+        'Fixed notification badge synchronization',
+      ],
+      changed: [
+        'Enhanced notification delivery system',
+        'Improved AI summary accuracy',
+      ],
+    },
+  },
+  {
+    version: '1.0.0',
+    date: 'November 25, 2024',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🚀 Initial Release - Core System',
+    highlights: [
+      'Core System Foundation',
+      'Project Management',
+      'User Management with RBAC',
+      'Task Management System',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Core System',
+          items: [
+            'Project management with multi-building support',
+            'Client management and relationship tracking',
+            'User management with Role-Based Access Control (RBAC)',
+            'Department management and organizational structure',
+            'Task management system with assignment and tracking',
+          ],
+        },
+        {
+          title: 'Foundation Features',
+          items: [
+            'Comprehensive dashboard with real-time analytics',
+            'Secure authentication and session management',
+            'Responsive design for all device types',
+            'Audit logging and activity tracking',
+          ],
+        },
+      ],
+      fixed: [
+        'Initial system stability and performance',
+        'Core functionality validation',
+      ],
+      changed: [
+        'Established system architecture',
+        'Implemented foundational frameworks',
+      ],
+    },
+  ];
+
+export default function ChangelogPage() {
+  const versions = hardcodedVersions;
+
+  return (
+    <div className="container mx-auto py-8 px-4 max-w-5xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Changelog</h1>
+        <p className="text-muted-foreground">
+          Track all updates and improvements to the Hexa Steel Operation Tracking System
+        </p>
+      </div>
+
+      <div className="space-y-8">
+        {versions.map((version, index) => (
+          <Card key={version.version} className={version.status === 'current' ? 'border-blue-500' : ''}>
+            <CardHeader>
+              <div className="flex items-start justify-between">
             'Automatic inspection type reset when process changes',
           ],
         },
