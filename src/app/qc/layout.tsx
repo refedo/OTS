@@ -12,9 +12,9 @@ export default function QCLayout({
     <NotificationProvider>
       <div className="flex min-h-screen">
         <AppSidebar />
-        <main className="flex-1 ml-64 p-4">
+        <div className="flex-1 lg:pl-64">
           {children}
-        </main>
+        </div>
       </div>
     </NotificationProvider>
   );
