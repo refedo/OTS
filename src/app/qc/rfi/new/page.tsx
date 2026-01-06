@@ -127,7 +127,7 @@ export default function CreateRFIPage() {
   const fetchProductionLogs = async (buildingId: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/production-logs?buildingId=${buildingId}&limit=500`);
+      const response = await fetch(`/api/production/logs?buildingId=${buildingId}&limit=500`);
       if (response.ok) {
         const data = await response.json();
         setProductionLogs(data.logs || data);
@@ -218,8 +218,8 @@ export default function CreateRFIPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
-      <div className="container mx-auto p-6 lg:p-8 max-w-[1400px] max-lg:pt-20">
+    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="container mx-auto p-6 lg:p-8 max-w-[1600px] max-lg:pt-20">
         <div className="mb-6">
           <Link href="/qc/rfi">
             <Button variant="ghost" size="sm" className="mb-4">
@@ -236,9 +236,9 @@ export default function CreateRFIPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Left Column - Selection */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-3 space-y-6">
             {/* Project & Building Selection */}
             <Card>
               <CardHeader>

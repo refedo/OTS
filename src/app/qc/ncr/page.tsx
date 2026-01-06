@@ -208,14 +208,22 @@ export default function NCRListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <AlertTriangle className="h-8 w-8" />
-            NCR List
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage Non-Conformance Reports
-          </p>
+      <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              <AlertTriangle className="h-8 w-8" />
+              NCR List
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Manage Non-Conformance Reports
+            </p>
+          </div>
+          <Link href="/qc/ncr/new">
+            <Button className="bg-orange-600 hover:bg-orange-700">
+              <Plus className="mr-2 h-4 w-4" />
+              New NCR
+            </Button>
+          </Link>
         </div>
 
         {/* Filters */}

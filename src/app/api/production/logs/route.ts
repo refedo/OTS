@@ -46,6 +46,7 @@ export async function GET(req: Request) {
     const search = searchParams.get('search');
     const processFilter = searchParams.get('process');
     const projectId = searchParams.get('projectId');
+    const buildingId = searchParams.get('buildingId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '100');
     const skip = (page - 1) * limit;
@@ -58,7 +59,11 @@ export async function GET(req: Request) {
     }
 
     if (projectId && projectId !== 'all') {
-      where.assemblyPart = { projectId };
+      where.assemblyPart = { ...where.assemblyPart, projectId };
+    }
+
+    if (buildingId && buildingId !== 'all') {
+      where.assemblyPart = { ...where.assemblyPart, buildingId };
     }
 
     if (search) {

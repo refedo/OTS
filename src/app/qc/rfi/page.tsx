@@ -513,18 +513,27 @@ export default function RFIListPage() {
               )}
             </p>
           </div>
-          {selectedRFIs.size > 0 && (
-            <div className="flex gap-2">
-              <Button onClick={handleBulkApprove} className="bg-green-600 hover:bg-green-700">
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Approve Selected ({selectedRFIs.size})
-              </Button>
-              <Button onClick={handleBulkDelete} variant="destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected ({selectedRFIs.size})
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            {selectedRFIs.size > 0 ? (
+              <>
+                <Button onClick={handleBulkApprove} className="bg-green-600 hover:bg-green-700">
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve Selected ({selectedRFIs.size})
+                </Button>
+                <Button onClick={handleBulkDelete} variant="destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected ({selectedRFIs.size})
+                </Button>
+              </>
+            ) : (
+              <Link href="/qc/rfi/new">
+                <Button className="bg-blue-600 hover:bg-blue-700">
+                  <FileCheck className="mr-2 h-4 w-4" />
+                  New RFI
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Filters */}
