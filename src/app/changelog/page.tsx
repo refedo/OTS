@@ -27,9 +27,9 @@ type ChangelogVersion = {
 
 const hardcodedVersions = [
   {
-    version: '21.0.0',
+    version: '12.0.1',
     date: 'January 7, 2026',
-    type: 'major',
+    type: 'patch',
     status: 'current',
     mainTitle: '🔧 Version Consistency & Dolibarr-Style Logout Fixes',
     highlights: [
@@ -44,8 +44,9 @@ const hardcodedVersions = [
         {
           title: 'Version Management Restructure',
           items: [
-            'Restructured version numbering to reflect major module additions (1.0=Core, 2.0=Production, 3.0=QC, etc.)',
-            'Updated all version displays across system to new major version structure',
+            'Corrected version numbering: Major versions for new modules (1.0=Core, 8.0=Early Warning, 9.0=Operations Control, 12.0=Product Backlog)',
+            'Minor versions for enhancements, patch versions for bug fixes',
+            'Updated all version displays across system to consistent version structure',
             'Enhanced version manager script for consistent updates',
           ],
         },
