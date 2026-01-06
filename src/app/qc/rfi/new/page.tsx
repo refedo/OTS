@@ -129,9 +129,9 @@ export default function CreateRFIPage() {
     try {
       const response = await fetch(`/api/production/logs?buildingId=${buildingId}&limit=500`);
       if (response.ok) {
-        const data = await response.json();
-        // API returns { logs: [...], total: number, ... } or just an array
-        const logs = Array.isArray(data) ? data : (data.logs || []);
+        const result = await response.json();
+        // API returns { data: [...], pagination: {...} }
+        const logs = result.data || result.logs || (Array.isArray(result) ? result : []);
         setProductionLogs(logs);
       }
     } catch (error) {
