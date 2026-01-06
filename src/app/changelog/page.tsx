@@ -1022,39 +1022,7 @@ const getStatusBadge = (status: string) => {
 };
 
 export default function ChangelogPage() {
-  const [versions, setVersions] = useState<ChangelogVersion[]>(hardcodedVersions);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchChangelog() {
-      try {
-        const response = await fetch('/api/changelog');
-        if (response.ok) {
-          const data = await response.json();
-          setVersions(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch changelog:', error);
-        // Keep using hardcoded versions as fallback
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchChangelog();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="container mx-auto py-8 px-4 max-w-5xl">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading changelog...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const versions = hardcodedVersions;
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
