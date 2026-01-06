@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.13.2] - 2026-01-07
+
+### Fixed
+- Fixed logout session handling to properly end sessions in production
+- Enhanced cookie deletion with domain-specific settings for hexasteel.sa
+- Implemented client-side logout with full page redirect to prevent cached sessions
+- Updated both UserMenu and Sidebar logout buttons to use fetch API with forced redirect
+- Ensured logout redirects to ots.hexasteel.sa/login in production environment
+
+### Changed
+- Replaced form-based logout with fetch API for better session control
+- Added window.location.href redirect to bypass Next.js router cache
+
+---
+
 ## [2.13.1] - 2026-01-07
 
 ### Fixed
