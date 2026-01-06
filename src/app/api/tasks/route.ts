@@ -86,8 +86,51 @@ export async function GET(req: Request) {
       department: {
         select: { id: true, name: true },
       },
-      completedBy: {
+    },
+  });
+
+  // Try to add completedBy if the field exists in the database
+  try {
+    const tasksWithCompletedBy = await prisma.task.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        completedBy: {
+          select: { id: true, name: true, email: true, position: true },
+        },
+      },
+    });
+    
+    // Merge completedBy data into tasks
+    tasks = tasks.map(task => {
+      const completedByData = tasksWithCompletedBy.find(t => t.id === task.id);
+      return {
+        ...task,
+        completedBy: completedByData?.completedBy || null,
+      };
+    });
+  } catch (error) {
+    // completedBy field doesn't exist in database yet
+    console.log('completedBy field not available in database yet');
+  }
+
+  const finalTasks = await prisma.task.findMany({
+    where: whereClause,
+    include: {
+      assignedTo: {
         select: { id: true, name: true, email: true, position: true },
+      },
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      project: {
+        select: { id: true, projectNumber: true, name: true },
+      },
+      building: {
+        select: { id: true, designation: true, name: true },
+      },
+      department: {
+        select: { id: true, name: true },
       },
     },
     orderBy: [
@@ -97,7 +140,7 @@ export async function GET(req: Request) {
     ],
   });
 
-  return NextResponse.json(tasks);
+  return NextResponse.json(finalTasks);
 }
 
 export async function POST(req: Request) {

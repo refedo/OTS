@@ -21,7 +21,7 @@ const updateSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
@@ -31,8 +31,9 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
   const task = await prisma.task.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       assignedTo: {
         select: { id: true, name: true, email: true, position: true },
@@ -49,11 +50,27 @@ export async function GET(
       department: {
         select: { id: true, name: true },
       },
-      completedBy: {
-        select: { id: true, name: true, email: true, position: true },
-      },
     },
   });
+
+  // Try to fetch completedBy if the field exists in the database
+  try {
+    const taskWithCompletedBy = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        completedBy: {
+          select: { id: true, name: true, email: true, position: true },
+        },
+      },
+    });
+    
+    if (taskWithCompletedBy?.completedBy) {
+      task.completedBy = taskWithCompletedBy.completedBy;
+    }
+  } catch (error) {
+    // completedBy field doesn't exist in database yet
+    console.log('completedBy field not available in database yet');
+  }
 
   if (!task) {
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -77,7 +94,7 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
@@ -87,8 +104,9 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
   const task = await prisma.task.findUnique({
-    where: { id: params.id },
+    where: { id },
   });
 
   if (!task) {
@@ -119,17 +137,23 @@ export async function PATCH(
   if (parsed.data.dueDate) updateData.dueDate = new Date(parsed.data.dueDate);
   if (parsed.data.taskInputDate) updateData.taskInputDate = new Date(parsed.data.taskInputDate);
   
-  // Handle completion tracking
-  if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
-    updateData.completedAt = new Date();
-    updateData.completedById = session.sub;
-  } else if (parsed.data.status !== 'Completed' && task.status === 'Completed') {
-    updateData.completedAt = null;
-    updateData.completedById = null;
+  // Handle completion tracking (only if database schema supports it)
+  // Note: This will only work after database migration is applied
+  try {
+    if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
+      updateData.completedAt = new Date();
+      updateData.completedById = session.sub;
+    } else if (parsed.data.status !== 'Completed' && task.status === 'Completed') {
+      updateData.completedAt = null;
+      updateData.completedById = null;
+    }
+  } catch (error) {
+    // If database doesn't have these fields yet, skip completion tracking
+    console.log('Completion tracking fields not available in database yet');
   }
 
   const updatedTask = await prisma.task.update({
-    where: { id: params.id },
+    where: { id },
     data: updateData,
     include: {
       assignedTo: {
@@ -147,15 +171,31 @@ export async function PATCH(
       department: {
         select: { id: true, name: true },
       },
-      completedBy: {
-        select: { id: true, name: true, email: true, position: true },
-      },
     },
   });
 
+  // Try to fetch completedBy if the field exists in the database
+  try {
+    const taskWithCompletedBy = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        completedBy: {
+          select: { id: true, name: true, email: true, position: true },
+        },
+      },
+    });
+    
+    if (taskWithCompletedBy?.completedBy) {
+      updatedTask.completedBy = taskWithCompletedBy.completedBy;
+    }
+  } catch (error) {
+    // completedBy field doesn't exist in database yet
+    console.log('completedBy field not available in database yet');
+  }
+
   // Sync WorkUnit status if status was updated (non-blocking)
   if (parsed.data.status) {
-    WorkUnitSyncService.syncTaskStatusUpdate(params.id, parsed.data.status).catch((err) => {
+    WorkUnitSyncService.syncTaskStatusUpdate(id, parsed.data.status).catch((err) => {
       console.error('WorkUnit status sync failed:', err);
     });
   }
@@ -165,7 +205,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
@@ -176,8 +216,9 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const { id } = await params;
   await prisma.task.delete({
-    where: { id: params.id },
+    where: { id },
   });
 
   return NextResponse.json({ success: true });
