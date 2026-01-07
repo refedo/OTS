@@ -102,18 +102,18 @@ async function calculateProgress(schedule: any): Promise<number> {
     if (scopeType === 'design' || scopeType === 'shopDrawing') {
       const documentType = scopeType === 'design' ? 'Design' : 'Shop Drawing';
       
-      // Get all documents for this building and type
-      const documents = await prisma.document.findMany({
+      // Get all document submissions for this building and type
+      const documents = await prisma.documentSubmission.findMany({
         where: {
           buildingId,
           documentType,
         },
         include: {
           revisions: {
-            orderBy: { revisionNumber: 'desc' },
+            orderBy: { submissionDate: 'desc' },
             take: 1,
             select: {
-              revisionNumber: true,
+              revision: true,
               clientResponse: true,
             }
           }
