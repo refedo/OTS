@@ -21,7 +21,7 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '13.2.1',
+    version: '13.3.1',
     date: 'January 7, 2026',
     type: 'patch',
     status: 'current',
@@ -55,7 +55,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '13.2.0',
+    version: '13.3.0',
     date: 'January 7, 2026',
     type: 'minor',
     status: 'previous',
