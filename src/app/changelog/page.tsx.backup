@@ -126,10 +126,10 @@ const hardcodedVersions: ChangelogVersion[] = [
   },
   {
     version: '13.1.0',
-    date: 'January 6, 2026',
+    date: 'December 28, 2025',
     type: 'minor',
     status: 'previous',
-    mainTitle: '🎯 QC Dashboard & Process Management Updates',
+    mainTitle: '📋 Enterprise Audit Trail System',
     highlights: [
       'Process-Dependent Inspection Types',
       'Enhanced Process Types (Fit-up, Welding, Visualization)',
@@ -210,11 +210,11 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '13.0.1',
-    date: 'December 28, 2025',
-    type: 'patch',
+    version: '13.0.0',
+    date: 'December 23, 2025',
+    type: 'major',
     status: 'previous',
-    mainTitle: '📋 Enterprise Audit Trail System',
+    mainTitle: '� Knowledge Center Module',
     highlights: [
       'Automatic Audit Logging',
       'Field-level Change Tracking',
