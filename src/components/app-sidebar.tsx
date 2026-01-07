@@ -298,14 +298,14 @@ export function AppSidebar() {
     fetchPermissions();
   }, []);
 
-  // Fetch risk count
+  // Fetch risk count from leading indicators (same as risk dashboard)
   useEffect(() => {
     async function fetchRiskCount() {
       try {
-        const response = await fetch('/api/risk-events');
+        const response = await fetch('/api/leading-indicators');
         if (response.ok) {
           const data = await response.json();
-          setRiskCount(data.count || 0);
+          setRiskCount(data.totalRisks || 0);
         }
       } catch (error) {
         console.error('Failed to fetch risk count:', error);
