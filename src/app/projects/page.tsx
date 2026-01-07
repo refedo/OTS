@@ -16,8 +16,8 @@ export default async function ProjectsPage() {
     redirect('/login');
   }
 
-  const canCreate = ['Admin', 'Manager'].includes(session.role);
-  const canImportExport = ['Admin', 'PMO'].includes(session.role);
+  const canCreate = ['CEO', 'Admin', 'Manager'].includes(session.role);
+  const canImportExport = ['CEO', 'Admin', 'PMO'].includes(session.role);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">

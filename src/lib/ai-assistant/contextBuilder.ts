@@ -198,7 +198,7 @@ async function getProjectsContext(userId: string, role: string, departmentId?: s
   };
 
   // Role-based filtering
-  if (role !== 'Admin' && role !== 'Manager') {
+  if (!['CEO', 'Admin', 'Manager'].includes(role)) {
     whereClause.OR = [
       { projectManagerId: userId },
       { salesEngineerId: userId },
@@ -239,7 +239,7 @@ async function getTasksContext(userId: string, role: string) {
   const whereClause: any = {};
 
   // Role-based filtering
-  if (role !== 'Admin' && role !== 'Manager') {
+  if (!['CEO', 'Admin', 'Manager'].includes(role)) {
     whereClause.assignedToId = userId;
   }
 

@@ -60,7 +60,7 @@ export default async function WPSListPage() {
 
   const wpsList = await getWPSList();
   const projects = await getProjects();
-  const canApprove = ['Admin', 'Manager'].includes(session.role);
+  const canApprove = ['CEO', 'Admin', 'Manager'].includes(session.role);
 
   // Serialize WPS data to convert Decimal objects to numbers
   const serializedWpsList = wpsList.map(wps => ({

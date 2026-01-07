@@ -12,8 +12,8 @@ export async function POST(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    // Only Admins and Managers can create templates
-    if (!session || !['Admin', 'Manager'].includes(session.role)) {
+    // Only CEO, Admins and Managers can create templates
+    if (!session || !['CEO', 'Admin', 'Manager'].includes(session.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

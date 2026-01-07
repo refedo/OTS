@@ -92,7 +92,7 @@ export default async function DocumentsPage() {
 
         <DocumentsList 
           initialDocuments={documents} 
-          canDelete={['Admin', 'Manager'].includes(session.role)}
+          canDelete={['CEO', 'Admin', 'Manager'].includes(session.role)}
         />
       </div>
     </main>

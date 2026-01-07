@@ -71,8 +71,8 @@ export default function MilestonesClient({ initiative, session }: MilestonesClie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const canEdit = ['Admin', 'Manager'].includes(session.role);
-  const canDelete = session.role === 'Admin';
+  const canEdit = ['CEO', 'Admin', 'Manager'].includes(session.role);
+  const canDelete = ['CEO', 'Admin'].includes(session.role);
 
   // Fetch users for assignment
   useEffect(() => {

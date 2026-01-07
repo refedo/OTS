@@ -23,8 +23,8 @@ export default async function NewTaskPage() {
 
   // Fetch users for assignment with department info
   let users;
-  if (session.role === 'Admin' || session.role === 'Document Controller' || session.role === 'CEO') {
-    // Admin, Document Controller, and CEO see all active users
+  if (['CEO', 'Admin', 'Document Controller'].includes(session.role)) {
+    // CEO, Admin, and Document Controller see all active users
     users = await prisma.user.findMany({
       where: { status: 'active' },
       select: { 

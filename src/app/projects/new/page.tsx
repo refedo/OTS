@@ -18,7 +18,7 @@ export default async function NewProjectPage() {
     redirect('/login');
   }
 
-  if (!['Admin', 'Manager'].includes(session.role)) {
+  if (!['CEO', 'Admin', 'Manager'].includes(session.role)) {
     redirect('/projects');
   }
 

@@ -104,7 +104,7 @@ export default function ProjectSetupWizard() {
       if (response.ok) {
         const data = await response.json();
         const projectManagers = data.filter((user: any) => 
-          user.role?.name === 'Manager' || user.role?.name === 'Admin'
+          ['CEO', 'Admin', 'Manager'].includes(user.role?.name)
         );
         setManagers(projectManagers);
       }

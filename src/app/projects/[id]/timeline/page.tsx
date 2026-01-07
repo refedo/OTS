@@ -44,7 +44,7 @@ export default async function ProjectTimelinePage({ params }: { params: { id: st
 
   const buildings = buildingsResponse.ok ? await buildingsResponse.json() : [];
 
-  const canEdit = ['Admin', 'Project Manager'].includes(session.role);
+  const canEdit = ['CEO', 'Admin', 'Project Manager'].includes(session.role);
 
   return (
     <OperationTimelineClient

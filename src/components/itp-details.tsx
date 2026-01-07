@@ -102,12 +102,12 @@ export function ITPDetails({ itp, userRole, userId, projects }: ITPDetailsProps)
   const [cloneItpNumber, setCloneItpNumber] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  const canEdit = ['Admin', 'Manager', 'Engineer'].includes(userRole) && itp.status === 'Draft';
-  const canDelete = userRole === 'Admin';
-  const canSubmit = ['Admin', 'Manager', 'Engineer'].includes(userRole) && itp.status === 'Draft';
-  const canApprove = ['Admin', 'Manager'].includes(userRole) && itp.status === 'Under Review';
-  const canSaveAsTemplate = ['Admin', 'Manager'].includes(userRole) && itp.type === 'CUSTOM';
-  const canClone = ['Admin', 'Manager', 'Engineer'].includes(userRole);
+  const canEdit = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole) && itp.status === 'Draft';
+  const canDelete = ['CEO', 'Admin'].includes(userRole);
+  const canSubmit = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole) && itp.status === 'Draft';
+  const canApprove = ['CEO', 'Admin', 'Manager'].includes(userRole) && itp.status === 'Under Review';
+  const canSaveAsTemplate = ['CEO', 'Admin', 'Manager'].includes(userRole) && itp.type === 'CUSTOM';
+  const canClone = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole);
 
   const formatDate = (date: string | null) => {
     if (!date) return '-';

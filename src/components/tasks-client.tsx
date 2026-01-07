@@ -1158,7 +1158,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                   Edit Task
                                 </DropdownMenuItem>
                               )}
-                              {userRole === 'Admin' && (
+                              {['CEO', 'Admin'].includes(userRole) && (
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(task.id)}
                                   className="text-destructive"

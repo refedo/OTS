@@ -435,7 +435,7 @@ export function WPSForm({ projects, users, wps }: WPSFormProps) {
                   >
                     <option value="">Select Approver (Optional)</option>
                     {users
-                      .filter(u => ['Admin', 'Manager'].includes(u.role.name))
+                      .filter(u => ['CEO', 'Admin', 'Manager'].includes(u.role.name))
                       .map((user) => (
                         <option key={user.id} value={user.id}>
                           {user.name} {user.position ? `(${user.position})` : ''}

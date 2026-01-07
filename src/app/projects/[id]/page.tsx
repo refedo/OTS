@@ -50,7 +50,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
   const scopeSchedules = schedulesResponse.ok ? await schedulesResponse.json() : [];
 
-  const canEdit = ['Admin', 'Manager'].includes(session.role);
+  const canEdit = ['CEO', 'Admin', 'Manager'].includes(session.role);
 
   return (
     <div className="space-y-6">

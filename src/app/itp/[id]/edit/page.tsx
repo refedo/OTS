@@ -14,8 +14,8 @@ export default async function EditITPPage({ params }: { params: { id: string } }
     redirect('/login');
   }
 
-  // Only QA/QC Engineers, Managers, and Admins can edit ITPs
-  if (!['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+  // Only CEO, QA/QC Engineers, Managers, and Admins can edit ITPs
+  if (!['CEO', 'Admin', 'Manager', 'Engineer'].includes(session.role)) {
     redirect('/itp');
   }
 

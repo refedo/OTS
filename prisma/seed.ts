@@ -2,8 +2,8 @@ import prisma from '../src/lib/db';
 import { hashPassword } from '../src/lib/password';
 
 async function main() {
-  // Roles
-  const roles = ['Admin', 'Manager', 'Engineer', 'Operator'];
+  // Roles - CEO is superadmin, higher than Admin
+  const roles = ['CEO', 'Admin', 'Manager', 'Engineer', 'Operator'];
   const roleRecords = await Promise.all(
     roles.map((name) =>
       prisma.role.upsert({ where: { name }, update: {}, create: { name } })

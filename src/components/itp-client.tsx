@@ -69,8 +69,8 @@ export function ITPClient({ initialITPs, userRole }: ITPClientProps) {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
 
-  const canCreate = ['Admin', 'Manager', 'Engineer'].includes(userRole);
-  const canDelete = userRole === 'Admin';
+  const canCreate = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole);
+  const canDelete = ['CEO', 'Admin'].includes(userRole);
 
   const filteredITPs = useMemo(() => {
     return itps.filter((itp) => {

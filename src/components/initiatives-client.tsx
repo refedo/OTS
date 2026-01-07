@@ -102,7 +102,7 @@ export function InitiativesClient({
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
 
-  const canManage = ['Admin', 'Manager'].includes(userRole);
+  const canManage = ['CEO', 'Admin', 'Manager'].includes(userRole);
 
   const filteredInitiatives = useMemo(() => {
     return initiatives.filter((initiative) => {
@@ -377,7 +377,7 @@ export function InitiativesClient({
                                   Edit
                                 </Link>
                               </DropdownMenuItem>
-                              {userRole === 'Admin' && (
+                              {['CEO', 'Admin'].includes(userRole) && (
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(initiative.id)}
                                   className="text-destructive"

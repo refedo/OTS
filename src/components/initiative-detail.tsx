@@ -91,8 +91,8 @@ export function InitiativeDetail({ initiative, userRole, userId }: InitiativeDet
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
-  const canManage = ['Admin', 'Manager'].includes(userRole);
-  const canDelete = userRole === 'Admin';
+  const canManage = ['CEO', 'Admin', 'Manager'].includes(userRole);
+  const canDelete = ['CEO', 'Admin'].includes(userRole);
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this initiative? This action cannot be undone.')) {

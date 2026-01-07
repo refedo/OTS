@@ -14,8 +14,8 @@ export default async function EditTaskPage({ params }: { params: { id: string } 
     redirect('/login');
   }
 
-  // Only Admins and Managers can edit tasks
-  if (!['Admin', 'Manager'].includes(session.role)) {
+  // Only CEO, Admins and Managers can edit tasks
+  if (!['CEO', 'Admin', 'Manager'].includes(session.role)) {
     redirect('/tasks');
   }
 
@@ -42,7 +42,7 @@ export default async function EditTaskPage({ params }: { params: { id: string } 
 
   // Fetch users for assignment with department info
   let users;
-  if (session.role === 'Admin') {
+  if (['CEO', 'Admin'].includes(session.role)) {
     users = await prisma.user.findMany({
       where: { status: 'active' },
       select: { 

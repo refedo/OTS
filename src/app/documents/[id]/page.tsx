@@ -101,7 +101,7 @@ export default async function DocumentDetailsPage({ params }: { params: { id: st
             <DocumentApprovalButtons 
               documentId={document.id}
               status={document.status}
-              canApprove={['Admin', 'Manager'].includes(session.role)}
+              canApprove={['CEO', 'Admin', 'Manager'].includes(session.role)}
             />
             <Link href={`/documents/${document.id}/edit`}>
               <Button variant="outline">

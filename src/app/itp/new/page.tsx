@@ -14,8 +14,8 @@ export default async function NewITPPage() {
     redirect('/login');
   }
 
-  // Only QA/QC Engineers, Managers, and Admins can create ITPs
-  if (!['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+  // Only CEO, QA/QC Engineers, Managers, and Admins can create ITPs
+  if (!['CEO', 'Admin', 'Manager', 'Engineer'].includes(session.role)) {
     redirect('/itp');
   }
 

@@ -66,8 +66,8 @@ export function TaskDetails({ task, userRole, userId }: TaskDetailsProps) {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(true);
 
-  const canEdit = ['Admin', 'Manager'].includes(userRole);
-  const canDelete = userRole === 'Admin';
+  const canEdit = ['CEO', 'Admin', 'Manager'].includes(userRole);
+  const canDelete = ['CEO', 'Admin'].includes(userRole);
   const isAssignedUser = task.assignedTo?.id === userId;
 
   // Fetch audit logs

@@ -27,7 +27,7 @@ export default async function WPSDetailsPage({ params }: { params: Promise<{ id:
     redirect('/login');
   }
 
-  const canApprove = ['Admin', 'Manager'].includes(session.role);
+  const canApprove = ['CEO', 'Admin', 'Manager'].includes(session.role);
 
   const wps = await prisma.wPS.findUnique({
     where: { id },
