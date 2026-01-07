@@ -316,6 +316,39 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '12.1.0',
+    date: 'December 21, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '✅ Tasks Interface Enhancements',
+    highlights: [
+      'Building Selection in Tasks',
+      'Project-Building Dependency',
+      'Default Status Changes',
+      'Automatic Department Lookup',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Tasks Interface Enhancements',
+          items: [
+            'Building selection in task creation (inline and full form)',
+            'Building column added to tasks table',
+            'Project-building dependency: buildings filter by selected project',
+            'Default task status changed to "In Progress"',
+            'Default status filter set to "In Progress"',
+            'Automatic department lookup when selecting user',
+            'Department auto-populates based on assigned user',
+            'Building dropdown disabled until project selected',
+            'Building selection resets when project changes',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '12.0.0',
     date: 'December 21, 2025',
     type: 'major',
@@ -346,39 +379,6 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Strategic decision support tools',
             'Cross-project visibility and analytics',
             'Key metrics and KPI tracking',
-          ],
-        },
-      ],
-      fixed: [],
-      changed: [],
-    },
-  },
-  {
-    version: '12.1.0',
-    date: 'December 21, 2025',
-    type: 'minor',
-    status: 'previous',
-    mainTitle: '✅ Tasks Interface Enhancements',
-    highlights: [
-      'Building Selection in Tasks',
-      'Project-Building Dependency',
-      'Default Status Changes',
-      'Automatic Department Lookup',
-    ],
-    changes: {
-      added: [
-        {
-          title: 'Tasks Interface Enhancements',
-          items: [
-            'Building selection in task creation (inline and full form)',
-            'Building column added to tasks table',
-            'Project-building dependency: buildings filter by selected project',
-            'Default task status changed to "In Progress"',
-            'Default status filter set to "In Progress"',
-            'Automatic department lookup when selecting user',
-            'Department auto-populates based on assigned user',
-            'Building dropdown disabled until project selected',
-            'Building selection resets when project changes',
           ],
         },
       ],
@@ -419,35 +419,6 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Automated compliance checks and validations',
             'Policy violation detection and alerting',
             'Comprehensive audit trail for governance',
-          ],
-        },
-      ],
-      fixed: [],
-      changed: [],
-    },
-  },
-  {
-    version: '10.0.0',
-    date: 'December 18, 2025',
-    type: 'major',
-    status: 'previous',
-    mainTitle: '🔄 PTS Sync Module',
-    highlights: [
-      'PTS Data Synchronization',
-      'Automated Data Import',
-      'Real-time Sync Status',
-      'Data Validation',
-    ],
-    changes: {
-      added: [
-        {
-          title: 'PTS Sync Integration',
-          items: [
-            'PTS data synchronization system',
-            'Automated data import from external systems',
-            'Real-time sync status monitoring',
-            'Data validation and cleansing',
-            'Sync error reporting and recovery',
           ],
         },
       ],
@@ -549,37 +520,27 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '9.0.0',
-    date: 'December 17, 2025',
+    version: '10.0.0',
+    date: 'December 18, 2025',
     type: 'major',
     status: 'previous',
-    mainTitle: '⚡ Early Warning System & Risk Intelligence',
+    mainTitle: '🔄 PTS Sync Module',
     highlights: [
-      'Predictive Risk Detection',
-      'Dependency Management',
-      'Capacity Planning',
-      'Risk Dashboard',
+      'PTS Data Synchronization',
+      'Automated Data Import',
+      'Real-time Sync Status',
+      'Data Validation',
     ],
     changes: {
       added: [
         {
-          title: 'Early Warning System',
+          title: 'PTS Sync Integration',
           items: [
-            'Predictive risk detection algorithms',
-            'Advanced dependency management system',
-            'Real-time capacity planning tools',
-            'Comprehensive risk dashboard',
-            'Automated risk mitigation strategies',
-          ],
-        },
-        {
-          title: 'Risk Intelligence',
-          items: [
-            'AI-powered risk analysis and prediction',
-            'Dynamic risk scoring and prioritization',
-            'Historical risk pattern recognition',
-            'Proactive risk alerting system',
-            'Risk mitigation recommendation engine',
+            'PTS data synchronization system',
+            'Automated data import from external systems',
+            'Real-time sync status monitoring',
+            'Data validation and cleansing',
+            'Sync error reporting and recovery',
           ],
         },
       ],
@@ -624,27 +585,37 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '8.0.0',
-    date: 'December 15, 2025',
+    version: '9.0.0',
+    date: 'December 17, 2025',
     type: 'major',
     status: 'previous',
-    mainTitle: '🎯 Operations Control System',
+    mainTitle: '⚡ Early Warning System & Risk Intelligence',
     highlights: [
-      'Operations Control Center',
-      'Work Unit Tracking',
-      'Resource Allocation',
-      'At-Risk Identification',
+      'Predictive Risk Detection',
+      'Dependency Management',
+      'Capacity Planning',
+      'Risk Dashboard',
     ],
     changes: {
       added: [
         {
-          title: 'Operations Control Center',
+          title: 'Early Warning System',
           items: [
-            'Centralized operations monitoring',
-            'Real-time work unit tracking',
-            'At-risk work units identification',
-            'Resource allocation optimization',
-            'Operations dashboard and analytics',
+            'Predictive risk detection algorithms',
+            'Advanced dependency management system',
+            'Real-time capacity planning tools',
+            'Comprehensive risk dashboard',
+            'Automated risk mitigation strategies',
+          ],
+        },
+        {
+          title: 'Risk Intelligence',
+          items: [
+            'AI-powered risk analysis and prediction',
+            'Dynamic risk scoring and prioritization',
+            'Historical risk pattern recognition',
+            'Proactive risk alerting system',
+            'Risk mitigation recommendation engine',
           ],
         },
       ],
@@ -742,6 +713,35 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Overall project progress with status breakdown (Completed, On Track, At Risk, Critical)',
             'Expandable building-level details for each activity type',
             'Visual progress bars and status indicators',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '8.0.0',
+    date: 'December 15, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🎯 Operations Control System',
+    highlights: [
+      'Operations Control Center',
+      'Work Unit Tracking',
+      'Resource Allocation',
+      'At-Risk Identification',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Operations Control Center',
+          items: [
+            'Centralized operations monitoring',
+            'Real-time work unit tracking',
+            'At-risk work units identification',
+            'Resource allocation optimization',
+            'Operations dashboard and analytics',
           ],
         },
       ],
@@ -1121,8 +1121,8 @@ const hardcodedVersions: ChangelogVersion[] = [
 ];
 
 export default function ChangelogPage() {
-  // Reverse the array to show newest versions first (top) and oldest last (bottom)
-  const versions = [...hardcodedVersions].reverse();
+  // Display versions as they are in the array (newest at top, oldest at bottom)
+  const versions = hardcodedVersions;
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
