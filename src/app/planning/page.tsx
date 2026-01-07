@@ -543,35 +543,30 @@ export default function PlanningDashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
-        <div className="container mx-auto p-6 lg:p-8 max-w-[1800px] max-lg:pt-20">
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </div>
-      </main>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
-      <div className="container mx-auto p-6 lg:p-8 max-w-[1800px] max-lg:pt-20">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Calendar className="h-8 w-8" />
-            Project Planning
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage project timelines and phases
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <Calendar className="h-8 w-8" />
+          Project Planning
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Manage project timelines and phases
+        </p>
+      </div>
 
-        {/* Filter and Actions */}
-        <div className="mb-6 space-y-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Label>Project:</Label>
+      {/* Filter and Actions */}
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Label>Project:</Label>
               <select
                 value={selectedProject}
                 onChange={(e) => setSelectedProject(e.target.value)}
@@ -610,9 +605,9 @@ export default function PlanningDashboardPage() {
                   </option>
                 ))}
               </select>
-            </div>
+          </div>
 
-            {(selectedProject || selectedMonth || selectedScope) && (
+          {(selectedProject || selectedMonth || selectedScope) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -624,130 +619,130 @@ export default function PlanningDashboardPage() {
               >
                 Clear Filters
               </Button>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button 
-              variant="outline" 
-              onClick={downloadTemplate}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Template
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              disabled={importing}
-              onClick={() => document.getElementById('file-upload')?.click()}
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import Excel
-                </>
-              )}
-            </Button>
-            <input
-              id="file-upload"
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileImport}
-              className="hidden"
-            />
-            
-            {selectedSchedules.size > 0 && (
-              <Button 
-                variant="destructive" 
-                onClick={deleteSelectedSchedules}
-                disabled={saving}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete ({selectedSchedules.size})
-              </Button>
-            )}
-            <Button onClick={addSchedule} disabled={projects.length === 0}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Schedule
-            </Button>
-          </div>
+          )}
         </div>
 
-        {/* Scope Schedules Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Scope Schedules</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedProject && buildings.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-muted-foreground">No buildings found for this project</p>
-                <p className="text-sm text-muted-foreground mt-2">Add buildings to the project first</p>
-              </div>
-            ) : filteredSchedules.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-muted-foreground">No scope schedules yet</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {selectedProject ? 'Click "Add Schedule" to create one' : 'No schedules found across all projects'}
-                </p>
-              </div>
+        <div className="flex justify-end gap-2">
+          <Button 
+            variant="outline" 
+            onClick={downloadTemplate}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download Template
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            disabled={importing}
+            onClick={() => document.getElementById('file-upload')?.click()}
+          >
+            {importing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Importing...
+              </>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-3 text-center w-12">
-                        <button
-                          onClick={toggleSelectAll}
-                          className="p-1 hover:bg-gray-200 rounded"
-                          title="Select all"
-                        >
-                          {selectedSchedules.size === filteredSchedules.filter(s => !s.isNew && !s.id?.startsWith('temp-')).length && selectedSchedules.size > 0 ? (
-                            <CheckSquare className="h-4 w-4 text-primary" />
-                          ) : (
-                            <Square className="h-4 w-4 text-gray-400" />
-                          )}
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 text-left font-semibold">Project</th>
-                      <th className="px-4 py-3 text-left font-semibold">Building</th>
-                      <th className="px-4 py-3 text-left font-semibold">Scope</th>
-                      <th className="px-4 py-3 text-left font-semibold">Start Date</th>
-                      <th className="px-4 py-3 text-left font-semibold">End Date</th>
-                      <th className="px-4 py-3 text-center font-semibold">Duration</th>
-                      <th className="px-4 py-3 text-center font-semibold">Progress %</th>
-                      <th className="px-4 py-3 text-center font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSchedules.map((schedule: any, index) => {
-                      const duration = schedule.startDate && schedule.endDate 
-                        ? calculateDuration(schedule.startDate, schedule.endDate) 
-                        : 0;
-                      const building = buildings.find(b => b.id === schedule.buildingId);
-                      
-                      const isNewSchedule = schedule.isNew || schedule.id?.startsWith('temp-');
-                      const projectBuildings = allBuildings.filter(b => b.projectId === schedule.projectId);
-                      
-                      // Get schedule status for color coding
-                      const scheduleStatus = !isNewSchedule ? getScheduleStatus(schedule) : 'on-track';
-                      const statusColor = getStatusColor(scheduleStatus);
-                      
-                      return (
-                        <tr
-                          key={schedule.id}
-                          className={`border-b ${statusColor} ${
-                            !statusColor && (index % 2 === 0 ? 'bg-white' : 'bg-muted/10')
-                          } ${selectedSchedules.has(schedule.id!) ? 'bg-blue-50' : ''}`}
-                        >
-                          <td className="px-4 py-3 text-center">
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Import Excel
+              </>
+            )}
+          </Button>
+          <input
+            id="file-upload"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileImport}
+            className="hidden"
+          />
+          
+          {selectedSchedules.size > 0 && (
+            <Button 
+              variant="destructive" 
+              onClick={deleteSelectedSchedules}
+              disabled={saving}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete ({selectedSchedules.size})
+            </Button>
+          )}
+          <Button onClick={addSchedule} disabled={projects.length === 0}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Schedule
+          </Button>
+        </div>
+      </div>
+
+      {/* Scope Schedules Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Scope Schedules</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {selectedProject && buildings.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <p className="text-muted-foreground">No buildings found for this project</p>
+              <p className="text-sm text-muted-foreground mt-2">Add buildings to the project first</p>
+            </div>
+          ) : filteredSchedules.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <p className="text-muted-foreground">No scope schedules yet</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {selectedProject ? 'Click "Add Schedule" to create one' : 'No schedules found across all projects'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-center w-12">
+                      <button
+                        onClick={toggleSelectAll}
+                        className="p-1 hover:bg-gray-200 rounded"
+                        title="Select all"
+                      >
+                        {selectedSchedules.size === filteredSchedules.filter(s => !s.isNew && !s.id?.startsWith('temp-')).length && selectedSchedules.size > 0 ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold">Project</th>
+                    <th className="px-4 py-3 text-left font-semibold">Building</th>
+                    <th className="px-4 py-3 text-left font-semibold">Scope</th>
+                    <th className="px-4 py-3 text-left font-semibold">Start Date</th>
+                    <th className="px-4 py-3 text-left font-semibold">End Date</th>
+                    <th className="px-4 py-3 text-center font-semibold">Duration</th>
+                    <th className="px-4 py-3 text-center font-semibold">Progress %</th>
+                    <th className="px-4 py-3 text-center font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSchedules.map((schedule: any, index) => {
+                    const duration = schedule.startDate && schedule.endDate 
+                      ? calculateDuration(schedule.startDate, schedule.endDate) 
+                      : 0;
+                    const building = buildings.find(b => b.id === schedule.buildingId);
+                    
+                    const isNewSchedule = schedule.isNew || schedule.id?.startsWith('temp-');
+                    const projectBuildings = allBuildings.filter(b => b.projectId === schedule.projectId);
+                    
+                    // Get schedule status for color coding
+                    const scheduleStatus = !isNewSchedule ? getScheduleStatus(schedule) : 'on-track';
+                    const statusColor = getStatusColor(scheduleStatus);
+                    
+                    return (
+                      <tr
+                        key={schedule.id}
+                        className={`border-b ${statusColor} ${
+                          !statusColor && (index % 2 === 0 ? 'bg-white' : 'bg-muted/10')
+                        } ${selectedSchedules.has(schedule.id!) ? 'bg-blue-50' : ''}`}
+                      >
+                        <td className="px-4 py-3 text-center">
                             {!isNewSchedule && (
                               <button
                                 onClick={() => toggleSelectSchedule(schedule.id!)}
@@ -979,10 +974,9 @@ export default function PlanningDashboardPage() {
                   </tbody>
                 </table>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
