@@ -165,6 +165,35 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Task completion tracking with visual progress indicators',
           ],
         },
+        {
+          title: 'Tasks Counter Enhancement',
+          items: [
+            'Redesigned tasks counter to match project summary widget style',
+            'Added real-time status breakdown with colored indicators',
+            'Shows counts for Pending, In Progress, Waiting for Approval, and Completed tasks',
+            'Visual separation with gradient background and border',
+            'Total tasks count with filtered context display',
+          ],
+        },
+        {
+          title: 'Colorized Filter Buttons',
+          items: [
+            'Status filters: Pending (yellow), In Progress (blue), Waiting for Approval (purple), Completed (green)',
+            'Priority filters: High (red), Medium (orange), Low (gray)',
+            'Hover states with matching color themes',
+            'Improved visual feedback for active filters',
+          ],
+        },
+        {
+          title: 'Private Task Feature',
+          items: [
+            'Auto-mark tasks as private when user assigns to themselves',
+            'Manual private task checkbox in full task form',
+            'Private tasks only visible to creator and assignee',
+            'Lock icon indicator for private tasks in table and grid views',
+            'API-level permission enforcement for private task access',
+          ],
+        },
       ],
       fixed: [
         'Fixed QC dashboard error: "Cannot read properties of undefined (reading assemblyPart)"',
@@ -178,6 +207,73 @@ const hardcodedVersions: ChangelogVersion[] = [
         'Standardized QC page structure to match production page layout',
         'Improved error handling for missing production log data',
       ],
+    },
+  },
+  {
+    version: '13.0.1',
+    date: 'December 28, 2025',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '📋 Enterprise Audit Trail System',
+    highlights: [
+      'Automatic Audit Logging',
+      'Field-level Change Tracking',
+      'Dolibarr-Style Event Management',
+      'Bulk Operation Logging',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Enterprise Audit Trail System',
+          items: [
+            'Automatic audit logging for all CRUD operations on critical entities',
+            'Field-level change tracking with before/after values',
+            'User context and request tracing for all operations',
+            'Audit logging integrated into Projects, Tasks, Buildings, Assembly Parts, Production Logs',
+            'Login/Logout event tracking',
+            'System event logging for bulk operations',
+            'API utility helpers: logActivity(), logAuditEvent(), logSystemEvent()',
+          ],
+        },
+        {
+          title: 'Dolibarr-Style Event Management',
+          items: [
+            'Redesigned /events page with professional table layout',
+            'Proper date and time display in separate columns (MM/DD/YYYY, HH:MM:SS AM/PM)',
+            'Event reference numbers with icons',
+            'Owner/user tracking for each event',
+            'Category badges (production, auth, record, QC, etc.)',
+            'Entity type and project association display',
+            'Enhanced filtering by category and event type',
+            'Improved pagination with total counts',
+          ],
+        },
+        {
+          title: 'Bulk Operation Logging',
+          items: [
+            'Bulk assembly part import logging',
+            'Mass production logging event tracking',
+            'Individual production log create/delete logging',
+            'Success/failure count tracking for bulk operations',
+            'Process type aggregation for mass operations',
+          ],
+        },
+        {
+          title: 'Governance Center Documentation',
+          items: [
+            'Comprehensive Governance Center Guide (docs/GOVERNANCE_CENTER_GUIDE.md)',
+            'Quick Reference Guide (docs/GOVERNANCE_QUICK_GUIDE.md)',
+            'Audit trail usage documentation',
+            'Data recovery procedures',
+            'Version history explanation',
+            'Best practices for governance',
+            'Troubleshooting guide',
+            'Permission matrix documentation',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
     },
   },
   {
@@ -257,6 +353,39 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '12.1.0',
+    date: 'December 21, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '✅ Tasks Interface Enhancements',
+    highlights: [
+      'Building Selection in Tasks',
+      'Project-Building Dependency',
+      'Default Status Changes',
+      'Automatic Department Lookup',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Tasks Interface Enhancements',
+          items: [
+            'Building selection in task creation (inline and full form)',
+            'Building column added to tasks table',
+            'Project-building dependency: buildings filter by selected project',
+            'Default task status changed to "In Progress"',
+            'Default status filter set to "In Progress"',
+            'Automatic department lookup when selecting user',
+            'Department auto-populates based on assigned user',
+            'Building dropdown disabled until project selected',
+            'Building selection resets when project changes',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '11.0.0',
     date: 'December 18, 2025',
     type: 'major',
@@ -326,6 +455,99 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '10.1.0',
+    date: 'December 18, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '🔄 PTS Sync Enhancements',
+    highlights: [
+      'Skipped Items Tracking',
+      'Field Mapping Wizard',
+      'Production Logs Sync Improvements',
+      'Streamlined PTS Sync',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'PTS Sync Enhancements',
+          items: [
+            'Show skipped/corrupted items that were not synced',
+            'Display reason for each skipped item (missing data, invalid format)',
+            'Rollback option per project - delete all PTS-synced data',
+            'Completion percentage per synced project',
+            'Project stats showing synced parts/logs vs total',
+            'Confirmation dialog before rollback with warning',
+          ],
+        },
+        {
+          title: 'PTS Sync Field Mapping Wizard',
+          items: [
+            'New 3-step wizard flow: Map Raw Data → Map Logs → Execute Sync',
+            'Visual column mapping UI showing Google Sheets headers with sample data',
+            'Map OTS database fields to any Google Sheets column',
+            'Required field validation before proceeding',
+            'Default mappings pre-configured for standard PTS format',
+            'Mappings saved locally for reuse',
+          ],
+        },
+        {
+          title: 'Production Logs Sync Improvements',
+          items: [
+            'Only fetches required fields from Google Sheets: Part#, Process, Processed Qty, Process Date, Process Location, Processed By, Report No.',
+            'Project, building, weight, and part name are now read from existing assembly parts (not Google Sheets)',
+            'Only syncs logs that have matching assembly parts in OTS',
+            'Shows list of skipped items (logs without matching assembly parts) after sync',
+            'Shows list of successfully synced items with details (Part#, Process, Project, Building, Action)',
+            'Reduced field mapping UI to only show relevant fields',
+          ],
+        },
+        {
+          title: 'Streamlined PTS Sync',
+          items: [
+            'Simplified PTS Sync page with sidebar navigation',
+            'Two-phase sync: Assembly Parts first, then Production Logs',
+            'Selective sync: Choose which projects and buildings to sync',
+            'Select All / Select None buttons for quick selection',
+            'Stop Sync button to abort long-running syncs',
+            'Live progress indicators showing created/updated/errors counts',
+            'Pre-sync validation showing matched vs unmatched projects/buildings',
+          ],
+        },
+        {
+          title: 'Assembly Parts & Logs Pagination',
+          items: [
+            'Pagination for Assembly Parts page (100 items per page)',
+            'Pagination for Production Logs page (100 items per page)',
+            'Server-side search across all pages (not just current page)',
+            'Faster page loads for large datasets (20K+ records)',
+          ],
+        },
+        {
+          title: 'PTS/OTS Source Indicators',
+          items: [
+            'Assembly Parts page shows source badge (PTS Imported / OTS Added)',
+            'Production Logs page shows source badge for PTS imported logs',
+            'Visual distinction between externally synced and manually added data',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed SidebarProvider import error on PTS Sync page',
+        'PTS Sync page now uses layout-based sidebar (consistent with other pages)',
+        'Fixed PTS-imported items showing as OTS source instead of PTS',
+        'Fixed missing weight and area fields during PTS sync',
+        'Updated 4581 existing assembly parts to correct PTS source',
+      ],
+      changed: [
+        'Items without building designation are now skipped during sync',
+        'Sync results now include detailed project-level statistics',
+        'PTS sync now properly sets source=PTS and includes all weight/area fields',
+        'PTS Sync page now has separate buttons for Assembly Parts and Production Logs',
+        'Added "Import Logs from PTS" button on Production Log page for quick access',
+      ],
+    },
+  },
+  {
     version: '9.0.0',
     date: 'December 17, 2025',
     type: 'major',
@@ -365,6 +587,42 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '9.1.0',
+    date: 'December 17, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '📅 Project Planning Enhancements',
+    highlights: [
+      'Multi-select Bulk Deletion',
+      'Inline Schedule Editing',
+      'Early Warning System Improvements',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Project Planning Enhancements',
+          items: [
+            'Multi-select capability for bulk schedule deletion',
+            'Inline editing of existing schedules (start/end dates)',
+            'Select all/deselect all functionality',
+            'Visual feedback for selected rows',
+            'Edit mode with save/cancel actions',
+          ],
+        },
+      ],
+      fixed: [
+        'Early Warning System now uses actual production log data for progress',
+        'Fabrication progress calculated from assembly part weights',
+        'Operations Control sidebar emoji characters removed',
+        'WorkUnit sync status mapping improved',
+      ],
+      changed: [
+        'Leading indicators service uses production logs for accurate progress',
+        'Schedule editing now supports inline date changes',
+      ],
+    },
+  },
+  {
     version: '8.0.0',
     date: 'December 15, 2025',
     type: 'major',
@@ -391,6 +649,74 @@ const hardcodedVersions: ChangelogVersion[] = [
       ],
       fixed: [],
       changed: [],
+    },
+  },
+  {
+    version: '8.1.0',
+    date: 'December 17, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '🎯 Operations Intelligence Dashboard',
+    highlights: [
+      'Dependency Blueprint System',
+      'Load Estimation Rules',
+      'Capacity Auto-Consumption',
+      'Operations Intelligence Dashboard',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Dependency Blueprint System',
+          items: [
+            'Template-based automatic dependency creation',
+            'Blueprint matching by project structure type (PEB, Heavy Steel, etc.)',
+            'Default blueprint fallback for unmatched projects',
+            'Pre-seeded blueprints: Standard Steel Fabrication, PEB Project, Heavy Steel Structure',
+            'Workflow: DESIGN → PROCUREMENT → PRODUCTION → QC → DOCUMENTATION',
+            'Support for FS (Finish-to-Start), SS (Start-to-Start), FF (Finish-to-Finish) dependencies',
+            'Configurable lag days per dependency step',
+          ],
+        },
+        {
+          title: 'Load Estimation Rules',
+          items: [
+            'Smart quantity estimation based on work type and context',
+            'Design tasks: Keyword-based drawing count (shop drawing=10, detail=8, connection=6)',
+            'Production: Weight from WorkOrder automatically populated',
+            'QC: 1 inspection per RFI',
+            'Documentation: 1 document per submission',
+            'All WorkUnits now have quantity for capacity calculation',
+          ],
+        },
+        {
+          title: 'Capacity Auto-Consumption',
+          items: [
+            'ResourceCapacityService automatically pulls load from WorkUnits',
+            'Early Warning Engine detects overloads based on actual work data',
+            'No manual capacity entry required per WorkUnit',
+            'Real-time capacity utilization tracking',
+          ],
+        },
+        {
+          title: 'Operations Intelligence Dashboard',
+          items: [
+            'Unified view of WorkUnits, Dependencies, and Capacity',
+            'System-wide view with project and building filters',
+            'Three layout modes: Table, Network Graph, Split View',
+            'Interactive dependency network visualization',
+            'Real-time capacity utilization per resource type',
+            'Create WorkUnit button with live impact preview',
+            'Shows blocking dependencies and capacity impact before creation',
+            'Click any WorkUnit to see its dependencies and capacity impact',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [
+        'WorkUnitSyncService now uses blueprint-based dependency creation',
+        'Legacy dependency logic retained as fallback when no blueprint exists',
+        'Task sync now includes title for load estimation context',
+      ],
     },
   },
   {
