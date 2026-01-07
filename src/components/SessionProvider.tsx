@@ -10,6 +10,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { SessionActivityProvider } from './session-activity-provider';
+import { UpdateNotificationDialog } from './update-notification-dialog';
 
 interface SessionProviderProps {
   children: React.ReactNode;
@@ -135,6 +136,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     return (
       <NotificationProvider>
         <SessionActivityProvider>
+          <UpdateNotificationDialog />
           {children}
         </SessionActivityProvider>
       </NotificationProvider>
