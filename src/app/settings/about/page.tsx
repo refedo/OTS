@@ -155,8 +155,8 @@ export default function AboutOTSPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            <strong>Hexa Steel® OTS</strong> is a comprehensive Operations Tracking System designed specifically 
-            for steel fabrication companies. It provides end-to-end project management, production tracking, 
+            <strong>Hexa Steel® OTS™</strong> is a comprehensive Operations Tracking System designed specifically 
+            for Hexa Steel®. It provides end-to-end project management, production tracking, 
             quality control, and business intelligence capabilities.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">

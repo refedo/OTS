@@ -21,10 +21,66 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '13.3.1',
+    version: '13.3.3',
     date: 'January 7, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '🔧 System Improvements & UI Enhancements',
+    highlights: [
+      'Production Activities Progress Table',
+      'About OTS™ Page',
+      'Session Management Fixes',
+      'Simplified Import Fields',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Production Activities Progress Table',
+          items: [
+            'Replaced Recent Production Logs with comprehensive daily progress table',
+            'Shows weight and quantity by process type (Preparation, Fit-up, Welding, Visualization, Sandblasting, Galvanization, Painting)',
+            'Daily average row for quick insights',
+            'Color-coded rows for better readability',
+          ],
+        },
+        {
+          title: 'About OTS™ Page',
+          items: [
+            'New system overview page at Settings > About OTS™',
+            'Lists all 15+ integrated modules with descriptions',
+            'Technical stack information',
+            'System statistics and capabilities',
+          ],
+        },
+        {
+          title: 'Simplified Import Fields',
+          items: [
+            'Streamlined production log import to essential fields only',
+            'Part Designation, Process Type, Date Processed, Processed Qty, Processing Team, Processing Location',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed signout not properly ending session',
+        'Added visibility change detection to re-validate session on back button',
+        'Added pageshow event handler for bfcache restoration',
+        'Users now properly redirected to login after logout',
+        'Fixed "useSidebar must be used within SidebarProvider" errors',
+        'Fixed React key prop warnings in Production Activities Progress table',
+      ],
+      changed: [
+        'Updated system version to 13.3.3',
+        'Import modal now shows only 6 essential fields instead of 12',
+        'Updated all 33 layout files to use ResponsiveLayout component',
+        'Consistent sidebar behavior across all pages',
+      ],
+    },
+  },
+  {
+    version: '13.3.1',
+    date: 'January 7, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '🔧 Fixing Changelog Versioning System',
     highlights: [
       'Accurate Timeline Based on Development History',

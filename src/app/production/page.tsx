@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -677,10 +677,10 @@ export default function ProductionDashboard() {
                         const avgWeight = dailyProgress.length > 0 ? totalWeight / dailyProgress.length : 0;
                         const avgQty = dailyProgress.length > 0 ? totalQty / dailyProgress.length : 0;
                         return (
-                          <>
-                            <td key={`${process}-weight`} className="px-2 py-2 text-center border">{avgWeight.toFixed(1)}</td>
-                            <td key={`${process}-qty`} className="px-2 py-2 text-center border">{avgQty.toFixed(0)}</td>
-                          </>
+                          <React.Fragment key={`avg-${process}`}>
+                            <td className="px-2 py-2 text-center border">{avgWeight.toFixed(1)}</td>
+                            <td className="px-2 py-2 text-center border">{avgQty.toFixed(0)}</td>
+                          </React.Fragment>
                         );
                       })}
                     </tr>
@@ -698,14 +698,14 @@ export default function ProductionDashboard() {
                           {dayName}-{formattedDate}
                         </td>
                         {['Preparation', 'Fit-up', 'Welding', 'Visualization', 'Sandblasting', 'Galvanization', 'Painting'].map(process => (
-                          <>
-                            <td key={`${day.date}-${process}-weight`} className="px-2 py-2 text-center border">
+                          <React.Fragment key={`${day.date}-${process}`}>
+                            <td className="px-2 py-2 text-center border">
                               {day.processes[process]?.weight?.toFixed(1) || '0.0'}
                             </td>
-                            <td key={`${day.date}-${process}-qty`} className="px-2 py-2 text-center border">
+                            <td className="px-2 py-2 text-center border">
                               {day.processes[process]?.qty || 0}
                             </td>
-                          </>
+                          </React.Fragment>
                         ))}
                       </tr>
                     );
