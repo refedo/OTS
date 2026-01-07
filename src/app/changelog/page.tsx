@@ -18,6 +18,7 @@ type ChangelogVersion = {
   };
 };
 
+// Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
     version: '13.2.1',
@@ -1120,7 +1121,8 @@ const hardcodedVersions: ChangelogVersion[] = [
 ];
 
 export default function ChangelogPage() {
-  const versions = hardcodedVersions;
+  // Reverse the array to show newest versions first (top) and oldest last (bottom)
+  const versions = [...hardcodedVersions].reverse();
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
