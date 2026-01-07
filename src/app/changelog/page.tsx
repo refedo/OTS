@@ -20,10 +20,44 @@ type ChangelogVersion = {
 
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '8.1.2',
+    version: '13.1.3',
     date: 'January 7, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '🔧 Fixing Changelog Versioning System',
+    highlights: [
+      'Accurate Timeline Based on Development History',
+      'Proper Module Separation',
+      'Corrected Version Numbers',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Changelog Improvements',
+          items: [
+            'Created accurate changelog based on actual development timeline',
+            'Separated modules by their actual development phases',
+            'Each major module gets its own major version number',
+            'Included all incremental updates and patches',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed changelog version numbering inconsistencies',
+        'Corrected module development dates based on actual code artifacts',
+        'Aligned version numbers with module importance and development phases',
+      ],
+      changed: [
+        'Restructured changelog to reflect true development history',
+        'Updated version numbering scheme to be more meaningful',
+      ],
+    },
+  },
+  {
+    version: '13.1.2',
+    date: 'January 7, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '🔧 Logout Session Handling Fix',
     highlights: [
       'Fixed Production Logout Session Termination',
@@ -55,7 +89,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '8.1.1',
+    version: '13.1.1',
     date: 'January 7, 2026',
     type: 'patch',
     status: 'previous',
@@ -91,7 +125,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '8.1.0',
+    version: '13.1.0',
     date: 'January 6, 2026',
     type: 'minor',
     status: 'previous',
@@ -147,7 +181,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '8.0.0',
+    version: '13.0.0',
     date: 'December 23, 2025',
     type: 'major',
     status: 'previous',
@@ -185,7 +219,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '7.0.0',
+    version: '12.0.0',
     date: 'December 21, 2025',
     type: 'major',
     status: 'previous',
@@ -223,7 +257,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '6.0.0',
+    version: '11.0.0',
     date: 'December 18, 2025',
     type: 'major',
     status: 'previous',
@@ -257,6 +291,25 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Comprehensive audit trail for governance',
           ],
         },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '10.0.0',
+    date: 'December 18, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🔄 PTS Sync Module',
+    highlights: [
+      'PTS Data Synchronization',
+      'Automated Data Import',
+      'Real-time Sync Status',
+      'Data Validation',
+    ],
+    changes: {
+      added: [
         {
           title: 'PTS Sync Integration',
           items: [
@@ -264,6 +317,7 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Automated data import from external systems',
             'Real-time sync status monitoring',
             'Data validation and cleansing',
+            'Sync error reporting and recovery',
           ],
         },
       ],
@@ -272,8 +326,8 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '5.0.0',
-    date: 'December 15, 2025',
+    version: '9.0.0',
+    date: 'December 17, 2025',
     type: 'major',
     status: 'previous',
     mainTitle: '⚡ Early Warning System & Risk Intelligence',
@@ -282,7 +336,6 @@ const hardcodedVersions: ChangelogVersion[] = [
       'Dependency Management',
       'Capacity Planning',
       'Risk Dashboard',
-      'Operations Control Center',
     ],
     changes: {
       added: [
@@ -306,6 +359,25 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Risk mitigation recommendation engine',
           ],
         },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '8.0.0',
+    date: 'December 15, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🎯 Operations Control System',
+    highlights: [
+      'Operations Control Center',
+      'Work Unit Tracking',
+      'Resource Allocation',
+      'At-Risk Identification',
+    ],
+    changes: {
+      added: [
         {
           title: 'Operations Control Center',
           items: [
@@ -313,6 +385,7 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Real-time work unit tracking',
             'At-risk work units identification',
             'Resource allocation optimization',
+            'Operations dashboard and analytics',
           ],
         },
       ],
@@ -321,13 +394,173 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '4.0.0',
+    version: '7.4.0',
+    date: 'December 14, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '📊 Planning Activities Widget',
+    highlights: [
+      'New Planning Activities Widget',
+      'Real-time Progress Calculation',
+      'Building-level Details',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Planning Activities Widget',
+          items: [
+            'New Planning Activities widget in Project Dashboard',
+            'Shows all scope schedules (Design, Shop Drawing, Fabrication, Galvanization, Painting)',
+            'Real-time progress calculation based on actual production data',
+            'Overall project progress with status breakdown (Completed, On Track, At Risk, Critical)',
+            'Expandable building-level details for each activity type',
+            'Visual progress bars and status indicators',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '7.3.0',
+    date: 'December 14, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '📈 Dashboard Improvements',
+    highlights: [
+      'New Work Orders Widget',
+      'Widget Remove Functionality',
+      'Improved Mobile Layout',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Dashboard Enhancements',
+          items: [
+            'New Work Orders widget showing pending, in-progress, completed, and overdue counts',
+            'Widget remove functionality - hover over widget to see remove button',
+            'Improved mobile-responsive grid layout for dashboard widgets',
+            'Collapsed sidebar now shows all module icons (not just 3)',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '7.2.0',
+    date: 'December 14, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '🎨 Login Page Branding',
+    highlights: [
+      'Dolibarr-style Login Page',
+      'Configurable Login Logo',
+      'Motivational Footer',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Login Page Improvements',
+          items: [
+            'Dolibarr-style login page with white card on dark (#2c3e50) background',
+            'Logo displayed inside white card for better visibility',
+            'Configurable login logo via Settings → Company → Login Page Logo',
+            'Fallback to "HEXA STEEL® - THRIVE DIFFERENT" text if no logo uploaded',
+            'Motivational footer with slogan: Hexa Steel® — "Forward Thinking"',
+            'Version header showing current system version',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '7.1.0',
+    date: 'December 14, 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '🤖 AI Summary Enhancements',
+    highlights: [
+      'Colorized AI Summary Display',
+      'Automatic Urgent Item Detection',
+      'Improved Readability',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'AI Summary Improvements',
+          items: [
+            'Colorized and structured AI summary display',
+            'Automatic detection of urgent items (red highlighting)',
+            'Warning items highlighted in orange',
+            'Info items displayed in blue',
+            'Section headers with visual separation',
+            'Improved readability with icons and borders',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '7.0.0',
+    date: 'December 14, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '📋 Work Orders Module',
+    highlights: [
+      'Work Orders Management',
+      'User Preferences Menu',
+      'Notification Center Restructure',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Work Orders Module',
+          items: [
+            'New Work Orders page under Production module',
+            'Create, view, and manage production work orders',
+            'Work order status tracking and assignment',
+            'Integration with production planning workflow',
+          ],
+        },
+        {
+          title: 'User Preferences Menu',
+          items: [
+            'New user dropdown menu accessible from sidebar',
+            'Quick access to profile settings',
+            'Change password functionality with secure validation',
+            'Direct links to notifications and settings',
+            'One-click sign out option',
+          ],
+        },
+        {
+          title: 'Notification Center Restructure',
+          items: [
+            'Notifications now a collapsible menu in sidebar',
+            'Quick access sub-items: Delayed Tasks, Approvals, Deadlines',
+            'URL-based tab navigation for direct linking',
+            'Total badge count displayed on Notifications section header',
+            'Per-item sidebar badges for: All Notifications (unread), Delayed Tasks, Deadlines',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '6.0.0',
     date: 'December 8, 2025',
     type: 'major',
     status: 'previous',
-    mainTitle: '🤖 AI Assistant & Notification Center',
+    mainTitle: '🔔 Notification Center',
     highlights: [
-      'AI-Powered Assistant',
       'Real-time Notifications',
       'AI-powered Summaries',
       'Automatic Deadline Warnings',
@@ -335,16 +568,6 @@ const hardcodedVersions: ChangelogVersion[] = [
     ],
     changes: {
       added: [
-        {
-          title: 'AI Assistant',
-          items: [
-            'Context-aware AI assistant for operations',
-            'OpenAI GPT-4 integration',
-            'Natural language processing for task management',
-            'Conversation history and context retention',
-            'Smart recommendations based on historical data',
-          ],
-        },
         {
           title: 'Notification System',
           items: [
@@ -358,11 +581,11 @@ const hardcodedVersions: ChangelogVersion[] = [
           ],
         },
         {
-          title: 'Changelog & Reports',
+          title: 'Database Changes',
           items: [
-            'Comprehensive changelog page',
-            'Version history tracking',
-            'System reports and analytics',
+            'New notifications table with indexes',
+            'New NotificationType enum',
+            'Foreign key relationship to users table',
           ],
         },
       ],
@@ -371,7 +594,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '3.0.0',
+    version: '5.0.0',
     date: 'November 25, 2025',
     type: 'major',
     status: 'previous',
@@ -381,7 +604,6 @@ const hardcodedVersions: ChangelogVersion[] = [
       'Balanced Scorecard KPIs',
       'Annual Plans & Initiatives',
       'SWOT Analysis',
-      'Strategic Planning Tools',
     ],
     changes: {
       added: [
@@ -396,14 +618,32 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Performance metrics and dashboards',
           ],
         },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '4.0.0',
+    date: 'October 25, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🤖 AI Assistant',
+    highlights: [
+      'Context-aware AI Assistant',
+      'OpenAI Integration',
+      'Conversation History',
+    ],
+    changes: {
+      added: [
         {
-          title: 'Planning Features',
+          title: 'AI Assistant',
           items: [
-            'Hierarchical objectives structure',
-            'Key result tracking and progress monitoring',
-            'Initiative planning and execution',
-            'Strategic alignment visualization',
-            'Performance review and reporting',
+            'Context-aware AI assistant for operations',
+            'OpenAI GPT-4 integration',
+            'Natural language processing for task management',
+            'Conversation history and context retention',
+            'Smart recommendations based on historical data',
           ],
         },
       ],
@@ -412,31 +652,48 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '2.0.0',
-    date: 'October 20, 2025',
-    type: 'major',
+    version: '3.1.0',
+    date: 'October 21, 2025',
+    type: 'minor',
     status: 'previous',
-    mainTitle: '🏭 Production & Quality Control Modules',
+    mainTitle: '📐 Engineering Module',
     highlights: [
-      'Production Module',
-      'Quality Control Module',
-      'Engineering Module',
-      'Assembly Part Tracking',
-      'RFI & NCR Management',
+      'ITP Management',
+      'WPS Management',
+      'Document Management',
+      'Approval Workflows',
     ],
     changes: {
       added: [
         {
-          title: 'Production Module',
+          title: 'Engineering Module',
           items: [
-            'Assembly part tracking and management',
-            'Production log system',
-            'Mass production logging',
-            'Processing teams and locations',
-            'Production status tracking',
-            'Work order management',
+            'ITP (Inspection and Test Plan) management',
+            'WPS (Welding Procedure Specification) management',
+            'Document management system',
+            'Approval workflows',
+            'Engineering document timeline',
+            'Revision control',
           ],
         },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '3.0.0',
+    date: 'October 18, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '✅ Quality Control Module',
+    highlights: [
+      'RFI System',
+      'NCR Management',
+      'Material, Welding, Dimensional, NDT Inspections',
+    ],
+    changes: {
+      added: [
         {
           title: 'Quality Control Module',
           items: [
@@ -449,15 +706,34 @@ const hardcodedVersions: ChangelogVersion[] = [
             'QC status tracking and reporting',
           ],
         },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '2.0.0',
+    date: 'October 13, 2025',
+    type: 'major',
+    status: 'previous',
+    mainTitle: '🏭 Production Module',
+    highlights: [
+      'Assembly Part Tracking',
+      'Production Log System',
+      'Mass Production Logging',
+      'Processing Teams and Locations',
+    ],
+    changes: {
+      added: [
         {
-          title: 'Engineering Module',
+          title: 'Production Module',
           items: [
-            'ITP (Inspection and Test Plan) management',
-            'WPS (Welding Procedure Specification) management',
-            'Document management system',
-            'Approval workflows',
-            'Engineering document timeline',
-            'Revision control',
+            'Assembly part tracking and management',
+            'Production log system',
+            'Mass production logging',
+            'Processing teams and locations',
+            'Production status tracking',
+            'Work order management',
           ],
         },
       ],
