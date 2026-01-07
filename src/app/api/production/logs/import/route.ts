@@ -28,31 +28,45 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Field mapping required' }, { status: 400 });
     }
 
-    if (!projectId) {
-      return NextResponse.json({ error: 'Project ID required' }, { status: 400 });
+    // projectId is now optional - if not provided, we'll match parts across all projects
+    let assemblyParts: any[] = [];
+    
+    if (projectId) {
+      // Verify project exists
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { id: true, projectNumber: true },
+      });
+
+      if (!project) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
+
+      // Get assembly parts for this specific project
+      assemblyParts = await prisma.assemblyPart.findMany({
+        where: { projectId },
+        select: { 
+          id: true, 
+          partDesignation: true, 
+          assemblyMark: true, 
+          partMark: true,
+          quantity: true,
+          projectId: true,
+        },
+      });
+    } else {
+      // Get all assembly parts across all projects for multi-project import
+      assemblyParts = await prisma.assemblyPart.findMany({
+        select: { 
+          id: true, 
+          partDesignation: true, 
+          assemblyMark: true, 
+          partMark: true,
+          quantity: true,
+          projectId: true,
+        },
+      });
     }
-
-    // Verify project exists
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { id: true, projectNumber: true },
-    });
-
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
-
-    // Get assembly parts for this project for matching
-    const assemblyParts = await prisma.assemblyPart.findMany({
-      where: { projectId },
-      select: { 
-        id: true, 
-        partDesignation: true, 
-        assemblyMark: true, 
-        partMark: true,
-        quantity: true,
-      },
-    });
 
     const results = {
       imported: 0,

@@ -2,11 +2,11 @@
 
 /**
  * Session Provider Component
- * Validates user session ONCE on initial load only
- * Does NOT re-validate on every route change to prevent refresh issues
+ * Validates user session on initial load and when page becomes visible
+ * Re-validates when user returns to page (e.g., after clicking back button)
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { SessionActivityProvider } from './session-activity-provider';
@@ -25,7 +25,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const hasValidated = useRef(false);
 
-  useEffect(() => {
+  const validateSession = useCallback(async (isVisibilityCheck = false) => {
     // Skip validation for public paths
     if (PUBLIC_PATHS.includes(pathname)) {
       setIsValidating(false);
@@ -33,53 +33,88 @@ export function SessionProvider({ children }: SessionProviderProps) {
       return;
     }
 
-    // Only validate ONCE on initial mount, not on every route change
+    try {
+      const response = await fetch('/api/auth/session', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        console.warn('Session invalid, redirecting to login');
+        setShouldRedirect(true);
+        setIsValidating(false);
+        setSessionValid(false);
+        window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.valid) {
+        setSessionValid(true);
+      } else {
+        setShouldRedirect(true);
+        setIsValidating(false);
+        setSessionValid(false);
+        window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
+        return;
+      }
+    } catch (error) {
+      console.error('Session validation error:', error);
+      setShouldRedirect(true);
+      setIsValidating(false);
+      setSessionValid(false);
+      window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
+      return;
+    } finally {
+      setIsValidating(false);
+    }
+  }, [pathname]);
+
+  // Initial validation on mount
+  useEffect(() => {
+    if (PUBLIC_PATHS.includes(pathname)) {
+      setIsValidating(false);
+      setSessionValid(true);
+      return;
+    }
+
     if (hasValidated.current) {
       return;
     }
 
     hasValidated.current = true;
+    validateSession();
+  }, [pathname, validateSession]);
 
-    async function validateSession() {
-      try {
-        const response = await fetch('/api/auth/session', {
-          credentials: 'include',
-          cache: 'no-store'
-        });
-        
-        if (!response.ok) {
-          console.warn('Session invalid, redirecting to login');
-          setShouldRedirect(true);
-          setIsValidating(false);
-          // Use window.location for a full page redirect to avoid client-side errors
-          window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
-          return;
-        }
-
-        const data = await response.json();
-        
-        if (data.valid) {
-          setSessionValid(true);
-        } else {
-          setShouldRedirect(true);
-          setIsValidating(false);
-          window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
-          return;
-        }
-      } catch (error) {
-        console.error('Session validation error:', error);
-        // On network error, redirect to login
-        setShouldRedirect(true);
-        setIsValidating(false);
-        window.location.href = `/login?next=${encodeURIComponent(pathname)}`;
-        return;
-      } finally {
-        setIsValidating(false);
-      }
+  // Re-validate when page becomes visible (handles back button after logout)
+  useEffect(() => {
+    if (PUBLIC_PATHS.includes(pathname)) {
+      return;
     }
 
-    validateSession();
-  }, [pathname, router]);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Re-validate session when page becomes visible
+        validateSession(true);
+      }
+    };
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      // bfcache (back-forward cache) restoration
+      if (event.persisted) {
+        validateSession(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [pathname, validateSession]);
 
   // Show loading state while validating or redirecting
   if ((isValidating || shouldRedirect) && !PUBLIC_PATHS.includes(pathname)) {

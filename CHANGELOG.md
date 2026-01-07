@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.3.3] - 2026-01-07
+
+### 🔧 System Improvements & UI Enhancements
+
+#### Added
+- **Production Activities Progress Table**
+  - Replaced Recent Production Logs with comprehensive daily progress table
+  - Shows weight and quantity by process type (Preparation, Fit-up, Welding, Visualization, Sandblasting, Galvanization, Painting)
+  - Daily average row for quick insights
+  - Color-coded rows for better readability
+
+- **About OTS Page**
+  - New system overview page at Settings > About OTS
+  - Lists all 15+ integrated modules with descriptions
+  - Technical stack information
+  - System statistics and capabilities
+
+- **Simplified Import Fields**
+  - Streamlined production log import to essential fields only
+  - Part Designation, Process Type, Date Processed, Processed Qty, Processing Team, Processing Location
+
+#### Fixed
+- **Session Management**
+  - Fixed signout not properly ending session
+  - Added visibility change detection to re-validate session on back button
+  - Added pageshow event handler for bfcache restoration
+  - Users now properly redirected to login after logout
+
+- **Responsive Sidebar**
+  - Updated all 33 layout files to use ResponsiveLayout component
+  - Fixed "useSidebar must be used within SidebarProvider" errors
+  - Consistent sidebar behavior across all pages
+
+#### Changed
+- Updated system version to 13.3.3
+- Import modal now shows only 6 essential fields instead of 12
+
+---
+
+## [13.3.2] - 2026-01-07
+
+### 🏭 Production Module Enhancements & Responsive UI
+
+#### Added
+- **Multi-Project Import Support**
+  - Import production logs without selecting a project first
+  - Parts are automatically matched by designation across all projects
+  - Single CSV/Excel file can contain entries for multiple projects
+
+- **Production Plan Report Improvements**
+  - Report now correctly filters buildings by fabrication schedule within selected month
+  - Only shows projects with fabrication activities overlapping the selected period
+
+- **Page Size Selector**
+  - Added page size dropdown (50, 100, 200, 500, 1000) for Production Logs page
+  - Added page size dropdown for Assembly Parts page
+  - Persistent pagination preferences
+
+- **Download Template Button**
+  - Added template download button for production log imports
+  - Template includes sample data and all required columns
+
+- **Monthly Target on Production Dashboard**
+  - New Monthly Target card showing current month's production quota
+  - Aggregates raw data from buildings with fabrication schedules in current month
+  - Displays target tonnage based on project planning
+
+- **Production Logs in Dashboard**
+  - Added recent production logs section at bottom of production dashboard
+  - Shows logs for selected project with process type badges
+
+- **Responsive Sidebar Layout**
+  - Pages now expand when sidebar is collapsed
+  - Better utilization of screen space
+  - Smooth transition animations
+
+#### Fixed
+- Fixed Production Plan report showing wrong projects for selected month
+- Fixed production logs filter bug where logs disappeared when selecting a project
+- Fixed Completion by Process stats to show entire project statistics, not just current page
+- Fixed useEffect dependency issues causing stale data on filter changes
+
+#### Changed
+- Import modal no longer requires project selection upfront
+- Improved API to return total stats for entire filtered dataset
+- Updated sidebar version to 13.3.2
+
+---
+
 ## [13.2.1] - 2026-01-07
 
 ### 🔧 Fixing Changelog Versioning System

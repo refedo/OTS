@@ -47,10 +47,12 @@ import {
   Layers,
   Crown,
   Star,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useSidebar } from '@/contexts/SidebarContext';
 import { UserMenu } from '@/components/user-menu';
 import { hasAccessToRoute, hasAccessToSection } from '@/lib/navigation-permissions';
 
@@ -218,6 +220,7 @@ const navigationSections: NavigationSection[] = [
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'About OTS', href: '/settings/about', icon: Info },
       { name: 'Version Management', href: '/settings/version', icon: GitBranch },
       { name: 'Changelog', href: '/changelog', icon: FileCode },
     ],
@@ -226,7 +229,7 @@ const navigationSections: NavigationSection[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, setCollapsed } = useSidebar();
   const [isMounted, setIsMounted] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
@@ -599,7 +602,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v13.3.1
+                  Hexa Steel® OTS v13.3.3
                 </p>
               </div>
             )}

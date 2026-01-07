@@ -65,13 +65,14 @@ export default function AssemblyPartsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 100, total: 0, totalPages: 0 });
+  const [pageSize, setPageSize] = useState(100);
 
-  const fetchParts = useCallback(async (page = 1, search = searchQuery) => {
+  const fetchParts = useCallback(async (page = 1, search = searchQuery, limit = pageSize) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set('page', page.toString());
-      params.set('limit', '100');
+      params.set('limit', limit.toString());
       if (search) params.set('search', search);
       if (projectFilter !== 'all') params.set('projectId', projectFilter);
       if (buildingFilter !== 'all') params.set('buildingId', buildingFilter);
@@ -88,12 +89,12 @@ export default function AssemblyPartsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, projectFilter, buildingFilter, statusFilter]);
+  }, [searchQuery, projectFilter, buildingFilter, statusFilter, pageSize]);
 
   useEffect(() => {
     fetchParts(1);
     fetchProjects();
-  }, [projectFilter, buildingFilter, statusFilter]);
+  }, [projectFilter, buildingFilter, statusFilter, pageSize]);
 
   useEffect(() => {
     if (projectFilter && projectFilter !== 'all') {
@@ -408,11 +409,27 @@ export default function AssemblyPartsPage() {
       </div>
 
       {/* Pagination Controls */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} parts
+            Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} parts
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="h-8 px-2 rounded-md border bg-background text-sm"
+            >
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+            </select>
+          </div>
+        </div>
+        {pagination.totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => goToPage(1)} disabled={pagination.page === 1}>
               <ChevronsLeft className="h-4 w-4" />
@@ -430,8 +447,8 @@ export default function AssemblyPartsPage() {
               <ChevronsRight className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Select All */}
       {parts.length > 0 && (

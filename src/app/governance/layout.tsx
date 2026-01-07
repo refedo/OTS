@@ -1,19 +1,11 @@
-import { AppSidebar } from '@/components/app-sidebar';
-import { NotificationProvider } from '@/contexts/NotificationContext';
+'use client';
+
+import { ResponsiveLayout } from '@/components/ResponsiveLayout';
 
 export default function GovernanceLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <NotificationProvider>
-      <div className="flex min-h-screen">
-        <AppSidebar />
-        <div className="flex-1 lg:pl-64">
-          {children}
-        </div>
-      </div>
-    </NotificationProvider>
-  );
+  return <ResponsiveLayout>{children}</ResponsiveLayout>;
 }

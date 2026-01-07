@@ -93,6 +93,7 @@ export async function GET(req: Request) {
             quantity: true,
             netWeightTotal: true,
             netAreaTotal: true,
+            singlePartWeight: true,
             source: true,
             project: {
               select: {
@@ -126,6 +127,51 @@ export async function GET(req: Request) {
       },
     });
 
+    // Calculate total stats for the entire filtered dataset (not just current page)
+    // Get all logs matching the filter to calculate process stats
+    const allLogsForStats = await prisma.productionLog.findMany({
+      where,
+      select: {
+        processType: true,
+        processedQty: true,
+        assemblyPart: {
+          select: {
+            netWeightTotal: true,
+            singlePartWeight: true,
+          },
+        },
+      },
+    });
+
+    // Calculate total weight for the filtered projects/buildings
+    const totalProjectWeight = await prisma.assemblyPart.aggregate({
+      where: projectId && projectId !== 'all' ? { projectId } : {},
+      _sum: {
+        netWeightTotal: true,
+      },
+    });
+
+    // Calculate process stats for the entire filtered dataset
+    const processStats: { [key: string]: { count: number; weight: number } } = {};
+    allLogsForStats.forEach(log => {
+      if (!processStats[log.processType]) {
+        processStats[log.processType] = { count: 0, weight: 0 };
+      }
+      processStats[log.processType].count++;
+      // Calculate weight based on processed qty and single part weight
+      const singleWeight = Number(log.assemblyPart.singlePartWeight) || 0;
+      processStats[log.processType].weight += (singleWeight * log.processedQty) / 1000; // Convert to tons
+    });
+
+    // Calculate percentage for each process
+    const totalWeight = (Number(totalProjectWeight._sum.netWeightTotal) || 0) / 1000;
+    const processStatsWithPercentage = Object.entries(processStats).map(([processType, data]) => ({
+      processType,
+      count: data.count,
+      weight: Number(data.weight.toFixed(2)),
+      percentage: totalWeight > 0 ? Number(((data.weight / totalWeight) * 100).toFixed(1)) : 0,
+    }));
+
     return NextResponse.json({
       data: logs,
       pagination: {
@@ -133,6 +179,10 @@ export async function GET(req: Request) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+      totalStats: {
+        totalWeight,
+        processStats: processStatsWithPercentage,
       },
     });
   } catch (error) {

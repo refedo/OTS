@@ -1,21 +1,11 @@
 'use client';
 
-import { AppSidebar } from '@/components/app-sidebar';
-import { NotificationProvider } from '@/contexts/NotificationContext';
+import { ResponsiveLayout } from '@/components/ResponsiveLayout';
 
 export default function WPSLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <NotificationProvider>
-      <div className="flex min-h-screen">
-        <AppSidebar />
-        <div className="flex-1">
-          {children}
-        </div>
-      </div>
-    </NotificationProvider>
-  );
+  return <ResponsiveLayout>{children}</ResponsiveLayout>;
 }

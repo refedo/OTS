@@ -1,18 +1,11 @@
 'use client';
 
-import { AppSidebar } from '@/components/app-sidebar';
+import { ResponsiveLayout } from '@/components/ResponsiveLayout';
 
 export default function EventsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex min-h-screen">
-      <AppSidebar />
-      <div className="flex-1 lg:pl-64">
-        {children}
-      </div>
-    </div>
-  );
+  return <ResponsiveLayout>{children}</ResponsiveLayout>;
 }

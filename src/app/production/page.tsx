@@ -67,9 +67,11 @@ export default function ProductionDashboard() {
     engineeringTonnage: 0,
     overallProducedTonnage: 0,
     overallProductionPercentage: 0,
+    monthlyTarget: 0,
   });
   const [processData, setProcessData] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<ProductionLog[]>([]);
+  const [dailyProgress, setDailyProgress] = useState<any[]>([]);
   const [projectPlanning, setProjectPlanning] = useState<any>(null);
   const [benchmarks, setBenchmarks] = useState<any>(null);
 
@@ -141,9 +143,11 @@ export default function ProductionDashboard() {
           ...data.stats,
           overallProducedTonnage: avgTonnage,
           overallProductionPercentage: percentage,
+          monthlyTarget: data.stats.monthlyTarget || 0,
         });
         setProcessData(data.processData);
         setRecentActivity(data.recentActivity);
+        setDailyProgress(data.dailyProgress || []);
         setProjectPlanning(data.projectPlanning);
         setBenchmarks(data.benchmarks);
         console.log('Project Planning Data:', data.projectPlanning);
@@ -282,7 +286,7 @@ export default function ProductionDashboard() {
       )}
 
       {/* Tonnage Summary with Production Timeline */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Contractual Tonnage</CardTitle>
@@ -300,6 +304,21 @@ export default function ProductionDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.engineeringTonnage.toFixed(2)} <span className="text-lg">tons</span></div>
             <p className="text-xs text-muted-foreground mt-1">From engineering calculations</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              Monthly Target
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.monthlyTarget.toFixed(2)} <span className="text-lg">tons</span></div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} target
+            </p>
           </CardContent>
         </Card>
 
@@ -610,6 +629,100 @@ export default function ProductionDashboard() {
         </CardContent>
       </Card>
 
+
+      {/* Production Activities Progress */}
+      {dailyProgress.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Production Activities Progress
+              {selectedProject !== 'all' && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  (Selected Project)
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-blue-600 text-white">
+                    <th className="px-2 py-2 text-left font-semibold border border-blue-700">Date</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-amber-500">Preparation</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-amber-500">Preparation Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-green-600">Fit-Up Weight</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-green-600">Fit-Up Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-green-600">Welding Weight</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-green-600">Welding Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-sky-500">Visualization Weight</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-sky-500">Visualization Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-gray-500">Sandblasting</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-gray-500">Sandblasting Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-yellow-500">Galvanization</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-yellow-500">Galvanization Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-red-500">Painting</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-blue-700 bg-red-500">Painting Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Daily Average Row */}
+                  {dailyProgress.length > 0 && (
+                    <tr className="bg-blue-100 font-semibold">
+                      <td className="px-2 py-2 border text-blue-800">Daily Average</td>
+                      {['Preparation', 'Fit-up', 'Welding', 'Visualization', 'Sandblasting', 'Galvanization', 'Painting'].map(process => {
+                        const totalWeight = dailyProgress.reduce((sum, day) => sum + (day.processes[process]?.weight || 0), 0);
+                        const totalQty = dailyProgress.reduce((sum, day) => sum + (day.processes[process]?.qty || 0), 0);
+                        const avgWeight = dailyProgress.length > 0 ? totalWeight / dailyProgress.length : 0;
+                        const avgQty = dailyProgress.length > 0 ? totalQty / dailyProgress.length : 0;
+                        return (
+                          <>
+                            <td key={`${process}-weight`} className="px-2 py-2 text-center border">{avgWeight.toFixed(1)}</td>
+                            <td key={`${process}-qty`} className="px-2 py-2 text-center border">{avgQty.toFixed(0)}</td>
+                          </>
+                        );
+                      })}
+                    </tr>
+                  )}
+                  {dailyProgress.map((day, index) => {
+                    const rowColors = ['bg-red-50', 'bg-orange-50', 'bg-yellow-50', 'bg-green-50', 'bg-teal-50', 'bg-cyan-50', 'bg-sky-50', 'bg-blue-50', 'bg-indigo-50', 'bg-purple-50'];
+                    const rowColor = rowColors[index % rowColors.length];
+                    const dateObj = new Date(day.date);
+                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                    const formattedDate = dateObj.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+                    
+                    return (
+                      <tr key={day.date} className={rowColor}>
+                        <td className="px-2 py-2 border font-medium text-blue-800">
+                          {dayName}-{formattedDate}
+                        </td>
+                        {['Preparation', 'Fit-up', 'Welding', 'Visualization', 'Sandblasting', 'Galvanization', 'Painting'].map(process => (
+                          <>
+                            <td key={`${day.date}-${process}-weight`} className="px-2 py-2 text-center border">
+                              {day.processes[process]?.weight?.toFixed(1) || '0.0'}
+                            </td>
+                            <td key={`${day.date}-${process}-qty`} className="px-2 py-2 text-center border">
+                              {day.processes[process]?.qty || 0}
+                            </td>
+                          </>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 text-center">
+              <Link href="/production/logs">
+                <span className="text-sm text-primary hover:underline cursor-pointer">
+                  View All Production Logs →
+                </span>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

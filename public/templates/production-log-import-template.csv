@@ -1,0 +1,4 @@
+Part Designation,Process Type,Date Processed,Processed Qty,Processing Team,Processing Location,Remarks
+PROJ-BLD-001-A1,Fit-up,2025-01-15,5,Team A,Bay 1,Sample entry
+PROJ-BLD-001-A1,Welding,2025-01-16,5,Team B,Bay 2,
+PROJ-BLD-002-B1,Visualization,2025-01-17,10,Team A,Bay 1,Quality check passed

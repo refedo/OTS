@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Search, Filter, Package, FileCheck, Loader2, ChevronDown, ChevronUp, Trash2, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudDownload, Database } from 'lucide-react';
+import { Activity, Search, Filter, Package, FileCheck, Loader2, ChevronDown, ChevronUp, Trash2, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudDownload, Database, Download } from 'lucide-react';
 import { ImportModal } from '@/components/ImportModal';
 import { getProcessColor } from '@/lib/process-colors';
 import {
@@ -83,6 +83,7 @@ export default function ProductionLogsPage() {
   const [qcUsers, setQcUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [assignedQCId, setAssignedQCId] = useState('');
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 100, total: 0, totalPages: 0 });
+  const [pageSize, setPageSize] = useState(100);
   const [showRectifyDialog, setShowRectifyDialog] = useState(false);
   const [rectifyingLog, setRectifyingLog] = useState<ProductionLog | null>(null);
   const [rectifyRemarks, setRectifyRemarks] = useState('');
@@ -94,14 +95,15 @@ export default function ProductionLogsPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importProjectId, setImportProjectId] = useState('');
   const [projects, setProjects] = useState<Array<{ id: string; projectNumber: string; name: string }>>([]);
+  const [totalStats, setTotalStats] = useState<{ totalWeight: number; processStats: Array<{ processType: string; count: number; weight: number; percentage: number }> } | null>(null);
   const { toast } = useToast();
 
-  const fetchLogs = useCallback(async (page = 1, search = searchQuery) => {
+  const fetchLogs = useCallback(async (page = 1, search = searchQuery, limit = pageSize) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set('page', page.toString());
-      params.set('limit', '100');
+      params.set('limit', limit.toString());
       if (search) params.set('search', search);
       if (processFilter !== 'all') params.set('process', processFilter);
       if (projectFilter !== 'all') params.set('projectId', projectFilter);
@@ -111,18 +113,22 @@ export default function ProductionLogsPage() {
         const result = await response.json();
         setLogs(result.data || []);
         setPagination(result.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 });
+        setTotalStats(result.totalStats || null);
       }
     } catch (error) {
       console.error('Error fetching logs:', error);
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, processFilter, projectFilter]);
+  }, [searchQuery, processFilter, projectFilter, pageSize]);
 
   useEffect(() => {
     fetchLogs(1);
+  }, [fetchLogs]);
+
+  useEffect(() => {
     fetchProjects();
-  }, [processFilter, projectFilter]);
+  }, []);
 
   const fetchProjects = async () => {
     try {
@@ -481,6 +487,12 @@ export default function ProductionLogsPage() {
                 </Button>
               </>
             )}
+            <a href="/templates/production-log-import-template.csv" download>
+              <Button variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Template
+              </Button>
+            </a>
             <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
               <Upload className="mr-2 h-4 w-4" />
               Import
@@ -549,11 +561,27 @@ export default function ProductionLogsPage() {
       </div>
 
       {/* Pagination Controls */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} logs
+            Showing {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} logs
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="h-8 px-2 rounded-md border bg-background text-sm"
+            >
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+            </select>
+          </div>
+        </div>
+        {pagination.totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => goToPage(1)} disabled={pagination.page === 1}>
               <ChevronsLeft className="h-4 w-4" />
@@ -571,8 +599,8 @@ export default function ProductionLogsPage() {
               <ChevronsRight className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Metrics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -608,12 +636,12 @@ export default function ProductionLogsPage() {
         </Card>
       </div>
 
-      {/* Process Completion Stats */}
-      {Object.keys(processStats).length > 0 && (
+      {/* Process Completion Stats - Uses total stats from API, not just page data */}
+      {totalStats && totalStats.processStats.length > 0 && (
         <Card>
           <CardHeader className="cursor-pointer" onClick={() => setIsProcessStatsCollapsed(!isProcessStatsCollapsed)}>
             <CardTitle className="text-sm font-medium flex items-center justify-between">
-              <span>Completion by Process</span>
+              <span>Completion by Process (All Filtered Data)</span>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                 {isProcessStatsCollapsed ? (
                   <ChevronDown className="h-4 w-4" />
@@ -626,7 +654,7 @@ export default function ProductionLogsPage() {
           {!isProcessStatsCollapsed && (
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(processStats)
+                {totalStats.processStats
                   .sort((a, b) => {
                     // Define the correct process order
                     const processOrder = [
@@ -645,16 +673,16 @@ export default function ProductionLogsPage() {
                       'Dispatch to Customer',
                       'Erection'
                     ];
-                    const indexA = processOrder.indexOf(a[0]);
-                    const indexB = processOrder.indexOf(b[0]);
+                    const indexA = processOrder.indexOf(a.processType);
+                    const indexB = processOrder.indexOf(b.processType);
                     // If not in order list, put at end
                     return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
                   })
-                  .map(([processType, data]) => {
-                    const colors = getProcessColor(processType);
+                  .map((data) => {
+                    const colors = getProcessColor(data.processType);
                     return (
-                      <div key={processType} className={`border-l-4 ${colors.border} pl-3 ${colors.bgLight} p-2 rounded-r`}>
-                        <p className={`text-xs font-semibold ${colors.textDark}`}>{processType}</p>
+                      <div key={data.processType} className={`border-l-4 ${colors.border} pl-3 ${colors.bgLight} p-2 rounded-r`}>
+                        <p className={`text-xs font-semibold ${colors.textDark}`}>{data.processType}</p>
                         <p className={`text-xl font-bold ${colors.textDark}`}>{data.percentage.toFixed(1)}%</p>
                         <p className="text-xs text-muted-foreground">{data.weight.toFixed(2)} tons</p>
                       </div>
@@ -964,37 +992,28 @@ export default function ProductionLogsPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Import Modal */}
+        {/* Import Modal - Now supports multi-project import without requiring project selection */}
         <ImportModal
           isOpen={showImportModal}
           onClose={() => {
             setShowImportModal(false);
-            setImportProjectId('');
             fetchLogs();
           }}
           title="Import Production Logs"
           fields={[
             { key: 'partDesignation', label: 'Part Designation', required: true },
-            { key: 'assemblyMark', label: 'Assembly Mark' },
-            { key: 'partMark', label: 'Part Mark' },
             { key: 'processType', label: 'Process Type' },
             { key: 'dateProcessed', label: 'Date Processed' },
             { key: 'processedQty', label: 'Processed Qty' },
-            { key: 'remainingQty', label: 'Remaining Qty' },
             { key: 'processingTeam', label: 'Processing Team' },
             { key: 'processingLocation', label: 'Processing Location' },
-            { key: 'remarks', label: 'Remarks' },
-            { key: 'qcStatus', label: 'QC Status' },
-            { key: 'qcRequired', label: 'QC Required' },
           ]}
           onImport={async (data, mapping) => {
-            if (!importProjectId) {
-              throw new Error('Please select a project first');
-            }
+            // No project selection required - parts are matched by designation across all projects
             const res = await fetch('/api/production/logs/import', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data, mapping, projectId: importProjectId }),
+              body: JSON.stringify({ data, mapping }),
             });
             if (!res.ok) {
               const error = await res.json();
@@ -1005,32 +1024,6 @@ export default function ProductionLogsPage() {
           }}
           sampleData="Part Designation,Process Type,Date Processed,Processed Qty,Remaining Qty,Processing Team"
         />
-
-        {/* Project Selection for Import */}
-        {showImportModal && !importProjectId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">Select Project for Import</h3>
-              <select
-                value={importProjectId}
-                onChange={(e) => setImportProjectId(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border bg-background mb-4"
-              >
-                <option value="">Select a project...</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.projectNumber} - {p.name}
-                  </option>
-                ))}
-              </select>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowImportModal(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
     </div>
   );
 }

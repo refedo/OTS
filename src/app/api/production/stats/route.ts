@@ -329,6 +329,121 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Get daily production progress for the last 14 days
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    
+    const dailyProgressLogs = await prisma.productionLog.findMany({
+      where: {
+        ...logsWhereClause,
+        dateProcessed: { gte: fourteenDaysAgo },
+      },
+      select: {
+        dateProcessed: true,
+        processType: true,
+        processedQty: true,
+        assemblyPart: {
+          select: {
+            singlePartWeight: true,
+          },
+        },
+      },
+      orderBy: { dateProcessed: 'asc' },
+    });
+
+    // Group by date and process type
+    const dailyProgressMap: { [date: string]: { [process: string]: { weight: number; qty: number } } } = {};
+    
+    dailyProgressLogs.forEach(log => {
+      const dateKey = log.dateProcessed.toISOString().split('T')[0];
+      const weight = (Number(log.assemblyPart.singlePartWeight) || 0) * log.processedQty / 1000; // Convert to tons
+      
+      if (!dailyProgressMap[dateKey]) {
+        dailyProgressMap[dateKey] = {};
+      }
+      if (!dailyProgressMap[dateKey][log.processType]) {
+        dailyProgressMap[dateKey][log.processType] = { weight: 0, qty: 0 };
+      }
+      dailyProgressMap[dateKey][log.processType].weight += weight;
+      dailyProgressMap[dateKey][log.processType].qty += log.processedQty;
+    });
+
+    // Convert to array format for frontend
+    const dailyProgress = Object.entries(dailyProgressMap)
+      .map(([date, processes]) => ({
+        date,
+        processes,
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Calculate monthly target from buildings with fabrication schedules in current month
+    const now2 = new Date();
+    const currentYear = now2.getFullYear();
+    const currentMonth = now2.getMonth();
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+
+    // Get buildings with fabrication schedules that overlap with current month
+    const buildingsWithFabricationThisMonth = await prisma.building.findMany({
+      where: {
+        ...(projectId && projectId !== 'all' ? { projectId } : {}),
+        scopeSchedules: {
+          some: {
+            scopeType: 'fabrication',
+            startDate: { lte: monthEnd },
+            endDate: { gte: monthStart },
+          },
+        },
+      },
+      include: {
+        scopeSchedules: {
+          where: {
+            scopeType: 'fabrication',
+            startDate: { lte: monthEnd },
+            endDate: { gte: monthStart },
+          },
+          select: {
+            startDate: true,
+            endDate: true,
+          },
+        },
+        assemblyParts: {
+          select: {
+            netWeightTotal: true,
+          },
+        },
+      },
+    });
+
+    // Calculate monthly target tonnage
+    let monthlyTarget = 0;
+    for (const building of buildingsWithFabricationThisMonth) {
+      const fabricationSchedule = building.scopeSchedules[0];
+      if (!fabricationSchedule) continue;
+
+      const startDate = new Date(fabricationSchedule.startDate);
+      const endDate = new Date(fabricationSchedule.endDate);
+
+      // Calculate building weight
+      const buildingWeight = building.assemblyParts.reduce((sum, part) => {
+        return sum + (Number(part.netWeightTotal) || 0);
+      }, 0) / 1000; // Convert kg to tons
+
+      if (buildingWeight === 0) continue;
+
+      // Calculate total days in fabrication schedule
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      // Calculate days in current month that overlap with fabrication schedule
+      const rangeStart = startDate > monthStart ? startDate : monthStart;
+      const rangeEnd = endDate < monthEnd ? endDate : monthEnd;
+      const daysInMonth = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+      // Calculate quota for current month
+      const quota = totalDays > 0 ? (daysInMonth / totalDays) * buildingWeight : 0;
+      monthlyTarget += quota;
+    }
+
     return NextResponse.json({
       stats: {
         totalParts,
@@ -340,9 +455,11 @@ export async function GET(req: Request) {
         completionRate: totalParts > 0 ? ((completedParts / totalParts) * 100).toFixed(1) : '0',
         contractualTonnage: contractualTonnage,
         engineeringTonnage: engineeringTonnage,
+        monthlyTarget: Number(monthlyTarget.toFixed(2)),
       },
       processData,
       recentActivity: recentLogs,
+      dailyProgress,
       projectPlanning,
       benchmarks,
     });

@@ -53,13 +53,26 @@ export async function GET(req: Request) {
     const [year, month] = monthParam.split('-').map(Number);
     const targetMonth = month - 1; // JavaScript months are 0-indexed
 
-    // Build where clause
-    const whereClause: any = {};
+    // Calculate month boundaries for filtering
+    const monthStart = new Date(year, targetMonth, 1);
+    const monthEnd = new Date(year, targetMonth + 1, 0); // Last day of the month
+
+    // Build where clause - filter buildings with fabrication schedules that overlap with selected month
+    const whereClause: any = {
+      scopeSchedules: {
+        some: {
+          scopeType: 'fabrication',
+          // Fabrication schedule must overlap with the selected month
+          startDate: { lte: monthEnd },
+          endDate: { gte: monthStart },
+        },
+      },
+    };
     if (projectId && projectId !== 'all') {
       whereClause.projectId = projectId;
     }
 
-    // Get all buildings with their fabrication schedules and assembly parts
+    // Get buildings with fabrication schedules that fall within the selected month
     const buildings = await prisma.building.findMany({
       where: whereClause,
       include: {
@@ -73,6 +86,9 @@ export async function GET(req: Request) {
         scopeSchedules: {
           where: {
             scopeType: 'fabrication',
+            // Only include schedules that overlap with the selected month
+            startDate: { lte: monthEnd },
+            endDate: { gte: monthStart },
           },
           select: {
             startDate: true,

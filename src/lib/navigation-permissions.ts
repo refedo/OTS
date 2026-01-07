@@ -107,6 +107,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   
   // Settings
   '/settings': ['settings.view'],
+  '/settings/about': null, // Public - Everyone can view About OTS
   '/settings/version': ['settings.view'],
   '/changelog': null, // Public - Everyone can view changelog
 };
