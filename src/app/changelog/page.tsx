@@ -90,7 +90,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '13.1.1',
+    version: '13.2.1',
     date: 'January 7, 2026',
     type: 'patch',
     status: 'previous',
@@ -126,7 +126,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '13.1.0',
+    version: '13.2.0',
     date: 'January 6, 2026',
     type: 'minor',
     status: 'previous',
@@ -211,9 +211,9 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '13.0.1',
+    version: '13.1.0',
     date: 'December 28, 2025',
-    type: 'patch',
+    type: 'minor',
     status: 'previous',
     mainTitle: '📋 Enterprise Audit Trail System',
     highlights: [
