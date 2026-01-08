@@ -114,6 +114,12 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
 
 // Helper function to check if user has permission to access a route
 export function hasAccessToRoute(userPermissions: string[], route: string): boolean {
+  // Ensure userPermissions is an array
+  if (!Array.isArray(userPermissions)) {
+    console.warn('userPermissions is not an array:', userPermissions);
+    return false;
+  }
+  
   const requiredPermissions = NAVIGATION_PERMISSIONS[route];
   
   // If no permission required (null), allow access

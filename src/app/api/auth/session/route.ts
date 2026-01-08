@@ -40,9 +40,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user permissions: custom permissions override role permissions
-    const permissions = user.customPermissions 
-      ? (user.customPermissions as string[])
-      : (user.role.permissions as string[] || []);
+    // customPermissions is a JSON field that may contain various data, not just permissions
+    let permissions: string[] = [];
+    
+    if (user.customPermissions && typeof user.customPermissions === 'object') {
+      const customPerms = user.customPermissions as any;
+      // Check if it has a permissions array property
+      if (Array.isArray(customPerms.permissions)) {
+        permissions = customPerms.permissions;
+      } else if (Array.isArray(customPerms)) {
+        // Legacy: if customPermissions itself is an array
+        permissions = customPerms;
+      } else {
+        // No custom permissions, use role permissions
+        permissions = (user.role.permissions as string[] || []);
+      }
+    } else {
+      // Use role permissions
+      permissions = (user.role.permissions as string[] || []);
+    }
 
     // Check if session data needs refresh (role or department changed)
     const needsRefresh = 

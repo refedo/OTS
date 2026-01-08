@@ -20,11 +20,19 @@ export async function POST(req: Request) {
     }
 
     // Update user's last seen version
+    // Get current customPermissions to preserve existing data
+    const user = await prisma.user.findUnique({
+      where: { id: session.sub },
+      select: { customPermissions: true },
+    });
+
+    const currentPerms = (user?.customPermissions as any) || {};
+    
     await prisma.user.update({
       where: { id: session.sub },
       data: {
         customPermissions: {
-          // Store in customPermissions JSON field as it's already nullable
+          ...currentPerms,
           lastSeenVersion: version,
           lastSeenAt: new Date().toISOString(),
         },
