@@ -126,6 +126,12 @@ export function hasAccessToRoute(userPermissions: string[], route: string): bool
     return false;
   }
   
+  // Defensive check: ensure userPermissions is an array
+  if (!Array.isArray(userPermissions)) {
+    console.warn('userPermissions is not an array:', userPermissions);
+    return false;
+  }
+  
   // If single permission string
   if (typeof requiredPermissions === 'string') {
     return userPermissions.includes(requiredPermissions);
@@ -137,5 +143,9 @@ export function hasAccessToRoute(userPermissions: string[], route: string): bool
 
 // Helper to check if user has access to any item in a section
 export function hasAccessToSection(userPermissions: string[], sectionRoutes: string[]): boolean {
+  // Defensive check: ensure userPermissions is an array
+  if (!Array.isArray(userPermissions)) {
+    return false;
+  }
   return sectionRoutes.some(route => hasAccessToRoute(userPermissions, route));
 }
