@@ -307,19 +307,55 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                     <tbody className="divide-y">
                       <tr>
                         <td className="px-3 py-2 font-medium">Down Payment</td>
-                        <td className="px-3 py-2">{project.downPayment ? `${((project.downPayment / (project.contractValue || 1)) * 100).toFixed(0)}%` : '-'}</td>
-                        <td className="px-3 py-2">down payment to be paid upon the signing of contract.</td>
+                        <td className="px-3 py-2">
+                          {(() => {
+                            // Try to extract percentage from milestone (format: "20% - description")
+                            if (project.downPaymentMilestone && project.downPaymentMilestone.includes('%')) {
+                              const match = project.downPaymentMilestone.match(/^(\d+(?:\.\d+)?)\s*%/);
+                              if (match) return `${match[1]}%`;
+                            }
+                            // Fallback: calculate from amount
+                            return project.downPayment ? `${((project.downPayment / (project.contractValue || 1)) * 100).toFixed(0)}%` : '-';
+                          })()}
+                        </td>
+                        <td className="px-3 py-2">
+                          {(() => {
+                            // Extract description part (remove percentage prefix if exists)
+                            if (project.downPaymentMilestone && project.downPaymentMilestone.includes('%')) {
+                              const parts = project.downPaymentMilestone.split(/\s*-\s*/, 2);
+                              return parts[1] || project.downPaymentMilestone;
+                            }
+                            return project.downPaymentMilestone || 'down payment to be paid upon the signing of contract.';
+                          })()}
+                        </td>
                         <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
                       </tr>
                       {[2, 3, 4, 5, 6].map((num) => {
                         const payment = (project as any)[`payment${num}`];
-                        const ack = (project as any)[`payment${num}Ack`];
-                        if (!payment) return null;
+                        const milestone = (project as any)[`payment${num}Milestone`];
+                        if (!payment && !milestone) return null;
+                        
+                        // Extract percentage from milestone
+                        let percentage = '-';
+                        let description = milestone || '-';
+                        
+                        if (milestone && milestone.includes('%')) {
+                          const match = milestone.match(/^(\d+(?:\.\d+)?)\s*%/);
+                          if (match) {
+                            percentage = `${match[1]}%`;
+                            const parts = milestone.split(/\s*-\s*/, 2);
+                            description = parts[1] || milestone;
+                          }
+                        } else if (payment && project.contractValue) {
+                          // Fallback: calculate from amount
+                          percentage = `${((payment / project.contractValue) * 100).toFixed(0)}%`;
+                        }
+                        
                         return (
                           <tr key={num}>
                             <td className="px-3 py-2 font-medium">Payment {num}</td>
-                            <td className="px-3 py-2">{((payment / (project.contractValue || 1)) * 100).toFixed(0)}%</td>
-                            <td className="px-3 py-2">{ack || 'of the value to be loaded after production'}</td>
+                            <td className="px-3 py-2">{percentage}</td>
+                            <td className="px-3 py-2">{description}</td>
                             <td className="px-3 py-2">-</td>
                           </tr>
                         );
