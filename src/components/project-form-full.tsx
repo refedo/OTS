@@ -75,6 +75,29 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       return val && val.trim() ? parseInt(val, 10) : null;
     };
 
+    // Process payment data: convert percentages to amounts and format milestones
+    const contractValue = getNumber('contractValue') || 0;
+    const processPayment = (key: string, milestoneKey: string) => {
+      const percentage = getNumber(key); // User enters percentage
+      const milestoneText = getString(milestoneKey); // User enters description
+      
+      if (!percentage || !milestoneText) {
+        return { amount: null, milestone: milestoneText };
+      }
+      
+      const amount = contractValue > 0 ? (contractValue * percentage / 100) : 0;
+      const milestone = `${percentage}% - ${milestoneText}`;
+      
+      return { amount, milestone };
+    };
+    
+    const downPaymentData = processPayment('downPayment', 'downPaymentMilestone');
+    const payment2Data = processPayment('payment2', 'payment2Milestone');
+    const payment3Data = processPayment('payment3', 'payment3Milestone');
+    const payment4Data = processPayment('payment4', 'payment4Milestone');
+    const payment5Data = processPayment('payment5', 'payment5Milestone');
+    const payment6Data = processPayment('payment6', 'payment6Milestone');
+
     const data = {
       projectNumber: (formData.get('projectNumber') as string) || undefined,
       estimationNumber: getString('estimationNumber'),
@@ -89,25 +112,25 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       downPaymentDate: getString('downPaymentDate'),
       
       // Financial
-      contractValue: getNumber('contractValue'),
-      downPayment: getNumber('downPayment'),
+      contractValue,
+      downPayment: downPaymentData.amount,
       downPaymentAck: formData.get('downPaymentAck') === 'on',
-      downPaymentMilestone: getString('downPaymentMilestone'),
-      payment2: getNumber('payment2'),
+      downPaymentMilestone: downPaymentData.milestone,
+      payment2: payment2Data.amount,
       payment2Ack: formData.get('payment2Ack') === 'on',
-      payment2Milestone: getString('payment2Milestone'),
-      payment3: getNumber('payment3'),
+      payment2Milestone: payment2Data.milestone,
+      payment3: payment3Data.amount,
       payment3Ack: formData.get('payment3Ack') === 'on',
-      payment3Milestone: getString('payment3Milestone'),
-      payment4: getNumber('payment4'),
+      payment3Milestone: payment3Data.milestone,
+      payment4: payment4Data.amount,
       payment4Ack: formData.get('payment4Ack') === 'on',
-      payment4Milestone: getString('payment4Milestone'),
-      payment5: getNumber('payment5'),
+      payment4Milestone: payment4Data.milestone,
+      payment5: payment5Data.amount,
       payment5Ack: formData.get('payment5Ack') === 'on',
-      payment5Milestone: getString('payment5Milestone'),
-      payment6: getNumber('payment6'),
+      payment5Milestone: payment5Data.milestone,
+      payment6: payment6Data.amount,
       payment6Ack: formData.get('payment6Ack') === 'on',
-      payment6Milestone: getString('payment6Milestone'),
+      payment6Milestone: payment6Data.milestone,
       preliminaryRetention: getNumber('preliminaryRetention'),
       hoRetention: getNumber('hoRetention'),
       
