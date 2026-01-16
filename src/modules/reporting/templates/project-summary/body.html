@@ -1,0 +1,265 @@
+  <div class="page">
+    <!-- Report Title -->
+    <h1>{{translations.projectSummaryReport}}</h1>
+
+    <!-- Project Information Section -->
+    <section class="section no-break">
+      <h2>{{translations.projectInformation}}</h2>
+      <div class="card">
+        <div class="row">
+          <div class="col-2">
+            <div class="info-box">
+              <div class="label">{{translations.projectNumber}}</div>
+              <div class="value">{{project.number}}</div>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="info-box">
+              <div class="label">{{translations.projectName}}</div>
+              <div class="value">{{project.name}}</div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-2">
+            <div class="info-box">
+              <div class="label">{{translations.client}}</div>
+              <div class="value">{{project.client}}</div>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="info-box">
+              <div class="label">{{translations.location}}</div>
+              <div class="value">{{project.location}}</div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-3">
+            <div class="info-box">
+              <div class="label">{{translations.startDate}}</div>
+              <div class="value">{{project.startDate}}</div>
+            </div>
+          </div>
+          <div class="col-3">
+            <div class="info-box">
+              <div class="label">{{translations.endDate}}</div>
+              <div class="value">{{project.endDate}}</div>
+            </div>
+          </div>
+          <div class="col-3">
+            <div class="info-box">
+              <div class="label">{{translations.status}}</div>
+              <div class="value">
+                <span class="badge badge-{{project.statusClass}}">{{project.status}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Weight Summary Section -->
+    <section class="section no-break">
+      <h2>{{translations.weightSummary}}</h2>
+      <div class="row">
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.totalWeight}}</div>
+            <div class="value">{{weightSummary.totalWeight}} {{translations.ton}}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.producedWeight}}</div>
+            <div class="value color-success">{{weightSummary.producedWeight}} {{translations.ton}}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.dispatchedWeight}}</div>
+            <div class="value color-secondary">{{weightSummary.dispatchedWeight}} {{translations.ton}}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.remainingWeight}}</div>
+            <div class="value color-warning">{{weightSummary.remainingWeight}} {{translations.ton}}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buildings List Section -->
+    <section class="section">
+      <h2>{{translations.buildingsList}}</h2>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>{{translations.buildingCode}}</th>
+              <th>{{translations.buildingName}}</th>
+              <th>{{translations.buildingType}}</th>
+              <th>{{translations.totalWeight}}</th>
+              <th>{{translations.completion}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each buildings}}
+            <tr>
+              <td class="text-bold">{{this.code}}</td>
+              <td>{{this.name}}</td>
+              <td>{{this.type}}</td>
+              <td>{{this.totalWeight}} {{../translations.ton}}</td>
+              <td>
+                <div class="progress">
+                  <div class="progress-bar {{this.progressClass}}" style="width: {{this.completionPercentage}}%">
+                    {{this.completionPercentage}}%
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Production Summary Section -->
+    <section class="section no-break">
+      <h2>{{translations.productionSummary}}</h2>
+      <div class="card">
+        <div class="row">
+          <div class="col-3">
+            <h3>{{translations.fitUp}}</h3>
+            <div class="info-box">
+              <div class="label">{{translations.completed}}</div>
+              <div class="value color-success">{{productionSummary.fitUp.completed}}</div>
+            </div>
+            <div class="info-box">
+              <div class="label">{{translations.pending}}</div>
+              <div class="value color-warning">{{productionSummary.fitUp.pending}}</div>
+            </div>
+            <div class="progress">
+              <div class="progress-bar success" style="width: {{productionSummary.fitUp.percentage}}%">
+                {{productionSummary.fitUp.percentage}}%
+              </div>
+            </div>
+          </div>
+
+          <div class="col-3">
+            <h3>{{translations.welding}}</h3>
+            <div class="info-box">
+              <div class="label">{{translations.completed}}</div>
+              <div class="value color-success">{{productionSummary.welding.completed}}</div>
+            </div>
+            <div class="info-box">
+              <div class="label">{{translations.pending}}</div>
+              <div class="value color-warning">{{productionSummary.welding.pending}}</div>
+            </div>
+            <div class="progress">
+              <div class="progress-bar success" style="width: {{productionSummary.welding.percentage}}%">
+                {{productionSummary.welding.percentage}}%
+              </div>
+            </div>
+          </div>
+
+          <div class="col-3">
+            <h3>{{translations.visual}}</h3>
+            <div class="info-box">
+              <div class="label">{{translations.completed}}</div>
+              <div class="value color-success">{{productionSummary.visual.completed}}</div>
+            </div>
+            <div class="info-box">
+              <div class="label">{{translations.pending}}</div>
+              <div class="value color-warning">{{productionSummary.visual.pending}}</div>
+            </div>
+            <div class="progress">
+              <div class="progress-bar success" style="width: {{productionSummary.visual.percentage}}%">
+                {{productionSummary.visual.percentage}}%
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QC Summary Section -->
+    <section class="section no-break">
+      <h2>{{translations.qcSummary}}</h2>
+      <div class="row">
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.totalInspections}}</div>
+            <div class="value">{{qcSummary.totalInspections}}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.passed}}</div>
+            <div class="value color-success">{{qcSummary.passed}}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.failed}}</div>
+            <div class="value color-danger">{{qcSummary.failed}}</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="info-box">
+            <div class="label">{{translations.passRate}}</div>
+            <div class="value">{{qcSummary.passRate}}%</div>
+          </div>
+        </div>
+      </div>
+      <div class="progress mt-20">
+        <div class="progress-bar success" style="width: {{qcSummary.passRate}}%">
+          {{translations.passRate}}: {{qcSummary.passRate}}%
+        </div>
+      </div>
+    </section>
+
+    <!-- Dispatch Summary Section -->
+    <section class="section no-break">
+      <h2>{{translations.dispatchSummary}}</h2>
+      <div class="row">
+        <div class="col-3">
+          <div class="info-box">
+            <div class="label">{{translations.totalDispatches}}</div>
+            <div class="value">{{dispatchSummary.totalDispatches}}</div>
+          </div>
+        </div>
+        <div class="col-3">
+          <div class="info-box">
+            <div class="label">{{translations.totalWeight}}</div>
+            <div class="value">{{dispatchSummary.totalWeight}} {{translations.ton}}</div>
+          </div>
+        </div>
+        <div class="col-3">
+          <div class="info-box">
+            <div class="label">{{translations.lastDispatch}}</div>
+            <div class="value">{{dispatchSummary.lastDispatchDate}}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Signatures Section -->
+    <section class="signatures">
+      <div class="signature-box">
+        <div class="signature-line">
+          <div class="signature-label">{{translations.preparedBy}}</div>
+          <div class="signature-date">{{generatedBy}}</div>
+          <div class="signature-date">{{generatedAt}}</div>
+        </div>
+      </div>
+      <div class="signature-box">
+        <div class="signature-line">
+          <div class="signature-label">{{translations.approvedBy}}</div>
+          <div class="signature-date">_________________</div>
+          <div class="signature-date">{{translations.date}}: _________</div>
+        </div>
+      </div>
+    </section>
+  </div>

@@ -1,0 +1,196 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v2.1.3, etc.
+
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for changelog generation
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          
+          # Extract changelog section for this version
+          CHANGELOG=$(awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | sed '$d' | tail -n +2)
+          
+          # If changelog is empty, use a default message
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release version $VERSION
+
+          See CHANGELOG.md for details."
+          fi
+          
+          # Save to file for GitHub release
+          echo "$CHANGELOG" > release-notes.md
+          
+          echo "Extracted changelog for v$VERSION"
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate Prisma Client
+        run: npx prisma generate
+      
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Create release package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          
+          # Create release directory
+          mkdir -p releases/v$VERSION
+          
+          # Copy essential files
+          cp -r .next releases/v$VERSION/
+          cp -r public releases/v$VERSION/ || true
+          cp -r prisma releases/v$VERSION/
+          cp package*.json releases/v$VERSION/
+          cp .env.example releases/v$VERSION/
+          cp README.md releases/v$VERSION/ || true
+          
+          # Create deployment archive
+          cd releases/v$VERSION
+          tar -czf ../hexa-steel-ots-v$VERSION.tar.gz .
+          cd ../..
+          
+          echo "✅ Created release package: hexa-steel-ots-v$VERSION.tar.gz"
+      
+      - name: Generate deployment instructions
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          
+          cat > releases/DEPLOYMENT-v$VERSION.md << EOF
+          # Deployment Instructions - Hexa Steel OTS v$VERSION
+          
+          ## Prerequisites
+          - Node.js 20.x or higher
+          - MySQL 8.0 or higher
+          - PM2 (for production deployment)
+          
+          ## Quick Deployment
+          
+          1. **Extract the release package:**
+             ```bash
+             tar -xzf hexa-steel-ots-v$VERSION.tar.gz -C /var/www/your-app
+             cd /var/www/your-app
+             ```
+          
+          2. **Install dependencies:**
+             ```bash
+             npm ci --production
+             ```
+          
+          3. **Configure environment:**
+             ```bash
+             cp .env.example .env
+             # Edit .env with your configuration
+             nano .env
+             ```
+          
+          4. **Run database migrations:**
+             ```bash
+             npx prisma migrate deploy
+             ```
+          
+          5. **Start the application:**
+             ```bash
+             pm2 start npm --name "ots-app" -- start
+             pm2 save
+             ```
+          
+          ## Rollback Instructions
+          
+          If you need to rollback to a previous version:
+          
+          1. **Stop the current application:**
+             ```bash
+             pm2 stop ots-app
+             ```
+          
+          2. **Extract the previous version:**
+             ```bash
+             tar -xzf hexa-steel-ots-v<PREVIOUS_VERSION>.tar.gz -C /var/www/your-app
+             ```
+          
+          3. **Rollback database (if needed):**
+             ```bash
+             # Check migration history
+             npx prisma migrate status
+             
+             # Rollback to specific migration
+             npx prisma migrate resolve --rolled-back <MIGRATION_NAME>
+             ```
+          
+          4. **Restart application:**
+             ```bash
+             pm2 restart ots-app
+             ```
+          
+          ## Version Information
+          - **Version:** v$VERSION
+          - **Release Date:** $(date +%Y-%m-%d)
+          - **Node.js:** 20.x
+          - **Database:** MySQL 8.0+
+          
+          ## Support
+          For issues or questions, refer to the CHANGELOG.md or contact the development team.
+          EOF
+          
+          # Replace $VERSION placeholder
+          sed -i "s/\$VERSION/$VERSION/g" releases/DEPLOYMENT-v$VERSION.md
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.version.outputs.tag }}
+          body_path: release-notes.md
+          files: |
+            releases/hexa-steel-ots-v${{ steps.version.outputs.version }}.tar.gz
+            releases/DEPLOYMENT-v${{ steps.version.outputs.version }}.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-v${{ steps.version.outputs.version }}
+          path: releases/
+          retention-days: 90
+      
+      - name: Notify success
+        run: |
+          echo "✅ Release v${{ steps.version.outputs.version }} created successfully!"
+          echo "📦 Release package: hexa-steel-ots-v${{ steps.version.outputs.version }}.tar.gz"
+          echo "📄 Deployment instructions: DEPLOYMENT-v${{ steps.version.outputs.version }}.md"
+          echo "🔗 GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}"

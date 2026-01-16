@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="{{language}}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{translations.deliveryNote}}</title>
+</head>
+<body lang="{{language}}">
+  <div class="delivery-header">
+    <div class="header-left">
+      <img src="{{logoBase64}}" alt="Hexa Steel" class="company-logo" />
+    </div>
+    <div class="header-center">
+      <h1 class="document-title">{{translations.deliveryNote}}</h1>
+    </div>
+    <div class="header-right">
+      <table class="header-info-table">
+        <tr>
+          <td class="label">{{translations.date}}</td>
+          <td class="value">{{deliveryDate}}</td>
+        </tr>
+        <tr>
+          <td class="label">{{translations.deliveryNumber}}</td>
+          <td class="value">{{deliveryNumber}}</td>
+        </tr>
+        <tr>
+          <td class="label">{{translations.deliveryCount}}</td>
+          <td class="value">{{deliveryCount}}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="project-info-section">
+    <table class="project-info-table">
+      <tr>
+        <td class="label">{{translations.projectNumber}}</td>
+        <td class="value">{{project.number}}</td>
+      </tr>
+      <tr>
+        <td class="label">{{translations.projectName}}</td>
+        <td class="value">{{project.name}}</td>
+      </tr>
+      <tr>
+        <td class="label">{{translations.incoterm}}</td>
+        <td class="value">{{project.incoterm}}</td>
+      </tr>
+      <tr>
+        <td class="label">{{translations.approvedBy}}</td>
+        <td class="value">{{approvedBy}}</td>
+      </tr>
+    </table>
+  </div>

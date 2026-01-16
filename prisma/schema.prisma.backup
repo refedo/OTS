@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// Core models for Hexa Steel OTS
+
+model Role {
+  id          String  @id @default(uuid()) @db.Char(36)
+  name        String  @unique
+  description String?
+  isSystem    Boolean @default(false) // System roles cannot be deleted
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("role")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Char(36)
+  name        String  @unique // e.g., "users.create", "users.read", "users.update", "users.delete"
+  resource    String  // e.g., "users", "roles", "departments", "projects", "tasks"
+  action      String  // e.g., "create", "read", "update", "delete", "manage"
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([resource, action])
+  @@map("permission")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid()) @db.Char(36)
+  roleId       String     @db.Char(36)
+  permissionId String     @db.Char(36)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("rolepermission")
+}
+
+model Department {
+  id          String  @id @default(uuid()) @db.Char(36)
+  name        String  @unique
+  description String?
+  managerId   String?  @unique @db.Char(36)
+  manager     User?    @relation("DepartmentManager", fields: [managerId], references: [id])
+  users       User[]
+  projects    Project[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("department")
+}
+
+model passwordresettoken {
+  id        String   @id @db.Char(36)
+  token     String   @unique(map: "PasswordResetToken_token_key")
+  userId    String   @db.Char(36)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      user     @relation(fields: [userId], references: [id], map: "PasswordResetToken_userId_fkey")
+
+  @@index([userId], map: "PasswordResetToken_userId_fkey")
+}
+
+model permission {
+  id             String           @id @db.Char(36)
+  name           String           @unique(map: "Permission_name_key")
+  resource       String
+  action         String
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  rolepermission rolepermission[]
+
+  @@index([resource, action], map: "Permission_resource_action_idx")
+}
+
+model project {
+  id                String              @id @db.Char(36)
+  name              String
+  description       String?
+  departmentId      String?             @db.Char(36)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  department        department?         @relation(fields: [departmentId], references: [id], map: "Project_departmentId_fkey")
+  projectassignment projectassignment[]
+  task              task[]
+
+  @@index([departmentId], map: "Project_departmentId_fkey")
+}
+
+model projectassignment {
+  id        String   @id @db.Char(36)
+  projectId String   @db.Char(36)
+  userId    String   @db.Char(36)
+  createdAt DateTime @default(now())
+  project   project  @relation(fields: [projectId], references: [id], map: "ProjectAssignment_projectId_fkey")
+  user      user     @relation(fields: [userId], references: [id], map: "ProjectAssignment_userId_fkey")
+
+  @@unique([projectId, userId], map: "ProjectAssignment_projectId_userId_key")
+  @@index([userId], map: "ProjectAssignment_userId_fkey")
+}
+
+model role {
+  id             String           @id @db.Char(36)
+  name           String           @unique(map: "Role_name_key")
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  isSystem       Boolean          @default(false)
+  rolepermission rolepermission[]
+  user           user[]
+}
+
+model rolepermission {
+  id           String     @id @db.Char(36)
+  roleId       String     @db.Char(36)
+  permissionId String     @db.Char(36)
+  createdAt    DateTime   @default(now())
+  permission   permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, map: "RolePermission_permissionId_fkey")
+  role         role       @relation(fields: [roleId], references: [id], onDelete: Cascade, map: "RolePermission_roleId_fkey")
+
+  @@unique([roleId, permissionId], map: "RolePermission_roleId_permissionId_key")
+  @@index([permissionId], map: "RolePermission_permissionId_idx")
+  @@index([roleId], map: "RolePermission_roleId_idx")
+}
+
+model task {
+  id             String           @id @db.Char(36)
+  title          String
+  description    String?
+  projectId      String           @db.Char(36)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  project        project          @relation(fields: [projectId], references: [id], map: "Task_projectId_fkey")
+  taskassignment taskassignment[]
+
+  @@index([projectId], map: "Task_projectId_fkey")
+}
+
+model taskassignment {
+  id        String   @id @db.Char(36)
+  taskId    String   @db.Char(36)
+  userId    String   @db.Char(36)
+  createdAt DateTime @default(now())
+  task      task     @relation(fields: [taskId], references: [id], map: "TaskAssignment_taskId_fkey")
+  user      user     @relation(fields: [userId], references: [id], map: "TaskAssignment_userId_fkey")
+
+  @@unique([taskId, userId], map: "TaskAssignment_taskId_userId_key")
+  @@index([userId], map: "TaskAssignment_userId_fkey")
+}
+
+model user {
+  id                                       String               @id @db.Char(36)
+  name                                     String
+  email                                    String               @unique(map: "User_email_key")
+  password                                 String
+  status                                   String               @default("active")
+  roleId                                   String               @db.Char(36)
+  departmentId                             String?              @db.Char(36)
+  createdAt                                DateTime             @default(now())
+  updatedAt                                DateTime
+  department_department_managerIdTouser    department?          @relation("department_managerIdTouser")
+  passwordresettoken                       passwordresettoken[]
+  projectassignment                        projectassignment[]
+  taskassignment                           taskassignment[]
+  department_user_departmentIdTodepartment department?          @relation("user_departmentIdTodepartment", fields: [departmentId], references: [id], map: "User_departmentId_fkey")
+  role                                     role                 @relation(fields: [roleId], references: [id], map: "User_roleId_fkey")
+
+  @@index([departmentId], map: "User_departmentId_fkey")
+  @@index([roleId], map: "User_roleId_fkey")
+}

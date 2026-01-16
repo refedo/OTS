@@ -1,0 +1,93 @@
+===============================================
+QUICK COMMIT GUIDE - Hexa Steel OTS to GitHub
+===============================================
+
+IMPORTANT: Open Git Bash or Command Prompt (not PowerShell) for these commands
+
+Step 1: Navigate to project folder
+-----------------------------------
+cd c:/Users/Walid/CascadeProjects/mrp
+
+
+Step 2: Initialize Git (first time only)
+-----------------------------------------
+git init
+git config user.name "Your Name"
+git config user.email "your.email@example.com"
+
+
+Step 3: Add remote repository (first time only)
+------------------------------------------------
+git remote add origin https://github.com/refedo/OTS.git
+
+
+Step 4: Stage all files
+------------------------
+git add .
+
+
+Step 5: Commit with message
+----------------------------
+git commit -m "Initial commit: Hexa Steel OTS - Complete ERP System
+
+Features:
+- Project Management with Wizard (includes Payment Terms)
+- Document Control & Timeline
+- Production Management & Logs
+- Assembly Parts Management
+- Procurement & Purchase Orders (with Procurement/Supply scope)
+- Initiatives & Tasks
+- Operations Dashboard
+- Planning & Scheduling (with Month & Scope filters)
+- User Management & Roles
+- Complete Authentication System
+- Projects Dashboard with smart configuration
+"
+
+
+Step 6: Push to GitHub
+-----------------------
+# If repository is empty:
+git branch -M main
+git push -u origin main
+
+# If repository has content:
+git pull origin main --allow-unrelated-histories
+git push -u origin main
+
+
+DONE! Visit: https://github.com/refedo/OTS
+
+
+===============================================
+FUTURE UPDATES (after initial commit)
+===============================================
+
+1. Check status:
+   git status
+
+2. Stage changes:
+   git add .
+
+3. Commit:
+   git commit -m "Description of your changes"
+
+4. Push:
+   git push
+
+
+===============================================
+TROUBLESHOOTING
+===============================================
+
+If Git is not recognized:
+1. Install Git from: https://git-scm.com/download/win
+2. Restart your terminal
+3. Use Git Bash instead of PowerShell
+
+If authentication fails:
+1. Use Personal Access Token instead of password
+2. Generate token at: GitHub Settings → Developer settings → Personal access tokens
+3. Use token as password when pushing
+
+===============================================

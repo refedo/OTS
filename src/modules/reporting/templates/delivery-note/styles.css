@@ -1,0 +1,354 @@
+/**
+ * Delivery Note Report - Specific Styles
+ * Matches the exact format from the provided image
+ */
+
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+.delivery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  border-bottom: 2px solid #E1E8ED;
+  margin-bottom: 20px;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.company-logo {
+  height: 60px;
+  width: auto;
+  margin-bottom: 5px;
+}
+
+.company-name {
+  font-size: 14pt;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.header-center {
+  flex: 1;
+  text-align: center;
+}
+
+.document-title {
+  font-size: 28pt;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.header-right {
+  flex: 1;
+  text-align: right;
+}
+
+.header-info-table {
+  display: inline-block;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+
+.header-info-table td {
+  padding: 5px 10px;
+  border: none;
+}
+
+.header-info-table .label {
+  font-weight: bold;
+  text-align: right;
+  padding-right: 10px;
+}
+
+.header-info-table .value {
+  text-align: left;
+  border-bottom: 1px solid #E1E8ED;
+}
+
+/* ============================================
+   PROJECT INFO SECTION
+   ============================================ */
+.project-info-section {
+  margin: 20px 0;
+  padding: 15px;
+  background: #F7F9FA;
+  border-radius: 4px;
+}
+
+.project-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+}
+
+.project-info-table td {
+  padding: 8px 15px;
+  border: none;
+}
+
+.project-info-table .label {
+  font-weight: bold;
+  width: 150px;
+  color: var(--text-secondary);
+}
+
+.project-info-table .value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ============================================
+   BUILDING SUMMARY TABLE
+   ============================================ */
+.building-summary-section {
+  margin: 20px 0;
+}
+
+.building-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  margin-bottom: 20px;
+}
+
+.building-summary-table thead tr.header-red {
+  background: #E74C3C;
+  color: white;
+}
+
+.building-summary-table th {
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #E74C3C;
+}
+
+.building-summary-table td {
+  padding: 8px 10px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+}
+
+.building-summary-table td.highlight {
+  background: #E8F5E9;
+  font-weight: bold;
+  color: var(--success-color);
+}
+
+.building-summary-table td.highlight-orange {
+  background: #FFF3E0;
+  font-weight: bold;
+  color: var(--warning-color);
+}
+
+/* ============================================
+   SHIPMENT DETAILS SECTION
+   ============================================ */
+.shipment-details-section {
+  margin: 20px 0;
+}
+
+.shipment-summary-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.summary-box {
+  flex: 1;
+  padding: 15px;
+  background: #F7F9FA;
+  border-radius: 4px;
+  text-align: center;
+  border: 2px solid var(--border-color);
+}
+
+.summary-box.green {
+  background: #E8F5E9;
+  border-color: var(--success-color);
+}
+
+.summary-box.blue {
+  background: #E3F2FD;
+  border-color: var(--secondary-color);
+}
+
+.box-label {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.box-value {
+  font-size: 16pt;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+/* ============================================
+   DRIVER INFO TABLE
+   ============================================ */
+.driver-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  background: white;
+  border: 1px solid var(--border-color);
+}
+
+.driver-info-table td {
+  padding: 10px 15px;
+  border: 1px solid var(--border-color);
+}
+
+.driver-info-table .label {
+  font-weight: bold;
+  background: #F7F9FA;
+  width: 150px;
+  color: var(--text-secondary);
+}
+
+.driver-info-table .value {
+  color: var(--text-primary);
+}
+
+.driver-info-table .signature-cell {
+  min-height: 40px;
+  background: white;
+}
+
+/* ============================================
+   ITEMS TABLE
+   ============================================ */
+.items-section {
+  margin: 20px 0;
+  page-break-inside: avoid;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8pt;
+}
+
+.items-table thead tr.header-dark {
+  background: #2C3E50;
+  color: white;
+}
+
+.items-table th {
+  padding: 10px 8px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #2C3E50;
+  font-size: 8pt;
+}
+
+.items-table td {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 8pt;
+}
+
+.items-table tbody tr:nth-child(even) {
+  background-color: var(--table-stripe-bg);
+}
+
+.items-table tbody tr:hover {
+  background-color: #EDF2F7;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.delivery-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-top: 2px solid var(--border-color);
+  margin-top: 30px;
+  font-size: 8pt;
+  color: var(--text-secondary);
+}
+
+.footer-left,
+.footer-center,
+.footer-right {
+  flex: 1;
+}
+
+.footer-center {
+  text-align: center;
+  font-weight: bold;
+}
+
+.footer-right {
+  text-align: right;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.text-center {
+  text-align: center !important;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+.text-bold {
+  font-weight: bold !important;
+}
+
+/* ============================================
+   PRINT OPTIMIZATIONS
+   ============================================ */
+@media print {
+  .delivery-header {
+    page-break-after: avoid;
+  }
+  
+  .building-summary-table,
+  .driver-info-table,
+  .items-table {
+    page-break-inside: avoid;
+  }
+  
+  .items-table tbody tr {
+    page-break-inside: avoid;
+  }
+}
+
+/* ============================================
+   ARABIC RTL SUPPORT
+   ============================================ */
+body[lang="ar"] .delivery-header {
+  direction: rtl;
+}
+
+body[lang="ar"] .header-info-table .label {
+  text-align: left;
+}
+
+body[lang="ar"] .header-info-table .value {
+  text-align: right;
+}
+
+body[lang="ar"] .items-table th,
+body[lang="ar"] .items-table td {
+  text-align: right;
+}
+
+body[lang="ar"] .text-center {
+  text-align: center !important;
+}

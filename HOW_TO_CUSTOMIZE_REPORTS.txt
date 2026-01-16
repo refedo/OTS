@@ -1,0 +1,149 @@
+================================================================================
+🎨 HOW TO CUSTOMIZE REPORTS - GOOGLE SHEETS STYLE FREEDOM
+================================================================================
+
+YOU WANT: The same freedom you had in Google Sheets to move things around,
+          change colors, and control the exact layout.
+
+YOU HAVE: Full HTML/CSS templates that you can edit directly!
+
+================================================================================
+🚀 QUICK START (2 MINUTES)
+================================================================================
+
+METHOD 1: VISUAL EDITOR (No coding needed!)
+-------------------------------------------
+1. Open this file in your browser:
+   preview-delivery-note.html
+
+2. Use the color pickers on the right side
+
+3. Click "Apply Changes" to see results instantly
+
+4. Copy the color values you like
+
+5. Update styles.css with those values
+
+6. Run: node test-delivery-note.js
+
+7. Done!
+
+
+METHOD 2: DIRECT EDITING (Full control!)
+-----------------------------------------
+1. Open this file:
+   src/modules/reporting/templates/delivery-note/styles.css
+
+2. Find the color you want to change (e.g., line 50)
+
+3. Change the value:
+   background: #E74C3C;  →  background: #0071BC;
+
+4. Save the file
+
+5. Run: node test-delivery-note.js
+
+6. Open the generated PDF
+
+7. Repeat until perfect!
+
+================================================================================
+📁 FILES YOU CAN EDIT
+================================================================================
+
+styles.css     → Change ALL colors, spacing, fonts, sizes
+header.html    → Move header elements, change layout
+body.html      → Add/remove sections, rearrange content
+footer.html    → Edit footer content
+
+LOCATION:
+src/modules/reporting/templates/delivery-note/
+
+================================================================================
+🎨 COMMON EDITS
+================================================================================
+
+CHANGE RED HEADER TO BLUE:
+--------------------------
+File: styles.css
+Find: .building-summary-table thead tr.header-red {
+      background: #E74C3C;
+Change to: background: #0071BC;
+
+
+MAKE TITLE BIGGER:
+------------------
+File: styles.css
+Find: .document-title {
+      font-size: 28pt;
+Change to: font-size: 36pt;
+
+
+ADD MORE SPACING:
+-----------------
+File: styles.css
+Find: .delivery-header {
+      padding: 20px;
+Change to: padding: 40px;
+
+
+CHANGE TABLE FONT SIZE:
+-----------------------
+File: styles.css
+Find: .items-table {
+      font-size: 8pt;
+Change to: font-size: 10pt;
+
+================================================================================
+🌈 COLOR PALETTE FROM YOUR IMAGE
+================================================================================
+
+Red Header:     #E74C3C
+Yellow Cells:   #FFC000
+Green Boxes:    #00A651
+Dark Table:     #2C3E50
+Light Gray BG:  #F7F9FA
+Table Stripes:  #F2F2F2
+
+Copy these into styles.css wherever you want!
+
+================================================================================
+⚡ WORKFLOW
+================================================================================
+
+1. Edit styles.css (change a color or size)
+2. Save the file
+3. Run: node test-delivery-note.js
+4. Open the PDF in browser
+5. Like it? Done! Don't like it? Go back to step 1
+
+THAT'S IT! Just like editing a spreadsheet!
+
+================================================================================
+💡 PRO TIPS
+================================================================================
+
+✅ Use preview-delivery-note.html for quick visual testing
+✅ Keep a backup of styles.css before making big changes
+✅ Change one thing at a time to see what it affects
+✅ Use browser DevTools to inspect the PDF and see exact values
+✅ Comment your changes in CSS with /* notes */
+
+================================================================================
+📚 DOCUMENTATION
+================================================================================
+
+Full Guide:              GOOGLE_SHEETS_STYLE_EDITING.md
+Visual Customization:    VISUAL_REPORT_CUSTOMIZATION_GUIDE.md
+Live Preview Tool:       preview-delivery-note.html
+
+================================================================================
+✅ YOU HAVE FULL CONTROL!
+================================================================================
+
+The templates are PURE HTML/CSS - just like editing a web page or spreadsheet.
+No programming needed. Just change values and see results!
+
+Edit → Save → Generate → View → Repeat
+
+Happy customizing! 🎨
