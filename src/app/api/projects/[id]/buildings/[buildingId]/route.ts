@@ -6,9 +6,9 @@ import { verifySession } from '@/lib/jwt';
 
 const buildingSchema = z.object({
   designation: z.string().min(2).max(4).regex(/^[A-Z0-9]+$/).optional(),
-  name: z.string().min(2).optional(),
-  description: z.string().optional().nullable(),
-});
+  name: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
+}).partial();
 
 export async function PATCH(
   req: Request,
@@ -18,7 +18,7 @@ export async function PATCH(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  if (!session || !['Admin', 'Manager'].includes(session.role)) {
+  if (!session || !['CEO', 'Admin', 'Manager'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -45,7 +45,7 @@ export async function DELETE(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  if (!session || session.role !== 'Admin') {
+  if (!session || !['CEO', 'Admin'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

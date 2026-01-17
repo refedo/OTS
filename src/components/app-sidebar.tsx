@@ -54,7 +54,7 @@ import { useState, useEffect } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { UserMenu } from '@/components/user-menu';
-import { hasAccessToRoute, hasAccessToSection } from '@/lib/navigation-permissions';
+import { hasAccessToRoute, hasAccessToSection, NAVIGATION_PERMISSIONS } from '@/lib/navigation-permissions';
 
 type NavigationItem = {
   name: string;
@@ -370,7 +370,9 @@ export function AppSidebar() {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-2 space-y-1">
             {/* Single navigation items */}
-            {singleNavigation.filter(item => hasAccessToRoute(userPermissions, item.href)).map((item) => {
+            {singleNavigation.filter(item => 
+              isLoadingPermissions ? item.href === '/dashboard' : hasAccessToRoute(userPermissions, item.href)
+            ).map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               const isNotifications = item.href === '/notifications';
@@ -419,7 +421,9 @@ export function AppSidebar() {
 
             {/* Collapsible sections */}
             {navigationSections.filter(section => 
-              hasAccessToSection(userPermissions, section.items.map(item => item.href))
+              isLoadingPermissions 
+                ? section.name === 'Settings' 
+                : hasAccessToSection(userPermissions, section.items.map(item => item.href))
             ).map((section) => {
               const SectionIcon = section.icon;
               const isExpanded = expandedSections.includes(section.name);
@@ -487,7 +491,11 @@ export function AppSidebar() {
 
                   {isExpanded && (
                     <div className="ml-4 space-y-1 border-l-2 border-muted pl-2">
-                      {section.items.filter(item => hasAccessToRoute(userPermissions, item.href)).map((item) => {
+                      {section.items.filter(item => 
+                        isLoadingPermissions 
+                          ? NAVIGATION_PERMISSIONS[item.href] === null 
+                          : hasAccessToRoute(userPermissions, item.href)
+                      ).map((item) => {
                         const ItemIcon = item.icon;
                         // Special handling for dashboards - only exact match
                         const isActive = (item.href === '/qc' || item.href === '/production')
