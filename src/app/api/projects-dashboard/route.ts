@@ -296,7 +296,7 @@ export async function GET(req: NextRequest) {
             return enabledPhases.includes('Design') || enabledPhases.includes('Engineering');
           }
           if (['SHOP_SUBMITTED', 'SHOP_APPROVED'].includes(stageCode)) {
-            return enabledPhases.includes('Shop Drawing');
+            return enabledPhases.includes('Detailing');
           }
           if (['PRODUCTION_STARTED', 'COATING_STARTED'].includes(stageCode)) {
             return enabledPhases.includes('Fabrication') || enabledPhases.includes('Production');

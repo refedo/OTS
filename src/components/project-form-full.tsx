@@ -12,7 +12,7 @@ import { Loader2 } from 'lucide-react';
 
 const SCOPE_OPTIONS = [
   { id: 'design', label: 'Design' },
-  { id: 'shopDrawing', label: 'Shop Drawing' },
+  { id: 'shopDrawing', label: 'Detailing' },
   { id: 'fabrication', label: 'Fabrication' },
   { id: 'galvanization', label: 'Galvanization' },
   { id: 'painting', label: 'Painting' },

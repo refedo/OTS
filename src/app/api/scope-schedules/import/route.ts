@@ -6,8 +6,9 @@ import * as XLSX from 'xlsx';
 
 const SCOPE_TYPE_MAP: { [key: string]: { id: string; label: string } } = {
   'design': { id: 'design', label: 'Design' },
-  'shop drawing': { id: 'shopDrawing', label: 'Shop Drawing' },
-  'shop drawings': { id: 'shopDrawing', label: 'Shop Drawing' },
+  'shop drawing': { id: 'shopDrawing', label: 'Detailing' },
+  'shop drawings': { id: 'shopDrawing', label: 'Detailing' },
+  'detailing': { id: 'shopDrawing', label: 'Detailing' },
   'procurement': { id: 'procurement', label: 'Procurement/Supply' },
   'supply': { id: 'procurement', label: 'Procurement/Supply' },
   'procurement/supply': { id: 'procurement', label: 'Procurement/Supply' },

@@ -30,7 +30,7 @@ type ProjectTimeline = {
 
 const PHASE_BAR_COLORS: Record<string, string> = {
   Design: 'bg-blue-500',
-  'Shop Drawing': 'bg-indigo-500',
+  'Detailing': 'bg-indigo-500',
   Procurement: 'bg-amber-500',
   Fabrication: 'bg-emerald-500',
   Coating: 'bg-orange-500',
@@ -143,7 +143,7 @@ export default function TimelinePage() {
     return schedules.filter(schedule => {
       const scope = schedule.scopeLabel;
       // Map scopes to departments
-      if (departmentFilter === 'Design') return scope === 'Design' || scope === 'Shop Drawing';
+      if (departmentFilter === 'Design') return scope === 'Design' || scope === 'Detailing';
       if (departmentFilter === 'Procurement') return false; // No procurement scope yet
       if (departmentFilter === 'Production') return scope === 'Fabrication' || scope === 'Galvanization' || scope === 'Painting';
       if (departmentFilter === 'Logistics') return scope === 'Delivery & Logistics';

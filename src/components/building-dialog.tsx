@@ -34,7 +34,7 @@ export function BuildingDialog({ projectId, building, open, onOpenChange, onSave
 
     const formData = new FormData(e.currentTarget);
     const data = {
-      designation: (formData.get('designation') as string).toUpperCase(),
+      designation: (formData.get('designation') as string || '').toUpperCase(),
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
     };

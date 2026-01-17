@@ -39,7 +39,7 @@ type PhaseForm = {
 
 const ALL_PHASES = [
   'Design',
-  'Shop Drawing',
+  'Detailing',
   'Procurement',
   'Fabrication',
   'Coating',
@@ -49,7 +49,7 @@ const ALL_PHASES = [
 
 const PHASE_COLORS: Record<string, string> = {
   Design: 'bg-blue-100 border-blue-300',
-  'Shop Drawing': 'bg-indigo-100 border-indigo-300',
+  'Detailing': 'bg-indigo-100 border-indigo-300',
   Procurement: 'bg-amber-100 border-amber-300',
   Fabrication: 'bg-emerald-100 border-emerald-300',
   Coating: 'bg-orange-100 border-orange-300',
@@ -68,7 +68,7 @@ export default function ProjectPlanningPage() {
 
   const [phasesForms, setPhasesForms] = useState<Record<string, PhaseForm>>({
     Design: { enabled: false, plannedStart: '', plannedEnd: '', plannedDuration: '', responsibleDept: '' },
-    'Shop Drawing': { enabled: false, plannedStart: '', plannedEnd: '', plannedDuration: '', responsibleDept: '' },
+    'Detailing': { enabled: false, plannedStart: '', plannedEnd: '', plannedDuration: '', responsibleDept: '' },
     Procurement: { enabled: false, plannedStart: '', plannedEnd: '', plannedDuration: '', responsibleDept: '' },
     Fabrication: { enabled: false, plannedStart: '', plannedEnd: '', plannedDuration: '', responsibleDept: '' },
     Coating: { enabled: false, plannedStart: '', plannedEnd: '', plannedDuration: '', responsibleDept: '' },

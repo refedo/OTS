@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getDivisionFromScopeType } from '@/lib/division-helper';
 
 export async function PATCH(
   req: Request,
@@ -23,7 +24,10 @@ export async function PATCH(
     const updateData: any = {};
     if (startDate) updateData.startDate = new Date(startDate);
     if (endDate) updateData.endDate = new Date(endDate);
-    if (scopeType) updateData.scopeType = scopeType;
+    if (scopeType) {
+      updateData.scopeType = scopeType;
+      updateData.division = getDivisionFromScopeType(scopeType);
+    }
     if (scopeLabel) updateData.scopeLabel = scopeLabel;
 
     const updated = await prisma.scopeSchedule.update({

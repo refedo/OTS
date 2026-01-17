@@ -346,6 +346,7 @@ model ScopeSchedule {
   projectId   String   @db.Char(36)
   scopeType   String   // e.g., "design", "fabrication", "galvanization", etc.
   scopeLabel  String   // Display name e.g., "Design", "Fabrication"
+  division    String?  // Engineering, Operations, or Site
   startDate   DateTime
   endDate     DateTime
   

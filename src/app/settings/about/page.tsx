@@ -141,7 +141,7 @@ export default function AboutOTSPage() {
           Operations Tracking System - Enterprise Resource Planning for Steel Fabrication
         </p>
         <Badge variant="outline" className="mt-4 text-lg px-4 py-1">
-          Version 13.4.0
+          Version 13.4.1
         </Badge>
       </div>
 

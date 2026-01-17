@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getDivisionFromScopeType } from '@/lib/division-helper';
 
 export async function POST(req: Request) {
   try {
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
         buildingId,
         scopeType,
         scopeLabel,
+        division: getDivisionFromScopeType(scopeType),
         startDate: new Date(startDate),
         endDate: new Date(endDate),
       },

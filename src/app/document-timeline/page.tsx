@@ -100,7 +100,7 @@ const DOCUMENT_TYPES = [
   'CRS (Comments Resolution Sheet)',
   'RAD (Request for Approval Drawing)',
   'RFI',
-  'Shop Drawing',
+  'Detailing',
   'Fabrication Package',
   'Fabrication Drawing',
   'Erection Drawing',

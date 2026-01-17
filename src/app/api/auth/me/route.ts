@@ -31,6 +31,13 @@ export async function GET() {
     }
   }
 
+  console.log(`Auth API for ${user.email}:`, {
+    customPermissions: user.customPermissions,
+    rolePermissions: user.role.permissions,
+    finalPermissions: permissions,
+    permissionsCount: permissions.length
+  });
+
   return NextResponse.json({
     id: user.id,
     name: user.name,

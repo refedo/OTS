@@ -45,7 +45,7 @@ type PaymentTerm = {
 
 const SCOPE_OPTIONS = [
   { id: 'design', label: 'Design' },
-  { id: 'shopDrawing', label: 'Shop Drawing' },
+  { id: 'shopDrawing', label: 'Detailing' },
   { id: 'procurement', label: 'Procurement/Supply' },
   { id: 'fabrication', label: 'Fabrication' },
   { id: 'galvanization', label: 'Galvanization' },

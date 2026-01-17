@@ -87,14 +87,14 @@ export class OperationTimelineService {
       stage = 'DESIGN_APPROVED';
       description = 'Structural design package approved';
     } else if (
-      documentType === 'Shop Drawing' &&
+      documentType === 'Detailing' &&
       (status === 'Submitted for approval' || status === 'Submitted to get code A')
     ) {
       stage = 'SHOP_SUBMITTED';
-      description = 'Shop drawings submitted for approval';
-    } else if (documentType === 'Shop Drawing' && status === 'Released') {
+      description = 'Detailing drawings submitted for approval';
+    } else if (documentType === 'Detailing' && status === 'Released') {
       stage = 'SHOP_APPROVED';
-      description = 'Shop drawings approved';
+      description = 'Detailing drawings approved';
     }
 
     if (stage) {

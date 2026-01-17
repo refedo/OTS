@@ -39,6 +39,7 @@ type ScopeSchedule = {
   id?: string;
   scopeType: string;
   scopeLabel: string;
+  division?: string;
   startDate: string;
   endDate: string;
   projectId: string;
@@ -49,7 +50,7 @@ type ScopeSchedule = {
 
 const SCOPE_OPTIONS = [
   { id: 'design', label: 'Design' },
-  { id: 'shopDrawing', label: 'Shop Drawing' },
+  { id: 'shopDrawing', label: 'Detailing' },
   { id: 'procurement', label: 'Procurement/Supply' },
   { id: 'fabrication', label: 'Fabrication' },
   { id: 'galvanization', label: 'Galvanization' },
@@ -66,6 +67,7 @@ export default function PlanningDashboardPage() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [selectedScope, setSelectedScope] = useState<string>('');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -152,6 +154,11 @@ export default function PlanningDashboardPage() {
   const filteredSchedules = schedules.filter(s => {
     // Filter by project
     if (selectedProject && s.projectId !== selectedProject) {
+      return false;
+    }
+    
+    // Filter by building
+    if (selectedBuilding && s.buildingId !== selectedBuilding) {
       return false;
     }
     
@@ -592,6 +599,27 @@ export default function PlanningDashboardPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Label>Building:</Label>
+              <select
+                value={selectedBuilding}
+                onChange={(e) => setSelectedBuilding(e.target.value)}
+                className="w-56 h-10 px-3 rounded-md border bg-background"
+                disabled={!selectedProject}
+              >
+                <option value="">All Buildings</option>
+                {(selectedProject ? buildings : allBuildings)
+                  .filter((building, index, self) => 
+                    index === self.findIndex((b) => b.id === building.id)
+                  )
+                  .map((building) => (
+                    <option key={building.id} value={building.id}>
+                      {building.designation} - {building.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
               <Label>Scope:</Label>
               <select
                 value={selectedScope}
@@ -607,12 +635,13 @@ export default function PlanningDashboardPage() {
               </select>
           </div>
 
-          {(selectedProject || selectedMonth || selectedScope) && (
+          {(selectedProject || selectedBuilding || selectedMonth || selectedScope) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   setSelectedProject('');
+                  setSelectedBuilding('');
                   setSelectedMonth('');
                   setSelectedScope('');
                 }}
@@ -713,6 +742,7 @@ export default function PlanningDashboardPage() {
                     </th>
                     <th className="px-4 py-3 text-left font-semibold">Project</th>
                     <th className="px-4 py-3 text-left font-semibold">Building</th>
+                    <th className="px-4 py-3 text-left font-semibold">Division</th>
                     <th className="px-4 py-3 text-left font-semibold">Scope</th>
                     <th className="px-4 py-3 text-left font-semibold">Start Date</th>
                     <th className="px-4 py-3 text-left font-semibold">End Date</th>
@@ -819,6 +849,20 @@ export default function PlanningDashboardPage() {
                                 <div className="font-medium">{schedule.building?.designation}</div>
                                 <div className="text-xs text-muted-foreground">{schedule.building?.name}</div>
                               </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {schedule.division ? (
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                schedule.division === 'Engineering' ? 'bg-purple-100 text-purple-700' :
+                                schedule.division === 'Operations' ? 'bg-green-100 text-green-700' :
+                                schedule.division === 'Site' ? 'bg-orange-100 text-orange-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {schedule.division}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
