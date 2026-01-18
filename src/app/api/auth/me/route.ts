@@ -16,27 +16,17 @@ export async function GET() {
   });
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Get user permissions: custom permissions override role permissions
+  // Get user permissions from role (customPermissions is used for user preferences like lastSeenVersion)
   let permissions: string[] = [];
   
-  if (user.customPermissions) {
-    // Ensure customPermissions is an array
-    if (Array.isArray(user.customPermissions)) {
-      permissions = user.customPermissions as string[];
-    }
-  } else if (user.role.permissions) {
-    // Ensure role permissions is an array
-    if (Array.isArray(user.role.permissions)) {
-      permissions = user.role.permissions as string[];
-    }
+  // Check if customPermissions has a permissions array (for custom role overrides)
+  const customPerms = user.customPermissions as Record<string, unknown> | null;
+  if (customPerms && Array.isArray(customPerms.permissions)) {
+    permissions = customPerms.permissions as string[];
+  } else if (user.role.permissions && Array.isArray(user.role.permissions)) {
+    // Use role permissions as default
+    permissions = user.role.permissions as string[];
   }
-
-  console.log(`Auth API for ${user.email}:`, {
-    customPermissions: user.customPermissions,
-    rolePermissions: user.role.permissions,
-    finalPermissions: permissions,
-    permissionsCount: permissions.length
-  });
 
   return NextResponse.json({
     id: user.id,
