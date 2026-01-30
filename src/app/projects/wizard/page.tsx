@@ -284,6 +284,47 @@ export default function ProjectSetupWizard() {
         `Coat ${idx + 1}: ${coat.coatName}${coat.microns ? ` (${coat.microns} microns)` : ''}${coat.ralNumber ? ` - ${coat.ralNumber}` : ''}`
       ).join('\n');
 
+      // Map payment terms to project's fixed payment fields
+      // Format: "percentage% - description" for milestone field
+      const paymentFieldsMap: Record<string, any> = {};
+      
+      paymentTerms.forEach((term, index) => {
+        const percentage = parseFloat(term.percentage) || 0;
+        const contractVal = parseFloat(contractValue) || 0;
+        const amount = contractVal > 0 ? (percentage / 100) * contractVal : null;
+        const milestone = `${percentage}% - ${term.description}`;
+        
+        if (index === 0) {
+          // First payment term -> downPayment fields
+          paymentFieldsMap.downPayment = amount;
+          paymentFieldsMap.downPaymentMilestone = milestone;
+        } else if (index <= 5) {
+          // Subsequent terms -> payment2, payment3, etc.
+          const paymentNum = index + 1;
+          paymentFieldsMap[`payment${paymentNum}`] = amount;
+          paymentFieldsMap[`payment${paymentNum}Milestone`] = milestone;
+        }
+      });
+
+      // Map coating coats to project's fixed paint coat fields
+      const coatingFieldsMap: Record<string, any> = {};
+      
+      coatingCoats.forEach((coat, index) => {
+        const coatNum = index + 1;
+        if (coatNum <= 4) {
+          // Include RAL number in coat name if provided
+          const coatName = coat.ralNumber 
+            ? `${coat.coatName} (${coat.ralNumber})`
+            : coat.coatName;
+          coatingFieldsMap[`paintCoat${coatNum}`] = coatName;
+          coatingFieldsMap[`paintCoat${coatNum}Microns`] = coat.microns ? parseInt(coat.microns) : null;
+        }
+        // Store first RAL number as topCoatRalNumber
+        if (index === 0 && coat.ralNumber) {
+          coatingFieldsMap.topCoatRalNumber = coat.ralNumber;
+        }
+      });
+
       // Create project
       const projectData = {
         projectNumber,
@@ -298,6 +339,10 @@ export default function ProjectSetupWizard() {
         scopeOfWork: generateScopeText(),
         galvanized: isGalvanized,
         coatingSystem: coatingSystemText,
+        // Include payment terms mapped to fixed fields
+        ...paymentFieldsMap,
+        // Include coating coats mapped to fixed fields
+        ...coatingFieldsMap,
       };
 
       const projectResponse = await fetch('/api/projects', {

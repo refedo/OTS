@@ -447,22 +447,38 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
+                        <th className="px-3 py-2 text-left font-medium">Coat</th>
                         <th className="px-3 py-2 text-left font-medium">Paint Name</th>
                         <th className="px-3 py-2 text-left font-medium">Microns</th>
-                        <th className="px-3 py-2 text-left font-medium">RAL#</th>
-                        <th className="px-3 py-2 text-left font-medium">Notes</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      <tr>
-                        <td className="px-3 py-2">{project.paintName || 'Grey Oxide Primer'}</td>
-                        <td className="px-3 py-2">{project.galvanizationMicrons || '70'}</td>
-                        <td className="px-3 py-2">{project.ralNumber || '-'}</td>
-                        <td className="px-3 py-2">{project.coatingNotes || '-'}</td>
-                      </tr>
+                      {[1, 2, 3, 4].map((num) => {
+                        const paintCoat = (project as any)[`paintCoat${num}`];
+                        const microns = (project as any)[`paintCoat${num}Microns`];
+                        if (!paintCoat) return null;
+                        return (
+                          <tr key={num}>
+                            <td className="px-3 py-2 font-medium">Coat {num}</td>
+                            <td className="px-3 py-2">{paintCoat}</td>
+                            <td className="px-3 py-2">{microns || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                      {/* Fallback if no paint coats defined */}
+                      {!project.paintCoat1 && !project.paintCoat2 && !project.paintCoat3 && !project.paintCoat4 && (
+                        <tr>
+                          <td className="px-3 py-2 text-muted-foreground" colSpan={3}>
+                            {project.coatingSystem || 'No coating system defined'}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
+                {project.topCoatRalNumber && (
+                  <p className="text-sm text-muted-foreground mt-2">Top Coat RAL: {project.topCoatRalNumber}</p>
+                )}
               </div>
               <InfoRow label="Welding Process" value={project.weldingProcess} />
               <InfoRow label="Welding Wire AWS Class" value={project.weldingWireAwsClass} />
