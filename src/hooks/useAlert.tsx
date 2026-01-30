@@ -53,6 +53,7 @@ export function useAlert() {
       onClose={closeAlert}
       title={alertState.title}
       message={alertState.message}
+      type={alertState.type}
       onConfirm={alertState.onConfirm}
     />
   );

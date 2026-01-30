@@ -1122,15 +1122,14 @@ export default function ProjectSetupWizard() {
       <SuccessDialog
         open={showSuccessDialog}
         onClose={() => setShowSuccessDialog(false)}
-        title={successMessage.includes('Failed') ? 'Error' : 'Success'}
+        title={successMessage.includes('Failed') || successMessage.includes('cannot') ? 'Error' : 'Success'}
         message={successMessage}
+        type={successMessage.includes('Failed') || successMessage.includes('cannot') ? 'error' : 'success'}
         onConfirm={() => {
-          if (!successMessage.includes('Failed')) {
+          if (!successMessage.includes('Failed') && !successMessage.includes('cannot')) {
             router.push('/projects');
-            router.refresh();
           }
         }}
       />
     </div>
   );
-}
