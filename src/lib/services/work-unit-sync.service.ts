@@ -533,11 +533,20 @@ export class WorkUnitSyncService {
       let upstreamTypes: string[] = [];
       
       switch (workUnitType) {
+        case 'DETAILING':
+          upstreamTypes = ['DESIGN'];
+          break;
+        case 'PROCUREMENT':
+          upstreamTypes = ['DETAILING'];
+          break;
         case 'PRODUCTION':
-          upstreamTypes = ['DESIGN', 'PROCUREMENT'];
+          upstreamTypes = ['DETAILING', 'PROCUREMENT'];
+          break;
+        case 'COATING':
+          upstreamTypes = ['PRODUCTION'];
           break;
         case 'QC':
-          upstreamTypes = ['PRODUCTION'];
+          upstreamTypes = ['PRODUCTION', 'COATING'];
           break;
         case 'DOCUMENTATION':
           upstreamTypes = ['QC'];

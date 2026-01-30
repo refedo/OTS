@@ -124,7 +124,7 @@ export default function ProductionLogsPage() {
 
   useEffect(() => {
     fetchLogs(1);
-  }, [fetchLogs]);
+  }, [processFilter, projectFilter, pageSize]);
 
   useEffect(() => {
     fetchProjects();

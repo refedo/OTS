@@ -724,6 +724,84 @@ export default function ProductionDashboard() {
         </Card>
       )}
 
+      {/* Production Per Process Table (PDR-style) - Only when project is selected */}
+      {selectedProject !== 'all' && dailyProgress.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Production Daily Report (PDR)
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Daily production breakdown by process type for selected project
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-800 text-white">
+                    <th className="px-2 py-2 text-left font-semibold border border-slate-600 sticky left-0 bg-slate-800 z-10">Process Date</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-slate-700">Production Daily Average</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-amber-600">Cutting Weight</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-amber-600">Cut Pieces</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-green-600">Fit-up Weight</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-green-600">Fit-up Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-blue-600">Welding Weight</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-blue-600">Welding Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-cyan-600">Visualization Weight</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-cyan-600">Visualization Qty</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-gray-600">Dispatch to Sandblasting</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-orange-600">Dispatch to Galvanization</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-yellow-600">Galvanization</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-purple-600">Dispatch to Painting</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-red-600">Painting</th>
+                    <th className="px-2 py-2 text-center font-semibold border border-slate-600 bg-teal-600">Dispatch to Customs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyProgress.map((day, index) => {
+                    const rowColors = ['bg-red-50', 'bg-orange-50', 'bg-yellow-50', 'bg-green-50', 'bg-teal-50', 'bg-cyan-50', 'bg-sky-50', 'bg-blue-50', 'bg-indigo-50', 'bg-purple-50'];
+                    const rowColor = rowColors[index % rowColors.length];
+                    const dateObj = new Date(day.date);
+                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                    const formattedDate = dateObj.toLocaleDateString('en-US', { day: '2-digit', month: 'numeric', year: 'numeric' });
+                    
+                    // Calculate daily average (sum of all weights / number of processes with data)
+                    const processWeights = Object.values(day.processes || {}).map((p: any) => p?.weight || 0);
+                    const totalWeight = processWeights.reduce((sum: number, w: number) => sum + w, 0);
+                    const dailyAvg = totalWeight;
+                    
+                    return (
+                      <tr key={day.date} className={rowColor}>
+                        <td className="px-2 py-2 border font-medium text-slate-800 sticky left-0 z-10" style={{ backgroundColor: 'inherit' }}>
+                          {dayName}-{formattedDate}
+                        </td>
+                        <td className="px-2 py-2 text-center border font-semibold bg-slate-100">{dailyAvg.toFixed(1)}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Cutting']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Cutting']?.qty || 0}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Fit-up']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Fit-up']?.qty || 0}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Welding']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Welding']?.qty || 0}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Visualization']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Visualization']?.qty || 0}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Sandblasting']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Dispatch to Galvanization']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Galvanization']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Dispatch to Painting']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Painting']?.weight?.toFixed(1) || '0.0'}</td>
+                        <td className="px-2 py-2 text-center border">{day.processes['Dispatch to Customs']?.weight?.toFixed(1) || '0.0'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Link href="/production/assembly-parts">

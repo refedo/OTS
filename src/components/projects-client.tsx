@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw } from 'lucide-react';
+import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -60,6 +60,8 @@ export function ProjectsClient() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string>('projectNumber');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     fetchProjects();
@@ -217,16 +219,77 @@ export function ProjectsClient() {
     }
   }
 
-  const filteredProjects = projects.filter((project) => {
-    if (!search) return true;
-    const searchLower = search.toLowerCase();
-    return (
-      project.projectNumber.toLowerCase().includes(searchLower) ||
-      project.name.toLowerCase().includes(searchLower) ||
-      project.client.name.toLowerCase().includes(searchLower) ||
-      project.projectManager.name.toLowerCase().includes(searchLower)
-    );
-  });
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return <ArrowUpDown className="size-4 ml-1 opacity-50" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="size-4 ml-1" /> 
+      : <ArrowDown className="size-4 ml-1" />;
+  };
+
+  const filteredProjects = projects
+    .filter((project) => {
+      if (!search) return true;
+      const searchLower = search.toLowerCase();
+      return (
+        project.projectNumber.toLowerCase().includes(searchLower) ||
+        project.name.toLowerCase().includes(searchLower) ||
+        project.client.name.toLowerCase().includes(searchLower) ||
+        project.projectManager.name.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      let aVal: any, bVal: any;
+      
+      switch (sortColumn) {
+        case 'projectNumber':
+          aVal = a.projectNumber.toLowerCase();
+          bVal = b.projectNumber.toLowerCase();
+          break;
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'client':
+          aVal = a.client.name.toLowerCase();
+          bVal = b.client.name.toLowerCase();
+          break;
+        case 'projectManager':
+          aVal = a.projectManager.name.toLowerCase();
+          bVal = b.projectManager.name.toLowerCase();
+          break;
+        case 'status':
+          aVal = a.status.toLowerCase();
+          bVal = b.status.toLowerCase();
+          break;
+        case 'contractValue':
+          aVal = Number(a.contractValue) || 0;
+          bVal = Number(b.contractValue) || 0;
+          break;
+        case 'tonnage':
+          aVal = Number(a.contractualTonnage) || 0;
+          bVal = Number(b.contractualTonnage) || 0;
+          break;
+        case 'buildings':
+          aVal = a._count.buildings;
+          bVal = b._count.buildings;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   if (loading) {
     return <div className="text-center py-12">Loading projects...</div>;
@@ -383,14 +446,70 @@ export function ProjectsClient() {
                       )}
                     </Button>
                   </TableHead>
-                  <TableHead>Project Number</TableHead>
-                  <TableHead>Project Name</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Project Manager</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Contract Value</TableHead>
-                  <TableHead>Tonnage</TableHead>
-                  <TableHead>Buildings</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('projectNumber')}
+                  >
+                    <div className="flex items-center">
+                      Project Number {getSortIcon('projectNumber')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center">
+                      Project Name {getSortIcon('name')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('client')}
+                  >
+                    <div className="flex items-center">
+                      Client {getSortIcon('client')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('projectManager')}
+                  >
+                    <div className="flex items-center">
+                      Project Manager {getSortIcon('projectManager')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('status')}
+                  >
+                    <div className="flex items-center">
+                      Status {getSortIcon('status')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('contractValue')}
+                  >
+                    <div className="flex items-center">
+                      Contract Value {getSortIcon('contractValue')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('tonnage')}
+                  >
+                    <div className="flex items-center">
+                      Tonnage {getSortIcon('tonnage')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort('buildings')}
+                  >
+                    <div className="flex items-center">
+                      Buildings {getSortIcon('buildings')}
+                    </div>
+                  </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>

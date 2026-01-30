@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Search, ExternalLink, LayoutGrid, List, Trash2, Loader2, AlertTriangle, Plus } from 'lucide-react';
+import { Building2, Search, ExternalLink, LayoutGrid, List, Trash2, Loader2, AlertTriangle, Plus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 import {
   Table,
@@ -75,21 +75,79 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string>('designation');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return <ArrowUpDown className="size-4 ml-1 opacity-50" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="size-4 ml-1" /> 
+      : <ArrowDown className="size-4 ml-1" />;
+  };
 
   const filteredBuildings = useMemo(() => {
-    if (!search) return buildings;
+    let result = buildings;
     
-    const searchLower = search.toLowerCase();
-    return buildings.filter(
-      (building) =>
-        building.designation.toLowerCase().includes(searchLower) ||
-        building.name.toLowerCase().includes(searchLower) ||
-        building.description?.toLowerCase().includes(searchLower) ||
-        building.project.projectNumber.toLowerCase().includes(searchLower) ||
-        building.project.name.toLowerCase().includes(searchLower) ||
-        building.project.client.name.toLowerCase().includes(searchLower)
-    );
-  }, [buildings, search]);
+    if (search) {
+      const searchLower = search.toLowerCase();
+      result = result.filter(
+        (building) =>
+          building.designation.toLowerCase().includes(searchLower) ||
+          building.name.toLowerCase().includes(searchLower) ||
+          building.description?.toLowerCase().includes(searchLower) ||
+          building.project.projectNumber.toLowerCase().includes(searchLower) ||
+          building.project.name.toLowerCase().includes(searchLower) ||
+          building.project.client.name.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Sort
+    return result.sort((a, b) => {
+      let aVal: any, bVal: any;
+      
+      switch (sortColumn) {
+        case 'designation':
+          aVal = a.designation.toLowerCase();
+          bVal = b.designation.toLowerCase();
+          break;
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'projectNumber':
+          aVal = a.project.projectNumber.toLowerCase();
+          bVal = b.project.projectNumber.toLowerCase();
+          break;
+        case 'projectName':
+          aVal = a.project.name.toLowerCase();
+          bVal = b.project.name.toLowerCase();
+          break;
+        case 'client':
+          aVal = a.project.client.name.toLowerCase();
+          bVal = b.project.client.name.toLowerCase();
+          break;
+        case 'status':
+          aVal = a.project.status.toLowerCase();
+          bVal = b.project.status.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [buildings, search, sortColumn, sortDirection]);
 
   // Selection handlers
   const toggleSelectAll = () => {
@@ -322,12 +380,54 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
                         onCheckedChange={toggleSelectAll}
                       />
                     </TableHead>
-                    <TableHead>Project Name</TableHead>
-                    <TableHead>Project Number</TableHead>
-                    <TableHead>Building Name</TableHead>
-                    <TableHead>Building Designation</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('projectName')}
+                    >
+                      <div className="flex items-center">
+                        Project Name {getSortIcon('projectName')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('projectNumber')}
+                    >
+                      <div className="flex items-center">
+                        Project Number {getSortIcon('projectNumber')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Building Name {getSortIcon('name')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('designation')}
+                    >
+                      <div className="flex items-center">
+                        Building Designation {getSortIcon('designation')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('client')}
+                    >
+                      <div className="flex items-center">
+                        Client {getSortIcon('client')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center">
+                        Status {getSortIcon('status')}
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

@@ -5,12 +5,13 @@ import { verifySession } from '@/lib/jwt';
 
 const PHASE_ORDER = [
   'Design',
-  'Shop Drawing',
+  'Detailing',
   'Procurement',
-  'Fabrication',
+  'Production',
   'Coating',
-  'Delivery',
+  'Dispatch & Delivery',
   'Erection',
+  'Handover',
 ];
 
 export async function POST(
