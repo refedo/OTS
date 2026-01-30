@@ -194,7 +194,8 @@ export default function ProjectSetupWizard() {
         const start = new Date(newStartDate);
         const end = new Date(newEndDate);
         if (end < start) {
-          alert('End date cannot be before start date');
+          setSuccessMessage('End date cannot be before start date');
+          setShowSuccessDialog(true);
           return;
         }
       }
@@ -620,7 +621,7 @@ export default function ProjectSetupWizard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contractValue">Contract Value ($)</Label>
+                <Label htmlFor="contractValue">Contract Value (﷼)</Label>
                 <Input
                   id="contractValue"
                   type="number"

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAlert } from '@/hooks/useAlert';
 import { cn } from '@/lib/utils';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
@@ -82,6 +83,7 @@ function InfoRow({ label, value }: { label: string; value: any }) {
 
 export function ProjectDetails({ project }: ProjectDetailsProps) {
   const router = useRouter();
+  const { showAlert, AlertDialog } = useAlert();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [navigation, setNavigation] = useState<{ previousId: string | null; nextId: string | null }>({ previousId: null, nextId: null });
@@ -133,10 +135,10 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
         router.push('/projects');
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to delete project');
+        showAlert(error.message || 'Failed to delete project', { type: 'error' });
       }
     } catch (error) {
-      alert('Failed to delete project. Please try again.');
+      showAlert('Failed to delete project. Please try again.', { type: 'error' });
     } finally {
       setIsDeleting(false);
     }
@@ -504,6 +506,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
         onConfirm={handleDelete}
         type="danger"
       />
+      <AlertDialog />
     </main>
   );
 }

@@ -23,6 +23,7 @@ import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calend
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useAlert } from '@/hooks/useAlert';
 
 type Task = {
   id: string;
@@ -98,6 +99,7 @@ type TasksClientProps = {
 
 export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false }: TasksClientProps) {
   const router = useRouter();
+  const { showAlert, AlertDialog } = useAlert();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('In Progress');
@@ -162,7 +164,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
       setTasks(tasks.filter(t => t.id !== taskId));
     } catch (error) {
-      alert('Failed to delete task');
+      showAlert('Failed to delete task', { type: 'error' });
     }
   };
 
@@ -183,7 +185,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       setSelectedTasks(new Set());
       router.refresh();
     } catch (error) {
-      alert('Failed to delete some tasks');
+      showAlert('Failed to delete some tasks', { type: 'error' });
     } finally {
       setIsDeleting(false);
     }
@@ -195,7 +197,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     const incompleteTasks = tasks.filter(t => selectedTasks.has(t.id) && t.status !== 'Completed');
     
     if (incompleteTasks.length === 0) {
-      alert('All selected tasks are already completed');
+      showAlert('All selected tasks are already completed', { type: 'info' });
       return;
     }
 
@@ -223,7 +225,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       setSelectedTasks(new Set());
       router.refresh();
     } catch (error) {
-      alert('Failed to complete some tasks');
+      showAlert('Failed to complete some tasks', { type: 'error' });
     } finally {
       setIsDeleting(false);
     }
@@ -235,7 +237,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     const completedTasks = tasks.filter(t => selectedTasks.has(t.id) && t.status === 'Completed');
     
     if (completedTasks.length === 0) {
-      alert('No completed tasks selected');
+      showAlert('No completed tasks selected', { type: 'info' });
       return;
     }
 
@@ -263,7 +265,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       setSelectedTasks(new Set());
       router.refresh();
     } catch (error) {
-      alert('Failed to uncomplete some tasks');
+      showAlert('Failed to uncomplete some tasks', { type: 'error' });
     } finally {
       setIsDeleting(false);
     }
@@ -303,18 +305,18 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
       router.refresh();
     } catch (error) {
-      alert('Failed to update task status');
+      showAlert('Failed to update task status', { type: 'error' });
     }
   };
 
   const handleQuickAdd = async () => {
     if (!quickAddData.title.trim()) {
-      alert('Please enter a task title');
+      showAlert('Please enter a task title', { type: 'warning' });
       return;
     }
 
     if (!quickAddData.dueDate) {
-      alert('Please enter a due date');
+      showAlert('Please enter a due date', { type: 'warning' });
       return;
     }
 
@@ -359,7 +361,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       setShowQuickAdd(false);
       // Don't use router.refresh() as it causes redirect
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to create task');
+      showAlert(error instanceof Error ? error.message : 'Failed to create task', { type: 'error' });
       console.error('Task creation error:', error);
     } finally {
       setCreating(false);
@@ -1282,6 +1284,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           </div>
         )}
       </div>
+      <AlertDialog />
     </main>
   );
 }
