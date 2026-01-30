@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.4.4] - 2026-02-01
+
+### 🎨 UI/UX Improvements
+
+#### Added
+- **Table Header Styling**
+  - Sticky table headers across all tables in the system
+  - Distinct background color (slate-100/slate-800) for headers to differentiate from records
+  - Headers remain visible when scrolling through long tables
+  - Improved visual hierarchy and data readability
+
+#### Changed
+- **Global Table Styling**
+  - Applied consistent header styling system-wide
+  - Enhanced contrast between headers and data rows
+  - Better user experience for data-heavy pages
+
+---
+
 ## [13.4.3] - 2026-01-31
 
 ### 🎨 UI/UX Improvements & System Enhancements

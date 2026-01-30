@@ -21,10 +21,41 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '13.4.4',
+    date: 'February 1, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🎨 UI/UX Improvements',
+    highlights: [
+      'Sticky Table Headers',
+      'Distinct Header Styling',
+      'Improved Data Readability',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Table Header Styling',
+          items: [
+            'Sticky table headers across all tables in the system',
+            'Distinct background color (slate-100/slate-800) for headers to differentiate from records',
+            'Headers remain visible when scrolling through long tables',
+            'Improved visual hierarchy and data readability',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [
+        'Applied consistent header styling system-wide',
+        'Enhanced contrast between headers and data rows',
+        'Better user experience for data-heavy pages',
+      ],
+    },
+  },
+  {
     version: '13.4.3',
     date: 'January 31, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🎨 UI/UX Improvements & System Enhancements',
     highlights: [
       'Success Dialog Component',

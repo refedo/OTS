@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const VERSION = '13.4.3';
-const RELEASE_DATE = 'January 31, 2026';
+const VERSION = '13.4.4';
+const RELEASE_DATE = 'February 1, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
