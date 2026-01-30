@@ -18,11 +18,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Headers remain visible when scrolling through long tables
   - Improved visual hierarchy and data readability
 
+- **Production Daily Report (PDR) Table**
+  - Added comprehensive daily production breakdown at bottom of production dashboard
+  - Shows when project is selected with data by process type
+  - Includes all processes: Cutting, Fit-up, Welding, Visualization, Sandblasting, Galvanization, Painting, Dispatch columns
+  - Color-coded headers for easy process identification
+
 #### Changed
 - **Global Table Styling**
   - Applied consistent header styling system-wide
   - Enhanced contrast between headers and data rows
   - Better user experience for data-heavy pages
+
+- **Project Workflow Phase Update**
+  - Updated workflow sequence in project wizard and planning:
+    - Design → **Detailing (Shop Drawings)** → Procurement → **Production** → Coating → **Dispatch & Delivery** → Erection → Handover
+  - Renamed "Shop Drawing" to "Detailing (Shop Drawings)" for clarity
+  - Renamed "Fabrication" to "Production" for consistency
+  - Updated work unit dependencies to include new Detailing phase
+  - Applied to project planning, work units, and risk register workflows
+
+- **New Project Wizard Page**
+  - Added dedicated page for project-specific requirements
+  - **Cranes Configuration**: Option to include/exclude cranes for installation with question "Cranes for Installation?"
+  - **Surveyor Scope**: Toggle to determine if surveying is within project scope
+  - **3rd Party Testing**: Configuration for third-party testing requirements
+  - **Responsibility Assignment**: Option to assign third-party responsibility ("our" or "customer")
+  - Improved project setup with all critical requirements in one place
 
 ---
 

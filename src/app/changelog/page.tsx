@@ -30,6 +30,9 @@ const hardcodedVersions: ChangelogVersion[] = [
       'Sticky Table Headers',
       'Distinct Header Styling',
       'Improved Data Readability',
+      'New Workflow Phase: Detailing',
+      'Production Daily Report (PDR)',
+      'New Project Wizard Page',
     ],
     changes: {
       added: [
@@ -42,12 +45,25 @@ const hardcodedVersions: ChangelogVersion[] = [
             'Improved visual hierarchy and data readability',
           ],
         },
+        {
+          title: 'Production Daily Report (PDR) Table',
+          items: [
+            'Added comprehensive daily production breakdown at bottom of production dashboard',
+            'Shows when project is selected with data by process type',
+            'Includes all processes: Cutting, Fit-up, Welding, Visualization, Sandblasting, Galvanization, Painting, Dispatch columns',
+            'Color-coded headers for easy process identification',
+          ],
+        },
       ],
       fixed: [],
       changed: [
         'Applied consistent header styling system-wide',
         'Enhanced contrast between headers and data rows',
         'Better user experience for data-heavy pages',
+        'Project Workflow Phase Update: Design → Detailing (Shop Drawings) → Procurement → Production → Coating → Dispatch & Delivery → Erection → Handover',
+        'Renamed "Shop Drawing" to "Detailing (Shop Drawings)" and "Fabrication" to "Production" for clarity',
+        'Updated work unit dependencies and risk register workflows to include new Detailing phase',
+        'Added new project wizard page for cranes, surveyors, and 3rd party testing configuration',
       ],
     },
   },
