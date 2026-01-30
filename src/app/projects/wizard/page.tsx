@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { SuccessDialog } from '@/components/ui/success-dialog';
 import { ArrowLeft, ArrowRight, Check, Wand2, Plus, Trash2, Upload, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
@@ -99,6 +100,10 @@ export default function ProjectSetupWizard() {
   // Step 7: Upload Parts (handled separately)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
+  // Success dialog state
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
   // Fetch managers on mount
   useEffect(() => {
     fetchManagers();
@@ -177,6 +182,24 @@ export default function ProjectSetupWizard() {
   };
 
   const updateScopeSchedule = (buildingId: string, scopeId: string, field: 'startDate' | 'endDate', value: string) => {
+    // Find the current schedule to validate dates
+    const currentSchedule = scopeSchedules.find(s => s.buildingId === buildingId && s.scopeId === scopeId);
+    
+    if (currentSchedule) {
+      const newStartDate = field === 'startDate' ? value : currentSchedule.startDate;
+      const newEndDate = field === 'endDate' ? value : currentSchedule.endDate;
+      
+      // Validate: end date cannot be before start date
+      if (newStartDate && newEndDate) {
+        const start = new Date(newStartDate);
+        const end = new Date(newEndDate);
+        if (end < start) {
+          alert('End date cannot be before start date');
+          return;
+        }
+      }
+    }
+    
     setScopeSchedules(scopeSchedules.map(s =>
       s.buildingId === buildingId && s.scopeId === scopeId ? { ...s, [field]: value } : s
     ));
@@ -186,6 +209,7 @@ export default function ProjectSetupWizard() {
     if (!startDate || !endDate) return 0;
     const start = new Date(startDate);
     const end = new Date(endDate);
+    if (end < start) return 0; // Invalid range
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
@@ -441,13 +465,13 @@ export default function ProjectSetupWizard() {
       const scopeScheduleCount = scopeSchedules.length;
       const coatingCount = coatingCoats.length;
       
-      alert(`Project created successfully!\n\n✓ ${buildingCount} building(s) added\n✓ ${scopeScheduleCount} scope schedule(s) saved\n✓ ${coatingCount} coating coat(s) specified`);
-      router.push('/projects');
-      router.refresh();
+      setSuccessMessage(`Project created successfully!\n\n✓ ${buildingCount} building(s) added\n✓ ${scopeScheduleCount} scope schedule(s) saved\n✓ ${coatingCount} coating coat(s) specified`);
+      setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error creating project:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      alert(`Failed to create project:\n\n${errorMessage}`);
+      setSuccessMessage(`Failed to create project:\n\n${errorMessage}`);
+      setShowSuccessDialog(true);
     } finally {
       setLoading(false);
     }
@@ -903,35 +927,37 @@ export default function ProjectSetupWizard() {
             <CardTitle>Technical Specifications</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Cranes Included */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <Label className="text-base font-medium">Cranes Included?</Label>
-                <p className="text-sm text-muted-foreground">Does this project include crane systems?</p>
+            {/* Cranes Included - Only show if Erection is in scope */}
+            {scopeOfWork.find(s => s.id === 'erection')?.checked && (
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <Label className="text-base font-medium">Cranes for Installation?</Label>
+                  <p className="text-sm text-muted-foreground">Will mobile cranes or overhead cranes be required for site installation?</p>
+                </div>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="cranesIncluded"
+                      checked={cranesIncluded}
+                      onChange={() => setCranesIncluded(true)}
+                      className="w-4 h-4"
+                    />
+                    <span>Yes</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="cranesIncluded"
+                      checked={!cranesIncluded}
+                      onChange={() => setCranesIncluded(false)}
+                      className="w-4 h-4"
+                    />
+                    <span>No</span>
+                  </label>
+                </div>
               </div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="cranesIncluded"
-                    checked={cranesIncluded}
-                    onChange={() => setCranesIncluded(true)}
-                    className="w-4 h-4"
-                  />
-                  <span>Yes</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="cranesIncluded"
-                    checked={!cranesIncluded}
-                    onChange={() => setCranesIncluded(false)}
-                    className="w-4 h-4"
-                  />
-                  <span>No</span>
-                </label>
-              </div>
-            </div>
+            )}
 
             {/* Surveyor Included */}
             <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -1090,6 +1116,20 @@ export default function ProjectSetupWizard() {
           </Button>
         )}
       </div>
+
+      {/* Success Dialog */}
+      <SuccessDialog
+        open={showSuccessDialog}
+        onClose={() => setShowSuccessDialog(false)}
+        title={successMessage.includes('Failed') ? 'Error' : 'Success'}
+        message={successMessage}
+        onConfirm={() => {
+          if (!successMessage.includes('Failed')) {
+            router.push('/projects');
+            router.refresh();
+          }
+        }}
+      />
     </div>
   );
 }

@@ -443,7 +443,7 @@ export function ProjectsClient() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {project.contractValue ? `$${project.contractValue.toLocaleString()}` : '-'}
+                      {project.contractValue ? `${Number(project.contractValue).toLocaleString('en-SA', { minimumFractionDigits: 2 })} ﷼` : '-'}
                     </TableCell>
                     <TableCell>
                       {project.contractualTonnage ? `${project.contractualTonnage} tons` : '-'}
@@ -562,7 +562,7 @@ export function ProjectsClient() {
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Contract Value</p>
                     <p className="font-semibold text-primary">
-                      ${project.contractValue.toLocaleString()}
+                      {Number(project.contractValue).toLocaleString('en-SA', { minimumFractionDigits: 2 })} ﷼
                     </p>
                   </div>
                 )}

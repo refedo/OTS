@@ -110,12 +110,16 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
-    return `${day}/${month}/${year}`;
+    return `${day}-${month}-${year}`;
   };
 
   const formatCurrency = (amount: number | null) => {
     if (!amount) return null;
-    return `$${amount.toLocaleString()}`;
+    const formatted = new Intl.NumberFormat('en-SA', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+    return `${formatted} ﷼`;
   };
 
   const handleDelete = async () => {

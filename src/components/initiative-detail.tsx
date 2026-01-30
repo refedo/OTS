@@ -118,15 +118,16 @@ export function InitiativeDetail({ initiative, userRole, userId }: InitiativeDet
   const formatDate = (date: string | null) => {
     if (!date) return '-';
     const d = new Date(date);
-    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
   };
 
   const formatCurrency = (amount: number | null) => {
     if (!amount) return '-';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    const formatted = new Intl.NumberFormat('en-SA', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
+    return `${formatted} ﷼`;
   };
 
   const completedMilestones = initiative.milestones.filter(m => m.status === 'Completed').length;
