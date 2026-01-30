@@ -5,7 +5,8 @@ import { ProjectDetails } from '@/components/project-details';
 import { BuildingsList } from '@/components/buildings-list';
 import { ScopeSchedulesView } from '@/components/scope-schedules-view';
 
-export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -16,7 +17,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   }
 
   // Fetch project from API
-  const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/projects/${params.id}`, {
+  const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/projects/${id}`, {
     headers: {
       Cookie: `${cookieName}=${token}`,
     },
@@ -31,7 +32,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const project = await response.json();
 
   // Fetch buildings
-  const buildingsResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/projects/${params.id}/buildings`, {
+  const buildingsResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/projects/${id}/buildings`, {
     headers: {
       Cookie: `${cookieName}=${token}`,
     },
@@ -41,7 +42,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const buildings = buildingsResponse.ok ? await buildingsResponse.json() : [];
 
   // Fetch scope schedules
-  const schedulesResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/projects/${params.id}/scope-schedules`, {
+  const schedulesResponse = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/projects/${id}/scope-schedules`, {
     headers: {
       Cookie: `${cookieName}=${token}`,
     },
@@ -58,7 +59,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       {scopeSchedules.length > 0 && (
         <ScopeSchedulesView schedules={scopeSchedules} />
       )}
-      <BuildingsList projectId={params.id} buildings={buildings} canEdit={canEdit} />
+      <BuildingsList projectId={id} buildings={buildings} canEdit={canEdit} />
     </div>
   );
 }

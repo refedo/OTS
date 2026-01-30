@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Search, ExternalLink, LayoutGrid, List, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { Building2, Search, ExternalLink, LayoutGrid, List, Trash2, Loader2, AlertTriangle, Plus } from 'lucide-react';
 import Link from 'next/link';
 import {
   Table,
@@ -25,6 +25,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type Building = {
   id: string;
@@ -64,6 +73,8 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const filteredBuildings = useMemo(() => {
     if (!search) return buildings;
@@ -141,6 +152,64 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
     }
   };
 
+  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsCreating(true);
+
+    const formData = new FormData(e.currentTarget);
+    const projectId = formData.get('projectId') as string;
+    const data = {
+      designation: (formData.get('designation') as string || '').toUpperCase(),
+      name: formData.get('name') as string,
+      description: (formData.get('description') as string) || null,
+    };
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/buildings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        toast({
+          title: 'Creation Failed',
+          description: result.error || 'Failed to create building',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Refresh buildings list
+      const refreshResponse = await fetch('/api/buildings', {
+        cache: 'no-store',
+      });
+      
+      if (refreshResponse.ok) {
+        const updatedBuildings = await refreshResponse.json();
+        setBuildings(updatedBuildings);
+      }
+
+      setShowAddDialog(false);
+      (e.target as HTMLFormElement).reset();
+      
+      toast({
+        title: 'Building Created',
+        description: `${result.designation} - ${result.name} has been created successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create building',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   // Group buildings by project
   const buildingsByProject = useMemo(() => {
     const grouped = new Map<string, { project: Building['project']; buildings: Building[] }>();
@@ -174,6 +243,13 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              size="sm"
+            >
+              <Plus className="size-4 mr-2" />
+              Add Building
+            </Button>
             {selectedIds.size > 0 && (
               <Button
                 variant="destructive"
@@ -352,6 +428,97 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
           </div>
         )}
       </div>
+
+      {/* Add Building Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <form onSubmit={handleCreate}>
+            <DialogHeader>
+              <DialogTitle>Add Building</DialogTitle>
+              <DialogDescription>
+                Create a new building for a project
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="projectId">
+                  Project <span className="text-destructive">*</span>
+                </Label>
+                <Select name="projectId" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildingsByProject.map(({ project }) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.projectNumber} - {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="designation">
+                  Designation <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="designation"
+                  name="designation"
+                  placeholder="e.g., BLD1, WH, MAIN"
+                  required
+                  disabled={isCreating}
+                  maxLength={4}
+                  className="uppercase"
+                />
+                <p className="text-xs text-muted-foreground">
+                  2-4 uppercase letters/numbers (e.g., BLD1, WH, MAIN)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="name">
+                  Building Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="e.g., Main Warehouse"
+                  required
+                  disabled={isCreating}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  placeholder="Optional description..."
+                  disabled={isCreating}
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddDialog(false)}
+                disabled={isCreating}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreating}>
+                {isCreating && <Loader2 className="size-4 animate-spin mr-2" />}
+                Create Building
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

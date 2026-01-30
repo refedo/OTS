@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ logoUrl: null });
     }
     
-    const setting = await prisma.systemSetting.findUnique({
+    const setting = await prisma.systemSettings.findUnique({
       where: { key: 'login_logo' },
     });
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     // Save URL to database
     const logoUrl = `/uploads/login-logo/${filename}`;
-    await prisma.systemSetting.upsert({
+    await prisma.systemSettings.upsert({
       where: { key: 'login_logo' },
       update: { value: logoUrl },
       create: { key: 'login_logo', value: logoUrl },
@@ -95,7 +95,7 @@ export async function DELETE() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await prisma.systemSetting.delete({
+    await prisma.systemSettings.delete({
       where: { key: 'login_logo' },
     }).catch(() => {
       // Ignore if setting doesn't exist

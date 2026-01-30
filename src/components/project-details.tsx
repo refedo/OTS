@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ import {
   Plus,
   Clock,
   Trash2,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -82,6 +84,25 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [navigation, setNavigation] = useState<{ previousId: string | null; nextId: string | null }>({ previousId: null, nextId: null });
+  const [isLoadingNav, setIsLoadingNav] = useState(true);
+
+  useEffect(() => {
+    const fetchNavigation = async () => {
+      try {
+        const response = await fetch(`/api/projects/${project.id}/navigation`);
+        if (response.ok) {
+          const data = await response.json();
+          setNavigation(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch navigation:', error);
+      } finally {
+        setIsLoadingNav(false);
+      }
+    };
+    fetchNavigation();
+  }, [project.id]);
 
   const formatDate = (date: string | null) => {
     if (!date) return null;
@@ -123,11 +144,34 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/projects">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="size-5" />
-              </Button>
-            </Link>
+            <div className="flex items-center gap-1">
+              <Link href="/projects">
+                <Button variant="ghost" size="icon" title="Back to list">
+                  <ArrowLeft className="size-5" />
+                </Button>
+              </Link>
+              <div className="h-6 w-px bg-border mx-1" />
+              <Link href={navigation.previousId ? `/projects/${navigation.previousId}` : '#'}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  disabled={!navigation.previousId || isLoadingNav}
+                  title="Previous project"
+                >
+                  <ChevronLeft className="size-5" />
+                </Button>
+              </Link>
+              <Link href={navigation.nextId ? `/projects/${navigation.nextId}` : '#'}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  disabled={!navigation.nextId || isLoadingNav}
+                  title="Next project"
+                >
+                  <ChevronRightIcon className="size-5" />
+                </Button>
+              </Link>
+            </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Badge variant="outline" className="font-mono">

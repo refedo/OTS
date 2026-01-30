@@ -154,3 +154,81 @@ export async function GET(
     );
   }
 }
+
+/**
+ * POST /api/projects/:projectId/buildings
+ * Create a new building for the project
+ */
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: projectId } = await params;
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? await verifySession(token) : null;
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check permissions
+    if (!['CEO', 'Admin', 'Manager'].includes(session.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { designation, name, description } = body;
+
+    // Validate required fields
+    if (!designation || !name) {
+      return NextResponse.json(
+        { error: 'Designation and name are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate designation format (2-4 uppercase letters/numbers)
+    const designationPattern = /^[A-Z0-9]{2,4}$/;
+    if (!designationPattern.test(designation)) {
+      return NextResponse.json(
+        { error: 'Designation must be 2-4 uppercase letters/numbers' },
+        { status: 400 }
+      );
+    }
+
+    // Check if building with same designation already exists in this project
+    const existingBuilding = await prisma.building.findFirst({
+      where: {
+        projectId,
+        designation,
+      },
+    });
+
+    if (existingBuilding) {
+      return NextResponse.json(
+        { error: 'A building with this designation already exists in this project' },
+        { status: 400 }
+      );
+    }
+
+    // Create the building
+    const building = await prisma.building.create({
+      data: {
+        projectId,
+        designation: designation.toUpperCase(),
+        name,
+        description: description || null,
+      },
+    });
+
+    return NextResponse.json(building, { status: 201 });
+  } catch (error) {
+    console.error('Error creating building:', error);
+    return NextResponse.json(
+      { error: 'Failed to create building' },
+      { status: 500 }
+    );
+  }
+}

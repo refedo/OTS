@@ -101,8 +101,9 @@ const updateSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
@@ -112,7 +113,7 @@ export async function GET(
   }
 
   const project = await prisma.project.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       client: true,
       projectManager: { select: { id: true, name: true, position: true, email: true } },
@@ -150,9 +151,10 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
@@ -208,12 +210,12 @@ export async function PATCH(
 
     // Get old data for audit trail
     const oldProject = await prisma.project.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { projectNumber: true, name: true, status: true },
     });
 
     const project = await prisma.project.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         client: true,
@@ -248,8 +250,9 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
@@ -260,7 +263,7 @@ export async function DELETE(
 
   // Check if project exists and get all related record counts
   const project = await prisma.project.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { 
       _count: { 
         select: { 
@@ -296,7 +299,7 @@ export async function DELETE(
 
   // Check WPS records
   const wpsCount = await prisma.wPS.count({
-    where: { projectId: params.id }
+    where: { projectId: id }
   });
   if (wpsCount > 0) {
     blockingRecords.push(`${wpsCount} WPS record${wpsCount > 1 ? 's' : ''}`);
@@ -304,7 +307,7 @@ export async function DELETE(
 
   // Check ITP records
   const itpCount = await prisma.iTP.count({
-    where: { projectId: params.id }
+    where: { projectId: id }
   });
   if (itpCount > 0) {
     blockingRecords.push(`${itpCount} ITP record${itpCount > 1 ? 's' : ''}`);
@@ -312,7 +315,7 @@ export async function DELETE(
 
   // Check document submissions
   const docSubmissionCount = await prisma.documentSubmission.count({
-    where: { projectId: params.id }
+    where: { projectId: id }
   });
   if (docSubmissionCount > 0) {
     blockingRecords.push(`${docSubmissionCount} document submission${docSubmissionCount > 1 ? 's' : ''}`);
@@ -320,7 +323,7 @@ export async function DELETE(
 
   // Check scope schedules
   const scopeScheduleCount = await prisma.scopeSchedule.count({
-    where: { projectId: params.id }
+    where: { projectId: id }
   });
   if (scopeScheduleCount > 0) {
     blockingRecords.push(`${scopeScheduleCount} scope schedule${scopeScheduleCount > 1 ? 's' : ''}`);
@@ -342,14 +345,14 @@ export async function DELETE(
   // If no blocking records, proceed with deletion
   try {
     await prisma.project.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     // Log audit trail and system event
     await logActivity({
       action: 'DELETE',
       entityType: 'Project',
-      entityId: params.id,
+      entityId: id,
       entityName: `${project.projectNumber} - ${project.name}`,
       userId: session.sub,
       reason: 'Project deleted by admin',

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.4.2] - 2026-01-28
+
+### 🚀 Navigation & System Stability Enhancements
+
+#### Added
+- **Project Navigation Controls**
+  - Added back/forward navigation arrows to project detail pages
+  - Navigate seamlessly between projects without returning to list
+  - Back to list button for quick return to projects overview
+  - Visual separator between navigation controls
+  - Disabled state for arrows when at first/last project
+  - Navigation based on project creation order
+
+#### Fixed
+- **PM2 Stability Improvements**
+  - Increased memory limit from 1G to 2G to prevent crashes
+  - Added exponential backoff for restart delays
+  - Increased listen timeout from 10s to 30s
+  - Increased kill timeout from 5s to 10s
+  - Enhanced graceful shutdown handling
+  - Improved auto-restart configuration (15 max restarts, 30s min uptime)
+  - Added NODE_OPTIONS for better memory management
+  - Fixed 502 Bad Gateway errors caused by PM2 crashes
+
+#### Changed
+- Updated PM2 configuration for better production stability
+- Enhanced error recovery mechanisms
+
+---
+
 ## [13.3.3] - 2026-01-07
 
 ### 🔧 System Improvements & UI Enhancements
