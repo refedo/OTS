@@ -190,21 +190,27 @@ model Project {
   // Status and Financial
   status                          String      @default("Draft") // Draft, Active, Completed, On Hold, Cancelled
   contractValue                   Decimal?    @db.Decimal(15, 2)
-  downPayment                     Decimal?    @db.Decimal(15, 2)
+  downPaymentPercentage           Decimal?    @db.Decimal(5, 2)  // Percentage (e.g., 30.00 for 30%)
+  downPayment                     Decimal?    @db.Decimal(15, 2) // Calculated amount
   downPaymentAck                  Boolean     @default(false)
-  downPaymentMilestone            String?     // e.g., "20% Down Payment"
+  downPaymentMilestone            String?     // Description only (e.g., "Down Payment")
+  payment2Percentage              Decimal?    @db.Decimal(5, 2)
   payment2                        Decimal?    @db.Decimal(15, 2)
   payment2Ack                     Boolean     @default(false)
-  payment2Milestone               String?     // e.g., "40% against preparation of shop drawings"
+  payment2Milestone               String?
+  payment3Percentage              Decimal?    @db.Decimal(5, 2)
   payment3                        Decimal?    @db.Decimal(15, 2)
   payment3Ack                     Boolean     @default(false)
-  payment3Milestone               String?     // e.g., "20% after fabrication and before delivery"
+  payment3Milestone               String?
+  payment4Percentage              Decimal?    @db.Decimal(5, 2)
   payment4                        Decimal?    @db.Decimal(15, 2)
   payment4Ack                     Boolean     @default(false)
-  payment4Milestone               String?     // e.g., "20% after erection (progressive)"
+  payment4Milestone               String?
+  payment5Percentage              Decimal?    @db.Decimal(5, 2)
   payment5                        Decimal?    @db.Decimal(15, 2)
   payment5Ack                     Boolean     @default(false)
   payment5Milestone               String?
+  payment6Percentage              Decimal?    @db.Decimal(5, 2)
   payment6                        Decimal?    @db.Decimal(15, 2)
   payment6Ack                     Boolean     @default(false)
   payment6Milestone               String?
@@ -259,6 +265,7 @@ model Project {
   wpsNumber                       String?
   standardCode                    String?
   thirdPartyRequired              Boolean     @default(false)
+  thirdPartyResponsibility        String?     // "our" or "customer" - who is responsible for 3rd party
   ndtTest                         String?
   applicableCodes                 String?
   

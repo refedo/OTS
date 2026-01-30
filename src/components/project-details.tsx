@@ -344,62 +344,41 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                       <tr>
                         <th className="px-3 py-2 text-left font-medium">Schedule</th>
                         <th className="px-3 py-2 text-left font-medium">Percentage</th>
+                        <th className="px-3 py-2 text-left font-medium">Amount</th>
                         <th className="px-3 py-2 text-left font-medium">Terms</th>
                         <th className="px-3 py-2 text-left font-medium">Payment Date</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      <tr>
-                        <td className="px-3 py-2 font-medium">Down Payment</td>
-                        <td className="px-3 py-2">
-                          {(() => {
-                            // Try to extract percentage from milestone (format: "20% - description")
-                            if (project.downPaymentMilestone && project.downPaymentMilestone.includes('%')) {
-                              const match = project.downPaymentMilestone.match(/^(\d+(?:\.\d+)?)\s*%/);
-                              if (match) return `${match[1]}%`;
-                            }
-                            // Fallback: calculate from amount
-                            return project.downPayment ? `${((project.downPayment / (project.contractValue || 1)) * 100).toFixed(0)}%` : '-';
-                          })()}
-                        </td>
-                        <td className="px-3 py-2">
-                          {(() => {
-                            // Extract description part (remove percentage prefix if exists)
-                            if (project.downPaymentMilestone && project.downPaymentMilestone.includes('%')) {
-                              const parts = project.downPaymentMilestone.split(/\s*-\s*/, 2);
-                              return parts[1] || project.downPaymentMilestone;
-                            }
-                            return project.downPaymentMilestone || 'down payment to be paid upon the signing of contract.';
-                          })()}
-                        </td>
-                        <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
-                      </tr>
+                      {/* Down Payment Row */}
+                      {(project.downPaymentPercentage || project.downPayment || project.downPaymentMilestone) && (
+                        <tr>
+                          <td className="px-3 py-2 font-medium">Down Payment</td>
+                          <td className="px-3 py-2">
+                            {project.downPaymentPercentage ? `${project.downPaymentPercentage}%` : '-'}
+                          </td>
+                          <td className="px-3 py-2">
+                            {formatCurrency(project.downPayment) || '-'}
+                          </td>
+                          <td className="px-3 py-2">
+                            {project.downPaymentMilestone || '-'}
+                          </td>
+                          <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
+                        </tr>
+                      )}
+                      {/* Payment 2-6 Rows */}
                       {[2, 3, 4, 5, 6].map((num) => {
+                        const percentage = (project as any)[`payment${num}Percentage`];
                         const payment = (project as any)[`payment${num}`];
                         const milestone = (project as any)[`payment${num}Milestone`];
-                        if (!payment && !milestone) return null;
-                        
-                        // Extract percentage from milestone
-                        let percentage = '-';
-                        let description = milestone || '-';
-                        
-                        if (milestone && milestone.includes('%')) {
-                          const match = milestone.match(/^(\d+(?:\.\d+)?)\s*%/);
-                          if (match) {
-                            percentage = `${match[1]}%`;
-                            const parts = milestone.split(/\s*-\s*/, 2);
-                            description = parts[1] || milestone;
-                          }
-                        } else if (payment && project.contractValue) {
-                          // Fallback: calculate from amount
-                          percentage = `${((payment / project.contractValue) * 100).toFixed(0)}%`;
-                        }
+                        if (!percentage && !payment && !milestone) return null;
                         
                         return (
                           <tr key={num}>
                             <td className="px-3 py-2 font-medium">Payment {num}</td>
-                            <td className="px-3 py-2">{percentage}</td>
-                            <td className="px-3 py-2">{description}</td>
+                            <td className="px-3 py-2">{percentage ? `${percentage}%` : '-'}</td>
+                            <td className="px-3 py-2">{formatCurrency(payment) || '-'}</td>
+                            <td className="px-3 py-2">{milestone || '-'}</td>
                             <td className="px-3 py-2">-</td>
                           </tr>
                         );
@@ -430,6 +409,16 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
               <InfoRow label="Engineering Tonnage" value={project.engineeringTonnage} />
               <InfoRow label="Cranes Included" value={project.cranesIncluded} />
               <InfoRow label="Surveyor Our Scope" value={project.surveyorOurScope} />
+              <InfoRow 
+                label="3rd Party Test Required" 
+                value={project.thirdPartyRequired ? (
+                  <span>
+                    Yes - <span className={project.thirdPartyResponsibility === 'our' ? 'text-blue-600 font-medium' : 'text-orange-600 font-medium'}>
+                      {project.thirdPartyResponsibility === 'our' ? 'Our Responsibility' : 'Customer Responsibility'}
+                    </span>
+                  </span>
+                ) : 'No'} 
+              />
               <InfoRow label="Galvanized" value={project.galvanized} />
               {project.galvanized && (
                 <>

@@ -90,7 +90,13 @@ export default function ProjectSetupWizard() {
   // Step 5: Payment Terms
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
 
-  // Step 6: Upload Parts (handled separately)
+  // Step 6: Technical Specs
+  const [cranesIncluded, setCranesIncluded] = useState(false);
+  const [surveyorIncluded, setSurveyorIncluded] = useState(false);
+  const [thirdPartyRequired, setThirdPartyRequired] = useState(false);
+  const [thirdPartyResponsibility, setThirdPartyResponsibility] = useState<'our' | 'customer'>('our');
+
+  // Step 7: Upload Parts (handled separately)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   // Fetch managers on mount
@@ -258,6 +264,8 @@ export default function ProjectSetupWizard() {
         const total = getTotalPaymentPercentage();
         return paymentTerms.every(t => t.percentage && t.description) && Math.abs(total - 100) < 0.01;
       case 6:
+        return true; // Technical specs - optional step
+      case 7:
         return true; // Upload parts - optional step
       default:
         return false;
@@ -285,24 +293,25 @@ export default function ProjectSetupWizard() {
       ).join('\n');
 
       // Map payment terms to project's fixed payment fields
-      // Format: "percentage% - description" for milestone field
+      // Store percentage separately from amount, description in milestone field
       const paymentFieldsMap: Record<string, any> = {};
       
       paymentTerms.forEach((term, index) => {
         const percentage = parseFloat(term.percentage) || 0;
         const contractVal = parseFloat(contractValue) || 0;
         const amount = contractVal > 0 ? (percentage / 100) * contractVal : null;
-        const milestone = `${percentage}% - ${term.description}`;
         
         if (index === 0) {
           // First payment term -> downPayment fields
+          paymentFieldsMap.downPaymentPercentage = percentage;
           paymentFieldsMap.downPayment = amount;
-          paymentFieldsMap.downPaymentMilestone = milestone;
+          paymentFieldsMap.downPaymentMilestone = term.description;
         } else if (index <= 5) {
           // Subsequent terms -> payment2, payment3, etc.
           const paymentNum = index + 1;
+          paymentFieldsMap[`payment${paymentNum}Percentage`] = percentage;
           paymentFieldsMap[`payment${paymentNum}`] = amount;
-          paymentFieldsMap[`payment${paymentNum}Milestone`] = milestone;
+          paymentFieldsMap[`payment${paymentNum}Milestone`] = term.description;
         }
       });
 
@@ -339,6 +348,11 @@ export default function ProjectSetupWizard() {
         scopeOfWork: generateScopeText(),
         galvanized: isGalvanized,
         coatingSystem: coatingSystemText,
+        // Technical specs from Step 6
+        cranesIncluded,
+        surveyorOurScope: surveyorIncluded,
+        thirdPartyRequired,
+        thirdPartyResponsibility: thirdPartyRequired ? thirdPartyResponsibility : null,
         // Include payment terms mapped to fixed fields
         ...paymentFieldsMap,
         // Include coating coats mapped to fixed fields
@@ -447,19 +461,19 @@ export default function ProjectSetupWizard() {
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center mb-8">
-      {[1, 2, 3, 4, 5].map((step, idx) => (
+      {[1, 2, 3, 4, 5, 6, 7].map((step, idx) => (
         <div key={step} className="flex items-center">
-          <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm ${
             currentStep === step 
               ? 'bg-primary text-white' 
               : currentStep > step 
               ? 'bg-green-500 text-white' 
               : 'bg-gray-200 text-gray-600'
           }`}>
-            {currentStep > step ? <Check className="h-5 w-5" /> : step}
+            {currentStep > step ? <Check className="h-4 w-4" /> : step}
           </div>
-          {idx < 4 && (
-            <div className={`w-16 h-1 mx-2 ${
+          {idx < 6 && (
+            <div className={`w-8 h-1 mx-1 ${
               currentStep > step ? 'bg-green-500' : 'bg-gray-200'
             }`} />
           )}
@@ -882,8 +896,143 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 6: Upload Parts */}
+      {/* Step 6: Technical Specs */}
       {currentStep === 6 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Technical Specifications</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Cranes Included */}
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <Label className="text-base font-medium">Cranes Included?</Label>
+                <p className="text-sm text-muted-foreground">Does this project include crane systems?</p>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="cranesIncluded"
+                    checked={cranesIncluded}
+                    onChange={() => setCranesIncluded(true)}
+                    className="w-4 h-4"
+                  />
+                  <span>Yes</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="cranesIncluded"
+                    checked={!cranesIncluded}
+                    onChange={() => setCranesIncluded(false)}
+                    className="w-4 h-4"
+                  />
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Surveyor Included */}
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <Label className="text-base font-medium">Surveyor Included?</Label>
+                <p className="text-sm text-muted-foreground">Is surveying part of our scope?</p>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="surveyorIncluded"
+                    checked={surveyorIncluded}
+                    onChange={() => setSurveyorIncluded(true)}
+                    className="w-4 h-4"
+                  />
+                  <span>Yes</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="surveyorIncluded"
+                    checked={!surveyorIncluded}
+                    onChange={() => setSurveyorIncluded(false)}
+                    className="w-4 h-4"
+                  />
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+
+            {/* 3rd Party Test Required */}
+            <div className="p-4 border rounded-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-medium">3rd Party Test Required?</Label>
+                  <p className="text-sm text-muted-foreground">Does this project require third-party testing?</p>
+                </div>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="thirdPartyRequired"
+                      checked={thirdPartyRequired}
+                      onChange={() => setThirdPartyRequired(true)}
+                      className="w-4 h-4"
+                    />
+                    <span>Yes</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="thirdPartyRequired"
+                      checked={!thirdPartyRequired}
+                      onChange={() => setThirdPartyRequired(false)}
+                      className="w-4 h-4"
+                    />
+                    <span>No</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Responsibility selection - only show if 3rd party is required */}
+              {thirdPartyRequired && (
+                <div className="ml-4 p-4 bg-muted/50 rounded-lg">
+                  <Label className="text-sm font-medium mb-3 block">Who is responsible for 3rd party testing?</Label>
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="thirdPartyResponsibility"
+                        checked={thirdPartyResponsibility === 'our'}
+                        onChange={() => setThirdPartyResponsibility('our')}
+                        className="w-4 h-4"
+                      />
+                      <span>Our Responsibility</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="thirdPartyResponsibility"
+                        checked={thirdPartyResponsibility === 'customer'}
+                        onChange={() => setThirdPartyResponsibility('customer')}
+                        className="w-4 h-4"
+                      />
+                      <span>Customer Responsibility</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              These specifications will be displayed in the project details under Technical & Specs section.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 7: Upload Parts */}
+      {currentStep === 7 && (
         <Card>
           <CardHeader>
             <CardTitle>Upload Assembly Parts (Optional)</CardTitle>
@@ -929,7 +1078,7 @@ export default function ProjectSetupWizard() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Previous
         </Button>
-        {currentStep < 6 ? (
+        {currentStep < 7 ? (
           <Button onClick={nextStep}>
             Next
             <ArrowRight className="ml-2 h-4 w-4" />

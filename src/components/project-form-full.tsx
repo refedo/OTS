@@ -77,26 +77,26 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
 
     // Process payment data: convert percentages to amounts and format milestones
     const contractValue = getNumber('contractValue') || 0;
-    const processPayment = (key: string, milestoneKey: string) => {
-      const percentage = getNumber(key); // User enters percentage
-      const milestoneText = getString(milestoneKey); // User enters description
+    // Process payment: percentage is stored separately, amount is calculated
+    const processPayment = (percentKey: string, amountKey: string, milestoneKey: string) => {
+      const percentage = getNumber(percentKey);
+      const amount = getNumber(amountKey); // Can be manually entered or auto-calculated
+      const milestone = getString(milestoneKey); // Description only, no percentage prefix
       
-      if (!percentage || !milestoneText) {
-        return { amount: null, milestone: milestoneText };
-      }
+      // If percentage provided but no amount, calculate it
+      const calculatedAmount = percentage && contractValue > 0 
+        ? (contractValue * percentage / 100) 
+        : amount;
       
-      const amount = contractValue > 0 ? (contractValue * percentage / 100) : 0;
-      const milestone = `${percentage}% - ${milestoneText}`;
-      
-      return { amount, milestone };
+      return { percentage, amount: calculatedAmount, milestone };
     };
     
-    const downPaymentData = processPayment('downPayment', 'downPaymentMilestone');
-    const payment2Data = processPayment('payment2', 'payment2Milestone');
-    const payment3Data = processPayment('payment3', 'payment3Milestone');
-    const payment4Data = processPayment('payment4', 'payment4Milestone');
-    const payment5Data = processPayment('payment5', 'payment5Milestone');
-    const payment6Data = processPayment('payment6', 'payment6Milestone');
+    const downPaymentData = processPayment('downPaymentPercentage', 'downPayment', 'downPaymentMilestone');
+    const payment2Data = processPayment('payment2Percentage', 'payment2', 'payment2Milestone');
+    const payment3Data = processPayment('payment3Percentage', 'payment3', 'payment3Milestone');
+    const payment4Data = processPayment('payment4Percentage', 'payment4', 'payment4Milestone');
+    const payment5Data = processPayment('payment5Percentage', 'payment5', 'payment5Milestone');
+    const payment6Data = processPayment('payment6Percentage', 'payment6', 'payment6Milestone');
 
     const data = {
       projectNumber: (formData.get('projectNumber') as string) || undefined,
@@ -113,21 +113,27 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       
       // Financial
       contractValue,
+      downPaymentPercentage: downPaymentData.percentage,
       downPayment: downPaymentData.amount,
       downPaymentAck: formData.get('downPaymentAck') === 'on',
       downPaymentMilestone: downPaymentData.milestone,
+      payment2Percentage: payment2Data.percentage,
       payment2: payment2Data.amount,
       payment2Ack: formData.get('payment2Ack') === 'on',
       payment2Milestone: payment2Data.milestone,
+      payment3Percentage: payment3Data.percentage,
       payment3: payment3Data.amount,
       payment3Ack: formData.get('payment3Ack') === 'on',
       payment3Milestone: payment3Data.milestone,
+      payment4Percentage: payment4Data.percentage,
       payment4: payment4Data.amount,
       payment4Ack: formData.get('payment4Ack') === 'on',
       payment4Milestone: payment4Data.milestone,
+      payment5Percentage: payment5Data.percentage,
       payment5: payment5Data.amount,
       payment5Ack: formData.get('payment5Ack') === 'on',
       payment5Milestone: payment5Data.milestone,
+      payment6Percentage: payment6Data.percentage,
       payment6: payment6Data.amount,
       payment6Ack: formData.get('payment6Ack') === 'on',
       payment6Milestone: payment6Data.milestone,
@@ -145,6 +151,8 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       erectionDuration: getInt('erectionDuration') ? getInt('erectionDuration')! * 7 : null,
       cranesIncluded: formData.get('cranesIncluded') === 'on',
       surveyorOurScope: formData.get('surveyorOurScope') === 'on',
+      thirdPartyRequired: formData.get('thirdPartyRequired') === 'on',
+      thirdPartyResponsibility: getString('thirdPartyResponsibility'),
       contractualTonnage: getNumber('contractualTonnage'),
       
       // Galvanization
@@ -388,27 +396,40 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
             <h3 className="font-semibold mb-4">Payments</h3>
             <div className="grid gap-4">
               {[
-                { key: 'downPayment', label: 'Down Payment', ack: 'downPaymentAck', milestone: 'downPaymentMilestone' },
-                { key: 'payment2', label: 'Payment 2', ack: 'payment2Ack', milestone: 'payment2Milestone' },
-                { key: 'payment3', label: 'Payment 3', ack: 'payment3Ack', milestone: 'payment3Milestone' },
-                { key: 'payment4', label: 'Payment 4', ack: 'payment4Ack', milestone: 'payment4Milestone' },
-                { key: 'payment5', label: 'Payment 5', ack: 'payment5Ack', milestone: 'payment5Milestone' },
-                { key: 'payment6', label: 'Payment 6', ack: 'payment6Ack', milestone: 'payment6Milestone' },
+                { key: 'downPayment', percentKey: 'downPaymentPercentage', label: 'Down Payment', ack: 'downPaymentAck', milestone: 'downPaymentMilestone' },
+                { key: 'payment2', percentKey: 'payment2Percentage', label: 'Payment 2', ack: 'payment2Ack', milestone: 'payment2Milestone' },
+                { key: 'payment3', percentKey: 'payment3Percentage', label: 'Payment 3', ack: 'payment3Ack', milestone: 'payment3Milestone' },
+                { key: 'payment4', percentKey: 'payment4Percentage', label: 'Payment 4', ack: 'payment4Ack', milestone: 'payment4Milestone' },
+                { key: 'payment5', percentKey: 'payment5Percentage', label: 'Payment 5', ack: 'payment5Ack', milestone: 'payment5Milestone' },
+                { key: 'payment6', percentKey: 'payment6Percentage', label: 'Payment 6', ack: 'payment6Ack', milestone: 'payment6Milestone' },
               ].map((payment) => (
                 <div key={payment.key} className="p-4 border rounded-lg space-y-3">
-                  <div className="grid gap-4 md:grid-cols-[1fr,auto] items-end">
+                  <div className="grid gap-4 md:grid-cols-[1fr,1fr,auto] items-end">
                     <div className="space-y-2">
-                      <Label htmlFor={payment.key}>{payment.label} Percentage (%)</Label>
+                      <Label htmlFor={payment.percentKey}>{payment.label} Percentage (%)</Label>
+                      <Input 
+                        id={payment.percentKey} 
+                        name={payment.percentKey} 
+                        type="number" 
+                        step="0.01" 
+                        min="0" 
+                        max="100" 
+                        defaultValue={(project as any)[payment.percentKey] || ''} 
+                        disabled={loading} 
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={payment.key}>Amount (calculated)</Label>
                       <Input 
                         id={payment.key} 
                         name={payment.key} 
                         type="number" 
                         step="0.01" 
-                        min="0" 
-                        max="100" 
                         defaultValue={(project as any)[payment.key] || ''} 
                         disabled={loading} 
-                        placeholder="0.00"
+                        placeholder="Auto-calculated from %"
+                        className="bg-muted/50"
                       />
                     </div>
                     <div className="flex items-center space-x-2 pb-2">
@@ -463,6 +484,20 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
             <div className="flex items-center space-x-2">
               <Checkbox id="thirdPartyRequired" name="thirdPartyRequired" defaultChecked={project.thirdPartyRequired} disabled={loading} />
               <Label htmlFor="thirdPartyRequired" className="cursor-pointer">3rd Party Testing Required</Label>
+            </div>
+
+            <div className="ml-6 space-y-2">
+              <Label htmlFor="thirdPartyResponsibility">3rd Party Responsibility</Label>
+              <select
+                id="thirdPartyResponsibility"
+                name="thirdPartyResponsibility"
+                defaultValue={project.thirdPartyResponsibility || 'our'}
+                disabled={loading}
+                className="w-full h-10 px-3 rounded-md border bg-background"
+              >
+                <option value="our">Our Responsibility</option>
+                <option value="customer">Customer Responsibility</option>
+              </select>
             </div>
           </div>
 
