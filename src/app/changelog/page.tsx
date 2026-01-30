@@ -62,6 +62,47 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '13.4.2',
+    date: 'January 28, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '🚀 Navigation & System Stability Enhancements',
+    highlights: [
+      'Project Navigation Controls',
+      'PM2 Stability Improvements',
+      'Enhanced Error Recovery',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Project Navigation Controls',
+          items: [
+            'Added back/forward navigation arrows to project detail pages',
+            'Navigate seamlessly between projects without returning to list',
+            'Back to list button for quick return to projects overview',
+            'Visual separator between navigation controls',
+            'Disabled state for arrows when at first/last project',
+            'Navigation based on project creation order',
+          ],
+        },
+      ],
+      fixed: [
+        'Increased memory limit from 1G to 2G to prevent crashes',
+        'Added exponential backoff for restart delays',
+        'Increased listen timeout from 10s to 30s',
+        'Increased kill timeout from 5s to 10s',
+        'Enhanced graceful shutdown handling',
+        'Improved auto-restart configuration (15 max restarts, 30s min uptime)',
+        'Added NODE_OPTIONS for better memory management',
+        'Fixed 502 Bad Gateway errors caused by PM2 crashes',
+      ],
+      changed: [
+        'Updated PM2 configuration for better production stability',
+        'Enhanced error recovery mechanisms',
+      ],
+    },
+  },
+  {
     version: '13.4.1',
     date: 'January 17, 2026',
     type: 'patch',
@@ -210,6 +251,73 @@ const hardcodedVersions: ChangelogVersion[] = [
         'Import modal now shows only 6 essential fields instead of 12',
         'Updated all 33 layout files to use ResponsiveLayout component',
         'Consistent sidebar behavior across all pages',
+      ],
+    },
+  },
+  {
+    version: '13.3.2',
+    date: 'January 7, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '🏭 Production Module Enhancements & Responsive UI',
+    highlights: [
+      'Multi-Project Import Support',
+      'Production Plan Report Improvements',
+      'Page Size Selector',
+      'Download Template Button',
+      'Monthly Target on Production Dashboard',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Multi-Project Import Support',
+          items: [
+            'Import production logs without selecting a project first',
+            'Parts are automatically matched by designation across all projects',
+            'Single CSV/Excel file can contain entries for multiple projects',
+          ],
+        },
+        {
+          title: 'Production Plan Report Improvements',
+          items: [
+            'Report now correctly filters buildings by fabrication schedule within selected month',
+            'Only shows projects with fabrication activities overlapping the selected period',
+          ],
+        },
+        {
+          title: 'Page Size Selector',
+          items: [
+            'Added page size dropdown (50, 100, 200, 500, 1000) for Production Logs page',
+            'Added page size dropdown for Assembly Parts page',
+            'Persistent pagination preferences',
+          ],
+        },
+        {
+          title: 'Download Template Button',
+          items: [
+            'Added template download button for production log imports',
+            'Template includes sample data and all required columns',
+          ],
+        },
+        {
+          title: 'Monthly Target on Production Dashboard',
+          items: [
+            'New Monthly Target card showing current month\'s production quota',
+            'Aggregates raw data from buildings with fabrication schedules in current month',
+            'Displays target tonnage based on project planning',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed production plan report filtering by month',
+        'Fixed production logs not showing in dashboard',
+        'Fixed assembly parts page pagination',
+        'Fixed production log import validation',
+      ],
+      changed: [
+        'Improved production dashboard layout',
+        'Enhanced production log import performance',
+        'Updated production plan report to use new filtering logic',
       ],
     },
   },
