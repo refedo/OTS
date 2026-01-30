@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.4.3] - 2026-01-31
+
+### 🎨 UI/UX Improvements & System Enhancements
+
+#### Added
+- **Success Dialog Component**
+  - Created reusable SuccessDialog component with modern design
+  - Green checkmark icon and Cancel/OK buttons
+  - Replaces browser alerts throughout the system
+  - Updated project wizard to use success dialog
+
+- **Centralized Formatting Utilities**
+  - Created `src/lib/format.ts` for consistent formatting
+  - Prepared for system settings integration
+
+#### Changed
+- **Date Validation**
+  - Prevent end date before start date in wizard scope schedules
+  - Shows alert if user tries to set invalid date range
+  - Duration calculation returns 0 for invalid ranges
+
+- **Cranes Question Update**
+  - Only shows when Erection scope is selected
+  - Changed wording: 'Cranes for Installation?'
+  - Description: 'Will mobile cranes or overhead cranes be required for site installation?'
+
+- **Currency Format (SAR)**
+  - Changed from USD ($) to Saudi Riyal (﷼)
+  - Format: '1,234.56 ﷼'
+  - Updated across: project-details, projects-client, initiative-detail, initiatives-dashboard-client
+
+- **Date Format (DD-MM-YYYY)**
+  - Changed from DD/MM/YYYY to DD-MM-YYYY
+  - Updated across all key components
+
+---
+
 ## [13.4.2] - 2026-01-28
 
 ### 🚀 Navigation & System Stability Enhancements

@@ -189,7 +189,7 @@ export function LoginForm() {
           Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
         </p>
         <p className="text-slate-500 text-xs mt-2">
-          Version 13.4.0
+          Version 13.4.3
         </p>
       </div>
     </div>

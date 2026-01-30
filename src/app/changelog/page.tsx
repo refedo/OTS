@@ -21,10 +21,51 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '13.4.3',
+    date: 'January 31, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🎨 UI/UX Improvements & System Enhancements',
+    highlights: [
+      'Success Dialog Component',
+      'Date Validation in Wizard',
+      'Cranes Question Update',
+      'SAR Currency Format',
+      'DD-MM-YYYY Date Format',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Success Dialog Component',
+          items: [
+            'Created reusable SuccessDialog component with modern design',
+            'Green checkmark icon and Cancel/OK buttons',
+            'Replaces browser alerts throughout the system',
+            'Updated project wizard to use success dialog',
+          ],
+        },
+        {
+          title: 'Centralized Formatting Utilities',
+          items: [
+            'Created src/lib/format.ts for consistent formatting',
+            'Prepared for system settings integration',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [
+        'Date Validation: Prevent end date before start date in wizard scope schedules',
+        'Cranes Question: Only shows when Erection scope is selected, changed wording to "Cranes for Installation?"',
+        'Currency Format: Changed from USD ($) to Saudi Riyal (﷼) - Format: "1,234.56 ﷼"',
+        'Date Format: Changed from DD/MM/YYYY to DD-MM-YYYY across all key components',
+      ],
+    },
+  },
+  {
     version: '13.4.1',
     date: 'January 17, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔧 Planning Enhancements & Bug Fixes',
     highlights: [
       'Division Column in Planning',
