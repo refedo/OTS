@@ -26,8 +26,26 @@ export function verifySession(token: string): SessionPayload | null {
       return null;
     }
     
+    // Validate token format before parsing
+    if (!token || typeof token !== 'string' || token.trim() === '') {
+      return null;
+    }
+    
+    // Check for invalid control characters that cause JSON parsing errors
+    // eslint-disable-next-line no-control-regex
+    if (/[\x00-\x1F]/.test(token)) {
+      console.error('Session token contains invalid control characters');
+      return null;
+    }
+    
     return jwt.verify(token, JWT_SECRET) as SessionPayload;
   } catch (e) {
+    if (e instanceof Error) {
+      // Only log if it's not a standard expiration error
+      if (!e.message.includes('expired') && !e.message.includes('invalid signature')) {
+        console.error('Session verification failed:', e.message);
+      }
+    }
     return null;
   }
 }
