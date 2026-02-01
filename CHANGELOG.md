@@ -3,7 +3,58 @@
 All notable changes to the Hexa Steel Operation Tracking System will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
+
+---
+
+## [13.4.5] - 2026-02-01
+
+### 🐛 Bug Fixes
+
+#### Fixed
+- **Payment Percentage Import Issue**
+  - Fixed async state issue causing field mappings to be undefined during import
+  - Resolved Excel column name trimming problem (spaces in column headers)
+  - Added automatic payment amount calculation from percentages during import
+  - Formula: `Payment Amount = Contract Value × Percentage ÷ 100`
+  - Applied to all payment terms (down payment, payment 2-6)
+
+- **Task Form Data Loss**
+  - Fixed optional fields (building, department) resetting to default when editing tasks
+  - Added buildingId and departmentId to Task type definition
+  - Initialize state with existing task values instead of empty strings
+
+- **Project Edit Contract Value**
+  - Fixed contract value disappearing when editing projects
+  - Changed conversion logic to handle 0 values correctly
+  - Use explicit null/undefined check instead of truthy check
+
+### 🎨 UI/UX Improvements
+
+#### Added
+- **Enhanced RAL Color Display**
+  - Added RAL color names mapping for 200+ colors (e.g., '7015' → 'Slate Grey')
+  - Display color name below RAL number in italic text
+  - Color preview box shows actual RAL color (12x12 rounded square)
+  - Tooltip shows both RAL number and color name
+  - Improved visual hierarchy with flex-col layout
+
+- **Painting System Total Microns**
+  - Automatic calculation of total microns from all coating layers
+  - Blue-highlighted row showing sum of all coat microns
+  - Format: "Total Microns: 218 μm"
+  - Only displays when coats are defined and total > 0
+
+#### Changed
+- **Technical Specifications Section**
+  - Set to expand by default for better visibility
+  - Removed duplicate "Contractual Tonnage" field (already in dashboard)
+  - Removed duplicate "3rd Party Required" field below welding specs
+
+- **Project Dashboard Navigation**
+  - Made Tasks card clickable to navigate to tasks page
+  - Links to `/tasks?project={projectId}` with automatic filtering
+  - Added hover effect and cursor pointer for better UX
 
 ---
 

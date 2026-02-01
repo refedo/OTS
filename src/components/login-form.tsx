@@ -77,7 +77,7 @@ export function LoginForm() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#2c3e50' }}>
       {/* Version Header */}
       <div className="text-center py-3">
-        <span className="text-slate-400 text-sm">Operations Tracking System v13.4.4</span>
+        <span className="text-slate-400 text-sm">Operations Tracking System v13.4.5</span>
       </div>
 
       {/* Main Content */}
@@ -189,7 +189,7 @@ export function LoginForm() {
           Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
         </p>
         <p className="text-xs text-muted-foreground">
-          Version 13.4.4
+          Version 13.4.5
         </p>
       </div>
     </div>
