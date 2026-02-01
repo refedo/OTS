@@ -190,6 +190,13 @@ export async function importProjectsFromExcel(
             where: { projectNumber: projectRow.project_code },
           });
 
+          // Debug logging for percentage values
+          console.log(`[Import Debug] Project: ${projectRow.project_code}`);
+          console.log(`  Raw down_payment_percentage: ${projectRow.down_payment_percentage}`);
+          console.log(`  Parsed: ${parseDecimal(projectRow.down_payment_percentage)}`);
+          console.log(`  Raw payment_2_percentage: ${projectRow.payment_2_percentage}`);
+          console.log(`  Parsed: ${parseDecimal(projectRow.payment_2_percentage)}`);
+
           const projectData = {
             projectNumber: projectRow.project_code,
             name: projectRow.project_name,
