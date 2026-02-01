@@ -50,6 +50,7 @@ const statusColors = {
   'In Progress': 'bg-blue-100 text-blue-800 border-blue-300',
   'Waiting for Approval': 'bg-purple-100 text-purple-800 border-purple-300',
   Completed: 'bg-green-100 text-green-800 border-green-300',
+  Cancelled: 'bg-gray-100 text-gray-800 border-gray-300',
 };
 
 const priorityColors = {
@@ -471,6 +472,12 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       {filteredTasks.filter(t => t.status === 'Completed').length}
                     </span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+                    <span className="text-sm">
+                      {filteredTasks.filter(t => t.status === 'Cancelled').length}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -670,6 +677,18 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   )}
                 >
                   Completed
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStatusFilter('Cancelled')}
+                  className={cn(
+                    statusFilter === 'Cancelled' 
+                      ? 'bg-gray-500 text-white border-gray-500 hover:bg-gray-600 hover:text-white' 
+                      : 'hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'
+                  )}
+                >
+                  Cancelled
                 </Button>
 
                 <div className="h-6 w-px bg-border" />
@@ -931,6 +950,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           <option value="In Progress">In Progress</option>
                           <option value="Waiting for Approval">Waiting for Approval</option>
                           <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
                         </select>
                       </TableCell>
                       <TableCell>

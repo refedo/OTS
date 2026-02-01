@@ -66,6 +66,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [selectedProjectId, setSelectedProjectId] = useState(task?.projectId || '');
   const [selectedBuildingId, setSelectedBuildingId] = useState('');
   const [isPrivate, setIsPrivate] = useState(task?.isPrivate || false);
+  const [priority, setPriority] = useState(task?.priority || 'Medium');
+  const [status, setStatus] = useState(task?.status || 'In Progress');
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -207,7 +209,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               <select
                 id="priority"
                 name="priority"
-                defaultValue={task?.priority || 'Medium'}
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
                 required
                 disabled={loading}
                 className="w-full h-10 px-3 rounded-md border bg-background"
@@ -226,7 +229,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               <select
                 id="status"
                 name="status"
-                defaultValue={task?.status || 'In Progress'}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
                 required
                 disabled={loading}
                 className="w-full h-10 px-3 rounded-md border bg-background"
@@ -235,6 +239,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 <option value="In Progress">In Progress</option>
                 <option value="Waiting for Approval">Waiting for Approval</option>
                 <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
               </select>
             </div>
 
