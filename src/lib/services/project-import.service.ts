@@ -197,6 +197,16 @@ export async function importProjectsFromExcel(
           console.log(`  Raw payment_2_percentage: ${projectRow.payment_2_percentage}`);
           console.log(`  Parsed: ${parseDecimal(projectRow.payment_2_percentage)}`);
 
+          // Calculate payment amounts from percentages if contract value exists
+          const contractValue = parseDecimal(projectRow.contract_value);
+          const calculatePayment = (percentage: number | undefined, amount: number | undefined) => {
+            if (amount !== undefined) return amount;
+            if (percentage !== undefined && contractValue !== undefined) {
+              return contractValue * percentage / 100;
+            }
+            return undefined;
+          };
+
           const projectData = {
             projectNumber: projectRow.project_code,
             name: projectRow.project_name,
@@ -209,23 +219,23 @@ export async function importProjectsFromExcel(
             plannedStartDate: parseDate(projectRow.planned_start_date || projectRow.start_date),
             plannedEndDate: parseDate(projectRow.planned_end_date || projectRow.end_date),
             status: projectRow.status || 'Draft',
-            contractValue: parseDecimal(projectRow.contract_value),
-            downPayment: parseDecimal(projectRow.down_payment),
+            contractValue,
+            downPayment: calculatePayment(parseDecimal(projectRow.down_payment_percentage), parseDecimal(projectRow.down_payment)),
             downPaymentPercentage: parseDecimal(projectRow.down_payment_percentage),
             downPaymentMilestone: projectRow.down_payment_milestone,
-            payment2: parseDecimal(projectRow.payment_2),
+            payment2: calculatePayment(parseDecimal(projectRow.payment_2_percentage), parseDecimal(projectRow.payment_2)),
             payment2Percentage: parseDecimal(projectRow.payment_2_percentage),
             payment2Milestone: projectRow.payment_2_milestone,
-            payment3: parseDecimal(projectRow.payment_3),
+            payment3: calculatePayment(parseDecimal(projectRow.payment_3_percentage), parseDecimal(projectRow.payment_3)),
             payment3Percentage: parseDecimal(projectRow.payment_3_percentage),
             payment3Milestone: projectRow.payment_3_milestone,
-            payment4: parseDecimal(projectRow.payment_4),
+            payment4: calculatePayment(parseDecimal(projectRow.payment_4_percentage), parseDecimal(projectRow.payment_4)),
             payment4Percentage: parseDecimal(projectRow.payment_4_percentage),
             payment4Milestone: projectRow.payment_4_milestone,
-            payment5: parseDecimal(projectRow.payment_5),
+            payment5: calculatePayment(parseDecimal(projectRow.payment_5_percentage), parseDecimal(projectRow.payment_5)),
             payment5Percentage: parseDecimal(projectRow.payment_5_percentage),
             payment5Milestone: projectRow.payment_5_milestone,
-            payment6: parseDecimal(projectRow.payment_6),
+            payment6: calculatePayment(parseDecimal(projectRow.payment_6_percentage), parseDecimal(projectRow.payment_6)),
             payment6Percentage: parseDecimal(projectRow.payment_6_percentage),
             payment6Milestone: projectRow.payment_6_milestone,
             hoRetention: parseDecimal(projectRow.ho_retention),
