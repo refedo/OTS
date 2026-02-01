@@ -77,8 +77,8 @@ function parseNumeric(value: any): number | undefined {
   if (typeof value === 'number') return value;
   
   if (typeof value === 'string') {
-    // Remove currency symbols and commas
-    const cleaned = value.replace(/[$,]/g, '').trim();
+    // Remove currency symbols, commas, and percentage signs
+    const cleaned = value.replace(/[$,%]/g, '').trim();
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? undefined : parsed;
   }
