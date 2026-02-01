@@ -130,10 +130,17 @@ export default function ProjectMigrationPage() {
       [currentMappingSheet]: mappings,
     }));
     
-    // Move to buildings sheet if we just finished projects
+    // Move to buildings sheet if we just finished projects AND buildings sheet exists
     if (currentMappingSheet === 'projects') {
-      setCurrentMappingSheet('buildings');
-      // Keep mapper open for buildings
+      // Check if buildings sheet has columns (i.e., sheet exists)
+      if (excelColumns?.buildings && excelColumns.buildings.length > 0) {
+        setCurrentMappingSheet('buildings');
+        // Keep mapper open for buildings
+      } else {
+        // No buildings sheet, proceed directly to import
+        setShowFieldMapper(false);
+        handleImportWithMappings();
+      }
     } else {
       // Both sheets mapped, proceed to import
       setShowFieldMapper(false);
