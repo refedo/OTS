@@ -77,6 +77,10 @@ export function UserMenu() {
 
   const handleLogout = async () => {
     try {
+      // Clear cached user data immediately
+      cachedUser = null;
+      setUser(null);
+      
       // Stop session activity tracker immediately
       const tracker = (window as any).__sessionActivityTracker;
       if (tracker) {
@@ -91,22 +95,22 @@ export function UserMenu() {
         clearInterval(i);
       }
       
-      // Call logout API
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      
-      // Clear all local storage and session storage
+      // Clear all local storage and session storage first
       localStorage.clear();
       sessionStorage.clear();
+      
+      // Call logout API (don't wait for response, just fire and redirect)
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => {});
       
       // Force full page redirect to login with cache busting
       const loginUrl = process.env.NODE_ENV === 'production' 
         ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
         : '/login?t=' + Date.now();
       
-      window.location.replace(loginUrl);
+      window.location.href = loginUrl;
     } catch (error) {
       console.error('Error logging out:', error);
       // Force redirect even on error
@@ -114,7 +118,7 @@ export function UserMenu() {
         ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
         : '/login?t=' + Date.now();
       
-      window.location.replace(loginUrl);
+      window.location.href = loginUrl;
     }
   };
 

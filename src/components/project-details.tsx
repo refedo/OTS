@@ -149,10 +149,6 @@ function getRalColorName(ralNumber: string): string {
   return ralColorNames[cleanRal] || 'Unknown Color';
 }
 
-type ProjectDetailsProps = {
-  project: any;
-};
-
 function CollapsibleSection({ 
   title, 
   icon: Icon, 
@@ -196,13 +192,21 @@ function InfoRow({ label, value }: { label: string; value: any }) {
   );
 }
 
-export function ProjectDetails({ project }: ProjectDetailsProps) {
+type ProjectDetailsProps = {
+  project: any;
+  restrictedModules?: string[];
+};
+
+export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetailsProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [navigation, setNavigation] = useState<{ previousId: string | null; nextId: string | null }>({ previousId: null, nextId: null });
   const [isLoadingNav, setIsLoadingNav] = useState(true);
+  
+  // Check if financial data should be hidden
+  const hideFinancialData = restrictedModules.includes('financial_contracts') || restrictedModules.includes('financial_reports');
 
   useEffect(() => {
     const fetchNavigation = async () => {
@@ -360,7 +364,7 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
             </Card>
           </Link>
 
-          {project.contractValue && (
+          {project.contractValue && !hideFinancialData && (
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -445,84 +449,86 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
             </dl>
           </CollapsibleSection>
 
-          {/* Financial & Payment Terms */}
-          <CollapsibleSection title="Finance" icon={DollarSign} defaultOpen>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Contract Value</p>
-                  <p className="text-lg font-semibold">{formatCurrency(project.contractValue) || '-'}</p>
+          {/* Financial & Payment Terms - Hidden for users with financial restrictions */}
+          {!hideFinancialData && (
+            <CollapsibleSection title="Finance" icon={DollarSign} defaultOpen>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Contract Value</p>
+                    <p className="text-lg font-semibold">{formatCurrency(project.contractValue) || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Incoterm</p>
+                    <p className="text-lg font-semibold">{project.incoterm || '-'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Incoterm</p>
-                  <p className="text-lg font-semibold">{project.incoterm || '-'}</p>
-                </div>
-              </div>
-              
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-3 text-red-700 bg-red-50 px-3 py-2 rounded">Payment Schedule</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Schedule</th>
-                        <th className="px-3 py-2 text-left font-medium">Percentage</th>
-                        <th className="px-3 py-2 text-left font-medium">Amount</th>
-                        <th className="px-3 py-2 text-left font-medium">Terms</th>
-                        <th className="px-3 py-2 text-left font-medium">Payment Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {/* Down Payment Row */}
-                      {(project.downPaymentPercentage || project.downPayment || project.downPaymentMilestone) && (
+                
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3 text-red-700 bg-red-50 px-3 py-2 rounded">Payment Schedule</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
                         <tr>
-                          <td className="px-3 py-2 font-medium">Down Payment</td>
-                          <td className="px-3 py-2">
-                            {project.downPaymentPercentage ? `${project.downPaymentPercentage}%` : '-'}
-                          </td>
-                          <td className="px-3 py-2">
-                            {formatCurrency(project.downPayment) || '-'}
-                          </td>
-                          <td className="px-3 py-2">
-                            {project.downPaymentMilestone || '-'}
-                          </td>
-                          <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
+                          <th className="px-3 py-2 text-left font-medium">Schedule</th>
+                          <th className="px-3 py-2 text-left font-medium">Percentage</th>
+                          <th className="px-3 py-2 text-left font-medium">Amount</th>
+                          <th className="px-3 py-2 text-left font-medium">Terms</th>
+                          <th className="px-3 py-2 text-left font-medium">Payment Date</th>
                         </tr>
-                      )}
-                      {/* Payment 2-6 Rows */}
-                      {[2, 3, 4, 5, 6].map((num) => {
-                        const percentage = (project as any)[`payment${num}Percentage`];
-                        const payment = (project as any)[`payment${num}`];
-                        const milestone = (project as any)[`payment${num}Milestone`];
-                        if (!percentage && !payment && !milestone) return null;
-                        
-                        return (
-                          <tr key={num}>
-                            <td className="px-3 py-2 font-medium">Payment {num}</td>
-                            <td className="px-3 py-2">{percentage ? `${percentage}%` : '-'}</td>
-                            <td className="px-3 py-2">{formatCurrency(payment) || '-'}</td>
-                            <td className="px-3 py-2">{milestone || '-'}</td>
-                            <td className="px-3 py-2">-</td>
+                      </thead>
+                      <tbody className="divide-y">
+                        {/* Down Payment Row */}
+                        {(project.downPaymentPercentage || project.downPayment || project.downPaymentMilestone) && (
+                          <tr>
+                            <td className="px-3 py-2 font-medium">Down Payment</td>
+                            <td className="px-3 py-2">
+                              {project.downPaymentPercentage ? `${project.downPaymentPercentage}%` : '-'}
+                            </td>
+                            <td className="px-3 py-2">
+                              {formatCurrency(project.downPayment) || '-'}
+                            </td>
+                            <td className="px-3 py-2">
+                              {project.downPaymentMilestone || '-'}
+                            </td>
+                            <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        )}
+                        {/* Payment 2-6 Rows */}
+                        {[2, 3, 4, 5, 6].map((num) => {
+                          const percentage = (project as any)[`payment${num}Percentage`];
+                          const payment = (project as any)[`payment${num}`];
+                          const milestone = (project as any)[`payment${num}Milestone`];
+                          if (!percentage && !payment && !milestone) return null;
+                          
+                          return (
+                            <tr key={num}>
+                              <td className="px-3 py-2 font-medium">Payment {num}</td>
+                              <td className="px-3 py-2">{percentage ? `${percentage}%` : '-'}</td>
+                              <td className="px-3 py-2">{formatCurrency(payment) || '-'}</td>
+                              <td className="px-3 py-2">{milestone || '-'}</td>
+                              <td className="px-3 py-2">-</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Preliminary Retention</p>
+                    <p className="font-semibold">{formatCurrency(project.preliminaryRetention) || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">H.O Retention</p>
+                    <p className="font-semibold">{formatCurrency(project.hoRetention) || '-'}</p>
+                  </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">Preliminary Retention</p>
-                  <p className="font-semibold">{formatCurrency(project.preliminaryRetention) || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">H.O Retention</p>
-                  <p className="font-semibold">{formatCurrency(project.hoRetention) || '-'}</p>
-                </div>
-              </div>
-            </div>
-          </CollapsibleSection>
+            </CollapsibleSection>
+          )}
 
           {/* Technical Specifications */}
           <CollapsibleSection title="Technical Specifications" icon={Settings} defaultOpen>

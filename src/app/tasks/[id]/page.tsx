@@ -2,8 +2,10 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { TaskDetails } from '@/components/task-details';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
-export default async function TaskDetailPage({ params }: { params: { id: string } }) {
+export default async function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -14,7 +16,7 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
   }
 
   // Fetch task
-  const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/tasks/${params.id}`, {
+  const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/tasks/${id}`, {
     headers: {
       Cookie: `${cookieName}=${token}`,
     },
@@ -27,6 +29,9 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
   }
 
   const task = await response.json();
+  
+  // Get user permissions for proper access control
+  const userPermissions = await getCurrentUserPermissions();
 
-  return <TaskDetails task={task} userRole={session.role} userId={session.sub} />;
+  return <TaskDetails task={task} userRole={session.role} userId={session.sub} userPermissions={userPermissions} />;
 }

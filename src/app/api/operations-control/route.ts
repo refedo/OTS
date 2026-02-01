@@ -62,27 +62,63 @@ async function enrichReasonText(reason: string, workUnitIds: string[]): Promise<
     select: { id: true, referenceModule: true, referenceId: true },
   });
 
-  // Replace each ID with its name
+  // Also extract module:id patterns directly from the reason text
+  const moduleIdPattern = /(Task|WorkOrder|RFIRequest|DocumentSubmission|AssemblyPart):([a-f0-9-]{36})/gi;
+  const matches = [...reason.matchAll(moduleIdPattern)];
+  
+  // Build a map of referenceId -> name for direct lookups
+  const referenceIdToName = new Map<string, { module: string; name: string }>();
+  
+  for (const match of matches) {
+    const module = match[1];
+    const refId = match[2];
+    if (!referenceIdToName.has(refId)) {
+      const name = await getReferenceName(module, refId);
+      referenceIdToName.set(refId, { module, name });
+    }
+  }
+
+  // Replace module:id patterns with human-readable names
+  for (const [refId, { module, name }] of referenceIdToName) {
+    // Replace "Module:uuid" pattern
+    enrichedReason = enrichedReason.replace(
+      new RegExp(`${module}:${refId}`, 'gi'),
+      `${module} "${name}"`
+    );
+  }
+
+  // Replace each WorkUnit ID with its name
   for (const wu of workUnits) {
     const name = await getReferenceName(wu.referenceModule, wu.referenceId);
-    // Replace various patterns of IDs
+    
+    // Replace WorkUnit "id" pattern
     enrichedReason = enrichedReason.replace(
-      new RegExp(`WorkUnit[:\\s]*["']?${wu.id}["']?`, 'gi'),
-      `"${name}"`
+      new RegExp(`WorkUnit\\s*["']${wu.id}["']`, 'gi'),
+      `${wu.referenceModule} "${name}"`
     );
-    enrichedReason = enrichedReason.replace(
-      new RegExp(`Task:?${wu.id}`, 'gi'),
-      `Task "${name}"`
-    );
+    
+    // Replace bare UUIDs that match work unit IDs
     enrichedReason = enrichedReason.replace(
       new RegExp(`"${wu.id}"`, 'g'),
       `"${name}"`
     );
-    // Replace bare UUIDs
+    
+    // Replace bare UUID (only if it's a standalone UUID, not part of a larger string)
     enrichedReason = enrichedReason.replace(
-      new RegExp(wu.id, 'g'),
+      new RegExp(`\\b${wu.id}\\b`, 'g'),
       `"${name}"`
     );
+  }
+
+  // Clean up any remaining bare UUIDs in the text by looking them up
+  const remainingUuids = enrichedReason.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi) || [];
+  for (const uuid of remainingUuids) {
+    // Try to find this UUID in our work units
+    const wu = workUnits.find(w => w.referenceId === uuid);
+    if (wu) {
+      const name = await getReferenceName(wu.referenceModule, wu.referenceId);
+      enrichedReason = enrichedReason.replace(new RegExp(uuid, 'g'), `"${name}"`);
+    }
   }
 
   return enrichedReason;
@@ -207,15 +243,21 @@ export async function GET(request: NextRequest) {
       })
       .sort((a, b) => b.critical - a.critical || b.high - a.high || b.total - a.total);
 
-    // Collect unique recommended actions from critical and high risks
-    const priorityActions = riskEvents
-      .filter((r) => r.severity === 'CRITICAL' || r.severity === 'HIGH')
-      .map((r) => ({
-        riskId: r.id,
-        severity: r.severity,
-        type: r.type,
-        action: r.recommendedAction,
-      }));
+    // Collect unique recommended actions from critical and high risks with enriched text
+    const priorityActions = await Promise.all(
+      riskEvents
+        .filter((r) => r.severity === 'CRITICAL' || r.severity === 'HIGH')
+        .map(async (r) => {
+          const workUnitIds = r.affectedWorkUnitIds as string[];
+          const enrichedAction = await enrichReasonText(r.recommendedAction, workUnitIds);
+          return {
+            riskId: r.id,
+            severity: r.severity,
+            type: r.type,
+            action: enrichedAction,
+          };
+        })
+    );
 
     // Summary counts
     const summary = {

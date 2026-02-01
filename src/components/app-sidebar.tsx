@@ -584,19 +584,22 @@ export function AppSidebar() {
                       clearInterval(i);
                     }
                     
-                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                    // Clear storage first
                     localStorage.clear();
                     sessionStorage.clear();
+                    
+                    // Fire logout API (don't wait)
+                    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
                     
                     const loginUrl = process.env.NODE_ENV === 'production' 
                       ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
                       : '/login?t=' + Date.now();
-                    window.location.replace(loginUrl);
+                    window.location.href = loginUrl;
                   } catch (error) {
                     const loginUrl = process.env.NODE_ENV === 'production' 
                       ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
                       : '/login?t=' + Date.now();
-                    window.location.replace(loginUrl);
+                    window.location.href = loginUrl;
                   }
                 }}
                 variant="ghost"

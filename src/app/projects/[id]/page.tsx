@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import { ProjectDetails } from '@/components/project-details';
 import { BuildingsList } from '@/components/buildings-list';
 import { ScopeSchedulesView } from '@/components/scope-schedules-view';
+import { getCurrentUserRestrictedModules } from '@/lib/permission-checker';
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -52,10 +53,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const scopeSchedules = schedulesResponse.ok ? await schedulesResponse.json() : [];
 
   const canEdit = ['CEO', 'Admin', 'Manager'].includes(session.role);
+  
+  // Get user's restricted modules for hiding financial data
+  const restrictedModules = await getCurrentUserRestrictedModules();
 
   return (
     <div className="space-y-6">
-      <ProjectDetails project={project} />
+      <ProjectDetails project={project} restrictedModules={restrictedModules} />
       {scopeSchedules.length > 0 && (
         <ScopeSchedulesView schedules={scopeSchedules} />
       )}

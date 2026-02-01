@@ -5,6 +5,7 @@ import { ProjectsClient } from '@/components/projects-client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Plus, Upload } from 'lucide-react';
+import { getCurrentUserRestrictedModules } from '@/lib/permission-checker';
 
 export default async function ProjectsPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -18,6 +19,9 @@ export default async function ProjectsPage() {
 
   const canCreate = ['CEO', 'Admin', 'Manager'].includes(session.role);
   const canImportExport = ['CEO', 'Admin', 'PMO'].includes(session.role);
+  
+  // Get user's restricted modules for hiding financial data
+  const restrictedModules = await getCurrentUserRestrictedModules();
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -51,7 +55,7 @@ export default async function ProjectsPage() {
         </div>
 
         {/* Projects List */}
-        <ProjectsClient />
+        <ProjectsClient restrictedModules={restrictedModules} />
       </div>
     </main>
   );

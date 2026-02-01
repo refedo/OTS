@@ -96,16 +96,17 @@ type TasksClientProps = {
   allDepartments: Department[];
   userPermissions: string[];
   filterMyTasks?: boolean;
+  initialProjectFilter?: string;
 };
 
-export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false }: TasksClientProps) {
+export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, initialProjectFilter }: TasksClientProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('In Progress');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
-  const [projectFilter, setProjectFilter] = useState<string>('');
+  const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter || '');
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
@@ -128,6 +129,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const [isDeleting, setIsDeleting] = useState(false);
 
   const canCreateTask = userPermissions.includes('tasks.create');
+  const canEditTask = userPermissions.includes('tasks.edit') || userPermissions.includes('tasks.create');
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -1152,7 +1154,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {canCreateTask && (
+                          {canEditTask && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1174,7 +1176,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                 <Eye className="size-4" />
                                 View Details
                               </DropdownMenuItem>
-                              {canCreateTask && (
+                              {canEditTask && (
                                 <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
                                   <Edit className="size-4" />
                                   Edit Task
@@ -1223,7 +1225,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           <Eye className="size-4" />
                           View Details
                         </DropdownMenuItem>
-                        {canCreateTask && (
+                        {canEditTask && (
                           <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
                             <Edit className="size-4" />
                             Edit Task

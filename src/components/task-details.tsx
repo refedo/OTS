@@ -58,16 +58,18 @@ type TaskDetailsProps = {
   task: Task;
   userRole: string;
   userId: string;
+  userPermissions?: string[];
 };
 
-export function TaskDetails({ task, userRole, userId }: TaskDetailsProps) {
+export function TaskDetails({ task, userRole, userId, userPermissions = [] }: TaskDetailsProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(true);
 
-  const canEdit = ['CEO', 'Admin', 'Manager'].includes(userRole);
-  const canDelete = ['CEO', 'Admin'].includes(userRole);
+  // Check permissions - use permission-based check if available, fallback to role-based
+  const canEdit = userPermissions.includes('tasks.edit') || ['CEO', 'Admin', 'Manager'].includes(userRole);
+  const canDelete = userPermissions.includes('tasks.delete') || ['CEO', 'Admin'].includes(userRole);
   const isAssignedUser = task.assignedTo?.id === userId;
 
   // Fetch audit logs

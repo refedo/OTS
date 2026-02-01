@@ -3,8 +3,10 @@ import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import prisma from '@/lib/db';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
-export default async function EditTaskPage({ params }: { params: { id: string } }) {
+export default async function EditTaskPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -14,13 +16,18 @@ export default async function EditTaskPage({ params }: { params: { id: string } 
     redirect('/login');
   }
 
-  // Only CEO, Admins and Managers can edit tasks
-  if (!['CEO', 'Admin', 'Manager'].includes(session.role)) {
+  // Check permissions - allow if user has tasks.edit or tasks.create permission, or is CEO/Admin/Manager
+  const userPermissions = await getCurrentUserPermissions();
+  const canEdit = userPermissions.includes('tasks.edit') || 
+                  userPermissions.includes('tasks.create') || 
+                  ['CEO', 'Admin', 'Manager'].includes(session.role);
+  
+  if (!canEdit) {
     redirect('/tasks');
   }
 
   // Fetch task
-  const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/tasks/${params.id}`, {
+  const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/tasks/${id}`, {
     headers: {
       Cookie: `${cookieName}=${token}`,
     },

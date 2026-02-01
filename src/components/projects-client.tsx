@@ -50,7 +50,11 @@ const statusColors = {
 
 const statusOptions = ['Draft', 'Active', 'On-Hold', 'Completed', 'Cancelled'];
 
-export function ProjectsClient() {
+type ProjectsClientProps = {
+  restrictedModules?: string[];
+};
+
+export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) {
   const router = useRouter();
   const { showAlert, showConfirm } = useDialog();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -62,6 +66,9 @@ export function ProjectsClient() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>('projectNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Check if financial data should be hidden
+  const hideFinancialData = restrictedModules.includes('financial_contracts') || restrictedModules.includes('financial_reports');
 
   useEffect(() => {
     fetchProjects();
@@ -486,14 +493,16 @@ export function ProjectsClient() {
                       Status {getSortIcon('status')}
                     </div>
                   </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 select-none"
-                    onClick={() => handleSort('contractValue')}
-                  >
-                    <div className="flex items-center">
-                      Contract Value {getSortIcon('contractValue')}
-                    </div>
-                  </TableHead>
+                  {!hideFinancialData && (
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('contractValue')}
+                    >
+                      <div className="flex items-center">
+                        Contract Value {getSortIcon('contractValue')}
+                      </div>
+                    </TableHead>
+                  )}
                   <TableHead 
                     className="cursor-pointer hover:bg-muted/50 select-none"
                     onClick={() => handleSort('tonnage')}
@@ -561,9 +570,11 @@ export function ProjectsClient() {
                         {project.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {project.contractValue ? `${Number(project.contractValue).toLocaleString('en-SA', { minimumFractionDigits: 2 })} ﷼` : '-'}
-                    </TableCell>
+                    {!hideFinancialData && (
+                      <TableCell>
+                        {project.contractValue ? `${Number(project.contractValue).toLocaleString('en-SA', { minimumFractionDigits: 2 })} ﷼` : '-'}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {project.contractualTonnage ? `${project.contractualTonnage} tons` : '-'}
                     </TableCell>

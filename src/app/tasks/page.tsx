@@ -5,9 +5,10 @@ import { TasksClient } from '@/components/tasks-client';
 import prisma from '@/lib/db';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ filter?: string; project?: string }> }) {
   const params = await searchParams;
   const filterMyTasks = params.filter === 'my-tasks';
+  const projectId = params.project;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -74,6 +75,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       allDepartments={departments}
       userPermissions={userPermissions}
       filterMyTasks={filterMyTasks}
+      initialProjectFilter={projectId}
     />
   );
 }

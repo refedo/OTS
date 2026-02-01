@@ -113,6 +113,59 @@ async function buildRiskDigest() {
   const mediumRisks = risks.filter(r => r.severity === 'MEDIUM');
   const lowRisks = risks.filter(r => r.severity === 'LOW');
 
+  // Helper to enrich text with names
+  const enrichText = (text: string, workUnitIds: string[]) => {
+    let enrichedText = text;
+    
+    // Extract Module:ID patterns from text
+    const moduleIdPattern = /(Task|WorkOrder|RFIRequest|DocumentSubmission|AssemblyPart):([a-f0-9-]{36})/gi;
+    const matches = [...text.matchAll(moduleIdPattern)];
+    
+    // Replace Module:ID patterns
+    for (const match of matches) {
+      const module = match[1];
+      const refId = match[2];
+      
+      // Find work unit with this reference
+      const wu = Array.from(workUnitMap.values()).find(
+        w => w.referenceId === refId && w.referenceModule === module
+      );
+      
+      if (wu) {
+        enrichedText = enrichedText.replace(
+          new RegExp(`${module}:${refId}`, 'gi'),
+          `${module} "${wu.referenceName}"`
+        );
+      }
+    }
+    
+    // Replace WorkUnit IDs with names
+    workUnitIds.forEach(id => {
+      const wu = workUnitMap.get(id);
+      if (wu) {
+        // Replace WorkUnit "id" pattern
+        enrichedText = enrichedText.replace(
+          new RegExp(`WorkUnit\\s*["']${id}["']`, 'gi'),
+          `${wu.referenceModule} "${wu.referenceName}"`
+        );
+        
+        // Replace bare UUIDs that match work unit IDs
+        enrichedText = enrichedText.replace(
+          new RegExp(`"${id}"`, 'g'),
+          `"${wu.referenceName}"`
+        );
+        
+        // Replace bare UUID (only if it's a standalone UUID)
+        enrichedText = enrichedText.replace(
+          new RegExp(`\\b${id}\\b`, 'g'),
+          `"${wu.referenceName}"`
+        );
+      }
+    });
+    
+    return enrichedText;
+  };
+
   // Format risks with human-readable names
   const formatRisk = (risk: typeof risks[0]) => {
     const projectIds = risk.affectedProjectIds as string[];
@@ -128,31 +181,16 @@ async function buildRiskDigest() {
       .filter(Boolean)
       .map(wu => `${wu!.referenceName} [${wu!.type}]`);
 
-    // Replace IDs in reason with names
-    let enrichedReason = risk.reason;
-    
-    // Replace WorkUnit IDs with names
-    workUnitIds.forEach(id => {
-      const wu = workUnitMap.get(id);
-      if (wu) {
-        enrichedReason = enrichedReason.replace(
-          new RegExp(`WorkUnit[:\\s]*["']?${id}["']?`, 'gi'),
-          `"${wu.referenceName}"`
-        );
-        enrichedReason = enrichedReason.replace(
-          new RegExp(`Task:?${id}`, 'gi'),
-          `Task "${wu.referenceName}"`
-        );
-        enrichedReason = enrichedReason.replace(id, `"${wu.referenceName}"`);
-      }
-    });
+    // Enrich both reason and recommendedAction
+    const enrichedReason = enrichText(risk.reason, workUnitIds);
+    const enrichedAction = enrichText(risk.recommendedAction, workUnitIds);
 
     return {
       id: risk.id,
       severity: risk.severity,
       type: risk.type,
       reason: enrichedReason,
-      recommendedAction: risk.recommendedAction,
+      recommendedAction: enrichedAction,
       affectedProjects: projectNames,
       affectedWorkUnits: workUnitNames,
       detectedAt: risk.detectedAt,

@@ -20,6 +20,7 @@ model Role {
   name        String  @unique
   description String?
   permissions Json?   // Store permissions as JSON array
+  restrictedModules Json?   // Store restricted module IDs as JSON array (for admin roles with limited access)
   users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
