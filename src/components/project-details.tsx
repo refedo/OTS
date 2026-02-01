@@ -234,13 +234,13 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
     return `${day}-${month}-${year}`;
   };
 
-  const formatCurrency = (amount: number | null) => {
+  const formatCurrency = (amount: number | null, includeCurrency: boolean = true) => {
     if (!amount) return null;
     const formatted = new Intl.NumberFormat('en-SA', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
-    return `${formatted} ﷼`;
+    return includeCurrency ? `${formatted} ﷼` : formatted;
   };
 
   const handleDelete = async () => {
@@ -449,7 +449,7 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
             </dl>
           </CollapsibleSection>
 
-          {/* Financial & Payment Terms - Hidden for users with financial restrictions */}
+          {/* Financial & Payment Terms - Contract value hidden for users with financial restrictions */}
           {!hideFinancialData && (
             <CollapsibleSection title="Finance" icon={DollarSign} defaultOpen>
               <div className="space-y-4">
@@ -461,58 +461,6 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
                   <div>
                     <p className="text-sm text-muted-foreground">Incoterm</p>
                     <p className="text-lg font-semibold">{project.incoterm || '-'}</p>
-                  </div>
-                </div>
-                
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold mb-3 text-red-700 bg-red-50 px-3 py-2 rounded">Payment Schedule</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium">Schedule</th>
-                          <th className="px-3 py-2 text-left font-medium">Percentage</th>
-                          <th className="px-3 py-2 text-left font-medium">Amount</th>
-                          <th className="px-3 py-2 text-left font-medium">Terms</th>
-                          <th className="px-3 py-2 text-left font-medium">Payment Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {/* Down Payment Row */}
-                        {(project.downPaymentPercentage || project.downPayment || project.downPaymentMilestone) && (
-                          <tr>
-                            <td className="px-3 py-2 font-medium">Down Payment</td>
-                            <td className="px-3 py-2">
-                              {project.downPaymentPercentage ? `${project.downPaymentPercentage}%` : '-'}
-                            </td>
-                            <td className="px-3 py-2">
-                              {formatCurrency(project.downPayment) || '-'}
-                            </td>
-                            <td className="px-3 py-2">
-                              {project.downPaymentMilestone || '-'}
-                            </td>
-                            <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
-                          </tr>
-                        )}
-                        {/* Payment 2-6 Rows */}
-                        {[2, 3, 4, 5, 6].map((num) => {
-                          const percentage = (project as any)[`payment${num}Percentage`];
-                          const payment = (project as any)[`payment${num}`];
-                          const milestone = (project as any)[`payment${num}Milestone`];
-                          if (!percentage && !payment && !milestone) return null;
-                          
-                          return (
-                            <tr key={num}>
-                              <td className="px-3 py-2 font-medium">Payment {num}</td>
-                              <td className="px-3 py-2">{percentage ? `${percentage}%` : '-'}</td>
-                              <td className="px-3 py-2">{formatCurrency(payment) || '-'}</td>
-                              <td className="px-3 py-2">{milestone || '-'}</td>
-                              <td className="px-3 py-2">-</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
                 
@@ -529,6 +477,69 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
               </div>
             </CollapsibleSection>
           )}
+
+          {/* Payment Schedule - Always visible, only Amount column hidden for restricted users */}
+          <CollapsibleSection title="Payment Schedule" icon={DollarSign} defaultOpen>
+            <div className="space-y-4">
+              <h4 className="font-semibold mb-3 text-red-700 bg-red-50 px-3 py-2 rounded">Payment Schedule</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Schedule</th>
+                      <th className="px-3 py-2 text-left font-medium">Percentage</th>
+                      {!hideFinancialData && (
+                        <th className="px-3 py-2 text-left font-medium">Amount (SAR)</th>
+                      )}
+                      <th className="px-3 py-2 text-left font-medium">Terms</th>
+                      <th className="px-3 py-2 text-left font-medium">Payment Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {/* Down Payment Row */}
+                    {(project.downPaymentPercentage || project.downPayment || project.downPaymentMilestone) && 
+                     Number(project.downPaymentPercentage) > 0 && (
+                      <tr>
+                        <td className="px-3 py-2 font-medium">Down Payment</td>
+                        <td className="px-3 py-2">
+                          {project.downPaymentPercentage ? `${project.downPaymentPercentage}%` : '-'}
+                        </td>
+                        {!hideFinancialData && (
+                          <td className="px-3 py-2">
+                            {formatCurrency(project.downPayment, false) || '-'}
+                          </td>
+                        )}
+                        <td className="px-3 py-2">
+                          {project.downPaymentMilestone || '-'}
+                        </td>
+                        <td className="px-3 py-2">{formatDate(project.downPaymentDate) || '-'}</td>
+                      </tr>
+                    )}
+                    {/* Payment 2-6 Rows */}
+                    {[2, 3, 4, 5, 6].map((num) => {
+                      const percentage = (project as any)[`payment${num}Percentage`];
+                      const payment = (project as any)[`payment${num}`];
+                      const milestone = (project as any)[`payment${num}Milestone`];
+                      // Skip if no data or percentage is 0
+                      if ((!percentage && !payment && !milestone) || Number(percentage) === 0) return null;
+                      
+                      return (
+                        <tr key={num}>
+                          <td className="px-3 py-2 font-medium">Payment {num}</td>
+                          <td className="px-3 py-2">{percentage ? `${percentage}%` : '-'}</td>
+                          {!hideFinancialData && (
+                            <td className="px-3 py-2">{formatCurrency(payment, false) || '-'}</td>
+                          )}
+                          <td className="px-3 py-2">{milestone || '-'}</td>
+                          <td className="px-3 py-2">-</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </CollapsibleSection>
 
           {/* Technical Specifications */}
           <CollapsibleSection title="Technical Specifications" icon={Settings} defaultOpen>
