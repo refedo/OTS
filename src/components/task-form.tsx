@@ -43,6 +43,8 @@ type Task = {
   description: string | null;
   assignedToId: string | null;
   projectId: string | null;
+  buildingId?: string | null;
+  departmentId?: string | null;
   dueDate: string | null;
   priority: string;
   status: string;
@@ -62,9 +64,9 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedUserId, setSelectedUserId] = useState(task?.assignedToId || '');
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState(task?.departmentId || '');
   const [selectedProjectId, setSelectedProjectId] = useState(task?.projectId || '');
-  const [selectedBuildingId, setSelectedBuildingId] = useState('');
+  const [selectedBuildingId, setSelectedBuildingId] = useState(task?.buildingId || '');
   const [isPrivate, setIsPrivate] = useState(task?.isPrivate || false);
   const [priority, setPriority] = useState(task?.priority || 'Medium');
   const [status, setStatus] = useState(task?.status || 'In Progress');
