@@ -86,10 +86,67 @@ const ralColors: Record<string, string> = {
   '9016': '#F6F6F6', '9017': '#1E1E1E', '9018': '#D7D7D7',
 };
 
+// RAL color names
+const ralColorNames: Record<string, string> = {
+  '1000': 'Green Beige', '1001': 'Beige', '1002': 'Sand Yellow', '1003': 'Signal Yellow',
+  '1004': 'Golden Yellow', '1005': 'Honey Yellow', '1006': 'Maize Yellow', '1007': 'Daffodil Yellow',
+  '1011': 'Brown Beige', '1012': 'Lemon Yellow', '1013': 'Oyster White', '1014': 'Ivory',
+  '1015': 'Light Ivory', '1016': 'Sulfur Yellow', '1017': 'Saffron Yellow', '1018': 'Zinc Yellow',
+  '1019': 'Grey Beige', '1020': 'Olive Yellow', '1021': 'Colza Yellow', '1023': 'Traffic Yellow',
+  '1024': 'Ochre Yellow', '1027': 'Curry', '1028': 'Melon Yellow', '1032': 'Broom Yellow',
+  '1033': 'Dahlia Yellow', '1034': 'Pastel Yellow', '1035': 'Pearl Beige', '1036': 'Pearl Gold',
+  '1037': 'Sun Yellow', '2000': 'Yellow Orange', '2001': 'Red Orange', '2002': 'Vermilion',
+  '2003': 'Pastel Orange', '2004': 'Pure Orange', '2008': 'Bright Red Orange', '2009': 'Traffic Orange',
+  '2010': 'Signal Orange', '2011': 'Deep Orange', '2012': 'Salmon Orange', '3000': 'Flame Red',
+  '3001': 'Signal Red', '3002': 'Carmine Red', '3003': 'Ruby Red', '3004': 'Purple Red',
+  '3005': 'Wine Red', '3007': 'Black Red', '3009': 'Oxide Red', '3011': 'Brown Red',
+  '3012': 'Beige Red', '3013': 'Tomato Red', '3014': 'Antique Pink', '3015': 'Light Pink',
+  '3016': 'Coral Red', '3017': 'Rose', '3018': 'Strawberry Red', '3020': 'Traffic Red',
+  '3022': 'Salmon Pink', '3027': 'Raspberry Red', '3031': 'Orient Red', '4001': 'Red Lilac',
+  '4002': 'Red Violet', '4003': 'Heather Violet', '4004': 'Claret Violet', '4005': 'Blue Lilac',
+  '4006': 'Traffic Purple', '4007': 'Purple Violet', '4008': 'Signal Violet', '4009': 'Pastel Violet',
+  '5000': 'Violet Blue', '5001': 'Green Blue', '5002': 'Ultramarine Blue', '5003': 'Sapphire Blue',
+  '5004': 'Black Blue', '5005': 'Signal Blue', '5007': 'Brillant Blue', '5008': 'Grey Blue',
+  '5009': 'Azure Blue', '5010': 'Gentian Blue', '5011': 'Steel Blue', '5012': 'Light Blue',
+  '5013': 'Cobalt Blue', '5014': 'Pigeon Blue', '5015': 'Sky Blue', '5017': 'Traffic Blue',
+  '5018': 'Turquoise Blue', '5019': 'Capri Blue', '5020': 'Ocean Blue', '5021': 'Water Blue',
+  '5022': 'Night Blue', '5023': 'Distant Blue', '5024': 'Pastel Blue', '6000': 'Patina Green',
+  '6001': 'Emerald Green', '6002': 'Leaf Green', '6003': 'Olive Green', '6004': 'Blue Green',
+  '6005': 'Moss Green', '6006': 'Grey Olive', '6007': 'Bottle Green', '6008': 'Brown Green',
+  '6009': 'Fir Green', '6010': 'Grass Green', '6011': 'Reseda Green', '6012': 'Black Green',
+  '6013': 'Reed Green', '6014': 'Yellow Olive', '6015': 'Black Olive', '6016': 'Turquoise Green',
+  '6017': 'May Green', '6018': 'Yellow Green', '6019': 'Pastel Green', '6020': 'Chrome Green',
+  '6021': 'Pale Green', '6022': 'Olive Drab', '6024': 'Traffic Green', '6025': 'Fern Green',
+  '6026': 'Opal Green', '6027': 'Light Green', '6028': 'Pine Green', '6029': 'Mint Green',
+  '6032': 'Signal Green', '6033': 'Mint Turquoise', '6034': 'Pastel Turquoise', '7000': 'Squirrel Grey',
+  '7001': 'Silver Grey', '7002': 'Olive Grey', '7003': 'Moss Grey', '7004': 'Signal Grey',
+  '7005': 'Mouse Grey', '7006': 'Beige Grey', '7008': 'Khaki Grey', '7009': 'Green Grey',
+  '7010': 'Tarpaulin Grey', '7011': 'Iron Grey', '7012': 'Basalt Grey', '7013': 'Brown Grey',
+  '7015': 'Slate Grey', '7016': 'Anthracite Grey', '7021': 'Black Grey', '7022': 'Umbra Grey',
+  '7023': 'Concrete Grey', '7024': 'Graphite Grey', '7026': 'Granite Grey', '7030': 'Stone Grey',
+  '7031': 'Blue Grey', '7032': 'Pebble Grey', '7033': 'Cement Grey', '7034': 'Yellow Grey',
+  '7035': 'Light Grey', '7036': 'Platinum Grey', '7037': 'Dusty Grey', '7038': 'Agate Grey',
+  '7039': 'Quartz Grey', '7040': 'Window Grey', '7042': 'Traffic Grey A', '7043': 'Traffic Grey B',
+  '7044': 'Silk Grey', '7045': 'Telegrey 1', '7046': 'Telegrey 2', '7047': 'Telegrey 4',
+  '8000': 'Green Brown', '8001': 'Ochre Brown', '8002': 'Signal Brown', '8003': 'Clay Brown',
+  '8004': 'Copper Brown', '8007': 'Fawn Brown', '8008': 'Olive Brown', '8011': 'Nut Brown',
+  '8012': 'Red Brown', '8014': 'Sepia Brown', '8015': 'Chestnut Brown', '8016': 'Mahogany Brown',
+  '8017': 'Chocolate Brown', '8019': 'Grey Brown', '8022': 'Black Brown', '8023': 'Orange Brown',
+  '8024': 'Beige Brown', '8025': 'Pale Brown', '8028': 'Terra Brown', '9001': 'Cream',
+  '9002': 'Grey White', '9003': 'Signal White', '9004': 'Signal Black', '9005': 'Jet Black',
+  '9006': 'White Aluminium', '9007': 'Grey Aluminium', '9010': 'Pure White', '9011': 'Graphite Black',
+  '9016': 'Traffic White', '9017': 'Traffic Black', '9018': 'Papyrus White',
+};
+
 function getRalColor(ralNumber: string): string {
   // Remove any non-numeric characters and get the RAL number
   const cleanRal = ralNumber.replace(/[^0-9]/g, '');
   return ralColors[cleanRal] || '#CCCCCC'; // Default to gray if not found
+}
+
+function getRalColorName(ralNumber: string): string {
+  const cleanRal = ralNumber.replace(/[^0-9]/g, '');
+  return ralColorNames[cleanRal] || 'Unknown Color';
 }
 
 type ProjectDetailsProps = {
@@ -291,15 +348,17 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <FileText className="size-4" />
-                <span className="text-sm">Tasks</span>
-              </div>
-              <p className="text-2xl font-bold">{project._count.tasks}</p>
-            </CardContent>
-          </Card>
+          <Link href={`/tasks?project=${project.id}`}>
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <FileText className="size-4" />
+                  <span className="text-sm">Tasks</span>
+                </div>
+                <p className="text-2xl font-bold">{project._count.tasks}</p>
+              </CardContent>
+            </Card>
+          </Link>
 
           {project.contractValue && (
             <Card>
@@ -469,7 +528,6 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
           <CollapsibleSection title="Technical Specifications" icon={Settings} defaultOpen>
             <dl className="space-y-0">
               <InfoRow label="Erection Subcontractor" value={project.erectionSubcontractor} />
-              <InfoRow label="Contractual Tonnage" value={project.contractualTonnage} />
               <InfoRow label="Engineering Tonnage" value={project.engineeringTonnage} />
               <InfoRow label="Cranes Included" value={project.cranesIncluded} />
               <InfoRow label="Surveyor Our Scope" value={project.surveyorOurScope} />
@@ -546,16 +604,21 @@ export function ProjectDetails({ project }: ProjectDetailsProps) {
                 {project.topCoatRalNumber && (
                   <div className="mt-4 p-3 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-700">Top Coat RAL:</span>
-                        <span className="px-3 py-1 bg-white rounded-md border-2 border-slate-300 font-mono text-lg font-bold text-slate-900">
-                          {project.topCoatRalNumber}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-700">Top Coat RAL:</span>
+                          <span className="px-3 py-1 bg-white rounded-md border-2 border-slate-300 font-mono text-lg font-bold text-slate-900">
+                            {project.topCoatRalNumber}
+                          </span>
+                        </div>
+                        <span className="text-sm text-slate-600 italic ml-1">
+                          {getRalColorName(project.topCoatRalNumber)}
                         </span>
                       </div>
                       <div 
                         className="w-12 h-12 rounded-md border-2 border-slate-300 shadow-sm"
                         style={{ backgroundColor: getRalColor(project.topCoatRalNumber) }}
-                        title={`RAL ${project.topCoatRalNumber}`}
+                        title={`RAL ${project.topCoatRalNumber} - ${getRalColorName(project.topCoatRalNumber)}`}
                       />
                     </div>
                   </div>

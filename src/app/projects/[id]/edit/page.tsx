@@ -40,7 +40,7 @@ export default async function EditProjectPage({ params }: { params: { id: string
   const project = {
     ...projectData,
     // Convert Decimals to numbers
-    contractValue: projectData.contractValue ? Number(projectData.contractValue) : null,
+    contractValue: projectData.contractValue !== null && projectData.contractValue !== undefined ? Number(projectData.contractValue) : null,
     downPayment: projectData.downPayment ? Number(projectData.downPayment) : null,
     downPaymentPercentage: projectData.downPaymentPercentage ? Number(projectData.downPaymentPercentage) : null,
     payment2: projectData.payment2 ? Number(projectData.payment2) : null,
