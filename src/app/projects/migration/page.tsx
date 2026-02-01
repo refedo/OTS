@@ -125,10 +125,11 @@ export default function ProjectMigrationPage() {
 
   // Handle field mapping completion
   const handleMappingComplete = (mappings: Record<string, string>) => {
-    setFieldMappings(prev => ({
-      ...prev,
+    const updatedMappings = {
+      ...fieldMappings,
       [currentMappingSheet]: mappings,
-    }));
+    };
+    setFieldMappings(updatedMappings);
     
     // Move to buildings sheet if we just finished projects AND buildings sheet exists
     if (currentMappingSheet === 'projects') {
@@ -139,17 +140,17 @@ export default function ProjectMigrationPage() {
       } else {
         // No buildings sheet, proceed directly to import
         setShowFieldMapper(false);
-        handleImportWithMappings();
+        handleImportWithMappings(updatedMappings);
       }
     } else {
       // Both sheets mapped, proceed to import
       setShowFieldMapper(false);
-      handleImportWithMappings();
+      handleImportWithMappings(updatedMappings);
     }
   };
 
   // Handle file upload and import with field mappings
-  const handleImportWithMappings = async () => {
+  const handleImportWithMappings = async (mappingsToUse?: typeof fieldMappings) => {
     if (!file) return;
 
     setUploading(true);
@@ -157,16 +158,19 @@ export default function ProjectMigrationPage() {
     setImportResult(null);
     setShowFieldMapper(false);
 
+    // Use provided mappings or fall back to state
+    const mappings = mappingsToUse || fieldMappings;
+
     try {
       const formData = new FormData();
       formData.append('file', file);
       
       // Add field mappings if they exist
-      if (fieldMappings.projects) {
-        formData.append('projectMappings', JSON.stringify(fieldMappings.projects));
+      if (mappings.projects) {
+        formData.append('projectMappings', JSON.stringify(mappings.projects));
       }
-      if (fieldMappings.buildings) {
-        formData.append('buildingMappings', JSON.stringify(fieldMappings.buildings));
+      if (mappings.buildings) {
+        formData.append('buildingMappings', JSON.stringify(mappings.buildings));
       }
 
       const response = await fetch('/api/projects/import', {
