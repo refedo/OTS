@@ -117,11 +117,23 @@ export function generateProjectExcel(projects: ProjectExportData[]): Buffer {
     'Contract Value': formatDecimal(project.contractValue),
     'Tonnage': formatDecimal(project.contractualTonnage),
     'Down Payment': formatDecimal(project.downPayment),
+    'Down Payment %': formatDecimal((project as any).downPaymentPercentage),
+    'Down Payment Milestone': (project as any).downPaymentMilestone || '',
     'Payment 2': formatDecimal(project.payment2),
+    'Payment 2 %': formatDecimal((project as any).payment2Percentage),
+    'Payment 2 Milestone': (project as any).payment2Milestone || '',
     'Payment 3': formatDecimal(project.payment3),
+    'Payment 3 %': formatDecimal((project as any).payment3Percentage),
+    'Payment 3 Milestone': (project as any).payment3Milestone || '',
     'Payment 4': formatDecimal(project.payment4),
+    'Payment 4 %': formatDecimal((project as any).payment4Percentage),
+    'Payment 4 Milestone': (project as any).payment4Milestone || '',
     'Payment 5': formatDecimal(project.payment5),
+    'Payment 5 %': formatDecimal((project as any).payment5Percentage),
+    'Payment 5 Milestone': (project as any).payment5Milestone || '',
     'Payment 6': formatDecimal(project.payment6),
+    'Payment 6 %': formatDecimal((project as any).payment6Percentage),
+    'Payment 6 Milestone': (project as any).payment6Milestone || '',
     'H.O Retention': formatDecimal(project.hoRetention),
     'Incoterm': project.incoterm || '',
     'Scope of Work': project.scopeOfWork || '',
@@ -165,11 +177,23 @@ export function generateProjectExcel(projects: ProjectExportData[]): Buffer {
     { wch: 15 }, // Contract Value
     { wch: 12 }, // Tonnage
     { wch: 15 }, // Down Payment
+    { wch: 12 }, // Down Payment %
+    { wch: 25 }, // Down Payment Milestone
     { wch: 12 }, // Payment 2
+    { wch: 12 }, // Payment 2 %
+    { wch: 25 }, // Payment 2 Milestone
     { wch: 12 }, // Payment 3
+    { wch: 12 }, // Payment 3 %
+    { wch: 25 }, // Payment 3 Milestone
     { wch: 12 }, // Payment 4
+    { wch: 12 }, // Payment 4 %
+    { wch: 25 }, // Payment 4 Milestone
     { wch: 12 }, // Payment 5
+    { wch: 12 }, // Payment 5 %
+    { wch: 25 }, // Payment 5 Milestone
     { wch: 12 }, // Payment 6
+    { wch: 12 }, // Payment 6 %
+    { wch: 25 }, // Payment 6 Milestone
     { wch: 15 }, // H.O Retention
     { wch: 12 }, // Incoterm
     { wch: 30 }, // Scope of Work
@@ -264,11 +288,23 @@ export function generateEmptyTemplate(): Buffer {
     'Contract Value',
     'Tonnage',
     'Down Payment',
+    'Down Payment %',
+    'Down Payment Milestone',
     'Payment 2',
+    'Payment 2 %',
+    'Payment 2 Milestone',
     'Payment 3',
+    'Payment 3 %',
+    'Payment 3 Milestone',
     'Payment 4',
+    'Payment 4 %',
+    'Payment 4 Milestone',
     'Payment 5',
+    'Payment 5 %',
+    'Payment 5 Milestone',
     'Payment 6',
+    'Payment 6 %',
+    'Payment 6 Milestone',
     'H.O Retention',
     'Incoterm',
     'Scope of Work',
