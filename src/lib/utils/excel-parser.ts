@@ -175,7 +175,7 @@ export function parseExcelFileWithMapping(
   
   // Apply mappings to projects and filter empty rows
   const projects: ProjectRow[] = projectsRaw
-    .map((row: any) => {
+    .map((row: any, index: number) => {
       const mapped: any = {};
       
       // Apply custom mappings if provided
@@ -185,6 +185,15 @@ export function parseExcelFileWithMapping(
             mapped[otsField] = row[excelCol];
           }
         });
+        // Debug: Log first row's percentage mappings
+        if (index === 0) {
+          console.log('[Excel Parser Debug] First row mapping:');
+          console.log('  Project mappings received:', JSON.stringify(projectMappings));
+          console.log('  Raw Excel row keys:', Object.keys(row));
+          console.log('  Mapped data:', JSON.stringify(mapped));
+          console.log('  down_payment_percentage value:', mapped.down_payment_percentage);
+          console.log('  payment_2_percentage value:', mapped.payment_2_percentage);
+        }
       } else {
         // Use default normalization
         Object.keys(row).forEach((key) => {
