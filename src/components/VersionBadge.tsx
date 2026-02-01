@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const VERSION = '13.4.4';
+const CURRENT_VERSION = '13.4.4';
 const RELEASE_DATE = 'February 1, 2026';
 
 export default function VersionBadge() {
@@ -25,7 +25,7 @@ export default function VersionBadge() {
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
           <Info className="h-3 w-3 mr-1" />
-          v{VERSION}
+          v{CURRENT_VERSION}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
@@ -38,7 +38,7 @@ export default function VersionBadge() {
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Version:</span>
-              <span className="font-mono font-semibold">{VERSION}</span>
+              <span className="font-mono font-semibold">{CURRENT_VERSION}</span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Released:</span>

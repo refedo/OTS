@@ -2,47 +2,54 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '13.4.1',
-  date: 'January 17, 2026',
+  version: '13.4.4',
+  date: 'February 1, 2026',
   type: 'patch' as const,
-  mainTitle: '🔧 Planning Enhancements & Bug Fixes',
+  mainTitle: '🎨 UI/UX Improvements',
   highlights: [
-    'Division Column in Planning',
-    'Renamed Shop Drawing to Detailing',
-    'Building Edit Error Fixed',
-    'Building Filter Added',
+    'Sticky table headers across all tables',
+    'Production Daily Report (PDR) Table',
+    'Updated workflow phases (Detailing, Production, Dispatch)',
+    'New Project Wizard enhancements',
   ],
   changes: {
     added: [
       {
-        title: 'Division Column in Planning',
+        title: 'Table Header Styling',
         items: [
-          'Added Division column before Scope in planning page',
-          'Auto-assigns division based on scope type (Engineering, Operations, Site)',
-          'Color-coded badges: Engineering (purple), Operations (green), Site (orange)',
-          'Division helper function for consistent assignment logic',
+          'Sticky table headers across all tables in the system',
+          'Distinct background color (slate-100/slate-800) for headers',
+          'Headers remain visible when scrolling through long tables',
+          'Improved visual hierarchy and data readability',
         ],
       },
       {
-        title: 'Building Filter',
+        title: 'Production Daily Report (PDR) Table',
         items: [
-          'Added building filter next to project filter in planning page',
-          'Shows all buildings when no project selected',
-          'Shows project-specific buildings when project is selected',
-          'Fixed duplicate building keys issue',
+          'Added comprehensive daily production breakdown at bottom of production dashboard',
+          'Shows when project is selected with data by process type',
+          'Includes all processes: Cutting, Fit-up, Welding, Visualization, Sandblasting, Galvanization, Painting, Dispatch',
+          'Color-coded headers for easy process identification',
+        ],
+      },
+      {
+        title: 'New Project Wizard Page',
+        items: [
+          'Added dedicated page for project-specific requirements',
+          'Cranes Configuration: Option to include/exclude cranes for installation',
+          'Surveyor Scope: Toggle to determine if surveying is within project scope',
+          '3rd Party Testing: Configuration for third-party testing requirements',
+          'Responsibility Assignment: Option to assign third-party responsibility',
         ],
       },
     ],
-    fixed: [
-      'Fixed building edit error: Cannot read properties of null (reading toUpperCase)',
-      'Fixed duplicate building keys in filter dropdown',
-      'What\'s New dialog now shows only once per version update',
-    ],
+    fixed: [],
     changed: [
-      'Renamed "Shop Drawing" to "Detailing" throughout the system',
-      'Updated all UI labels, API responses, and database records',
-      'Updated document types, scope options, and timeline displays',
-      'Updated operation timeline service to use "Detailing"',
+      'Applied consistent header styling system-wide',
+      'Enhanced contrast between headers and data rows',
+      'Updated workflow sequence: Design → Detailing (Shop Drawings) → Procurement → Production → Coating → Dispatch & Delivery → Erection → Handover',
+      'Renamed "Shop Drawing" to "Detailing (Shop Drawings)" for clarity',
+      'Renamed "Fabrication" to "Production" for consistency',
     ],
   },
 };
