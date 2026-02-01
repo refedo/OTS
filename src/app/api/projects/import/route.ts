@@ -105,6 +105,9 @@ export async function POST(request: NextRequest) {
     
     const projectMappings = projectMappingsJson ? JSON.parse(projectMappingsJson) : undefined;
     const buildingMappings = buildingMappingsJson ? JSON.parse(buildingMappingsJson) : undefined;
+    
+    // Debug: Log the mappings received
+    console.log('[Import API] Project mappings received:', JSON.stringify(projectMappings, null, 2));
 
     // Step 2: Validate Excel structure (skip if using custom mappings)
     if (!projectMappings && !buildingMappings) {
