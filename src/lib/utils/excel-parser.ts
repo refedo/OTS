@@ -180,9 +180,16 @@ export function parseExcelFileWithMapping(
       
       // Apply custom mappings if provided
       if (projectMappings) {
+        // Create a trimmed version of the row for matching
+        const trimmedRow: any = {};
+        Object.keys(row).forEach(key => {
+          const trimmedKey = key.trim();
+          trimmedRow[trimmedKey] = row[key];
+        });
+        
         Object.entries(projectMappings).forEach(([excelCol, otsField]) => {
-          if (row[excelCol] !== undefined) {
-            mapped[otsField] = row[excelCol];
+          if (trimmedRow[excelCol] !== undefined) {
+            mapped[otsField] = trimmedRow[excelCol];
           }
         });
         // Debug: Log first row's percentage mappings
