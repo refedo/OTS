@@ -18,7 +18,7 @@ import {
 // CONSTANTS
 // ============================================
 
-const REQUIRED_SHEETS = ['Projects', 'Buildings'];
+const REQUIRED_SHEETS = ['Projects'];
 
 const REQUIRED_PROJECT_COLUMNS = [
   'project_code',
@@ -118,8 +118,8 @@ export function extractExcelColumns(buffer: Buffer): { projects: string[]; build
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   
   // Check if required sheets exist
-  if (!workbook.Sheets['Projects'] || !workbook.Sheets['Buildings']) {
-    throw new Error('Excel file must contain "Projects" and "Buildings" sheets');
+  if (!workbook.Sheets['Projects']) {
+    throw new Error('Excel file must contain "Projects" sheet');
   }
   
   const projectsSheet = workbook.Sheets['Projects'];
@@ -127,7 +127,7 @@ export function extractExcelColumns(buffer: Buffer): { projects: string[]; build
   
   // Get first row as headers
   const projectsData = XLSX.utils.sheet_to_json(projectsSheet, { header: 1, defval: '' }) as any[][];
-  const buildingsData = XLSX.utils.sheet_to_json(buildingsSheet, { header: 1, defval: '' }) as any[][];
+  const buildingsData = buildingsSheet ? XLSX.utils.sheet_to_json(buildingsSheet, { header: 1, defval: '' }) as any[][] : [];
   
   // Extract and filter headers (first row)
   const projectHeaders = (projectsData[0] || [])
@@ -161,7 +161,7 @@ export function parseExcelFileWithMapping(
   
   if (missingSheets.length > 0) {
     throw new Error(
-      `Missing required sheets: ${missingSheets.join(', ')}. Expected sheets: ${REQUIRED_SHEETS.join(', ')}`
+      `Missing required sheet: Projects. Buildings sheet is optional.`
     );
   }
   
@@ -169,9 +169,9 @@ export function parseExcelFileWithMapping(
   const projectsSheet = workbook.Sheets['Projects'];
   const projectsRaw = XLSX.utils.sheet_to_json(projectsSheet, { defval: '' });
   
-  // Parse Buildings sheet
+  // Parse Buildings sheet (optional)
   const buildingsSheet = workbook.Sheets['Buildings'];
-  const buildingsRaw = XLSX.utils.sheet_to_json(buildingsSheet, { defval: '' });
+  const buildingsRaw = buildingsSheet ? XLSX.utils.sheet_to_json(buildingsSheet, { defval: '' }) : [];
   
   // Apply mappings to projects and filter empty rows
   const projects: ProjectRow[] = projectsRaw
@@ -430,8 +430,8 @@ export function validateExcelData(data: ParsedExcelData): ValidationResult {
       });
     }
     
-    // Check if project_code exists in Projects sheet
-    if (building.project_code && !projectCodes.has(building.project_code)) {
+    // Check if project_code exists in Projects sheet (only if we have projects)
+    if (building.project_code && projectCodes.size > 0 && !projectCodes.has(building.project_code)) {
       errors.push({
         row: rowNumber,
         field: 'project_code',
@@ -501,8 +501,10 @@ export function validateExcelStructure(buffer: Buffer): ValidationError[] {
       });
     }
     
-    // Validate Buildings sheet columns
+    // Validate Buildings sheet columns (optional)
     const buildingsSheet = workbook.Sheets['Buildings'];
+    if (!buildingsSheet) return errors; // Buildings sheet is optional
+    
     const buildingsData = XLSX.utils.sheet_to_json(buildingsSheet, { header: 1 }) as any[][];
     
     if (buildingsData.length > 0) {

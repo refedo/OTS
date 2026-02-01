@@ -5,6 +5,10 @@ This document describes the Excel format for importing/updating projects with th
 
 ## Excel Sheet Structure
 
+### Required Sheets
+- **Projects** - Required sheet containing project data
+- **Buildings** - Optional sheet for building data (can be omitted if only updating projects)
+
 ### Required Columns
 
 | Column Name | Type | Description | Example |
@@ -41,6 +45,8 @@ This document describes the Excel format for importing/updating projects with th
 Similar structure for `payment_4`, `payment_5`, and `payment_6` with their respective `_percentage` and `_milestone` columns.
 
 ## Simplified Format for Payment Terms Update
+
+**Note:** When updating only payment terms, you can omit the Buildings sheet entirely. The system will only require the Projects sheet.
 
 If you only want to update payment terms for existing projects, you can use a minimal format:
 
