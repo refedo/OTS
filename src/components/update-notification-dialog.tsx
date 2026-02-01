@@ -21,7 +21,7 @@ type ChangelogVersion = {
   highlights: string[];
   changes: {
     added: Array<{ title: string; items: string[] }>;
-    fixed: string[];
+    fixed: Array<{ title: string; items: string[] }>;
     changed: string[];
   };
 };
@@ -173,14 +173,22 @@ export function UpdateNotificationDialog() {
                   <Wrench className="h-4 w-4" />
                   Bug Fixes
                 </h4>
-                <ul className="space-y-2">
+                <div className="space-y-4">
                   {latestVersion.changes.fixed.map((fix, idx) => (
-                    <li key={idx} className="flex items-start gap-2 bg-orange-50 dark:bg-orange-950/30 p-2 rounded border border-orange-200 dark:border-orange-800">
-                      <Wrench className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-orange-800 dark:text-orange-200">{fix}</span>
-                    </li>
+                    <div key={idx} className="bg-orange-50 dark:bg-orange-950/30 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
+                      <h5 className="font-medium text-sm mb-2 text-orange-900 dark:text-orange-100">
+                        {fix.title}
+                      </h5>
+                      <ul className="space-y-1 ml-4">
+                        {fix.items.map((item, itemIdx) => (
+                          <li key={itemIdx} className="text-sm text-orange-800 dark:text-orange-200 list-disc">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
