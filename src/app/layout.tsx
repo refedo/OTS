@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/SessionProvider";
 import { DialogProvider } from "@/contexts/DialogContext";
+import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
+import { ChunkErrorHandler } from "@/components/ChunkErrorHandler";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,11 +31,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SessionProvider>
-          <DialogProvider>
-            {children}
-          </DialogProvider>
-        </SessionProvider>
+        <ChunkErrorBoundary>
+          <ChunkErrorHandler />
+          <SessionProvider>
+            <DialogProvider>
+              {children}
+            </DialogProvider>
+          </SessionProvider>
+        </ChunkErrorBoundary>
       </body>
     </html>
   );

@@ -17,6 +17,30 @@ const nextConfig: NextConfig = {
     path: process.env.NODE_ENV === 'production' ? '/ots/_next/image' : '/_next/image',
   },
   
+  // Cache headers to prevent stale chunk references
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
+  
   // Turbopack for development
   turbopack: {
     root: __dirname,
