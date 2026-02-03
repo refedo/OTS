@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySession } from '@/lib/jwt';
 
+// Use Node.js runtime instead of Edge to support crypto module
+export const runtime = 'nodejs';
+
 const cookieName = process.env.COOKIE_NAME || 'ots_session';
 
 const PUBLIC_PATHS = new Set([
