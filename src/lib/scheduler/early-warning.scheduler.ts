@@ -19,9 +19,9 @@ import { EarlyWarningEngineService } from '@/lib/services/early-warning-engine.s
 // ============================================
 
 const SCHEDULER_CONFIG = {
-  // Cron expression: Every hour at minute 0
+  // Cron expression: Daily at 2:00 AM
   // Format: minute hour day-of-month month day-of-week
-  CRON_EXPRESSION: '0 * * * *', // Every hour at :00
+  CRON_EXPRESSION: '0 2 * * *', // Daily at 2:00 AM
   
   // Timezone (optional, uses server timezone by default)
   TIMEZONE: 'Asia/Riyadh',
@@ -103,7 +103,7 @@ export class EarlyWarningScheduler {
     global.__earlyWarningSchedulerInitialized = true;
 
     console.log(`[${SCHEDULER_CONFIG.JOB_NAME}] ✓ Scheduler initialized`);
-    console.log(`[${SCHEDULER_CONFIG.JOB_NAME}]   Schedule: ${SCHEDULER_CONFIG.CRON_EXPRESSION} (every hour)`);
+    console.log(`[${SCHEDULER_CONFIG.JOB_NAME}]   Schedule: ${SCHEDULER_CONFIG.CRON_EXPRESSION} (daily at 2:00 AM)`);
     console.log(`[${SCHEDULER_CONFIG.JOB_NAME}]   Timezone: ${SCHEDULER_CONFIG.TIMEZONE}`);
     console.log(`[${SCHEDULER_CONFIG.JOB_NAME}]   Next run: ${this.getNextRunTime()}`);
   }
@@ -175,10 +175,13 @@ export class EarlyWarningScheduler {
    */
   private static getNextRunTime(): string {
     const now = new Date();
-    const nextHour = new Date(now);
-    nextHour.setMinutes(0, 0, 0);
-    nextHour.setHours(nextHour.getHours() + 1);
-    return nextHour.toISOString();
+    const next = new Date(now);
+    next.setHours(2, 0, 0, 0);
+    // If 2 AM already passed today, schedule for tomorrow
+    if (next <= now) {
+      next.setDate(next.getDate() + 1);
+    }
+    return next.toISOString();
   }
 
   /**

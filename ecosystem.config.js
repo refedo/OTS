@@ -7,11 +7,11 @@ module.exports = {
       instances: 2,
       exec_mode: 'cluster',
       watch: false,
-      max_memory_restart: '2G',
+      max_memory_restart: '4G',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
-        NODE_OPTIONS: '--max-old-space-size=2048',
+        NODE_OPTIONS: '--max-old-space-size=4096',
       },
       error_file: './logs/pm2-error.log',
       out_file: './logs/pm2-out.log',

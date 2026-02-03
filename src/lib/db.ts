@@ -1,14 +1,16 @@
-import { PrismaClient } from '@prisma/client';
+/**
+ * Database Client
+ * 
+ * Now uses connection pooling middleware for:
+ * - Better connection reuse
+ * - Automatic connection cleanup
+ * - Graceful shutdown handling
+ * - Connection pool monitoring
+ */
 
-const globalForPrisma = global as unknown as { prisma?: PrismaClient };
+import { db } from '@/lib/middleware/db-connection-pool';
 
-// Only log errors to reduce terminal noise
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ['error']
-  });
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// Export as prisma for backward compatibility
+export const prisma = db;
 
 export default prisma;
