@@ -30,8 +30,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect all pages except public paths and root
-  const isProtectedPage = pathname.startsWith('/dashboard') || 
+  // Protect all pages except public paths
+  const isProtectedPage = pathname === '/' ||
+                          pathname.startsWith('/dashboard') || 
                           pathname.startsWith('/organization') ||
                           pathname.startsWith('/users') ||
                           pathname.startsWith('/roles') ||

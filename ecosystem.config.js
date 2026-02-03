@@ -4,7 +4,7 @@ module.exports = {
       name: 'hexa-steel-ots',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
-      instances: 2,
+      instances: 1,
       exec_mode: 'cluster',
       watch: false,
       max_memory_restart: '4G',
