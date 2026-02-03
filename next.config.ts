@@ -46,24 +46,32 @@ const nextConfig: NextConfig = {
     ];
   },
   
-  // Turbopack for development
+  // Turbopack configuration
   turbopack: {
     root: __dirname,
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
   },
   
   // Build optimizations
   experimental: {
-    optimizeCss: true,
+    // Disable CSS optimization to avoid critters module error
+    optimizeCss: false,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
+    // Speed up builds
+    serverActions: {
+      bodySizeLimit: '2mb',
     },
   },
+  
+  // Reduce build time
+  productionBrowserSourceMaps: false,
+  poweredByHeader: false,
+  compress: true,
   
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {
