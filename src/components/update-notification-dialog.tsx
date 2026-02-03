@@ -21,7 +21,7 @@ type ChangelogVersion = {
   highlights: string[];
   changes: {
     added: Array<{ title: string; items: string[] }>;
-    fixed: Array<{ title: string; items: string[] }>;
+    fixed: Array<{ title: string; items: string[] } | string>;
     changed: string[];
   };
 };
@@ -176,16 +176,24 @@ export function UpdateNotificationDialog() {
                 <div className="space-y-4">
                   {latestVersion.changes.fixed.map((fix, idx) => (
                     <div key={idx} className="bg-orange-50 dark:bg-orange-950/30 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
-                      <h5 className="font-medium text-sm mb-2 text-orange-900 dark:text-orange-100">
-                        {fix.title}
-                      </h5>
-                      <ul className="space-y-1 ml-4">
-                        {fix.items.map((item, itemIdx) => (
-                          <li key={itemIdx} className="text-sm text-orange-800 dark:text-orange-200 list-disc">
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
+                      {typeof fix === 'object' && fix.title ? (
+                        <>
+                          <h5 className="font-medium text-sm mb-2 text-orange-900 dark:text-orange-100">
+                            {fix.title}
+                          </h5>
+                          <ul className="space-y-1 ml-4">
+                            {fix.items?.map((item, itemIdx) => (
+                              <li key={itemIdx} className="text-sm text-orange-800 dark:text-orange-200 list-disc">
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : (
+                        <p className="text-sm text-orange-800 dark:text-orange-200">
+                          {fix}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
