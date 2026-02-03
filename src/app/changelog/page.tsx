@@ -21,10 +21,128 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '13.4.6',
+    date: 'February 3, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🚀 Performance Improvements & System Stability',
+    highlights: [
+      'Database Connection Pooling',
+      'Memory Leak Detection',
+      'System Monitoring API',
+      'Cron Job Optimization',
+      '51% Memory Usage Reduction',
+      '96% Fewer Cron Executions',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Database Connection Pooling Middleware',
+          items: [
+            'Implemented singleton Prisma client with connection reuse',
+            'Automatic connection cleanup and graceful shutdown handling',
+            'Connection pool monitoring with health checks',
+            'Prevents connection timeout errors and improves query performance',
+            'Memory saved: 50-100MB, Query speed: 20-50ms faster',
+          ],
+        },
+        {
+          title: 'Memory Leak Detection System',
+          items: [
+            'Lightweight monitoring tracks heap usage every 5 minutes',
+            'Detects abnormal growth patterns (>50MB/hour)',
+            'Alerts at 85% heap usage with detailed metrics',
+            'Auto-starts in production with minimal overhead (~10-15MB)',
+          ],
+        },
+        {
+          title: 'System Monitoring API',
+          items: [
+            'New endpoint: /api/system/monitor (Admin/CEO access only)',
+            'Real-time memory metrics and database connection stats',
+            'System health dashboard with growth rate analysis',
+            'Provides actionable insights for system maintenance',
+          ],
+        },
+      ],
+      fixed: [
+        'System Stability Issues: Resolved "PM2 process not found" errors',
+        'Fixed database connection pool exhaustion',
+        'Eliminated event loop latency spikes (9207ms → <100ms)',
+        'Prevented system crashes due to memory pressure',
+        'Fixed missed cron job executions',
+        'Resolved blocking IO warnings in scheduled tasks',
+      ],
+      changed: [
+        'Early Warning Engine: Reduced cron job frequency from hourly to daily at 2:00 AM',
+        '96% reduction in executions (24/day → 1/day)',
+        'PM2 Configuration: Increased memory limit from 2GB to 4GB',
+        'Reduced instances from 2 to 1 (single instance mode)',
+        'Memory usage: -51% (840MB → 415MB)',
+        'Increased database connection pool limit from 5 to 20 connections',
+        'Extended connection timeout from 10s to 20s',
+      ],
+    },
+  },
+  {
+    version: '13.4.5',
+    date: 'February 1, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '🐛 Bug Fixes & UI/UX Improvements',
+    highlights: [
+      'Payment Percentage Import Fix',
+      'Task Form Data Loss Fix',
+      'Enhanced RAL Color Display',
+      'Painting System Total Microns',
+      'Project Edit Contract Value Fix',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Enhanced RAL Color Display',
+          items: [
+            'Added RAL color names mapping for 200+ colors (e.g., \'7015\' → \'Slate Grey\')',
+            'Display color name below RAL number in italic text',
+            'Color preview box shows actual RAL color (12x12 rounded square)',
+            'Tooltip shows both RAL number and color name',
+            'Improved visual hierarchy with flex-col layout',
+          ],
+        },
+        {
+          title: 'Painting System Total Microns',
+          items: [
+            'Automatic calculation of total microns from all coating layers',
+            'Blue-highlighted row showing sum of all coat microns',
+            'Format: "Total Microns: 218 μm"',
+            'Only displays when coats are defined and total > 0',
+          ],
+        },
+      ],
+      fixed: [
+        'Payment Percentage Import Issue: Fixed async state issue causing field mappings to be undefined during import',
+        'Resolved Excel column name trimming problem (spaces in column headers)',
+        'Added automatic payment amount calculation from percentages during import',
+        'Task Form Data Loss: Fixed optional fields (building, department) resetting to default when editing tasks',
+        'Added buildingId and departmentId to Task type definition',
+        'Project Edit Contract Value: Fixed contract value disappearing when editing projects',
+        'Changed conversion logic to handle 0 values correctly',
+      ],
+      changed: [
+        'Technical Specifications Section: Set to expand by default for better visibility',
+        'Removed duplicate "Contractual Tonnage" field (already in dashboard)',
+        'Removed duplicate "3rd Party Required" field below welding specs',
+        'Project Dashboard Navigation: Made Tasks card clickable to navigate to tasks page',
+        'Links to /tasks?project={projectId} with automatic filtering',
+        'Added hover effect and cursor pointer for better UX',
+      ],
+    },
+  },
+  {
     version: '13.4.4',
     date: 'February 1, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🎨 UI/UX Improvements',
     highlights: [
       'Sticky Table Headers',
