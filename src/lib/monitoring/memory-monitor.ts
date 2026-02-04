@@ -16,19 +16,22 @@
 
 const MONITOR_CONFIG = {
   // Check interval (milliseconds)
-  CHECK_INTERVAL: 300000, // 5 minutes
+  CHECK_INTERVAL: 60000, // 1 minute (more frequent checks)
   
   // Memory growth threshold (MB per hour)
-  GROWTH_THRESHOLD: 50, // Alert if growing >50MB/hour
+  GROWTH_THRESHOLD: 30, // Alert if growing >30MB/hour
   
   // Critical memory threshold (percentage)
-  CRITICAL_THRESHOLD: 85, // Alert at 85% heap usage
+  CRITICAL_THRESHOLD: 75, // Alert at 75% heap usage (lower for constrained env)
   
   // Enable monitoring
   ENABLED: process.env.ENABLE_MEMORY_MONITOR !== 'false',
   
-  // Log level
+  // Log level - only log warnings in production to reduce I/O
   LOG_LEVEL: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
+  
+  // Force GC threshold (percentage) - trigger manual GC if available
+  FORCE_GC_THRESHOLD: 70,
 };
 
 // ============================================
@@ -100,10 +103,27 @@ class MemoryMonitor {
   }
 
   /**
+   * Try to trigger garbage collection if available
+   */
+  private static tryGC(): boolean {
+    if (typeof global.gc === 'function') {
+      global.gc();
+      console.log('[MemoryMonitor] 🗑️  Forced garbage collection');
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Check memory and detect issues
    */
   private static checkMemory(): void {
     const snapshot = this.takeSnapshot();
+
+    // Try GC if approaching threshold
+    if (snapshot.heapUsagePercent >= MONITOR_CONFIG.FORCE_GC_THRESHOLD) {
+      this.tryGC();
+    }
 
     // Check critical threshold
     if (snapshot.heapUsagePercent >= MONITOR_CONFIG.CRITICAL_THRESHOLD) {
@@ -113,7 +133,7 @@ class MemoryMonitor {
     }
 
     // Check growth rate (if we have enough history)
-    if (this.snapshots.length >= 12) { // At least 1 hour of data
+    if (this.snapshots.length >= 12) { // At least 12 minutes of data
       const growthRate = this.calculateGrowthRate();
       
       if (growthRate > MONITOR_CONFIG.GROWTH_THRESHOLD) {
@@ -124,7 +144,7 @@ class MemoryMonitor {
       }
     }
 
-    // Log info periodically
+    // Log info periodically (only in dev)
     if (MONITOR_CONFIG.LOG_LEVEL === 'info') {
       console.log(`[MemoryMonitor] Heap: ${snapshot.heapUsed}MB (${snapshot.heapUsagePercent}%), RSS: ${snapshot.rss}MB`);
     }
