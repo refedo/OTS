@@ -13,7 +13,11 @@ import {
   Database,
   Check,
   AlertCircle,
-  Save
+  Save,
+  Wand2,
+  Download,
+  Upload,
+  RotateCcw
 } from 'lucide-react';
 import {
   Select,
@@ -84,6 +88,28 @@ const DEFAULT_MAPPINGS: Record<string, string> = {
   netWeightTotal: 'P',
 };
 
+// Common column name patterns for auto-mapping
+const AUTO_MAP_PATTERNS: Record<string, string[]> = {
+  projectNumber: ['project', 'proj', 'prj', 'project number', 'project no', 'project#'],
+  partDesignation: ['part designation', 'designation', 'part id', 'part_designation', 'partdesignation'],
+  buildingDesignation: ['building', 'bldg', 'building designation', 'building code'],
+  buildingName: ['building name', 'bldg name', 'building_name'],
+  assemblyMark: ['assembly', 'assy', 'assembly mark', 'asm', 'assembly_mark'],
+  subAssemblyMark: ['sub assembly', 'sub-assembly', 'subassembly', 'sub assy', 'sub_assembly'],
+  partMark: ['part mark', 'part', 'mark', 'part_mark', 'partmark'],
+  quantity: ['qty', 'quantity', 'count', 'pcs', 'pieces', 'no of pcs'],
+  name: ['name', 'description', 'desc', 'part name'],
+  profile: ['profile', 'section', 'size', 'profile/section'],
+  grade: ['grade', 'material', 'mat', 'steel grade'],
+  lengthMm: ['length', 'len', 'length mm', 'length(mm)', 'l(mm)'],
+  netAreaPerUnit: ['area', 'net area', 'area per unit', 'surface area', 'area/unit'],
+  netAreaTotal: ['total area', 'net area total', 'area total'],
+  singlePartWeight: ['weight', 'unit weight', 'single weight', 'wt', 'weight/unit'],
+  netWeightTotal: ['total weight', 'net weight', 'weight total', 'total wt'],
+};
+
+const SAVED_MAPPING_KEY = 'pts-saved-column-mapping';
+
 export default function MapRawDataPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,12 +117,20 @@ export default function MapRawDataPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [columns, setColumns] = useState<ColumnHeader[]>([]);
   const [mappings, setMappings] = useState<FieldMapping[]>(DB_FIELDS);
+  const [hasSavedMapping, setHasSavedMapping] = useState(false);
 
   useEffect(() => {
     fetchColumns();
+    checkSavedMapping();
   }, []);
+
+  const checkSavedMapping = () => {
+    const saved = localStorage.getItem(SAVED_MAPPING_KEY);
+    setHasSavedMapping(!!saved);
+  };
 
   const fetchColumns = async () => {
     try {
@@ -105,16 +139,118 @@ export default function MapRawDataPage() {
       const data = await res.json();
       setColumns(data.rawData.headers);
       
-      // Apply default mappings
-      setMappings(prev => prev.map(m => ({
-        ...m,
-        mappedColumn: DEFAULT_MAPPINGS[m.dbField] || null,
-      })));
+      // Try to load saved mapping first, otherwise use defaults
+      const savedMapping = localStorage.getItem(SAVED_MAPPING_KEY);
+      if (savedMapping) {
+        try {
+          const parsed = JSON.parse(savedMapping);
+          setMappings(prev => prev.map(m => ({
+            ...m,
+            mappedColumn: parsed[m.dbField] || null,
+          })));
+          setSuccess('Loaded saved mapping configuration');
+          setTimeout(() => setSuccess(null), 3000);
+        } catch {
+          // Fall back to defaults
+          applyDefaultMappings();
+        }
+      } else {
+        applyDefaultMappings();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load columns');
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyDefaultMappings = () => {
+    setMappings(prev => prev.map(m => ({
+      ...m,
+      mappedColumn: DEFAULT_MAPPINGS[m.dbField] || null,
+    })));
+  };
+
+  const autoMapColumns = () => {
+    setError(null);
+    let mappedCount = 0;
+    
+    setMappings(prev => prev.map(m => {
+      // Skip if already mapped
+      if (m.mappedColumn) return m;
+      
+      const patterns = AUTO_MAP_PATTERNS[m.dbField] || [];
+      
+      // Find matching column
+      for (const col of columns) {
+        const colNameLower = col.name.toLowerCase().trim();
+        
+        // Check exact match first
+        if (patterns.some(p => colNameLower === p.toLowerCase())) {
+          mappedCount++;
+          return { ...m, mappedColumn: col.column };
+        }
+        
+        // Check partial match
+        if (patterns.some(p => colNameLower.includes(p.toLowerCase()))) {
+          mappedCount++;
+          return { ...m, mappedColumn: col.column };
+        }
+      }
+      
+      return m;
+    }));
+    
+    if (mappedCount > 0) {
+      setSuccess(`Auto-mapped ${mappedCount} field(s) based on column names`);
+      setTimeout(() => setSuccess(null), 3000);
+    } else {
+      setError('No additional columns could be auto-mapped. Try mapping manually.');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const saveCurrentMapping = () => {
+    const mappingConfig = mappings.reduce((acc, m) => {
+      if (m.mappedColumn) {
+        acc[m.dbField] = m.mappedColumn;
+      }
+      return acc;
+    }, {} as Record<string, string>);
+    
+    localStorage.setItem(SAVED_MAPPING_KEY, JSON.stringify(mappingConfig));
+    setHasSavedMapping(true);
+    setSuccess('Mapping configuration saved! It will be loaded automatically next time.');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const loadSavedMapping = () => {
+    const saved = localStorage.getItem(SAVED_MAPPING_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setMappings(prev => prev.map(m => ({
+          ...m,
+          mappedColumn: parsed[m.dbField] || null,
+        })));
+        setSuccess('Loaded saved mapping configuration');
+        setTimeout(() => setSuccess(null), 3000);
+      } catch {
+        setError('Failed to load saved mapping');
+      }
+    }
+  };
+
+  const resetToDefaults = () => {
+    applyDefaultMappings();
+    setSuccess('Reset to default mappings');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const clearAllMappings = () => {
+    setMappings(prev => prev.map(m => ({ ...m, mappedColumn: null })));
+    setSuccess('Cleared all mappings');
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   const updateMapping = (dbField: string, column: string | null) => {
@@ -221,6 +357,48 @@ export default function MapRawDataPage() {
           {error}
         </div>
       )}
+
+      {success && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+          <Check className="h-4 w-4 inline mr-2" />
+          {success}
+        </div>
+      )}
+
+      {/* Mapping Actions */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Wand2 className="h-5 w-5" />
+            Quick Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={autoMapColumns}>
+              <Wand2 className="h-4 w-4 mr-2" />
+              Auto-Map by Column Names
+            </Button>
+            <Button variant="outline" size="sm" onClick={saveCurrentMapping}>
+              <Save className="h-4 w-4 mr-2" />
+              Save Current Mapping
+            </Button>
+            {hasSavedMapping && (
+              <Button variant="outline" size="sm" onClick={loadSavedMapping}>
+                <Download className="h-4 w-4 mr-2" />
+                Load Saved Mapping
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={resetToDefaults}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset to Defaults
+            </Button>
+            <Button variant="ghost" size="sm" onClick={clearAllMappings}>
+              Clear All
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Mapping Table */}
       <Card>
