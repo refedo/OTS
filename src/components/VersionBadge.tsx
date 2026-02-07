@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '13.4.6';
-const RELEASE_DATE = 'February 3, 2026';
+const CURRENT_VERSION = '13.4.7';
+const RELEASE_DATE = 'February 7, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• System stability improvements</li>
-              <li>• Database connection pooling</li>
-              <li>• Memory leak detection</li>
-              <li>• Performance optimizations</li>
+              <li>• Quick edit mode for tasks</li>
+              <li>• Hydration error fixes</li>
+              <li>• Date field preservation</li>
+              <li>• Terminal noise reduction</li>
             </ul>
           </div>
 

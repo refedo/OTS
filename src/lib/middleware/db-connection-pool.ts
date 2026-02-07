@@ -46,9 +46,7 @@ class DatabaseConnectionPool {
   static getClient(): PrismaClient {
     if (!this.instance) {
       this.instance = new PrismaClient({
-        log: POOL_CONFIG.ENABLE_LOGGING 
-          ? ['query', 'error', 'warn']
-          : ['error'],
+        log: ['error'], // Only log errors to reduce terminal noise
         
         // Connection pool configuration
         datasources: {

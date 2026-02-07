@@ -14,8 +14,9 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loginLogo, setLoginLogo] = useState<string | null>(null);
+  const [version, setVersion] = useState<string>('');
 
-  // Fetch login logo from settings
+  // Fetch login logo and version from settings
   useEffect(() => {
     const fetchLoginLogo = async () => {
       try {
@@ -30,7 +31,21 @@ export function LoginForm() {
         console.error('Error fetching login logo:', error);
       }
     };
+    
+    const fetchVersion = async () => {
+      try {
+        const res = await fetch('/api/system/latest-version');
+        if (res.ok) {
+          const data = await res.json();
+          setVersion(data.version || '13.4.7');
+        }
+      } catch (error) {
+        setVersion('13.4.7');
+      }
+    };
+    
     fetchLoginLogo();
+    fetchVersion();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -189,7 +204,7 @@ export function LoginForm() {
           Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
         </p>
         <p className="text-xs text-muted-foreground">
-          Version 13.4.6
+          {version ? `Version ${version}` : 'Loading...'}
         </p>
       </div>
     </div>

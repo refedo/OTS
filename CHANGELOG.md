@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.4.7] - 2026-02-07
+
+### 🚀 New Features
+
+#### Added
+- **Quick Edit Mode for Tasks**
+  - Edit tasks directly in the table row without navigating to separate page
+  - All fields become editable inputs/dropdowns when clicking edit button
+  - Supports editing: title, assignee, department, project, building, priority, status, input date, due date, and private flag
+  - Visual feedback with blue background during edit mode
+  - Save and Cancel buttons replace action buttons during editing
+  - Maintains existing date values when entering edit mode
+
+#### Fixed
+- **Hydration Error Resolution**
+  - Fixed server/client mismatch in login form version display
+  - Version now fetched dynamically on client side to prevent hydration errors
+
+- **Date Field Preservation**
+  - Fixed issue where Input Date and Due Date fields were resetting to empty when entering edit mode
+  - Dates now properly converted from ISO format to YYYY-MM-DD for HTML date inputs
+
+- **Terminal Noise Reduction**
+  - Disabled Prisma query logging to reduce terminal clutter
+  - Only error messages are now logged to terminal
+
+---
+
 ## [13.4.6] - 2026-02-03
 
 ### 🚀 Performance Improvements

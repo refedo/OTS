@@ -127,6 +127,31 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const [creating, setCreating] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<{
+    title: string;
+    assignedToId: string;
+    projectId: string;
+    buildingId: string;
+    departmentId: string;
+    priority: string;
+    status: string;
+    taskInputDate: string;
+    dueDate: string;
+    isPrivate: boolean;
+  }>({ 
+    title: '', 
+    assignedToId: '', 
+    projectId: '', 
+    buildingId: '',
+    departmentId: '', 
+    priority: 'Medium',
+    status: 'In Progress', 
+    taskInputDate: '',
+    dueDate: '',
+    isPrivate: false,
+  });
+  const [updating, setUpdating] = useState(false);
 
   const canCreateTask = userPermissions.includes('tasks.create');
   const canEditTask = userPermissions.includes('tasks.edit') || userPermissions.includes('tasks.create');
@@ -368,6 +393,98 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       console.error('Task creation error:', error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleStartEdit = (task: Task) => {
+    setEditingTaskId(task.id);
+    
+    // Convert dates to YYYY-MM-DD format for date inputs
+    const formatDateForInput = (dateString: string | null) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    setEditData({
+      title: task.title,
+      assignedToId: task.assignedTo?.id || '',
+      projectId: task.project?.id || '',
+      buildingId: task.building?.id || '',
+      departmentId: task.department?.id || '',
+      priority: task.priority,
+      status: task.status,
+      taskInputDate: formatDateForInput(task.taskInputDate),
+      dueDate: formatDateForInput(task.dueDate),
+      isPrivate: task.isPrivate,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
+    setEditData({ 
+      title: '', 
+      assignedToId: '', 
+      projectId: '', 
+      buildingId: '',
+      departmentId: '', 
+      priority: 'Medium',
+      status: 'In Progress', 
+      taskInputDate: '',
+      dueDate: '',
+      isPrivate: false,
+    });
+  };
+
+  const handleQuickEdit = async () => {
+    if (!editingTaskId) return;
+
+    if (!editData.title.trim()) {
+      showAlert('Please enter a task title', { type: 'warning' });
+      return;
+    }
+
+    if (!editData.dueDate) {
+      showAlert('Please enter a due date', { type: 'warning' });
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const response = await fetch(`/api/tasks/${editingTaskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editData.title,
+          assignedToId: editData.assignedToId || null,
+          projectId: editData.projectId || null,
+          buildingId: editData.buildingId || null,
+          departmentId: editData.departmentId || null,
+          priority: editData.priority,
+          taskInputDate: editData.taskInputDate || null,
+          dueDate: editData.dueDate,
+          status: editData.status,
+          isPrivate: editData.isPrivate,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update task');
+      }
+
+      const updatedTask = await response.json();
+      setTasks(tasks.map(t => t.id === editingTaskId ? updatedTask : t));
+      handleCancelEdit();
+      router.refresh();
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to update task', { type: 'error' });
+      console.error('Task update error:', error);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -1001,129 +1118,275 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   {filteredTasks.map((task) => {
                     const overdueDays = task.dueDate ? getOverdueDays(task.dueDate, task.status) : 0;
                     const overdueColor = getOverdueColor(overdueDays);
+                    const isEditing = editingTaskId === task.id;
                     
                     return (
-                    <TableRow key={task.id} className={overdueColor}>
+                    <TableRow key={task.id} className={cn(overdueColor, isEditing && "bg-blue-50/50")}>
                       <TableCell>
                         <input
                           type="checkbox"
                           checked={selectedTasks.has(task.id)}
                           onChange={() => toggleTaskSelection(task.id)}
                           className="h-4 w-4 rounded border-gray-300"
+                          disabled={isEditing}
                         />
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => handleToggleComplete(task.id, task.status)}
-                          title={task.status === 'Completed' ? 'Mark as incomplete' : 'Mark as complete'}
-                        >
-                          {task.status === 'Completed' ? (
-                            <CheckSquare className="h-6 w-6 text-green-600" />
+                        {!isEditing ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleToggleComplete(task.id, task.status)}
+                            title={task.status === 'Completed' ? 'Mark as incomplete' : 'Mark as complete'}
+                          >
+                            {task.status === 'Completed' ? (
+                              <CheckSquare className="h-6 w-6 text-green-600" />
+                            ) : (
+                              <Square className="h-6 w-6 text-muted-foreground" />
+                            )}
+                          </Button>
+                        ) : (
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editData.isPrivate}
+                              onChange={(e) => setEditData({ ...editData, isPrivate: e.target.checked })}
+                              className="h-4 w-4 rounded border-gray-300"
+                              disabled={updating}
+                            />
+                            <Lock className="size-3.5 text-amber-600" />
+                          </label>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            placeholder="Task title..."
+                            value={editData.title}
+                            onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                            className="h-9 text-sm"
+                            disabled={updating}
+                          />
+                        ) : (
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              {task.isPrivate && (
+                                <span title="Private task">
+                                  <Lock className="size-3.5 text-amber-600" />
+                                </span>
+                              )}
+                              <Link 
+                                href={`/tasks/${task.id}`}
+                                className="font-medium hover:text-primary hover:underline cursor-pointer"
+                              >
+                                {task.title}
+                              </Link>
+                            </div>
+                            {task.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-1">
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <select
+                            value={editData.assignedToId}
+                            onChange={(e) => {
+                              const selectedUser = allUsers.find(u => u.id === e.target.value);
+                              setEditData({ 
+                                ...editData, 
+                                assignedToId: e.target.value,
+                                departmentId: selectedUser?.departmentId || ''
+                              });
+                            }}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating}
+                          >
+                            <option value="">Unassigned</option>
+                            {allUsers.map((user) => (
+                              <option key={user.id} value={user.id}>{user.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          task.assignedTo ? (
+                            <div>
+                              <p>{task.assignedTo.name}</p>
+                              {task.assignedTo.position && (
+                                <p className="text-xs text-muted-foreground">{task.assignedTo.position}</p>
+                              )}
+                            </div>
                           ) : (
-                            <Square className="h-6 w-6 text-muted-foreground" />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            {task.isPrivate && (
-                              <span title="Private task">
-                                <Lock className="size-3.5 text-amber-600" />
-                              </span>
-                            )}
-                            <Link 
-                              href={`/tasks/${task.id}`}
-                              className="font-medium hover:text-primary hover:underline cursor-pointer"
-                            >
-                              {task.title}
-                            </Link>
-                          </div>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {task.description}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {task.assignedTo ? (
-                          <div>
-                            <p>{task.assignedTo.name}</p>
-                            {task.assignedTo.position && (
-                              <p className="text-xs text-muted-foreground">{task.assignedTo.position}</p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Unassigned</span>
+                            <span className="text-muted-foreground">Unassigned</span>
+                          )
                         )}
                       </TableCell>
                       <TableCell>
-                        {task.department ? (
-                          <span className="text-sm">{task.department.name}</span>
+                        {isEditing ? (
+                          <select
+                            value={editData.departmentId}
+                            onChange={(e) => setEditData({ ...editData, departmentId: e.target.value })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating}
+                          >
+                            <option value="">No Dept</option>
+                            {allDepartments.map((dept) => (
+                              <option key={dept.id} value={dept.id}>{dept.name}</option>
+                            ))}
+                          </select>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          task.department ? (
+                            <span className="text-sm">{task.department.name}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
                         )}
                       </TableCell>
                       <TableCell>
-                        {task.project ? (
-                          <div>
-                            <p className="text-sm">{task.project.projectNumber}</p>
-                            <p className="text-xs text-muted-foreground">{task.project.name}</p>
-                          </div>
+                        {isEditing ? (
+                          <select
+                            value={editData.projectId}
+                            onChange={(e) => {
+                              const newProjectId = e.target.value;
+                              setEditData({ 
+                                ...editData, 
+                                projectId: newProjectId,
+                                buildingId: ''
+                              });
+                            }}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating}
+                          >
+                            <option value="">No Project</option>
+                            {allProjects.map((project) => (
+                              <option key={project.id} value={project.id}>{project.projectNumber}</option>
+                            ))}
+                          </select>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          task.project ? (
+                            <div>
+                              <p className="text-sm">{task.project.projectNumber}</p>
+                              <p className="text-xs text-muted-foreground">{task.project.name}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
                         )}
                       </TableCell>
                       <TableCell>
-                        {task.building ? (
-                          <div>
-                            <p className="text-sm">{task.building.name}</p>
-                            <p className="text-xs text-muted-foreground">{task.building.designation}</p>
-                          </div>
+                        {isEditing ? (
+                          <select
+                            value={editData.buildingId}
+                            onChange={(e) => setEditData({ ...editData, buildingId: e.target.value })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating || !editData.projectId}
+                          >
+                            <option value="">{editData.projectId ? 'No Building' : 'Select Project First'}</option>
+                            {allBuildings
+                              .filter(building => !editData.projectId || building.projectId === editData.projectId)
+                              .map((building) => (
+                                <option key={building.id} value={building.id}>{building.designation}</option>
+                              ))}
+                          </select>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          task.building ? (
+                            <div>
+                              <p className="text-sm">{task.building.name}</p>
+                              <p className="text-xs text-muted-foreground">{task.building.designation}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={priorityColors[task.priority as keyof typeof priorityColors]}
-                        >
-                          {task.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={statusColors[task.status as keyof typeof statusColors]}
-                        >
-                          {task.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {task.taskInputDate ? (
-                          <span className="text-sm">{formatDate(task.taskInputDate)}</span>
+                        {isEditing ? (
+                          <select
+                            value={editData.priority}
+                            onChange={(e) => setEditData({ ...editData, priority: e.target.value })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating}
+                          >
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                          </select>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <Badge
+                            variant="outline"
+                            className={priorityColors[task.priority as keyof typeof priorityColors]}
+                          >
+                            {task.priority}
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        {task.dueDate ? (
-                          <div className={cn(
-                            "flex items-center gap-1",
-                            isOverdue(task.dueDate, task.status) && "text-destructive"
-                          )}>
-                            {isOverdue(task.dueDate, task.status) && (
-                              <AlertCircle className="size-3" />
-                            )}
-                            <span className="text-sm">{formatDate(task.dueDate)}</span>
-                          </div>
+                        {isEditing ? (
+                          <select
+                            value={editData.status}
+                            onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Waiting for Approval">Waiting for Approval</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <Badge
+                            variant="outline"
+                            className={statusColors[task.status as keyof typeof statusColors]}
+                          >
+                            {task.status}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            type="date"
+                            value={editData.taskInputDate}
+                            onChange={(e) => setEditData({ ...editData, taskInputDate: e.target.value })}
+                            className="h-9 text-sm"
+                            disabled={updating}
+                          />
+                        ) : (
+                          task.taskInputDate ? (
+                            <span className="text-sm">{formatDate(task.taskInputDate)}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            type="date"
+                            value={editData.dueDate}
+                            onChange={(e) => setEditData({ ...editData, dueDate: e.target.value })}
+                            className={cn("h-9 text-sm", !editData.dueDate && "border-red-300")}
+                            disabled={updating}
+                            required
+                          />
+                        ) : (
+                          task.dueDate ? (
+                            <div className={cn(
+                              "flex items-center gap-1",
+                              isOverdue(task.dueDate, task.status) && "text-destructive"
+                            )}>
+                              {isOverdue(task.dueDate, task.status) && (
+                                <AlertCircle className="size-3" />
+                              )}
+                              <span className="text-sm">{formatDate(task.dueDate)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
                         )}
                       </TableCell>
                       <TableCell>
@@ -1153,47 +1416,58 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {canEditTask && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => router.push(`/tasks/${task.id}/edit`)}
-                              title="Edit task"
-                            >
-                              <Edit className="size-4 text-muted-foreground hover:text-primary" />
+                        {isEditing ? (
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" onClick={handleQuickEdit} disabled={updating}>
+                              {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
                             </Button>
-                          )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreVertical className="size-4" />
+                            <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updating}>
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            {canEditTask && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleStartEdit(task)}
+                                title="Edit task"
+                              >
+                                <Edit className="size-4 text-muted-foreground hover:text-primary" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
-                                <Eye className="size-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              {canEditTask && (
-                                <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
-                                  <Edit className="size-4" />
-                                  Edit Task
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVertical className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
+                                  <Eye className="size-4" />
+                                  View Details
                                 </DropdownMenuItem>
-                              )}
-                              {['CEO', 'Admin'].includes(userRole) && (
-                                <DropdownMenuItem
-                                  onClick={() => handleDelete(task.id)}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="size-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                                {canEditTask && (
+                                  <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
+                                    <Edit className="size-4" />
+                                    Edit Task (Full Form)
+                                  </DropdownMenuItem>
+                                )}
+                                {['CEO', 'Admin'].includes(userRole) && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleDelete(task.id)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="size-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                     );

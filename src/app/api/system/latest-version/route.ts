@@ -2,66 +2,39 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '13.4.6',
-  date: 'February 3, 2026',
+  version: '13.4.7',
+  date: 'February 7, 2026',
   type: 'minor' as const,
-  mainTitle: '🚀 Performance Improvements & System Stability',
+  mainTitle: '🚀 Quick Edit Mode & Bug Fixes',
   highlights: [
-    'Database Connection Pooling Middleware',
-    'Memory Leak Detection System',
-    'System Monitoring API',
-    'Cron Job Optimization (96% reduction)',
-    '51% Memory Usage Reduction',
-    '100% System Crash Prevention',
+    'Quick Edit Mode for Tasks',
+    'Hydration Error Resolution',
+    'Date Field Preservation',
+    'Terminal Noise Reduction',
   ],
   changes: {
     added: [
       {
-        title: 'Database Connection Pooling Middleware',
+        title: 'Quick Edit Mode for Tasks',
         items: [
-          'Implemented singleton Prisma client with connection reuse',
-          'Automatic connection cleanup and graceful shutdown handling',
-          'Connection pool monitoring with health checks',
-          'Prevents connection timeout errors and improves query performance',
-          'Memory saved: 50-100MB, Query speed: 20-50ms faster',
-        ],
-      },
-      {
-        title: 'Memory Leak Detection System',
-        items: [
-          'Lightweight monitoring tracks heap usage every 5 minutes',
-          'Detects abnormal growth patterns (>50MB/hour)',
-          'Alerts at 85% heap usage with detailed metrics',
-          'Auto-starts in production with minimal overhead (~10-15MB)',
-        ],
-      },
-      {
-        title: 'System Monitoring API',
-        items: [
-          'New endpoint: /api/system/monitor (Admin/CEO access only)',
-          'Real-time memory metrics and database connection stats',
-          'System health dashboard with growth rate analysis',
-          'Provides actionable insights for system maintenance',
+          'Edit tasks directly in the table row without navigating to separate page',
+          'All fields become editable inputs/dropdowns when clicking edit button',
+          'Supports editing: title, assignee, department, project, building, priority, status, input date, due date, and private flag',
+          'Visual feedback with blue background during edit mode',
+          'Save and Cancel buttons replace action buttons during editing',
+          'Maintains existing date values when entering edit mode',
         ],
       },
     ],
     fixed: [
-      'System Stability Issues: Resolved "PM2 process not found" errors',
-      'Fixed database connection pool exhaustion',
-      'Eliminated event loop latency spikes (9207ms → <100ms)',
-      'Prevented system crashes due to memory pressure',
-      'Fixed missed cron job executions',
-      'Resolved blocking IO warnings in scheduled tasks',
+      'Hydration Error Resolution: Fixed server/client mismatch in login form version display',
+      'Version now fetched dynamically on client side to prevent hydration errors',
+      'Date Field Preservation: Fixed issue where Input Date and Due Date fields were resetting to empty when entering edit mode',
+      'Dates now properly converted from ISO format to YYYY-MM-DD for HTML date inputs',
+      'Terminal Noise Reduction: Disabled Prisma query logging to reduce terminal clutter',
+      'Only error messages are now logged to terminal',
     ],
-    changed: [
-      'Early Warning Engine: Reduced cron job frequency from hourly to daily at 2:00 AM',
-      '96% reduction in executions (24/day → 1/day)',
-      'PM2 Configuration: Increased memory limit from 2GB to 4GB',
-      'Reduced instances from 2 to 1 (single instance mode)',
-      'Memory usage: -51% (840MB → 415MB)',
-      'Increased database connection pool limit from 5 to 20 connections',
-      'Extended connection timeout from 10s to 20s',
-    ],
+    changed: [],
   },
 };
 
