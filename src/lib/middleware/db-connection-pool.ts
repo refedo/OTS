@@ -39,6 +39,7 @@ class DatabaseConnectionPool {
   private static instance: PrismaClient | null = null;
   private static connectionCount = 0;
   private static lastActivity = Date.now();
+  private static activityInterval: NodeJS.Timeout | null = null;
 
   /**
    * Get or create Prisma client instance (singleton)
@@ -77,9 +78,14 @@ class DatabaseConnectionPool {
    * Track connection activity for monitoring
    */
   private static setupActivityTracking(): void {
+    // Prevent duplicate intervals
+    if (this.activityInterval) {
+      return;
+    }
+
     // Log pool stats every 5 minutes in production
     if (process.env.NODE_ENV === 'production') {
-      setInterval(() => {
+      this.activityInterval = setInterval(() => {
         const idleTime = Date.now() - this.lastActivity;
         console.log(`[DB Pool] Stats - Connections: ${this.connectionCount}, Idle: ${Math.round(idleTime / 1000)}s`);
       }, 300000); // 5 minutes

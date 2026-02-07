@@ -56,7 +56,8 @@ class MemoryMonitor {
    * Initialize the memory monitor
    */
   static initialize(): void {
-    if (this.isInitialized) {
+    if (this.isInitialized || this.monitorInterval) {
+      console.log('[MemoryMonitor] Already initialized, skipping');
       return;
     }
 
