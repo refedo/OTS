@@ -796,11 +796,26 @@ class PTSSyncService {
 
       onProgress?.({ phase: 'complete', current: 1, total: 1, message: 'Sync complete!' });
 
-      // Generate sync batch ID for rollback
-      const syncBatchId = `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
       // Calculate project stats
       const projectStats = await this.calculateProjectStats(selectedProjects);
+
+      // Create sync batch record for history tracking
+      const syncBatch = await prisma.pTSSyncBatch.create({
+        data: {
+          syncType: doSyncRawData && doSyncLogs ? 'full' : doSyncRawData ? 'parts' : 'logs',
+          status: errors.length === 0 ? 'success' : 'partial',
+          partsCreated: rawResult.created,
+          partsUpdated: rawResult.updated,
+          logsCreated: logResult.created,
+          logsUpdated: logResult.updated,
+          errorsCount: errors.length,
+          projectNumbers: selectedProjects || [],
+          durationMs: Date.now() - startTime,
+          userId,
+        },
+      });
+
+      const syncBatchId = syncBatch.id;
 
       // Also parse any skipped items from error messages (for raw data)
       const parsedSkipped = this.parseSkippedItems(errors);

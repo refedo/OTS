@@ -7,6 +7,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/jwt';
 import { google } from 'googleapis';
 
+// Set max duration for serverless function (Vercel/Netlify)
+export const maxDuration = 30; // 30 seconds
+
+// Timeout wrapper for API calls
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+};
+
 const SPREADSHEET_ID = '11jXnWje2-4n9FPUB1jsJrkP6ioooKgnoYVkwVGG4hPI';
 const RAW_DATA_SHEET = '02-Raw Data';
 const LOG_SHEET = '04-Log';
@@ -38,32 +51,40 @@ export async function GET(request: NextRequest) {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Fetch headers from both sheets
-    const [rawDataResponse, logResponse] = await Promise.all([
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `'${RAW_DATA_SHEET}'!A1:Z1`,
-      }),
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `'${LOG_SHEET}'!A1:Z1`,
-      }),
-    ]);
+    // Fetch headers from both sheets with timeout
+    const TIMEOUT_MS = 25000; // 25 seconds
+    
+    const [rawDataResponse, logResponse] = await withTimeout(
+      Promise.all([
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `'${RAW_DATA_SHEET}'!A1:Z1`,
+        }),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `'${LOG_SHEET}'!A1:Z1`,
+        }),
+      ]),
+      TIMEOUT_MS
+    );
 
     const rawDataHeaders = rawDataResponse.data.values?.[0] || [];
     const logHeaders = logResponse.data.values?.[0] || [];
 
     // Also fetch a sample row to show data preview
-    const [rawDataSample, logSample] = await Promise.all([
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `'${RAW_DATA_SHEET}'!A2:Z2`,
-      }),
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `'${LOG_SHEET}'!A2:Z2`,
-      }),
-    ]);
+    const [rawDataSample, logSample] = await withTimeout(
+      Promise.all([
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `'${RAW_DATA_SHEET}'!A2:Z2`,
+        }),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `'${LOG_SHEET}'!A2:Z2`,
+        }),
+      ]),
+      TIMEOUT_MS
+    );
 
     return NextResponse.json({
       rawData: {
@@ -94,6 +115,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Google API credentials not configured properly. Check GOOGLE_PRIVATE_KEY environment variable.' },
         { status: 500 }
+      );
+    }
+    
+    if (errorMessage.includes('timed out')) {
+      return NextResponse.json(
+        { error: 'Google Sheets API request timed out. Please try again.', message: errorMessage },
+        { status: 504 }
       );
     }
     
