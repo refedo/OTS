@@ -18,6 +18,10 @@ export function LoginForm() {
 
   // Fetch login logo and version from settings
   useEffect(() => {
+    // Clear any stale session data when login page loads
+    localStorage.clear();
+    sessionStorage.clear();
+    
     const fetchLoginLogo = async () => {
       try {
         const res = await fetch('/api/settings/login-logo');
@@ -34,7 +38,9 @@ export function LoginForm() {
     
     const fetchVersion = async () => {
       try {
-        const res = await fetch('/api/system/latest-version');
+        const res = await fetch('/api/system/latest-version?t=' + Date.now(), {
+          cache: 'no-store'
+        });
         if (res.ok) {
           const data = await res.json();
           setVersion(data.version || '13.4.7');
@@ -90,9 +96,9 @@ export function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#2c3e50' }}>
-      {/* Version Header */}
+      {/* System Header */}
       <div className="text-center py-3">
-        <span className="text-slate-400 text-sm">Operations Tracking System v13.4.5</span>
+        <span className="text-slate-300 text-base font-medium">Hexa Steel® OTS - Operations Tracking System</span>
       </div>
 
       {/* Main Content */}

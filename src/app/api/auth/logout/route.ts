@@ -61,15 +61,37 @@ export async function POST(request: NextRequest) {
   
   const res = NextResponse.redirect(loginUrl, { status: 302 });
   
-  // Clear the session cookie with all necessary attributes
-  // Use delete() method for more reliable cookie removal
+  // Clear the session cookie with multiple domain variations to ensure removal
+  // Try without domain first (most common case)
   res.cookies.delete({
     name: cookieName,
     path: '/',
-    domain: requestUrl.hostname === 'localhost' ? undefined : '.hexasteel.sa',
   });
   
-  // Also set to empty with maxAge 0 as backup
+  // Try with .hexasteel.sa domain
+  if (requestUrl.hostname.includes('hexasteel.sa')) {
+    res.cookies.delete({
+      name: cookieName,
+      path: '/',
+      domain: '.hexasteel.sa',
+    });
+    
+    // Also try without leading dot
+    res.cookies.delete({
+      name: cookieName,
+      path: '/',
+      domain: 'hexasteel.sa',
+    });
+    
+    // Try with exact hostname
+    res.cookies.delete({
+      name: cookieName,
+      path: '/',
+      domain: requestUrl.hostname,
+    });
+  }
+  
+  // Set to empty with maxAge 0 as final backup (no domain)
   res.cookies.set(cookieName, '', {
     httpOnly: true,
     secure: requestUrl.protocol === 'https:',
@@ -78,6 +100,19 @@ export async function POST(request: NextRequest) {
     maxAge: 0,
     expires: new Date(0),
   });
+  
+  // Also set with domain if production
+  if (requestUrl.hostname.includes('hexasteel.sa')) {
+    res.cookies.set(cookieName, '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      domain: '.hexasteel.sa',
+      maxAge: 0,
+      expires: new Date(0),
+    });
+  }
   
   return res;
 }
