@@ -11,6 +11,16 @@
  */
 
 // ============================================
+// GLOBAL SINGLETON GUARD
+// ============================================
+
+// Use global to persist across Next.js hot reloads and multiple contexts
+declare global {
+  var __memoryMonitorInterval: NodeJS.Timeout | undefined;
+  var __memoryMonitorInitialized: boolean | undefined;
+}
+
+// ============================================
 // CONFIGURATION
 // ============================================
 
@@ -56,8 +66,9 @@ class MemoryMonitor {
    * Initialize the memory monitor
    */
   static initialize(): void {
-    if (this.isInitialized || this.monitorInterval) {
-      console.log('[MemoryMonitor] Already initialized, skipping');
+    // Use global singleton to prevent duplicate initialization across contexts
+    if (global.__memoryMonitorInitialized || global.__memoryMonitorInterval) {
+      console.log('[MemoryMonitor] Already initialized globally, skipping');
       return;
     }
 
@@ -66,15 +77,17 @@ class MemoryMonitor {
       return;
     }
 
-    // Start monitoring
+    // Start monitoring with global guard
     this.monitorInterval = setInterval(() => {
       this.checkMemory();
     }, MONITOR_CONFIG.CHECK_INTERVAL);
+    global.__memoryMonitorInterval = this.monitorInterval;
 
     // Take initial snapshot
     this.takeSnapshot();
 
     this.isInitialized = true;
+    global.__memoryMonitorInitialized = true;
     console.log('[MemoryMonitor] ✓ Initialized');
     console.log(`[MemoryMonitor]   Check interval: ${MONITOR_CONFIG.CHECK_INTERVAL / 1000}s`);
     console.log(`[MemoryMonitor]   Growth threshold: ${MONITOR_CONFIG.GROWTH_THRESHOLD}MB/hour`);

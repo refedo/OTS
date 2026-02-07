@@ -14,6 +14,15 @@
 import { PrismaClient } from '@prisma/client';
 
 // ============================================
+// GLOBAL SINGLETON GUARD
+// ============================================
+
+// Use global to persist across Next.js hot reloads and multiple contexts
+declare global {
+  var __dbPoolActivityInterval: NodeJS.Timeout | undefined;
+}
+
+// ============================================
 // CONFIGURATION
 // ============================================
 
@@ -39,7 +48,6 @@ class DatabaseConnectionPool {
   private static instance: PrismaClient | null = null;
   private static connectionCount = 0;
   private static lastActivity = Date.now();
-  private static activityInterval: NodeJS.Timeout | null = null;
 
   /**
    * Get or create Prisma client instance (singleton)
@@ -78,14 +86,14 @@ class DatabaseConnectionPool {
    * Track connection activity for monitoring
    */
   private static setupActivityTracking(): void {
-    // Prevent duplicate intervals
-    if (this.activityInterval) {
+    // Use global singleton to prevent duplicate intervals across contexts
+    if (global.__dbPoolActivityInterval) {
       return;
     }
 
     // Log pool stats every 5 minutes in production
     if (process.env.NODE_ENV === 'production') {
-      this.activityInterval = setInterval(() => {
+      global.__dbPoolActivityInterval = setInterval(() => {
         const idleTime = Date.now() - this.lastActivity;
         console.log(`[DB Pool] Stats - Connections: ${this.connectionCount}, Idle: ${Math.round(idleTime / 1000)}s`);
       }, 300000); // 5 minutes
