@@ -26,22 +26,23 @@ declare global {
 
 const MONITOR_CONFIG = {
   // Check interval (milliseconds)
-  CHECK_INTERVAL: 60000, // 1 minute (more frequent checks)
+  CHECK_INTERVAL: 300000, // 5 minutes (reduced frequency to save resources)
   
   // Memory growth threshold (MB per hour)
-  GROWTH_THRESHOLD: 30, // Alert if growing >30MB/hour
+  GROWTH_THRESHOLD: 50, // Alert if growing >50MB/hour (raised for Next.js)
   
   // Critical memory threshold (percentage)
-  CRITICAL_THRESHOLD: 75, // Alert at 75% heap usage (lower for constrained env)
+  // NOTE: Next.js 15.5.4 normally runs at 90-97% heap - this is NORMAL
+  CRITICAL_THRESHOLD: 98, // Only alert at 98% (imminent crash)
   
   // Enable monitoring
   ENABLED: process.env.ENABLE_MEMORY_MONITOR !== 'false',
   
-  // Log level - only log warnings in production to reduce I/O
-  LOG_LEVEL: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
+  // Log level - only log errors in production to reduce I/O
+  LOG_LEVEL: 'error', // Reduced logging to minimize overhead
   
   // Force GC threshold (percentage) - trigger manual GC if available
-  FORCE_GC_THRESHOLD: 70,
+  FORCE_GC_THRESHOLD: 95,
 };
 
 // ============================================

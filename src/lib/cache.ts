@@ -3,6 +3,14 @@
  * Reduces database load by caching frequently accessed data
  */
 
+// Global singleton guard to prevent duplicate intervals
+declare global {
+  var __cacheCleanupInterval: NodeJS.Timeout | undefined;
+}
+
+// Maximum cache entries to prevent unbounded memory growth
+const MAX_CACHE_ENTRIES = 100;
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -34,6 +42,12 @@ class SimpleCache {
    * Set cache data
    */
   set<T>(key: string, data: T): void {
+    // Prevent unbounded growth - evict oldest entries if at limit
+    if (this.cache.size >= MAX_CACHE_ENTRIES) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+    
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -72,7 +86,7 @@ class SimpleCache {
 // Export singleton instance
 export const cache = new SimpleCache();
 
-// Run cleanup every 5 minutes
-if (typeof window === 'undefined') {
-  setInterval(() => cache.cleanup(), 5 * 60 * 1000);
+// Run cleanup every 5 minutes - with global guard to prevent duplicates
+if (typeof window === 'undefined' && !global.__cacheCleanupInterval) {
+  global.__cacheCleanupInterval = setInterval(() => cache.cleanup(), 5 * 60 * 1000);
 }

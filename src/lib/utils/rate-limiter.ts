@@ -3,6 +3,14 @@
  * Simple in-memory rate limiter for API endpoints
  */
 
+// Global singleton guard to prevent duplicate intervals
+declare global {
+  var __rateLimiterCleanupInterval: NodeJS.Timeout | undefined;
+}
+
+// Maximum entries to prevent unbounded memory growth
+const MAX_RATE_LIMIT_ENTRIES = 1000;
+
 interface RateLimitEntry {
   count: number;
   resetTime: number;
@@ -18,8 +26,10 @@ class RateLimiter {
     this.maxRequests = maxRequests;
     this.windowMs = windowMs;
 
-    // Clean up expired entries every 5 minutes
-    setInterval(() => this.cleanup(), 300000);
+    // Clean up expired entries every 5 minutes - with global guard
+    if (!global.__rateLimiterCleanupInterval) {
+      global.__rateLimiterCleanupInterval = setInterval(() => this.cleanup(), 300000);
+    }
   }
 
   /**
@@ -27,6 +37,12 @@ class RateLimiter {
    */
   check(identifier: string): { allowed: boolean; remaining: number; resetTime: number } {
     const now = Date.now();
+    
+    // Prevent unbounded growth - cleanup if at limit
+    if (this.limits.size >= MAX_RATE_LIMIT_ENTRIES) {
+      this.cleanup();
+    }
+    
     const entry = this.limits.get(identifier);
 
     if (!entry || now > entry.resetTime) {

@@ -7,13 +7,13 @@ module.exports = {
       instances: 1,
       exec_mode: 'cluster',
       watch: false,
-      max_memory_restart: '1500M',
+      max_memory_restart: '500M', // Restart early before OOM (Next.js uses ~200MB heap)
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
         NODE_OPTIONS: '--max-old-space-size=1024 --expose-gc',
       },
-      cron_restart: '0 3 * * *',
+      cron_restart: '0 */6 * * *', // Restart every 6 hours to prevent memory buildup
       error_file: './logs/pm2-error.log',
       out_file: './logs/pm2-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
