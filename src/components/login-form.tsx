@@ -43,7 +43,7 @@ export function LoginForm() {
         });
         if (res.ok) {
           const data = await res.json();
-          setVersion(data.version || '13.4.7');
+          setVersion(data.version || '13.5.0');
         }
       } catch (error) {
         setVersion('13.4.7');

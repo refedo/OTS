@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.5.0] - 2026-02-09
+
+### 🛡️ Security & Performance Major Release
+
+#### Security Improvements
+- **Complete Server Security Overhaul**
+  - Removed malware/cryptominer infection (EuXZqNPw process)
+  - Implemented 7-layer security protection system
+  - Added Fail2Ban with automatic IP blocking (13 attackers blocked)
+  - Configured Cloudflare DDoS protection
+  - Hardened SSH configuration and disabled root login
+  - Installed ClamAV antivirus with 3.6M signature database
+  - Added comprehensive firewall rules
+
+#### Performance Improvements
+- **Memory Optimization**
+  - Freed 4GB RAM from malware consumption
+  - Reduced CPU usage from 96% to 0-3%
+  - Achieved 51% available memory headroom
+  - System now runs at peak performance
+
+- **Stability Enhancements**
+  - Zero crashes since security cleanup
+  - PM2 auto-restart configured every 6 hours
+  - Automated daily backups (688K DB + 26M app)
+  - Scheduled weekly virus scans
+
+#### Bug Fixes
+- **Session Management**
+  - Fixed logout session persistence issue
+  - Added multiple cookie domain variations for proper clearing
+  - Client-side storage clearing on login page mount
+  - Cache-busting for version API calls
+
+- **PTS Sync Features**
+  - Fixed sync history not saving (added PTSSyncBatch creation)
+  - Added timeout handling for Google Sheets API (25s timeout)
+  - Implemented auto-map button for column mapping
+  - Added save/load mapping functionality with localStorage
+
+- **Runtime Errors**
+  - Fixed UpdateNotificationDialog null check error
+  - Added proper error handling for undefined mappings
+
+#### Automation
+- **Backup System**
+  - Daily automated database and application backups
+  - Backup verification and logging
+  - Retention policy management
+
+- **Monitoring**
+  - Automated security checks scheduled
+  - Performance monitoring with PM2
+  - Error logging and alerting
+
+---
+
 ## [13.4.7] - 2026-02-07
 
 ### 🚀 New Features
