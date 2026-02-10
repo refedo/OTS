@@ -533,6 +533,7 @@ export default function WeeklyIssuesPage() {
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
+                    <th className="text-left p-3 font-medium">#</th>
                     <th className="text-left p-3 font-medium">Title</th>
                     <th className="text-left p-3 font-medium">Priority</th>
                     <th className="text-left p-3 font-medium">Status</th>
@@ -546,13 +547,16 @@ export default function WeeklyIssuesPage() {
                 <tbody>
                   {filteredIssues.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center p-8 text-muted-foreground">
+                      <td colSpan={9} className="text-center p-8 text-muted-foreground">
                         No issues found
                       </td>
                     </tr>
                   ) : (
                     filteredIssues.map((issue) => (
                       <tr key={issue.id} className="border-b hover:bg-muted/50">
+                        <td className="p-3">
+                          <span className="font-mono text-sm font-semibold">#{issue.issueNumber}</span>
+                        </td>
                         <td className="p-3">
                           <div>
                             <div className="font-medium">{issue.title}</div>
@@ -629,9 +633,12 @@ export default function WeeklyIssuesPage() {
                   <Card key={issue.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between gap-2">
-                        <Badge className={getPriorityColor(issue.priority)} variant="outline">
-                          {issue.priority}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-semibold text-muted-foreground">#{issue.issueNumber}</span>
+                          <Badge className={getPriorityColor(issue.priority)} variant="outline">
+                            {issue.priority}
+                          </Badge>
+                        </div>
                         <div className="flex gap-1">
                           <Button
                             variant="ghost"

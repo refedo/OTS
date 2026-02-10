@@ -53,8 +53,16 @@ export async function POST(request: NextRequest) {
       meetingDate,
     } = body;
 
+    // Get the next issue number
+    const lastIssue = await prisma.weeklyIssue.findFirst({
+      orderBy: { issueNumber: 'desc' },
+      select: { issueNumber: true },
+    });
+    const nextIssueNumber = (lastIssue?.issueNumber || 0) + 1;
+
     const issue = await prisma.weeklyIssue.create({
       data: {
+        issueNumber: nextIssueNumber,
         title,
         description,
         departmentId: departmentId || null,

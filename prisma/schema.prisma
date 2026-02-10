@@ -1910,6 +1910,7 @@ model DepartmentInitiative {
 // E. Execution Layer - Weekly Issues (EOS Style)
 model WeeklyIssue {
   id                String   @id @default(uuid()) @db.Char(36)
+  issueNumber       Int
   title             String
   description       String?  @db.Text
   departmentId      String?  @db.Char(36)
@@ -1929,6 +1930,7 @@ model WeeklyIssue {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   
+  @@unique([issueNumber])
   @@index([departmentId])
   @@index([raisedById])
   @@index([assignedToId])
