@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertTriangle, Plus, User, Calendar } from 'lucide-react';
+import { AlertTriangle, Plus, User, Calendar, Table, LayoutGrid, Edit, Trash2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function WeeklyIssuesPage() {
@@ -17,7 +17,9 @@ export default function WeeklyIssuesPage() {
   const [issues, setIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingIssue, setEditingIssue] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -31,6 +33,7 @@ export default function WeeklyIssuesPage() {
     priority: 'Medium',
     status: 'Open',
     dueDate: '',
+    meetingDate: '',
   });
 
   useEffect(() => {
@@ -92,59 +95,142 @@ export default function WeeklyIssuesPage() {
       return;
     }
 
-    // Use currentUser if available, otherwise use first user as fallback
-    const raisedBy = currentUser?.id || (users.length > 0 ? users[0].id : null);
-    
-    if (!raisedBy) {
-      toast({
-        title: 'Error',
-        description: 'No users available in the system',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setSaving(true);
     try {
-      const res = await fetch('/api/business-planning/issues', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          raisedById: raisedBy,
-          departmentId: formData.departmentId || null,
-          assignedToId: formData.assignedToId || null,
-          dueDate: formData.dueDate || null,
-        }),
+      if (editingIssue) {
+        // Update existing issue
+        const res = await fetch(`/api/business-planning/issues/${editingIssue.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            departmentId: formData.departmentId || null,
+            assignedToId: formData.assignedToId || null,
+            dueDate: formData.dueDate || null,
+            meetingDate: formData.meetingDate || null,
+          }),
+        });
+
+        if (res.ok) {
+          toast({
+            title: 'Success',
+            description: 'Issue updated successfully',
+          });
+          setDialogOpen(false);
+          setEditingIssue(null);
+          resetForm();
+          fetchIssues();
+        } else {
+          throw new Error('Failed to update issue');
+        }
+      } else {
+        // Create new issue
+        const raisedBy = currentUser?.id || (users.length > 0 ? users[0].id : null);
+        
+        if (!raisedBy) {
+          toast({
+            title: 'Error',
+            description: 'No users available in the system',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const res = await fetch('/api/business-planning/issues', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            raisedById: raisedBy,
+            departmentId: formData.departmentId || null,
+            assignedToId: formData.assignedToId || null,
+            dueDate: formData.dueDate || null,
+            meetingDate: formData.meetingDate || null,
+          }),
+        });
+
+        if (res.ok) {
+          toast({
+            title: 'Success',
+            description: 'Issue created successfully',
+          });
+          setDialogOpen(false);
+          resetForm();
+          fetchIssues();
+        } else {
+          throw new Error('Failed to create issue');
+        }
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: editingIssue ? 'Failed to update issue' : 'Failed to create issue',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      departmentId: '',
+      assignedToId: '',
+      priority: 'Medium',
+      status: 'Open',
+      dueDate: '',
+      meetingDate: '',
+    });
+  };
+
+  const handleEdit = (issue: any) => {
+    setEditingIssue(issue);
+    setFormData({
+      title: issue.title,
+      description: issue.description || '',
+      departmentId: issue.departmentId || '',
+      assignedToId: issue.assignedToId || '',
+      priority: issue.priority,
+      status: issue.status,
+      dueDate: issue.dueDate ? new Date(issue.dueDate).toISOString().split('T')[0] : '',
+      meetingDate: issue.meetingDate ? new Date(issue.meetingDate).toISOString().split('T')[0] : '',
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this issue?')) return;
+
+    try {
+      const res = await fetch(`/api/business-planning/issues/${id}`, {
+        method: 'DELETE',
       });
 
       if (res.ok) {
         toast({
           title: 'Success',
-          description: 'Issue created successfully',
-        });
-        setDialogOpen(false);
-        setFormData({
-          title: '',
-          description: '',
-          departmentId: '',
-          assignedToId: '',
-          priority: 'Medium',
-          status: 'Open',
-          dueDate: '',
+          description: 'Issue deleted successfully',
         });
         fetchIssues();
       } else {
-        throw new Error('Failed to create issue');
+        throw new Error('Failed to delete issue');
       }
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create issue',
+        description: 'Failed to delete issue',
         variant: 'destructive',
       });
-    } finally {
-      setSaving(false);
+    }
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingIssue(null);
+      resetForm();
     }
   };
 
@@ -203,7 +289,7 @@ export default function WeeklyIssuesPage() {
             EOS-style issue tracking for rapid problem resolution
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -212,9 +298,9 @@ export default function WeeklyIssuesPage() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create New Issue</DialogTitle>
+              <DialogTitle>{editingIssue ? 'Edit Issue' : 'Create New Issue'}</DialogTitle>
               <DialogDescription>
-                Log a new issue for tracking and resolution
+                {editingIssue ? 'Update the issue details below' : 'Log a new issue for tracking and resolution'}
               </DialogDescription>
             </DialogHeader>
             
@@ -324,15 +410,26 @@ export default function WeeklyIssuesPage() {
                 </div>
               </div>
 
-              {/* Due Date */}
-              <div className="space-y-2">
-                <Label htmlFor="dueDate">Due Date (Optional)</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                />
+              {/* Due Date & Meeting Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate">Due Date (Optional)</Label>
+                  <Input
+                    id="dueDate"
+                    type="date"
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="meetingDate">Meeting Date (Optional)</Label>
+                  <Input
+                    id="meetingDate"
+                    type="date"
+                    value={formData.meetingDate}
+                    onChange={(e) => setFormData({ ...formData, meetingDate: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
 
@@ -341,7 +438,7 @@ export default function WeeklyIssuesPage() {
                 Cancel
               </Button>
               <Button onClick={handleSubmit} disabled={saving}>
-                {saving ? 'Creating...' : 'Create Issue'}
+                {saving ? (editingIssue ? 'Updating...' : 'Creating...') : (editingIssue ? 'Update Issue' : 'Create Issue')}
               </Button>
             </div>
           </DialogContent>
@@ -387,8 +484,27 @@ export default function WeeklyIssuesPage() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
-      <div className="flex gap-2">
+      {/* View Mode Toggle & Filters */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === 'kanban' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('kanban')}
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            Kanban
+          </Button>
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+          >
+            <Table className="h-4 w-4 mr-2" />
+            Table
+          </Button>
+        </div>
+        <div className="flex gap-2">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}
           size="sm"
@@ -406,9 +522,99 @@ export default function WeeklyIssuesPage() {
             {status}
           </Button>
         ))}
+        </div>
       </div>
 
+      {/* Table View */}
+      {viewMode === 'table' && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Title</th>
+                    <th className="text-left p-3 font-medium">Priority</th>
+                    <th className="text-left p-3 font-medium">Status</th>
+                    <th className="text-left p-3 font-medium">Assigned To</th>
+                    <th className="text-left p-3 font-medium">Department</th>
+                    <th className="text-left p-3 font-medium">Due Date</th>
+                    <th className="text-left p-3 font-medium">Meeting Date</th>
+                    <th className="text-left p-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredIssues.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center p-8 text-muted-foreground">
+                        No issues found
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredIssues.map((issue) => (
+                      <tr key={issue.id} className="border-b hover:bg-muted/50">
+                        <td className="p-3">
+                          <div>
+                            <div className="font-medium">{issue.title}</div>
+                            {issue.description && (
+                              <div className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                                {issue.description}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <Badge className={getPriorityColor(issue.priority)} variant="outline">
+                            {issue.priority}
+                          </Badge>
+                        </td>
+                        <td className="p-3">
+                          <Badge className={getStatusColor(issue.status)}>
+                            {issue.status}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-sm">
+                          {issue.assignedTo?.name || 'Unassigned'}
+                        </td>
+                        <td className="p-3 text-sm">
+                          {issue.department?.name || '-'}
+                        </td>
+                        <td className="p-3 text-sm">
+                          {issue.dueDate ? new Date(issue.dueDate).toLocaleDateString() : '-'}
+                        </td>
+                        <td className="p-3 text-sm">
+                          {issue.meetingDate ? new Date(issue.meetingDate).toLocaleDateString() : '-'}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(issue)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(issue.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Kanban Board */}
+      {viewMode === 'kanban' && (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {statuses.map((status) => {
           const statusIssues = issues.filter(i => i.status === status);
@@ -420,12 +626,30 @@ export default function WeeklyIssuesPage() {
               </div>
               <div className="space-y-2">
                 {statusIssues.map((issue) => (
-                  <Card key={issue.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                  <Card key={issue.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between gap-2">
                         <Badge className={getPriorityColor(issue.priority)} variant="outline">
                           {issue.priority}
                         </Badge>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleEdit(issue)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleDelete(issue.id)}
+                          >
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
                       <CardTitle className="text-sm mt-2">{issue.title}</CardTitle>
                     </CardHeader>
@@ -443,6 +667,12 @@ export default function WeeklyIssuesPage() {
                           <span>{new Date(issue.dueDate).toLocaleDateString()}</span>
                         </div>
                       )}
+                      {issue.meetingDate && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>Meeting: {new Date(issue.meetingDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -451,6 +681,7 @@ export default function WeeklyIssuesPage() {
           );
         })}
       </div>
+      )}
 
       {/* Empty State */}
       {issues.length === 0 && (

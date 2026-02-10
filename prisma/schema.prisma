@@ -1918,6 +1918,7 @@ model WeeklyIssue {
   priority          String   @default("Medium") // Low | Medium | High | Critical
   status            String   @default("Open") // Open | In Progress | Resolved | Closed
   dueDate           DateTime?
+  meetingDate       DateTime?
   resolvedDate      DateTime?
   resolution        String?  @db.Text
   

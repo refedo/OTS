@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       priority,
       status,
       dueDate,
+      meetingDate,
     } = body;
 
     const issue = await prisma.weeklyIssue.create({
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
         priority: priority || 'Medium',
         status: status || 'Open',
         dueDate: dueDate ? new Date(dueDate) : null,
+        meetingDate: meetingDate ? new Date(meetingDate) : null,
       },
       include: {
         raisedBy: { select: { id: true, name: true, email: true } },
