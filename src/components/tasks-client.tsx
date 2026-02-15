@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -944,8 +944,18 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
                 <div className="h-6 w-px bg-border" />
 
+                {/* Multi-select tip bubble */}
+                <div className="relative group">
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200 text-xs text-blue-700">
+                    <Sparkles className="h-3 w-3" />
+                    <span>Ctrl+Click for multi-select</span>
+                  </div>
+                </div>
+
+                <div className="h-6 w-px bg-border" />
+
                 {/* Status filters - Ctrl+Click for multi-select */}
-                <span className="text-sm text-muted-foreground" title="Hold Ctrl/Cmd and click to select multiple">Status:</span>
+                <span className="text-sm text-muted-foreground">Status:</span>
                 <Button
                   variant={statusFilter.length === 0 ? 'default' : 'outline'}
                   size="sm"
@@ -1097,9 +1107,6 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 >
                   Low
                 </Button>
-                {(statusFilter.length > 1 || priorityFilter.length > 1) && (
-                  <span className="text-xs text-muted-foreground italic ml-1">(Ctrl+Click for multi-select)</span>
-                )}
               </div>
 
               {/* Additional Filters */}
@@ -1164,6 +1171,28 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     </option>
                   ))}
                 </select>
+
+                {/* Reset All Filters */}
+                {(statusFilter.length > 0 || priorityFilter.length > 0 || projectFilter || buildingFilter || departmentFilter || assignedToFilter || approvalFilter || search) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setStatusFilter([]);
+                      setPriorityFilter([]);
+                      setProjectFilter('');
+                      setBuildingFilter('');
+                      setDepartmentFilter('');
+                      setAssignedToFilter('');
+                      setApprovalFilter('');
+                      setSearch('');
+                    }}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Reset All
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -1725,12 +1754,13 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                             size="sm"
                             className="h-8 w-8 p-0"
                             onClick={() => handleToggleApproval(task.id, !!task.approvedAt)}
-                            title={task.approvedAt ? 'Revoke approval' : 'Approve task'}
+                            disabled={task.status !== 'Completed' && !task.approvedAt}
+                            title={task.status !== 'Completed' && !task.approvedAt ? 'Task must be completed before approval' : (task.approvedAt ? 'Revoke approval' : 'Approve task')}
                           >
                             {task.approvedAt ? (
                               <ShieldCheck className="h-5 w-5 text-emerald-600" />
                             ) : (
-                              <Shield className="h-5 w-5 text-muted-foreground" />
+                              <Shield className={cn("h-5 w-5", task.status === 'Completed' ? "text-muted-foreground" : "text-muted-foreground/40")} />
                             )}
                           </Button>
                           {task.approvedAt && (
@@ -2033,12 +2063,13 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         size="sm"
                         className="h-6 w-6 p-0"
                         onClick={() => handleToggleApproval(task.id, !!task.approvedAt)}
-                        title={task.approvedAt ? 'Revoke approval' : 'Approve task'}
+                        disabled={task.status !== 'Completed' && !task.approvedAt}
+                        title={task.status !== 'Completed' && !task.approvedAt ? 'Task must be completed before approval' : (task.approvedAt ? 'Revoke approval' : 'Approve task')}
                       >
                         {task.approvedAt ? (
                           <ShieldCheck className="h-4 w-4 text-emerald-600" />
                         ) : (
-                          <Shield className="h-4 w-4 text-muted-foreground" />
+                          <Shield className={cn("h-4 w-4", task.status === 'Completed' ? "text-muted-foreground" : "text-muted-foreground/40")} />
                         )}
                       </Button>
                     </TableCell>

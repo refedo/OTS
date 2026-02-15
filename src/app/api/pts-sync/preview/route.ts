@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/jwt';
 import { googleSheetsSyncService, DEFAULT_COLUMN_MAPPING } from '@/lib/services/google-sheets-sync.service';
 import { google } from 'googleapis';
+import prisma from '@/lib/prisma';
 
 const SPREADSHEET_ID = '11jXnWje2-4n9FPUB1jsJrkP6ioooKgnoYVkwVGG4hPI';
 const RAW_DATA_SHEET = '02-Raw Data';
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
         if (columnMapping && typeof columnMapping === 'object') {
           for (const [field, col] of Object.entries(columnMapping)) {
             const colStr = col as string;
+            if (!colStr) continue; // Skip empty mappings
             // Convert column letter to index (A=0, B=1, etc.)
             const colIndex = colStr.charCodeAt(0) - 65 + (colStr.length > 1 ? (colStr.charCodeAt(1) - 65 + 1) * 26 : 0);
             mapped[field] = row[colIndex] || '';
@@ -79,6 +81,22 @@ export async function POST(request: NextRequest) {
         }
         return mapped;
       });
+
+      // Resolve building names from designations if buildingDesignation exists but buildingName is empty
+      const designations = [...new Set(mappedData.map(d => d.buildingDesignation).filter(Boolean))];
+      if (designations.length > 0) {
+        const buildings = await prisma.building.findMany({
+          where: { designation: { in: designations } },
+          select: { designation: true, name: true },
+        });
+        const designationToName = new Map(buildings.map(b => [b.designation, b.name]));
+        
+        for (const row of mappedData) {
+          if (row.buildingDesignation && !row.buildingName) {
+            row.buildingName = designationToName.get(row.buildingDesignation) || '';
+          }
+        }
+      }
 
       return NextResponse.json({ data: mappedData, count: mappedData.length });
     }
