@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '13.6.1';
+const CURRENT_VERSION = '13.5.2';
 const RELEASE_DATE = 'February 15, 2026';
 
 export default function VersionBadge() {

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +26,8 @@ type Task = {
   department: { id: string; name: string } | null;
   completedAt: string | null;
   completedBy: { id: string; name: string; email: string; position: string | null } | null;
+  approvedAt: string | null;
+  approvedBy: { id: string; name: string; email: string; position: string | null } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -180,6 +182,64 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
     }
   };
 
+  const handleToggleApproval = async () => {
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved: !task.approvedAt }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update approval');
+
+      router.refresh();
+    } catch (error) {
+      alert('Failed to update approval status');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Stage approval circles component
+  const StageApprovalCircles = () => {
+    const stages = [
+      { label: 'Input Date', completed: !!task.taskInputDate, date: task.taskInputDate },
+      { label: 'Due Date', completed: !!task.dueDate, date: task.dueDate },
+      { label: 'Completion', completed: !!task.completedAt, date: task.completedAt },
+      { label: 'Approval', completed: !!task.approvedAt, date: task.approvedAt },
+    ];
+
+    return (
+      <div className="flex items-center justify-center gap-0 py-6">
+        {stages.map((stage, index) => (
+          <div key={stage.label} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <span className="text-xs text-muted-foreground mb-2">{stage.label}</span>
+              <div className={cn(
+                "w-12 h-12 rounded-full flex items-center justify-center transition-all",
+                stage.completed 
+                  ? "bg-emerald-500 text-white" 
+                  : "bg-muted border-2 border-dashed border-muted-foreground/30"
+              )}>
+                {stage.completed && <Check className="h-6 w-6" />}
+              </div>
+              {stage.date && (
+                <span className="text-[10px] text-muted-foreground mt-1">{formatDate(stage.date)}</span>
+              )}
+            </div>
+            {index < stages.length - 1 && (
+              <div className={cn(
+                "w-12 h-0.5 mx-1 mt-4",
+                stages[index + 1].completed ? "bg-emerald-500" : "bg-muted-foreground/20"
+              )} />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="container mx-auto p-6 lg:p-8 max-w-4xl max-lg:pt-20">
@@ -211,6 +271,13 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
             )}
           </div>
         </div>
+
+        {/* Stage Approval Circles */}
+        <Card className="mb-6">
+          <CardContent className="pt-4">
+            <StageApprovalCircles />
+          </CardContent>
+        </Card>
 
         {/* Status and Priority Badges */}
         <div className="flex gap-2 mb-6">
@@ -251,37 +318,75 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
               </CardContent>
             </Card>
 
-            {/* Quick Status Update (for assigned users) */}
-            {isAssignedUser && task.status !== 'Completed' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Update Status</CardTitle>
-                </CardHeader>
-                <CardContent>
+            {/* Quick Actions (Complete & Approve) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  {/* Status Update Buttons */}
+                  {task.status !== 'Completed' && (
+                    <div className="flex gap-2">
+                      {task.status === 'Pending' && (
+                        <Button
+                          onClick={() => handleStatusUpdate('In Progress')}
+                          disabled={updating}
+                          className="flex-1"
+                        >
+                          Start Task
+                        </Button>
+                      )}
+                      {task.status === 'In Progress' && (
+                        <Button
+                          onClick={() => handleStatusUpdate('Completed')}
+                          disabled={updating}
+                          className="flex-1 bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle2 className="size-4 mr-2" />
+                          Mark as Completed
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Approval Button */}
                   <div className="flex gap-2">
-                    {task.status === 'Pending' && (
+                    {task.status === 'Completed' && !task.approvedAt && (
                       <Button
-                        onClick={() => handleStatusUpdate('In Progress')}
+                        onClick={handleToggleApproval}
                         disabled={updating}
-                        className="flex-1"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                       >
-                        Start Task
+                        <ShieldCheck className="size-4 mr-2" />
+                        Approve Task
                       </Button>
                     )}
-                    {task.status === 'In Progress' && (
+                    {task.approvedAt && (
                       <Button
-                        onClick={() => handleStatusUpdate('Completed')}
+                        onClick={handleToggleApproval}
                         disabled={updating}
-                        className="flex-1"
+                        variant="outline"
+                        className="flex-1 text-amber-600 border-amber-300 hover:bg-amber-50"
                       >
-                        <CheckCircle2 className="size-4 mr-2" />
-                        Mark as Completed
+                        <Shield className="size-4 mr-2" />
+                        Revoke Approval
                       </Button>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+
+                  {/* Status info */}
+                  {task.status === 'Completed' && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      {task.approvedAt 
+                        ? `Approved by ${task.approvedBy?.name || 'Unknown'} on ${formatDate(task.approvedAt)}`
+                        : 'Task completed, awaiting approval'
+                      }
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}

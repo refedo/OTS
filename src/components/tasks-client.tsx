@@ -2046,7 +2046,24 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     <TableCell className="text-sm text-muted-foreground">{task.assignedTo?.name || '-'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{getDuration(task)}</TableCell>
                     <TableCell className="text-sm">{task.taskInputDate ? formatDate(task.taskInputDate) : '-'}</TableCell>
-                    <TableCell className="text-sm">{task.dueDate ? formatDate(task.dueDate) : '-'}</TableCell>
+                    <TableCell className="text-sm">
+                      {task.dueDate ? (
+                        <span className={cn(
+                          task.status !== 'Completed' && (() => {
+                            const due = new Date(task.dueDate);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            due.setHours(0, 0, 0, 0);
+                            const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                            if (diffDays < 0) return 'text-red-600 font-medium';
+                            if (diffDays <= 3) return 'text-orange-600 font-medium';
+                            return '';
+                          })()
+                        )}>
+                          {formatDate(task.dueDate)}
+                        </span>
+                      ) : '-'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", statusColors[task.status as keyof typeof statusColors])}>
                         {task.status}
@@ -2073,6 +2090,49 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         )}
                       </Button>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Link href={`/tasks/${task.id}/edit`}>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Edit task">
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/tasks/${task.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/tasks/${task.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDuplicate(task)}>
+                              <Copy className="mr-2 h-4 w-4" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            {canEditTask && (
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(task.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
 
@@ -2088,6 +2148,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         <TableHead>Status</TableHead>
                         <TableHead>Priority</TableHead>
                         <TableHead>Approval</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

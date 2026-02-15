@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [13.6.1] - 2026-02-15
+## [13.5.2] - 2026-02-15
 
 ### 📋 Tasks UI Polish & PTS Preview
 
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Date Column Widths**
   - Input Date, Due Date, and Completion columns now have min-width to prevent date wrapping
 
-- **Version Updated to 13.6.1**
+- **Version Updated to 13.5.2**
   - Updated across: package.json, VersionBadge, login-form, app-sidebar, settings/version, latest-version API, /changelog page
 
 #### Fixed
@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [13.6.0] - 2026-02-15
+## [13.5.1] - 2026-02-15
 
 ### 📋 Tasks Module Major Enhancement
 

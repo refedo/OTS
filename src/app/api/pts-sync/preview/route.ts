@@ -62,15 +62,23 @@ export async function POST(request: NextRequest) {
       const headers = rows[0];
       const dataRows = rows.slice(1, limit + 1);
 
+      // Helper to convert column letter(s) to 0-based index (A=0, B=1, ..., Z=25, AA=26, AB=27, ...)
+      const colLetterToIndex = (col: string): number => {
+        let index = 0;
+        for (let i = 0; i < col.length; i++) {
+          index = index * 26 + (col.charCodeAt(i) - 64);
+        }
+        return index - 1; // Convert to 0-based
+      };
+
       // Map using column mapping if provided
       const mappedData = dataRows.map(row => {
         const mapped: Record<string, string> = {};
         if (columnMapping && typeof columnMapping === 'object') {
           for (const [field, col] of Object.entries(columnMapping)) {
-            const colStr = col as string;
+            const colStr = (col as string).toUpperCase().trim();
             if (!colStr) continue; // Skip empty mappings
-            // Convert column letter to index (A=0, B=1, etc.)
-            const colIndex = colStr.charCodeAt(0) - 65 + (colStr.length > 1 ? (colStr.charCodeAt(1) - 65 + 1) * 26 : 0);
+            const colIndex = colLetterToIndex(colStr);
             mapped[field] = row[colIndex] || '';
           }
         } else {

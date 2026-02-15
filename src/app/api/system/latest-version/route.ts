@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '13.6.1',
+  version: '13.5.2',
   date: 'February 15, 2026',
   type: 'minor' as const,
   mainTitle: '� Tasks UI Polish & PTS Preview',
