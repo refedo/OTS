@@ -18,6 +18,7 @@ const updateSchema = z.object({
   status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
   isPrivate: z.boolean().optional(),
   isCeoTask: z.boolean().optional(),
+  approved: z.boolean().optional(),
 });
 
 // Helper to create audit log entries
@@ -79,23 +80,28 @@ export async function GET(
     },
   });
 
-  // Try to fetch completedBy if the field exists in the database
+  // Try to fetch completedBy and approvedBy if the fields exist in the database
   try {
-    const taskWithCompletedBy = await prisma.task.findUnique({
+    const taskExtras = await prisma.task.findUnique({
       where: { id },
       select: {
+        approvedAt: true,
         completedBy: {
+          select: { id: true, name: true, email: true, position: true },
+        },
+        approvedBy: {
           select: { id: true, name: true, email: true, position: true },
         },
       },
     });
     
-    if (taskWithCompletedBy?.completedBy) {
-      task.completedBy = taskWithCompletedBy.completedBy;
+    if (taskExtras) {
+      (task as any).completedBy = taskExtras.completedBy || null;
+      (task as any).approvedAt = taskExtras.approvedAt || null;
+      (task as any).approvedBy = taskExtras.approvedBy || null;
     }
   } catch (error) {
-    // completedBy field doesn't exist in database yet
-    console.log('completedBy field not available in database yet');
+    console.log('Extended fields not available in database yet');
   }
 
   if (!task) {
@@ -153,8 +159,8 @@ export async function PATCH(
     if (task.assignedToId !== session.sub) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    // Engineers/Operators can only update status
-    if (Object.keys(parsed.data).some(key => key !== 'status')) {
+    // Engineers/Operators can only update status and approval
+    if (Object.keys(parsed.data).some(key => key !== 'status' && key !== 'approved')) {
       return NextResponse.json({ error: 'You can only update task status' }, { status: 403 });
     }
   }
@@ -163,8 +169,7 @@ export async function PATCH(
   if (parsed.data.dueDate) updateData.dueDate = new Date(parsed.data.dueDate);
   if (parsed.data.taskInputDate) updateData.taskInputDate = new Date(parsed.data.taskInputDate);
   
-  // Handle completion tracking (only if database schema supports it)
-  // Note: This will only work after database migration is applied
+  // Handle completion tracking
   try {
     if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
       updateData.completedAt = new Date();
@@ -174,8 +179,22 @@ export async function PATCH(
       updateData.completedById = null;
     }
   } catch (error) {
-    // If database doesn't have these fields yet, skip completion tracking
     console.log('Completion tracking fields not available in database yet');
+  }
+
+  // Handle approval tracking
+  try {
+    if (parsed.data.approved === true) {
+      updateData.approvedAt = new Date();
+      updateData.approvedById = session.sub;
+    } else if (parsed.data.approved === false) {
+      updateData.approvedAt = null;
+      updateData.approvedById = null;
+    }
+    // Remove the 'approved' field from updateData since it's not a real DB field
+    delete updateData.approved;
+  } catch (error) {
+    console.log('Approval tracking fields not available in database yet');
   }
   
   // CEO task visibility - only CEO can set/modify isCeoTask
@@ -209,23 +228,28 @@ export async function PATCH(
     },
   });
 
-  // Try to fetch completedBy if the field exists in the database
+  // Try to fetch completedBy and approvedBy
   try {
-    const taskWithCompletedBy = await prisma.task.findUnique({
+    const taskExtras = await prisma.task.findUnique({
       where: { id },
       select: {
+        approvedAt: true,
         completedBy: {
+          select: { id: true, name: true, email: true, position: true },
+        },
+        approvedBy: {
           select: { id: true, name: true, email: true, position: true },
         },
       },
     });
     
-    if (taskWithCompletedBy?.completedBy) {
-      updatedTask.completedBy = taskWithCompletedBy.completedBy;
+    if (taskExtras) {
+      (updatedTask as any).completedBy = taskExtras.completedBy || null;
+      (updatedTask as any).approvedAt = taskExtras.approvedAt || null;
+      (updatedTask as any).approvedBy = taskExtras.approvedBy || null;
     }
   } catch (error) {
-    // completedBy field doesn't exist in database yet
-    console.log('completedBy field not available in database yet');
+    console.log('Extended fields not available in database yet');
   }
 
   // Sync WorkUnit status if status was updated (non-blocking)

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -41,6 +41,8 @@ type Task = {
   department: { id: string; name: string } | null;
   completedAt: string | null;
   completedBy: { id: string; name: string; email: string; position: string | null } | null;
+  approvedAt: string | null;
+  approvedBy: { id: string; name: string; email: string; position: string | null } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -104,12 +106,24 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const { showAlert, AlertDialog } = useAlert();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('In Progress');
-  const [priorityFilter, setPriorityFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string[]>(['In Progress']);
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+  const [approvalFilter, setApprovalFilter] = useState<string>('');
   const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter || '');
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'project'>('table');
+  const [sortColumn, setSortColumn] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [expandedBuildings, setExpandedBuildings] = useState<Set<string>>(new Set());
+  const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
+  const [showTips, setShowTips] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tasks-tips-dismissed') !== 'true';
+    }
+    return true;
+  });
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddData, setQuickAddData] = useState({
     title: '',
@@ -156,8 +170,66 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const canCreateTask = userPermissions.includes('tasks.create');
   const canEditTask = userPermissions.includes('tasks.edit') || userPermissions.includes('tasks.create');
 
+  // Helper to toggle multi-select filter values
+  const toggleStatusFilter = (status: string, e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      // Multi-select: toggle the clicked status
+      setStatusFilter(prev => {
+        if (prev.includes(status)) {
+          return prev.filter(s => s !== status);
+        }
+        return [...prev, status];
+      });
+    } else {
+      // Single select: set only this status (or clear if already the only one)
+      setStatusFilter(prev => {
+        if (prev.length === 1 && prev[0] === status) return [];
+        return [status];
+      });
+    }
+  };
+
+  const togglePriorityFilter = (priority: string, e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      setPriorityFilter(prev => {
+        if (prev.includes(priority)) {
+          return prev.filter(p => p !== priority);
+        }
+        return [...prev, priority];
+      });
+    } else {
+      setPriorityFilter(prev => {
+        if (prev.length === 1 && prev[0] === priority) return [];
+        return [priority];
+      });
+    }
+  };
+
+  // Filtered buildings based on selected project
+  const filteredBuildings = useMemo(() => {
+    if (!projectFilter) return allBuildings;
+    return allBuildings.filter(b => b.projectId === projectFilter);
+  }, [allBuildings, projectFilter]);
+
+  // Handle sort
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return <ArrowUpDown className="size-3 ml-1 opacity-40" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="size-3 ml-1 text-primary" /> 
+      : <ArrowDown className="size-3 ml-1 text-primary" />;
+  };
+
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
+    let result = tasks.filter((task) => {
       // Filter for My Tasks - only show tasks assigned to current user
       if (filterMyTasks && task.assignedTo?.id !== userId) {
         return false;
@@ -169,16 +241,87 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         task.assignedTo?.name.toLowerCase().includes(search.toLowerCase()) ||
         task.project?.name.toLowerCase().includes(search.toLowerCase());
       
-      const matchesStatus = !statusFilter || task.status === statusFilter;
-      const matchesPriority = !priorityFilter || task.priority === priorityFilter;
+      const matchesStatus = statusFilter.length === 0 || statusFilter.includes(task.status);
+      const matchesPriority = priorityFilter.length === 0 || priorityFilter.includes(task.priority);
       const matchesProject = !projectFilter || task.project?.id === projectFilter;
       const matchesBuilding = !buildingFilter || task.building?.id === buildingFilter;
       const matchesDepartment = !departmentFilter || task.department?.id === departmentFilter;
       const matchesAssignedTo = !assignedToFilter || task.assignedTo?.id === assignedToFilter;
+      const matchesApproval = !approvalFilter || 
+        (approvalFilter === 'approved' && task.approvedAt) ||
+        (approvalFilter === 'not_approved' && !task.approvedAt);
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment && matchesAssignedTo;
+      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment && matchesAssignedTo && matchesApproval;
     });
-  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, assignedToFilter, filterMyTasks, userId]);
+
+    // Apply sorting
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal: any = '';
+        let bVal: any = '';
+
+        switch (sortColumn) {
+          case 'title': aVal = a.title.toLowerCase(); bVal = b.title.toLowerCase(); break;
+          case 'assignedTo': aVal = a.assignedTo?.name?.toLowerCase() || ''; bVal = b.assignedTo?.name?.toLowerCase() || ''; break;
+          case 'department': aVal = a.department?.name?.toLowerCase() || ''; bVal = b.department?.name?.toLowerCase() || ''; break;
+          case 'project': aVal = a.project?.projectNumber || ''; bVal = b.project?.projectNumber || ''; break;
+          case 'building': aVal = a.building?.designation || ''; bVal = b.building?.designation || ''; break;
+          case 'priority': {
+            const order: Record<string, number> = { 'High': 0, 'Medium': 1, 'Low': 2 };
+            aVal = order[a.priority] ?? 99; bVal = order[b.priority] ?? 99; break;
+          }
+          case 'status': {
+            const order: Record<string, number> = { 'Pending': 0, 'In Progress': 1, 'Waiting for Approval': 2, 'Completed': 3, 'Cancelled': 4 };
+            aVal = order[a.status] ?? 99; bVal = order[b.status] ?? 99; break;
+          }
+          case 'taskInputDate': aVal = a.taskInputDate || ''; bVal = b.taskInputDate || ''; break;
+          case 'dueDate': aVal = a.dueDate || ''; bVal = b.dueDate || ''; break;
+          case 'completedAt': aVal = a.completedAt || ''; bVal = b.completedAt || ''; break;
+          case 'approvedAt': aVal = a.approvedAt || ''; bVal = b.approvedAt || ''; break;
+        }
+
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, assignedToFilter, approvalFilter, filterMyTasks, userId, sortColumn, sortDirection]);
+
+  // Expand/Collapse All for project management view
+  const expandAll = useCallback(() => {
+    const projectIds = new Set<string>();
+    const buildingKeys = new Set<string>();
+    const activityKeys = new Set<string>();
+    
+    filteredTasks.forEach(task => {
+      if (!task.project) return;
+      const pKey = task.project.id;
+      projectIds.add(pKey);
+      const bKey = task.building?.id || '__no_building__';
+      buildingKeys.add(`${pKey}-${bKey}`);
+      const actKey = task.department?.id || '__no_dept__';
+      activityKeys.add(`${pKey}-${bKey}-${actKey}`);
+    });
+    
+    setExpandedProjects(projectIds);
+    setExpandedBuildings(buildingKeys);
+    setExpandedActivities(activityKeys);
+  }, [filteredTasks]);
+
+  const collapseAll = useCallback(() => {
+    setExpandedProjects(new Set());
+    setExpandedBuildings(new Set());
+    setExpandedActivities(new Set());
+  }, []);
+
+  // Auto-expand all when switching to project view
+  useEffect(() => {
+    if (viewMode === 'project') {
+      expandAll();
+    }
+  }, [viewMode, expandAll]);
 
   const handleDelete = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
@@ -334,6 +477,57 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       router.refresh();
     } catch (error) {
       showAlert('Failed to update task status', { type: 'error' });
+    }
+  };
+
+  const handleToggleApproval = async (taskId: string, currentlyApproved: boolean) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved: !currentlyApproved }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update approval');
+
+      const updatedTask = await response.json();
+      setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
+      router.refresh();
+    } catch (error) {
+      showAlert('Failed to update approval status', { type: 'error' });
+    }
+  };
+
+  const handleDuplicate = async (task: Task) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `${task.title} (Copy)`,
+          description: task.description,
+          assignedToId: task.assignedTo?.id || null,
+          projectId: task.project?.id || null,
+          buildingId: task.building?.id || null,
+          departmentId: task.department?.id || null,
+          priority: task.priority,
+          dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null,
+          taskInputDate: new Date().toISOString().split('T')[0],
+          status: 'Pending',
+          isPrivate: task.isPrivate,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to duplicate task');
+      }
+
+      const newTask = await response.json();
+      setTasks([newTask, ...tasks]);
+      showAlert('Task duplicated successfully', { type: 'success' });
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to duplicate task', { type: 'error' });
     }
   };
 
@@ -541,8 +735,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-20">
+    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 w-full">
+      <div className="w-full p-6 lg:p-8 space-y-6 max-lg:pt-20">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -726,6 +920,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     variant={viewMode === 'table' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setViewMode('table')}
+                    title="Table View"
                   >
                     <List className="size-4" />
                   </Button>
@@ -733,28 +928,37 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     variant={viewMode === 'grid' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setViewMode('grid')}
+                    title="Card View"
                   >
                     <LayoutGrid className="size-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'project' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('project')}
+                    title="Project Management View"
+                  >
+                    <FolderTree className="size-4" />
                   </Button>
                 </div>
 
                 <div className="h-6 w-px bg-border" />
 
-                {/* Status filters */}
-                <span className="text-sm text-muted-foreground">Status:</span>
+                {/* Status filters - Ctrl+Click for multi-select */}
+                <span className="text-sm text-muted-foreground" title="Hold Ctrl/Cmd and click to select multiple">Status:</span>
                 <Button
-                  variant={statusFilter === '' ? 'default' : 'outline'}
+                  variant={statusFilter.length === 0 ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setStatusFilter('')}
+                  onClick={() => setStatusFilter([])}
                 >
                   All
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setStatusFilter('Pending')}
+                  onClick={(e) => toggleStatusFilter('Pending', e)}
                   className={cn(
-                    statusFilter === 'Pending' 
+                    statusFilter.includes('Pending') 
                       ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600 hover:text-white' 
                       : 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300'
                   )}
@@ -764,9 +968,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setStatusFilter('In Progress')}
+                  onClick={(e) => toggleStatusFilter('In Progress', e)}
                   className={cn(
-                    statusFilter === 'In Progress' 
+                    statusFilter.includes('In Progress') 
                       ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:text-white' 
                       : 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
                   )}
@@ -776,9 +980,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setStatusFilter('Waiting for Approval')}
+                  onClick={(e) => toggleStatusFilter('Waiting for Approval', e)}
                   className={cn(
-                    statusFilter === 'Waiting for Approval' 
+                    statusFilter.includes('Waiting for Approval') 
                       ? 'bg-purple-500 text-white border-purple-500 hover:bg-purple-600 hover:text-white' 
                       : 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300'
                   )}
@@ -788,9 +992,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setStatusFilter('Completed')}
+                  onClick={(e) => toggleStatusFilter('Completed', e)}
                   className={cn(
-                    statusFilter === 'Completed' 
+                    statusFilter.includes('Completed') 
                       ? 'bg-green-500 text-white border-green-500 hover:bg-green-600 hover:text-white' 
                       : 'hover:bg-green-50 hover:text-green-700 hover:border-green-300'
                   )}
@@ -800,9 +1004,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setStatusFilter('Cancelled')}
+                  onClick={(e) => toggleStatusFilter('Cancelled', e)}
                   className={cn(
-                    statusFilter === 'Cancelled' 
+                    statusFilter.includes('Cancelled') 
                       ? 'bg-gray-500 text-white border-gray-500 hover:bg-gray-600 hover:text-white' 
                       : 'hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'
                   )}
@@ -812,21 +1016,57 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
                 <div className="h-6 w-px bg-border" />
 
-                {/* Priority filters */}
-                <span className="text-sm text-muted-foreground">Priority:</span>
+                {/* Approval filter */}
+                <span className="text-sm text-muted-foreground">Approval:</span>
                 <Button
-                  variant={priorityFilter === '' ? 'default' : 'outline'}
+                  variant={approvalFilter === '' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setPriorityFilter('')}
+                  onClick={() => setApprovalFilter('')}
                 >
                   All
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPriorityFilter('High')}
+                  onClick={() => setApprovalFilter('approved')}
                   className={cn(
-                    priorityFilter === 'High' 
+                    approvalFilter === 'approved'
+                      ? 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:text-white'
+                      : 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
+                  )}
+                >
+                  Approved
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setApprovalFilter('not_approved')}
+                  className={cn(
+                    approvalFilter === 'not_approved'
+                      ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600 hover:text-white'
+                      : 'hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300'
+                  )}
+                >
+                  Not Approved
+                </Button>
+
+                <div className="h-6 w-px bg-border" />
+
+                {/* Priority filters - Ctrl+Click for multi-select */}
+                <span className="text-sm text-muted-foreground" title="Hold Ctrl/Cmd and click to select multiple">Priority:</span>
+                <Button
+                  variant={priorityFilter.length === 0 ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPriorityFilter([])}
+                >
+                  All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => togglePriorityFilter('High', e)}
+                  className={cn(
+                    priorityFilter.includes('High') 
                       ? 'bg-red-500 text-white border-red-500 hover:bg-red-600 hover:text-white' 
                       : 'hover:bg-red-50 hover:text-red-700 hover:border-red-300'
                   )}
@@ -836,9 +1076,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPriorityFilter('Medium')}
+                  onClick={(e) => togglePriorityFilter('Medium', e)}
                   className={cn(
-                    priorityFilter === 'Medium' 
+                    priorityFilter.includes('Medium') 
                       ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:text-white' 
                       : 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300'
                   )}
@@ -848,15 +1088,18 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPriorityFilter('Low')}
+                  onClick={(e) => togglePriorityFilter('Low', e)}
                   className={cn(
-                    priorityFilter === 'Low' 
+                    priorityFilter.includes('Low') 
                       ? 'bg-gray-500 text-white border-gray-500 hover:bg-gray-600 hover:text-white' 
                       : 'hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'
                   )}
                 >
                   Low
                 </Button>
+                {(statusFilter.length > 1 || priorityFilter.length > 1) && (
+                  <span className="text-xs text-muted-foreground italic ml-1">(Ctrl+Click for multi-select)</span>
+                )}
               </div>
 
               {/* Additional Filters */}
@@ -866,7 +1109,10 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                 {/* Project Filter */}
                 <select
                   value={projectFilter}
-                  onChange={(e) => setProjectFilter(e.target.value)}
+                  onChange={(e) => {
+                    setProjectFilter(e.target.value);
+                    setBuildingFilter(''); // Reset building when project changes
+                  }}
                   className="h-9 px-3 rounded-md border bg-background text-sm"
                 >
                   <option value="">All Projects</option>
@@ -877,14 +1123,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   ))}
                 </select>
 
-                {/* Building Filter */}
+                {/* Building Filter - dependent on selected project */}
                 <select
                   value={buildingFilter}
                   onChange={(e) => setBuildingFilter(e.target.value)}
                   className="h-9 px-3 rounded-md border bg-background text-sm"
                 >
-                  <option value="">All Buildings</option>
-                  {allBuildings.map((building) => (
+                  <option value="">{projectFilter ? 'All Buildings (filtered)' : 'All Buildings'}</option>
+                  {filteredBuildings.map((building) => (
                     <option key={building.id} value={building.id}>
                       {building.name} ({building.designation})
                     </option>
@@ -923,12 +1169,43 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           </CardContent>
         </Card>
 
+        {/* Tips Banner */}
+        {showTips && (
+          <Card className="border-blue-200 bg-blue-50/50">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-sm">
+                  <p className="font-medium text-blue-900">New Features</p>
+                  <ul className="text-blue-800 space-y-0.5 text-xs">
+                    <li><strong>Ctrl+Click</strong> on Status or Priority buttons to select multiple filters at once</li>
+                    <li><strong>Click column headers</strong> to sort the table ascending/descending</li>
+                    <li><strong>Project Management View</strong> (<FolderTree className="size-3 inline" />) groups tasks by Project &gt; Building &gt; Department</li>
+                    <li><strong>Approval Status</strong> column tracks client approval with timestamp</li>
+                    <li><strong>Duplicate Task</strong> option available in the row action menu (&hellip;)</li>
+                  </ul>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-600 hover:text-blue-800 shrink-0 text-xs"
+                  onClick={() => {
+                    setShowTips(false);
+                    localStorage.setItem('tasks-tips-dismissed', 'true');
+                  }}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tasks Display */}
         {filteredTasks.length === 0 && !showQuickAdd ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
-                {search || statusFilter || priorityFilter
+                {search || statusFilter.length > 0 || priorityFilter.length > 0
                   ? 'No tasks found matching your filters'
                   : 'No tasks yet. Create your first task!'}
               </p>
@@ -936,7 +1213,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           </Card>
         ) : viewMode === 'table' || showQuickAdd ? (
           <Card>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -949,16 +1226,39 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       />
                     </TableHead>
                     <TableHead className="w-12"></TableHead>
-                    <TableHead>Task</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Building</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Input Date</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Completion</TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('title')}>
+                      <div className="flex items-center">Task {getSortIcon('title')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('assignedTo')}>
+                      <div className="flex items-center">Assigned To {getSortIcon('assignedTo')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('department')}>
+                      <div className="flex items-center">Department {getSortIcon('department')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('project')}>
+                      <div className="flex items-center">Project {getSortIcon('project')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('building')}>
+                      <div className="flex items-center">Building {getSortIcon('building')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('priority')}>
+                      <div className="flex items-center">Priority {getSortIcon('priority')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('status')}>
+                      <div className="flex items-center">Status {getSortIcon('status')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none min-w-[110px]" onClick={() => handleSort('taskInputDate')}>
+                      <div className="flex items-center">Input Date {getSortIcon('taskInputDate')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none min-w-[110px]" onClick={() => handleSort('dueDate')}>
+                      <div className="flex items-center">Due Date {getSortIcon('dueDate')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none min-w-[120px]" onClick={() => handleSort('completedAt')}>
+                      <div className="flex items-center">Completion {getSortIcon('completedAt')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('approvedAt')}>
+                      <div className="flex items-center">Approval {getSortIcon('approvedAt')}</div>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1042,7 +1342,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           {allBuildings
                             .filter(building => !quickAddData.projectId || building.projectId === quickAddData.projectId)
                             .map((building) => (
-                              <option key={building.id} value={building.id}>{building.designation}</option>
+                              <option key={building.id} value={building.id}>{building.name} ({building.designation})</option>
                             ))}
                         </select>
                       </TableCell>
@@ -1102,6 +1402,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           />
                           <Lock className="size-3.5 text-amber-600" />
                         </label>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground text-sm">-</span>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
@@ -1415,6 +1718,31 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleToggleApproval(task.id, !!task.approvedAt)}
+                            title={task.approvedAt ? 'Revoke approval' : 'Approve task'}
+                          >
+                            {task.approvedAt ? (
+                              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                            ) : (
+                              <Shield className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </Button>
+                          {task.approvedAt && (
+                            <div className="text-xs">
+                              <div className="font-medium text-emerald-700">{formatDate(task.approvedAt)}</div>
+                              {task.approvedBy && (
+                                <div className="text-muted-foreground">by {task.approvedBy.name}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         {isEditing ? (
                           <div className="flex gap-1 justify-end">
@@ -1455,6 +1783,12 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                     Edit Task (Full Form)
                                   </DropdownMenuItem>
                                 )}
+                                {canCreateTask && (
+                                  <DropdownMenuItem onClick={() => handleDuplicate(task)}>
+                                    <Copy className="size-4" />
+                                    Duplicate Task
+                                  </DropdownMenuItem>
+                                )}
                                 {['CEO', 'Admin'].includes(userRole) && (
                                   <DropdownMenuItem
                                     onClick={() => handleDelete(task.id)}
@@ -1476,7 +1810,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
               </Table>
             </CardContent>
           </Card>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredTasks.map((task) => (
               <Card key={task.id} className="hover:shadow-lg transition-all">
@@ -1505,7 +1839,13 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                             Edit Task
                           </DropdownMenuItem>
                         )}
-                        {userRole === 'Admin' && (
+                        {canCreateTask && (
+                          <DropdownMenuItem onClick={() => handleDuplicate(task)}>
+                            <Copy className="size-4" />
+                            Duplicate Task
+                          </DropdownMenuItem>
+                        )}
+                        {['CEO', 'Admin'].includes(userRole) && (
                           <DropdownMenuItem
                             onClick={() => handleDelete(task.id)}
                             className="text-destructive"
@@ -1530,6 +1870,11 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     >
                       {task.priority}
                     </Badge>
+                    {task.approvedAt && (
+                      <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300">
+                        <ShieldCheck className="size-3 mr-1" /> Approved
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
 
@@ -1578,6 +1923,290 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
               </Card>
             ))}
           </div>
+        ) : (
+          /* Project Management View - hierarchical: Project > Building > Activity > Task */
+          <Card>
+            <CardHeader className="pb-2 px-4 pt-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FolderTree className="h-4 w-4" />
+                  Project Management View
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={expandAll}>
+                    <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                    Expand All
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={collapseAll}>
+                    <ChevronRight className="h-3.5 w-3.5 mr-1" />
+                    Collapse All
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              {(() => {
+                const projectGroups = new Map<string, { project: Task['project']; buildings: Map<string, { building: Task['building']; tasks: Task[] }> }>();
+                const noProjectTasks: Task[] = [];
+
+                filteredTasks.forEach(task => {
+                  if (!task.project) {
+                    noProjectTasks.push(task);
+                    return;
+                  }
+                  const pKey = task.project.id;
+                  if (!projectGroups.has(pKey)) {
+                    projectGroups.set(pKey, { project: task.project, buildings: new Map() });
+                  }
+                  const pg = projectGroups.get(pKey)!;
+                  const bKey = task.building?.id || '__no_building__';
+                  if (!pg.buildings.has(bKey)) {
+                    pg.buildings.set(bKey, { building: task.building, tasks: [] });
+                  }
+                  pg.buildings.get(bKey)!.tasks.push(task);
+                });
+
+                const toggleProject = (id: string) => {
+                  setExpandedProjects(prev => {
+                    const next = new Set(prev);
+                    next.has(id) ? next.delete(id) : next.add(id);
+                    return next;
+                  });
+                };
+                const toggleBuilding = (id: string) => {
+                  setExpandedBuildings(prev => {
+                    const next = new Set(prev);
+                    next.has(id) ? next.delete(id) : next.add(id);
+                    return next;
+                  });
+                };
+
+                const getDuration = (task: Task) => {
+                  if (!task.taskInputDate || !task.dueDate) return '-';
+                  const start = new Date(task.taskInputDate);
+                  const end = new Date(task.dueDate);
+                  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                  return `${days}d`;
+                };
+
+                const renderTaskRow = (task: Task, indent: number) => (
+                  <TableRow key={task.id} className="hover:bg-muted/50">
+                    <TableCell style={{ paddingLeft: `${indent * 24 + 12}px` }}>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleToggleComplete(task.id, task.status)}
+                        >
+                          {task.status === 'Completed' ? (
+                            <CheckSquare className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Square className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                        <Link
+                          href={`/tasks/${task.id}`}
+                          className="hover:text-primary hover:underline truncate text-sm"
+                        >
+                          {task.title}
+                        </Link>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{task.assignedTo?.name || '-'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{getDuration(task)}</TableCell>
+                    <TableCell className="text-sm">{task.taskInputDate ? formatDate(task.taskInputDate) : '-'}</TableCell>
+                    <TableCell className="text-sm">{task.dueDate ? formatDate(task.dueDate) : '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", statusColors[task.status as keyof typeof statusColors])}>
+                        {task.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", priorityColors[task.priority as keyof typeof priorityColors])}>
+                        {task.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => handleToggleApproval(task.id, !!task.approvedAt)}
+                        title={task.approvedAt ? 'Revoke approval' : 'Approve task'}
+                      >
+                        {task.approvedAt ? (
+                          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <Shield className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+
+                return (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Task Name</TableHead>
+                        <TableHead>Assigned To</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead className="min-w-[110px]">Start</TableHead>
+                        <TableHead className="min-w-[110px]">Finish</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>Approval</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from(projectGroups.entries()).map(([projectId, { project, buildings }]) => {
+                        const isProjectExpanded = expandedProjects.has(projectId);
+                        const projectTasks = Array.from(buildings.values()).flatMap(b => b.tasks);
+                        const completedCount = projectTasks.filter(t => t.status === 'Completed').length;
+
+                        return (
+                          <React.Fragment key={projectId}>
+                            <TableRow
+                              className="bg-muted/40 hover:bg-muted/60 cursor-pointer font-semibold"
+                              onClick={() => toggleProject(projectId)}
+                            >
+                              <TableCell className="py-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  {isProjectExpanded ? <ChevronDown className="size-4 text-primary" /> : <ChevronRight className="size-4 text-primary" />}
+                                  <span className="text-primary font-semibold">Project# {project?.projectNumber}</span>
+                                  <span className="text-xs font-normal text-muted-foreground ml-1">- {project?.name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{projectTasks.length} tasks</TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                              <TableCell>
+                                <span className="text-xs text-muted-foreground">{completedCount}/{projectTasks.length}</span>
+                              </TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+
+                            {isProjectExpanded && Array.from(buildings.entries()).map(([buildingId, { building, tasks: bTasks }]) => {
+                              const isBuildingExpanded = expandedBuildings.has(`${projectId}-${buildingId}`);
+                              const bCompleted = bTasks.filter(t => t.status === 'Completed').length;
+
+                              return (
+                                <React.Fragment key={buildingId}>
+                                  <TableRow
+                                    className="bg-muted/20 hover:bg-muted/40 cursor-pointer"
+                                    onClick={() => toggleBuilding(`${projectId}-${buildingId}`)}
+                                  >
+                                    <TableCell className="py-2" style={{ paddingLeft: '36px' }}>
+                                      <div className="flex items-center gap-1.5 font-medium">
+                                        {isBuildingExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                                        <span>{building ? building.name : 'No Building'}</span>
+                                        {building && <span className="text-xs font-normal text-muted-foreground">({building.designation})</span>}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{bTasks.length} tasks</TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell>
+                                      <span className="text-xs text-muted-foreground">{bCompleted}/{bTasks.length}</span>
+                                    </TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                  </TableRow>
+
+                                  {isBuildingExpanded && (() => {
+                                    const activityGroups = new Map<string, { name: string; tasks: Task[] }>();
+                                    bTasks.forEach(task => {
+                                      const actKey = task.department?.id || '__no_dept__';
+                                      const actName = task.department?.name || 'General';
+                                      if (!activityGroups.has(actKey)) {
+                                        activityGroups.set(actKey, { name: actName, tasks: [] });
+                                      }
+                                      activityGroups.get(actKey)!.tasks.push(task);
+                                    });
+
+                                    return Array.from(activityGroups.entries()).map(([actKey, { name: actName, tasks: actTasks }]) => {
+                                      const isActivityExpanded = expandedActivities.has(`${projectId}-${buildingId}-${actKey}`);
+                                      const toggleActivity = () => {
+                                        setExpandedActivities(prev => {
+                                          const next = new Set(prev);
+                                          const key = `${projectId}-${buildingId}-${actKey}`;
+                                          next.has(key) ? next.delete(key) : next.add(key);
+                                          return next;
+                                        });
+                                      };
+
+                                      return (
+                                        <React.Fragment key={actKey}>
+                                          <TableRow
+                                            className="hover:bg-muted/30 cursor-pointer"
+                                            onClick={toggleActivity}
+                                          >
+                                            <TableCell className="py-1.5" style={{ paddingLeft: '60px' }}>
+                                              <div className="flex items-center gap-1.5 font-medium text-sm">
+                                                {isActivityExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                                                <span className="text-muted-foreground">{actName}</span>
+                                                <span className="text-xs font-normal text-muted-foreground">({actTasks.length})</span>
+                                              </div>
+                                            </TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                          </TableRow>
+                                          {isActivityExpanded && actTasks.map(task => renderTaskRow(task, 4))}
+                                        </React.Fragment>
+                                      );
+                                    });
+                                  })()}
+                                </React.Fragment>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
+
+                      {/* Tasks without project */}
+                      {noProjectTasks.length > 0 && (
+                        <>
+                          <TableRow className="bg-gray-50 font-semibold">
+                            <TableCell className="py-2.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-gray-700">Unassigned to Project</span>
+                                <span className="text-xs font-normal text-muted-foreground">({noProjectTasks.length} tasks)</span>
+                              </div>
+                            </TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                          </TableRow>
+                          {noProjectTasks.map(task => renderTaskRow(task, 1))}
+                        </>
+                      )}
+
+                      {filteredTasks.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                            No tasks found matching your filters
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
+            </CardContent>
+          </Card>
         )}
       </div>
       <AlertDialog />

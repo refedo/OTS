@@ -139,6 +139,12 @@ export default function ExecuteSyncPage() {
   const [rollbackProject, setRollbackProject] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState(false);
 
+  // Data Preview
+  const [previewData, setPreviewData] = useState<Record<string, string>[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
   // Check for mappings and start validation
   useEffect(() => {
     const rawDataMapping = localStorage.getItem('pts-raw-data-mapping');
@@ -243,6 +249,40 @@ export default function ExecuteSyncPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Validation failed');
       setPhase('loading');
+    }
+  };
+
+  const fetchPreview = async (sheet: 'rawData' | 'logs' = 'rawData') => {
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const mappingKey = sheet === 'logs' ? 'pts-logs-mapping' : 'pts-raw-data-mapping';
+      const savedMapping = localStorage.getItem(mappingKey);
+      const mapping = savedMapping ? JSON.parse(savedMapping) : undefined;
+      
+      const res = await fetch('/api/pts-sync/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          useDefault: true,
+          sheet,
+          columnMapping: mapping,
+          limit: 20,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || data.details || 'Failed to fetch preview');
+      }
+
+      const result = await res.json();
+      setPreviewData(result.data);
+      setShowPreview(true);
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Failed to fetch preview');
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -608,6 +648,91 @@ export default function ExecuteSyncPage() {
                 </div>
               </div>
             </CardContent>
+          </Card>
+
+          {/* Data Preview */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Data Preview
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (showPreview && previewData) {
+                      setShowPreview(false);
+                    } else {
+                      fetchPreview();
+                    }
+                  }}
+                  disabled={previewLoading}
+                >
+                  {previewLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Loading...
+                    </>
+                  ) : showPreview ? (
+                    'Hide Preview'
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="h-4 w-4 mr-1" />
+                      Preview Data (first 20 rows)
+                    </>
+                  )}
+                </Button>
+              </CardTitle>
+              <CardDescription>
+                Preview the data that will be imported before starting the sync
+              </CardDescription>
+            </CardHeader>
+            {previewError && (
+              <CardContent className="pt-0">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  <AlertCircle className="h-4 w-4 inline mr-2" />
+                  {previewError}
+                </div>
+              </CardContent>
+            )}
+            {showPreview && previewData && previewData.length > 0 && (
+              <CardContent className="pt-0">
+                <div className="border rounded-lg overflow-auto max-h-[400px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs w-10">#</TableHead>
+                        {Object.keys(previewData[0]).map(key => (
+                          <TableHead key={key} className="text-xs whitespace-nowrap">{key}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewData.map((row, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                          {Object.values(row).map((val, colIdx) => (
+                            <TableCell key={colIdx} className="text-xs whitespace-nowrap max-w-[200px] truncate" title={String(val || '')}>
+                              {val || <span className="text-muted-foreground">-</span>}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Showing first {previewData.length} rows. Review the data above to ensure column mappings are correct before importing.
+                </p>
+              </CardContent>
+            )}
+            {showPreview && previewData && previewData.length === 0 && (
+              <CardContent className="pt-0">
+                <p className="text-sm text-muted-foreground">No data found to preview. Check your column mappings.</p>
+              </CardContent>
+            )}
           </Card>
 
           {/* Action Buttons */}

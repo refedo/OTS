@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.6.1] - 2026-02-15
+
+### 📋 Tasks UI Polish & PTS Preview
+
+#### Added
+- **Expand All / Collapse All**
+  - Expand All and Collapse All buttons in project management view toolbar
+  - Default state is expanded when switching to project management view
+
+- **New Features Tip Banner**
+  - Dismissible banner highlighting Ctrl+Click multi-select, sorting, project view, approval, and duplication
+  - Persisted via localStorage so it only shows once
+
+- **Approval Filter Buttons**
+  - Inline Approved / Not Approved filter buttons next to status filters (replaces dropdown)
+
+- **PTS Sync Data Preview**
+  - Preview first 20 rows of PTS data before importing on the execute page
+  - Shows mapped column data in a scrollable table for verification
+
+#### Changed
+- **Project Management View Consistency**
+  - Rewritten to use Table/TableRow/TableCell components matching the main tasks table
+  - Added Assigned To and Priority columns
+  - Shows completion counts per project/building level
+  - Uses system-consistent muted palette instead of colored backgrounds
+  - Card header with title and expand/collapse controls
+
+- **Building Dropdown in Quick Add**
+  - Now shows full building name with designation, e.g. "Zone 8 Toilet (Z8T)" instead of just "Z8T"
+
+- **Date Column Widths**
+  - Input Date, Due Date, and Completion columns now have min-width to prevent date wrapping
+
+- **Version Updated to 13.6.1**
+  - Updated across: package.json, VersionBadge, login-form, app-sidebar, settings/version, latest-version API, /changelog page
+
+#### Fixed
+- Removed duplicate approval filter dropdown from additional filters section
+
+---
+
+## [13.6.0] - 2026-02-15
+
+### 📋 Tasks Module Major Enhancement
+
+#### Added
+- **Sortable Table Headers**
+  - All task table columns are now clickable to sort ascending/descending
+  - Visual sort indicators (arrows) on active sort column
+
+- **Task Duplication**
+  - Duplicate any task via the dropdown menu (creates a copy with "Pending" status)
+
+- **Multi-Select Filters**
+  - Hold Ctrl/Cmd and click status or priority buttons to select multiple filters simultaneously
+  - Visual hint shown when multi-select is active
+
+- **Approval Status Column**
+  - New "Approval" column with shield icon toggle for client approval tracking
+  - Approval timestamp and approver name displayed
+  - Approval filter dropdown (All / Approved / Not Approved)
+
+- **Project Management View**
+  - New hierarchical tree view: Project → Building → Activity (Department) → Task
+  - Collapsible sections with duration, start/finish date aggregation
+  - Inline task completion and approval toggles
+  - Similar to MS Project / Primavera style layout
+
+#### Changed
+- **Building Filter Dependency**
+  - Building dropdown now filters based on selected project
+  - Resets automatically when project selection changes
+
+- **Responsive Layout**
+  - Tasks table now expands to full width when sidebar is collapsed
+  - Horizontal scroll enabled for wide tables on narrow screens
+
+#### Fixed
+- Filter state now properly uses arrays for multi-select instead of single strings
+
+---
+
 ## [13.5.0] - 2026-02-09
 
 ### 🛡️ Security & Performance Major Release

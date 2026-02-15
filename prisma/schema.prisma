@@ -63,6 +63,7 @@ model User {
   assignedTasks      Task[]   @relation("AssignedTasks")
   createdTasks       Task[]   @relation("CreatedTasks")
   completedTasks     Task[]   @relation("CompletedTasks")
+  approvedTasks      Task[]   @relation("ApprovedTasks")
   managedProjects    Project[] @relation("ProjectManager")
   salesProjects      Project[] @relation("SalesEngineer")
   createdITPs        ITP[]    @relation("ITPCreatedBy")
@@ -418,6 +419,11 @@ model Task {
   completedAt   DateTime? // When the task was marked as completed
   completedById String?   @db.Char(36) // Who marked the task as completed
   completedBy   User?    @relation("CompletedTasks", fields: [completedById], references: [id])
+  
+  // Approval tracking (client approval separate from completion)
+  approvedAt    DateTime? // When the task was approved by client
+  approvedById  String?   @db.Char(36) // Who marked the task as approved
+  approvedBy    User?    @relation("ApprovedTasks", fields: [approvedById], references: [id])
   
   // CEO-only visibility
   isCeoTask     Boolean  @default(false) // Tasks visible only to CEO role
@@ -2915,4 +2921,59 @@ model RiskPatternEntry {
   @@unique([riskPatternId, knowledgeEntryId])
   @@index([riskPatternId])
   @@index([knowledgeEntryId])
+}
+// ============================================
+// Detailed Project Planner (MS Project-style)
+// ============================================
+
+model PlannerProject {
+  id                String          @id @default(uuid()) @db.Char(36)
+  name              String
+  description       String?         @db.Text
+  projectId         String?         @db.Char(36)  // Optional link to existing OTS Project
+  startDate         DateTime?       @db.Date
+  endDate           DateTime?       @db.Date
+  status            String          @default("Active") // Active, Completed, On Hold, Archived
+  
+  tasks             PlannerTask[]
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  @@index([projectId])
+  @@index([status])
+}
+
+model PlannerTask {
+  id                String          @id @default(uuid()) @db.Char(36)
+  plannerProjectId  String          @db.Char(36)
+  parentId          String?         @db.Char(36)
+  
+  name              String
+  level             String          // "building", "activity", "sub_activity", "sub_sub_activity"
+  sortOrder         Int             @default(0)
+  
+  // Scheduling
+  startDate         DateTime?       @db.Date
+  endDate           DateTime?       @db.Date
+  durationDays      Decimal?        @db.Decimal(10, 2)  // e.g., 7.38 days
+  progress          Int             @default(0)          // 0-100 percentage
+  
+  // Task properties
+  isSummary         Boolean         @default(false)
+  isMilestone       Boolean         @default(false)
+  taskMode          String          @default("auto")     // "auto" or "manual"
+  
+  // Relations
+  plannerProject    PlannerProject  @relation(fields: [plannerProjectId], references: [id], onDelete: Cascade)
+  parent            PlannerTask?    @relation("PlannerTaskHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children          PlannerTask[]   @relation("PlannerTaskHierarchy")
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  @@index([plannerProjectId])
+  @@index([parentId])
+  @@index([sortOrder])
+  @@index([level])
 }

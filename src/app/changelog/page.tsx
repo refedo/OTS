@@ -21,10 +21,91 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '13.6.1',
+    date: 'February 15, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '� Tasks UI Polish & PTS Preview',
+    highlights: [
+      'Expand All / Collapse All in Project Management View',
+      'Inline Approval Filter Buttons',
+      'New Features Tip Banner',
+      'PTS Sync Data Preview Before Import',
+      'Building Dropdown Shows Full Name',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Tasks UI Enhancements',
+          items: [
+            'Expand All / Collapse All buttons in project management view with default expanded state',
+            'Dismissible tip banner highlighting new features (Ctrl+Click, sorting, project view, approval, duplication)',
+            'Inline Approved / Not Approved filter buttons next to status filters',
+          ],
+        },
+        {
+          title: 'PTS Sync Data Preview',
+          items: [
+            'Preview first 20 rows of PTS data before importing on the execute page',
+            'Shows mapped column data in a scrollable table for verification',
+          ],
+        },
+      ],
+      fixed: [
+        'Removed duplicate approval filter dropdown from additional filters section',
+      ],
+      changed: [
+        'Project management view rewritten with Table components matching main tasks table',
+        'Project management view uses system-consistent muted palette instead of colored backgrounds',
+        'Added Assigned To and Priority columns to project management view',
+        'Building dropdown in quick add now shows full name with designation (e.g. "Zone 8 Toilet (Z8T)")',
+        'Input Date, Due Date, and Completion columns now have min-width to prevent date wrapping',
+      ],
+    },
+  },
+  {
+    version: '13.6.0',
+    date: 'February 15, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '📋 Tasks Module Major Enhancement',
+    highlights: [
+      'Sortable Table Headers',
+      'Task Duplication',
+      'Multi-Select Filters (Ctrl+Click)',
+      'Approval Status Column',
+      'Project Management View (Tree)',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Tasks Module Features',
+          items: [
+            'All task table columns are now clickable to sort ascending/descending with visual sort indicators',
+            'Duplicate any task via the dropdown menu (creates a copy with "Pending" status)',
+            'Hold Ctrl/Cmd and click status or priority buttons to select multiple filters simultaneously',
+            'New "Approval" column with shield icon toggle for client approval tracking',
+            'Approval timestamp and approver name displayed',
+            'New hierarchical tree view: Project → Building → Activity (Department) → Task',
+            'Collapsible sections with inline task completion and approval toggles',
+          ],
+        },
+      ],
+      fixed: [
+        'Filter state now properly uses arrays for multi-select instead of single strings',
+      ],
+      changed: [
+        'Building dropdown now filters based on selected project and resets on change',
+        'Tasks table now expands to full width when sidebar is collapsed',
+        'Horizontal scroll enabled for wide tables on narrow screens',
+      ],
+    },
+  },
+  {
     version: '13.5.0',
     date: 'February 9, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🛡️ Security & Performance Major Release',
     highlights: [
       'Complete Server Security Overhaul',

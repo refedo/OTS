@@ -99,29 +99,34 @@ export async function GET(req: Request) {
     },
   });
 
-  // Try to add completedBy if the field exists in the database
+  // Try to add completedBy and approvedBy if the fields exist in the database
   try {
-    const tasksWithCompletedBy = await prisma.task.findMany({
+    const tasksWithExtras = await prisma.task.findMany({
       where: whereClause,
       select: {
         id: true,
+        approvedAt: true,
         completedBy: {
+          select: { id: true, name: true, email: true, position: true },
+        },
+        approvedBy: {
           select: { id: true, name: true, email: true, position: true },
         },
       },
     });
     
-    // Merge completedBy data into tasks
+    // Merge extra data into tasks
     tasks = tasks.map(task => {
-      const completedByData = tasksWithCompletedBy.find(t => t.id === task.id);
+      const extra = tasksWithExtras.find(t => t.id === task.id);
       return {
         ...task,
-        completedBy: completedByData?.completedBy || null,
+        completedBy: extra?.completedBy || null,
+        approvedAt: extra?.approvedAt || null,
+        approvedBy: extra?.approvedBy || null,
       };
     });
   } catch (error) {
-    // completedBy field doesn't exist in database yet
-    console.log('completedBy field not available in database yet');
+    console.log('Extended fields not available in database yet');
   }
 
   // Add orderBy to the original query
