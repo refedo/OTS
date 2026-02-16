@@ -49,6 +49,8 @@ type Task = {
   priority: string;
   status: string;
   isPrivate?: boolean;
+  remark?: string | null;
+  revision?: string | null;
 };
 
 type TaskFormProps = {
@@ -89,6 +91,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       priority: formData.get('priority') as string,
       status: formData.get('status') as string,
       isPrivate: isPrivate,
+      remark: (formData.get('remark') as string) || null,
+      revision: (formData.get('revision') as string) || null,
     };
 
     try {
@@ -318,6 +322,31 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 disabled={loading}
               />
             </div>
+
+            {/* Revision */}
+            <div className="space-y-2">
+              <Label htmlFor="revision">Revision</Label>
+              <Input
+                id="revision"
+                name="revision"
+                placeholder="e.g., R1, A, B..."
+                defaultValue={task?.revision || ''}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          {/* Remark */}
+          <div className="space-y-2">
+            <Label htmlFor="remark">Remark</Label>
+            <Textarea
+              id="remark"
+              name="remark"
+              placeholder="Additional notes or remarks..."
+              defaultValue={task?.remark || ''}
+              disabled={loading}
+              rows={2}
+            />
           </div>
 
           {/* Private Task */}

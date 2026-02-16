@@ -102,7 +102,9 @@ export default async function EditProjectPage({ params }: { params: { id: string
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Edit Project</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Edit Project <span className="text-primary">#{project.projectNumber}</span> - {project.name}
+            </h1>
             <p className="text-muted-foreground mt-1">
               Update project information
             </p>

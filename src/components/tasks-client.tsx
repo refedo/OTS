@@ -1937,12 +1937,32 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground truncate max-w-[150px] block" title={task.remark || ''}>
-                          {task.remark || '-'}
-                        </span>
+                        {isEditing ? (
+                          <Input
+                            placeholder="Remark..."
+                            value={editData.remark}
+                            onChange={(e) => setEditData({ ...editData, remark: e.target.value })}
+                            className="h-8 text-sm"
+                            disabled={updating}
+                          />
+                        ) : (
+                          <span className="text-sm text-muted-foreground truncate max-w-[150px] block" title={task.remark || ''}>
+                            {task.remark || '-'}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm font-mono">{task.revision || '-'}</span>
+                        {isEditing ? (
+                          <Input
+                            placeholder="Rev..."
+                            value={editData.revision}
+                            onChange={(e) => setEditData({ ...editData, revision: e.target.value })}
+                            className="h-8 w-20 text-sm font-mono"
+                            disabled={updating}
+                          />
+                        ) : (
+                          <span className="text-sm font-mono">{task.revision || '-'}</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {isEditing ? (
@@ -2200,36 +2220,99 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       : overdueDays > 0
                         ? "bg-amber-50 border-l-4 border-l-amber-500"
                         : "";
+                  const isEditing = editingTaskId === task.id;
                   
                   return (
-                  <TableRow key={task.id} className={cn(rowColor, "hover:bg-muted/50")}>
+                  <TableRow key={task.id} className={cn(rowColor, "hover:bg-muted/50", isEditing && "bg-blue-50/50")}>
                     <TableCell style={{ paddingLeft: `${indent * 24 + 12}px` }}>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleToggleComplete(task.id, task.status)}
-                        >
-                          {task.status === 'Completed' ? (
-                            <CheckSquare className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <Square className="h-4 w-4 text-muted-foreground" />
+                      {isEditing ? (
+                        <div className="space-y-1">
+                          <Input
+                            placeholder="Task title..."
+                            value={editData.title}
+                            onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                            className="h-7 text-sm"
+                            disabled={updating}
+                          />
+                          <Input
+                            placeholder="Description..."
+                            value={editData.description}
+                            onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                            className="h-7 text-xs"
+                            disabled={updating}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => handleToggleComplete(task.id, task.status)}
+                            >
+                              {task.status === 'Completed' ? (
+                                <CheckSquare className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <Square className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                            <Link
+                              href={`/tasks/${task.id}`}
+                              className="hover:text-primary hover:underline truncate text-sm"
+                            >
+                              {task.title}
+                            </Link>
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[300px] ml-7" title={task.description}>
+                              {task.description}
+                            </p>
                           )}
-                        </Button>
-                        <Link
-                          href={`/tasks/${task.id}`}
-                          className="hover:text-primary hover:underline truncate text-sm"
-                        >
-                          {task.title}
-                        </Link>
-                      </div>
+                        </div>
+                      )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{task.assignedTo?.name || '-'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {isEditing ? (
+                        <select
+                          value={editData.assignedToId}
+                          onChange={(e) => setEditData({ ...editData, assignedToId: e.target.value })}
+                          className="w-full h-7 px-1 rounded border bg-background text-xs"
+                          disabled={updating}
+                        >
+                          <option value="">Unassigned</option>
+                          {allUsers.map((user) => (
+                            <option key={user.id} value={user.id}>{user.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        task.assignedTo?.name || '-'
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{getDuration(task)}</TableCell>
-                    <TableCell className="text-sm">{task.taskInputDate ? formatDate(task.taskInputDate) : '-'}</TableCell>
                     <TableCell className="text-sm">
-                      {task.dueDate ? (
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          value={editData.taskInputDate}
+                          onChange={(e) => setEditData({ ...editData, taskInputDate: e.target.value })}
+                          className="h-7 text-xs w-28"
+                          disabled={updating}
+                        />
+                      ) : (
+                        task.taskInputDate ? formatDate(task.taskInputDate) : '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          value={editData.dueDate}
+                          onChange={(e) => setEditData({ ...editData, dueDate: e.target.value })}
+                          className="h-7 text-xs w-28"
+                          disabled={updating}
+                        />
+                      ) : task.dueDate ? (
                         <span className={cn(
                           task.status !== 'Completed' && (() => {
                             const due = new Date(task.dueDate);
@@ -2247,14 +2330,41 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       ) : '-'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", statusColors[task.status as keyof typeof statusColors])}>
-                        {task.status}
-                      </Badge>
+                      {isEditing ? (
+                        <select
+                          value={editData.status}
+                          onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                          className="w-full h-7 px-1 rounded border bg-background text-xs"
+                          disabled={updating}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      ) : (
+                        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", statusColors[task.status as keyof typeof statusColors])}>
+                          {task.status}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", priorityColors[task.priority as keyof typeof priorityColors])}>
-                        {task.priority}
-                      </Badge>
+                      {isEditing ? (
+                        <select
+                          value={editData.priority}
+                          onChange={(e) => setEditData({ ...editData, priority: e.target.value })}
+                          className="w-full h-7 px-1 rounded border bg-background text-xs"
+                          disabled={updating}
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      ) : (
+                        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", priorityColors[task.priority as keyof typeof priorityColors])}>
+                          {task.priority}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -2273,40 +2383,74 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs text-muted-foreground truncate max-w-[100px] block" title={task.remark || ''}>
-                        {task.remark || '-'}
-                      </span>
+                      {isEditing ? (
+                        <Input
+                          placeholder="Remark..."
+                          value={editData.remark}
+                          onChange={(e) => setEditData({ ...editData, remark: e.target.value })}
+                          className="h-7 text-xs w-24"
+                          disabled={updating}
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground truncate max-w-[100px] block" title={task.remark || ''}>
+                          {task.remark || '-'}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs font-mono">{task.revision || '-'}</span>
+                      {isEditing ? (
+                        <Input
+                          placeholder="Rev..."
+                          value={editData.revision}
+                          onChange={(e) => setEditData({ ...editData, revision: e.target.value })}
+                          className="h-7 text-xs w-16 font-mono"
+                          disabled={updating}
+                        />
+                      ) : (
+                        <span className="text-xs font-mono">{task.revision || '-'}</span>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Link href={`/tasks/${task.id}/edit`}>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Edit task">
+                      {isEditing ? (
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" className="h-6 px-2 text-xs" onClick={handleQuickEdit} disabled={updating}>
+                            {updating ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={handleCancelEdit} disabled={updating}>
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 w-6 p-0" 
+                            title="Quick edit"
+                            onClick={() => handleStartEdit(task)}
+                          >
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
-                        </Link>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/tasks/${task.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/tasks/${task.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDuplicate(task)}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/tasks/${task.id}`}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/tasks/${task.id}/edit`}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Full Edit
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDuplicate(task)}>
                               <Copy className="mr-2 h-4 w-4" />
                               Duplicate
                             </DropdownMenuItem>
@@ -2322,6 +2466,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

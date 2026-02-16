@@ -34,9 +34,8 @@ type ScopeSchedule = {
 type StageDuration = {
   stage: 'engineering' | 'operations' | 'site';
   label: string;
-  startDate: string;
-  endDate: string;
-  durationDays: number;
+  durationWeeksMin: number;
+  durationWeeksMax: number;
 };
 
 type CoatingCoat = {
@@ -101,9 +100,9 @@ export default function ProjectSetupWizard() {
   
   // Step 3: Stage Durations (new)
   const [stageDurations, setStageDurations] = useState<StageDuration[]>([
-    { stage: 'engineering', label: 'Engineering', startDate: '', endDate: '', durationDays: 0 },
-    { stage: 'operations', label: 'Operations', startDate: '', endDate: '', durationDays: 0 },
-    { stage: 'site', label: 'Site', startDate: '', endDate: '', durationDays: 0 },
+    { stage: 'engineering', label: 'Engineering', durationWeeksMin: 0, durationWeeksMax: 0 },
+    { stage: 'operations', label: 'Operations', durationWeeksMin: 0, durationWeeksMax: 0 },
+    { stage: 'site', label: 'Site', durationWeeksMin: 0, durationWeeksMax: 0 },
   ]);
   
   // Step 4: Coating System
@@ -264,15 +263,10 @@ export default function ProjectSetupWizard() {
     return diffDays;
   };
 
-  const updateStageDuration = (stage: 'engineering' | 'operations' | 'site', field: 'startDate' | 'endDate', value: string) => {
+  const updateStageDuration = (stage: 'engineering' | 'operations' | 'site', field: 'durationWeeksMin' | 'durationWeeksMax', value: number) => {
     setStageDurations(stageDurations.map(s => {
       if (s.stage !== stage) return s;
-      
-      const newStartDate = field === 'startDate' ? value : s.startDate;
-      const newEndDate = field === 'endDate' ? value : s.endDate;
-      const durationDays = calculateDuration(newStartDate, newEndDate);
-      
-      return { ...s, [field]: value, durationDays };
+      return { ...s, [field]: value };
     }));
   };
 
@@ -875,7 +869,7 @@ export default function ProjectSetupWizard() {
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-sm text-muted-foreground">
-              Define the planned duration for each project stage based on your selected scope of work.
+              Define the planned duration in weeks for each project stage based on your selected scope of work.
             </p>
             {stageDurations
               .filter((stage) => {
@@ -892,34 +886,34 @@ export default function ProjectSetupWizard() {
                     'bg-green-500'
                   }`} />
                   <h3 className="font-bold text-lg">{stage.label}</h3>
-                  {stage.durationDays > 0 && (
+                  {(stage.durationWeeksMin > 0 || stage.durationWeeksMax > 0) && (
                     <span className="ml-auto text-sm font-medium text-muted-foreground">
-                      {stage.durationDays} days
+                      {stage.durationWeeksMin === stage.durationWeeksMax 
+                        ? `${stage.durationWeeksMin} weeks`
+                        : `${stage.durationWeeksMin}-${stage.durationWeeksMax} weeks`}
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Start Date</Label>
+                    <Label>Minimum Duration (weeks)</Label>
                     <Input
-                      type="date"
-                      value={stage.startDate}
-                      onChange={(e) => updateStageDuration(stage.stage, 'startDate', e.target.value)}
+                      type="number"
+                      min="0"
+                      placeholder="e.g., 4"
+                      value={stage.durationWeeksMin || ''}
+                      onChange={(e) => updateStageDuration(stage.stage, 'durationWeeksMin', parseInt(e.target.value) || 0)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>End Date</Label>
+                    <Label>Maximum Duration (weeks)</Label>
                     <Input
-                      type="date"
-                      value={stage.endDate}
-                      onChange={(e) => updateStageDuration(stage.stage, 'endDate', e.target.value)}
+                      type="number"
+                      min="0"
+                      placeholder="e.g., 6"
+                      value={stage.durationWeeksMax || ''}
+                      onChange={(e) => updateStageDuration(stage.stage, 'durationWeeksMax', parseInt(e.target.value) || 0)}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Duration</Label>
-                    <div className="h-10 px-3 rounded-md border bg-muted flex items-center text-sm font-medium">
-                      {stage.durationDays > 0 ? `${stage.durationDays} days` : '-'}
-                    </div>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -933,17 +927,15 @@ export default function ProjectSetupWizard() {
             {/* Total Duration Summary */}
             <div className="border-t pt-4">
               <div className="flex items-center justify-between">
-                <span className="font-medium">Total Project Duration</span>
+                <span className="font-medium">Total Project Duration (estimated)</span>
                 <span className="text-lg font-bold">
                   {(() => {
-                    const filledStages = stageDurations.filter(s => s.startDate && s.endDate);
+                    const filledStages = stageDurations.filter(s => s.durationWeeksMin > 0 || s.durationWeeksMax > 0);
                     if (filledStages.length === 0) return '-';
-                    const minStart = filledStages.reduce((min, s) => 
-                      !min || new Date(s.startDate) < new Date(min) ? s.startDate : min, '');
-                    const maxEnd = filledStages.reduce((max, s) => 
-                      !max || new Date(s.endDate) > new Date(max) ? s.endDate : max, '');
-                    const totalDays = calculateDuration(minStart, maxEnd);
-                    return totalDays > 0 ? `${totalDays} days` : '-';
+                    const totalMin = filledStages.reduce((sum, s) => sum + s.durationWeeksMin, 0);
+                    const totalMax = filledStages.reduce((sum, s) => sum + s.durationWeeksMax, 0);
+                    if (totalMin === totalMax) return `${totalMin} weeks`;
+                    return `${totalMin}-${totalMax} weeks`;
                   })()}
                 </span>
               </div>

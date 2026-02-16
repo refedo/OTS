@@ -28,6 +28,11 @@ type Task = {
   completedBy: { id: string; name: string; email: string; position: string | null } | null;
   approvedAt: string | null;
   approvedBy: { id: string; name: string; email: string; position: string | null } | null;
+  rejectedAt: string | null;
+  rejectedBy: { id: string; name: string; email: string; position: string | null } | null;
+  rejectionReason: string | null;
+  remark: string | null;
+  revision: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -327,6 +332,34 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
                   <p className="text-muted-foreground whitespace-pre-wrap">{task.description}</p>
                 ) : (
                   <p className="text-muted-foreground italic">No description provided</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Remark & Revision */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Additional Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Revision</p>
+                    <p className="font-mono">{task.revision || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Remark</p>
+                    <p className="text-sm">{task.remark || '-'}</p>
+                  </div>
+                </div>
+                {task.rejectedAt && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm font-medium text-red-700 mb-1">Rejected</p>
+                    <p className="text-sm text-red-600">{task.rejectionReason || 'No reason provided'}</p>
+                    <p className="text-xs text-red-500 mt-1">
+                      by {task.rejectedBy?.name} on {formatDate(task.rejectedAt)}
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
