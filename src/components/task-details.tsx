@@ -203,11 +203,14 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
 
   // Stage approval circles component
   const StageApprovalCircles = () => {
+    // Check if task is overdue (due date passed and not completed)
+    const isTaskOverdue = task.dueDate && !task.completedAt && new Date(task.dueDate) < new Date();
+    
     const stages = [
-      { label: 'Input Date', completed: !!task.taskInputDate, date: task.taskInputDate },
-      { label: 'Due Date', completed: !!task.dueDate, date: task.dueDate },
-      { label: 'Completion', completed: !!task.completedAt, date: task.completedAt },
-      { label: 'Approval', completed: !!task.approvedAt, date: task.approvedAt },
+      { label: 'Input Date', completed: !!task.taskInputDate, date: task.taskInputDate, overdue: false },
+      { label: 'Due Date', completed: !!task.dueDate, date: task.dueDate, overdue: isTaskOverdue },
+      { label: 'Completion', completed: !!task.completedAt, date: task.completedAt, overdue: isTaskOverdue && !task.completedAt },
+      { label: 'Approval', completed: !!task.approvedAt, date: task.approvedAt, overdue: isTaskOverdue && !task.approvedAt },
     ];
 
     return (
@@ -215,23 +218,33 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
         {stages.map((stage, index) => (
           <div key={stage.label} className="flex items-center">
             <div className="flex flex-col items-center">
-              <span className="text-xs text-muted-foreground mb-2">{stage.label}</span>
+              <span className={cn(
+                "text-xs mb-2",
+                stage.overdue && !stage.completed ? "text-red-600 font-medium" : "text-muted-foreground"
+              )}>{stage.label}</span>
               <div className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center transition-all",
                 stage.completed 
                   ? "bg-emerald-500 text-white" 
-                  : "bg-muted border-2 border-dashed border-muted-foreground/30"
+                  : stage.overdue
+                    ? "bg-red-500 text-white border-2 border-red-600"
+                    : "bg-muted border-2 border-dashed border-muted-foreground/30"
               )}>
                 {stage.completed && <Check className="h-6 w-6" />}
+                {stage.overdue && !stage.completed && <AlertCircle className="h-6 w-6" />}
               </div>
               {stage.date && (
-                <span className="text-[10px] text-muted-foreground mt-1">{formatDate(stage.date)}</span>
+                <span className={cn(
+                  "text-[10px] mt-1",
+                  stage.overdue && !stage.completed ? "text-red-600" : "text-muted-foreground"
+                )}>{formatDate(stage.date)}</span>
               )}
             </div>
             {index < stages.length - 1 && (
               <div className={cn(
                 "w-12 h-0.5 mx-1 mt-4",
-                stages[index + 1].completed ? "bg-emerald-500" : "bg-muted-foreground/20"
+                stages[index + 1].completed ? "bg-emerald-500" : 
+                stages[index + 1].overdue ? "bg-red-500" : "bg-muted-foreground/20"
               )} />
             )}
           </div>

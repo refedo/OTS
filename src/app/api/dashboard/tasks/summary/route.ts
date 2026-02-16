@@ -122,6 +122,26 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Get approved tasks (completed and approved)
+    const approvedTasks = await prisma.task.count({
+      where: {
+        ...taskQuery,
+        status: 'Completed',
+        approvedAt: {
+          not: null,
+        },
+      },
+    });
+
+    // Get pending approval tasks (completed but not approved)
+    const pendingApprovalTasks = await prisma.task.count({
+      where: {
+        ...taskQuery,
+        status: 'Completed',
+        approvedAt: null,
+      },
+    });
+
     return NextResponse.json({
       total: totalTasks,
       myTasks,
@@ -129,6 +149,8 @@ export async function GET(request: NextRequest) {
       dueToday: tasksDueToday,
       completed: tasksCompleted,
       highPriority: highPriorityTasks,
+      approved: approvedTasks,
+      pendingApproval: pendingApprovalTasks,
     });
 
   } catch (error) {

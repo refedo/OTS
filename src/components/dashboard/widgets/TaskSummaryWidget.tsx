@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardCheck, AlertCircle, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { ClipboardCheck, AlertCircle, Clock, CheckCircle2, Loader2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 
 interface TaskSummaryData {
@@ -12,6 +12,8 @@ interface TaskSummaryData {
   dueToday: number;
   completed: number;
   highPriority: number;
+  approved: number;
+  pendingApproval: number;
 }
 
 export default function TaskSummaryWidget() {
@@ -111,6 +113,20 @@ export default function TaskSummaryWidget() {
               <CheckCircle2 className="size-5 text-green-600 mb-1" />
               <p className="text-lg font-bold text-green-700">{data.completed}</p>
               <p className="text-xs text-muted-foreground">Done (30d)</p>
+            </div>
+          </div>
+
+          {/* Approval Status Grid */}
+          <div className="grid grid-cols-2 gap-2 pt-3 border-t">
+            <div className="flex flex-col items-center p-2 rounded-lg bg-emerald-50">
+              <ShieldCheck className="size-5 text-emerald-600 mb-1" />
+              <p className="text-lg font-bold text-emerald-700">{data.approved || 0}</p>
+              <p className="text-xs text-muted-foreground">Approved</p>
+            </div>
+            <div className="flex flex-col items-center p-2 rounded-lg bg-amber-50">
+              <ShieldAlert className="size-5 text-amber-600 mb-1" />
+              <p className="text-lg font-bold text-amber-700">{data.pendingApproval || 0}</p>
+              <p className="text-xs text-muted-foreground">Pending Approval</p>
             </div>
           </div>
 

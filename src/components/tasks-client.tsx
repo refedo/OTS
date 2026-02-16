@@ -1451,9 +1451,13 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     const overdueDays = task.dueDate ? getOverdueDays(task.dueDate, task.status) : 0;
                     const overdueColor = getOverdueColor(overdueDays);
                     const isEditing = editingTaskId === task.id;
+                    const isCompleted = task.status === 'Completed';
                     
                     return (
-                    <TableRow key={task.id} className={cn(overdueColor, isEditing && "bg-blue-50/50")}>
+                    <TableRow key={task.id} className={cn(
+                      isCompleted ? "bg-green-50/70 border-l-4 border-l-green-500" : overdueColor,
+                      isEditing && "bg-blue-50/50"
+                    )}>
                       <TableCell>
                         <input
                           type="checkbox"
@@ -2019,8 +2023,19 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                   return `${days}d`;
                 };
 
-                const renderTaskRow = (task: Task, indent: number) => (
-                  <TableRow key={task.id} className="hover:bg-muted/50">
+                const renderTaskRow = (task: Task, indent: number) => {
+                  const isCompleted = task.status === 'Completed';
+                  const overdueDays = task.dueDate ? getOverdueDays(task.dueDate, task.status) : 0;
+                  const rowColor = isCompleted 
+                    ? "bg-green-50/70 border-l-4 border-l-green-500" 
+                    : overdueDays > 3 
+                      ? "bg-red-50 border-l-4 border-l-red-500"
+                      : overdueDays > 0
+                        ? "bg-amber-50 border-l-4 border-l-amber-500"
+                        : "";
+                  
+                  return (
+                  <TableRow key={task.id} className={cn(rowColor, "hover:bg-muted/50")}>
                     <TableCell style={{ paddingLeft: `${indent * 24 + 12}px` }}>
                       <div className="flex items-center gap-1.5">
                         <Button
@@ -2135,6 +2150,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     </TableCell>
                   </TableRow>
                 );
+                };
 
                 return (
                   <Table>
