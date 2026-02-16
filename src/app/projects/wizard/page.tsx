@@ -31,6 +31,14 @@ type ScopeSchedule = {
   endDate: string;
 };
 
+type StageDuration = {
+  stage: 'engineering' | 'operations' | 'site';
+  label: string;
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+};
+
 type CoatingCoat = {
   id: string;
   coatName: string;
@@ -81,8 +89,15 @@ export default function ProjectSetupWizard() {
   // Step 2: Buildings
   const [buildings, setBuildings] = useState<Building[]>([]);
 
-  // Step 3: Scope Schedules
+  // Step 3: Scope Schedules (legacy - kept for compatibility)
   const [scopeSchedules, setScopeSchedules] = useState<ScopeSchedule[]>([]);
+  
+  // Step 3: Stage Durations (new)
+  const [stageDurations, setStageDurations] = useState<StageDuration[]>([
+    { stage: 'engineering', label: 'Engineering', startDate: '', endDate: '', durationDays: 0 },
+    { stage: 'operations', label: 'Operations', startDate: '', endDate: '', durationDays: 0 },
+    { stage: 'site', label: 'Site', startDate: '', endDate: '', durationDays: 0 },
+  ]);
   
   // Step 4: Coating System
   const [coatingCoats, setCoatingCoats] = useState<CoatingCoat[]>([]);
@@ -156,6 +171,32 @@ export default function ProjectSetupWizard() {
     ));
   };
 
+  const toggleAllScopes = (selectAll: boolean) => {
+    setScopeOfWork(scopeOfWork.map(s => ({ ...s, checked: selectAll })));
+    
+    if (selectAll) {
+      // Add schedules for all scopes for all buildings
+      const newSchedules: ScopeSchedule[] = [];
+      for (const building of buildings) {
+        for (const scope of scopeOfWork) {
+          if (!scopeSchedules.some(s => s.buildingId === building.id && s.scopeId === scope.id)) {
+            newSchedules.push({
+              scopeId: scope.id,
+              scopeLabel: scope.label,
+              buildingId: building.id,
+              startDate: '',
+              endDate: '',
+            });
+          }
+        }
+      }
+      setScopeSchedules([...scopeSchedules, ...newSchedules]);
+    } else {
+      // Remove all scope schedules
+      setScopeSchedules([]);
+    }
+  };
+
   const toggleScope = (id: string) => {
     const item = scopeOfWork.find(s => s.id === id);
     if (!item) return;
@@ -214,6 +255,18 @@ export default function ProjectSetupWizard() {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const updateStageDuration = (stage: 'engineering' | 'operations' | 'site', field: 'startDate' | 'endDate', value: string) => {
+    setStageDurations(stageDurations.map(s => {
+      if (s.stage !== stage) return s;
+      
+      const newStartDate = field === 'startDate' ? value : s.startDate;
+      const newEndDate = field === 'endDate' ? value : s.endDate;
+      const durationDays = calculateDuration(newStartDate, newEndDate);
+      
+      return { ...s, [field]: value, durationDays };
+    }));
   };
 
   // Coating functions
@@ -280,7 +333,8 @@ export default function ProjectSetupWizard() {
       case 2:
         return buildings.length > 0 && buildings.every(b => b.name && b.designation);
       case 3:
-        return scopeSchedules.every(s => s.startDate && s.endDate);
+        // At least one stage should have dates filled
+        return stageDurations.some(s => s.startDate && s.endDate);
       case 4:
         return coatingCoats.length > 0 && coatingCoats.every(c => c.coatName);
       case 5:
@@ -307,6 +361,64 @@ export default function ProjectSetupWizard() {
 
   const prevStep = () => {
     setCurrentStep(currentStep - 1);
+  };
+
+  const handleSaveAsDraft = async () => {
+    setLoading(true);
+    try {
+      // Save minimal project data as draft
+      const projectData = {
+        projectNumber: projectNumber || `DRAFT-${Date.now()}`,
+        name: projectName || 'Untitled Draft',
+        clientName: clientName || 'TBD',
+        projectManagerId: projectManagerId || null,
+        status: 'Draft',
+        contractualTonnage: contractualTonnage ? parseFloat(contractualTonnage) : null,
+        contractDate: contractDate || null,
+        downPaymentDate: downPaymentDate || null,
+        contractValue: contractValue ? parseFloat(contractValue) : null,
+        scopeOfWork: generateScopeText(),
+        // Store wizard progress in description for now
+        description: `[WIZARD DRAFT - Step ${currentStep}]\n\nBuildings: ${buildings.length}\nScopes selected: ${scopeOfWork.filter(s => s.checked).length}`,
+      };
+
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save draft');
+      }
+
+      const project = await response.json();
+
+      // Save buildings if any
+      for (const building of buildings) {
+        if (building.name && building.designation) {
+          await fetch('/api/buildings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId: project.id,
+              name: building.name,
+              designation: building.designation,
+            }),
+          });
+        }
+      }
+
+      setSuccessMessage(`Project saved as draft!\n\nYou can continue editing it later from the Projects list.`);
+      setShowSuccessDialog(true);
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      setSuccessMessage(`Failed to save draft:\n\n${error instanceof Error ? error.message : 'Unknown error'}`);
+      setShowSuccessDialog(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -644,7 +756,29 @@ export default function ProjectSetupWizard() {
             </div>
 
             <div className="space-y-2">
-              <Label>Scope of Work *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Scope of Work *</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleAllScopes(true)}
+                    disabled={scopeOfWork.every(s => s.checked)}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleAllScopes(false)}
+                    disabled={scopeOfWork.every(s => !s.checked)}
+                  >
+                    Deselect All
+                  </Button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3 mt-2">
                 {scopeOfWork.map((item) => (
                   <div key={item.id} className="flex items-center space-x-2">
@@ -722,59 +856,81 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 3: Scope Schedules */}
+      {/* Step 3: Duration by Stage */}
       {currentStep === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>Scope Schedules by Building</CardTitle>
+            <CardTitle>Duration by Stage</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {buildings.map((building, idx) => {
-              const buildingSchedules = scopeSchedules.filter(s => s.buildingId === building.id);
-              return (
-                <div key={building.id} className="border-2 rounded-lg p-4 space-y-4">
-                  <h3 className="font-bold text-lg">{building.name || `Building ${idx + 1}`}</h3>
-                  {buildingSchedules.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No scope selected for this building</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {buildingSchedules.map((scope) => {
-                        const duration = calculateDuration(scope.startDate, scope.endDate);
-                        return (
-                          <div key={`${building.id}-${scope.scopeId}`} className="border rounded-lg p-3 bg-muted/30">
-                            <h4 className="font-medium mb-2">{scope.scopeLabel}</h4>
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="space-y-2">
-                                <Label>Start Date *</Label>
-                                <Input
-                                  type="date"
-                                  value={scope.startDate}
-                                  onChange={(e) => updateScopeSchedule(building.id, scope.scopeId, 'startDate', e.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>End Date *</Label>
-                                <Input
-                                  type="date"
-                                  value={scope.endDate}
-                                  onChange={(e) => updateScopeSchedule(building.id, scope.scopeId, 'endDate', e.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Duration</Label>
-                                <div className="h-10 px-3 rounded-md border bg-background flex items-center text-sm font-medium">
-                                  {duration > 0 ? `${duration} days` : '-'}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+            <p className="text-sm text-muted-foreground">
+              Define the planned duration for each project stage. At least one stage is required.
+            </p>
+            {stageDurations.map((stage) => (
+              <div key={stage.stage} className="border-2 rounded-lg p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    stage.stage === 'engineering' ? 'bg-blue-500' :
+                    stage.stage === 'operations' ? 'bg-orange-500' :
+                    'bg-green-500'
+                  }`} />
+                  <h3 className="font-bold text-lg">{stage.label}</h3>
+                  {stage.durationDays > 0 && (
+                    <span className="ml-auto text-sm font-medium text-muted-foreground">
+                      {stage.durationDays} days
+                    </span>
                   )}
                 </div>
-              );
-            })}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Start Date</Label>
+                    <Input
+                      type="date"
+                      value={stage.startDate}
+                      onChange={(e) => updateStageDuration(stage.stage, 'startDate', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>End Date</Label>
+                    <Input
+                      type="date"
+                      value={stage.endDate}
+                      onChange={(e) => updateStageDuration(stage.stage, 'endDate', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Duration</Label>
+                    <div className="h-10 px-3 rounded-md border bg-muted flex items-center text-sm font-medium">
+                      {stage.durationDays > 0 ? `${stage.durationDays} days` : '-'}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stage.stage === 'engineering' && 'Design, detailing, and engineering activities'}
+                  {stage.stage === 'operations' && 'Fabrication, coating, and quality control'}
+                  {stage.stage === 'site' && 'Delivery, erection, and site activities'}
+                </p>
+              </div>
+            ))}
+            
+            {/* Total Duration Summary */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Total Project Duration</span>
+                <span className="text-lg font-bold">
+                  {(() => {
+                    const filledStages = stageDurations.filter(s => s.startDate && s.endDate);
+                    if (filledStages.length === 0) return '-';
+                    const minStart = filledStages.reduce((min, s) => 
+                      !min || new Date(s.startDate) < new Date(min) ? s.startDate : min, '');
+                    const maxEnd = filledStages.reduce((max, s) => 
+                      !max || new Date(s.endDate) > new Date(max) ? s.endDate : max, '');
+                    const totalDays = calculateDuration(minStart, maxEnd);
+                    return totalDays > 0 ? `${totalDays} days` : '-';
+                  })()}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1105,17 +1261,27 @@ export default function ProjectSetupWizard() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Previous
         </Button>
-        {currentStep < 7 ? (
-          <Button onClick={nextStep}>
-            Next
-            <ArrowRight className="ml-2 h-4 w-4" />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSaveAsDraft}
+            disabled={loading || !projectNumber}
+            title="Save current progress as draft"
+          >
+            Save as Draft
           </Button>
-        ) : (
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Creating...' : 'Create Project'}
-            <Check className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+          {currentStep < 7 ? (
+            <Button onClick={nextStep}>
+              Next
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Creating...' : 'Create Project'}
+              <Check className="ml-2 h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Success Dialog */}
