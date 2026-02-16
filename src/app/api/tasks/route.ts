@@ -22,6 +22,8 @@ const createSchema = z.object({
   status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
   isPrivate: z.boolean().optional(),
   isCeoTask: z.boolean().optional(),
+  remark: z.string().optional().nullable(),
+  revision: z.string().optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -226,6 +228,10 @@ export async function POST(req: Request) {
     if (parsed.data.isCeoTask && session.role === 'CEO') {
       taskData.isCeoTask = true;
     }
+    
+    // Additional fields
+    if (parsed.data.remark) taskData.remark = parsed.data.remark;
+    if (parsed.data.revision) taskData.revision = parsed.data.revision;
 
     const task = await prisma.task.create({
       data: taskData,

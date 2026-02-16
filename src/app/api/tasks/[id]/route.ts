@@ -19,6 +19,10 @@ const updateSchema = z.object({
   isPrivate: z.boolean().optional(),
   isCeoTask: z.boolean().optional(),
   approved: z.boolean().optional(),
+  rejected: z.boolean().optional(),
+  rejectionReason: z.string().optional().nullable(),
+  remark: z.string().optional().nullable(),
+  revision: z.string().optional().nullable(),
 });
 
 // Helper to create audit log entries
@@ -187,6 +191,10 @@ export async function PATCH(
     if (parsed.data.approved === true) {
       updateData.approvedAt = new Date();
       updateData.approvedById = session.sub;
+      // Clear rejection if approving
+      updateData.rejectedAt = null;
+      updateData.rejectedById = null;
+      updateData.rejectionReason = null;
     } else if (parsed.data.approved === false) {
       updateData.approvedAt = null;
       updateData.approvedById = null;
@@ -195,6 +203,28 @@ export async function PATCH(
     delete updateData.approved;
   } catch (error) {
     console.log('Approval tracking fields not available in database yet');
+  }
+
+  // Handle rejection tracking
+  try {
+    if (parsed.data.rejected === true) {
+      updateData.rejectedAt = new Date();
+      updateData.rejectedById = session.sub;
+      if (parsed.data.rejectionReason) {
+        updateData.rejectionReason = parsed.data.rejectionReason;
+      }
+      // Clear approval if rejecting
+      updateData.approvedAt = null;
+      updateData.approvedById = null;
+    } else if (parsed.data.rejected === false) {
+      updateData.rejectedAt = null;
+      updateData.rejectedById = null;
+      updateData.rejectionReason = null;
+    }
+    // Remove the 'rejected' field from updateData since it's not a real DB field
+    delete updateData.rejected;
+  } catch (error) {
+    console.log('Rejection tracking fields not available in database yet');
   }
   
   // CEO task visibility - only CEO can set/modify isCeoTask

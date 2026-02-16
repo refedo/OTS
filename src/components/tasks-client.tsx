@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -43,6 +45,11 @@ type Task = {
   completedBy: { id: string; name: string; email: string; position: string | null } | null;
   approvedAt: string | null;
   approvedBy: { id: string; name: string; email: string; position: string | null } | null;
+  rejectedAt: string | null;
+  rejectedBy: { id: string; name: string; email: string; position: string | null } | null;
+  rejectionReason: string | null;
+  remark: string | null;
+  revision: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -132,10 +139,12 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     buildingId: '',
     departmentId: '',
     priority: 'Medium',
-    status: 'In Progress',
+    status: 'Pending',
     taskInputDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     isPrivate: false,
+    remark: '',
+    revision: '',
   });
   const [assignedToFilter, setAssignedToFilter] = useState<string>('');
   const [creating, setCreating] = useState(false);
@@ -144,6 +153,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editData, setEditData] = useState<{
     title: string;
+    description: string;
     assignedToId: string;
     projectId: string;
     buildingId: string;
@@ -153,19 +163,32 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     taskInputDate: string;
     dueDate: string;
     isPrivate: boolean;
+    remark: string;
+    revision: string;
   }>({ 
     title: '', 
+    description: '',
     assignedToId: '', 
     projectId: '', 
     buildingId: '',
     departmentId: '', 
     priority: 'Medium',
-    status: 'In Progress', 
+    status: 'Pending', 
     taskInputDate: '',
     dueDate: '',
     isPrivate: false,
+    remark: '',
+    revision: '',
   });
   const [updating, setUpdating] = useState(false);
+  
+  // Rejection dialog state
+  const [rejectionDialog, setRejectionDialog] = useState<{
+    open: boolean;
+    taskId: string | null;
+    task: Task | null;
+    reason: string;
+  }>({ open: false, taskId: null, task: null, reason: '' });
 
   const canCreateTask = userPermissions.includes('tasks.create');
   const canEditTask = userPermissions.includes('tasks.edit') || userPermissions.includes('tasks.create');
@@ -493,8 +516,74 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       const updatedTask = await response.json();
       setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
       router.refresh();
+      showAlert(currentlyApproved ? 'Task approval revoked' : 'Task approved successfully', { type: 'success' });
     } catch (error) {
       showAlert('Failed to update approval status', { type: 'error' });
+    }
+  };
+
+  const handleOpenRejectionDialog = (task: Task) => {
+    setRejectionDialog({ open: true, taskId: task.id, task, reason: '' });
+  };
+
+  const handleRejectTask = async (duplicateAfter: boolean) => {
+    if (!rejectionDialog.taskId || !rejectionDialog.task) return;
+
+    try {
+      // First, reject the task
+      const response = await fetch(`/api/tasks/${rejectionDialog.taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          rejected: true, 
+          rejectionReason: rejectionDialog.reason || 'No reason provided'
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to reject task');
+
+      const updatedTask = await response.json();
+      setTasks(tasks.map(t => t.id === rejectionDialog.taskId ? updatedTask : t));
+
+      // If user wants to duplicate, create a new task
+      if (duplicateAfter && rejectionDialog.task) {
+        const task = rejectionDialog.task;
+        const duplicateResponse = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `${task.title} (Rev)`,
+            description: task.description,
+            assignedToId: task.assignedTo?.id || null,
+            projectId: task.project?.id || null,
+            buildingId: task.building?.id || null,
+            departmentId: task.department?.id || null,
+            priority: task.priority,
+            dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null,
+            taskInputDate: new Date().toISOString().split('T')[0],
+            status: 'Pending',
+            isPrivate: task.isPrivate,
+            remark: `Revision of rejected task. Original rejection reason: ${rejectionDialog.reason || 'Not specified'}`,
+            revision: task.revision ? `${task.revision}-R` : 'R1',
+          }),
+        });
+
+        if (duplicateResponse.ok) {
+          const newTask = await duplicateResponse.json();
+          setTasks([newTask, ...tasks.map(t => t.id === rejectionDialog.taskId ? updatedTask : t)]);
+          showAlert('Task rejected and new revision created', { type: 'success' });
+        } else {
+          showAlert('Task rejected but failed to create revision', { type: 'warning' });
+        }
+      } else {
+        showAlert('Task rejected successfully', { type: 'success' });
+      }
+
+      router.refresh();
+    } catch (error) {
+      showAlert('Failed to reject task', { type: 'error' });
+    } finally {
+      setRejectionDialog({ open: false, taskId: null, task: null, reason: '' });
     }
   };
 
@@ -542,6 +631,12 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       return;
     }
 
+    // Validate due date is not before input date
+    if (quickAddData.taskInputDate && quickAddData.dueDate && new Date(quickAddData.dueDate) < new Date(quickAddData.taskInputDate)) {
+      showAlert('Due date cannot be before input date', { type: 'warning' });
+      return;
+    }
+
     try {
       setCreating(true);
       const response = await fetch('/api/tasks', {
@@ -558,6 +653,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           dueDate: quickAddData.dueDate,
           status: quickAddData.status,
           isPrivate: quickAddData.isPrivate,
+          remark: quickAddData.remark || null,
+          revision: quickAddData.revision || null,
         }),
       });
 
@@ -605,6 +702,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     
     setEditData({
       title: task.title,
+      description: task.description || '',
       assignedToId: task.assignedTo?.id || '',
       projectId: task.project?.id || '',
       buildingId: task.building?.id || '',
@@ -614,6 +712,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       taskInputDate: formatDateForInput(task.taskInputDate),
       dueDate: formatDateForInput(task.dueDate),
       isPrivate: task.isPrivate,
+      remark: task.remark || '',
+      revision: task.revision || '',
     });
   };
 
@@ -621,15 +721,18 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     setEditingTaskId(null);
     setEditData({ 
       title: '', 
+      description: '',
       assignedToId: '', 
       projectId: '', 
       buildingId: '',
       departmentId: '', 
       priority: 'Medium',
-      status: 'In Progress', 
+      status: 'Pending', 
       taskInputDate: '',
       dueDate: '',
       isPrivate: false,
+      remark: '',
+      revision: '',
     });
   };
 
@@ -646,6 +749,12 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       return;
     }
 
+    // Validate due date is not before input date
+    if (editData.taskInputDate && editData.dueDate && new Date(editData.dueDate) < new Date(editData.taskInputDate)) {
+      showAlert('Due date cannot be before input date', { type: 'warning' });
+      return;
+    }
+
     try {
       setUpdating(true);
       const response = await fetch(`/api/tasks/${editingTaskId}`, {
@@ -653,6 +762,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: editData.title,
+          description: editData.description || null,
           assignedToId: editData.assignedToId || null,
           projectId: editData.projectId || null,
           buildingId: editData.buildingId || null,
@@ -662,6 +772,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           dueDate: editData.dueDate,
           status: editData.status,
           isPrivate: editData.isPrivate,
+          remark: editData.remark || null,
+          revision: editData.revision || null,
         }),
       });
 
@@ -1288,6 +1400,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('approvedAt')}>
                       <div className="flex items-center">Approval {getSortIcon('approvedAt')}</div>
                     </TableHead>
+                    <TableHead>Remark</TableHead>
+                    <TableHead>Revision</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1434,6 +1548,24 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground text-sm">-</span>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Remark..."
+                          value={quickAddData.remark || ''}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, remark: e.target.value })}
+                          className="h-9 text-sm"
+                          disabled={creating}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Rev..."
+                          value={quickAddData.revision || ''}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, revision: e.target.value })}
+                          className="h-9 w-20 text-sm"
+                          disabled={creating}
+                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
@@ -1753,29 +1885,64 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleToggleApproval(task.id, !!task.approvedAt)}
-                            disabled={task.status !== 'Completed' && !task.approvedAt}
-                            title={task.status !== 'Completed' && !task.approvedAt ? 'Task must be completed before approval' : (task.approvedAt ? 'Revoke approval' : 'Approve task')}
-                          >
-                            {task.approvedAt ? (
-                              <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                            ) : (
-                              <Shield className={cn("h-5 w-5", task.status === 'Completed' ? "text-muted-foreground" : "text-muted-foreground/40")} />
-                            )}
-                          </Button>
-                          {task.approvedAt && (
-                            <div className="text-xs">
-                              <div className="font-medium text-emerald-700">{formatDate(task.approvedAt)}</div>
-                              {task.approvedBy && (
-                                <div className="text-muted-foreground">by {task.approvedBy.name}</div>
-                              )}
+                          {task.rejectedAt ? (
+                            <div className="flex items-center gap-1">
+                              <ShieldX className="h-5 w-5 text-red-600" />
+                              <div className="text-xs">
+                                <div className="font-medium text-red-600">Rejected</div>
+                                {task.rejectionReason && (
+                                  <div className="text-muted-foreground truncate max-w-[100px]" title={task.rejectionReason}>
+                                    {task.rejectionReason}
+                                  </div>
+                                )}
+                              </div>
                             </div>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleToggleApproval(task.id, !!task.approvedAt)}
+                                disabled={task.status !== 'Completed' && !task.approvedAt}
+                                title={task.status !== 'Completed' && !task.approvedAt ? 'Task must be completed before approval' : (task.approvedAt ? 'Revoke approval' : 'Approve task')}
+                              >
+                                {task.approvedAt ? (
+                                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                                ) : (
+                                  <Shield className={cn("h-5 w-5", task.status === 'Completed' ? "text-muted-foreground" : "text-muted-foreground/40")} />
+                                )}
+                              </Button>
+                              {task.status === 'Completed' && !task.approvedAt && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => handleOpenRejectionDialog(task)}
+                                  title="Reject task"
+                                >
+                                  <XCircle className="h-5 w-5 text-red-500 hover:text-red-600" />
+                                </Button>
+                              )}
+                              {task.approvedAt && (
+                                <div className="text-xs">
+                                  <div className="font-medium text-emerald-700">{formatDate(task.approvedAt)}</div>
+                                  {task.approvedBy && (
+                                    <div className="text-muted-foreground">by {task.approvedBy.name}</div>
+                                  )}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground truncate max-w-[150px] block" title={task.remark || ''}>
+                          {task.remark || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-mono">{task.revision || '-'}</span>
                       </TableCell>
                       <TableCell className="text-right">
                         {isEditing ? (
@@ -2106,6 +2273,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       </Button>
                     </TableCell>
                     <TableCell>
+                      <span className="text-xs text-muted-foreground truncate max-w-[100px] block" title={task.remark || ''}>
+                        {task.remark || '-'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-mono">{task.revision || '-'}</span>
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-1">
                         <Link href={`/tasks/${task.id}/edit`}>
                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Edit task">
@@ -2164,6 +2339,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         <TableHead>Status</TableHead>
                         <TableHead>Priority</TableHead>
                         <TableHead>Approval</TableHead>
+                        <TableHead>Remark</TableHead>
+                        <TableHead>Revision</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -2318,6 +2495,59 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         )}
       </div>
       <AlertDialog />
+      
+      {/* Rejection Dialog */}
+      {rejectionDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-600">
+                <XCircle className="h-5 w-5" />
+                Reject Task
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You are about to reject the task: <strong>{rejectionDialog.task?.title}</strong>
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="rejectionReason">Rejection Reason (Optional)</Label>
+                <Textarea
+                  id="rejectionReason"
+                  placeholder="Enter reason for rejection..."
+                  value={rejectionDialog.reason}
+                  onChange={(e) => setRejectionDialog({ ...rejectionDialog, reason: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800">
+                  Would you like to create a new revision of this task to track the rework?
+                </p>
+              </div>
+            </CardContent>
+            <div className="flex justify-end gap-2 p-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setRejectionDialog({ open: false, taskId: null, task: null, reason: '' })}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleRejectTask(false)}
+              >
+                Reject Only
+              </Button>
+              <Button
+                onClick={() => handleRejectTask(true)}
+              >
+                Reject & Create Revision
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </main>
   );
 }

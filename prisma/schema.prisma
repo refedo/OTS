@@ -64,6 +64,7 @@ model User {
   createdTasks       Task[]   @relation("CreatedTasks")
   completedTasks     Task[]   @relation("CompletedTasks")
   approvedTasks      Task[]   @relation("ApprovedTasks")
+  rejectedTasks      Task[]   @relation("RejectedTasks")
   managedProjects    Project[] @relation("ProjectManager")
   salesProjects      Project[] @relation("SalesEngineer")
   createdITPs        ITP[]    @relation("ITPCreatedBy")
@@ -427,6 +428,16 @@ model Task {
   
   // CEO-only visibility
   isCeoTask     Boolean  @default(false) // Tasks visible only to CEO role
+  
+  // Additional fields
+  remark        String?  @db.Text // Additional remarks/notes
+  revision      String?  // Revision number/identifier
+  
+  // Rejection tracking
+  rejectedAt    DateTime? // When the task was rejected
+  rejectedById  String?   @db.Char(36) // Who rejected the task
+  rejectedBy    User?    @relation("RejectedTasks", fields: [rejectedById], references: [id])
+  rejectionReason String? @db.Text // Reason for rejection
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

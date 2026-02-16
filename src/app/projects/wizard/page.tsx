@@ -53,17 +53,24 @@ type PaymentTerm = {
 };
 
 const SCOPE_OPTIONS = [
-  { id: 'design', label: 'Design' },
-  { id: 'shopDrawing', label: 'Detailing' },
-  { id: 'procurement', label: 'Procurement/Supply' },
-  { id: 'fabrication', label: 'Fabrication' },
-  { id: 'galvanization', label: 'Galvanization' },
-  { id: 'painting', label: 'Painting' },
-  { id: 'roofSheeting', label: 'Roof Sheeting' },
-  { id: 'wallSheeting', label: 'Wall Sheeting' },
-  { id: 'delivery', label: 'Delivery & Logistics' },
-  { id: 'erection', label: 'Erection' },
+  { id: 'design', label: 'Design', stage: 'engineering' },
+  { id: 'shopDrawing', label: 'Detailing', stage: 'engineering' },
+  { id: 'procurement', label: 'Procurement/Supply', stage: 'operations' },
+  { id: 'fabrication', label: 'Fabrication', stage: 'operations' },
+  { id: 'galvanization', label: 'Galvanization', stage: 'operations' },
+  { id: 'painting', label: 'Painting', stage: 'operations' },
+  { id: 'roofSheeting', label: 'Roof Sheeting', stage: 'operations' },
+  { id: 'wallSheeting', label: 'Wall Sheeting', stage: 'operations' },
+  { id: 'delivery', label: 'Delivery & Logistics', stage: 'site' },
+  { id: 'erection', label: 'Erection', stage: 'site' },
 ];
+
+// Map scopes to stages for visibility
+const STAGE_SCOPES: Record<string, string[]> = {
+  engineering: ['design', 'shopDrawing'],
+  operations: ['procurement', 'fabrication', 'galvanization', 'painting', 'roofSheeting', 'wallSheeting'],
+  site: ['delivery', 'erection'],
+};
 
 
 export default function ProjectSetupWizard() {
@@ -333,8 +340,12 @@ export default function ProjectSetupWizard() {
       case 2:
         return buildings.length > 0 && buildings.every(b => b.name && b.designation);
       case 3:
-        // At least one stage should have dates filled
-        return stageDurations.some(s => s.startDate && s.endDate);
+        // At least one visible stage should have dates filled
+        const visibleStages = stageDurations.filter(stage => {
+          const stageScopes = STAGE_SCOPES[stage.stage] || [];
+          return scopeOfWork.some(s => s.checked && stageScopes.includes(s.id));
+        });
+        return visibleStages.length === 0 || visibleStages.some(s => s.startDate && s.endDate);
       case 4:
         return coatingCoats.length > 0 && coatingCoats.every(c => c.coatName);
       case 5:
@@ -864,9 +875,15 @@ export default function ProjectSetupWizard() {
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-sm text-muted-foreground">
-              Define the planned duration for each project stage. At least one stage is required.
+              Define the planned duration for each project stage based on your selected scope of work.
             </p>
-            {stageDurations.map((stage) => (
+            {stageDurations
+              .filter((stage) => {
+                // Only show stages that have at least one scope selected
+                const stageScopes = STAGE_SCOPES[stage.stage] || [];
+                return scopeOfWork.some(s => s.checked && stageScopes.includes(s.id));
+              })
+              .map((stage) => (
               <div key={stage.stage} className="border-2 rounded-lg p-4 space-y-4">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${
