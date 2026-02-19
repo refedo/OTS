@@ -476,6 +476,11 @@ export default function ProjectSetupWizard() {
         }
       });
 
+      // Map stage durations to project fields
+      const engineeringStage = stageDurations.find(s => s.stage === 'engineering');
+      const operationsStage = stageDurations.find(s => s.stage === 'operations');
+      const siteStage = stageDurations.find(s => s.stage === 'site');
+
       // Create project
       const projectData = {
         projectNumber,
@@ -495,6 +500,13 @@ export default function ProjectSetupWizard() {
         surveyorOurScope: surveyorIncluded,
         thirdPartyRequired,
         thirdPartyResponsibility: thirdPartyRequired ? thirdPartyResponsibility : null,
+        // Stage durations in weeks
+        engineeringWeeksMin: engineeringStage?.durationWeeksMin || null,
+        engineeringWeeksMax: engineeringStage?.durationWeeksMax || null,
+        operationsWeeksMin: operationsStage?.durationWeeksMin || null,
+        operationsWeeksMax: operationsStage?.durationWeeksMax || null,
+        siteWeeksMin: siteStage?.durationWeeksMin || null,
+        siteWeeksMax: siteStage?.durationWeeksMax || null,
         // Include payment terms mapped to fixed fields
         ...paymentFieldsMap,
         // Include coating coats mapped to fixed fields

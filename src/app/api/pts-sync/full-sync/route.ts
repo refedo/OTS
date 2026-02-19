@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
       selectedBuildings: body.selectedBuildings as string[] | undefined,
       syncRawData: body.syncRawData !== false,
       syncLogs: body.syncLogs !== false,
+      // Date filter for logs
+      syncByDate: body.syncByDate === true,
+      syncDateFrom: body.syncDateFrom as string | undefined,
+      syncDateTo: body.syncDateTo as string | undefined,
     };
 
     const result = await ptsSyncService.fullSync(session.sub, options);

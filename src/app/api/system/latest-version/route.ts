@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '13.5.2',
-  date: 'February 15, 2026',
-  type: 'minor' as const,
-  mainTitle: '� Tasks UI Polish & PTS Preview',
+  version: '13.5.3',
+  date: 'February 19, 2026',
+  type: 'patch' as const,
+  mainTitle: '📋 Task Management & Wizard Enhancements',
   highlights: [
     'Task Approval Tracking & Filters',
     'Project Management View with Expand/Collapse All',

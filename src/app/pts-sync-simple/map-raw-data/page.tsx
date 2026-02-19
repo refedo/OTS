@@ -73,7 +73,7 @@ const DEFAULT_MAPPINGS: Record<string, string> = {
   projectNumber: 'B',
   partDesignation: 'C',
   buildingDesignation: 'R',
-  buildingName: 'T',
+  buildingName: 'U',  // Column U is Building Name (T is "Is Plate?")
   assemblyMark: 'E',
   subAssemblyMark: 'F',
   partMark: 'G',

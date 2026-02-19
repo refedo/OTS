@@ -126,6 +126,11 @@ export default function ExecuteSyncPage() {
   const [syncRawData, setSyncRawData] = useState(mode === 'parts' || mode === 'full');
   const [syncLogs, setSyncLogs] = useState(mode === 'logs' || mode === 'full');
   
+  // Date filter for logs sync
+  const [syncByDate, setSyncByDate] = useState(false);
+  const [syncDateFrom, setSyncDateFrom] = useState('');
+  const [syncDateTo, setSyncDateTo] = useState('');
+  
   // Stop sync
   const [isStopping, setIsStopping] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -369,6 +374,10 @@ export default function ExecuteSyncPage() {
           selectedBuildings: Array.from(selectedBuildings),
           syncRawData: false,
           syncLogs: true,
+          // Date filter for logs
+          syncByDate,
+          syncDateFrom: syncByDate && syncDateFrom ? syncDateFrom : undefined,
+          syncDateTo: syncByDate && syncDateTo ? syncDateTo : undefined,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -622,7 +631,7 @@ export default function ExecuteSyncPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Sync Options</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex gap-6">
                 <div className="flex items-center gap-2">
                   <Checkbox 
@@ -647,6 +656,44 @@ export default function ExecuteSyncPage() {
                   </label>
                 </div>
               </div>
+              
+              {/* Date Filter for Logs */}
+              {syncLogs && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Checkbox 
+                      id="sync-by-date"
+                      checked={syncByDate}
+                      onCheckedChange={(checked) => setSyncByDate(checked === true)}
+                    />
+                    <label htmlFor="sync-by-date" className="text-sm font-medium cursor-pointer">
+                      Filter logs by date range
+                    </label>
+                  </div>
+                  {syncByDate && (
+                    <div className="flex items-center gap-4 ml-6">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-muted-foreground">From:</label>
+                        <input
+                          type="date"
+                          value={syncDateFrom}
+                          onChange={(e) => setSyncDateFrom(e.target.value)}
+                          className="h-9 px-3 rounded-md border bg-background text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-muted-foreground">To:</label>
+                        <input
+                          type="date"
+                          value={syncDateTo}
+                          onChange={(e) => setSyncDateTo(e.target.value)}
+                          className="h-9 px-3 rounded-md border bg-background text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 

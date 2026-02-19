@@ -21,11 +21,62 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '13.5.3',
+    date: 'February 19, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '📋 Task Management & Wizard Enhancements',
+    highlights: [
+      'Task Rejection with Duplicate Option',
+      'Revision & Remark Columns in All Views',
+      'Inline Editing in Project Management View',
+      'Stage Duration in Weeks (Wizard)',
+      'PTS Sync by Date Option',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Task Management Enhancements',
+          items: [
+            'Task rejection workflow with duplicate option for revision tracking',
+            'Revision and remark columns in all task views (table, quick add, project management)',
+            'Inline editing in project management view without full edit mode',
+            'Task description shown below task name in project management view',
+            'Date validation: due date cannot be before input date',
+          ],
+        },
+        {
+          title: 'Project Wizard Improvements',
+          items: [
+            'Stage duration now uses weeks (min-max) instead of start-end dates',
+            'Stage durations displayed in project details under Dates & Durations',
+          ],
+        },
+        {
+          title: 'PTS Sync Enhancements',
+          items: [
+            'Option to sync production log data by date or by project',
+            'Fixed building column mapping (column U instead of T)',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed hydration error in login form version display',
+        'Fixed PTS sync building column mapping',
+        'Project edit page now shows project number and name in header',
+      ],
+      changed: [
+        'Revision field added to full task view and edit mode',
+        'Modern alert messages for approval/rejection actions',
+      ],
+    },
+  },
+  {
     version: '13.5.2',
     date: 'February 15, 2026',
     type: 'patch',
-    status: 'current',
-    mainTitle: '� Tasks UI Polish & PTS Preview',
+    status: 'previous',
+    mainTitle: '📋 Tasks UI Polish & PTS Preview',
     highlights: [
       'Expand All / Collapse All in Project Management View',
       'Inline Approval Filter Buttons',

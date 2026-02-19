@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.5.3] - 2026-02-19
+
+### 📋 Task Management & Wizard Enhancements
+
+#### Added
+- **Task Rejection Workflow**
+  - Task rejection with duplicate option for revision tracking
+  - Rejection reason input with confirmation dialog
+  - Rejected tasks display with reason tooltip
+
+- **Revision & Remark Columns**
+  - Revision and remark columns in all task views (table, quick add, project management)
+  - Editable in quick add mode and inline edit mode
+  - Displayed in full task view with "Additional Information" card
+
+- **Inline Editing in Project Management View**
+  - Edit tasks directly in project management view without full edit mode
+  - Edit title, description, assigned to, dates, status, priority, remark, revision
+
+- **Project Wizard Improvements**
+  - Stage duration now uses weeks (min-max) instead of start-end dates
+  - Stage durations displayed in project details under Dates & Durations
+
+- **PTS Sync Enhancements**
+  - Option to sync production log data by date or by project
+  - Fixed building column mapping (column U instead of T)
+
+#### Changed
+- Project edit page now shows project number and name in header
+- Task description shown below task name in project management view
+- Modern alert messages for approval/rejection actions
+
+#### Fixed
+- Fixed hydration error in login form version display
+- Fixed PTS sync building column mapping
+- Date validation: due date cannot be before input date
+
+---
+
 ## [13.5.2] - 2026-02-15
 
 ### 📋 Tasks UI Polish & PTS Preview

@@ -435,7 +435,7 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
           </CollapsibleSection>
 
           {/* Dates & Durations */}
-          <CollapsibleSection title="Dates & Durations" icon={Calendar}>
+          <CollapsibleSection title="Dates & Durations" icon={Calendar} defaultOpen>
             <dl className="space-y-0">
               <InfoRow label="Contract Date" value={formatDate(project.contractDate)} />
               <InfoRow label="Down Payment Date" value={formatDate(project.downPaymentDate)} />
@@ -443,10 +443,66 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
               <InfoRow label="Planned End Date" value={formatDate(project.plannedEndDate)} />
               <InfoRow label="Actual Start Date" value={formatDate(project.actualStartDate)} />
               <InfoRow label="Actual End Date" value={formatDate(project.actualEndDate)} />
-              <InfoRow label="Engineering Duration" value={project.engineeringDuration ? `${project.engineeringDuration} days` : null} />
-              <InfoRow label="Fabrication & Delivery Duration" value={project.fabricationDeliveryDuration ? `${project.fabricationDeliveryDuration} days` : null} />
-              <InfoRow label="Erection Duration" value={project.erectionDuration ? `${project.erectionDuration} days` : null} />
             </dl>
+            
+            {/* Stage Durations in Weeks */}
+            {(project.engineeringWeeksMin || project.engineeringWeeksMax || 
+              project.operationsWeeksMin || project.operationsWeeksMax ||
+              project.siteWeeksMin || project.siteWeeksMax) && (
+              <div className="mt-4 pt-4 border-t">
+                <h4 className="font-semibold mb-3 text-sm text-muted-foreground">Stage Durations (weeks)</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  {(project.engineeringWeeksMin || project.engineeringWeeksMax) && (
+                    <div className="bg-blue-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-blue-500" />
+                        <span className="text-sm font-medium">Engineering</span>
+                      </div>
+                      <p className="text-lg font-bold text-blue-700">
+                        {project.engineeringWeeksMin === project.engineeringWeeksMax 
+                          ? `${project.engineeringWeeksMin} weeks`
+                          : `${project.engineeringWeeksMin || 0}-${project.engineeringWeeksMax || 0} weeks`}
+                      </p>
+                    </div>
+                  )}
+                  {(project.operationsWeeksMin || project.operationsWeeksMax) && (
+                    <div className="bg-orange-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-orange-500" />
+                        <span className="text-sm font-medium">Operations</span>
+                      </div>
+                      <p className="text-lg font-bold text-orange-700">
+                        {project.operationsWeeksMin === project.operationsWeeksMax 
+                          ? `${project.operationsWeeksMin} weeks`
+                          : `${project.operationsWeeksMin || 0}-${project.operationsWeeksMax || 0} weeks`}
+                      </p>
+                    </div>
+                  )}
+                  {(project.siteWeeksMin || project.siteWeeksMax) && (
+                    <div className="bg-green-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <span className="text-sm font-medium">Site</span>
+                      </div>
+                      <p className="text-lg font-bold text-green-700">
+                        {project.siteWeeksMin === project.siteWeeksMax 
+                          ? `${project.siteWeeksMin} weeks`
+                          : `${project.siteWeeksMin || 0}-${project.siteWeeksMax || 0} weeks`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Legacy Duration Fields */}
+            {(project.engineeringDuration || project.fabricationDeliveryDuration || project.erectionDuration) && (
+              <dl className="space-y-0 mt-4 pt-4 border-t">
+                <InfoRow label="Engineering Duration" value={project.engineeringDuration ? `${project.engineeringDuration} days` : null} />
+                <InfoRow label="Fabrication & Delivery Duration" value={project.fabricationDeliveryDuration ? `${project.fabricationDeliveryDuration} days` : null} />
+                <InfoRow label="Erection Duration" value={project.erectionDuration ? `${project.erectionDuration} days` : null} />
+              </dl>
+            )}
           </CollapsibleSection>
 
           {/* Financial & Payment Terms - Contract value hidden for users with financial restrictions */}

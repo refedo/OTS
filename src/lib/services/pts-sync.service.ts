@@ -562,7 +562,12 @@ class PTSSyncService {
   async syncLogs(
     userId: string,
     selectedProjects?: string[],
-    onProgress?: (progress: SyncProgress) => void
+    onProgress?: (progress: SyncProgress) => void,
+    dateFilter?: {
+      syncByDate?: boolean;
+      syncDateFrom?: string;
+      syncDateTo?: string;
+    }
   ): Promise<{ created: number; updated: number; errors: string[]; skippedItems: SkippedItem[] }> {
     if (!await this.initialize()) {
       throw new Error('Failed to initialize Google Sheets API');
@@ -664,6 +669,20 @@ class PTSSyncService {
           const processedBy = row[this.colIndex(LOG_COLUMNS.processedBy)]?.toString().trim() || null;
           const reportNo = row[this.colIndex(LOG_COLUMNS.reportNo)]?.toString().trim() || null;
 
+          // Apply date filter if enabled
+          if (dateFilter?.syncByDate) {
+            const logDate = processDate.getTime();
+            if (dateFilter.syncDateFrom) {
+              const fromDate = new Date(dateFilter.syncDateFrom).getTime();
+              if (logDate < fromDate) continue;
+            }
+            if (dateFilter.syncDateTo) {
+              const toDate = new Date(dateFilter.syncDateTo);
+              toDate.setHours(23, 59, 59, 999); // Include the entire end date
+              if (logDate > toDate.getTime()) continue;
+            }
+          }
+
           // Generate external reference for UPSERT
           const externalRef = `PTS-${rowNum}-${partNumber}-${processType}`;
 
@@ -759,6 +778,9 @@ class PTSSyncService {
       selectedBuildings?: string[];
       syncRawData?: boolean;
       syncLogs?: boolean;
+      syncByDate?: boolean;
+      syncDateFrom?: string;
+      syncDateTo?: string;
     } = {},
     onProgress?: (progress: SyncProgress) => void
   ): Promise<SyncResult> {
@@ -768,6 +790,9 @@ class PTSSyncService {
       selectedBuildings,
       syncRawData: doSyncRawData = true,
       syncLogs: doSyncLogs = true,
+      syncByDate = false,
+      syncDateFrom,
+      syncDateTo,
     } = options;
 
     const startTime = Date.now();
@@ -788,7 +813,11 @@ class PTSSyncService {
       // Phase 2: Sync Logs
       if (doSyncLogs) {
         onProgress?.({ phase: 'logs', current: 0, total: 0, message: 'Starting log sync...' });
-        logResult = await this.syncLogs(userId, selectedProjects, onProgress);
+        logResult = await this.syncLogs(userId, selectedProjects, onProgress, {
+          syncByDate,
+          syncDateFrom,
+          syncDateTo,
+        });
         errors.push(...logResult.errors);
         skippedItems.push(...logResult.skippedItems);
         syncedItems.push(...logResult.syncedItems);

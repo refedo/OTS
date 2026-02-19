@@ -229,10 +229,18 @@ model Project {
   projectNature                   String?
   projectLocation                 String?
   
-  // Durations (in days)
+  // Durations (in days) - legacy
   engineeringDuration             Int?
   fabricationDeliveryDuration     Int?
   erectionDuration                Int?
+  
+  // Stage Durations (in weeks - min/max)
+  engineeringWeeksMin             Int?
+  engineeringWeeksMax             Int?
+  operationsWeeksMin              Int?
+  operationsWeeksMax              Int?
+  siteWeeksMin                    Int?
+  siteWeeksMax                    Int?
   
   // Technical Specifications
   cranesIncluded                  Boolean     @default(false)
