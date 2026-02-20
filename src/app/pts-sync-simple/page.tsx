@@ -1243,7 +1243,7 @@ export default function PTSSyncSimplePage() {
 
       {/* Sync History Dialog */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-[95vw] w-full max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
@@ -1253,14 +1253,14 @@ export default function PTSSyncSimplePage() {
               Recent sync operations with rollback capability
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-x-auto">
             {syncHistory.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No sync history found</p>
               </div>
             ) : (
-              <Table>
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>

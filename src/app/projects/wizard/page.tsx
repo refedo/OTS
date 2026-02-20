@@ -9,12 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SuccessDialog } from '@/components/ui/success-dialog';
 import { ArrowLeft, ArrowRight, Check, Wand2, Plus, Trash2, Upload, Calendar } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 type Building = {
   id: string;
   name: string;
   designation: string;
+  weight?: number;
 };
 
 type ScopeItem = {
@@ -74,6 +76,7 @@ const STAGE_SCOPES: Record<string, string[]> = {
 
 export default function ProjectSetupWizard() {
   const router = useRouter();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -171,7 +174,7 @@ export default function ProjectSetupWizard() {
     setScopeSchedules(scopeSchedules.filter(s => s.buildingId !== id));
   };
 
-  const updateBuilding = (id: string, field: keyof Building, value: string) => {
+  const updateBuilding = (id: string, field: keyof Building, value: string | number) => {
     setBuildings(buildings.map(b => 
       b.id === id ? { ...b, [field]: value } : b
     ));
@@ -334,12 +337,12 @@ export default function ProjectSetupWizard() {
       case 2:
         return buildings.length > 0 && buildings.every(b => b.name && b.designation);
       case 3:
-        // At least one visible stage should have dates filled
+        // At least one visible stage should have duration filled
         const visibleStages = stageDurations.filter(stage => {
           const stageScopes = STAGE_SCOPES[stage.stage] || [];
           return scopeOfWork.some(s => s.checked && stageScopes.includes(s.id));
         });
-        return visibleStages.length === 0 || visibleStages.some(s => s.startDate && s.endDate);
+        return visibleStages.length === 0 || visibleStages.some(s => s.durationWeeksMin > 0 || s.durationWeeksMax > 0);
       case 4:
         return coatingCoats.length > 0 && coatingCoats.every(c => c.coatName);
       case 5:
@@ -360,7 +363,11 @@ export default function ProjectSetupWizard() {
     if (validateStep()) {
       setCurrentStep(currentStep + 1);
     } else {
-      alert('Please fill in all required fields');
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -535,6 +542,7 @@ export default function ProjectSetupWizard() {
           projectId: project.id,
           name: building.name,
           designation: building.designation,
+          weight: building.weight || null,
         };
 
         const buildingResponse = await fetch('/api/buildings', {
@@ -847,7 +855,7 @@ export default function ProjectSetupWizard() {
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-2">
                       <Label>Building Name *</Label>
                       <Input
@@ -863,6 +871,17 @@ export default function ProjectSetupWizard() {
                         onChange={(e) => updateBuilding(building.id, 'designation', e.target.value.toUpperCase())}
                         placeholder="e.g., BLD-A"
                         maxLength={10}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Weight (tons)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={building.weight || ''}
+                        onChange={(e) => updateBuilding(building.id, 'weight', parseFloat(e.target.value) || 0)}
+                        placeholder="e.g., 150.5"
                       />
                     </div>
                   </div>

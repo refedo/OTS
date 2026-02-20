@@ -330,6 +330,7 @@ model Building {
   designation String   // 2-4 letter code (e.g., "BLD1", "WH", "MAIN")
   name        String
   description String?
+  weight      Float?   // Building weight in tons
   project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assemblyParts AssemblyPart[]
   rfiRequests   RFIRequest[]

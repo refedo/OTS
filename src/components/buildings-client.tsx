@@ -40,6 +40,7 @@ type Building = {
   designation: string;
   name: string;
   description: string | null;
+  weight: number | null;
   projectId: string;
   project: {
     id: string;
@@ -428,6 +429,14 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
                         Status {getSortIcon('status')}
                       </div>
                     </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort('weight')}
+                    >
+                      <div className="flex items-center">
+                        Weight (tons) {getSortIcon('weight')}
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -454,6 +463,9 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
                         >
                           {building.project.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {building.weight ? building.weight.toLocaleString() : '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>

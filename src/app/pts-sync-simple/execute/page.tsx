@@ -143,6 +143,12 @@ export default function ExecuteSyncPage() {
   const [showRollbackDialog, setShowRollbackDialog] = useState(false);
   const [rollbackProject, setRollbackProject] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState(false);
+  const [showBuildingMappingDialog, setShowBuildingMappingDialog] = useState(false);
+  
+  // Building mapping state - maps PTS building key to OTS building id
+  const [buildingMappings, setBuildingMappings] = useState<Record<string, string>>({});
+  const [otsBuildings, setOtsBuildings] = useState<{ id: string; designation: string; name: string; projectId: string; projectNumber: string }[]>([]);
+  const [loadingOtsBuildings, setLoadingOtsBuildings] = useState(false);
 
   // Data Preview
   const [previewData, setPreviewData] = useState<Record<string, string>[] | null>(null);
@@ -235,6 +241,40 @@ export default function ExecuteSyncPage() {
   const deselectAllProjects = () => {
     setSelectedProjects(new Set());
     setSelectedBuildings(new Set());
+  };
+
+  const fetchOtsBuildings = async () => {
+    setLoadingOtsBuildings(true);
+    try {
+      const res = await fetch('/api/buildings');
+      if (res.ok) {
+        const data = await res.json();
+        setOtsBuildings(data.map((b: any) => ({
+          id: b.id,
+          designation: b.designation,
+          name: b.name,
+          projectId: b.projectId,
+          projectNumber: b.project?.projectNumber || '',
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch OTS buildings:', err);
+    } finally {
+      setLoadingOtsBuildings(false);
+    }
+  };
+
+  const openBuildingMappingDialog = () => {
+    console.log('Opening building mapping dialog');
+    fetchOtsBuildings();
+    setShowBuildingMappingDialog(true);
+  };
+
+  const handleBuildingMapping = (ptsKey: string, otsId: string) => {
+    setBuildingMappings(prev => ({
+      ...prev,
+      [ptsKey]: otsId,
+    }));
   };
 
   const startValidation = async () => {
@@ -543,13 +583,23 @@ export default function ExecuteSyncPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className="cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={openBuildingMappingDialog}
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-5 w-5 text-green-500" />
                   <div>
-                    <p className="text-2xl font-bold">{validation.buildings.matched.length}</p>
-                    <p className="text-xs text-muted-foreground">Buildings Matched</p>
+                    <p className="text-2xl font-bold">
+                      {validation.buildings.matched.length}
+                      {validation.buildings.unmatched.length > 0 && (
+                        <span className="text-amber-500 text-sm ml-1">
+                          (+{validation.buildings.unmatched.length} unmatched)
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Buildings Matched - Click to Map</p>
                   </div>
                 </div>
               </CardContent>
@@ -577,6 +627,27 @@ export default function ExecuteSyncPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Building Mapping Section */}
+          {validation.buildings.unmatched.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-amber-600" />
+                    <span className="text-amber-800">Unmatched Buildings ({validation.buildings.unmatched.length})</span>
+                  </span>
+                  <Button variant="outline" size="sm" onClick={openBuildingMappingDialog}>
+                    <Building2 className="h-4 w-4 mr-1" />
+                    Map Buildings
+                  </Button>
+                </CardTitle>
+                <CardDescription className="text-amber-700">
+                  Some PTS buildings don't have matching OTS buildings. Click "Map Buildings" to match them or create new ones.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
 
           {/* Project Selection */}
           <Card>
@@ -1113,6 +1184,123 @@ export default function ExecuteSyncPage() {
                 <RotateCcw className="h-4 w-4 mr-2" />
               )}
               Confirm Rollback
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Building Mapping Dialog */}
+      <Dialog open={showBuildingMappingDialog} onOpenChange={setShowBuildingMappingDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-amber-500" />
+              Map PTS Buildings to OTS Buildings
+            </DialogTitle>
+            <DialogDescription>
+              Match unmatched PTS buildings with existing OTS buildings, or leave unmapped to create new buildings during sync.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingOtsBuildings ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {validation?.buildings.unmatched && validation.buildings.unmatched.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>PTS Building</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Map to OTS Building</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {validation.buildings.unmatched.map((ptsBuilding) => {
+                      const ptsKey = `${ptsBuilding.projectNumber}-${ptsBuilding.designation}`;
+                      const mappedOtsId = buildingMappings[ptsKey];
+                      const projectOtsBuildings = otsBuildings.filter(
+                        b => b.projectNumber === ptsBuilding.projectNumber
+                      );
+                      
+                      return (
+                        <TableRow key={ptsKey}>
+                          <TableCell>
+                            <div>
+                              <span className="font-medium">{ptsBuilding.name || ptsBuilding.designation}</span>
+                              <span className="text-xs text-muted-foreground ml-2">({ptsBuilding.designation})</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{ptsBuilding.projectNumber}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <select
+                              className="w-full border rounded px-2 py-1 text-sm"
+                              value={mappedOtsId || ''}
+                              onChange={(e) => handleBuildingMapping(ptsKey, e.target.value)}
+                            >
+                              <option value="">-- Create New Building --</option>
+                              {projectOtsBuildings.map((otsB) => (
+                                <option key={otsB.id} value={otsB.id}>
+                                  {otsB.name} ({otsB.designation})
+                                </option>
+                              ))}
+                            </select>
+                          </TableCell>
+                          <TableCell>
+                            {mappedOtsId ? (
+                              <Badge className="bg-green-100 text-green-700 border-green-300">
+                                <Check className="h-3 w-3 mr-1" />
+                                Mapped
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                Will Create
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>All PTS buildings are already matched with OTS buildings.</p>
+                </div>
+              )}
+              
+              {validation?.buildings.matched && validation.buildings.matched.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium mb-2 text-muted-foreground">Already Matched Buildings</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {validation.buildings.matched.slice(0, 6).map((m) => (
+                      <div key={`${m.pts.projectNumber}-${m.pts.designation}`} className="flex items-center gap-2 p-2 bg-green-50 rounded">
+                        <Check className="h-3 w-3 text-green-600" />
+                        <span>{m.pts.designation}</span>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">OTS Building</span>
+                      </div>
+                    ))}
+                    {validation.buildings.matched.length > 6 && (
+                      <div className="text-muted-foreground p-2">
+                        +{validation.buildings.matched.length - 6} more matched
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBuildingMappingDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

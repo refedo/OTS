@@ -30,7 +30,7 @@ const RAW_DATA_COLUMNS = {
   areaTotal: 'N',          // Net Area(m²) for all
   weightPerOne: 'O',       // Single Part Weight
   weightTotal: 'P',        // Net Weight(kg) for all
-  buildingDesignation: 'R', // Building Designation (e.g., "Z8T")
+  buildingDesignation: 'S', // Building Designation (e.g., "Z8T")
   buildingName: 'T',       // Building Name (e.g., "Zone 8 Toilet")
 };
 
@@ -411,12 +411,22 @@ class PTSSyncService {
         try {
           const projectNumber = row[this.colIndex(RAW_DATA_COLUMNS.projectNumber)]?.toString().trim();
           const partDesignation = row[this.colIndex(RAW_DATA_COLUMNS.logDesignation)]?.toString().trim();
-          const buildingDesig = row[this.colIndex(RAW_DATA_COLUMNS.buildingDesignation)]?.toString().trim();
+          let buildingDesig = row[this.colIndex(RAW_DATA_COLUMNS.buildingDesignation)]?.toString().trim();
           const buildingName = row[this.colIndex(RAW_DATA_COLUMNS.buildingName)]?.toString().trim();
 
           if (!projectNumber || !partDesignation) {
             errors.push(`Skipped row: Missing project number or part designation`);
             continue;
+          }
+
+          // If building designation is empty, try to extract from part designation
+          // Part designation format: PROJECT-BUILDING-PART (e.g., "254-Z5-BE2")
+          if (!buildingDesig && partDesignation) {
+            const parts = partDesignation.split('-');
+            if (parts.length >= 2) {
+              // The second part is typically the building designation
+              buildingDesig = parts[1];
+            }
           }
 
           // Skip items without building designation (validation requirement)

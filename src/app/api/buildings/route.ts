@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { projectId, name, designation, description, startDate, endDate } = body;
+    const { projectId, name, designation, description, weight } = body;
 
     if (!projectId || !name || !designation) {
       return NextResponse.json(
@@ -79,6 +79,7 @@ export async function POST(req: Request) {
         name,
         designation,
         description: description || null,
+        weight: weight ? parseFloat(weight) : null,
       },
       include: {
         project: { select: { projectNumber: true } },

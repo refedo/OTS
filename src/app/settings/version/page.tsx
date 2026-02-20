@@ -23,8 +23,8 @@ import {
   Rocket
 } from 'lucide-react';
 
-const CURRENT_VERSION = '13.5.3';
-const PACKAGE_VERSION = '13.5.3';
+const CURRENT_VERSION = '13.5.4';
+const PACKAGE_VERSION = '13.5.4';
 const GITHUB_REPO = 'refedo/OTS';
 
 export default function VersionManagementPage() {

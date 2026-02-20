@@ -2498,14 +2498,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         return (
                           <React.Fragment key={projectId}>
                             <TableRow
-                              className="bg-muted/40 hover:bg-muted/60 cursor-pointer font-semibold"
+                              className="bg-blue-50 hover:bg-blue-100 cursor-pointer font-semibold border-l-4 border-l-blue-500"
                               onClick={() => toggleProject(projectId)}
                             >
                               <TableCell className="py-2.5">
                                 <div className="flex items-center gap-1.5">
-                                  {isProjectExpanded ? <ChevronDown className="size-4 text-primary" /> : <ChevronRight className="size-4 text-primary" />}
-                                  <span className="text-primary font-semibold">Project# {project?.projectNumber}</span>
-                                  <span className="text-xs font-normal text-muted-foreground ml-1">- {project?.name}</span>
+                                  {isProjectExpanded ? <ChevronDown className="size-4 text-blue-600" /> : <ChevronRight className="size-4 text-blue-600" />}
+                                  <span className="text-blue-700 font-semibold">Project# {project?.projectNumber}</span>
+                                  <span className="text-xs font-normal text-blue-600/70 ml-1">- {project?.name}</span>
                                 </div>
                               </TableCell>
                               <TableCell className="text-xs text-muted-foreground">{projectTasks.length} tasks</TableCell>
@@ -2526,14 +2526,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                               return (
                                 <React.Fragment key={buildingId}>
                                   <TableRow
-                                    className="bg-muted/20 hover:bg-muted/40 cursor-pointer"
+                                    className="bg-amber-50 hover:bg-amber-100 cursor-pointer border-l-4 border-l-amber-500"
                                     onClick={() => toggleBuilding(`${projectId}-${buildingId}`)}
                                   >
                                     <TableCell className="py-2" style={{ paddingLeft: '36px' }}>
                                       <div className="flex items-center gap-1.5 font-medium">
-                                        {isBuildingExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                                        <span>{building ? building.name : 'No Building'}</span>
-                                        {building && <span className="text-xs font-normal text-muted-foreground">({building.designation})</span>}
+                                        {isBuildingExpanded ? <ChevronDown className="size-3.5 text-amber-600" /> : <ChevronRight className="size-3.5 text-amber-600" />}
+                                        <span className="text-amber-700">{building ? building.name : 'No Building'}</span>
+                                        {building && <span className="text-xs font-normal text-amber-600/70">({building.designation})</span>}
                                       </div>
                                     </TableCell>
                                     <TableCell className="text-xs text-muted-foreground">{bTasks.length} tasks</TableCell>
@@ -2572,14 +2572,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                       return (
                                         <React.Fragment key={actKey}>
                                           <TableRow
-                                            className="hover:bg-muted/30 cursor-pointer"
+                                            className="bg-purple-50 hover:bg-purple-100 cursor-pointer border-l-4 border-l-purple-400"
                                             onClick={toggleActivity}
                                           >
                                             <TableCell className="py-1.5" style={{ paddingLeft: '60px' }}>
                                               <div className="flex items-center gap-1.5 font-medium text-sm">
-                                                {isActivityExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-                                                <span className="text-muted-foreground">{actName}</span>
-                                                <span className="text-xs font-normal text-muted-foreground">({actTasks.length})</span>
+                                                {isActivityExpanded ? <ChevronDown className="size-3 text-purple-500" /> : <ChevronRight className="size-3 text-purple-500" />}
+                                                <span className="text-purple-700">{actName}</span>
+                                                <span className="text-xs font-normal text-purple-500/70">({actTasks.length})</span>
                                               </div>
                                             </TableCell>
                                             <TableCell></TableCell>

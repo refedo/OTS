@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.5.4] - 2026-02-20
+
+### 🎨 PTS Sync & Appearance Enhancements
+
+#### Added
+- **Building Management**
+  - Building weight field in project wizard and buildings table
+  - Building weight displayed on project details page
+
+- **PTS Sync Enhancements**
+  - Building mapping dialog to match PTS buildings with OTS buildings
+  - Auto-extract building designation from part designation if column is empty
+  - Expanded sync history dialog showing all columns
+  - Fixed building designation column mapping (column S)
+
+- **Appearance Settings**
+  - Color palette picker in settings with 6 preset themes
+  - Appearance tab added to main settings page
+  - Project management view colorization by level (project/building/department)
+
+#### Changed
+- Project management view rows now color-coded by hierarchy level
+- Buildings card in PTS sync now clickable to open mapping dialog
+
+#### Fixed
+- Fixed scope schedule creation - dates now optional
+- Fixed PTS sync building designation column (S instead of R)
+- Fixed PTS sync history dialog width
+
+---
+
 ## [13.5.3] - 2026-02-19
 
 ### 📋 Task Management & Wizard Enhancements

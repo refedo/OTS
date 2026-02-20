@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '13.5.3',
-  date: 'February 19, 2026',
+  version: '13.5.4',
+  date: 'February 20, 2026',
   type: 'patch' as const,
   mainTitle: '📋 Task Management & Wizard Enhancements',
   highlights: [

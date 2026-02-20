@@ -17,9 +17,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { projectId, buildingId, scopeType, scopeLabel, startDate, endDate } = body;
 
-    if (!projectId || !buildingId || !scopeType || !scopeLabel || !startDate || !endDate) {
+    if (!projectId || !buildingId || !scopeType || !scopeLabel) {
       return NextResponse.json(
-        { error: 'All fields are required' },
+        { error: 'Project ID, Building ID, Scope Type, and Scope Label are required' },
         { status: 400 }
       );
     }
@@ -31,8 +31,8 @@ export async function POST(req: Request) {
         scopeType,
         scopeLabel,
         division: getDivisionFromScopeType(scopeType),
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
       },
     });
 

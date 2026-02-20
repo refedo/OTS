@@ -48,6 +48,7 @@ import {
   Crown,
   Star,
   Info,
+  Palette,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -221,6 +222,7 @@ const navigationSections: NavigationSection[] = [
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Appearance', href: '/settings/appearance', icon: Palette },
       { name: 'About OTS™', href: '/settings/about', icon: Info },
       { name: 'Version Management', href: '/settings/version', icon: GitBranch },
       { name: 'Changelog', href: '/changelog', icon: FileCode },
@@ -614,7 +616,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v13.5.3
+                  Hexa Steel® OTS v13.5.4
                 </p>
               </div>
             )}
