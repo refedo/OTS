@@ -113,13 +113,31 @@
 
 /* Nova Theme Enhancements */
 @layer base {
-  /* Glass morphism effect for cards when Nova theme is active */
+  /* Glass morphism effect for cards, sidebar, and dropdowns */
   [data-theme="nova"] .card,
-  [data-theme="nova"] [class*="card"] {
-    background: rgba(255, 255, 255, 0.85);
+  [data-theme="nova"] [class*="card"],
+  [data-theme="nova"] aside,
+  [data-theme="nova"] [class*="sidebar"] {
+    background: rgba(255, 255, 255, 0.85) !important;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.1);
+  }
+
+  /* User Menu Dropdown - Radix UI Dropdown Menu Content */
+  [data-theme="nova"] [data-radix-dropdown-menu-content] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15);
+  }
+
+  /* Popover and Dialog content */
+  [data-theme="nova"] [data-radix-popover-content],
+  [data-theme="nova"] [data-radix-dialog-content] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(30px);
+    border: 1px solid rgba(139, 92, 246, 0.2);
   }
 
   /* Enhanced buttons with gradient for Nova theme */
@@ -236,12 +254,22 @@
     background-attachment: fixed;
   }
 
+  /* Aurora Theme - Glass morphism for all elements */
   [data-theme="aurora"] .card,
-  [data-theme="aurora"] [class*="card"] {
-    background: rgba(255, 255, 255, 0.9);
+  [data-theme="aurora"] [class*="card"],
+  [data-theme="aurora"] aside,
+  [data-theme="aurora"] [class*="sidebar"] {
+    background: rgba(255, 255, 255, 0.9) !important;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(6, 182, 212, 0.15);
     box-shadow: 0 8px 32px 0 rgba(6, 182, 212, 0.1);
+  }
+
+  [data-theme="aurora"] [data-radix-dropdown-menu-content] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(6, 182, 212, 0.15);
   }
 
   [data-theme="aurora"] button[class*="primary"],
@@ -261,12 +289,22 @@
     background-attachment: fixed;
   }
 
+  /* Sunset Theme - Glass morphism for all elements */
   [data-theme="sunset"] .card,
-  [data-theme="sunset"] [class*="card"] {
-    background: rgba(255, 255, 255, 0.9);
+  [data-theme="sunset"] [class*="card"],
+  [data-theme="sunset"] aside,
+  [data-theme="sunset"] [class*="sidebar"] {
+    background: rgba(255, 255, 255, 0.9) !important;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(249, 115, 22, 0.15);
     box-shadow: 0 8px 32px 0 rgba(249, 115, 22, 0.1);
+  }
+
+  [data-theme="sunset"] [data-radix-dropdown-menu-content] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(249, 115, 22, 0.15);
   }
 
   [data-theme="sunset"] button[class*="primary"],
@@ -286,12 +324,22 @@
     background-attachment: fixed;
   }
 
+  /* Midnight Theme - Glass morphism for all elements */
   [data-theme="midnight"] .card,
-  [data-theme="midnight"] [class*="card"] {
-    background: rgba(30, 41, 59, 0.8);
+  [data-theme="midnight"] [class*="card"],
+  [data-theme="midnight"] aside,
+  [data-theme="midnight"] [class*="sidebar"] {
+    background: rgba(30, 41, 59, 0.8) !important;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(59, 130, 246, 0.2);
     box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.15);
+  }
+
+  [data-theme="midnight"] [data-radix-dropdown-menu-content] {
+    background: rgba(30, 41, 59, 0.95) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.2);
   }
 
   [data-theme="midnight"] button[class*="primary"],
@@ -323,12 +371,22 @@
     background-attachment: fixed;
   }
 
+  /* Emerald Theme - Glass morphism for all elements */
   [data-theme="emerald"] .card,
-  [data-theme="emerald"] [class*="card"] {
-    background: rgba(255, 255, 255, 0.9);
+  [data-theme="emerald"] [class*="card"],
+  [data-theme="emerald"] aside,
+  [data-theme="emerald"] [class*="sidebar"] {
+    background: rgba(255, 255, 255, 0.9) !important;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(16, 185, 129, 0.15);
     box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.1);
+  }
+
+  [data-theme="emerald"] [data-radix-dropdown-menu-content] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.15);
   }
 
   [data-theme="emerald"] button[class*="primary"],
@@ -348,12 +406,22 @@
     background-attachment: fixed;
   }
 
+  /* Rose Theme - Glass morphism for all elements */
   [data-theme="rose"] .card,
-  [data-theme="rose"] [class*="card"] {
-    background: rgba(255, 255, 255, 0.9);
+  [data-theme="rose"] [class*="card"],
+  [data-theme="rose"] aside,
+  [data-theme="rose"] [class*="sidebar"] {
+    background: rgba(255, 255, 255, 0.9) !important;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(244, 63, 94, 0.15);
     box-shadow: 0 8px 32px 0 rgba(244, 63, 94, 0.1);
+  }
+
+  [data-theme="rose"] [data-radix-dropdown-menu-content] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(244, 63, 94, 0.15);
   }
 
   [data-theme="rose"] button[class*="primary"],
