@@ -139,12 +139,24 @@
     box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15);
   }
 
-  /* Popover and Dialog content */
-  [data-theme="nova"] [data-radix-popover-content],
-  [data-theme="nova"] [data-radix-dialog-content] {
+  /* Popover content */
+  [data-theme="nova"] [data-radix-popover-content] {
     background: rgba(255, 255, 255, 0.95) !important;
     backdrop-filter: blur(30px);
     border: 1px solid rgba(139, 92, 246, 0.2);
+  }
+
+  /* Dialog content - solid background for proper display */
+  [data-theme="nova"] [data-radix-dialog-content] {
+    background: rgb(255, 255, 255) !important;
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    box-shadow: 0 20px 60px -10px rgba(139, 92, 246, 0.3);
+  }
+
+  /* Dialog overlay */
+  [data-theme="nova"] [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px);
   }
 
   /* Enhanced buttons with gradient for Nova theme */
@@ -285,6 +297,17 @@
     box-shadow: 0 8px 32px 0 rgba(6, 182, 212, 0.15);
   }
 
+  [data-theme="aurora"] [data-radix-dialog-content] {
+    background: rgb(255, 255, 255) !important;
+    border: 1px solid rgba(6, 182, 212, 0.15);
+    box-shadow: 0 20px 60px -10px rgba(6, 182, 212, 0.3);
+  }
+
+  [data-theme="aurora"] [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px);
+  }
+
   [data-theme="aurora"] button[class*="primary"],
   [data-theme="aurora"] .btn-primary {
     background: linear-gradient(135deg, #06b6d4 0%, #ec4899 100%);
@@ -326,6 +349,17 @@
     box-shadow: 0 8px 32px 0 rgba(249, 115, 22, 0.15);
   }
 
+  [data-theme="sunset"] [data-radix-dialog-content] {
+    background: rgb(255, 255, 255) !important;
+    border: 1px solid rgba(249, 115, 22, 0.15);
+    box-shadow: 0 20px 60px -10px rgba(249, 115, 22, 0.3);
+  }
+
+  [data-theme="sunset"] [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px);
+  }
+
   [data-theme="sunset"] button[class*="primary"],
   [data-theme="sunset"] .btn-primary {
     background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
@@ -365,6 +399,17 @@
     backdrop-filter: blur(20px);
     border: 1px solid rgba(59, 130, 246, 0.3);
     box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.2);
+  }
+
+  [data-theme="midnight"] [data-radix-dialog-content] {
+    background: rgb(30, 41, 59) !important;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    box-shadow: 0 20px 60px -10px rgba(59, 130, 246, 0.4);
+  }
+
+  [data-theme="midnight"] [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(4px);
   }
 
   [data-theme="midnight"] button[class*="primary"],
@@ -420,6 +465,17 @@
     box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.15);
   }
 
+  [data-theme="emerald"] [data-radix-dialog-content] {
+    background: rgb(255, 255, 255) !important;
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    box-shadow: 0 20px 60px -10px rgba(16, 185, 129, 0.3);
+  }
+
+  [data-theme="emerald"] [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px);
+  }
+
   [data-theme="emerald"] button[class*="primary"],
   [data-theme="emerald"] .btn-primary {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -459,6 +515,17 @@
     backdrop-filter: blur(20px);
     border: 1px solid rgba(244, 63, 94, 0.2);
     box-shadow: 0 8px 32px 0 rgba(244, 63, 94, 0.15);
+  }
+
+  [data-theme="rose"] [data-radix-dialog-content] {
+    background: rgb(255, 255, 255) !important;
+    border: 1px solid rgba(244, 63, 94, 0.15);
+    box-shadow: 0 20px 60px -10px rgba(244, 63, 94, 0.3);
+  }
+
+  [data-theme="rose"] [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px);
   }
 
   [data-theme="rose"] button[class*="primary"],
