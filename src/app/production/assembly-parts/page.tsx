@@ -51,6 +51,12 @@ interface Pagination {
   totalPages: number;
 }
 
+interface Totals {
+  totalWeight: number;
+  totalArea: number;
+  statusCounts: Record<string, number>;
+}
+
 export default function AssemblyPartsPage() {
   const [parts, setParts] = useState<AssemblyPart[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +71,7 @@ export default function AssemblyPartsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 100, total: 0, totalPages: 0 });
+  const [totals, setTotals] = useState<Totals>({ totalWeight: 0, totalArea: 0, statusCounts: {} });
   const [pageSize, setPageSize] = useState(100);
 
   const fetchParts = useCallback(async (page = 1, search = searchQuery, limit = pageSize) => {
@@ -83,6 +90,7 @@ export default function AssemblyPartsPage() {
         const result = await response.json();
         setParts(result.data || []);
         setPagination(result.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 });
+        setTotals(result.totals || { totalWeight: 0, totalArea: 0, statusCounts: {} });
       }
     } catch (error) {
       console.error('Error fetching parts:', error);
@@ -369,41 +377,41 @@ export default function AssemblyPartsPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-purple-600">
-                {(parts.reduce((sum, p) => sum + (Number(p.netWeightTotal) || 0), 0) / 1000).toFixed(2)}
+                {(totals.totalWeight / 1000).toFixed(2)}
               </div>
-              <p className="text-xs text-muted-foreground">Page Weight (tons)</p>
+              <p className="text-xs text-muted-foreground">Total Weight (tons)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-indigo-600">
-                {parts.reduce((sum, p) => sum + (Number(p.netAreaTotal) || 0), 0).toFixed(2)}
+                {totals.totalArea.toFixed(2)}
               </div>
-              <p className="text-xs text-muted-foreground">Page Area (m²)</p>
+              <p className="text-xs text-muted-foreground">Total Area (m²)</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-yellow-600">
-                {parts.filter((p) => p.status === 'Pending').length}
+                {totals.statusCounts['Pending'] || 0}
               </div>
-              <p className="text-xs text-muted-foreground">Pending (page)</p>
+              <p className="text-xs text-muted-foreground">Pending</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-blue-600">
-                {parts.filter((p) => p.status === 'In Progress').length}
+                {totals.statusCounts['In Progress'] || 0}
               </div>
-              <p className="text-xs text-muted-foreground">In Progress (page)</p>
+              <p className="text-xs text-muted-foreground">In Progress</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-green-600">
-                {parts.filter((p) => p.status === 'Completed').length}
+                {totals.statusCounts['Completed'] || 0}
               </div>
-              <p className="text-xs text-muted-foreground">Completed (page)</p>
+              <p className="text-xs text-muted-foreground">Completed</p>
             </CardContent>
           </Card>
       </div>

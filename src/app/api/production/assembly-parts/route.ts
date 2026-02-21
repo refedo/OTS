@@ -112,6 +112,32 @@ export async function GET(req: Request) {
     // Get total count for pagination
     const total = await prisma.assemblyPart.count({ where });
 
+    // Get aggregated totals for all matching parts (not just current page)
+    const aggregates = await prisma.assemblyPart.aggregate({
+      where,
+      _sum: {
+        netWeightTotal: true,
+        netAreaTotal: true,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    // Get status counts for all matching parts
+    const statusCounts = await prisma.assemblyPart.groupBy({
+      by: ['status'],
+      where,
+      _count: {
+        _all: true,
+      },
+    });
+
+    const statusCountMap: Record<string, number> = {};
+    statusCounts.forEach((sc) => {
+      statusCountMap[sc.status] = sc._count._all;
+    });
+
     const assemblyParts = await prisma.assemblyPart.findMany({
       where,
       skip,
@@ -172,6 +198,11 @@ export async function GET(req: Request) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+      totals: {
+        totalWeight: aggregates._sum.netWeightTotal || 0,
+        totalArea: aggregates._sum.netAreaTotal || 0,
+        statusCounts: statusCountMap,
       },
     });
   } catch (error) {

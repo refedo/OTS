@@ -6,6 +6,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/jwt';
 import { ptsSyncService } from '@/lib/services/pts-sync.service';
 
+// Extend timeout for long-running sync operations
+export const maxDuration = 300; // 5 minutes
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const cookieName = process.env.COOKIE_NAME || 'ots_session';

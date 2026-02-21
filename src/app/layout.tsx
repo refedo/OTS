@@ -5,6 +5,7 @@ import { SessionProvider } from "@/components/SessionProvider";
 import { DialogProvider } from "@/contexts/DialogContext";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import { ChunkErrorHandler } from "@/components/ChunkErrorHandler";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,11 +34,13 @@ export default function RootLayout({
       >
         <ChunkErrorBoundary>
           <ChunkErrorHandler />
-          <SessionProvider>
-            <DialogProvider>
-              {children}
-            </DialogProvider>
-          </SessionProvider>
+          <ThemeProvider>
+            <SessionProvider>
+              <DialogProvider>
+                {children}
+              </DialogProvider>
+            </SessionProvider>
+          </ThemeProvider>
         </ChunkErrorBoundary>
       </body>
     </html>

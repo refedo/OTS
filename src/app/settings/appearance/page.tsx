@@ -1,149 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, Palette, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Save, Palette, Check, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
-type ColorPalette = {
-  id: string;
-  name: string;
-  description: string;
-  primary: string;
-  primaryForeground: string;
-  accent: string;
-  accentForeground: string;
-  preview: {
-    bg: string;
-    card: string;
-    text: string;
-    muted: string;
-  };
-};
-
-const COLOR_PALETTES: ColorPalette[] = [
-  {
-    id: 'default',
-    name: 'Default (Muted)',
-    description: 'Clean black and white theme with subtle accents',
-    primary: 'hsl(222.2, 47.4%, 11.2%)',
-    primaryForeground: 'hsl(210, 40%, 98%)',
-    accent: 'hsl(210, 40%, 96.1%)',
-    accentForeground: 'hsl(222.2, 47.4%, 11.2%)',
-    preview: {
-      bg: '#ffffff',
-      card: '#f8fafc',
-      text: '#0f172a',
-      muted: '#64748b',
-    },
-  },
-  {
-    id: 'blue',
-    name: 'Ocean Blue',
-    description: 'Professional blue theme for corporate environments',
-    primary: 'hsl(217, 91%, 60%)',
-    primaryForeground: 'hsl(0, 0%, 100%)',
-    accent: 'hsl(214, 95%, 93%)',
-    accentForeground: 'hsl(217, 91%, 40%)',
-    preview: {
-      bg: '#f0f9ff',
-      card: '#e0f2fe',
-      text: '#0c4a6e',
-      muted: '#0284c7',
-    },
-  },
-  {
-    id: 'green',
-    name: 'Forest Green',
-    description: 'Natural green theme for eco-friendly vibes',
-    primary: 'hsl(142, 76%, 36%)',
-    primaryForeground: 'hsl(0, 0%, 100%)',
-    accent: 'hsl(138, 76%, 93%)',
-    accentForeground: 'hsl(142, 76%, 26%)',
-    preview: {
-      bg: '#f0fdf4',
-      card: '#dcfce7',
-      text: '#14532d',
-      muted: '#16a34a',
-    },
-  },
-  {
-    id: 'purple',
-    name: 'Royal Purple',
-    description: 'Elegant purple theme for creative projects',
-    primary: 'hsl(262, 83%, 58%)',
-    primaryForeground: 'hsl(0, 0%, 100%)',
-    accent: 'hsl(262, 83%, 93%)',
-    accentForeground: 'hsl(262, 83%, 38%)',
-    preview: {
-      bg: '#faf5ff',
-      card: '#f3e8ff',
-      text: '#581c87',
-      muted: '#9333ea',
-    },
-  },
-  {
-    id: 'orange',
-    name: 'Sunset Orange',
-    description: 'Warm orange theme for energetic workspaces',
-    primary: 'hsl(24, 95%, 53%)',
-    primaryForeground: 'hsl(0, 0%, 100%)',
-    accent: 'hsl(24, 95%, 93%)',
-    accentForeground: 'hsl(24, 95%, 33%)',
-    preview: {
-      bg: '#fff7ed',
-      card: '#ffedd5',
-      text: '#7c2d12',
-      muted: '#ea580c',
-    },
-  },
-  {
-    id: 'teal',
-    name: 'Teal Modern',
-    description: 'Modern teal theme for tech-forward applications',
-    primary: 'hsl(174, 72%, 40%)',
-    primaryForeground: 'hsl(0, 0%, 100%)',
-    accent: 'hsl(174, 72%, 93%)',
-    accentForeground: 'hsl(174, 72%, 25%)',
-    preview: {
-      bg: '#f0fdfa',
-      card: '#ccfbf1',
-      text: '#134e4a',
-      muted: '#0d9488',
-    },
-  },
-];
+import { useTheme, THEMES, ThemeConfig } from '@/components/ThemeProvider';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function AppearanceSettingsPage() {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const { currentTheme, setTheme, themes, customTheme, setCustomTheme } = useTheme();
   const [saving, setSaving] = useState(false);
-  const [selectedPalette, setSelectedPalette] = useState<string>('default');
-
-  useEffect(() => {
-    // Load saved palette from localStorage
-    const savedPalette = localStorage.getItem('ots-color-palette');
-    if (savedPalette) {
-      setSelectedPalette(savedPalette);
-    }
-    setLoading(false);
-  }, []);
+  const [showCustomDialog, setShowCustomDialog] = useState(false);
+  const [customPrimaryColor, setCustomPrimaryColor] = useState('#2c3e50');
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save to localStorage
-      localStorage.setItem('ots-color-palette', selectedPalette);
-      
-      // Apply the palette
-      applyPalette(selectedPalette);
-      
       toast({
-        title: 'Appearance Updated',
-        description: 'Your color palette preference has been saved. Refresh the page to see full changes.',
+        title: 'Theme Applied',
+        description: 'Your theme preference has been saved and applied.',
       });
     } catch (error) {
       toast({
@@ -156,31 +43,84 @@ export default function AppearanceSettingsPage() {
     }
   };
 
-  const applyPalette = (paletteId: string) => {
-    const palette = COLOR_PALETTES.find(p => p.id === paletteId);
-    if (!palette) return;
-
-    // Apply CSS variables to root
-    const root = document.documentElement;
-    root.style.setProperty('--primary', palette.primary);
-    root.style.setProperty('--primary-foreground', palette.primaryForeground);
-    root.style.setProperty('--accent', palette.accent);
-    root.style.setProperty('--accent-foreground', palette.accentForeground);
+  const handleThemeSelect = (themeId: string) => {
+    setTheme(themeId);
   };
 
-  const handlePaletteSelect = (paletteId: string) => {
-    setSelectedPalette(paletteId);
-    // Preview the palette immediately
-    applyPalette(paletteId);
+  const hexToHsl = (hex: string): string => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return '0 0% 0%';
+    
+    let r = parseInt(result[1], 16) / 255;
+    let g = parseInt(result[2], 16) / 255;
+    let b = parseInt(result[3], 16) / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    
+    return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const createCustomTheme = () => {
+    const hsl = hexToHsl(customPrimaryColor);
+    const [h, s] = hsl.split(' ').map(v => parseFloat(v));
+    
+    const newTheme: ThemeConfig = {
+      id: 'custom',
+      name: 'Custom Theme',
+      description: `Custom theme based on ${customPrimaryColor}`,
+      cssVariables: {
+        '--background': `${h} ${Math.max(s - 70, 5)}% 97%`,
+        '--foreground': `${h} ${Math.max(s - 50, 10)}% 12%`,
+        '--card': '0 0% 100%',
+        '--card-foreground': `${h} ${Math.max(s - 50, 10)}% 12%`,
+        '--popover': '0 0% 100%',
+        '--popover-foreground': `${h} ${Math.max(s - 50, 10)}% 12%`,
+        '--primary': hsl,
+        '--primary-foreground': '0 0% 100%',
+        '--secondary': `${h} ${Math.max(s - 50, 10)}% 90%`,
+        '--secondary-foreground': `${h} ${s}% 24%`,
+        '--muted': `${h} ${Math.max(s - 60, 5)}% 94%`,
+        '--muted-foreground': `${h} ${Math.max(s - 50, 10)}% 45%`,
+        '--accent': `${h} ${Math.max(s - 50, 10)}% 90%`,
+        '--accent-foreground': `${h} ${s}% 24%`,
+        '--destructive': '0 84.2% 60.2%',
+        '--destructive-foreground': '210 40% 98%',
+        '--border': `${h} ${Math.max(s - 60, 5)}% 88%`,
+        '--input': `${h} ${Math.max(s - 60, 5)}% 88%`,
+        '--ring': hsl,
+      },
+      preview: {
+        bg: '#f4f6f7',
+        card: '#ffffff',
+        text: customPrimaryColor,
+        muted: '#7f8c8d',
+        primary: customPrimaryColor,
+      },
+    };
+    
+    setCustomTheme(newTheme);
+    setTheme('custom');
+    setShowCustomDialog(false);
+    
+    toast({
+      title: 'Custom Theme Created',
+      description: 'Your custom theme has been applied.',
+    });
+  };
+
+  const allThemes = customTheme ? [...themes, customTheme] : themes;
 
   return (
     <div className="space-y-6">
@@ -191,28 +131,34 @@ export default function AppearanceSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
-            Color Palette
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Palette className="h-5 w-5" />
+              Theme
+            </span>
+            <Button variant="outline" size="sm" onClick={() => setShowCustomDialog(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Custom Theme
+            </Button>
           </CardTitle>
           <CardDescription>
-            Choose a color palette that suits your preference. Changes will be applied immediately for preview.
+            Choose a theme that suits your preference. Changes are applied immediately.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {COLOR_PALETTES.map((palette) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {allThemes.map((theme) => (
               <div
-                key={palette.id}
-                onClick={() => handlePaletteSelect(palette.id)}
+                key={theme.id}
+                onClick={() => handleThemeSelect(theme.id)}
                 className={cn(
                   "relative cursor-pointer rounded-lg border-2 p-4 transition-all hover:shadow-md",
-                  selectedPalette === palette.id
+                  currentTheme === theme.id
                     ? "border-primary ring-2 ring-primary/20"
                     : "border-muted hover:border-muted-foreground/30"
                 )}
               >
-                {selectedPalette === palette.id && (
+                {currentTheme === theme.id && (
                   <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
                     <Check className="h-3 w-3" />
                   </div>
@@ -221,47 +167,38 @@ export default function AppearanceSettingsPage() {
                 {/* Preview */}
                 <div 
                   className="rounded-md p-3 mb-3"
-                  style={{ backgroundColor: palette.preview.bg }}
+                  style={{ backgroundColor: theme.preview.bg }}
                 >
                   <div 
                     className="rounded p-2 mb-2"
-                    style={{ backgroundColor: palette.preview.card }}
+                    style={{ backgroundColor: theme.preview.card }}
                   >
                     <div 
                       className="text-sm font-semibold mb-1"
-                      style={{ color: palette.preview.text }}
+                      style={{ color: theme.preview.text }}
                     >
                       Sample Header
                     </div>
                     <div 
                       className="text-xs"
-                      style={{ color: palette.preview.muted }}
+                      style={{ color: theme.preview.muted }}
                     >
-                      Sample description text
+                      Sample description
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <div 
-                      className="h-6 w-16 rounded text-xs flex items-center justify-center text-white font-medium"
-                      style={{ backgroundColor: palette.preview.muted }}
+                      className="h-6 flex-1 rounded text-xs flex items-center justify-center text-white font-medium"
+                      style={{ backgroundColor: theme.preview.primary }}
                     >
                       Button
-                    </div>
-                    <div 
-                      className="h-6 w-16 rounded text-xs flex items-center justify-center border"
-                      style={{ 
-                        borderColor: palette.preview.muted,
-                        color: palette.preview.muted 
-                      }}
-                    >
-                      Outline
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <Label className="font-semibold">{palette.name}</Label>
-                  <p className="text-xs text-muted-foreground mt-1">{palette.description}</p>
+                  <Label className="font-semibold">{theme.name}</Label>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{theme.description}</p>
                 </div>
               </div>
             ))}
@@ -285,19 +222,70 @@ export default function AppearanceSettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Theme Mode</CardTitle>
-          <CardDescription>
-            Light and dark mode settings (coming soon)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Dark mode support will be available in a future update.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Custom Theme Dialog */}
+      <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Custom Theme</DialogTitle>
+            <DialogDescription>
+              Enter a primary color to generate a custom theme based on that color.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Primary Color</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={customPrimaryColor}
+                  onChange={(e) => setCustomPrimaryColor(e.target.value)}
+                  className="w-16 h-10 p-1 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={customPrimaryColor}
+                  onChange={(e) => setCustomPrimaryColor(e.target.value)}
+                  placeholder="#2c3e50"
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enter a hex color code (e.g., #2c3e50) or use the color picker
+              </p>
+            </div>
+            
+            {/* Preview */}
+            <div className="space-y-2">
+              <Label>Preview</Label>
+              <div 
+                className="rounded-md p-4 border"
+                style={{ backgroundColor: '#f4f6f7' }}
+              >
+                <div className="bg-white rounded p-3 mb-2">
+                  <div style={{ color: customPrimaryColor }} className="font-semibold">
+                    Sample Header
+                  </div>
+                  <div className="text-sm text-gray-500">Sample description text</div>
+                </div>
+                <div 
+                  className="h-8 rounded flex items-center justify-center text-white text-sm font-medium"
+                  style={{ backgroundColor: customPrimaryColor }}
+                >
+                  Primary Button
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCustomDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createCustomTheme}>
+              Create Theme
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
