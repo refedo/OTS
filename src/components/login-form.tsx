@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
 
 export function LoginForm() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export function LoginForm() {
   const [error, setError] = useState('');
   const [loginLogo, setLoginLogo] = useState<string | null>(null);
   const [version, setVersion] = useState<string>('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Fetch login logo and version from settings
   useEffect(() => {
@@ -43,10 +44,10 @@ export function LoginForm() {
         });
         if (res.ok) {
           const data = await res.json();
-          setVersion(data.version || '13.5.4');
+          setVersion(data.version || '14.0.0');
         }
       } catch (error) {
-        setVersion('13.5.4');
+        setVersion('14.0.0');
       }
     };
     
@@ -98,7 +99,7 @@ export function LoginForm() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#2c3e50' }}>
       {/* System Header */}
       <div className="text-center py-3">
-        <span className="text-slate-400 text-sm">Operations Tracking System v{version || '13.5.4'}</span>
+        <span className="text-slate-400 text-sm">Operations Tracking System v{version || '14.0.0'}</span>
       </div>
 
       {/* Main Content */}
@@ -152,13 +153,21 @@ export function LoginForm() {
                 <Input 
                   id="password" 
                   name="password" 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
                   placeholder="Password"
                   required 
                   disabled={loading}
                   autoComplete="current-password"
-                  className="pl-10 h-11 border-slate-300"
+                  className="pl-10 pr-10 h-11 border-slate-300"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
               
               <div className="flex items-center justify-center pt-2">

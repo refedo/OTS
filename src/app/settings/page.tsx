@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Palette } from 'lucide-react';
+import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type Settings = {
@@ -259,10 +259,6 @@ export default function SettingsPage() {
             <TabsTrigger value="version">
               <GitBranch className="mr-2 h-4 w-4" />
               Version
-            </TabsTrigger>
-            <TabsTrigger value="appearance">
-              <Palette className="mr-2 h-4 w-4" />
-              Appearance
             </TabsTrigger>
           </TabsList>
 
@@ -599,26 +595,6 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* Appearance */}
-          <TabsContent value="appearance" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Appearance Settings</CardTitle>
-                <CardDescription>
-                  Customize the look and feel of the application
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  onClick={() => router.push('/settings/appearance')}
-                  className="w-full"
-                >
-                  <Palette className="mr-2 h-4 w-4" />
-                  Open Color Palette Settings
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </main>

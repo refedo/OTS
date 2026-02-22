@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [14.0.0] - 2026-02-22
+
+### 🎯 Major Release: UI Fixes & System Stability
+
+#### Added
+- **Login Form Enhancement**
+  - Added password visibility toggle (eye icon) to login form
+  - Users can now preview their password while typing
+
+#### Fixed
+- **Appearance System Removal**
+  - Removed broken Appearance/Theme system that was overriding CSS variables with incompatible HSL values
+  - Root cause: ThemeProvider used HSL format while globals.css uses oklch
+  - Cleaned up 400+ lines of glass morphism CSS that caused visual glitches
+  - System restored to clean default muted theme defined in globals.css
+
+#### Changed
+- **Navigation & UI Cleanup**
+  - Removed Appearance tab from Settings page and sidebar (was causing UI corruption)
+  - Replaced appearance page with redirect to main settings
+  - Simplified ThemeProvider to passthrough that clears saved theme data
+
+---
+
 ## [13.5.4] - 2026-02-20
 
 ### 🎨 PTS Sync & Appearance Enhancements

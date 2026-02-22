@@ -100,6 +100,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/backlog': ['backlog.view'],
   '/ceo-control-center': ['backlog.ceo_center'],
   
+  // Dolibarr Integration
+  '/dolibarr': ['settings.view', 'dolibarr.view'],
+
   // Organization
   '/users': ['users.view'],
   '/roles': ['roles.view'],
@@ -107,7 +110,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   
   // Settings
   '/settings': ['settings.view'],
-  '/settings/about': null, // Public - Everyone can view About OTS
+  '/settings/about': null,
   '/settings/version': ['settings.view'],
   '/changelog': null, // Public - Everyone can view changelog
 };
