@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.5.0] - 2026-02-23
+
+### ✨ Tasks Module Enhancement
+
+#### New Features
+- **Task Requester Field**
+  - New `requester` field on tasks — choose/change who requested the task
+  - Requester shown in table view, detail view, and full form (create/edit)
+  - Requester dropdown available in inline quick-add and inline edit rows
+
+- **Task Release Date**
+  - New `releaseDate` field — target release/delivery date separate from due date
+  - Release Date shown in table view, detail view, stage circles, and full form
+  - Sortable column in table view
+
+- **Tasks Dashboard** (`/tasks/dashboard`)
+  - Team performance overview with summary cards (total, completed, overdue, in-progress, completion rate)
+  - Per-member stats table: assigned tasks, completed, pending, in-progress, success rate, schedule slips, overdue, requested tasks
+  - Success rate = % of completed tasks finished on or before due date
+  - Schedule slips = tasks completed late + currently overdue tasks
+  - Color-coded badges for quick visual assessment
+  - Added to sidebar under Tasks section
+
+- **Personalized Task Notifications**
+  - When a task is assigned, the assignee receives a notification from the requester (or creator if no requester)
+  - When a task is completed, the requester (or creator) receives a "Task Completed" notification
+  - When a task is reassigned, the new assignee receives a notification
+  - New `TASK_COMPLETED` notification type added to the system
+
+#### Database Changes
+- Added `requesterId` (FK to User) and `releaseDate` columns to Task table
+- Added `TASK_COMPLETED` to NotificationType enum
+- Migration scripts: `add_task_requester_release_date.sql`, `add_task_completed_notification_type.sql`
+
+---
+
 ## [15.4.1] - 2026-02-22
 
 ### 🔧 Financial Sync Production Fix

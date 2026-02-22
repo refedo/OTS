@@ -21,6 +21,8 @@ type Task = {
   isCeoTask?: boolean;
   assignedTo: { id: string; name: string; email: string; position: string | null } | null;
   createdBy: { id: string; name: string; email: string };
+  requester: { id: string; name: string; email: string } | null;
+  releaseDate: string | null;
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; designation: string; name: string } | null;
   department: { id: string; name: string } | null;
@@ -108,6 +110,8 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
       departmentId: 'Department',
       taskInputDate: 'Input Date',
       dueDate: 'Due Date',
+      releaseDate: 'Release Date',
+      requesterId: 'Requester',
       priority: 'Priority',
       status: 'Status',
       isPrivate: 'Private',
@@ -214,6 +218,7 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
     const stages = [
       { label: 'Input Date', completed: !!task.taskInputDate, date: task.taskInputDate, overdue: false },
       { label: 'Due Date', completed: !!task.dueDate, date: task.dueDate, overdue: isTaskOverdue },
+      { label: 'Release Date', completed: !!task.releaseDate, date: task.releaseDate, overdue: false },
       { label: 'Completion', completed: !!task.completedAt, date: task.completedAt, overdue: isTaskOverdue && !task.completedAt },
       { label: 'Approval', completed: !!task.approvedAt, date: task.approvedAt, overdue: isTaskOverdue && !task.approvedAt },
     ];
@@ -460,6 +465,22 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
               </CardContent>
             </Card>
 
+            {/* Requester */}
+            {task.requester && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <User className="size-4" />
+                    Requester
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-medium">{task.requester.name}</p>
+                  <p className="text-sm text-muted-foreground">{task.requester.email}</p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Project */}
             {task.project && (
               <Card>
@@ -500,6 +521,21 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
                   {isOverdue(task.dueDate, task.status) && (
                     <p className="text-sm text-destructive mt-1">This task is overdue</p>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Release Date */}
+            {task.releaseDate && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="size-4" />
+                    Release Date
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-medium">{formatDate(task.releaseDate)}</p>
                 </CardContent>
               </Card>
             )}

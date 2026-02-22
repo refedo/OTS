@@ -38,6 +38,8 @@ type Task = {
   isPrivate: boolean;
   assignedTo: { id: string; name: string; email: string; position: string | null } | null;
   createdBy: { id: string; name: string; email: string };
+  requester: { id: string; name: string; email: string } | null;
+  releaseDate: string | null;
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; designation: string; name: string } | null;
   department: { id: string; name: string } | null;
@@ -135,6 +137,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const [quickAddData, setQuickAddData] = useState({
     title: '',
     assignedToId: '',
+    requesterId: '',
     projectId: '',
     buildingId: '',
     departmentId: '',
@@ -142,6 +145,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     status: 'Pending',
     taskInputDate: new Date().toISOString().split('T')[0],
     dueDate: '',
+    releaseDate: '',
     isPrivate: false,
     remark: '',
     revision: '',
@@ -155,6 +159,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     title: string;
     description: string;
     assignedToId: string;
+    requesterId: string;
     projectId: string;
     buildingId: string;
     departmentId: string;
@@ -162,20 +167,23 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     status: string;
     taskInputDate: string;
     dueDate: string;
+    releaseDate: string;
     isPrivate: boolean;
     remark: string;
     revision: string;
-  }>({ 
-    title: '', 
+  }>({
+    title: '',
     description: '',
-    assignedToId: '', 
-    projectId: '', 
+    assignedToId: '',
+    requesterId: '',
+    projectId: '',
     buildingId: '',
-    departmentId: '', 
+    departmentId: '',
     priority: 'Medium',
-    status: 'Pending', 
+    status: 'Pending',
     taskInputDate: '',
     dueDate: '',
+    releaseDate: '',
     isPrivate: false,
     remark: '',
     revision: '',
@@ -297,8 +305,10 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
             const order: Record<string, number> = { 'Pending': 0, 'In Progress': 1, 'Waiting for Approval': 2, 'Completed': 3, 'Cancelled': 4 };
             aVal = order[a.status] ?? 99; bVal = order[b.status] ?? 99; break;
           }
+          case 'requester': aVal = a.requester?.name?.toLowerCase() || ''; bVal = b.requester?.name?.toLowerCase() || ''; break;
           case 'taskInputDate': aVal = a.taskInputDate || ''; bVal = b.taskInputDate || ''; break;
           case 'dueDate': aVal = a.dueDate || ''; bVal = b.dueDate || ''; break;
+          case 'releaseDate': aVal = a.releaseDate || ''; bVal = b.releaseDate || ''; break;
           case 'completedAt': aVal = a.completedAt || ''; bVal = b.completedAt || ''; break;
           case 'approvedAt': aVal = a.approvedAt || ''; bVal = b.approvedAt || ''; break;
         }
@@ -645,12 +655,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         body: JSON.stringify({
           title: quickAddData.title,
           assignedToId: quickAddData.assignedToId || null,
+          requesterId: quickAddData.requesterId || null,
           projectId: quickAddData.projectId || null,
           buildingId: quickAddData.buildingId || null,
           departmentId: quickAddData.departmentId || null,
           priority: quickAddData.priority,
           taskInputDate: quickAddData.taskInputDate || null,
           dueDate: quickAddData.dueDate,
+          releaseDate: quickAddData.releaseDate || null,
           status: quickAddData.status,
           isPrivate: quickAddData.isPrivate,
           remark: quickAddData.remark || null,
@@ -667,7 +679,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       setTasks([newTask, ...tasks]);
       setQuickAddData({ 
         title: '', 
-        assignedToId: '', 
+        assignedToId: '',
+        requesterId: '',
         projectId: '', 
         buildingId: '',
         departmentId: '', 
@@ -675,6 +688,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         status: 'In Progress', 
         taskInputDate: new Date().toISOString().split('T')[0],
         dueDate: '',
+        releaseDate: '',
         isPrivate: false,
         remark: '',
         revision: '',
@@ -706,6 +720,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       title: task.title,
       description: task.description || '',
       assignedToId: task.assignedTo?.id || '',
+      requesterId: task.requester?.id || '',
       projectId: task.project?.id || '',
       buildingId: task.building?.id || '',
       departmentId: task.department?.id || '',
@@ -713,6 +728,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       status: task.status,
       taskInputDate: formatDateForInput(task.taskInputDate),
       dueDate: formatDateForInput(task.dueDate),
+      releaseDate: formatDateForInput(task.releaseDate),
       isPrivate: task.isPrivate,
       remark: task.remark || '',
       revision: task.revision || '',
@@ -724,7 +740,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     setEditData({ 
       title: '', 
       description: '',
-      assignedToId: '', 
+      assignedToId: '',
+      requesterId: '',
       projectId: '', 
       buildingId: '',
       departmentId: '', 
@@ -732,6 +749,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
       status: 'Pending', 
       taskInputDate: '',
       dueDate: '',
+      releaseDate: '',
       isPrivate: false,
       remark: '',
       revision: '',
@@ -766,12 +784,14 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
           title: editData.title,
           description: editData.description || null,
           assignedToId: editData.assignedToId || null,
+          requesterId: editData.requesterId || null,
           projectId: editData.projectId || null,
           buildingId: editData.buildingId || null,
           departmentId: editData.departmentId || null,
           priority: editData.priority,
           taskInputDate: editData.taskInputDate || null,
           dueDate: editData.dueDate,
+          releaseDate: editData.releaseDate || null,
           status: editData.status,
           isPrivate: editData.isPrivate,
           remark: editData.remark || null,
@@ -1375,6 +1395,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('assignedTo')}>
                       <div className="flex items-center">Assigned To {getSortIcon('assignedTo')}</div>
                     </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('requester')}>
+                      <div className="flex items-center">Requester {getSortIcon('requester')}</div>
+                    </TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('department')}>
                       <div className="flex items-center">Department {getSortIcon('department')}</div>
                     </TableHead>
@@ -1395,6 +1418,9 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                     </TableHead>
                     <TableHead className="cursor-pointer select-none min-w-[110px]" onClick={() => handleSort('dueDate')}>
                       <div className="flex items-center">Due Date {getSortIcon('dueDate')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none min-w-[110px]" onClick={() => handleSort('releaseDate')}>
+                      <div className="flex items-center">Release Date {getSortIcon('releaseDate')}</div>
                     </TableHead>
                     <TableHead className="cursor-pointer select-none min-w-[120px]" onClick={() => handleSort('completedAt')}>
                       <div className="flex items-center">Completion {getSortIcon('completedAt')}</div>
@@ -1438,6 +1464,19 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           disabled={creating}
                         >
                           <option value="">Unassigned</option>
+                          {allUsers.map((user) => (
+                            <option key={user.id} value={user.id}>{user.name}</option>
+                          ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.requesterId}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, requesterId: e.target.value })}
+                          className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating}
+                        >
+                          <option value="">No Requester</option>
                           {allUsers.map((user) => (
                             <option key={user.id} value={user.id}>{user.name}</option>
                           ))}
@@ -1534,6 +1573,15 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           className={cn("h-9 text-sm", !quickAddData.dueDate && "border-red-300")}
                           disabled={creating}
                           required
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={quickAddData.releaseDate}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, releaseDate: e.target.value })}
+                          className="h-9 text-sm"
+                          disabled={creating}
                         />
                       </TableCell>
                       <TableCell>
@@ -1697,6 +1745,27 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       <TableCell>
                         {isEditing ? (
                           <select
+                            value={editData.requesterId}
+                            onChange={(e) => setEditData({ ...editData, requesterId: e.target.value })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating}
+                          >
+                            <option value="">No Requester</option>
+                            {allUsers.map((user) => (
+                              <option key={user.id} value={user.id}>{user.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          task.requester ? (
+                            <span className="text-sm">{task.requester.name}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <select
                             value={editData.departmentId}
                             onChange={(e) => setEditData({ ...editData, departmentId: e.target.value })}
                             className="w-full h-9 px-2 rounded-md border bg-background text-sm"
@@ -1854,6 +1923,23 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                               )}
                               <span className="text-sm">{formatDate(task.dueDate)}</span>
                             </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            type="date"
+                            value={editData.releaseDate}
+                            onChange={(e) => setEditData({ ...editData, releaseDate: e.target.value })}
+                            className="h-9 text-sm"
+                            disabled={updating}
+                          />
+                        ) : (
+                          task.releaseDate ? (
+                            <span className="text-sm">{formatDate(task.releaseDate)}</span>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )

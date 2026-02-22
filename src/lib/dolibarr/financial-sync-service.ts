@@ -94,12 +94,12 @@ function formatDateTime(date: Date | null): string | null {
 
 let _isSyncing = false;
 let _syncStartedAt: number | null = null;
-const SYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes max
+const SYNC_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours max
 
 function acquireSyncLock(): boolean {
   // If a sync is running but has been going for too long, force release
   if (_isSyncing && _syncStartedAt && (Date.now() - _syncStartedAt > SYNC_TIMEOUT_MS)) {
-    console.warn('[FinSync] Previous sync timed out after 10 minutes — force releasing lock');
+    console.warn('[FinSync] Previous sync timed out after 2 hours — force releasing lock');
     _isSyncing = false;
     _syncStartedAt = null;
   }
@@ -240,124 +240,136 @@ export class FinancialSyncService {
     const startTime = Date.now();
     let created = 0, updated = 0, unchanged = 0;
     let paymentsCreated = 0, paymentsUpdated = 0, paymentsTotal = 0;
+    let totalInvoices = 0;
 
     try {
-      const invoices = await this.client.getAllInvoices(500);
-      console.log(`[FinSync] Fetched ${invoices.length} customer invoices from Dolibarr`);
+      // Process in paginated batches to avoid loading all invoices into memory
+      const BATCH_SIZE = 500;
+      let page = 0;
+      let hasMore = true;
 
-      let processedCount = 0;
-      for (const inv of invoices) {
-        processedCount++;
-        if (processedCount % 100 === 0) {
-          console.log(`[FinSync] Processing customer invoice ${processedCount}/${invoices.length}...`);
-        }
-        const dolibarrId = pi(inv.id);
-        if (!dolibarrId) continue;
+      while (hasMore) {
+        console.log(`[FinSync] Fetching customer invoices page ${page} (batch ${BATCH_SIZE})...`);
+        const batch = await this.client.getInvoices({ limit: BATCH_SIZE, page });
+        console.log(`[FinSync] Got ${batch.length} customer invoices (page ${page})`);
 
-        const hashFields = {
-          ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye,
-          total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
-          date_echeance: inv.date_echeance,
-        };
-        const newHash = computeHash(hashFields);
+        for (const inv of batch) {
+          totalInvoices++;
+          if (totalInvoices % 200 === 0) {
+            console.log(`[FinSync] Processing customer invoice ${totalInvoices}...`);
+          }
+          const dolibarrId = pi(inv.id);
+          if (!dolibarrId) continue;
 
-        const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
-        const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
-        const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
-        const rawJson = JSON.stringify(inv);
+          const hashFields = {
+            ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye,
+            total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
+            date_echeance: inv.date_echeance,
+          };
+          const newHash = computeHash(hashFields);
 
-        const existing: any[] = await prisma.$queryRawUnsafe(
-          `SELECT sync_hash FROM fin_customer_invoices WHERE dolibarr_id = ?`, dolibarrId
-        );
+          const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
+          const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
+          const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
 
-        if (existing.length > 0) {
-          if (existing[0].sync_hash === newHash) { unchanged++; }
-          else {
+          const existing: any[] = await prisma.$queryRawUnsafe(
+            `SELECT sync_hash FROM fin_customer_invoices WHERE dolibarr_id = ?`, dolibarrId
+          );
+
+          if (existing.length > 0) {
+            if (existing[0].sync_hash === newHash) { unchanged++; }
+            else {
+              await prisma.$executeRawUnsafe(
+                `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, type=?, status=?, is_paid=?,
+                 total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
+                 dolibarr_raw=NULL, last_synced_at=NOW(), sync_hash=?, is_active=1
+                 WHERE dolibarr_id=?`,
+                inv.ref, inv.ref_client, pi(inv.socid), pi(inv.type),
+                pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
+                pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
+                invoiceDate, dueDate, creationDate, newHash, dolibarrId
+              );
+              updated++;
+            }
+          } else {
             await prisma.$executeRawUnsafe(
-              `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, type=?, status=?, is_paid=?,
-               total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
-               dolibarr_raw=?, last_synced_at=NOW(), sync_hash=?, is_active=1
-               WHERE dolibarr_id=?`,
-              inv.ref, inv.ref_client, pi(inv.socid), pi(inv.type),
+              `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, type, status, is_paid,
+               total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
+               first_synced_at, last_synced_at, sync_hash, is_active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)`,
+              dolibarrId, inv.ref, inv.ref_client, pi(inv.socid), pi(inv.type),
               pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
               pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-              invoiceDate, dueDate, creationDate, rawJson, newHash, dolibarrId
+              invoiceDate, dueDate, creationDate, newHash
             );
-            updated++;
+            created++;
           }
-        } else {
+
+          // Sync invoice lines — delete and re-insert
           await prisma.$executeRawUnsafe(
-            `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, type, status, is_paid,
-             total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
-             first_synced_at, last_synced_at, sync_hash, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
-            dolibarrId, inv.ref, inv.ref_client, pi(inv.socid), pi(inv.type),
-            pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
-            pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-            invoiceDate, dueDate, creationDate, rawJson, newHash
+            `DELETE FROM fin_customer_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
           );
-          created++;
-        }
-
-        // Sync invoice lines — delete and re-insert
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM fin_customer_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
-        );
-        if (inv.lines && Array.isArray(inv.lines)) {
-          for (const line of inv.lines) {
-            await prisma.$executeRawUnsafe(
-              `INSERT INTO fin_customer_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
-               product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              dolibarrId, pi(line.rowid), pi(line.fk_product),
-              line.product_ref || null, line.product_label || line.label || null,
-              pf(line.qty), pf(line.subprice), pf(line.tva_tx),
-              pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
-              line.fk_accounting_account ? String(line.fk_accounting_account) : null
-            );
-          }
-        }
-
-        // Sync payments for this invoice
-        try {
-          const payments = await this.client.getInvoicePayments(dolibarrId);
-          for (const pmt of payments) {
-            paymentsTotal++;
-            const pmtDate = formatDate(parseDateString(pmt.date));
-            if (!pmtDate) continue;
-
-            const existingPmt: any[] = await prisma.$queryRawUnsafe(
-              `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'customer' AND invoice_dolibarr_id = ?`,
-              pmt.ref || `PAY-${dolibarrId}`, dolibarrId
-            );
-
-            if (existingPmt.length > 0) {
+          if (inv.lines && Array.isArray(inv.lines)) {
+            for (const line of inv.lines) {
               await prisma.$executeRawUnsafe(
-                `UPDATE fin_payments SET amount=?, payment_date=?, payment_method=?, fk_bank_line=?,
-                 bank_account_id=?, last_synced_at=NOW() WHERE id=?`,
-                pf(pmt.amount), pmtDate, pmt.type || null,
-                pi(pmt.fk_bank_line), pi(pmt.fk_bank_account), existingPmt[0].id
+                `INSERT INTO fin_customer_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
+                 product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                dolibarrId, pi(line.rowid), pi(line.fk_product),
+                line.product_ref || null, line.product_label || line.label || null,
+                pf(line.qty), pf(line.subprice), pf(line.tva_tx),
+                pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
+                line.fk_accounting_account ? String(line.fk_accounting_account) : null
               );
-              paymentsUpdated++;
-            } else {
-              await prisma.$executeRawUnsafe(
-                `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
-                 payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
-                 VALUES (?, 'customer', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
-                pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
-              );
-              paymentsCreated++;
             }
           }
-        } catch (e: any) {
-          console.error(`[FinSync] Error fetching payments for invoice ${dolibarrId}:`, e.message);
+
+          // Sync payments for this invoice
+          try {
+            const payments = await this.client.getInvoicePayments(dolibarrId);
+            for (const pmt of payments) {
+              paymentsTotal++;
+              const pmtDate = formatDate(parseDateString(pmt.date));
+              if (!pmtDate) continue;
+
+              const existingPmt: any[] = await prisma.$queryRawUnsafe(
+                `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'customer' AND invoice_dolibarr_id = ?`,
+                pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+              );
+
+              if (existingPmt.length > 0) {
+                await prisma.$executeRawUnsafe(
+                  `UPDATE fin_payments SET amount=?, payment_date=?, payment_method=?, fk_bank_line=?,
+                   bank_account_id=?, last_synced_at=NOW() WHERE id=?`,
+                  pf(pmt.amount), pmtDate, pmt.type || null,
+                  pi(pmt.fk_bank_line), pi(pmt.fk_bank_account), existingPmt[0].id
+                );
+                paymentsUpdated++;
+              } else {
+                await prisma.$executeRawUnsafe(
+                  `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
+                   payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
+                   VALUES (?, 'customer', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                  pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                  pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
+                );
+                paymentsCreated++;
+              }
+            }
+          } catch (e: any) {
+            console.error(`[FinSync] Error fetching payments for invoice ${dolibarrId}:`, e.message);
+          }
         }
+
+        hasMore = batch.length >= BATCH_SIZE;
+        page++;
       }
+
+      console.log(`[FinSync] Customer invoices complete: ${totalInvoices} total, ${created} created, ${updated} updated, ${unchanged} unchanged`);
 
       const invoiceResult: FinSyncResult = {
         entityType: 'customer_invoices', status: 'success',
-        created, updated, unchanged, total: invoices.length,
+        created, updated, unchanged, total: totalInvoices,
         durationMs: Date.now() - startTime,
       };
       const paymentResult: FinSyncResult = {
@@ -387,124 +399,108 @@ export class FinancialSyncService {
     const startTime = Date.now();
     let created = 0, updated = 0, unchanged = 0;
     let paymentsCreated = 0, paymentsUpdated = 0, paymentsTotal = 0;
+    let totalInvoices = 0;
 
     try {
-      const invoices = await this.client.getAllSupplierInvoices(500);
-      console.log(`[FinSync] Fetched ${invoices.length} supplier invoices from Dolibarr`);
+      // Process in paginated batches to avoid loading all invoices into memory
+      const BATCH_SIZE = 500;
+      let page = 0;
+      let hasMore = true;
 
-      let processedCount = 0;
-      for (const inv of invoices) {
-        processedCount++;
-        if (processedCount % 100 === 0) {
-          console.log(`[FinSync] Processing supplier invoice ${processedCount}/${invoices.length}...`);
+      while (hasMore) {
+        console.log(`[FinSync] Fetching supplier invoices page ${page} (batch ${BATCH_SIZE})...`);
+        const batch = await this.client.getSupplierInvoices({ limit: BATCH_SIZE, page });
+        console.log(`[FinSync] Got ${batch.length} supplier invoices (page ${page})`);
+
+        // Collect all invoice IDs to check which exist
+        const invoiceIds = batch.map(inv => pi(inv.id)).filter(Boolean) as number[];
+        const existingMap = new Map<number, string>();
+        
+        if (invoiceIds.length > 0) {
+          const existing: any[] = await prisma.$queryRawUnsafe(
+            `SELECT dolibarr_id, sync_hash FROM fin_supplier_invoices WHERE dolibarr_id IN (${invoiceIds.join(',')})`
+          );
+          existing.forEach((row: any) => existingMap.set(row.dolibarr_id, row.sync_hash));
         }
-        const dolibarrId = pi(inv.id);
-        if (!dolibarrId) continue;
 
-        const hashFields = {
-          ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye || inv.paid,
-          total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
-          date_echeance: inv.date_echeance,
-        };
-        const newHash = computeHash(hashFields);
-
-        const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
-        const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
-        const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
-        const rawJson = JSON.stringify(inv);
-
-        const existing: any[] = await prisma.$queryRawUnsafe(
-          `SELECT sync_hash FROM fin_supplier_invoices WHERE dolibarr_id = ?`, dolibarrId
-        );
-
-        if (existing.length > 0) {
-          if (existing[0].sync_hash === newHash) { unchanged++; }
-          else {
-            await prisma.$executeRawUnsafe(
-              `UPDATE fin_supplier_invoices SET ref=?, ref_supplier=?, socid=?, type=?, status=?, is_paid=?,
-               total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
-               dolibarr_raw=?, last_synced_at=NOW(), sync_hash=?, is_active=1
-               WHERE dolibarr_id=?`,
-              inv.ref, inv.ref_supplier, pi(inv.socid), pi(inv.type),
-              pi(inv.statut || inv.status), (inv.paye === '1' || inv.paid === '1') ? 1 : 0,
-              pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-              invoiceDate, dueDate, creationDate, rawJson, newHash, dolibarrId
-            );
-            updated++;
+        // Process each invoice in the batch (still one-by-one but with optimized queries)
+        for (const inv of batch) {
+          totalInvoices++;
+          if (totalInvoices % 500 === 0) {
+            console.log(`[FinSync] Processing supplier invoice ${totalInvoices}...`);
           }
-        } else {
+          const dolibarrId = pi(inv.id);
+          if (!dolibarrId) continue;
+
+          const hashFields = {
+            ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye || inv.paid,
+            total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
+            date_echeance: inv.date_echeance,
+          };
+          const newHash = computeHash(hashFields);
+
+          // Check if unchanged
+          if (existingMap.has(dolibarrId) && existingMap.get(dolibarrId) === newHash) {
+            unchanged++;
+            continue;
+          }
+
+          const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
+          const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
+          const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
+          const isNew = !existingMap.has(dolibarrId);
+          if (isNew) created++; else updated++;
+
+          // Use INSERT...ON DUPLICATE KEY UPDATE for upsert
           await prisma.$executeRawUnsafe(
             `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, type, status, is_paid,
              total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
              first_synced_at, last_synced_at, sync_hash, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)
+             ON DUPLICATE KEY UPDATE
+             ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), type=VALUES(type),
+             status=VALUES(status), is_paid=VALUES(is_paid), total_ht=VALUES(total_ht), total_tva=VALUES(total_tva),
+             total_ttc=VALUES(total_ttc), date_invoice=VALUES(date_invoice), date_due=VALUES(date_due),
+             date_creation=VALUES(date_creation), last_synced_at=NOW(), sync_hash=VALUES(sync_hash), is_active=1`,
             dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), pi(inv.type),
             pi(inv.statut || inv.status), (inv.paye === '1' || inv.paid === '1') ? 1 : 0,
             pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-            invoiceDate, dueDate, creationDate, rawJson, newHash
+            invoiceDate, dueDate, creationDate, newHash
           );
-          created++;
-        }
 
-        // Sync invoice lines
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM fin_supplier_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
-        );
-        if (inv.lines && Array.isArray(inv.lines)) {
-          for (const line of inv.lines) {
-            await prisma.$executeRawUnsafe(
-              `INSERT INTO fin_supplier_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
-               product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          // Sync invoice lines - delete old and batch insert new
+          await prisma.$executeRawUnsafe(
+            `DELETE FROM fin_supplier_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
+          );
+          
+          if (inv.lines && Array.isArray(inv.lines) && inv.lines.length > 0) {
+            const linePlaceholders = inv.lines.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+            const lineParams = inv.lines.flatMap(line => [
               dolibarrId, pi(line.rowid), pi(line.fk_product),
               line.product_ref || null, line.product_label || line.label || null,
               pf(line.qty), pf(line.subprice), pf(line.tva_tx),
               pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
               line.fk_accounting_account ? String(line.fk_accounting_account) : null
+            ]);
+            
+            await prisma.$executeRawUnsafe(
+              `INSERT INTO fin_supplier_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
+               product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
+               VALUES ${linePlaceholders}`,
+              ...lineParams
             );
           }
         }
 
-        // Sync payments
-        try {
-          const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
-          for (const pmt of payments) {
-            paymentsTotal++;
-            const pmtDate = formatDate(parseDateString(pmt.date));
-            if (!pmtDate) continue;
-
-            const existingPmt: any[] = await prisma.$queryRawUnsafe(
-              `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
-              pmt.ref || `SPAY-${dolibarrId}`, dolibarrId
-            );
-
-            if (existingPmt.length > 0) {
-              await prisma.$executeRawUnsafe(
-                `UPDATE fin_payments SET amount=?, payment_date=?, payment_method=?, fk_bank_line=?,
-                 bank_account_id=?, last_synced_at=NOW() WHERE id=?`,
-                pf(pmt.amount), pmtDate, pmt.type || null,
-                pi(pmt.fk_bank_line), pi(pmt.fk_bank_account), existingPmt[0].id
-              );
-              paymentsUpdated++;
-            } else {
-              await prisma.$executeRawUnsafe(
-                `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
-                 payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
-                 VALUES (?, 'supplier', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                pmt.ref || `SPAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
-                pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
-              );
-              paymentsCreated++;
-            }
-          }
-        } catch (e: any) {
-          console.error(`[FinSync] Error fetching payments for supplier invoice ${dolibarrId}:`, e.message);
-        }
+        hasMore = batch.length >= BATCH_SIZE;
+        page++;
       }
+
+      console.log(`[FinSync] Supplier invoices complete: ${totalInvoices} total, ${created} created, ${updated} updated, ${unchanged} unchanged`);
 
       const invoiceResult: FinSyncResult = {
         entityType: 'supplier_invoices', status: 'success',
-        created, updated, unchanged, total: invoices.length,
+        created, updated, unchanged, total: totalInvoices,
         durationMs: Date.now() - startTime,
       };
       const paymentResult: FinSyncResult = {

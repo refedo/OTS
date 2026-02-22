@@ -451,8 +451,7 @@ export class DolibarrClient {
   // ============================================
 
   /**
-   * Fetch customer invoices with pagination
-   * Filter: status > 0 (exclude drafts)
+   * Fetch customer invoices with pagination (all statuses)
    */
   async getInvoices(params?: DolibarrPaginationParams): Promise<DolibarrInvoice[]> {
     const result = await this.request<DolibarrInvoice[]>('invoices', {
@@ -460,7 +459,6 @@ export class DolibarrClient {
       page: params?.page ?? 0,
       sortfield: params?.sortfield ?? 't.rowid',
       sortorder: params?.sortorder ?? 'ASC',
-      sqlfilters: params?.sqlfilters ?? "(t.fk_statut:>:'0')",
     });
     return Array.isArray(result) ? result : [];
   }
@@ -500,8 +498,7 @@ export class DolibarrClient {
   }
 
   /**
-   * Fetch supplier invoices with pagination
-   * Filter: status > 0 (exclude drafts)
+   * Fetch supplier invoices with pagination (all statuses)
    */
   async getSupplierInvoices(params?: DolibarrPaginationParams): Promise<DolibarrSupplierInvoice[]> {
     const result = await this.request<DolibarrSupplierInvoice[]>('supplierinvoices', {
@@ -509,7 +506,6 @@ export class DolibarrClient {
       page: params?.page ?? 0,
       sortfield: params?.sortfield ?? 't.rowid',
       sortorder: params?.sortorder ?? 'ASC',
-      sqlfilters: params?.sqlfilters ?? "(t.fk_statut:>:'0')",
     });
     return Array.isArray(result) ? result : [];
   }

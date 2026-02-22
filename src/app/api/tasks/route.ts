@@ -12,12 +12,14 @@ const createSchema = z.object({
   title: z.string().min(2),
   description: z.string().optional().nullable(),
   assignedToId: z.string().uuid().optional().nullable(),
+  requesterId: z.string().uuid().optional().nullable(),
   projectId: z.string().uuid().optional().nullable(),
   buildingId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   backlogItemId: z.string().uuid().optional().nullable(),
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
+  releaseDate: z.string().optional().nullable(),
   priority: z.enum(['Low', 'Medium', 'High', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
   isPrivate: z.boolean().optional(),
@@ -87,6 +89,9 @@ export async function GET(req: Request) {
         select: { id: true, name: true, email: true, position: true },
       },
       createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      requester: {
         select: { id: true, name: true, email: true },
       },
       project: {
@@ -193,12 +198,14 @@ export async function POST(req: Request) {
 
     if (parsed.data.description) taskData.description = parsed.data.description;
     if (parsed.data.assignedToId) taskData.assignedToId = parsed.data.assignedToId;
+    if (parsed.data.requesterId) taskData.requesterId = parsed.data.requesterId;
     if (parsed.data.projectId) taskData.projectId = parsed.data.projectId;
     if (parsed.data.buildingId) taskData.buildingId = parsed.data.buildingId;
     if (parsed.data.departmentId) taskData.departmentId = parsed.data.departmentId;
     if (parsed.data.backlogItemId) taskData.backlogItemId = parsed.data.backlogItemId;
     if (parsed.data.taskInputDate) taskData.taskInputDate = new Date(parsed.data.taskInputDate);
     if (parsed.data.dueDate) taskData.dueDate = new Date(parsed.data.dueDate);
+    if (parsed.data.releaseDate) taskData.releaseDate = new Date(parsed.data.releaseDate);
     
     // Normalize priority to database format (capitalize first letter)
     if (parsed.data.priority) {
@@ -242,6 +249,9 @@ export async function POST(req: Request) {
         createdBy: {
           select: { id: true, name: true, email: true },
         },
+        requester: {
+          select: { id: true, name: true, email: true },
+        },
         project: {
           select: { id: true, projectNumber: true, name: true },
         },
@@ -256,14 +266,15 @@ export async function POST(req: Request) {
 
     console.log('Task created successfully:', task.id);
 
-    // Send notification to assigned user
+    // Send notification to assigned user (personalized: from requester or creator)
     if (task.assignedToId && task.assignedTo) {
       try {
+        const assignedByName = task.requester?.name || task.createdBy.name;
         await NotificationService.notifyTaskAssigned({
           taskId: task.id,
           assignedToId: task.assignedToId,
           taskTitle: task.title,
-          assignedByName: task.createdBy.name,
+          assignedByName,
           dueDate: task.dueDate || undefined,
           projectName: task.project?.name,
           buildingName: task.building?.name,

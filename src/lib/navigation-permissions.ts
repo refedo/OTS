@@ -14,6 +14,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/tasks': ['tasks.view', 'tasks.view_all'],
   '/tasks?filter=my-tasks': ['tasks.view'],
   '/tasks/new': ['tasks.create'],
+  '/tasks/dashboard': ['tasks.view_all'],
   '/ai-assistant': ['ai.use'],
   
   // Operations Control

@@ -5,15 +5,19 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
+import NotificationService from '@/lib/services/notification.service';
+
 const updateSchema = z.object({
   title: z.string().min(2).optional(),
   description: z.string().optional().nullable(),
   assignedToId: z.string().uuid().optional().nullable(),
+  requesterId: z.string().uuid().optional().nullable(),
   projectId: z.string().uuid().optional().nullable(),
   buildingId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
+  releaseDate: z.string().optional().nullable(),
   priority: z.enum(['Low', 'Medium', 'High']).optional(),
   status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
   isPrivate: z.boolean().optional(),
@@ -70,6 +74,9 @@ export async function GET(
         select: { id: true, name: true, email: true, position: true },
       },
       createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      requester: {
         select: { id: true, name: true, email: true },
       },
       project: {
@@ -172,6 +179,9 @@ export async function PATCH(
   const updateData: any = { ...parsed.data };
   if (parsed.data.dueDate) updateData.dueDate = new Date(parsed.data.dueDate);
   if (parsed.data.taskInputDate) updateData.taskInputDate = new Date(parsed.data.taskInputDate);
+  if (parsed.data.releaseDate) updateData.releaseDate = new Date(parsed.data.releaseDate);
+  if (parsed.data.releaseDate === null) updateData.releaseDate = null;
+  if (parsed.data.requesterId !== undefined) updateData.requesterId = parsed.data.requesterId || null;
   
   // Handle completion tracking
   try {
@@ -246,6 +256,9 @@ export async function PATCH(
       createdBy: {
         select: { id: true, name: true, email: true },
       },
+      requester: {
+        select: { id: true, name: true, email: true },
+      },
       project: {
         select: { id: true, projectNumber: true, name: true },
       },
@@ -257,6 +270,52 @@ export async function PATCH(
       },
     },
   });
+
+  // Send notification to requester when task is completed
+  if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
+    try {
+      const requesterId = (updatedTask as any).requesterId || task.createdById;
+      // Don't notify if the person completing is also the requester
+      if (requesterId && requesterId !== session.sub) {
+        await NotificationService.createNotification({
+          userId: requesterId,
+          type: 'TASK_COMPLETED',
+          title: 'Task Completed',
+          message: `${session.name} completed the task: "${updatedTask.title}"`,
+          relatedEntityType: 'task',
+          relatedEntityId: updatedTask.id,
+          metadata: {
+            taskTitle: updatedTask.title,
+            completedBy: session.name,
+            projectName: updatedTask.project?.name,
+          },
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to send task completion notification:', notifError);
+    }
+  }
+
+  // Send notification to requester when assignee changes
+  if (parsed.data.assignedToId && parsed.data.assignedToId !== task.assignedToId) {
+    try {
+      // Notify the newly assigned user
+      const assignedByName = (updatedTask as any).requester?.name || updatedTask.createdBy.name;
+      if (parsed.data.assignedToId !== session.sub) {
+        await NotificationService.notifyTaskAssigned({
+          taskId: updatedTask.id,
+          assignedToId: parsed.data.assignedToId,
+          taskTitle: updatedTask.title,
+          assignedByName,
+          dueDate: updatedTask.dueDate || undefined,
+          projectName: updatedTask.project?.name,
+          buildingName: updatedTask.building?.name,
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to send reassignment notification:', notifError);
+    }
+  }
 
   // Try to fetch completedBy and approvedBy
   try {

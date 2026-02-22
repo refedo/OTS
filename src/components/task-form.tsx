@@ -42,10 +42,12 @@ type Task = {
   title: string;
   description: string | null;
   assignedToId: string | null;
+  requesterId?: string | null;
   projectId: string | null;
   buildingId?: string | null;
   departmentId?: string | null;
   dueDate: string | null;
+  releaseDate?: string | null;
   priority: string;
   status: string;
   isPrivate?: boolean;
@@ -66,6 +68,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedUserId, setSelectedUserId] = useState(task?.assignedToId || '');
+  const [selectedRequesterId, setSelectedRequesterId] = useState(task?.requesterId || '');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(task?.departmentId || '');
   const [selectedProjectId, setSelectedProjectId] = useState(task?.projectId || '');
   const [selectedBuildingId, setSelectedBuildingId] = useState(task?.buildingId || '');
@@ -83,11 +86,13 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       title: formData.get('title') as string,
       description: (formData.get('description') as string) || null,
       assignedToId: (formData.get('assignedToId') as string) || null,
+      requesterId: (formData.get('requesterId') as string) || null,
       projectId: (formData.get('projectId') as string) || null,
       buildingId: (formData.get('buildingId') as string) || null,
       departmentId: (formData.get('departmentId') as string) || null,
       taskInputDate: (formData.get('taskInputDate') as string) || null,
       dueDate: formData.get('dueDate') as string,
+      releaseDate: (formData.get('releaseDate') as string) || null,
       priority: formData.get('priority') as string,
       status: formData.get('status') as string,
       isPrivate: isPrivate,
@@ -175,6 +180,26 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 className="w-full h-10 px-3 rounded-md border bg-background"
               >
                 <option value="">Unassigned</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} {user.position && `(${user.position})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Requester */}
+            <div className="space-y-2">
+              <Label htmlFor="requesterId">Requester</Label>
+              <select
+                id="requesterId"
+                name="requesterId"
+                value={selectedRequesterId}
+                onChange={(e) => setSelectedRequesterId(e.target.value)}
+                disabled={loading}
+                className="w-full h-10 px-3 rounded-md border bg-background"
+              >
+                <option value="">No Requester</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name} {user.position && `(${user.position})`}
@@ -319,6 +344,18 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 type="date"
                 defaultValue={task?.dueDate ? task.dueDate.split('T')[0] : ''}
                 required
+                disabled={loading}
+              />
+            </div>
+
+            {/* Release Date */}
+            <div className="space-y-2">
+              <Label htmlFor="releaseDate">Release Date</Label>
+              <Input
+                id="releaseDate"
+                name="releaseDate"
+                type="date"
+                defaultValue={task?.releaseDate ? task.releaseDate.split('T')[0] : ''}
                 disabled={loading}
               />
             </div>

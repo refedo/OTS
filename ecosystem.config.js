@@ -5,13 +5,13 @@ module.exports = {
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
       instances: 1,
-      exec_mode: 'cluster',
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=1024 --expose-gc',
       watch: false,
-      max_memory_restart: '500M', // Restart early before OOM (Next.js uses ~200MB heap)
+      max_memory_restart: '800M',
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
-        NODE_OPTIONS: '--max-old-space-size=1024 --expose-gc',
       },
       cron_restart: '0 */6 * * *', // Restart every 6 hours to prevent memory buildup
       error_file: './logs/pm2-error.log',

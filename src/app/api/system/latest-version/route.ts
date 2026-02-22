@@ -2,25 +2,25 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.4.1',
-  date: 'February 22, 2026',
-  type: 'patch' as const,
-  mainTitle: '🔧 Financial Sync Production Fix',
+  version: '15.5.0',
+  date: 'February 23, 2026',
+  type: 'minor' as const,
+  mainTitle: '✨ Tasks Module Enhancement',
   highlights: [
-    'Journal Entry Data Loss Prevention',
-    'Full Sync Resilience',
-    'API Timeout & Batch Size Increase',
-    'Progress Logging for Debugging',
+    'Task Requester & Release Date fields',
+    'Tasks Dashboard with team performance analytics',
+    'Personalized task notifications',
+    'Requester/Release Date in table, detail & form views',
   ],
   changes: {
-    added: [],
-    fixed: [
-      'Journal entries now generated in memory first — old entries deleted only after successful generation (prevents 0 entries / SAR 0.00)',
-      'Each sync step wrapped in individual try/catch — supplier invoice failure no longer blocks journal entry generation',
-      'Dolibarr API timeout increased from 30s to 120s for large batch fetches',
-      'Pagination batch size increased from 100 to 500 (reduces API calls from 89 to 18 for 8880 invoices)',
-      'Added progress logging every 100 invoices and per-page during Dolibarr API pagination',
+    added: [
+      'Task Requester field — choose/change who requested the task',
+      'Task Release Date field — target release/delivery date',
+      'Tasks Dashboard — team performance overview with success rate, schedule slips, assigned/completed counts',
+      'Personalized notifications: assignee notified on assignment, requester notified on completion',
+      'TASK_COMPLETED notification type',
     ],
+    fixed: [],
     changed: [],
   },
 };

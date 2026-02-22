@@ -62,6 +62,7 @@ model User {
   projectAssignments ProjectAssignment[]
   assignedTasks      Task[]   @relation("AssignedTasks")
   createdTasks       Task[]   @relation("CreatedTasks")
+  requestedTasks     Task[]   @relation("RequestedTasks")
   completedTasks     Task[]   @relation("CompletedTasks")
   approvedTasks      Task[]   @relation("ApprovedTasks")
   rejectedTasks      Task[]   @relation("RejectedTasks")
@@ -401,6 +402,8 @@ model Task {
   assignedTo    User?    @relation("AssignedTasks", fields: [assignedToId], references: [id])
   createdById   String   @db.Char(36)
   createdBy     User     @relation("CreatedTasks", fields: [createdById], references: [id])
+  requesterId   String?  @db.Char(36)
+  requester     User?    @relation("RequestedTasks", fields: [requesterId], references: [id])
   
   // Project relation (optional - for project-specific tasks)
   projectId     String?  @db.Char(36)
@@ -421,6 +424,7 @@ model Task {
   // Task details
   taskInputDate DateTime? // When the task was entered/created
   dueDate       DateTime?
+  releaseDate   DateTime? // Target release/delivery date
   priority      String   @default("Medium") // Low, Medium, High
   status        String   @default("Pending") // Pending, In Progress, Completed
   isPrivate     Boolean  @default(false) // Private tasks only visible to creator and assignee
@@ -2050,6 +2054,7 @@ model AIInteraction {
 
 enum NotificationType {
   TASK_ASSIGNED
+  TASK_COMPLETED
   APPROVAL_REQUIRED
   DEADLINE_WARNING
   APPROVED
