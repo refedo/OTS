@@ -20,7 +20,7 @@ type ChangelogVersion = {
   mainTitle: string;
   highlights: string[];
   changes: {
-    added: Array<{ title: string; items: string[] }>;
+    added: Array<string | { title: string; items: string[] }>;
     fixed: Array<{ title: string; items: string[] } | string>;
     changed: string[];
   };
@@ -149,18 +149,24 @@ export function UpdateNotificationDialog() {
                 </h4>
                 <div className="space-y-4">
                   {latestVersion.changes.added.map((feature, idx) => (
-                    <div key={idx} className="bg-green-50 dark:bg-green-950/30 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                      <h5 className="font-medium text-sm mb-2 text-green-900 dark:text-green-100">
-                        {feature.title}
-                      </h5>
-                      <ul className="space-y-1 ml-4">
-                        {feature.items.map((item, itemIdx) => (
-                          <li key={itemIdx} className="text-sm text-green-800 dark:text-green-200 list-disc">
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    typeof feature === 'string' ? (
+                      <div key={idx} className="bg-green-50 dark:bg-green-950/30 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                        <p className="text-sm text-green-800 dark:text-green-200">{feature}</p>
+                      </div>
+                    ) : feature && typeof feature === 'object' && 'title' in feature ? (
+                      <div key={idx} className="bg-green-50 dark:bg-green-950/30 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                        <h5 className="font-medium text-sm mb-2 text-green-900 dark:text-green-100">
+                          {feature.title}
+                        </h5>
+                        <ul className="space-y-1 ml-4">
+                          {feature.items.map((item: string, itemIdx: number) => (
+                            <li key={itemIdx} className="text-sm text-green-800 dark:text-green-200 list-disc">
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null
                   ))}
                 </div>
               </div>

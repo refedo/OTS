@@ -14,7 +14,7 @@ type ChangelogVersion = {
   mainTitle: string;
   highlights: string[];
   changes: {
-    added: Array<ChangeItem>;
+    added: Array<string | ChangeItem>;
     fixed: Array<string | ChangeItem>;
     changed: Array<string | ChangeItem>;
   };
@@ -23,10 +23,263 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.4.1',
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🔧 Financial Sync Production Fix',
+    highlights: [
+      'Journal Entry Data Loss Prevention',
+      'Full Sync Resilience',
+      'API Timeout & Batch Size Increase',
+      'Progress Logging for Debugging',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Journal entries now generated in memory first — old entries deleted only after successful generation (prevents 0 entries / SAR 0.00)',
+        'Each sync step wrapped in individual try/catch — supplier invoice failure no longer blocks journal entry generation',
+        'Dolibarr API timeout increased from 30s to 120s for large batch fetches',
+        'Pagination batch size increased from 100 to 500 (reduces API calls from 89 to 18 for 8880 invoices)',
+        'Added progress logging every 100 invoices and per-page during Dolibarr API pagination',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '15.4.0',
+    date: 'February 22, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '📊 Chart of Accounts & Financial Reports Polish',
+    highlights: [
+      'Full CoA with English + Arabic Labels',
+      'Collapsible Hierarchical CoA Tree',
+      'VAT Summary Redesign',
+      'SOA Third Party Name Dropdown',
+      'Aging Report Key Prop Fix',
+      'Salary Query Broadened',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Chart of Accounts — Full Dolibarr Data',
+          items: [
+            '227 accounts seeded with English and Arabic names from Dolibarr',
+            'Parent-child hierarchy with correct parent_code relationships',
+            'Collapsible tree levels with Collapse All / Expand All buttons',
+            'Separate English and Arabic name columns in table',
+          ],
+        },
+        {
+          title: 'SOA Third Party Name Dropdown',
+          items: [
+            'Statement of Account now shows a dropdown of customers/suppliers by name',
+            'Dropdown loaded from new /api/financial/reports/soa/thirdparties endpoint',
+            'Shows invoice count per third party for easy identification',
+          ],
+        },
+        {
+          title: 'VAT Summary Redesign',
+          items: [
+            'Net VAT Payable/Refundable shown as prominent main figure',
+            'Output and Input VAT shown as compact sub-figures beneath',
+          ],
+        },
+      ],
+      fixed: [
+        'Salaries query broadened to match Dolibarr CoA codes 4102, 4103, 42001, 4115, 4118 + Arabic names',
+        'Aging Report — fixed React "key" prop warning in tbody rendering',
+        'SOA — replaced raw Dolibarr ID input with named third party dropdown',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '15.3.0',
+    date: 'June 2025',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '🔧 Financial & Tasks Enhancements',
+    highlights: [
+      'Dolibarr Salaries Integration',
+      'Dashboard Numbers in Millions (M)',
+      'VAT Report Drill-down to Invoices',
+      'Tasks Reject Symbol + New Columns',
+      'CoA Parent/Child Hierarchy',
+      'Back Buttons on All Reports',
+      'Cash Out Fix for 2025/2026',
+      'Journal Entries Page Fix',
+      'GMT+3 Sync Time Display',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Dolibarr Salaries Integration',
+          items: [
+            'Salaries & Wages now fetched directly from Dolibarr salaries API',
+            'Automatic fallback to journal entries if API unavailable',
+            'Period-filtered salary totals on dashboard',
+          ],
+        },
+        {
+          title: 'Dashboard Numbers in Millions',
+          items: [
+            'All KPI cards now show amounts in SAR M format',
+            'Exact SAR amount displayed beneath in smaller text',
+            'Applied to Revenue, Expenses, Net Profit, AR, AP, VAT, Salaries, Gross Profit, Cost of Sales',
+          ],
+        },
+        {
+          title: 'VAT Report Enhancements',
+          items: [
+            'Output/Input VAT sections are now collapsible with totals shown in header',
+            'Click any VAT rate row to drill down into individual invoice lines',
+            'Invoice detail shows Ref, Client/Supplier, Date, Product, HT, VAT, TTC',
+          ],
+        },
+        {
+          title: 'Tasks: Reject Symbol in Project Management View',
+          items: [
+            'Reject button (XCircle) now visible for completed tasks in project management view',
+            'Rejected tasks show ShieldX icon with "Rejected" label',
+            'Approval/Reject actions properly separated',
+          ],
+        },
+        {
+          title: 'Tasks: Requester & Release Date Columns',
+          items: [
+            'New "Requester" column shows task creator name',
+            'New "Release Date" column shows date submitted for approval',
+          ],
+        },
+        {
+          title: 'Chart of Accounts Hierarchy',
+          items: [
+            'Accounts displayed in parent/child tree structure with indentation',
+            'Parent accounts shown bold with ▸ indicator',
+            'Child accounts show ↳ parent code reference',
+            'Edit form now uses dropdown for parent account selection',
+          ],
+        },
+        'Back button added to all financial report pages (Trial Balance, Income Statement, Balance Sheet, Aging, VAT, Journal Entries)',
+      ],
+      fixed: [
+        'Cash Out showing 0 for 2025 & 2026 — added journal entry and paid invoice fallbacks',
+        'Journal Entries page not loading — fixed LIMIT/OFFSET parameter binding issue',
+        'Last sync time now displays in GMT+3 (Asia/Riyadh) timezone',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '15.2.0',
+    date: 'February 23, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '📊 Financial Module Enhancements',
+    highlights: [
+      'Multi-year Dashboard Filtering',
+      'ROA/ROE & Profit Margins',
+      'Statement of Account (SOA)',
+      'Cash Flow Forecast (13-week)',
+      'Project Profitability Report',
+      'WIP Report',
+      'Monthly Cash In/Out',
+      'Projects Financial Dashboard',
+      'Payment Terms in Aging Report',
+      'CoA Hierarchy View',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Enhanced Financial Dashboard',
+          items: [
+            'Multi-year range filter (from/to year selectors)',
+            'Gross Profit & Gross Margin % card',
+            'Net Profit Margin % card',
+            'ROA (Return on Assets) % card',
+            'ROE (Return on Equity) % card',
+            'Cost of Sales card with % of revenue',
+            'Salaries & Wages card with % of expenses',
+          ],
+        },
+        {
+          title: 'Statement of Account (SOA) Report',
+          items: [
+            'Per-client or per-supplier account statement',
+            'Running balance with invoices and payments',
+            'Date range filtering',
+            'Summary totals: invoiced, paid, outstanding',
+          ],
+        },
+        {
+          title: 'Monthly Cash In / Cash Out Report',
+          items: [
+            'Monthly breakdown of customer collections vs supplier payments',
+            'Year selector for historical comparison',
+            'Summary cards: total cash in, cash out, net flow',
+          ],
+        },
+        {
+          title: 'Cash Flow Forecast (13-week rolling)',
+          items: [
+            'Projects cash position 13 weeks ahead',
+            'Based on unpaid invoice due dates',
+            'Opening balance from current bank totals',
+            'Deficit warnings when projected balance goes negative',
+          ],
+        },
+        {
+          title: 'Project Profitability Report',
+          items: [
+            'Revenue by client with invoice counts',
+            'Collection rates per client',
+            'Supplier costs breakdown',
+            'Gross margin calculation',
+          ],
+        },
+        {
+          title: 'WIP (Work-In-Progress) Report',
+          items: [
+            'Outstanding receivables with days since invoice',
+            'Outstanding payables with aging indicators',
+            'Net WIP calculation (AR WIP − AP WIP)',
+          ],
+        },
+        {
+          title: 'Projects Financial Dashboard',
+          items: [
+            'Total projects count with invoicing summary',
+            'Collection rate and gross margin KPIs',
+            'Per-client detail table with all financial metrics',
+          ],
+        },
+        {
+          title: 'Chart of Accounts Hierarchy',
+          items: [
+            'API endpoint for hierarchical CoA view',
+            'Grouped by account type and category',
+            'Level totals (subtotals per category, totals per type)',
+          ],
+        },
+      ],
+      fixed: [
+        'Fixed AP/AR Dashboard showing zero values (now uses per-invoice remaining calculation)',
+        'Fixed changelog page crash with mixed string/object entries in added section',
+      ],
+      changed: [
+        'Payment terms now shown next to each aging account (Net 30, Net 60, etc.)',
+        'Dashboard API now supports fromYear/toYear query parameters',
+        'Added 6 new report links to sidebar navigation under Financial Reports',
+      ],
+    },
+  },
+  {
     version: '15.1.0',
     date: 'February 22, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '⚡ Financial Module Performance & Partial Sync',
     highlights: [
       'Batch journal entry generation (24K+ entries in ~9s)',
@@ -2232,14 +2485,20 @@ export default function ChangelogPage() {
                     </h4>
                     <div className="space-y-4">
                       {version.changes.added.map((addition, idx) => (
-                        <div key={idx}>
-                          <h5 className="font-medium text-sm mb-2">{addition.title}</h5>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
-                            {addition.items.map((item, itemIdx) => (
-                              <li key={itemIdx}>{item}</li>
-                            ))}
+                        typeof addition === 'string' ? (
+                          <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
+                            <li>{addition}</li>
                           </ul>
-                        </div>
+                        ) : addition && typeof addition === 'object' && 'title' in addition ? (
+                          <div key={idx}>
+                            <h5 className="font-medium text-sm mb-2">{addition.title}</h5>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
+                              {addition.items.map((item: string, itemIdx: number) => (
+                                <li key={itemIdx}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null
                       ))}
                     </div>
                   </div>
@@ -2257,16 +2516,16 @@ export default function ChangelogPage() {
                           <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
                             <li>{change}</li>
                           </ul>
-                        ) : (
+                        ) : change && typeof change === 'object' && 'title' in change ? (
                           <div key={idx}>
                             <h5 className="font-medium text-sm mb-1">{change.title}</h5>
                             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
-                              {change.items.map((item, itemIdx) => (
+                              {change.items.map((item: string, itemIdx: number) => (
                                 <li key={itemIdx}>{item}</li>
                               ))}
                             </ul>
                           </div>
-                        )
+                        ) : null
                       ))}
                     </div>
                   </div>
@@ -2284,16 +2543,16 @@ export default function ChangelogPage() {
                           <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
                             <li>{fix}</li>
                           </ul>
-                        ) : (
+                        ) : fix && typeof fix === 'object' && 'title' in fix ? (
                           <div key={idx}>
                             <h5 className="font-medium text-sm mb-1">{fix.title}</h5>
                             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
-                              {fix.items.map((item, itemIdx) => (
+                              {fix.items.map((item: string, itemIdx: number) => (
                                 <li key={itemIdx}>{item}</li>
                               ))}
                             </ul>
                           </div>
-                        )
+                        ) : null
                       ))}
                     </div>
                   </div>

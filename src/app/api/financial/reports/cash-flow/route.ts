@@ -12,15 +12,12 @@ export async function GET(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const fromYear = searchParams.get('fromYear') || searchParams.get('year') || new Date().getFullYear().toString();
-  const toYear = searchParams.get('toYear') || fromYear;
-  const from = `${fromYear}-01-01`;
-  const to = `${toYear}-12-31`;
+  const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString(), 10);
 
   try {
     const service = new FinancialReportService();
-    const summary = await service.getDashboardSummary(from, to);
-    return NextResponse.json(summary);
+    const report = await service.getMonthlyCashFlow(year);
+    return NextResponse.json(report);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

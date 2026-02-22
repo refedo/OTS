@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, TrendingUp, Printer } from 'lucide-react';
+import { Loader2, TrendingUp, Printer, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -36,9 +37,14 @@ export default function IncomeStatementPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Income Statement (P&L)</h1>
-          <p className="text-muted-foreground mt-1">Revenue, expenses, and net profit/loss</p>
+        <div className="flex items-center gap-4">
+          <Link href="/financial">
+            <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Income Statement (P&L)</h1>
+            <p className="text-muted-foreground mt-1">Revenue, expenses, and net profit/loss</p>
+          </div>
         </div>
         <Button variant="outline" onClick={() => window.print()} className="print:hidden">
           <Printer className="h-4 w-4 mr-2" /> Print

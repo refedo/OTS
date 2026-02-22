@@ -11,16 +11,10 @@ export async function GET(req: Request) {
   const session = token ? verifySession(token) : null;
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const fromYear = searchParams.get('fromYear') || searchParams.get('year') || new Date().getFullYear().toString();
-  const toYear = searchParams.get('toYear') || fromYear;
-  const from = `${fromYear}-01-01`;
-  const to = `${toYear}-12-31`;
-
   try {
     const service = new FinancialReportService();
-    const summary = await service.getDashboardSummary(from, to);
-    return NextResponse.json(summary);
+    const report = await service.getProjectsFinancialDashboard();
+    return NextResponse.json(report);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

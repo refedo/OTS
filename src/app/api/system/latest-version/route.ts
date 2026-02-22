@@ -2,74 +2,26 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.0.0',
+  version: '15.4.1',
   date: 'February 22, 2026',
-  type: 'major' as const,
-  mainTitle: '� Financial Reporting Module',
+  type: 'patch' as const,
+  mainTitle: '🔧 Financial Sync Production Fix',
   highlights: [
-    'Trial Balance, Income Statement & Balance Sheet',
-    'VAT Report (ZATCA-ready) with Input/Output breakdown',
-    'AR/AP Aging Report with age buckets',
-    'Auto-generated double-entry journal entries from Dolibarr',
-    'Chart of Accounts management with Arabic support',
+    'Journal Entry Data Loss Prevention',
+    'Full Sync Resilience',
+    'API Timeout & Batch Size Increase',
+    'Progress Logging for Debugging',
   ],
   changes: {
-    added: [
-      {
-        title: '� Financial Reporting Engine',
-        items: [
-          'Trial Balance with opening/period/closing balances',
-          'Income Statement (P&L) with gross profit, operating profit, and net profit',
-          'Balance Sheet with assets, liabilities, equity, and balance verification',
-          'VAT Report with 5% and 15% rate breakdown (ZATCA compliance)',
-          'AR/AP Aging Report with Current, 1-30, 31-60, 61-90, 90+ day buckets',
-        ],
-      },
-      {
-        title: '🔗 Financial Data Sync from Dolibarr',
-        items: [
-          'Customer invoice sync with line-level detail and VAT rates',
-          'Supplier invoice sync with payment tracking',
-          'Payment sync per invoice (customer and supplier)',
-          'Bank account sync with balances from Dolibarr',
-          'MD5 hash-based change detection for efficient syncing',
-        ],
-      },
-      {
-        title: '📒 Auto-Generated Journal Entries',
-        items: [
-          'Double-entry bookkeeping from synced invoices and payments',
-          'Customer invoice → Debit AR, Credit Revenue + VAT Output',
-          'Supplier invoice → Debit Expense + VAT Input, Credit AP',
-          'Payments → Debit/Credit Bank and AR/AP accounts',
-          'Credit note support with reversed entries',
-          'Configurable default account mappings',
-        ],
-      },
-      {
-        title: '� Chart of Accounts',
-        items: [
-          'Full CRUD for chart of accounts with Arabic name support',
-          'Account types: Asset, Liability, Equity, Revenue, Expense',
-          'Category grouping for structured reports',
-          'Pre-populated Saudi standard chart of accounts',
-        ],
-      },
-      {
-        title: '⚙️ Financial Settings',
-        items: [
-          'Default account mapping configuration (AR, AP, Revenue, Expense, VAT)',
-          'Bank account to accounting code mapping',
-          'Automated 2-hour sync via cron endpoint',
-        ],
-      },
+    added: [],
+    fixed: [
+      'Journal entries now generated in memory first — old entries deleted only after successful generation (prevents 0 entries / SAR 0.00)',
+      'Each sync step wrapped in individual try/catch — supplier invoice failure no longer blocks journal entry generation',
+      'Dolibarr API timeout increased from 30s to 120s for large batch fetches',
+      'Pagination batch size increased from 100 to 500 (reduces API calls from 89 to 18 for 8880 invoices)',
+      'Added progress logging every 100 invoices and per-page during Dolibarr API pagination',
     ],
-    fixed: [],
-    changed: [
-      'Added Financial Reports section to sidebar navigation',
-      'Updated navigation permissions for financial module routes',
-      'Extended Dolibarr API client with invoice, payment, and bank account methods',
-    ],
+    changed: [],
   },
 };
 

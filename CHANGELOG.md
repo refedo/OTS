@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.4.1] - 2026-02-22
+
+### 🔧 Financial Sync Production Fix
+
+Critical fix for production financial sync where supplier invoices were only partially syncing (536 vs 8880) and all financial figures showed SAR 0.00 due to journal entries being 0.
+
+#### Fixed
+- **Journal Entry Data Loss Prevention**
+  - Journal entries are now generated in memory first, old entries deleted only after successful generation
+  - Previously, old entries were deleted before regeneration — if generation failed, all entries were lost (0 journal entries)
+  - This was the root cause of SAR 0.00 across all financial reports on production
+
+- **Full Sync Resilience**
+  - Each sync step (bank accounts, customer invoices, supplier invoices, journal entries) now wrapped in individual try/catch
+  - A failure in supplier invoice sync no longer prevents journal entry generation from running
+  - Journal entries are always generated from whatever data is available in the database
+
+- **API Timeout & Batch Size**
+  - Increased default Dolibarr API timeout from 30s to 120s to handle large batch fetches
+  - Increased pagination batch size from 100 to 500 for customer and supplier invoices
+  - Reduces total API calls from 89 to 18 for 8880 supplier invoices
+
+- **Progress Logging**
+  - Added detailed progress logging every 100 invoices during sync
+  - Added page-level logging during Dolibarr API pagination
+  - Helps diagnose production sync issues from server logs
+
+---
+
 ## [15.0.0] - 2026-02-22
 
 ### 📊 Financial Reporting Module

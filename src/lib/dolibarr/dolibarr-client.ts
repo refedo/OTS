@@ -175,6 +175,19 @@ export interface DolibarrPayment {
   [key: string]: any;
 }
 
+export interface DolibarrSalary {
+  id: number | string;
+  ref: string;
+  label: string;
+  datesp: number | string; // start period (Unix timestamp)
+  dateep: number | string; // end period (Unix timestamp)
+  amount: string;
+  fk_user: string | number;
+  paye: string; // "0" or "1"
+  salary: string;
+  [key: string]: any;
+}
+
 export interface DolibarrBankAccount {
   id: number | string;
   ref: string;
@@ -455,14 +468,16 @@ export class DolibarrClient {
   /**
    * Auto-paginate to fetch ALL customer invoices (non-draft)
    */
-  async getAllInvoices(batchSize: number = 100): Promise<DolibarrInvoice[]> {
+  async getAllInvoices(batchSize: number = 500): Promise<DolibarrInvoice[]> {
     const all: DolibarrInvoice[] = [];
     let page = 0;
     let hasMore = true;
 
     while (hasMore) {
+      console.log(`[Dolibarr] Fetching customer invoices page ${page} (batch ${batchSize})...`);
       const batch = await this.getInvoices({ limit: batchSize, page });
       all.push(...batch);
+      console.log(`[Dolibarr] Got ${batch.length} customer invoices (total: ${all.length})`);
       hasMore = batch.length >= batchSize;
       page++;
     }
@@ -502,14 +517,16 @@ export class DolibarrClient {
   /**
    * Auto-paginate to fetch ALL supplier invoices (non-draft)
    */
-  async getAllSupplierInvoices(batchSize: number = 100): Promise<DolibarrSupplierInvoice[]> {
+  async getAllSupplierInvoices(batchSize: number = 500): Promise<DolibarrSupplierInvoice[]> {
     const all: DolibarrSupplierInvoice[] = [];
     let page = 0;
     let hasMore = true;
 
     while (hasMore) {
+      console.log(`[Dolibarr] Fetching supplier invoices page ${page} (batch ${batchSize})...`);
       const batch = await this.getSupplierInvoices({ limit: batchSize, page });
       all.push(...batch);
+      console.log(`[Dolibarr] Got ${batch.length} supplier invoices (total: ${all.length})`);
       hasMore = batch.length >= batchSize;
       page++;
     }
@@ -528,6 +545,43 @@ export class DolibarrClient {
       if (error.message?.includes('404')) return [];
       throw error;
     }
+  }
+
+  /**
+   * Fetch salaries with pagination
+   */
+  async getSalaries(params?: DolibarrPaginationParams): Promise<DolibarrSalary[]> {
+    try {
+      const result = await this.request<DolibarrSalary[]>('salaries', {
+        limit: params?.limit ?? 100,
+        page: params?.page ?? 0,
+        sortfield: params?.sortfield ?? 't.rowid',
+        sortorder: params?.sortorder ?? 'DESC',
+        sqlfilters: params?.sqlfilters,
+      });
+      return Array.isArray(result) ? result : [];
+    } catch (error: any) {
+      if (error.message?.includes('404')) return [];
+      throw error;
+    }
+  }
+
+  /**
+   * Auto-paginate to fetch ALL salaries
+   */
+  async getAllSalaries(batchSize: number = 100): Promise<DolibarrSalary[]> {
+    const all: DolibarrSalary[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await this.getSalaries({ limit: batchSize, page });
+      all.push(...batch);
+      hasMore = batch.length >= batchSize;
+      page++;
+    }
+
+    return all;
   }
 
   /**
@@ -563,7 +617,7 @@ export function createDolibarrClient(): DolibarrClient {
   return new DolibarrClient({
     apiUrl,
     apiKey,
-    timeout: parseInt(process.env.DOLIBARR_API_TIMEOUT || '30000', 10),
+    timeout: parseInt(process.env.DOLIBARR_API_TIMEOUT || '120000', 10),
     maxRetries: parseInt(process.env.DOLIBARR_API_RETRIES || '3', 10),
   });
 }

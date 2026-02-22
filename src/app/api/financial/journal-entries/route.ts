@@ -42,8 +42,8 @@ export async function GET(req: Request) {
        LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
        ${where}
        ORDER BY je.entry_date DESC, je.piece_num, je.id
-       LIMIT ? OFFSET ?`,
-      ...params, limit, offset
+       LIMIT ${limit} OFFSET ${offset}`,
+      ...params
     );
 
     return NextResponse.json({

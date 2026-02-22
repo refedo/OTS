@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, BarChart3, Printer, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Loader2, BarChart3, Printer, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 const TYPE_COLORS: Record<string, string> = {
   asset: 'text-blue-600', liability: 'text-red-600', equity: 'text-purple-600',
@@ -36,9 +37,14 @@ export default function TrialBalancePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Trial Balance</h1>
-          <p className="text-muted-foreground mt-1">Debit and credit balances for all accounts</p>
+        <div className="flex items-center gap-4">
+          <Link href="/financial">
+            <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Trial Balance</h1>
+            <p className="text-muted-foreground mt-1">Debit and credit balances for all accounts</p>
+          </div>
         </div>
         <Button variant="outline" onClick={() => window.print()} className="print:hidden">
           <Printer className="h-4 w-4 mr-2" /> Print

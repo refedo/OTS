@@ -228,6 +228,12 @@ const navigationSections: NavigationSection[] = [
       { name: 'Balance Sheet', href: '/financial/reports/balance-sheet', icon: Building2, isNew: true },
       { name: 'VAT Report', href: '/financial/reports/vat', icon: FileText, isNew: true },
       { name: 'Aging Report', href: '/financial/reports/aging', icon: Clock, isNew: true },
+      { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText, isNew: true },
+      { name: 'Cash In/Out', href: '/financial/reports/cash-flow', icon: TrendingUp, isNew: true },
+      { name: 'Cash Flow Forecast', href: '/financial/reports/cash-flow-forecast', icon: TrendingUp, isNew: true },
+      { name: 'Project Profitability', href: '/financial/reports/project-profitability', icon: FileSpreadsheet, isNew: true },
+      { name: 'WIP Report', href: '/financial/reports/wip', icon: Clock, isNew: true },
+      { name: 'Projects Financial', href: '/financial/reports/projects-dashboard', icon: Building2, isNew: true },
       { name: 'Journal Entries', href: '/financial/journal-entries', icon: List, isNew: true },
       { name: 'Settings', href: '/financial/settings', icon: Settings, isNew: true },
     ],
@@ -637,7 +643,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v15.0.0
+                  Hexa Steel® OTS v15.4.1
                 </p>
               </div>
             )}

@@ -14,8 +14,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Loader2, Pencil, Trash2, FileText,
+  Plus, Search, Loader2, Pencil, Trash2, FileText, ChevronRight, ChevronDown, ArrowLeft,
 } from 'lucide-react';
+import Link from 'next/link';
 
 const ACCOUNT_TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
@@ -53,6 +54,72 @@ const emptyForm = {
   account_category: '', parent_code: '', display_order: 0, notes: '',
 };
 
+type HierarchicalAccount = Account & { level: number; children: HierarchicalAccount[] };
+
+function buildTree(accounts: Account[], allAccounts: Account[]): HierarchicalAccount[] {
+  // Sort by account_code to ensure parents come before children
+  const sorted = [...accounts].sort((a, b) => a.account_code.localeCompare(b.account_code));
+  
+  // Build a map of ALL accounts (not just filtered) so parent lookups work
+  const allMap = new Map<string, HierarchicalAccount>();
+  for (const a of [...allAccounts].sort((x, y) => x.account_code.localeCompare(y.account_code))) {
+    allMap.set(a.account_code, { ...a, level: 0, children: [] });
+  }
+  
+  // Build map of filtered accounts
+  const filteredSet = new Set(sorted.map(a => a.account_code));
+  const map = new Map<string, HierarchicalAccount>();
+  const roots: HierarchicalAccount[] = [];
+
+  for (const a of sorted) {
+    map.set(a.account_code, { ...a, level: 0, children: [] });
+  }
+
+  // Also include ancestor accounts that are needed for hierarchy
+  for (const a of sorted) {
+    let parentCode = a.parent_code;
+    while (parentCode && !map.has(parentCode) && allMap.has(parentCode)) {
+      const parent = allMap.get(parentCode)!;
+      map.set(parent.account_code, { ...parent, level: 0, children: [] });
+      parentCode = parent.parent_code;
+    }
+  }
+
+  // Build parent-child relationships
+  for (const [code, node] of map) {
+    if (node.parent_code && map.has(node.parent_code)) {
+      map.get(node.parent_code)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  // Sort children within each parent
+  const sortChildren = (nodes: HierarchicalAccount[]) => {
+    nodes.sort((a, b) => a.account_code.localeCompare(b.account_code));
+    for (const n of nodes) sortChildren(n.children);
+  };
+  sortChildren(roots);
+
+  return roots;
+}
+
+function flattenVisible(
+  nodes: HierarchicalAccount[],
+  level: number,
+  collapsed: Set<string>,
+): HierarchicalAccount[] {
+  const result: HierarchicalAccount[] = [];
+  for (const node of nodes) {
+    node.level = level;
+    result.push(node);
+    if (node.children.length > 0 && !collapsed.has(node.account_code)) {
+      result.push(...flattenVisible(node.children, level + 1, collapsed));
+    }
+  }
+  return result;
+}
+
 export default function ChartOfAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +129,7 @@ export default function ChartOfAccountsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -84,6 +152,26 @@ export default function ChartOfAccountsPage() {
     }
     return true;
   });
+
+  const tree = buildTree(filtered, accounts);
+  const visible = search ? flattenVisible(tree, 0, new Set()) : flattenVisible(tree, 0, collapsed);
+
+  const toggleCollapse = (code: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code); else next.add(code);
+      return next;
+    });
+  };
+
+  const collapseAll = () => {
+    const parents = new Set(accounts.filter(a => accounts.some(c => c.parent_code === a.account_code)).map(a => a.account_code));
+    setCollapsed(parents);
+  };
+
+  const expandAll = () => setCollapsed(new Set());
+
+  const parentOptions = accounts.filter(a => a.is_active && a.account_code !== form.account_code);
 
   const openCreate = () => {
     setEditingId(null);
@@ -137,9 +225,14 @@ export default function ChartOfAccountsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Chart of Accounts</h1>
-          <p className="text-muted-foreground mt-1">Manage your accounting chart of accounts</p>
+        <div className="flex items-center gap-4">
+          <Link href="/financial">
+            <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Chart of Accounts</h1>
+            <p className="text-muted-foreground mt-1">Manage your accounting chart of accounts ({accounts.length} accounts)</p>
+          </div>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" /> Add Account
@@ -147,7 +240,7 @@ export default function ChartOfAccountsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by code or name..." value={search}
@@ -164,6 +257,8 @@ export default function ChartOfAccountsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" onClick={collapseAll}>Collapse All</Button>
+        <Button variant="outline" size="sm" onClick={expandAll}>Expand All</Button>
       </div>
 
       {/* Table */}
@@ -178,46 +273,62 @@ export default function ChartOfAccountsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Code</th>
-                    <th className="text-left p-3 font-medium">Name</th>
-                    <th className="text-left p-3 font-medium">Arabic Name</th>
+                    <th className="text-left p-3 font-medium w-[200px]">Code</th>
+                    <th className="text-left p-3 font-medium">Name (English)</th>
+                    <th className="text-right p-3 font-medium">Name (Arabic)</th>
                     <th className="text-left p-3 font-medium">Type</th>
                     <th className="text-left p-3 font-medium">Category</th>
-                    <th className="text-center p-3 font-medium">Status</th>
-                    <th className="text-right p-3 font-medium">Actions</th>
+                    <th className="text-right p-3 font-medium w-[80px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(acct => (
-                    <tr key={acct.id} className="border-b hover:bg-muted/30">
-                      <td className="p-3 font-mono font-semibold">{acct.account_code}</td>
-                      <td className="p-3">{acct.account_name}</td>
-                      <td className="p-3 text-right" dir="rtl">{acct.account_name_ar || '—'}</td>
-                      <td className="p-3">
-                        <Badge className={`${TYPE_COLORS[acct.account_type] || ''} text-xs`}>
-                          {acct.account_type}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-muted-foreground">{acct.account_category || '—'}</td>
-                      <td className="p-3 text-center">
-                        <Badge variant={acct.is_active ? 'default' : 'secondary'}>
-                          {acct.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(acct)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(acct.id)}>
-                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No accounts found</td></tr>
+                  {visible.map(acct => {
+                    const hasChildren = acct.children.length > 0;
+                    const isCollapsed = collapsed.has(acct.account_code);
+                    return (
+                      <tr key={acct.id} className={`border-b hover:bg-muted/30 ${hasChildren ? 'bg-muted/20' : ''}`}>
+                        <td className="p-2 font-mono text-xs" style={{ paddingLeft: `${acct.level * 20 + 8}px` }}>
+                          {hasChildren ? (
+                            <button onClick={() => toggleCollapse(acct.account_code)} className="inline-flex items-center gap-1 hover:text-primary">
+                              {isCollapsed
+                                ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                              <span className="font-bold">{acct.account_code}</span>
+                            </button>
+                          ) : (
+                            <span className="ml-5">{acct.account_code}</span>
+                          )}
+                        </td>
+                        <td className={`p-2 ${hasChildren ? 'font-semibold' : ''}`}>
+                          {acct.account_name}
+                          {acct.parent_code && (
+                            <span className="text-[10px] text-muted-foreground ml-1.5">({acct.parent_code})</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-right" dir="rtl">
+                          <span className={hasChildren ? 'font-semibold' : ''}>{acct.account_name_ar || '—'}</span>
+                        </td>
+                        <td className="p-2">
+                          <Badge className={`${TYPE_COLORS[acct.account_type] || ''} text-[10px]`}>
+                            {acct.account_type}
+                          </Badge>
+                        </td>
+                        <td className="p-2 text-xs text-muted-foreground">{acct.account_category || '—'}</td>
+                        <td className="p-2 text-right">
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(acct)}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleDelete(acct.id)}>
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {visible.length === 0 && (
+                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No accounts found</td></tr>
                   )}
                 </tbody>
               </table>
@@ -280,9 +391,18 @@ export default function ChartOfAccountsPage() {
               </div>
             </div>
             <div>
-              <Label>Parent Account Code</Label>
-              <Input value={form.parent_code} onChange={e => setForm({ ...form, parent_code: e.target.value })}
-                placeholder="Optional parent code" />
+              <Label>Parent Account</Label>
+              <Select value={form.parent_code || '__none__'} onValueChange={v => setForm({ ...form, parent_code: v === '__none__' ? '' : v })}>
+                <SelectTrigger><SelectValue placeholder="No parent (root account)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No parent (root account)</SelectItem>
+                  {parentOptions.map(a => (
+                    <SelectItem key={a.account_code} value={a.account_code}>
+                      {a.account_code} — {a.account_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Notes</Label>

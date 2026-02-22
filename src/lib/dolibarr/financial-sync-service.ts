@@ -212,9 +212,15 @@ export class FinancialSyncService {
     let paymentsCreated = 0, paymentsUpdated = 0, paymentsTotal = 0;
 
     try {
-      const invoices = await this.client.getAllInvoices(100);
+      const invoices = await this.client.getAllInvoices(500);
+      console.log(`[FinSync] Fetched ${invoices.length} customer invoices from Dolibarr`);
 
+      let processedCount = 0;
       for (const inv of invoices) {
+        processedCount++;
+        if (processedCount % 100 === 0) {
+          console.log(`[FinSync] Processing customer invoice ${processedCount}/${invoices.length}...`);
+        }
         const dolibarrId = pi(inv.id);
         if (!dolibarrId) continue;
 
@@ -353,9 +359,15 @@ export class FinancialSyncService {
     let paymentsCreated = 0, paymentsUpdated = 0, paymentsTotal = 0;
 
     try {
-      const invoices = await this.client.getAllSupplierInvoices(100);
+      const invoices = await this.client.getAllSupplierInvoices(500);
+      console.log(`[FinSync] Fetched ${invoices.length} supplier invoices from Dolibarr`);
 
+      let processedCount = 0;
       for (const inv of invoices) {
+        processedCount++;
+        if (processedCount % 100 === 0) {
+          console.log(`[FinSync] Processing supplier invoice ${processedCount}/${invoices.length}...`);
+        }
         const dolibarrId = pi(inv.id);
         if (!dolibarrId) continue;
 
@@ -512,7 +524,8 @@ export class FinancialSyncService {
         if (row.account_number) bankAccountMap.set(row.dolibarr_id, row.account_number);
       }
 
-      // Collect all entries in memory, then batch-insert
+      // Collect all entries in memory first, then delete old + insert new
+      // This prevents data loss if generation fails mid-way
       const entries: Array<[string, string, number, string, string, number, number, string, number, string, number | null]> = [];
       let pieceNum = 1;
 
@@ -523,9 +536,6 @@ export class FinancialSyncService {
       ) => {
         entries.push([entryDate, journalCode, pn, accountCode, label, debit, credit, sourceType, sourceId, sourceRef, thirdpartyId]);
       };
-
-      // Delete all non-locked journal entries (they will be regenerated)
-      await prisma.$executeRawUnsafe(`DELETE FROM fin_journal_entries WHERE is_locked = 0`);
 
       // ---- Customer Invoice Journal Entries ----
       console.log('[FinSync] Generating customer invoice journal entries...');
@@ -742,6 +752,11 @@ export class FinancialSyncService {
       }
       console.log(`[FinSync] Supplier payments: ${suppPayments.length} processed`);
 
+      // ---- DELETE old entries only AFTER successful generation ----
+      // This prevents data loss if generation fails mid-way
+      console.log(`[FinSync] ${entries.length} entries generated successfully. Now replacing old entries...`);
+      await prisma.$executeRawUnsafe(`DELETE FROM fin_journal_entries WHERE is_locked = 0`);
+
       // ---- BATCH INSERT all journal entries ----
       console.log(`[FinSync] Batch inserting ${entries.length} journal entries...`);
       const BATCH_SIZE = 500;
@@ -835,21 +850,50 @@ export class FinancialSyncService {
     const startTime = Date.now();
     console.log('[FinSync] Starting full financial sync...');
 
-    const bankAccounts = await this.syncBankAccounts(triggeredBy);
-    console.log(`[FinSync] Bank accounts: ${bankAccounts.created} created, ${bankAccounts.updated} updated`);
+    let bankAccounts: FinSyncResult | undefined;
+    let customerInvoices: FinSyncResult | undefined;
+    let customerPayments: FinSyncResult | undefined;
+    let supplierInvoices: FinSyncResult | undefined;
+    let supplierPayments: FinSyncResult | undefined;
+    let journalEntries: FinSyncResult | undefined;
 
-    const { invoiceResult: customerInvoices, paymentResult: customerPayments } =
-      await this.syncCustomerInvoices(triggeredBy);
-    console.log(`[FinSync] Customer invoices: ${customerInvoices.created} created, ${customerInvoices.updated} updated`);
-    console.log(`[FinSync] Customer payments: ${customerPayments.created} created`);
+    // Each step is wrapped in try/catch so a failure in one step
+    // doesn't prevent subsequent steps (especially journal entry generation)
+    try {
+      bankAccounts = await this.syncBankAccounts(triggeredBy);
+      console.log(`[FinSync] Bank accounts: ${bankAccounts.created} created, ${bankAccounts.updated} updated`);
+    } catch (e: any) {
+      console.error('[FinSync] Bank accounts sync failed:', e.message);
+    }
 
-    const { invoiceResult: supplierInvoices, paymentResult: supplierPayments } =
-      await this.syncSupplierInvoices(triggeredBy);
-    console.log(`[FinSync] Supplier invoices: ${supplierInvoices.created} created, ${supplierInvoices.updated} updated`);
-    console.log(`[FinSync] Supplier payments: ${supplierPayments.created} created`);
+    try {
+      const custResult = await this.syncCustomerInvoices(triggeredBy);
+      customerInvoices = custResult.invoiceResult;
+      customerPayments = custResult.paymentResult;
+      console.log(`[FinSync] Customer invoices: ${customerInvoices.created} created, ${customerInvoices.updated} updated`);
+      console.log(`[FinSync] Customer payments: ${customerPayments.created} created`);
+    } catch (e: any) {
+      console.error('[FinSync] Customer invoices sync failed:', e.message);
+    }
 
-    const journalEntries = await this.generateJournalEntries(triggeredBy);
-    console.log(`[FinSync] Journal entries: ${journalEntries.created} generated`);
+    try {
+      const suppResult = await this.syncSupplierInvoices(triggeredBy);
+      supplierInvoices = suppResult.invoiceResult;
+      supplierPayments = suppResult.paymentResult;
+      console.log(`[FinSync] Supplier invoices: ${supplierInvoices.created} created, ${supplierInvoices.updated} updated`);
+      console.log(`[FinSync] Supplier payments: ${supplierPayments.created} created`);
+    } catch (e: any) {
+      console.error('[FinSync] Supplier invoices sync failed:', e.message);
+    }
+
+    // Always attempt journal entry generation even if some syncs failed
+    // This ensures we generate entries from whatever data is available
+    try {
+      journalEntries = await this.generateJournalEntries(triggeredBy);
+      console.log(`[FinSync] Journal entries: ${journalEntries.created} generated`);
+    } catch (e: any) {
+      console.error('[FinSync] Journal entry generation failed:', e.message);
+    }
 
     await this.setConfig('last_full_sync', new Date().toISOString());
 

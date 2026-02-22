@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.0.0';
+const CURRENT_VERSION = '15.4.1';
 const RELEASE_DATE = 'February 22, 2026';
 
 export default function VersionBadge() {
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Financial Reporting Module</li>
-              <li>• Trial Balance, P&L, Balance Sheet</li>
-              <li>• VAT Report (ZATCA) & Aging Report</li>
-              <li>• Auto-generated Journal Entries</li>
+              <li>• Financial Sync Production Fix</li>
+              <li>• Journal Entry Data Loss Prevention</li>
+              <li>• Full CoA with English + Arabic Labels</li>
+              <li>• SOA Third Party Name Dropdown</li>
             </ul>
           </div>
 

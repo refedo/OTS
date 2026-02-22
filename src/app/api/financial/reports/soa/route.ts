@@ -12,15 +12,19 @@ export async function GET(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const fromYear = searchParams.get('fromYear') || searchParams.get('year') || new Date().getFullYear().toString();
-  const toYear = searchParams.get('toYear') || fromYear;
-  const from = `${fromYear}-01-01`;
-  const to = `${toYear}-12-31`;
+  const thirdpartyId = searchParams.get('thirdparty_id');
+  const type = (searchParams.get('type') || 'ar') as 'ar' | 'ap';
+  const fromDate = searchParams.get('from') || `${new Date().getFullYear()}-01-01`;
+  const toDate = searchParams.get('to') || new Date().toISOString().slice(0, 10);
+
+  if (!thirdpartyId) {
+    return NextResponse.json({ error: 'thirdparty_id is required' }, { status: 400 });
+  }
 
   try {
     const service = new FinancialReportService();
-    const summary = await service.getDashboardSummary(from, to);
-    return NextResponse.json(summary);
+    const report = await service.getStatementOfAccount(Number(thirdpartyId), type, fromDate, toDate);
+    return NextResponse.json(report);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

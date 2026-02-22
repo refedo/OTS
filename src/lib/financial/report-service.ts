@@ -6,6 +6,7 @@
  */
 
 import prisma from '@/lib/db';
+import { createDolibarrClient } from '@/lib/dolibarr/dolibarr-client';
 
 // ============================================
 // TYPES
@@ -128,6 +129,8 @@ export interface AgingRow {
     remaining: number;
     ageBucket: string;
     daysOverdue: number;
+    paymentTermsDays: number;
+    paymentTermsLabel: string;
   }[];
   buckets: AgingBucket;
 }
@@ -547,6 +550,22 @@ export class FinancialReportService {
       }
 
       const row = thirdpartyMap.get(socid)!;
+      // Calculate payment terms in days from invoice date to due date
+      const invoiceDate = inv.date_invoice ? new Date(inv.date_invoice) : null;
+      const dueDateObj = inv.date_due ? new Date(inv.date_due) : null;
+      let paymentTermsDays = 0;
+      let paymentTermsLabel = 'N/A';
+      if (invoiceDate && dueDateObj) {
+        paymentTermsDays = Math.round((dueDateObj.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (paymentTermsDays <= 0) paymentTermsLabel = 'Due on Receipt';
+        else if (paymentTermsDays <= 15) paymentTermsLabel = `Net ${paymentTermsDays}`;
+        else if (paymentTermsDays <= 35) paymentTermsLabel = 'Net 30';
+        else if (paymentTermsDays <= 50) paymentTermsLabel = 'Net 45';
+        else if (paymentTermsDays <= 65) paymentTermsLabel = 'Net 60';
+        else if (paymentTermsDays <= 95) paymentTermsLabel = 'Net 90';
+        else paymentTermsLabel = `Net ${paymentTermsDays}`;
+      }
+
       row.invoices.push({
         ref: inv.ref,
         dateInvoice: inv.date_invoice ? new Date(inv.date_invoice).toISOString().slice(0, 10) : '',
@@ -556,6 +575,8 @@ export class FinancialReportService {
         remaining,
         ageBucket,
         daysOverdue: Math.max(0, daysOverdue),
+        paymentTermsDays,
+        paymentTermsLabel,
       });
 
       row.buckets.total += remaining;
@@ -580,12 +601,14 @@ export class FinancialReportService {
   }
 
   // ============================================
-  // DASHBOARD SUMMARY
+  // DASHBOARD SUMMARY (Enhanced)
   // ============================================
 
   async getDashboardSummary(fromDate: string, toDate: string): Promise<any> {
     let totalRevenue = 0, totalExpenses = 0, totalAR = 0, totalAP = 0;
     let vatOutputTotal = 0, vatInputTotal = 0;
+    let costOfSales = 0, salariesExpense = 0;
+    let totalAssets = 0, totalEquity = 0;
 
     try {
       const revRows: any[] = await prisma.$queryRawUnsafe(`
@@ -607,7 +630,59 @@ export class FinancialReportService {
       totalExpenses = Number(expRows[0]?.total || 0);
     } catch { /* */ }
 
-    // VAT Output (collected on sales) - from customer invoice lines
+    // Cost of Sales (COGS) for gross margin
+    try {
+      const cogsRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(je.debit) - SUM(je.credit), 0) as total
+        FROM fin_journal_entries je
+        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
+        WHERE coa.account_type = 'expense' AND coa.account_category = 'Cost of Sales'
+          AND je.entry_date BETWEEN ? AND ?
+      `, fromDate, toDate);
+      costOfSales = Number(cogsRows[0]?.total || 0);
+    } catch { /* */ }
+
+    // Salaries expense - match Dolibarr CoA codes: 4102 (Salaries), 4103 (Allowances), 42001 (Operational Salaries)
+    try {
+      const salRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(je.debit) - SUM(je.credit), 0) as total
+        FROM fin_journal_entries je
+        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
+        WHERE coa.account_type = 'expense'
+          AND (coa.account_code LIKE '4102%' OR coa.account_code LIKE '4103%' OR coa.account_code LIKE '42001%'
+               OR coa.account_code LIKE '4115%' OR coa.account_code LIKE '4118%'
+               OR coa.account_code LIKE '620%'
+               OR coa.account_name LIKE '%Salar%' OR coa.account_name LIKE '%Wage%'
+               OR coa.account_name LIKE '%Allowance%' OR coa.account_name LIKE '%Bonus%'
+               OR coa.account_name LIKE '%رواتب%' OR coa.account_name LIKE '%بدل%')
+          AND je.entry_date BETWEEN ? AND ?
+      `, fromDate, toDate);
+      salariesExpense = Number(salRows[0]?.total || 0);
+    } catch { /* */ }
+
+    // Total Assets (for ROA)
+    try {
+      const assetRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(je.debit) - SUM(je.credit), 0) as total
+        FROM fin_journal_entries je
+        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
+        WHERE coa.account_type = 'asset' AND je.entry_date <= ?
+      `, toDate);
+      totalAssets = Number(assetRows[0]?.total || 0);
+    } catch { /* */ }
+
+    // Total Equity (for ROE)
+    try {
+      const eqRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(je.credit) - SUM(je.debit), 0) as total
+        FROM fin_journal_entries je
+        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
+        WHERE coa.account_type = 'equity' AND je.entry_date <= ?
+      `, toDate);
+      totalEquity = Number(eqRows[0]?.total || 0);
+    } catch { /* */ }
+
+    // VAT Output (collected on sales)
     try {
       const vatOutRows: any[] = await prisma.$queryRawUnsafe(`
         SELECT COALESCE(SUM(cil.total_tva), 0) as total
@@ -619,7 +694,7 @@ export class FinancialReportService {
       vatOutputTotal = Number(vatOutRows[0]?.total || 0);
     } catch { /* */ }
 
-    // VAT Input (paid on purchases) - from supplier invoice lines
+    // VAT Input (paid on purchases)
     try {
       const vatInRows: any[] = await prisma.$queryRawUnsafe(`
         SELECT COALESCE(SUM(sil.total_tva), 0) as total
@@ -631,36 +706,36 @@ export class FinancialReportService {
       vatInputTotal = Number(vatInRows[0]?.total || 0);
     } catch { /* */ }
 
+    // AR: Per-invoice remaining = total_ttc - sum(payments for that invoice)
     try {
-      // Calculate AR: Sum of unpaid invoices minus payments received
-      const arInvoices: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(ci.total_ttc), 0) as total_invoiced
+      const arRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(ci.total_ttc - COALESCE(p.paid, 0)), 0) as total_ar
         FROM fin_customer_invoices ci
-        WHERE ci.is_active = 1 AND ci.is_paid = 0 AND ci.status >= 1
+        LEFT JOIN (
+          SELECT invoice_dolibarr_id, SUM(amount) as paid
+          FROM fin_payments WHERE payment_type = 'customer'
+          GROUP BY invoice_dolibarr_id
+        ) p ON p.invoice_dolibarr_id = ci.dolibarr_id
+        WHERE ci.is_active = 1 AND ci.status >= 1
+          AND (ci.is_paid = 0 OR ci.total_ttc > COALESCE(p.paid, 0) + 0.01)
       `);
-      const arPayments: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(fp.amount), 0) as total_paid
-        FROM fin_payments fp
-        WHERE fp.payment_type = 'customer'
-      `);
-      totalAR = Number(arInvoices[0]?.total_invoiced || 0) - Number(arPayments[0]?.total_paid || 0);
-      if (totalAR < 0) totalAR = 0;
+      totalAR = Math.max(0, Number(arRows[0]?.total_ar || 0));
     } catch { /* */ }
 
+    // AP: Per-invoice remaining = total_ttc - sum(payments for that invoice)
     try {
-      // Calculate AP: Sum of unpaid supplier invoices minus payments made
-      const apInvoices: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(si.total_ttc), 0) as total_invoiced
+      const apRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(si.total_ttc - COALESCE(p.paid, 0)), 0) as total_ap
         FROM fin_supplier_invoices si
-        WHERE si.is_active = 1 AND si.is_paid = 0 AND si.status >= 1
+        LEFT JOIN (
+          SELECT invoice_dolibarr_id, SUM(amount) as paid
+          FROM fin_payments WHERE payment_type = 'supplier'
+          GROUP BY invoice_dolibarr_id
+        ) p ON p.invoice_dolibarr_id = si.dolibarr_id
+        WHERE si.is_active = 1 AND si.status >= 1
+          AND (si.is_paid = 0 OR si.total_ttc > COALESCE(p.paid, 0) + 0.01)
       `);
-      const apPayments: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(fp.amount), 0) as total_paid
-        FROM fin_payments fp
-        WHERE fp.payment_type = 'supplier'
-      `);
-      totalAP = Number(apInvoices[0]?.total_invoiced || 0) - Number(apPayments[0]?.total_paid || 0);
-      if (totalAP < 0) totalAP = 0;
+      totalAP = Math.max(0, Number(apRows[0]?.total_ap || 0));
     } catch { /* */ }
 
     // Bank balances
@@ -671,11 +746,27 @@ export class FinancialReportService {
       );
     } catch { /* */ }
 
+    const netProfit = totalRevenue - totalExpenses;
+    const grossProfit = totalRevenue - costOfSales;
+    const grossMarginPct = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+    const netMarginPct = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+    const roaPct = totalAssets > 0 ? (netProfit / totalAssets) * 100 : 0;
+    const roePct = totalEquity > 0 ? (netProfit / totalEquity) * 100 : 0;
+
     return {
       period: { from: fromDate, to: toDate },
       totalRevenue,
       totalExpenses,
-      netProfit: totalRevenue - totalExpenses,
+      netProfit,
+      costOfSales,
+      grossProfit,
+      grossMarginPct,
+      netMarginPct,
+      roaPct,
+      roePct,
+      totalAssets,
+      totalEquity,
+      salariesExpense,
       vatOutputTotal,
       vatInputTotal,
       netVatPayable: vatOutputTotal - vatInputTotal,
@@ -691,5 +782,543 @@ export class FinancialReportService {
         isOpen: b.is_open === 1,
       })),
     };
+  }
+
+  // ============================================
+  // STATEMENT OF ACCOUNT (SOA)
+  // ============================================
+
+  async getStatementOfAccount(thirdpartyId: number, type: 'ar' | 'ap', fromDate: string, toDate: string): Promise<any> {
+    const table = type === 'ar' ? 'fin_customer_invoices' : 'fin_supplier_invoices';
+
+    const invoices: any[] = await prisma.$queryRawUnsafe(`
+      SELECT inv.dolibarr_id, inv.ref, inv.total_ht, inv.total_tva, inv.total_ttc,
+             inv.date_invoice, inv.date_due, inv.is_paid, inv.type,
+             COALESCE(dt.name, CONCAT('Third Party #', inv.socid)) as thirdparty_name
+      FROM ${table} inv
+      LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = inv.socid
+      WHERE inv.socid = ? AND inv.is_active = 1 AND inv.status >= 1
+        AND inv.date_invoice BETWEEN ? AND ?
+      ORDER BY inv.date_invoice ASC
+    `, thirdpartyId, fromDate, toDate);
+
+    const payments: any[] = await prisma.$queryRawUnsafe(`
+      SELECT fp.invoice_dolibarr_id, fp.amount, fp.payment_date, fp.payment_method, fp.dolibarr_ref
+      FROM fin_payments fp
+      WHERE fp.payment_type = ? AND fp.invoice_dolibarr_id IN (
+        SELECT dolibarr_id FROM ${table} WHERE socid = ? AND is_active = 1 AND status >= 1
+          AND date_invoice BETWEEN ? AND ?
+      )
+      ORDER BY fp.payment_date ASC
+    `, type === 'ar' ? 'customer' : 'supplier', thirdpartyId, fromDate, toDate);
+
+    const paymentsByInvoice = new Map<number, any[]>();
+    for (const p of payments) {
+      const id = Number(p.invoice_dolibarr_id);
+      if (!paymentsByInvoice.has(id)) paymentsByInvoice.set(id, []);
+      paymentsByInvoice.get(id)!.push({
+        amount: Number(p.amount),
+        date: p.payment_date ? new Date(p.payment_date).toISOString().slice(0, 10) : '',
+        method: p.payment_method,
+        ref: p.dolibarr_ref,
+      });
+    }
+
+    let runningBalance = 0;
+    const lines: any[] = [];
+    const thirdpartyName = invoices[0]?.thirdparty_name || `Third Party #${thirdpartyId}`;
+
+    for (const inv of invoices) {
+      const totalTtc = Number(inv.total_ttc);
+      const invPayments = paymentsByInvoice.get(Number(inv.dolibarr_id)) || [];
+      const totalPaid = invPayments.reduce((s: number, p: any) => s + p.amount, 0);
+
+      runningBalance += totalTtc;
+      lines.push({
+        date: inv.date_invoice ? new Date(inv.date_invoice).toISOString().slice(0, 10) : '',
+        ref: inv.ref,
+        type: inv.type === 2 ? 'Credit Note' : 'Invoice',
+        debit: type === 'ar' ? totalTtc : 0,
+        credit: type === 'ar' ? 0 : totalTtc,
+        balance: runningBalance,
+      });
+
+      for (const p of invPayments) {
+        runningBalance -= p.amount;
+        lines.push({
+          date: p.date,
+          ref: p.ref || `Payment for ${inv.ref}`,
+          type: 'Payment',
+          debit: type === 'ar' ? 0 : p.amount,
+          credit: type === 'ar' ? p.amount : 0,
+          balance: runningBalance,
+        });
+      }
+    }
+
+    const totalInvoiced = invoices.reduce((s, inv) => s + Number(inv.total_ttc), 0);
+    const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
+
+    return {
+      thirdpartyId,
+      thirdpartyName,
+      type,
+      fromDate,
+      toDate,
+      lines,
+      totalInvoiced,
+      totalPaid,
+      balance: totalInvoiced - totalPaid,
+    };
+  }
+
+  // ============================================
+  // MONTHLY CASH IN / CASH OUT
+  // ============================================
+
+  async getMonthlyCashFlow(year: number): Promise<any> {
+    const months: any[] = [];
+
+    for (let m = 1; m <= 12; m++) {
+      const monthStart = `${year}-${String(m).padStart(2, '0')}-01`;
+      const monthEnd = m === 12
+        ? `${year}-12-31`
+        : `${year}-${String(m + 1).padStart(2, '0')}-01`;
+
+      let cashIn = 0, cashOut = 0;
+
+      try {
+        const inRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(fp.amount), 0) as total
+          FROM fin_payments fp
+          WHERE fp.payment_type = 'customer'
+            AND fp.payment_date >= ? AND fp.payment_date < ?
+        `, monthStart, monthEnd);
+        cashIn = Number(inRows[0]?.total || 0);
+      } catch { /* */ }
+
+      try {
+        const outRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(fp.amount), 0) as total
+          FROM fin_payments fp
+          WHERE fp.payment_type = 'supplier'
+            AND fp.payment_date >= ? AND fp.payment_date < ?
+        `, monthStart, monthEnd);
+        cashOut = Number(outRows[0]?.total || 0);
+      } catch { /* */ }
+
+      // Fallback 1: derive from journal entries (supplier payment entries credit AP account)
+      if (cashOut === 0) {
+        try {
+          const jeRows: any[] = await prisma.$queryRawUnsafe(`
+            SELECT COALESCE(SUM(je.debit), 0) as total
+            FROM fin_journal_entries je
+            WHERE je.source_type = 'supplier_payment'
+              AND je.journal_code = 'BQ'
+              AND je.entry_date >= ? AND je.entry_date < ?
+          `, monthStart, monthEnd);
+          cashOut = Number(jeRows[0]?.total || 0);
+        } catch { /* */ }
+      }
+
+      // Fallback 2: derive from paid supplier invoices by invoice date
+      if (cashOut === 0) {
+        try {
+          const fallbackRows: any[] = await prisma.$queryRawUnsafe(`
+            SELECT COALESCE(SUM(si.total_ttc), 0) as total
+            FROM fin_supplier_invoices si
+            WHERE si.is_active = 1 AND si.status >= 1 AND si.is_paid = 1
+              AND si.date_invoice >= ? AND si.date_invoice < ?
+          `, monthStart, monthEnd);
+          cashOut = Number(fallbackRows[0]?.total || 0);
+        } catch { /* */ }
+      }
+
+      months.push({
+        month: m,
+        monthName: new Date(year, m - 1, 1).toLocaleString('en', { month: 'short' }),
+        cashIn,
+        cashOut,
+        net: cashIn - cashOut,
+      });
+    }
+
+    const totalCashIn = months.reduce((s, m) => s + m.cashIn, 0);
+    const totalCashOut = months.reduce((s, m) => s + m.cashOut, 0);
+
+    return {
+      year,
+      months,
+      totalCashIn,
+      totalCashOut,
+      totalNet: totalCashIn - totalCashOut,
+    };
+  }
+
+  // ============================================
+  // CASH FLOW FORECAST (13-week rolling)
+  // ============================================
+
+  async getCashFlowForecast(): Promise<any> {
+    const today = new Date();
+    const weeks: any[] = [];
+
+    // Get current bank balance as starting point
+    let openingBalance = 0;
+    try {
+      const bankRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT COALESCE(SUM(balance), 0) as total FROM fin_bank_accounts WHERE is_open = 1`
+      );
+      openingBalance = Number(bankRows[0]?.total || 0);
+    } catch { /* */ }
+
+    let runningBalance = openingBalance;
+
+    for (let w = 0; w < 13; w++) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() + (w * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const wsStr = weekStart.toISOString().slice(0, 10);
+      const weStr = weekEnd.toISOString().slice(0, 10);
+
+      // Expected collections: customer invoices due this week
+      let expectedCollections = 0;
+      try {
+        const collRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(ci.total_ttc - COALESCE(p.paid, 0)), 0) as total
+          FROM fin_customer_invoices ci
+          LEFT JOIN (
+            SELECT invoice_dolibarr_id, SUM(amount) as paid
+            FROM fin_payments WHERE payment_type = 'customer'
+            GROUP BY invoice_dolibarr_id
+          ) p ON p.invoice_dolibarr_id = ci.dolibarr_id
+          WHERE ci.is_active = 1 AND ci.status >= 1 AND ci.is_paid = 0
+            AND ci.date_due BETWEEN ? AND ?
+        `, wsStr, weStr);
+        expectedCollections = Number(collRows[0]?.total || 0);
+      } catch { /* */ }
+
+      // Expected payments: supplier invoices due this week
+      let expectedPayments = 0;
+      try {
+        const payRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(si.total_ttc - COALESCE(p.paid, 0)), 0) as total
+          FROM fin_supplier_invoices si
+          LEFT JOIN (
+            SELECT invoice_dolibarr_id, SUM(amount) as paid
+            FROM fin_payments WHERE payment_type = 'supplier'
+            GROUP BY invoice_dolibarr_id
+          ) p ON p.invoice_dolibarr_id = si.dolibarr_id
+          WHERE si.is_active = 1 AND si.status >= 1 AND si.is_paid = 0
+            AND si.date_due BETWEEN ? AND ?
+        `, wsStr, weStr);
+        expectedPayments = Number(payRows[0]?.total || 0);
+      } catch { /* */ }
+
+      const netFlow = expectedCollections - expectedPayments;
+      runningBalance += netFlow;
+
+      weeks.push({
+        week: w + 1,
+        weekStart: wsStr,
+        weekEnd: weStr,
+        expectedCollections,
+        expectedPayments,
+        netFlow,
+        projectedBalance: runningBalance,
+      });
+    }
+
+    return {
+      generatedAt: today.toISOString(),
+      openingBalance,
+      weeks,
+    };
+  }
+
+  // ============================================
+  // PROJECT PROFITABILITY (P&L by project)
+  // ============================================
+
+  async getProjectProfitability(): Promise<any> {
+    // Get all projects with their financial data from invoices
+    const projects: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        dt.dolibarr_id as thirdparty_id,
+        dt.name as client_name,
+        COALESCE(SUM(ci.total_ht), 0) as total_invoiced_ht,
+        COALESCE(SUM(ci.total_ttc), 0) as total_invoiced_ttc,
+        COUNT(DISTINCT ci.dolibarr_id) as invoice_count,
+        COALESCE(SUM(CASE WHEN ci.is_paid = 1 THEN ci.total_ttc ELSE 0 END), 0) as total_paid_invoices,
+        COALESCE(p_sum.total_collected, 0) as total_collected
+      FROM fin_customer_invoices ci
+      JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = ci.socid
+      LEFT JOIN (
+        SELECT ci2.socid,
+               SUM(fp.amount) as total_collected
+        FROM fin_payments fp
+        JOIN fin_customer_invoices ci2 ON ci2.dolibarr_id = fp.invoice_dolibarr_id
+        WHERE fp.payment_type = 'customer'
+        GROUP BY ci2.socid
+      ) p_sum ON p_sum.socid = ci.socid
+      WHERE ci.is_active = 1 AND ci.status >= 1
+      GROUP BY dt.dolibarr_id, dt.name, p_sum.total_collected
+      ORDER BY total_invoiced_ttc DESC
+    `);
+
+    // Get supplier costs per third party (if linked)
+    const supplierCosts: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        si.socid as supplier_id,
+        dt.name as supplier_name,
+        COALESCE(SUM(si.total_ht), 0) as total_cost_ht,
+        COALESCE(SUM(si.total_ttc), 0) as total_cost_ttc
+      FROM fin_supplier_invoices si
+      JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
+      WHERE si.is_active = 1 AND si.status >= 1
+      GROUP BY si.socid, dt.name
+      ORDER BY total_cost_ttc DESC
+    `);
+
+    const totalInvoiced = projects.reduce((s, p) => s + Number(p.total_invoiced_ttc), 0);
+    const totalCollected = projects.reduce((s, p) => s + Number(p.total_collected), 0);
+    const totalCosts = supplierCosts.reduce((s, c) => s + Number(c.total_cost_ttc), 0);
+
+    return {
+      projects: projects.map((p: any) => ({
+        clientId: Number(p.thirdparty_id),
+        clientName: p.client_name,
+        invoicedHT: Number(p.total_invoiced_ht),
+        invoicedTTC: Number(p.total_invoiced_ttc),
+        invoiceCount: Number(p.invoice_count),
+        collected: Number(p.total_collected),
+        collectionRate: Number(p.total_invoiced_ttc) > 0
+          ? (Number(p.total_collected) / Number(p.total_invoiced_ttc)) * 100 : 0,
+        outstanding: Number(p.total_invoiced_ttc) - Number(p.total_collected),
+      })),
+      supplierCosts: supplierCosts.map((c: any) => ({
+        supplierId: Number(c.supplier_id),
+        supplierName: c.supplier_name,
+        costHT: Number(c.total_cost_ht),
+        costTTC: Number(c.total_cost_ttc),
+      })),
+      summary: {
+        totalInvoiced,
+        totalCollected,
+        totalCosts,
+        grossMargin: totalInvoiced - totalCosts,
+        grossMarginPct: totalInvoiced > 0 ? ((totalInvoiced - totalCosts) / totalInvoiced) * 100 : 0,
+        collectionRate: totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0,
+      },
+    };
+  }
+
+  // ============================================
+  // WIP (Work-In-Progress) Report
+  // ============================================
+
+  async getWIPReport(): Promise<any> {
+    // WIP = Invoiced but not yet collected, or costs incurred but not yet invoiced
+    const arAging: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        dt.name as client_name,
+        ci.ref,
+        ci.date_invoice,
+        ci.date_due,
+        ci.total_ttc,
+        COALESCE(p.paid, 0) as amount_paid,
+        (ci.total_ttc - COALESCE(p.paid, 0)) as wip_amount,
+        DATEDIFF(CURDATE(), ci.date_invoice) as days_since_invoice
+      FROM fin_customer_invoices ci
+      LEFT JOIN (
+        SELECT invoice_dolibarr_id, SUM(amount) as paid
+        FROM fin_payments WHERE payment_type = 'customer'
+        GROUP BY invoice_dolibarr_id
+      ) p ON p.invoice_dolibarr_id = ci.dolibarr_id
+      LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = ci.socid
+      WHERE ci.is_active = 1 AND ci.status >= 1
+        AND (ci.total_ttc - COALESCE(p.paid, 0)) > 0.01
+      ORDER BY ci.date_invoice ASC
+    `);
+
+    const apWip: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        dt.name as supplier_name,
+        si.ref,
+        si.date_invoice,
+        si.date_due,
+        si.total_ttc,
+        COALESCE(p.paid, 0) as amount_paid,
+        (si.total_ttc - COALESCE(p.paid, 0)) as wip_amount,
+        DATEDIFF(CURDATE(), si.date_invoice) as days_since_invoice
+      FROM fin_supplier_invoices si
+      LEFT JOIN (
+        SELECT invoice_dolibarr_id, SUM(amount) as paid
+        FROM fin_payments WHERE payment_type = 'supplier'
+        GROUP BY invoice_dolibarr_id
+      ) p ON p.invoice_dolibarr_id = si.dolibarr_id
+      LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
+      WHERE si.is_active = 1 AND si.status >= 1
+        AND (si.total_ttc - COALESCE(p.paid, 0)) > 0.01
+      ORDER BY si.date_invoice ASC
+    `);
+
+    const totalARWip = arAging.reduce((s, r) => s + Number(r.wip_amount), 0);
+    const totalAPWip = apWip.reduce((s, r) => s + Number(r.wip_amount), 0);
+
+    return {
+      receivables: arAging.map((r: any) => ({
+        clientName: r.client_name || 'Unknown',
+        ref: r.ref,
+        dateInvoice: r.date_invoice ? new Date(r.date_invoice).toISOString().slice(0, 10) : '',
+        dateDue: r.date_due ? new Date(r.date_due).toISOString().slice(0, 10) : '',
+        totalAmount: Number(r.total_ttc),
+        amountPaid: Number(r.amount_paid),
+        wipAmount: Number(r.wip_amount),
+        daysSinceInvoice: Number(r.days_since_invoice),
+      })),
+      payables: apWip.map((r: any) => ({
+        supplierName: r.supplier_name || 'Unknown',
+        ref: r.ref,
+        dateInvoice: r.date_invoice ? new Date(r.date_invoice).toISOString().slice(0, 10) : '',
+        dateDue: r.date_due ? new Date(r.date_due).toISOString().slice(0, 10) : '',
+        totalAmount: Number(r.total_ttc),
+        amountPaid: Number(r.amount_paid),
+        wipAmount: Number(r.wip_amount),
+        daysSinceInvoice: Number(r.days_since_invoice),
+      })),
+      totalARWip,
+      totalAPWip,
+      netWip: totalARWip - totalAPWip,
+    };
+  }
+
+  // ============================================
+  // PROJECTS FINANCIAL DASHBOARD
+  // ============================================
+
+  async getProjectsFinancialDashboard(): Promise<any> {
+    const projects: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        dt.dolibarr_id as client_id,
+        dt.name as client_name,
+        COUNT(DISTINCT ci.dolibarr_id) as total_invoices,
+        COALESCE(SUM(ci.total_ht), 0) as total_invoiced_ht,
+        COALESCE(SUM(ci.total_ttc), 0) as total_invoiced_ttc,
+        COALESCE(SUM(ci.total_tva), 0) as total_vat,
+        COALESCE(coll.total_collected, 0) as total_collected,
+        COALESCE(SUM(CASE WHEN ci.is_paid = 0 THEN ci.total_ttc ELSE 0 END), 0) as total_outstanding
+      FROM fin_customer_invoices ci
+      JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = ci.socid
+      LEFT JOIN (
+        SELECT ci2.socid, SUM(fp.amount) as total_collected
+        FROM fin_payments fp
+        JOIN fin_customer_invoices ci2 ON ci2.dolibarr_id = fp.invoice_dolibarr_id
+        WHERE fp.payment_type = 'customer'
+        GROUP BY ci2.socid
+      ) coll ON coll.socid = ci.socid
+      WHERE ci.is_active = 1 AND ci.status >= 1
+      GROUP BY dt.dolibarr_id, dt.name, coll.total_collected
+      ORDER BY total_invoiced_ttc DESC
+    `);
+
+    // Total supplier costs
+    let totalSupplierCosts = 0;
+    try {
+      const costRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(total_ht), 0) as total
+        FROM fin_supplier_invoices WHERE is_active = 1 AND status >= 1
+      `);
+      totalSupplierCosts = Number(costRows[0]?.total || 0);
+    } catch { /* */ }
+
+    const totalProjects = projects.length;
+    const totalInvoiced = projects.reduce((s, p) => s + Number(p.total_invoiced_ttc), 0);
+    const totalCollected = projects.reduce((s, p) => s + Number(p.total_collected), 0);
+    const totalOutstanding = projects.reduce((s, p) => s + Number(p.total_outstanding), 0);
+    const grossMargin = totalInvoiced - totalSupplierCosts;
+
+    return {
+      totalProjects,
+      totalInvoiced,
+      totalCollected,
+      totalOutstanding,
+      totalSupplierCosts,
+      grossMargin,
+      grossMarginPct: totalInvoiced > 0 ? (grossMargin / totalInvoiced) * 100 : 0,
+      collectionRate: totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0,
+      projects: projects.map((p: any) => ({
+        clientId: Number(p.client_id),
+        clientName: p.client_name,
+        totalInvoices: Number(p.total_invoices),
+        invoicedHT: Number(p.total_invoiced_ht),
+        invoicedTTC: Number(p.total_invoiced_ttc),
+        vat: Number(p.total_vat),
+        collected: Number(p.total_collected),
+        outstanding: Number(p.total_outstanding),
+        collectionRate: Number(p.total_invoiced_ttc) > 0
+          ? (Number(p.total_collected) / Number(p.total_invoiced_ttc)) * 100 : 0,
+      })),
+    };
+  }
+
+  // ============================================
+  // CHART OF ACCOUNTS - HIERARCHY VIEW
+  // ============================================
+
+  async getCoAHierarchy(): Promise<any> {
+    const accounts: any[] = await prisma.$queryRawUnsafe(`
+      SELECT coa.account_code, coa.account_name, coa.account_name_ar,
+             coa.account_type, coa.account_category, coa.parent_code,
+             coa.is_active, coa.display_order,
+             COALESCE(SUM(je.debit), 0) as total_debit,
+             COALESCE(SUM(je.credit), 0) as total_credit
+      FROM fin_chart_of_accounts coa
+      LEFT JOIN fin_journal_entries je ON je.account_code = coa.account_code
+      WHERE coa.is_active = 1
+      GROUP BY coa.account_code, coa.account_name, coa.account_name_ar,
+               coa.account_type, coa.account_category, coa.parent_code,
+               coa.is_active, coa.display_order
+      ORDER BY coa.display_order, coa.account_code
+    `);
+
+    // Build hierarchy by account_type and account_category
+    const typeGroups: Record<string, any> = {};
+
+    for (const acct of accounts) {
+      const type = acct.account_type;
+      const category = acct.account_category || 'Other';
+      const debit = Number(acct.total_debit);
+      const credit = Number(acct.total_credit);
+      const balance = ['asset', 'expense'].includes(type) ? debit - credit : credit - debit;
+
+      if (!typeGroups[type]) {
+        typeGroups[type] = { type, categories: {}, totalBalance: 0 };
+      }
+      if (!typeGroups[type].categories[category]) {
+        typeGroups[type].categories[category] = { category, accounts: [], subtotal: 0 };
+      }
+
+      typeGroups[type].categories[category].accounts.push({
+        accountCode: acct.account_code,
+        accountName: acct.account_name,
+        accountNameAr: acct.account_name_ar,
+        parentCode: acct.parent_code,
+        balance,
+      });
+      typeGroups[type].categories[category].subtotal += balance;
+      typeGroups[type].totalBalance += balance;
+    }
+
+    // Convert to array
+    const hierarchy = Object.values(typeGroups).map((tg: any) => ({
+      type: tg.type,
+      totalBalance: tg.totalBalance,
+      categories: Object.values(tg.categories),
+    }));
+
+    return { hierarchy };
   }
 }

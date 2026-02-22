@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Clock, Printer, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Clock, Printer, ChevronDown, ChevronRight, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -41,9 +42,14 @@ export default function AgingReportPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Aging Report</h1>
-          <p className="text-muted-foreground mt-1">Accounts Receivable / Payable aging by due date</p>
+        <div className="flex items-center gap-4">
+          <Link href="/financial">
+            <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Aging Report</h1>
+            <p className="text-muted-foreground mt-1">Accounts Receivable / Payable aging by due date</p>
+          </div>
         </div>
         <Button variant="outline" onClick={() => window.print()} className="print:hidden">
           <Printer className="h-4 w-4 mr-2" /> Print
@@ -99,8 +105,8 @@ export default function AgingReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {report.rows.map((row: any) => (
-                    <React.Fragment key={row.thirdpartyId}>
+                  {report.rows.map((row: any, idx: number) => (
+                    <React.Fragment key={`tp-${row.thirdpartyId}-${idx}`}>
                       <tr className="border-b hover:bg-muted/30 cursor-pointer"
                         onClick={() => toggleExpand(row.thirdpartyId)}>
                         <td className="p-3 font-medium flex items-center gap-1">
@@ -118,12 +124,15 @@ export default function AgingReportPage() {
                         <td className="p-3 text-right font-mono font-semibold">{fmt(row.buckets.total)}</td>
                       </tr>
                       {expanded.has(row.thirdpartyId) && row.invoices.map((inv: any, j: number) => (
-                        <tr key={`${row.thirdpartyId}-${j}`} className="border-b bg-muted/20">
+                        <tr key={`inv-${row.thirdpartyId}-${j}-${inv.ref}`} className="border-b bg-muted/20">
                           <td className="p-2 pl-10 text-xs" colSpan={2}>
                             <span className="font-mono font-semibold">{inv.ref}</span>
                             <span className="text-muted-foreground ml-2">
                               Inv: {inv.dateInvoice} | Due: {inv.dateDue} | {inv.daysOverdue}d overdue
                             </span>
+                            {inv.paymentTermsLabel && (
+                              <Badge variant="secondary" className="ml-2 text-xs">{inv.paymentTermsLabel}</Badge>
+                            )}
                           </td>
                           <td className="p-2 text-right text-xs font-mono">{fmt(inv.totalAmount)}</td>
                           <td className="p-2 text-right text-xs font-mono text-green-600">{fmt(inv.amountPaid)}</td>

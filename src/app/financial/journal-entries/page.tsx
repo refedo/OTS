@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Loader2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, FileText, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 function fmt(n: number): string {
   if (!n || n === 0) return '';
@@ -68,9 +69,14 @@ export default function JournalEntriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Journal Entries</h1>
-        <p className="text-muted-foreground mt-1">Browse auto-generated double-entry journal entries</p>
+      <div className="flex items-center gap-4">
+        <Link href="/financial">
+          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Journal Entries</h1>
+          <p className="text-muted-foreground mt-1">Browse auto-generated double-entry journal entries</p>
+        </div>
       </div>
 
       {/* Filters */}

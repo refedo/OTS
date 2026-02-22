@@ -676,6 +676,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         taskInputDate: new Date().toISOString().split('T')[0],
         dueDate: '',
         isPrivate: false,
+        remark: '',
+        revision: '',
       });
       setShowQuickAdd(false);
       // Don't use router.refresh() as it causes redirect
@@ -2367,20 +2369,58 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => handleToggleApproval(task.id, !!task.approvedAt)}
-                        disabled={task.status !== 'Completed' && !task.approvedAt}
-                        title={task.status !== 'Completed' && !task.approvedAt ? 'Task must be completed before approval' : (task.approvedAt ? 'Revoke approval' : 'Approve task')}
-                      >
-                        {task.approvedAt ? (
-                          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                      <div className="flex items-center gap-0.5">
+                        {task.rejectedAt ? (
+                          <div className="flex items-center gap-1">
+                            <ShieldX className="h-4 w-4 text-red-600" />
+                            <span className="text-[10px] text-red-600">Rejected</span>
+                          </div>
+                        ) : task.approvedAt ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleToggleApproval(task.id, true)}
+                            title="Revoke approval"
+                          >
+                            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                          </Button>
                         ) : (
-                          <Shield className={cn("h-4 w-4", task.status === 'Completed' ? "text-muted-foreground" : "text-muted-foreground/40")} />
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => handleToggleApproval(task.id, false)}
+                              disabled={task.status !== 'Completed'}
+                              title={task.status !== 'Completed' ? 'Task must be completed before approval' : 'Approve task'}
+                            >
+                              <Shield className={cn("h-4 w-4", task.status === 'Completed' ? "text-muted-foreground" : "text-muted-foreground/40")} />
+                            </Button>
+                            {task.status === 'Completed' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleOpenRejectionDialog(task)}
+                                title="Reject task"
+                              >
+                                <XCircle className="h-4 w-4 text-red-500 hover:text-red-600" />
+                              </Button>
+                            )}
+                          </>
                         )}
-                      </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {task.createdBy?.name || '-'}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {task.status === 'Waiting for Approval' && task.completedAt
+                        ? formatDate(task.completedAt)
+                        : task.approvedAt
+                          ? formatDate(task.approvedAt)
+                          : '-'}
                     </TableCell>
                     <TableCell>
                       {isEditing ? (
@@ -2484,6 +2524,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                         <TableHead>Status</TableHead>
                         <TableHead>Priority</TableHead>
                         <TableHead>Approval</TableHead>
+                        <TableHead>Requester</TableHead>
+                        <TableHead>Release Date</TableHead>
                         <TableHead>Remark</TableHead>
                         <TableHead>Revision</TableHead>
                         <TableHead>Actions</TableHead>
@@ -2517,6 +2559,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                               </TableCell>
                               <TableCell></TableCell>
                               <TableCell></TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
                             </TableRow>
 
                             {isProjectExpanded && Array.from(buildings.entries()).map(([buildingId, { building, tasks: bTasks }]) => {
@@ -2543,6 +2587,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                     <TableCell>
                                       <span className="text-xs text-muted-foreground">{bCompleted}/{bTasks.length}</span>
                                     </TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
                                     <TableCell></TableCell>
                                     <TableCell></TableCell>
                                   </TableRow>
@@ -2589,6 +2635,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
                                           </TableRow>
                                           {isActivityExpanded && actTasks.map(task => renderTaskRow(task, 4))}
                                         </React.Fragment>
@@ -2619,6 +2667,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                             <TableCell></TableCell>
                             <TableCell></TableCell>
                             <TableCell></TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
                           </TableRow>
                           {noProjectTasks.map(task => renderTaskRow(task, 1))}
                         </>
@@ -2626,7 +2676,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
                       {filteredTasks.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                             No tasks found matching your filters
                           </TableCell>
                         </TableRow>
