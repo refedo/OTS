@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
-import { FinancialSyncService } from '@/lib/dolibarr/financial-sync-service';
+import { FinancialSyncService, isSyncRunning } from '@/lib/dolibarr/financial-sync-service';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 600; // 10 minutes for full sync
@@ -15,6 +15,14 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
+    // Check if a sync is already running
+    if (isSyncRunning()) {
+      return NextResponse.json(
+        { error: 'A sync is already in progress. Please wait for it to complete.' },
+        { status: 409 }
+      );
+    }
+
     const service = new FinancialSyncService();
     const triggeredBy = session.name || 'manual';
 

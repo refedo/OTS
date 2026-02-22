@@ -89,6 +89,36 @@ function formatDateTime(date: Date | null): string | null {
 }
 
 // ============================================
+// SYNC LOCK (prevents concurrent syncs)
+// ============================================
+
+let _isSyncing = false;
+let _syncStartedAt: number | null = null;
+const SYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes max
+
+function acquireSyncLock(): boolean {
+  // If a sync is running but has been going for too long, force release
+  if (_isSyncing && _syncStartedAt && (Date.now() - _syncStartedAt > SYNC_TIMEOUT_MS)) {
+    console.warn('[FinSync] Previous sync timed out after 10 minutes — force releasing lock');
+    _isSyncing = false;
+    _syncStartedAt = null;
+  }
+  if (_isSyncing) return false;
+  _isSyncing = true;
+  _syncStartedAt = Date.now();
+  return true;
+}
+
+function releaseSyncLock(): void {
+  _isSyncing = false;
+  _syncStartedAt = null;
+}
+
+export function isSyncRunning(): boolean {
+  return _isSyncing;
+}
+
+// ============================================
 // FINANCIAL SYNC SERVICE
 // ============================================
 
@@ -801,40 +831,49 @@ export class FinancialSyncService {
   // ============================================
 
   async runPartialSync(entities: string[], triggeredBy: string = 'manual'): Promise<FullFinSyncResult> {
+    if (!acquireSyncLock()) {
+      console.warn(`[FinSync] Another sync is already running — skipping partial sync for: ${entities.join(', ')}`);
+      return { totalDurationMs: 0 } as FullFinSyncResult;
+    }
+
     const startTime = Date.now();
     const result: FullFinSyncResult = { totalDurationMs: 0 };
 
     console.log(`[FinSync] Starting partial sync for: ${entities.join(', ')}`);
 
-    for (const entity of entities) {
-      switch (entity) {
-        case 'bank_accounts':
-          result.bankAccounts = await this.syncBankAccounts(triggeredBy);
-          console.log(`[FinSync] Bank accounts: ${result.bankAccounts.created} created, ${result.bankAccounts.updated} updated`);
-          break;
-        case 'customer_invoices': {
-          const { invoiceResult, paymentResult } = await this.syncCustomerInvoices(triggeredBy);
-          result.customerInvoices = invoiceResult;
-          result.customerPayments = paymentResult;
-          console.log(`[FinSync] Customer invoices: ${invoiceResult.created} created, ${invoiceResult.updated} updated`);
-          console.log(`[FinSync] Customer payments: ${paymentResult.created} created`);
-          break;
+    try {
+      for (const entity of entities) {
+        switch (entity) {
+          case 'bank_accounts':
+            result.bankAccounts = await this.syncBankAccounts(triggeredBy);
+            console.log(`[FinSync] Bank accounts: ${result.bankAccounts.created} created, ${result.bankAccounts.updated} updated`);
+            break;
+          case 'customer_invoices': {
+            const { invoiceResult, paymentResult } = await this.syncCustomerInvoices(triggeredBy);
+            result.customerInvoices = invoiceResult;
+            result.customerPayments = paymentResult;
+            console.log(`[FinSync] Customer invoices: ${invoiceResult.created} created, ${invoiceResult.updated} updated`);
+            console.log(`[FinSync] Customer payments: ${paymentResult.created} created`);
+            break;
+          }
+          case 'supplier_invoices': {
+            const { invoiceResult, paymentResult } = await this.syncSupplierInvoices(triggeredBy);
+            result.supplierInvoices = invoiceResult;
+            result.supplierPayments = paymentResult;
+            console.log(`[FinSync] Supplier invoices: ${invoiceResult.created} created, ${invoiceResult.updated} updated`);
+            console.log(`[FinSync] Supplier payments: ${paymentResult.created} created`);
+            break;
+          }
+          case 'journal_entries':
+            result.journalEntries = await this.generateJournalEntries(triggeredBy);
+            console.log(`[FinSync] Journal entries: ${result.journalEntries.created} generated`);
+            break;
+          default:
+            console.warn(`[FinSync] Unknown entity type: ${entity}`);
         }
-        case 'supplier_invoices': {
-          const { invoiceResult, paymentResult } = await this.syncSupplierInvoices(triggeredBy);
-          result.supplierInvoices = invoiceResult;
-          result.supplierPayments = paymentResult;
-          console.log(`[FinSync] Supplier invoices: ${invoiceResult.created} created, ${invoiceResult.updated} updated`);
-          console.log(`[FinSync] Supplier payments: ${paymentResult.created} created`);
-          break;
-        }
-        case 'journal_entries':
-          result.journalEntries = await this.generateJournalEntries(triggeredBy);
-          console.log(`[FinSync] Journal entries: ${result.journalEntries.created} generated`);
-          break;
-        default:
-          console.warn(`[FinSync] Unknown entity type: ${entity}`);
       }
+    } finally {
+      releaseSyncLock();
     }
 
     result.totalDurationMs = Date.now() - startTime;
@@ -847,6 +886,11 @@ export class FinancialSyncService {
   // ============================================
 
   async runFullSync(triggeredBy: string = 'manual'): Promise<FullFinSyncResult> {
+    if (!acquireSyncLock()) {
+      console.warn('[FinSync] Another sync is already running — skipping full sync');
+      return { totalDurationMs: 0 } as FullFinSyncResult;
+    }
+
     const startTime = Date.now();
     console.log('[FinSync] Starting full financial sync...');
 
@@ -857,45 +901,49 @@ export class FinancialSyncService {
     let supplierPayments: FinSyncResult | undefined;
     let journalEntries: FinSyncResult | undefined;
 
-    // Each step is wrapped in try/catch so a failure in one step
-    // doesn't prevent subsequent steps (especially journal entry generation)
     try {
-      bankAccounts = await this.syncBankAccounts(triggeredBy);
-      console.log(`[FinSync] Bank accounts: ${bankAccounts.created} created, ${bankAccounts.updated} updated`);
-    } catch (e: any) {
-      console.error('[FinSync] Bank accounts sync failed:', e.message);
-    }
+      // Each step is wrapped in try/catch so a failure in one step
+      // doesn't prevent subsequent steps (especially journal entry generation)
+      try {
+        bankAccounts = await this.syncBankAccounts(triggeredBy);
+        console.log(`[FinSync] Bank accounts: ${bankAccounts.created} created, ${bankAccounts.updated} updated`);
+      } catch (e: any) {
+        console.error('[FinSync] Bank accounts sync failed:', e.message);
+      }
 
-    try {
-      const custResult = await this.syncCustomerInvoices(triggeredBy);
-      customerInvoices = custResult.invoiceResult;
-      customerPayments = custResult.paymentResult;
-      console.log(`[FinSync] Customer invoices: ${customerInvoices.created} created, ${customerInvoices.updated} updated`);
-      console.log(`[FinSync] Customer payments: ${customerPayments.created} created`);
-    } catch (e: any) {
-      console.error('[FinSync] Customer invoices sync failed:', e.message);
-    }
+      try {
+        const custResult = await this.syncCustomerInvoices(triggeredBy);
+        customerInvoices = custResult.invoiceResult;
+        customerPayments = custResult.paymentResult;
+        console.log(`[FinSync] Customer invoices: ${customerInvoices.created} created, ${customerInvoices.updated} updated`);
+        console.log(`[FinSync] Customer payments: ${customerPayments.created} created`);
+      } catch (e: any) {
+        console.error('[FinSync] Customer invoices sync failed:', e.message);
+      }
 
-    try {
-      const suppResult = await this.syncSupplierInvoices(triggeredBy);
-      supplierInvoices = suppResult.invoiceResult;
-      supplierPayments = suppResult.paymentResult;
-      console.log(`[FinSync] Supplier invoices: ${supplierInvoices.created} created, ${supplierInvoices.updated} updated`);
-      console.log(`[FinSync] Supplier payments: ${supplierPayments.created} created`);
-    } catch (e: any) {
-      console.error('[FinSync] Supplier invoices sync failed:', e.message);
-    }
+      try {
+        const suppResult = await this.syncSupplierInvoices(triggeredBy);
+        supplierInvoices = suppResult.invoiceResult;
+        supplierPayments = suppResult.paymentResult;
+        console.log(`[FinSync] Supplier invoices: ${supplierInvoices.created} created, ${supplierInvoices.updated} updated`);
+        console.log(`[FinSync] Supplier payments: ${supplierPayments.created} created`);
+      } catch (e: any) {
+        console.error('[FinSync] Supplier invoices sync failed:', e.message);
+      }
 
-    // Always attempt journal entry generation even if some syncs failed
-    // This ensures we generate entries from whatever data is available
-    try {
-      journalEntries = await this.generateJournalEntries(triggeredBy);
-      console.log(`[FinSync] Journal entries: ${journalEntries.created} generated`);
-    } catch (e: any) {
-      console.error('[FinSync] Journal entry generation failed:', e.message);
-    }
+      // Always attempt journal entry generation even if some syncs failed
+      // This ensures we generate entries from whatever data is available
+      try {
+        journalEntries = await this.generateJournalEntries(triggeredBy);
+        console.log(`[FinSync] Journal entries: ${journalEntries.created} generated`);
+      } catch (e: any) {
+        console.error('[FinSync] Journal entry generation failed:', e.message);
+      }
 
-    await this.setConfig('last_full_sync', new Date().toISOString());
+      await this.setConfig('last_full_sync', new Date().toISOString());
+    } finally {
+      releaseSyncLock();
+    }
 
     const totalDurationMs = Date.now() - startTime;
     console.log(`[FinSync] Full sync completed in ${totalDurationMs}ms`);

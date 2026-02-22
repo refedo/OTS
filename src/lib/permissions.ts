@@ -250,6 +250,24 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'financial',
+    name: 'Financial Module',
+    permissions: [
+      { id: 'financial.view', name: 'View Financial Reports', description: 'Access financial dashboard and reports', category: 'financial' },
+      { id: 'financial.manage', name: 'Manage Financial Data', description: 'Manage chart of accounts and financial settings', category: 'financial' },
+      { id: 'financial.sync', name: 'Run Financial Sync', description: 'Trigger Dolibarr financial data sync', category: 'financial' },
+      { id: 'financial.export', name: 'Export Financial Reports', description: 'Export financial reports to files', category: 'financial' },
+    ],
+  },
+  {
+    id: 'dolibarr',
+    name: 'Dolibarr Integration',
+    permissions: [
+      { id: 'dolibarr.view', name: 'View Dolibarr Dashboard', description: 'Access Dolibarr integration dashboard', category: 'dolibarr' },
+      { id: 'dolibarr.sync', name: 'Run Dolibarr Sync', description: 'Trigger Dolibarr data synchronization', category: 'dolibarr' },
+    ],
+  },
+  {
     id: 'settings',
     name: 'System Settings',
     permissions: [
@@ -290,7 +308,7 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 
 // Default role permissions (for seeding)
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-  Admin: ALL_PERMISSIONS.map(p => p.id), // Admin has all permissions
+  Admin: ALL_PERMISSIONS.map(p => p.id), // Admin has all permissions (includes financial, dolibarr)
   Manager: [
     // User Management
     'users.view',
@@ -398,6 +416,14 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'timeline.operations',
     'timeline.engineering',
     'timeline.events',
+    // Financial Module
+    'financial.view',
+    'financial.manage',
+    'financial.sync',
+    'financial.export',
+    // Dolibarr
+    'dolibarr.view',
+    'dolibarr.sync',
   ],
   Engineer: [
     // Basic Access

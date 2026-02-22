@@ -102,14 +102,23 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   
   // Financial Reports
   '/financial': ['financial.view', 'settings.view'],
-  '/financial/chart-of-accounts': ['financial.manage', 'settings.view'],
+  '/financial/chart-of-accounts': ['financial.manage', 'financial.view', 'settings.view'],
   '/financial/reports/trial-balance': ['financial.view', 'settings.view'],
   '/financial/reports/income-statement': ['financial.view', 'settings.view'],
   '/financial/reports/balance-sheet': ['financial.view', 'settings.view'],
   '/financial/reports/vat': ['financial.view', 'settings.view'],
   '/financial/reports/aging': ['financial.view', 'settings.view'],
+  '/financial/reports/soa': ['financial.view', 'settings.view'],
+  '/financial/reports/cash-flow': ['financial.view', 'settings.view'],
+  '/financial/reports/cash-flow-forecast': ['financial.view', 'settings.view'],
+  '/financial/reports/project-profitability': ['financial.view', 'settings.view'],
+  '/financial/reports/wip': ['financial.view', 'settings.view'],
+  '/financial/reports/projects-dashboard': ['financial.view', 'settings.view'],
   '/financial/journal-entries': ['financial.view', 'settings.view'],
   '/financial/settings': ['financial.manage', 'settings.view'],
+
+  // Detailed Planner
+  '/detailed-project-planner': ['planning.view', 'projects.view'],
 
   // Dolibarr Integration
   '/dolibarr': ['settings.view', 'dolibarr.view'],
