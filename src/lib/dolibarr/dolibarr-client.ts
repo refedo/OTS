@@ -108,6 +108,88 @@ export interface DolibarrContact {
   [key: string]: any;
 }
 
+export interface DolibarrInvoice {
+  id: number | string;
+  ref: string;
+  ref_client: string | null;
+  type: string; // "0"=standard, "1"=replacement, "2"=credit note, "3"=deposit, "5"=situation
+  statut: string; // "0"=draft, "1"=validated, "2"=paid, "3"=abandoned
+  status: string;
+  paye: string; // "0" or "1"
+  total_ht: string;
+  total_tva: string;
+  total_ttc: string;
+  date_creation: number | string;
+  date_validation: number | string | null;
+  date: number | string | null; // invoice date
+  date_echeance: number | string | null; // due date
+  socid: string | number;
+  lines: DolibarrInvoiceLine[];
+  [key: string]: any;
+}
+
+export interface DolibarrInvoiceLine {
+  rowid?: number | string;
+  product_ref: string | null;
+  product_label: string | null;
+  label: string | null;
+  qty: string;
+  subprice: string;
+  tva_tx: string;
+  total_ht: string;
+  total_tva: string;
+  total_ttc: string;
+  fk_product: string | number | null;
+  fk_accounting_account: string | number | null;
+  [key: string]: any;
+}
+
+export interface DolibarrSupplierInvoice {
+  id: number | string;
+  ref: string;
+  ref_supplier: string | null;
+  type: string;
+  statut: string;
+  status: string;
+  paye: string;
+  paid: string;
+  total_ht: string;
+  total_tva: string;
+  total_ttc: string;
+  date_creation: number | string;
+  date_validation: number | string | null;
+  date: number | string | null;
+  date_echeance: number | string | null;
+  socid: string | number;
+  lines: DolibarrInvoiceLine[];
+  [key: string]: any;
+}
+
+export interface DolibarrPayment {
+  amount: string;
+  type: string; // VIR, CHQ, CB, LIQ
+  date: string; // "2020-02-23 12:00:00"
+  ref: string;
+  fk_bank_line: string | number | null;
+  fk_bank_account?: string | number | null;
+  [key: string]: any;
+}
+
+export interface DolibarrBankAccount {
+  id: number | string;
+  ref: string;
+  label: string;
+  bank: string | null;
+  account_number: string | null;
+  iban: string | null;
+  bic: string | null;
+  currency_code: string;
+  balance: number | string;
+  accountancy_journal: string | null;
+  clos: string; // "0"=open, "1"=closed
+  [key: string]: any;
+}
+
 export interface DolibarrConnectionInfo {
   success: boolean;
   version?: string;
@@ -349,6 +431,115 @@ export class DolibarrClient {
     }
 
     return allContacts;
+  }
+
+  // ============================================
+  // FINANCIAL API METHODS
+  // ============================================
+
+  /**
+   * Fetch customer invoices with pagination
+   * Filter: status > 0 (exclude drafts)
+   */
+  async getInvoices(params?: DolibarrPaginationParams): Promise<DolibarrInvoice[]> {
+    const result = await this.request<DolibarrInvoice[]>('invoices', {
+      limit: params?.limit ?? 100,
+      page: params?.page ?? 0,
+      sortfield: params?.sortfield ?? 't.rowid',
+      sortorder: params?.sortorder ?? 'ASC',
+      sqlfilters: params?.sqlfilters ?? "(t.fk_statut:>:'0')",
+    });
+    return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Auto-paginate to fetch ALL customer invoices (non-draft)
+   */
+  async getAllInvoices(batchSize: number = 100): Promise<DolibarrInvoice[]> {
+    const all: DolibarrInvoice[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await this.getInvoices({ limit: batchSize, page });
+      all.push(...batch);
+      hasMore = batch.length >= batchSize;
+      page++;
+    }
+
+    return all;
+  }
+
+  /**
+   * Fetch payments for a specific customer invoice
+   */
+  async getInvoicePayments(invoiceId: number): Promise<DolibarrPayment[]> {
+    try {
+      const result = await this.request<DolibarrPayment[]>(`invoices/${invoiceId}/payments`);
+      return Array.isArray(result) ? result : [];
+    } catch (error: any) {
+      // 404 means no payments — not an error
+      if (error.message?.includes('404')) return [];
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch supplier invoices with pagination
+   * Filter: status > 0 (exclude drafts)
+   */
+  async getSupplierInvoices(params?: DolibarrPaginationParams): Promise<DolibarrSupplierInvoice[]> {
+    const result = await this.request<DolibarrSupplierInvoice[]>('supplierinvoices', {
+      limit: params?.limit ?? 100,
+      page: params?.page ?? 0,
+      sortfield: params?.sortfield ?? 't.rowid',
+      sortorder: params?.sortorder ?? 'ASC',
+      sqlfilters: params?.sqlfilters ?? "(t.fk_statut:>:'0')",
+    });
+    return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Auto-paginate to fetch ALL supplier invoices (non-draft)
+   */
+  async getAllSupplierInvoices(batchSize: number = 100): Promise<DolibarrSupplierInvoice[]> {
+    const all: DolibarrSupplierInvoice[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await this.getSupplierInvoices({ limit: batchSize, page });
+      all.push(...batch);
+      hasMore = batch.length >= batchSize;
+      page++;
+    }
+
+    return all;
+  }
+
+  /**
+   * Fetch payments for a specific supplier invoice
+   */
+  async getSupplierInvoicePayments(invoiceId: number): Promise<DolibarrPayment[]> {
+    try {
+      const result = await this.request<DolibarrPayment[]>(`supplierinvoices/${invoiceId}/payments`);
+      return Array.isArray(result) ? result : [];
+    } catch (error: any) {
+      if (error.message?.includes('404')) return [];
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch all bank accounts
+   */
+  async getBankAccounts(): Promise<DolibarrBankAccount[]> {
+    const result = await this.request<DolibarrBankAccount[]>('bankaccounts', {
+      limit: 100,
+      sortfield: 't.rowid',
+      sortorder: 'ASC',
+    });
+    return Array.isArray(result) ? result : [];
   }
 }
 

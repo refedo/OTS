@@ -1,5 +1,5 @@
 'use client';
-
+// Force recompile - v15.0.0
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -215,6 +215,21 @@ const navigationSections: NavigationSection[] = [
       { name: 'Users', href: '/users', icon: Users },
       { name: 'Roles', href: '/roles', icon: Shield },
       { name: 'Organization Chart', href: '/organization', icon: Network, isNew: true },
+    ],
+  },
+  {
+    name: 'Financial Reports',
+    icon: TrendingUp,
+    items: [
+      { name: 'Financial Dashboard', href: '/financial', icon: TrendingUp, isNew: true },
+      { name: 'Chart of Accounts', href: '/financial/chart-of-accounts', icon: FileText, isNew: true },
+      { name: 'Trial Balance', href: '/financial/reports/trial-balance', icon: FileSpreadsheet, isNew: true },
+      { name: 'Income Statement', href: '/financial/reports/income-statement', icon: TrendingUp, isNew: true },
+      { name: 'Balance Sheet', href: '/financial/reports/balance-sheet', icon: Building2, isNew: true },
+      { name: 'VAT Report', href: '/financial/reports/vat', icon: FileText, isNew: true },
+      { name: 'Aging Report', href: '/financial/reports/aging', icon: Clock, isNew: true },
+      { name: 'Journal Entries', href: '/financial/journal-entries', icon: List, isNew: true },
+      { name: 'Settings', href: '/financial/settings', icon: Settings, isNew: true },
     ],
   },
   {
@@ -622,7 +637,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v14.0.0
+                  Hexa Steel® OTS v15.0.0
                 </p>
               </div>
             )}

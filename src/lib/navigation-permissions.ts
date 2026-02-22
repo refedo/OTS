@@ -100,6 +100,17 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/backlog': ['backlog.view'],
   '/ceo-control-center': ['backlog.ceo_center'],
   
+  // Financial Reports
+  '/financial': ['financial.view', 'settings.view'],
+  '/financial/chart-of-accounts': ['financial.manage', 'settings.view'],
+  '/financial/reports/trial-balance': ['financial.view', 'settings.view'],
+  '/financial/reports/income-statement': ['financial.view', 'settings.view'],
+  '/financial/reports/balance-sheet': ['financial.view', 'settings.view'],
+  '/financial/reports/vat': ['financial.view', 'settings.view'],
+  '/financial/reports/aging': ['financial.view', 'settings.view'],
+  '/financial/journal-entries': ['financial.view', 'settings.view'],
+  '/financial/settings': ['financial.manage', 'settings.view'],
+
   // Dolibarr Integration
   '/dolibarr': ['settings.view', 'dolibarr.view'],
 

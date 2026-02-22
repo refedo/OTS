@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.0.0] - 2026-02-22
+
+### 📊 Financial Reporting Module
+
+Major release introducing a comprehensive Financial Reporting Module that syncs transactional data from Dolibarr ERP and generates standard financial reports with auto-generated double-entry journal entries.
+
+#### Added
+- **Financial Reporting Engine**
+  - Trial Balance with opening, period, and closing balances
+  - Income Statement (P&L) with gross profit, operating profit, and net profit
+  - Balance Sheet with assets, liabilities, equity, and balance verification
+  - VAT Report with 5% and 15% rate breakdown (ZATCA compliance ready)
+  - AR/AP Aging Report with Current, 1-30, 31-60, 61-90, 90+ day buckets
+  - All reports support date range filtering and print-friendly layout
+
+- **Financial Data Sync from Dolibarr**
+  - Customer invoice sync with line-level detail and VAT rates
+  - Supplier invoice sync with payment tracking
+  - Payment sync per invoice (customer and supplier)
+  - Bank account sync with current balances from Dolibarr
+  - MD5 hash-based change detection for efficient incremental syncing
+
+- **Auto-Generated Journal Entries**
+  - Double-entry bookkeeping from synced invoices and payments
+  - Customer invoice: Debit AR, Credit Revenue + VAT Output
+  - Supplier invoice: Debit Expense + VAT Input, Credit AP
+  - Payments: Debit/Credit Bank and AR/AP accounts
+  - Credit note support with reversed debit/credit entries
+  - Configurable default account mappings via settings page
+
+- **Chart of Accounts Management**
+  - Full CRUD for chart of accounts with Arabic name support
+  - Account types: Asset, Liability, Equity, Revenue, Expense
+  - Category grouping for structured report presentation
+  - Pre-populated Saudi standard chart of accounts
+
+- **Financial Settings & Configuration**
+  - Default account mapping (AR, AP, Revenue, Expense, VAT 5%/15%)
+  - Bank account to accounting code mapping table
+  - Automated 2-hour sync via protected cron endpoint
+
+- **Financial Dashboard**
+  - Overview cards: Revenue, Expenses, Net Profit, VAT Payable, AR, AP
+  - Bank accounts summary with current balances
+  - Quick links to all financial reports
+  - Sync status with record counts and recent sync logs
+
+- **Journal Entries Browser**
+  - Filterable data table of all auto-generated entries
+  - Filter by date range, journal code, account code, source type
+  - Pagination and detailed entry information
+
+#### Changed
+- Added Financial Reports section to sidebar navigation
+- Updated navigation permissions for financial module routes
+- Extended Dolibarr API client with invoice, payment, and bank account methods
+
+---
+
 ## [14.0.0] - 2026-02-22
 
 ### 🔗 Dolibarr ERP Integration Module

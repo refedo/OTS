@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '14.0.0';
+const CURRENT_VERSION = '15.0.0';
 const RELEASE_DATE = 'February 22, 2026';
 
 export default function VersionBadge() {
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Dolibarr ERP v22.0.1 Integration</li>
-              <li>• Steel Product Specifications System</li>
-              <li>• Bulk Specs Assignment Tool</li>
-              <li>• Integration Dashboard with Sync History</li>
+              <li>• Financial Reporting Module</li>
+              <li>• Trial Balance, P&L, Balance Sheet</li>
+              <li>• VAT Report (ZATCA) & Aging Report</li>
+              <li>• Auto-generated Journal Entries</li>
             </ul>
           </div>
 

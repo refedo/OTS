@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, AlertCircle, Wrench } from 'lucide-react';
 
+type ChangeItem = { title: string; items: string[] };
+
 type ChangelogVersion = {
   version: string;
   date: string;
@@ -12,19 +14,91 @@ type ChangelogVersion = {
   mainTitle: string;
   highlights: string[];
   changes: {
-    added: Array<{ title: string; items: string[] }>;
-    fixed: string[];
-    changed: string[];
+    added: Array<ChangeItem>;
+    fixed: Array<string | ChangeItem>;
+    changed: Array<string | ChangeItem>;
   };
 };
 
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '14.0.0',
+    version: '15.0.0',
     date: 'February 22, 2026',
     type: 'major',
     status: 'current',
+    mainTitle: '📊 Financial Reporting Module',
+    highlights: [
+      'Trial Balance, Income Statement & Balance Sheet',
+      'VAT Report (ZATCA-ready) with Input/Output breakdown',
+      'AR/AP Aging Report with age buckets',
+      'Auto-generated double-entry journal entries from Dolibarr',
+      'Chart of Accounts management with Arabic support',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Financial Reporting Engine',
+          items: [
+            'Trial Balance with opening, period, and closing balances',
+            'Income Statement (P&L) with gross profit, operating profit, and net profit',
+            'Balance Sheet with assets, liabilities, equity, and balance verification',
+            'VAT Report with 5% and 15% rate breakdown (ZATCA compliance)',
+            'AR/AP Aging Report with Current, 1-30, 31-60, 61-90, 90+ day buckets',
+          ],
+        },
+        {
+          title: 'Financial Data Sync from Dolibarr',
+          items: [
+            'Customer invoice sync with line-level detail and VAT rates',
+            'Supplier invoice sync with payment tracking',
+            'Payment sync per invoice (customer and supplier)',
+            'Bank account sync with balances from Dolibarr',
+            'MD5 hash-based change detection for efficient syncing',
+          ],
+        },
+        {
+          title: 'Auto-Generated Journal Entries',
+          items: [
+            'Double-entry bookkeeping from synced invoices and payments',
+            'Customer invoice → Debit AR, Credit Revenue + VAT Output',
+            'Supplier invoice → Debit Expense + VAT Input, Credit AP',
+            'Payments → Debit/Credit Bank and AR/AP accounts',
+            'Credit note support with reversed entries',
+            'Configurable default account mappings',
+          ],
+        },
+        {
+          title: 'Chart of Accounts',
+          items: [
+            'Full CRUD for chart of accounts with Arabic name support',
+            'Account types: Asset, Liability, Equity, Revenue, Expense',
+            'Category grouping for structured reports',
+            'Pre-populated Saudi standard chart of accounts',
+          ],
+        },
+        {
+          title: 'Financial Settings',
+          items: [
+            'Default account mapping configuration (AR, AP, Revenue, Expense, VAT)',
+            'Bank account to accounting code mapping',
+            'Automated 2-hour sync via cron endpoint',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [
+        'Added Financial Reports section to sidebar navigation',
+        'Updated navigation permissions for financial module routes',
+        'Extended Dolibarr API client with invoice, payment, and bank account methods',
+      ],
+    },
+  },
+  {
+    version: '14.0.0',
+    date: 'February 22, 2026',
+    type: 'major',
+    status: 'previous',
     mainTitle: '🔗 Dolibarr ERP Integration Module',
     highlights: [
       'Dolibarr v22.0.1 REST API Integration',
@@ -2131,11 +2205,24 @@ export default function ChangelogPage() {
                       <Wrench className="h-4 w-4" />
                       Changed
                     </h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
+                    <div className="space-y-2">
                       {version.changes.changed.map((change, idx) => (
-                        <li key={idx}>{change}</li>
+                        typeof change === 'string' ? (
+                          <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
+                            <li>{change}</li>
+                          </ul>
+                        ) : (
+                          <div key={idx}>
+                            <h5 className="font-medium text-sm mb-1">{change.title}</h5>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
+                              {change.items.map((item, itemIdx) => (
+                                <li key={itemIdx}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
 
@@ -2145,11 +2232,24 @@ export default function ChangelogPage() {
                       <AlertCircle className="h-4 w-4" />
                       Fixed
                     </h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
+                    <div className="space-y-2">
                       {version.changes.fixed.map((fix, idx) => (
-                        <li key={idx}>{fix}</li>
+                        typeof fix === 'string' ? (
+                          <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
+                            <li>{fix}</li>
+                          </ul>
+                        ) : (
+                          <div key={idx}>
+                            <h5 className="font-medium text-sm mb-1">{fix.title}</h5>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
+                              {fix.items.map((item, itemIdx) => (
+                                <li key={itemIdx}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
               </div>
