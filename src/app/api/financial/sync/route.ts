@@ -6,7 +6,7 @@ import { FinancialSyncService, isSyncRunning } from '@/lib/dolibarr/financial-sy
 export const dynamic = 'force-dynamic';
 export const maxDuration = 600; // 10 minutes for full sync
 
-const VALID_ENTITIES = ['bank_accounts', 'customer_invoices', 'supplier_invoices', 'journal_entries'];
+const VALID_ENTITIES = ['bank_accounts', 'customer_invoices', 'supplier_invoices', 'payments', 'salaries', 'journal_entries'];
 
 export async function POST(request: NextRequest) {
   const store = await cookies();

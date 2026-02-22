@@ -385,11 +385,12 @@ export default function FinancialDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
               {[
                 { label: 'Customer Invoices', key: 'customerInvoices', syncKey: 'customer_invoices' },
                 { label: 'Supplier Invoices', key: 'supplierInvoices', syncKey: 'supplier_invoices' },
-                { label: 'Payments', key: 'payments', syncKey: '' },
+                { label: 'Payments', key: 'payments', syncKey: 'payments' },
+                { label: 'Salaries', key: 'salaries', syncKey: 'salaries' },
                 { label: 'Bank Accounts', key: 'bankAccounts', syncKey: 'bank_accounts' },
                 { label: 'Journal Entries', key: 'journalEntries', syncKey: 'journal_entries', btnLabel: 'Regenerate' },
               ].map((item) => (

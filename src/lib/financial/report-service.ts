@@ -651,7 +651,7 @@ export class FinancialReportService {
         WHERE coa.account_type = 'expense'
           AND (coa.account_code LIKE '4102%' OR coa.account_code LIKE '4103%' OR coa.account_code LIKE '42001%'
                OR coa.account_code LIKE '4115%' OR coa.account_code LIKE '4118%'
-               OR coa.account_code LIKE '620%'
+               OR coa.account_code LIKE '620%' OR coa.account_code LIKE '631%'
                OR coa.account_name LIKE '%Salar%' OR coa.account_name LIKE '%Wage%'
                OR coa.account_name LIKE '%Allowance%' OR coa.account_name LIKE '%Bonus%'
                OR coa.account_name LIKE '%رواتب%' OR coa.account_name LIKE '%بدل%')

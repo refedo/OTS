@@ -16,6 +16,7 @@ import {
   DolibarrSupplierInvoice,
   DolibarrPayment,
   DolibarrBankAccount,
+  DolibarrSalary,
   createDolibarrClient,
 } from './dolibarr-client';
 
@@ -40,6 +41,7 @@ export interface FullFinSyncResult {
   customerPayments?: FinSyncResult;
   supplierInvoices?: FinSyncResult;
   supplierPayments?: FinSyncResult;
+  salaries?: FinSyncResult;
   journalEntries?: FinSyncResult;
   totalDurationMs: number;
 }
@@ -490,6 +492,42 @@ export class FinancialSyncService {
               ...lineParams
             );
           }
+
+          // Sync payments for this supplier invoice
+          try {
+            const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
+            for (const pmt of payments) {
+              paymentsTotal++;
+              const pmtDate = formatDate(parseDateString(pmt.date));
+              if (!pmtDate) continue;
+
+              const existingPmt: any[] = await prisma.$queryRawUnsafe(
+                `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
+                pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+              );
+
+              if (existingPmt.length > 0) {
+                await prisma.$executeRawUnsafe(
+                  `UPDATE fin_payments SET amount=?, payment_date=?, payment_method=?, fk_bank_line=?,
+                   bank_account_id=?, last_synced_at=NOW() WHERE id=?`,
+                  pf(pmt.amount), pmtDate, pmt.type || null,
+                  pi(pmt.fk_bank_line), pi(pmt.fk_bank_account), existingPmt[0].id
+                );
+                paymentsUpdated++;
+              } else {
+                await prisma.$executeRawUnsafe(
+                  `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
+                   payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
+                   VALUES (?, 'supplier', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                  pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                  pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
+                );
+                paymentsCreated++;
+              }
+            }
+          } catch (e: any) {
+            console.error(`[FinSync] Error fetching payments for supplier invoice ${dolibarrId}:`, e.message);
+          }
         }
 
         hasMore = batch.length >= BATCH_SIZE;
@@ -519,6 +557,239 @@ export class FinancialSyncService {
       };
       await this.logSync(invoiceResult, triggeredBy);
       return { invoiceResult, paymentResult: { ...invoiceResult, entityType: 'supplier_payments' } };
+    }
+  }
+
+  // ============================================
+  // SYNC: ALL PAYMENTS (standalone)
+  // ============================================
+
+  async syncAllPayments(triggeredBy: string = 'manual'): Promise<{ customerPayments: FinSyncResult; supplierPayments: FinSyncResult }> {
+    const startTime = Date.now();
+    let custCreated = 0, custUpdated = 0, custTotal = 0;
+    let suppCreated = 0, suppUpdated = 0, suppTotal = 0;
+
+    try {
+      // Sync customer invoice payments
+      console.log('[FinSync] Syncing customer payments...');
+      const custInvoices: any[] = await prisma.$queryRawUnsafe(
+        `SELECT dolibarr_id FROM fin_customer_invoices WHERE is_active = 1`
+      );
+      
+      for (let i = 0; i < custInvoices.length; i++) {
+        const dolibarrId = custInvoices[i].dolibarr_id;
+        if (i > 0 && i % 200 === 0) {
+          console.log(`[FinSync] Customer payments progress: ${i}/${custInvoices.length}...`);
+        }
+        try {
+          const payments = await this.client.getInvoicePayments(dolibarrId);
+          for (const pmt of payments) {
+            custTotal++;
+            const pmtDate = formatDate(parseDateString(pmt.date));
+            if (!pmtDate) continue;
+
+            const existingPmt: any[] = await prisma.$queryRawUnsafe(
+              `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'customer' AND invoice_dolibarr_id = ?`,
+              pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+            );
+
+            if (existingPmt.length > 0) {
+              await prisma.$executeRawUnsafe(
+                `UPDATE fin_payments SET amount=?, payment_date=?, payment_method=?, fk_bank_line=?,
+                 bank_account_id=?, last_synced_at=NOW() WHERE id=?`,
+                pf(pmt.amount), pmtDate, pmt.type || null,
+                pi(pmt.fk_bank_line), pi(pmt.fk_bank_account), existingPmt[0].id
+              );
+              custUpdated++;
+            } else {
+              await prisma.$executeRawUnsafe(
+                `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
+                 payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
+                 VALUES (?, 'customer', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
+              );
+              custCreated++;
+            }
+          }
+        } catch (e: any) {
+          // 404 = no payments for this invoice, skip silently
+          if (!e.message?.includes('404')) {
+            console.error(`[FinSync] Error fetching customer payments for invoice ${dolibarrId}:`, e.message);
+          }
+        }
+      }
+      console.log(`[FinSync] Customer payments complete: ${custCreated} created, ${custUpdated} updated, ${custTotal} total`);
+
+      // Sync supplier invoice payments
+      console.log('[FinSync] Syncing supplier payments...');
+      const suppInvoices: any[] = await prisma.$queryRawUnsafe(
+        `SELECT dolibarr_id FROM fin_supplier_invoices WHERE is_active = 1`
+      );
+      
+      for (let i = 0; i < suppInvoices.length; i++) {
+        const dolibarrId = suppInvoices[i].dolibarr_id;
+        if (i > 0 && i % 500 === 0) {
+          console.log(`[FinSync] Supplier payments progress: ${i}/${suppInvoices.length}...`);
+        }
+        try {
+          const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
+          for (const pmt of payments) {
+            suppTotal++;
+            const pmtDate = formatDate(parseDateString(pmt.date));
+            if (!pmtDate) continue;
+
+            const existingPmt: any[] = await prisma.$queryRawUnsafe(
+              `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
+              pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+            );
+
+            if (existingPmt.length > 0) {
+              await prisma.$executeRawUnsafe(
+                `UPDATE fin_payments SET amount=?, payment_date=?, payment_method=?, fk_bank_line=?,
+                 bank_account_id=?, last_synced_at=NOW() WHERE id=?`,
+                pf(pmt.amount), pmtDate, pmt.type || null,
+                pi(pmt.fk_bank_line), pi(pmt.fk_bank_account), existingPmt[0].id
+              );
+              suppUpdated++;
+            } else {
+              await prisma.$executeRawUnsafe(
+                `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
+                 payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
+                 VALUES (?, 'supplier', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
+              );
+              suppCreated++;
+            }
+          }
+        } catch (e: any) {
+          if (!e.message?.includes('404')) {
+            console.error(`[FinSync] Error fetching supplier payments for invoice ${dolibarrId}:`, e.message);
+          }
+        }
+      }
+      console.log(`[FinSync] Supplier payments complete: ${suppCreated} created, ${suppUpdated} updated, ${suppTotal} total`);
+
+      const customerPayments: FinSyncResult = {
+        entityType: 'customer_payments', status: 'success',
+        created: custCreated, updated: custUpdated, unchanged: 0,
+        total: custTotal, durationMs: Date.now() - startTime,
+      };
+      const supplierPayments: FinSyncResult = {
+        entityType: 'supplier_payments', status: 'success',
+        created: suppCreated, updated: suppUpdated, unchanged: 0,
+        total: suppTotal, durationMs: Date.now() - startTime,
+      };
+      await this.logSync(customerPayments, triggeredBy);
+      await this.logSync(supplierPayments, triggeredBy);
+      return { customerPayments, supplierPayments };
+    } catch (error: any) {
+      console.error('[FinSync] Payment sync failed:', error.message);
+      const errResult: FinSyncResult = {
+        entityType: 'payments', status: 'error',
+        created: 0, updated: 0, unchanged: 0, total: 0,
+        durationMs: Date.now() - startTime, error: error.message,
+      };
+      return { customerPayments: { ...errResult, entityType: 'customer_payments' }, supplierPayments: { ...errResult, entityType: 'supplier_payments' } };
+    }
+  }
+
+  // ============================================
+  // SYNC: SALARIES
+  // ============================================
+
+  async syncSalaries(triggeredBy: string = 'manual'): Promise<FinSyncResult> {
+    const startTime = Date.now();
+    let created = 0, updated = 0, unchanged = 0, total = 0;
+
+    try {
+      const BATCH_SIZE = 500;
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        console.log(`[FinSync] Fetching salaries page ${page} (batch ${BATCH_SIZE})...`);
+        const batch = await this.client.getSalaries({ limit: BATCH_SIZE, page });
+        console.log(`[FinSync] Got ${batch.length} salaries (page ${page})`);
+
+        for (const sal of batch) {
+          total++;
+          if (total % 200 === 0) {
+            console.log(`[FinSync] Processing salary ${total}...`);
+          }
+          const dolibarrId = pi(sal.id);
+          if (!dolibarrId) continue;
+
+          const hashFields = {
+            ref: sal.ref, amount: sal.amount, salary: sal.salary,
+            paye: sal.paye, datesp: sal.datesp, dateep: sal.dateep,
+          };
+          const newHash = computeHash(hashFields);
+
+          const dateStart = formatDate(parseDolibarrDate(sal.datesp));
+          const dateEnd = formatDate(parseDolibarrDate(sal.dateep));
+          const datePayment = formatDate(parseDolibarrDate(sal.datep || sal.date_payment));
+
+          const existing: any[] = await prisma.$queryRawUnsafe(
+            `SELECT sync_hash FROM fin_salaries WHERE dolibarr_id = ?`, dolibarrId
+          );
+
+          if (existing.length > 0) {
+            if (existing[0].sync_hash === newHash) {
+              unchanged++;
+              continue;
+            }
+            await prisma.$executeRawUnsafe(
+              `UPDATE fin_salaries SET ref=?, label=?, fk_user=?, amount=?, salary=?,
+               date_start=?, date_end=?, date_payment=?, is_paid=?, fk_bank_account=?,
+               last_synced_at=NOW(), sync_hash=?, is_active=1
+               WHERE dolibarr_id=?`,
+              sal.ref, sal.label || null, pi(sal.fk_user),
+              pf(sal.amount), pf(sal.salary),
+              dateStart, dateEnd, datePayment,
+              sal.paye === '1' ? 1 : 0, pi(sal.fk_bank_account),
+              newHash, dolibarrId
+            );
+            updated++;
+          } else {
+            await prisma.$executeRawUnsafe(
+              `INSERT INTO fin_salaries (dolibarr_id, ref, label, fk_user, amount, salary,
+               date_start, date_end, date_payment, is_paid, fk_bank_account,
+               first_synced_at, last_synced_at, sync_hash, is_active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
+              dolibarrId, sal.ref, sal.label || null, pi(sal.fk_user),
+              pf(sal.amount), pf(sal.salary),
+              dateStart, dateEnd, datePayment,
+              sal.paye === '1' ? 1 : 0, pi(sal.fk_bank_account),
+              newHash
+            );
+            created++;
+          }
+        }
+
+        hasMore = batch.length >= BATCH_SIZE;
+        page++;
+      }
+
+      console.log(`[FinSync] Salaries complete: ${total} total, ${created} created, ${updated} updated, ${unchanged} unchanged`);
+
+      const result: FinSyncResult = {
+        entityType: 'salaries', status: 'success',
+        created, updated, unchanged, total,
+        durationMs: Date.now() - startTime,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
+    } catch (error: any) {
+      console.error('[FinSync] Salary sync failed:', error.message);
+      const result: FinSyncResult = {
+        entityType: 'salaries', status: 'error',
+        created, updated, unchanged, total: 0,
+        durationMs: Date.now() - startTime, error: error.message,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
     }
   }
 
@@ -778,6 +1049,34 @@ export class FinancialSyncService {
       }
       console.log(`[FinSync] Supplier payments: ${suppPayments.length} processed`);
 
+      // ---- Salary Journal Entries ----
+      console.log('[FinSync] Generating salary journal entries...');
+      const defaultSalaryAccount = await this.getConfig('default_salary_account', '631000');
+      const salaries: any[] = await prisma.$queryRawUnsafe(
+        `SELECT * FROM fin_salaries WHERE is_active = 1 AND amount > 0 ORDER BY date_start`
+      );
+
+      for (const sal of salaries) {
+        const salDate = sal.date_payment || sal.date_start;
+        if (!salDate) continue;
+
+        const bankCode = sal.fk_bank_account ? (bankAccountMap.get(sal.fk_bank_account) || '120000') : '120000';
+
+        // Debit: Salary Expense
+        addEntry(salDate, 'SAL', pieceNum, defaultSalaryAccount,
+          `Salary - ${sal.label || sal.ref || `ID ${sal.dolibarr_id}`}`,
+          pf(sal.amount), 0,
+          'salary', sal.id, sal.ref, sal.fk_user);
+
+        // Credit: Bank/Cash
+        addEntry(salDate, 'SAL', pieceNum, bankCode,
+          `Salary payment - ${sal.label || sal.ref || `ID ${sal.dolibarr_id}`}`,
+          0, pf(sal.amount),
+          'salary', sal.id, sal.ref, sal.fk_user);
+        pieceNum++;
+      }
+      console.log(`[FinSync] Salaries: ${salaries.length} processed`);
+
       // ---- DELETE old entries only AFTER successful generation ----
       // This prevents data loss if generation fails mid-way
       console.log(`[FinSync] ${entries.length} entries generated successfully. Now replacing old entries...`);
@@ -860,6 +1159,19 @@ export class FinancialSyncService {
             console.log(`[FinSync] Supplier payments: ${paymentResult.created} created`);
             break;
           }
+          case 'payments': {
+            // Sync payments for all existing invoices (both customer and supplier)
+            const pmtResult = await this.syncAllPayments(triggeredBy);
+            result.customerPayments = pmtResult.customerPayments;
+            result.supplierPayments = pmtResult.supplierPayments;
+            console.log(`[FinSync] Customer payments: ${pmtResult.customerPayments.created} created`);
+            console.log(`[FinSync] Supplier payments: ${pmtResult.supplierPayments.created} created`);
+            break;
+          }
+          case 'salaries':
+            result.salaries = await this.syncSalaries(triggeredBy);
+            console.log(`[FinSync] Salaries: ${result.salaries.created} created, ${result.salaries.updated} updated`);
+            break;
           case 'journal_entries':
             result.journalEntries = await this.generateJournalEntries(triggeredBy);
             console.log(`[FinSync] Journal entries: ${result.journalEntries.created} generated`);
@@ -895,6 +1207,7 @@ export class FinancialSyncService {
     let customerPayments: FinSyncResult | undefined;
     let supplierInvoices: FinSyncResult | undefined;
     let supplierPayments: FinSyncResult | undefined;
+    let salaries: FinSyncResult | undefined;
     let journalEntries: FinSyncResult | undefined;
 
     try {
@@ -927,6 +1240,13 @@ export class FinancialSyncService {
         console.error('[FinSync] Supplier invoices sync failed:', e.message);
       }
 
+      try {
+        salaries = await this.syncSalaries(triggeredBy);
+        console.log(`[FinSync] Salaries: ${salaries.created} created, ${salaries.updated} updated`);
+      } catch (e: any) {
+        console.error('[FinSync] Salary sync failed:', e.message);
+      }
+
       // Always attempt journal entry generation even if some syncs failed
       // This ensures we generate entries from whatever data is available
       try {
@@ -946,7 +1266,7 @@ export class FinancialSyncService {
 
     return {
       bankAccounts, customerInvoices, customerPayments,
-      supplierInvoices, supplierPayments, journalEntries,
+      supplierInvoices, supplierPayments, salaries, journalEntries,
       totalDurationMs,
     };
   }
@@ -975,6 +1295,7 @@ export class FinancialSyncService {
       counts.customerInvoices = await getCount(`SELECT COUNT(*) as cnt FROM fin_customer_invoices WHERE is_active = 1`);
       counts.supplierInvoices = await getCount(`SELECT COUNT(*) as cnt FROM fin_supplier_invoices WHERE is_active = 1`);
       counts.payments = await getCount(`SELECT COUNT(*) as cnt FROM fin_payments`);
+      counts.salaries = await getCount(`SELECT COUNT(*) as cnt FROM fin_salaries WHERE is_active = 1`);
       counts.bankAccounts = await getCount(`SELECT COUNT(*) as cnt FROM fin_bank_accounts`);
       counts.journalEntries = await getCount(`SELECT COUNT(*) as cnt FROM fin_journal_entries`);
 
