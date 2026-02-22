@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '13.5.4';
-const RELEASE_DATE = 'February 20, 2026';
+const CURRENT_VERSION = '14.0.0';
+const RELEASE_DATE = 'February 22, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Task approval tracking & filters</li>
-              <li>• Project management view with expand/collapse</li>
-              <li>• Multi-select status & priority filters</li>
-              <li>• PTS sync data preview before import</li>
+              <li>• Dolibarr ERP v22.0.1 Integration</li>
+              <li>• Steel Product Specifications System</li>
+              <li>• Bulk Specs Assignment Tool</li>
+              <li>• Integration Dashboard with Sync History</li>
             </ul>
           </div>
 
