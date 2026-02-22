@@ -105,8 +105,8 @@ export default function FinancialDashboardPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* KPI Cards - Row 1: P&L */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
@@ -142,16 +142,6 @@ export default function FinancialDashboardPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">VAT Payable</span>
-              <Receipt className="h-4 w-4 text-orange-500" />
-            </div>
-            <div className="text-2xl font-bold text-orange-600">{formatSAR(d.vatPayable || 0)}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Total AR</span>
               <CreditCard className="h-4 w-4 text-blue-500" />
             </div>
@@ -169,6 +159,45 @@ export default function FinancialDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* VAT Summary Card */}
+      <Card className="border-orange-200 dark:border-orange-900/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Receipt className="h-5 w-5 text-orange-500" />
+            VAT Summary — {currentYear}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+              <div className="text-sm text-muted-foreground mb-1">Output VAT (Collected on Sales)</div>
+              <div className="text-2xl font-bold text-blue-600">{formatSAR(d.vatOutputTotal || 0)}</div>
+            </div>
+            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+              <div className="text-sm text-muted-foreground mb-1">Input VAT (Paid on Purchases)</div>
+              <div className="text-2xl font-bold text-green-600">{formatSAR(d.vatInputTotal || 0)}</div>
+            </div>
+            <div className={`p-4 rounded-lg border ${
+              (d.netVatPayable || 0) >= 0
+                ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'
+                : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+            }`}>
+              <div className="text-sm text-muted-foreground mb-1">
+                {(d.netVatPayable || 0) >= 0 ? 'Net VAT Payable' : 'Net VAT Refundable'}
+              </div>
+              <div className={`text-2xl font-bold ${
+                (d.netVatPayable || 0) >= 0 ? 'text-orange-600' : 'text-emerald-600'
+              }`}>
+                {formatSAR(Math.abs(d.netVatPayable || 0))}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {formatSAR(d.vatOutputTotal || 0)} − {formatSAR(d.vatInputTotal || 0)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Bank Accounts - Collapsible */}
       {d.bankAccounts && d.bankAccounts.length > 0 && (

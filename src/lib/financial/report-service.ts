@@ -584,7 +584,8 @@ export class FinancialReportService {
   // ============================================
 
   async getDashboardSummary(fromDate: string, toDate: string): Promise<any> {
-    let totalRevenue = 0, totalExpenses = 0, vatPayable = 0, totalAR = 0, totalAP = 0;
+    let totalRevenue = 0, totalExpenses = 0, totalAR = 0, totalAP = 0;
+    let vatOutputTotal = 0, vatInputTotal = 0;
 
     try {
       const revRows: any[] = await prisma.$queryRawUnsafe(`
@@ -606,21 +607,28 @@ export class FinancialReportService {
       totalExpenses = Number(expRows[0]?.total || 0);
     } catch { /* */ }
 
+    // VAT Output (collected on sales) - from customer invoice lines
     try {
-      const vatOut: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(je.credit) - SUM(je.debit), 0) as total
-        FROM fin_journal_entries je
-        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
-        WHERE coa.account_category = 'VAT Payable' AND je.entry_date BETWEEN ? AND ?
+      const vatOutRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(cil.total_tva), 0) as total
+        FROM fin_customer_invoice_lines cil
+        JOIN fin_customer_invoices ci ON ci.dolibarr_id = cil.invoice_dolibarr_id
+        WHERE ci.date_invoice BETWEEN ? AND ?
+          AND ci.status >= 1 AND ci.is_active = 1
       `, fromDate, toDate);
-      const vatIn: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(je.debit) - SUM(je.credit), 0) as total
-        FROM fin_journal_entries je
-        WHERE je.account_code IN (
-          SELECT account_code FROM fin_chart_of_accounts WHERE account_code LIKE '44566%'
-        ) AND je.entry_date BETWEEN ? AND ?
+      vatOutputTotal = Number(vatOutRows[0]?.total || 0);
+    } catch { /* */ }
+
+    // VAT Input (paid on purchases) - from supplier invoice lines
+    try {
+      const vatInRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(sil.total_tva), 0) as total
+        FROM fin_supplier_invoice_lines sil
+        JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
+        WHERE si.date_invoice BETWEEN ? AND ?
+          AND si.status >= 1 AND si.is_active = 1
       `, fromDate, toDate);
-      vatPayable = Number(vatOut[0]?.total || 0) - Number(vatIn[0]?.total || 0);
+      vatInputTotal = Number(vatInRows[0]?.total || 0);
     } catch { /* */ }
 
     try {
@@ -668,7 +676,9 @@ export class FinancialReportService {
       totalRevenue,
       totalExpenses,
       netProfit: totalRevenue - totalExpenses,
-      vatPayable,
+      vatOutputTotal,
+      vatInputTotal,
+      netVatPayable: vatOutputTotal - vatInputTotal,
       totalAR,
       totalAP,
       bankAccounts: bankAccounts.map((b: any) => ({
