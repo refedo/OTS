@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { FinancialSyncService } from '@/lib/dolibarr/financial-sync-service';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300; // 5 minutes for full sync
+export const maxDuration = 600; // 10 minutes for full sync
 
-export async function POST() {
+const VALID_ENTITIES = ['bank_accounts', 'customer_invoices', 'supplier_invoices', 'journal_entries'];
+
+export async function POST(request: NextRequest) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
@@ -14,7 +16,23 @@ export async function POST() {
 
   try {
     const service = new FinancialSyncService();
-    const result = await service.runFullSync(session.name || 'manual');
+    const triggeredBy = session.name || 'manual';
+
+    // Check for partial sync via query param or body
+    const url = new URL(request.url);
+    const entitiesParam = url.searchParams.get('entities');
+
+    if (entitiesParam) {
+      const entities = entitiesParam.split(',').filter(e => VALID_ENTITIES.includes(e));
+      if (entities.length === 0) {
+        return NextResponse.json({ error: `Invalid entities. Valid: ${VALID_ENTITIES.join(', ')}` }, { status: 400 });
+      }
+      const result = await service.runPartialSync(entities, triggeredBy);
+      return NextResponse.json(result);
+    }
+
+    // Full sync
+    const result = await service.runFullSync(triggeredBy);
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('[Financial Sync API] Error:', error);

@@ -20,6 +20,7 @@ export default function FinancialDashboardPage() {
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingEntity, setSyncingEntity] = useState<string | null>(null);
   const [bankAccountsExpanded, setBankAccountsExpanded] = useState(false);
 
   const currentYear = new Date().getFullYear();
@@ -53,6 +54,20 @@ export default function FinancialDashboardPage() {
       console.error('Sync failed:', e);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handlePartialSync = async (entity: string) => {
+    setSyncingEntity(entity);
+    try {
+      const res = await fetch(`/api/financial/sync?entities=${entity}`, { method: 'POST' });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (e) {
+      console.error(`Partial sync failed for ${entity}:`, e);
+    } finally {
+      setSyncingEntity(null);
     }
   };
 
@@ -328,11 +343,23 @@ export default function FinancialDashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
               <div className="text-center p-3 border rounded-lg">
                 <div className="text-2xl font-bold">{syncStatus.counts?.customerInvoices || 0}</div>
-                <div className="text-xs text-muted-foreground">Customer Invoices</div>
+                <div className="text-xs text-muted-foreground mb-2">Customer Invoices</div>
+                <Button size="sm" variant="outline" className="text-xs h-7"
+                  disabled={!!syncingEntity || syncing}
+                  onClick={() => handlePartialSync('customer_invoices')}>
+                  {syncingEntity === 'customer_invoices' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                  Sync
+                </Button>
               </div>
               <div className="text-center p-3 border rounded-lg">
                 <div className="text-2xl font-bold">{syncStatus.counts?.supplierInvoices || 0}</div>
-                <div className="text-xs text-muted-foreground">Supplier Invoices</div>
+                <div className="text-xs text-muted-foreground mb-2">Supplier Invoices</div>
+                <Button size="sm" variant="outline" className="text-xs h-7"
+                  disabled={!!syncingEntity || syncing}
+                  onClick={() => handlePartialSync('supplier_invoices')}>
+                  {syncingEntity === 'supplier_invoices' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                  Sync
+                </Button>
               </div>
               <div className="text-center p-3 border rounded-lg">
                 <div className="text-2xl font-bold">{syncStatus.counts?.payments || 0}</div>
@@ -340,11 +367,23 @@ export default function FinancialDashboardPage() {
               </div>
               <div className="text-center p-3 border rounded-lg">
                 <div className="text-2xl font-bold">{syncStatus.counts?.bankAccounts || 0}</div>
-                <div className="text-xs text-muted-foreground">Bank Accounts</div>
+                <div className="text-xs text-muted-foreground mb-2">Bank Accounts</div>
+                <Button size="sm" variant="outline" className="text-xs h-7"
+                  disabled={!!syncingEntity || syncing}
+                  onClick={() => handlePartialSync('bank_accounts')}>
+                  {syncingEntity === 'bank_accounts' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                  Sync
+                </Button>
               </div>
               <div className="text-center p-3 border rounded-lg">
                 <div className="text-2xl font-bold">{syncStatus.counts?.journalEntries || 0}</div>
-                <div className="text-xs text-muted-foreground">Journal Entries</div>
+                <div className="text-xs text-muted-foreground mb-2">Journal Entries</div>
+                <Button size="sm" variant="outline" className="text-xs h-7"
+                  disabled={!!syncingEntity || syncing}
+                  onClick={() => handlePartialSync('journal_entries')}>
+                  {syncingEntity === 'journal_entries' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                  Regenerate
+                </Button>
               </div>
             </div>
 

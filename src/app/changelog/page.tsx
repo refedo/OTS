@@ -23,10 +23,56 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.1.0',
+    date: 'February 22, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '⚡ Financial Module Performance & Partial Sync',
+    highlights: [
+      'Batch journal entry generation (24K+ entries in ~9s)',
+      'Partial sync for individual entity types',
+      'Individual sync buttons on dashboard',
+      'Fixed missing expense entries for 2024 supplier invoices',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Partial Sync Support',
+          items: [
+            'Sync individual entity types: Bank Accounts, Customer Invoices, Supplier Invoices',
+            'Regenerate journal entries independently without full re-sync',
+            'API endpoint: POST /api/financial/sync?entities=supplier_invoices,journal_entries',
+            'Individual sync buttons on financial dashboard for each entity type',
+          ],
+        },
+      ],
+      fixed: [
+        {
+          title: 'Journal Entry Generation',
+          items: [
+            'Replaced individual INSERT statements with batch INSERTs (500 per batch)',
+            'Pre-loads all invoice lines in single queries instead of per-invoice lookups',
+            'Fixed 2024 supplier invoices having 0 journal entries (2,243 expense entries now generated)',
+            'Total journal entries increased from ~6,891 to ~24,772',
+            'Generation time reduced from timeout/failure to ~9 seconds',
+          ],
+        },
+        'Fixed BigInt serialization error in sync status API',
+        'Fixed React key prop warning in Aging Report page',
+        'Fixed Select.Item empty value error in Journal Entries page',
+        'Fixed changelog page crash when rendering object entries',
+      ],
+      changed: [
+        'Increased sync API timeout from 5 to 10 minutes',
+        'Added GROUP BY to customer invoice query to prevent duplicate rows from JOIN',
+      ],
+    },
+  },
+  {
     version: '15.0.0',
     date: 'February 22, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: '📊 Financial Reporting Module',
     highlights: [
       'Trial Balance, Income Statement & Balance Sheet',

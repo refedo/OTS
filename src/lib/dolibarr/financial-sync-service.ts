@@ -485,7 +485,7 @@ export class FinancialSyncService {
   }
 
   // ============================================
-  // JOURNAL ENTRY GENERATION
+  // JOURNAL ENTRY GENERATION (Batch optimized)
   // ============================================
 
   async generateJournalEntries(triggeredBy: string = 'manual'): Promise<FinSyncResult> {
@@ -512,41 +512,55 @@ export class FinancialSyncService {
         if (row.account_number) bankAccountMap.set(row.dolibarr_id, row.account_number);
       }
 
+      // Collect all entries in memory, then batch-insert
+      const entries: Array<[string, string, number, string, string, number, number, string, number, string, number | null]> = [];
+      let pieceNum = 1;
+
+      const addEntry = (
+        entryDate: string, journalCode: string, pn: number, accountCode: string,
+        label: string, debit: number, credit: number,
+        sourceType: string, sourceId: number, sourceRef: string, thirdpartyId: number | null
+      ) => {
+        entries.push([entryDate, journalCode, pn, accountCode, label, debit, credit, sourceType, sourceId, sourceRef, thirdpartyId]);
+      };
+
       // Delete all non-locked journal entries (they will be regenerated)
       await prisma.$executeRawUnsafe(`DELETE FROM fin_journal_entries WHERE is_locked = 0`);
 
-      let pieceNum = 1;
-
       // ---- Customer Invoice Journal Entries ----
+      console.log('[FinSync] Generating customer invoice journal entries...');
       const custInvoices: any[] = await prisma.$queryRawUnsafe(
         `SELECT ci.*, GROUP_CONCAT(DISTINCT dt.name SEPARATOR '') as thirdparty_name
          FROM fin_customer_invoices ci
          LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = ci.socid
          WHERE ci.status >= 1 AND ci.is_active = 1
+         GROUP BY ci.id
          ORDER BY ci.date_invoice`
       );
+
+      // Pre-load ALL customer invoice lines in one query
+      const allCustLines: any[] = await prisma.$queryRawUnsafe(
+        `SELECT * FROM fin_customer_invoice_lines ORDER BY invoice_dolibarr_id`
+      );
+      const custLineMap = new Map<number, any[]>();
+      for (const line of allCustLines) {
+        const arr = custLineMap.get(line.invoice_dolibarr_id) || [];
+        arr.push(line);
+        custLineMap.set(line.invoice_dolibarr_id, arr);
+      }
 
       for (const inv of custInvoices) {
         const isCreditNote = inv.type === 2;
         const entryDate = inv.date_invoice;
         if (!entryDate) continue;
 
-        // DEBIT Accounts Receivable for total_ttc
         const arDebit = isCreditNote ? 0 : pf(inv.total_ttc);
         const arCredit = isCreditNote ? pf(inv.total_ttc) : 0;
-        await this.insertJournalEntry(
-          entryDate, 'VTE', pieceNum, arAccount,
+        addEntry(entryDate, 'VTE', pieceNum, arAccount,
           `Customer Invoice ${inv.ref}`, arDebit, arCredit,
-          'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid
-        );
-        created++;
+          'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid);
 
-        // Get lines for VAT breakdown
-        const lines: any[] = await prisma.$queryRawUnsafe(
-          `SELECT * FROM fin_customer_invoice_lines WHERE invoice_dolibarr_id = ?`, inv.dolibarr_id
-        );
-
-        // Group lines by VAT rate for revenue entries
+        const lines = custLineMap.get(inv.dolibarr_id) || [];
         const vatGroups = new Map<number, { totalHt: number; totalTva: number }>();
         for (const line of lines) {
           const rate = pf(line.vat_rate);
@@ -556,60 +570,47 @@ export class FinancialSyncService {
           vatGroups.set(rate, existing);
         }
 
-        // CREDIT Revenue per line group
         let totalLineHt = 0;
         for (const [rate, group] of vatGroups) {
           const revCredit = isCreditNote ? 0 : group.totalHt;
           const revDebit = isCreditNote ? group.totalHt : 0;
-          await this.insertJournalEntry(
-            entryDate, 'VTE', pieceNum, defaultRevenue,
+          addEntry(entryDate, 'VTE', pieceNum, defaultRevenue,
             `Revenue - ${inv.ref} (VAT ${rate}%)`, revDebit, revCredit,
-            'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid
-          );
-          created++;
+            'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid);
           totalLineHt += group.totalHt;
 
-          // CREDIT VAT Output
           if (group.totalTva > 0) {
             const vatAccount = rate >= 10 ? vatOut15 : vatOut5;
             const vatCredit = isCreditNote ? 0 : group.totalTva;
             const vatDebit = isCreditNote ? group.totalTva : 0;
-            await this.insertJournalEntry(
-              entryDate, 'VTE', pieceNum, vatAccount,
+            addEntry(entryDate, 'VTE', pieceNum, vatAccount,
               `VAT Output ${rate}% - ${inv.ref}`, vatDebit, vatCredit,
-              'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid
-            );
-            created++;
+              'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid);
           }
         }
 
-        // If no lines, use invoice totals directly
         if (lines.length === 0 && pf(inv.total_ht) > 0) {
           const revCredit = isCreditNote ? 0 : pf(inv.total_ht);
           const revDebit = isCreditNote ? pf(inv.total_ht) : 0;
-          await this.insertJournalEntry(
-            entryDate, 'VTE', pieceNum, defaultRevenue,
+          addEntry(entryDate, 'VTE', pieceNum, defaultRevenue,
             `Revenue - ${inv.ref}`, revDebit, revCredit,
-            'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid
-          );
-          created++;
+            'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid);
 
           if (pf(inv.total_tva) > 0) {
             const vatCredit = isCreditNote ? 0 : pf(inv.total_tva);
             const vatDebit = isCreditNote ? pf(inv.total_tva) : 0;
-            await this.insertJournalEntry(
-              entryDate, 'VTE', pieceNum, vatOut15,
+            addEntry(entryDate, 'VTE', pieceNum, vatOut15,
               `VAT Output - ${inv.ref}`, vatDebit, vatCredit,
-              'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid
-            );
-            created++;
+              'customer_invoice', inv.dolibarr_id, inv.ref, inv.socid);
           }
         }
 
         pieceNum++;
       }
+      console.log(`[FinSync] Customer invoices: ${custInvoices.length} processed, ${entries.length} entries queued`);
 
       // ---- Customer Payment Journal Entries ----
+      console.log('[FinSync] Generating customer payment journal entries...');
       const custPayments: any[] = await prisma.$queryRawUnsafe(
         `SELECT fp.*, fci.ref as invoice_ref, fci.socid
          FROM fin_payments fp
@@ -623,27 +624,21 @@ export class FinancialSyncService {
         const pmtDate = pmt.payment_date;
         if (!pmtDate) continue;
 
-        // DEBIT Bank
-        await this.insertJournalEntry(
-          pmtDate, 'BQ', pieceNum, bankCode,
+        addEntry(pmtDate, 'BQ', pieceNum, bankCode,
           `Payment received - ${pmt.invoice_ref || pmt.dolibarr_ref}`,
           pf(pmt.amount), 0,
-          'customer_payment', pmt.id, pmt.dolibarr_ref, pmt.socid
-        );
-        created++;
+          'customer_payment', pmt.id, pmt.dolibarr_ref, pmt.socid);
 
-        // CREDIT Accounts Receivable
-        await this.insertJournalEntry(
-          pmtDate, 'BQ', pieceNum, arAccount,
+        addEntry(pmtDate, 'BQ', pieceNum, arAccount,
           `Payment received - ${pmt.invoice_ref || pmt.dolibarr_ref}`,
           0, pf(pmt.amount),
-          'customer_payment', pmt.id, pmt.dolibarr_ref, pmt.socid
-        );
-        created++;
+          'customer_payment', pmt.id, pmt.dolibarr_ref, pmt.socid);
         pieceNum++;
       }
+      console.log(`[FinSync] Customer payments: ${custPayments.length} processed`);
 
       // ---- Supplier Invoice Journal Entries ----
+      console.log('[FinSync] Generating supplier invoice journal entries...');
       const suppInvoices: any[] = await prisma.$queryRawUnsafe(
         `SELECT si.*
          FROM fin_supplier_invoices si
@@ -651,16 +646,23 @@ export class FinancialSyncService {
          ORDER BY si.date_invoice`
       );
 
+      // Pre-load ALL supplier invoice lines in one query
+      const allSuppLines: any[] = await prisma.$queryRawUnsafe(
+        `SELECT * FROM fin_supplier_invoice_lines ORDER BY invoice_dolibarr_id`
+      );
+      const suppLineMap = new Map<number, any[]>();
+      for (const line of allSuppLines) {
+        const arr = suppLineMap.get(line.invoice_dolibarr_id) || [];
+        arr.push(line);
+        suppLineMap.set(line.invoice_dolibarr_id, arr);
+      }
+
       for (const inv of suppInvoices) {
         const isCreditNote = inv.type === 2;
         const entryDate = inv.date_invoice;
         if (!entryDate) continue;
 
-        // Get lines for VAT breakdown
-        const lines: any[] = await prisma.$queryRawUnsafe(
-          `SELECT * FROM fin_supplier_invoice_lines WHERE invoice_dolibarr_id = ?`, inv.dolibarr_id
-        );
-
+        const lines = suppLineMap.get(inv.dolibarr_id) || [];
         const vatGroups = new Map<number, { totalHt: number; totalTva: number }>();
         for (const line of lines) {
           const rate = pf(line.vat_rate);
@@ -670,67 +672,50 @@ export class FinancialSyncService {
           vatGroups.set(rate, existing);
         }
 
-        // DEBIT Expense per line group
         for (const [rate, group] of vatGroups) {
           const expDebit = isCreditNote ? 0 : group.totalHt;
           const expCredit = isCreditNote ? group.totalHt : 0;
-          await this.insertJournalEntry(
-            entryDate, 'ACH', pieceNum, defaultExpense,
+          addEntry(entryDate, 'ACH', pieceNum, defaultExpense,
             `Expense - ${inv.ref} (VAT ${rate}%)`, expDebit, expCredit,
-            'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid
-          );
-          created++;
+            'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid);
 
-          // DEBIT VAT Input
           if (group.totalTva > 0) {
             const vatAccount = rate >= 10 ? vatIn15 : vatIn5;
             const vatDebit = isCreditNote ? 0 : group.totalTva;
             const vatCredit = isCreditNote ? group.totalTva : 0;
-            await this.insertJournalEntry(
-              entryDate, 'ACH', pieceNum, vatAccount,
+            addEntry(entryDate, 'ACH', pieceNum, vatAccount,
               `VAT Input ${rate}% - ${inv.ref}`, vatDebit, vatCredit,
-              'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid
-            );
-            created++;
+              'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid);
           }
         }
 
-        // If no lines, use invoice totals
         if (lines.length === 0 && pf(inv.total_ht) > 0) {
           const expDebit = isCreditNote ? 0 : pf(inv.total_ht);
           const expCredit = isCreditNote ? pf(inv.total_ht) : 0;
-          await this.insertJournalEntry(
-            entryDate, 'ACH', pieceNum, defaultExpense,
+          addEntry(entryDate, 'ACH', pieceNum, defaultExpense,
             `Expense - ${inv.ref}`, expDebit, expCredit,
-            'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid
-          );
-          created++;
+            'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid);
 
           if (pf(inv.total_tva) > 0) {
             const vatDebit = isCreditNote ? 0 : pf(inv.total_tva);
             const vatCredit = isCreditNote ? pf(inv.total_tva) : 0;
-            await this.insertJournalEntry(
-              entryDate, 'ACH', pieceNum, vatIn15,
+            addEntry(entryDate, 'ACH', pieceNum, vatIn15,
               `VAT Input - ${inv.ref}`, vatDebit, vatCredit,
-              'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid
-            );
-            created++;
+              'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid);
           }
         }
 
-        // CREDIT Accounts Payable for total_ttc
         const apCredit = isCreditNote ? 0 : pf(inv.total_ttc);
         const apDebit = isCreditNote ? pf(inv.total_ttc) : 0;
-        await this.insertJournalEntry(
-          entryDate, 'ACH', pieceNum, apAccount,
+        addEntry(entryDate, 'ACH', pieceNum, apAccount,
           `Supplier Invoice ${inv.ref}`, apDebit, apCredit,
-          'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid
-        );
-        created++;
+          'supplier_invoice', inv.dolibarr_id, inv.ref, inv.socid);
         pieceNum++;
       }
+      console.log(`[FinSync] Supplier invoices: ${suppInvoices.length} processed`);
 
       // ---- Supplier Payment Journal Entries ----
+      console.log('[FinSync] Generating supplier payment journal entries...');
       const suppPayments: any[] = await prisma.$queryRawUnsafe(
         `SELECT fp.*, fsi.ref as invoice_ref, fsi.socid
          FROM fin_payments fp
@@ -744,25 +729,38 @@ export class FinancialSyncService {
         const pmtDate = pmt.payment_date;
         if (!pmtDate) continue;
 
-        // DEBIT Accounts Payable
-        await this.insertJournalEntry(
-          pmtDate, 'BQ', pieceNum, apAccount,
+        addEntry(pmtDate, 'BQ', pieceNum, apAccount,
           `Payment made - ${pmt.invoice_ref || pmt.dolibarr_ref}`,
           pf(pmt.amount), 0,
-          'supplier_payment', pmt.id, pmt.dolibarr_ref, pmt.socid
-        );
-        created++;
+          'supplier_payment', pmt.id, pmt.dolibarr_ref, pmt.socid);
 
-        // CREDIT Bank
-        await this.insertJournalEntry(
-          pmtDate, 'BQ', pieceNum, bankCode,
+        addEntry(pmtDate, 'BQ', pieceNum, bankCode,
           `Payment made - ${pmt.invoice_ref || pmt.dolibarr_ref}`,
           0, pf(pmt.amount),
-          'supplier_payment', pmt.id, pmt.dolibarr_ref, pmt.socid
-        );
-        created++;
+          'supplier_payment', pmt.id, pmt.dolibarr_ref, pmt.socid);
         pieceNum++;
       }
+      console.log(`[FinSync] Supplier payments: ${suppPayments.length} processed`);
+
+      // ---- BATCH INSERT all journal entries ----
+      console.log(`[FinSync] Batch inserting ${entries.length} journal entries...`);
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+        const batch = entries.slice(i, i + BATCH_SIZE);
+        const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'SAR\', 0)').join(',\n');
+        const params: any[] = [];
+        for (const e of batch) {
+          params.push(e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8], e[9], e[10]);
+        }
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO fin_journal_entries (entry_date, journal_code, piece_num, account_code, label,
+           debit, credit, source_type, source_id, source_ref, thirdparty_id, currency_code, is_locked)
+           VALUES ${placeholders}`,
+          ...params
+        );
+        created += batch.length;
+      }
+      console.log(`[FinSync] Batch insert complete: ${created} entries`);
 
       const result: FinSyncResult = {
         entityType: 'journal_entries', status: 'success',
@@ -783,18 +781,50 @@ export class FinancialSyncService {
     }
   }
 
-  private async insertJournalEntry(
-    entryDate: string, journalCode: string, pieceNum: number,
-    accountCode: string, label: string, debit: number, credit: number,
-    sourceType: string, sourceId: number, sourceRef: string, thirdpartyId: number | null
-  ): Promise<void> {
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO fin_journal_entries (entry_date, journal_code, piece_num, account_code, label,
-       debit, credit, source_type, source_id, source_ref, thirdparty_id, currency_code, is_locked)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SAR', 0)`,
-      entryDate, journalCode, pieceNum, accountCode, label,
-      debit, credit, sourceType, sourceId, sourceRef, thirdpartyId || null
-    );
+  // ============================================
+  // PARTIAL SYNC (individual entity types)
+  // ============================================
+
+  async runPartialSync(entities: string[], triggeredBy: string = 'manual'): Promise<FullFinSyncResult> {
+    const startTime = Date.now();
+    const result: FullFinSyncResult = { totalDurationMs: 0 };
+
+    console.log(`[FinSync] Starting partial sync for: ${entities.join(', ')}`);
+
+    for (const entity of entities) {
+      switch (entity) {
+        case 'bank_accounts':
+          result.bankAccounts = await this.syncBankAccounts(triggeredBy);
+          console.log(`[FinSync] Bank accounts: ${result.bankAccounts.created} created, ${result.bankAccounts.updated} updated`);
+          break;
+        case 'customer_invoices': {
+          const { invoiceResult, paymentResult } = await this.syncCustomerInvoices(triggeredBy);
+          result.customerInvoices = invoiceResult;
+          result.customerPayments = paymentResult;
+          console.log(`[FinSync] Customer invoices: ${invoiceResult.created} created, ${invoiceResult.updated} updated`);
+          console.log(`[FinSync] Customer payments: ${paymentResult.created} created`);
+          break;
+        }
+        case 'supplier_invoices': {
+          const { invoiceResult, paymentResult } = await this.syncSupplierInvoices(triggeredBy);
+          result.supplierInvoices = invoiceResult;
+          result.supplierPayments = paymentResult;
+          console.log(`[FinSync] Supplier invoices: ${invoiceResult.created} created, ${invoiceResult.updated} updated`);
+          console.log(`[FinSync] Supplier payments: ${paymentResult.created} created`);
+          break;
+        }
+        case 'journal_entries':
+          result.journalEntries = await this.generateJournalEntries(triggeredBy);
+          console.log(`[FinSync] Journal entries: ${result.journalEntries.created} generated`);
+          break;
+        default:
+          console.warn(`[FinSync] Unknown entity type: ${entity}`);
+      }
+    }
+
+    result.totalDurationMs = Date.now() - startTime;
+    console.log(`[FinSync] Partial sync completed in ${result.totalDurationMs}ms`);
+    return result;
   }
 
   // ============================================
