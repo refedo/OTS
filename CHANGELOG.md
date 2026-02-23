@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.9.0] - 2026-02-24
+
+### 📊 Financial Dashboard Improvements
+
+#### New Features
+- **All dashboard KPIs are now clickable** — each card links to its source report
+- **Asset Report** (`/financial/reports/assets`) — shows all asset accounts grouped by category with balances
+- **Salaries Report** (`/financial/reports/salaries`) — shows all salary records grouped by month with paid/unpaid status
+- **Projects count** on dashboard with clickable link to Project Analysis
+- **Projects sync button** in Sync Status section
+
+#### Bug Fixes
+- **Salaries showing SAR 0** — now falls back to `fin_salaries` table when journal entries have no salary data
+- **Salaries included in Total Expenses** — ensures salary amounts are counted in the total expenses figure
+- **Invoice sync hash now includes `fk_project`** — forces re-sync to backfill project links on all invoices
+
+#### Improvements
+- **Smart number formatting** — amounts < 1M now show as K SAR (e.g. SAR 90K instead of SAR 0.09M)
+- **Removed duplicate Net Profit Margin** — merged margin % into the Net Profit card
+- **Removed duplicate Cost of Sales** — was identical to Total Expenses; kept only Total Expenses
+- **Dashboard Row 2 reorganized** — Gross Profit, ROA, ROE, Salaries, Projects (5 cards)
+
+---
+
 ## [15.8.0] - 2026-02-23
 
 ### 🐛 Bug Fixes & Statement of Account Export

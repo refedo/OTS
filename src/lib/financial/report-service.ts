@@ -738,6 +738,34 @@ export class FinancialReportService {
       totalAP = Math.max(0, Number(apRows[0]?.total_ap || 0));
     } catch { /* */ }
 
+    // If salaries from journal entries is 0, try getting directly from fin_salaries table
+    if (salariesExpense === 0) {
+      try {
+        const salDirectRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(amount), 0) as total
+          FROM fin_salaries
+          WHERE is_active = 1
+            AND date_start BETWEEN ? AND ?
+        `, fromDate, toDate);
+        salariesExpense = Number(salDirectRows[0]?.total || 0);
+      } catch { /* */ }
+    }
+
+    // Add salaries to total expenses if not already included via journal entries
+    // Check if salaries are already part of totalExpenses by comparing
+    const expensesIncludingSalaries = totalExpenses + (salariesExpense > 0 && totalExpenses > 0 && salariesExpense > totalExpenses ? 0 : 0);
+    // Always ensure salaries are counted in expenses
+    const totalExpensesWithSalaries = totalExpenses > salariesExpense ? totalExpenses : totalExpenses + salariesExpense;
+
+    // Project count
+    let projectCount = 0;
+    try {
+      const projRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT COUNT(*) as cnt FROM dolibarr_projects WHERE is_active = 1`
+      );
+      projectCount = typeof projRows[0]?.cnt === 'bigint' ? Number(projRows[0].cnt) : (projRows[0]?.cnt || 0);
+    } catch { /* */ }
+
     // Bank balances
     let bankAccounts: any[] = [];
     try {
@@ -746,7 +774,7 @@ export class FinancialReportService {
       );
     } catch { /* */ }
 
-    const netProfit = totalRevenue - totalExpenses;
+    const netProfit = totalRevenue - totalExpensesWithSalaries;
     const grossProfit = totalRevenue - costOfSales;
     const grossMarginPct = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
     const netMarginPct = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
@@ -756,7 +784,8 @@ export class FinancialReportService {
     return {
       period: { from: fromDate, to: toDate },
       totalRevenue,
-      totalExpenses,
+      totalExpenses: totalExpensesWithSalaries,
+      totalExpensesExSalaries: totalExpenses,
       netProfit,
       costOfSales,
       grossProfit,
@@ -767,6 +796,7 @@ export class FinancialReportService {
       totalAssets,
       totalEquity,
       salariesExpense,
+      projectCount,
       vatOutputTotal,
       vatInputTotal,
       netVatPayable: vatOutputTotal - vatInputTotal,

@@ -11,7 +11,7 @@ import {
   RefreshCw, TrendingUp, TrendingDown, DollarSign, Landmark, Receipt,
   FileText, BarChart3, Clock, Loader2,
   ArrowRight, CheckCircle, Building2, CreditCard, ChevronDown, ChevronUp,
-  Percent, Users, Wallet, FolderOpen, ArrowUpDown, Banknote,
+  Percent, Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,12 +19,20 @@ function formatSAR(amount: number): string {
   return new Intl.NumberFormat('en-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 2 }).format(amount);
 }
 
-function formatM(amount: number): string {
-  return `SAR ${(amount / 1_000_000).toFixed(2)}M`;
+function formatCompact(amount: number): string {
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  if (abs >= 1_000_000) {
+    const m = abs / 1_000_000;
+    if (m >= 1) return `${sign}SAR ${m.toFixed(2)}M`;
+    return `${sign}SAR ${(abs / 1_000).toFixed(0)}K`;
+  }
+  if (abs >= 1_000) return `${sign}SAR ${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}SAR ${abs.toFixed(0)}`;
 }
 
 function formatPct(value: number): string {
-  return `${value >= 0 ? '' : ''}${value.toFixed(1)}%`;
+  return `${value.toFixed(1)}%`;
 }
 
 function formatGMT3(isoString: string): string {
@@ -129,178 +137,197 @@ export default function FinancialDashboardPage() {
 
       {/* KPI Cards - Row 1: P&L */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Total Revenue</span>
-              <TrendingUp className="h-4 w-4 text-green-500" />
-            </div>
-            <div className="text-2xl font-bold text-green-600">{formatM(d.totalRevenue || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalRevenue || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/income-statement">
+          <Card className="hover:border-green-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Total Revenue</span>
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </div>
+              <div className="text-2xl font-bold text-green-600">{formatCompact(d.totalRevenue || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalRevenue || 0)}</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Income Statement <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Total Expenses</span>
-              <TrendingDown className="h-4 w-4 text-red-500" />
-            </div>
-            <div className="text-2xl font-bold text-red-600">{formatM(d.totalExpenses || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalExpenses || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/expenses-analysis">
+          <Card className="hover:border-red-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Total Expenses</span>
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="text-2xl font-bold text-red-600">{formatCompact(d.totalExpenses || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalExpenses || 0)}</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Expenses Analysis <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Net Profit</span>
-              <DollarSign className="h-4 w-4 text-blue-500" />
-            </div>
-            <div className={`text-2xl font-bold ${(d.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatM(d.netProfit || 0)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.netProfit || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/income-statement">
+          <Card className="hover:border-blue-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Net Profit</span>
+                <DollarSign className="h-4 w-4 text-blue-500" />
+              </div>
+              <div className={`text-2xl font-bold ${(d.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCompact(d.netProfit || 0)}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.netProfit || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Margin: <span className={`font-semibold ${(d.netMarginPct || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatPct(d.netMarginPct || 0)}</span></div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Total AR</span>
-              <CreditCard className="h-4 w-4 text-blue-500" />
-            </div>
-            <div className="text-2xl font-bold">{formatM(d.totalAR || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalAR || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/aging">
+          <Card className="hover:border-blue-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Total AR</span>
+                <CreditCard className="h-4 w-4 text-blue-500" />
+              </div>
+              <div className="text-2xl font-bold">{formatCompact(d.totalAR || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalAR || 0)}</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Aging Report <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Total AP</span>
-              <CreditCard className="h-4 w-4 text-purple-500" />
-            </div>
-            <div className="text-2xl font-bold">{formatM(d.totalAP || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalAP || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/aging">
+          <Card className="hover:border-purple-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Total AP</span>
+                <CreditCard className="h-4 w-4 text-purple-500" />
+              </div>
+              <div className="text-2xl font-bold">{formatCompact(d.totalAP || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalAP || 0)}</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Aging Report <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
-      {/* Row 2: Margins, ROA/ROE, Salaries */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <Card className="border-green-200 dark:border-green-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Gross Profit</span>
-              <TrendingUp className="h-3.5 w-3.5 text-green-500" />
-            </div>
-            <div className="text-lg font-bold text-green-600">{formatM(d.grossProfit || 0)}</div>
-            <div className="text-[10px] text-muted-foreground">{formatSAR(d.grossProfit || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-1">Margin: <span className="font-semibold text-green-600">{formatPct(d.grossMarginPct || 0)}</span></div>
-          </CardContent>
-        </Card>
+      {/* Row 2: Margins, ROA/ROE, Salaries, Projects */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <Link href="/financial/reports/income-statement">
+          <Card className="border-green-200 dark:border-green-900/50 hover:border-green-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Gross Profit</span>
+                <TrendingUp className="h-3.5 w-3.5 text-green-500" />
+              </div>
+              <div className="text-lg font-bold text-green-600">{formatCompact(d.grossProfit || 0)}</div>
+              <div className="text-[10px] text-muted-foreground">{formatSAR(d.grossProfit || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Margin: <span className="font-semibold text-green-600">{formatPct(d.grossMarginPct || 0)}</span></div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-blue-200 dark:border-blue-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Net Profit Margin</span>
-              <Percent className="h-3.5 w-3.5 text-blue-500" />
-            </div>
-            <div className={`text-lg font-bold ${(d.netMarginPct || 0) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-              {formatPct(d.netMarginPct || 0)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">Net: {formatSAR(d.netProfit || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/assets">
+          <Card className="border-indigo-200 dark:border-indigo-900/50 hover:border-indigo-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">ROA</span>
+                <BarChart3 className="h-3.5 w-3.5 text-indigo-500" />
+              </div>
+              <div className="text-lg font-bold text-indigo-600">{formatPct(d.roaPct || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Assets: {formatCompact(d.totalAssets || 0)}</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Asset Report <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-indigo-200 dark:border-indigo-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">ROA</span>
-              <BarChart3 className="h-3.5 w-3.5 text-indigo-500" />
-            </div>
-            <div className="text-lg font-bold text-indigo-600">{formatPct(d.roaPct || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-1">Assets: {formatSAR(d.totalAssets || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/balance-sheet">
+          <Card className="border-purple-200 dark:border-purple-900/50 hover:border-purple-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">ROE</span>
+                <BarChart3 className="h-3.5 w-3.5 text-purple-500" />
+              </div>
+              <div className="text-lg font-bold text-purple-600">{formatPct(d.roePct || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Equity: {formatCompact(d.totalEquity || 0)}</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Balance Sheet <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-purple-200 dark:border-purple-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">ROE</span>
-              <BarChart3 className="h-3.5 w-3.5 text-purple-500" />
-            </div>
-            <div className="text-lg font-bold text-purple-600">{formatPct(d.roePct || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-1">Equity: {formatSAR(d.totalEquity || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/salaries">
+          <Card className="border-teal-200 dark:border-teal-900/50 hover:border-teal-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Salaries & Wages</span>
+                <Users className="h-3.5 w-3.5 text-teal-500" />
+              </div>
+              <div className="text-lg font-bold text-teal-600">{formatCompact(d.salariesExpense || 0)}</div>
+              <div className="text-[10px] text-muted-foreground">{formatSAR(d.salariesExpense || 0)}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {d.totalExpenses > 0 ? formatPct(((d.salariesExpense || 0) / d.totalExpenses) * 100) : '0.0%'} of expenses
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-amber-200 dark:border-amber-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Cost of Sales</span>
-              <Wallet className="h-3.5 w-3.5 text-amber-500" />
-            </div>
-            <div className="text-lg font-bold text-amber-600">{formatM(d.costOfSales || 0)}</div>
-            <div className="text-[10px] text-muted-foreground">{formatSAR(d.costOfSales || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {d.totalRevenue > 0 ? formatPct((d.costOfSales / d.totalRevenue) * 100) : '0.0%'} of revenue
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-teal-200 dark:border-teal-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Salaries & Wages</span>
-              <Users className="h-3.5 w-3.5 text-teal-500" />
-            </div>
-            <div className="text-lg font-bold text-teal-600">{formatM(d.salariesExpense || 0)}</div>
-            <div className="text-[10px] text-muted-foreground">{formatSAR(d.salariesExpense || 0)}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {d.totalExpenses > 0 ? formatPct((d.salariesExpense / d.totalExpenses) * 100) : '0.0%'} of expenses
-            </div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/project-analysis">
+          <Card className="border-violet-200 dark:border-violet-900/50 hover:border-violet-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Projects</span>
+                <FolderOpen className="h-3.5 w-3.5 text-violet-500" />
+              </div>
+              <div className="text-lg font-bold text-violet-600">{d.projectCount || 0}</div>
+              <div className="text-[10px] text-muted-foreground">Synced from Dolibarr</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Project Analysis <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* VAT Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-orange-200 dark:border-orange-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">
-                {(d.netVatPayable || 0) >= 0 ? 'Net VAT Payable' : 'Net VAT Refundable'}
-              </span>
-              <Receipt className="h-3.5 w-3.5 text-orange-500" />
-            </div>
-            <div className={`text-lg font-bold ${(d.netVatPayable || 0) >= 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-              {formatM(Math.abs(d.netVatPayable || 0))}
-            </div>
-            <div className="text-[10px] text-muted-foreground">{formatSAR(Math.abs(d.netVatPayable || 0))}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-200 dark:border-blue-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Output VAT (Sales)</span>
-              <Receipt className="h-3.5 w-3.5 text-blue-500" />
-            </div>
-            <div className="text-lg font-bold text-blue-600">{formatM(d.vatOutputTotal || 0)}</div>
-            <div className="text-[10px] text-muted-foreground">{formatSAR(d.vatOutputTotal || 0)}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-green-200 dark:border-green-900/50">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Input VAT (Purchases)</span>
-              <Receipt className="h-3.5 w-3.5 text-green-500" />
-            </div>
-            <div className="text-lg font-bold text-green-600">{formatM(d.vatInputTotal || 0)}</div>
-            <div className="text-[10px] text-muted-foreground">{formatSAR(d.vatInputTotal || 0)}</div>
-          </CardContent>
-        </Card>
+        <Link href="/financial/reports/vat">
+          <Card className="border-orange-200 dark:border-orange-900/50 hover:border-orange-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">
+                  {(d.netVatPayable || 0) >= 0 ? 'Net VAT Payable' : 'Net VAT Refundable'}
+                </span>
+                <Receipt className="h-3.5 w-3.5 text-orange-500" />
+              </div>
+              <div className={`text-lg font-bold ${(d.netVatPayable || 0) >= 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                {formatCompact(Math.abs(d.netVatPayable || 0))}
+              </div>
+              <div className="text-[10px] text-muted-foreground">{formatSAR(Math.abs(d.netVatPayable || 0))}</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">VAT Report <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/financial/reports/vat">
+          <Card className="border-blue-200 dark:border-blue-900/50 hover:border-blue-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Output VAT (Sales)</span>
+                <Receipt className="h-3.5 w-3.5 text-blue-500" />
+              </div>
+              <div className="text-lg font-bold text-blue-600">{formatCompact(d.vatOutputTotal || 0)}</div>
+              <div className="text-[10px] text-muted-foreground">{formatSAR(d.vatOutputTotal || 0)}</div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/financial/reports/vat">
+          <Card className="border-green-200 dark:border-green-900/50 hover:border-green-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Input VAT (Purchases)</span>
+                <Receipt className="h-3.5 w-3.5 text-green-500" />
+              </div>
+              <div className="text-lg font-bold text-green-600">{formatCompact(d.vatInputTotal || 0)}</div>
+              <div className="text-[10px] text-muted-foreground">{formatSAR(d.vatInputTotal || 0)}</div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Bank Accounts - Collapsible */}
@@ -354,6 +381,8 @@ export default function FinancialDashboardPage() {
           { href: '/financial/reports/projects-dashboard', icon: Banknote, color: 'lime', title: 'Projects Financial', desc: 'All projects invoicing & collection' },
           { href: '/financial/reports/project-cost-structure', icon: BarChart3, color: 'rose', title: 'Cost Structure', desc: 'Project cost breakdown by category' },
           { href: '/financial/reports/expenses-analysis', icon: TrendingDown, color: 'fuchsia', title: 'Expenses Analysis', desc: 'Detailed expense analysis & trends' },
+          { href: '/financial/reports/assets', icon: Package, color: 'indigo', title: 'Asset Report', desc: 'All asset accounts and balances' },
+          { href: '/financial/reports/salaries', icon: Users, color: 'teal', title: 'Salaries & Wages', desc: 'Salary records synced from Dolibarr' },
           { href: '/financial/journal-entries', icon: FileText, color: 'slate', title: 'Journal Entries', desc: 'Browse auto-generated entries' },
         ].map((link) => (
           <Link key={link.href} href={link.href}>
@@ -387,8 +416,9 @@ export default function FinancialDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
               {[
+                { label: 'Projects', key: 'projects', syncKey: 'projects' },
                 { label: 'Customer Invoices', key: 'customerInvoices', syncKey: 'customer_invoices' },
                 { label: 'Supplier Invoices', key: 'supplierInvoices', syncKey: 'supplier_invoices' },
                 { label: 'Payments', key: 'payments', syncKey: 'payments' },

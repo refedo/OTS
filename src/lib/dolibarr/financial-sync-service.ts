@@ -1396,6 +1396,7 @@ export class FinancialSyncService {
         }
       };
 
+      counts.projects = await getCount(`SELECT COUNT(*) as cnt FROM dolibarr_projects WHERE is_active = 1`);
       counts.customerInvoices = await getCount(`SELECT COUNT(*) as cnt FROM fin_customer_invoices WHERE is_active = 1`);
       counts.supplierInvoices = await getCount(`SELECT COUNT(*) as cnt FROM fin_supplier_invoices WHERE is_active = 1`);
       counts.payments = await getCount(`SELECT COUNT(*) as cnt FROM fin_payments`);
