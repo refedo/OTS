@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.7.0] - 2026-02-23
+
+### 📊 Project Analysis Report
+
+#### New Features
+- **Project Analysis Report** (`/financial/reports/project-analysis`)
+  - Syncs project data from Dolibarr `llxvv_projet` table into new `dolibarr_projects` mirror table
+  - Links customer & supplier invoices to projects via `fk_projet` foreign key
+  - Per-project financial metrics: revenue, collected, outstanding receivables, costs, profit/loss, margin %
+  - Cost breakdown by category (raw materials, subcontractors, transportation, labor, equipment, etc.)
+  - Monthly revenue vs cost trend with bar chart visualization
+  - Collection rate tracking per project with progress bars
+  - Supplier payment tracking and outstanding payables per project
+  - Summary view with sortable project table and aggregate KPIs
+  - Detail drill-down view with full invoice list, payment history, cost breakdown, and monthly trend
+  - Date range filtering for period-specific analysis
+  - Print-friendly layout
+  - Replaces the old Project Profitability report with comprehensive analysis
+
+#### Technical Details
+- New migration: `add_dolibarr_projects.sql` — creates `dolibarr_projects` table, adds `fk_projet` to invoice tables
+- New Dolibarr client methods: `getProjects()`, `getAllProjects()` for paginated project fetching
+- New sync method: `syncProjects()` in `FinancialSyncService` — included in full sync and partial sync
+- Updated invoice sync to capture `fk_projet` from Dolibarr API responses
+- New service method: `getProjectAnalysis()` in `FinancialReportService`
+- New API route: `GET /api/financial/reports/project-analysis` with `from`, `to`, `projectId` params
+- Updated sidebar navigation and financial dashboard quick links
+
+---
+
+## [15.6.0] - 2026-02-23
+
+### 📊 Financial Reports — Cost Structure & Expenses Analysis
+
+#### New Features
+- **Project Cost Structure Analysis** (`/financial/reports/project-cost-structure`)
+  - Breakdown of project costs by category: raw materials, subcontractors, transportation, labor, equipment, rent, etc.
+  - Visual bar chart distribution with percentage of total and percentage of revenue
+  - Monthly cost trend with stacked bar visualization
+  - Cost by supplier ranking with percentage breakdown
+  - Cost-to-revenue ratio and gross margin KPIs
+  - Smart category detection from product labels (Arabic & English) and accounting codes
+
+- **Expenses Analysis Report** (`/financial/reports/expenses-analysis`)
+  - Detailed expense breakdown by chart-of-accounts category with drill-down to individual accounts
+  - Period-over-period comparison (current vs previous period change %)
+  - Monthly expense trend with stacked bar visualization
+  - Supplier expenses grouped by category (raw materials, subcontractors, transportation, etc.)
+  - Top 50 expense items ranked by amount with supplier and quantity details
+  - Expense-to-revenue ratio, net profit margin, and net profit KPIs
+
+#### Technical Details
+- New service methods: `getProjectCostStructure()`, `getExpensesAnalysis()` in `report-service.ts`
+- New API routes: `GET /api/financial/reports/project-cost-structure`, `GET /api/financial/reports/expenses-analysis`
+- Both reports accept `from` and `to` date parameters
+- Added to sidebar navigation and financial dashboard quick links
+
+---
+
 ## [15.5.0] - 2026-02-23
 
 ### ✨ Tasks Module Enhancement

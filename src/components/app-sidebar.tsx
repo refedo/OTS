@@ -50,6 +50,8 @@ import {
   BarChart3,
   Info,
   Database,
+  Package,
+  Truck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -233,9 +235,11 @@ const navigationSections: NavigationSection[] = [
       { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText, isNew: true },
       { name: 'Cash In/Out', href: '/financial/reports/cash-flow', icon: TrendingUp, isNew: true },
       { name: 'Cash Flow Forecast', href: '/financial/reports/cash-flow-forecast', icon: TrendingUp, isNew: true },
-      { name: 'Project Profitability', href: '/financial/reports/project-profitability', icon: FileSpreadsheet, isNew: true },
+      { name: 'Project Analysis', href: '/financial/reports/project-analysis', icon: FileSpreadsheet, isNew: true },
       { name: 'WIP Report', href: '/financial/reports/wip', icon: Clock, isNew: true },
       { name: 'Projects Financial', href: '/financial/reports/projects-dashboard', icon: Building2, isNew: true },
+      { name: 'Cost Structure', href: '/financial/reports/project-cost-structure', icon: Package, isNew: true },
+      { name: 'Expenses Analysis', href: '/financial/reports/expenses-analysis', icon: Truck, isNew: true },
       { name: 'Journal Entries', href: '/financial/journal-entries', icon: List, isNew: true },
       { name: 'Settings', href: '/financial/settings', icon: Settings, isNew: true },
     ],

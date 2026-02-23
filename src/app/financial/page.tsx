@@ -349,9 +349,11 @@ export default function FinancialDashboardPage() {
           { href: '/financial/reports/soa', icon: FileText, color: 'cyan', title: 'Statement of Account', desc: 'Per-client/supplier account statement' },
           { href: '/financial/reports/cash-flow', icon: ArrowUpDown, color: 'emerald', title: 'Monthly Cash In/Out', desc: 'Monthly collections vs payments' },
           { href: '/financial/reports/cash-flow-forecast', icon: TrendingUp, color: 'sky', title: 'Cash Flow Forecast', desc: '13-week rolling cash projection' },
-          { href: '/financial/reports/project-profitability', icon: FolderOpen, color: 'violet', title: 'Project Profitability', desc: 'P&L by client with collection rates' },
+          { href: '/financial/reports/project-analysis', icon: FolderOpen, color: 'violet', title: 'Project Analysis', desc: 'Comprehensive project P&L, costs & collections' },
           { href: '/financial/reports/wip', icon: Wallet, color: 'amber', title: 'WIP Report', desc: 'Work-in-progress receivables & payables' },
           { href: '/financial/reports/projects-dashboard', icon: Banknote, color: 'lime', title: 'Projects Financial', desc: 'All projects invoicing & collection' },
+          { href: '/financial/reports/project-cost-structure', icon: BarChart3, color: 'rose', title: 'Cost Structure', desc: 'Project cost breakdown by category' },
+          { href: '/financial/reports/expenses-analysis', icon: TrendingDown, color: 'fuchsia', title: 'Expenses Analysis', desc: 'Detailed expense analysis & trends' },
           { href: '/financial/journal-entries', icon: FileText, color: 'slate', title: 'Journal Entries', desc: 'Browse auto-generated entries' },
         ].map((link) => (
           <Link key={link.href} href={link.href}>

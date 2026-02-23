@@ -17,6 +17,7 @@ import {
   DolibarrPayment,
   DolibarrBankAccount,
   DolibarrSalary,
+  DolibarrProject,
   createDolibarrClient,
 } from './dolibarr-client';
 
@@ -37,6 +38,7 @@ export interface FinSyncResult {
 
 export interface FullFinSyncResult {
   bankAccounts?: FinSyncResult;
+  projects?: FinSyncResult;
   customerInvoices?: FinSyncResult;
   customerPayments?: FinSyncResult;
   supplierInvoices?: FinSyncResult;
@@ -235,6 +237,92 @@ export class FinancialSyncService {
   }
 
   // ============================================
+  // SYNC: PROJECTS
+  // ============================================
+
+  async syncProjects(triggeredBy: string = 'manual'): Promise<FinSyncResult> {
+    const startTime = Date.now();
+    let created = 0, updated = 0, unchanged = 0, total = 0;
+
+    try {
+      const projects = await this.client.getAllProjects(100);
+      total = projects.length;
+
+      for (const proj of projects) {
+        const dolibarrId = pi(proj.id);
+        if (!dolibarrId) continue;
+
+        const hashFields = {
+          ref: proj.ref, title: proj.title, fk_soc: proj.fk_soc,
+          fk_statut: proj.fk_statut, budget_amount: proj.budget_amount,
+          opp_amount: proj.opp_amount, date_start: proj.date_start, date_end: proj.date_end,
+        };
+        const newHash = computeHash(hashFields);
+
+        const dateStart = formatDate(parseDolibarrDate(proj.date_start));
+        const dateEnd = formatDate(parseDolibarrDate(proj.date_end));
+        const dateClose = formatDate(parseDolibarrDate(proj.date_close));
+
+        const existing: any[] = await prisma.$queryRawUnsafe(
+          `SELECT sync_hash FROM dolibarr_projects WHERE dolibarr_id = ?`, dolibarrId
+        );
+
+        if (existing.length > 0) {
+          if (existing[0].sync_hash === newHash) { unchanged++; continue; }
+          await prisma.$executeRawUnsafe(
+            `UPDATE dolibarr_projects SET ref=?, title=?, description=?, fk_soc=?,
+             fk_opp_status=?, opp_amount=?, budget_amount=?, date_start=?, date_end=?, date_close=?,
+             fk_statut=?, public=?, note_public=?, note_private=?, array_options=?,
+             last_synced_at=NOW(), sync_hash=?, is_active=1
+             WHERE dolibarr_id=?`,
+            proj.ref, proj.title, proj.description || null, pi(proj.fk_soc),
+            pi(proj.fk_opp_status), pf(proj.opp_amount), pf(proj.budget_amount),
+            dateStart, dateEnd, dateClose,
+            pi(proj.fk_statut), pi(proj.public), proj.note_public || null, proj.note_private || null,
+            proj.array_options ? JSON.stringify(proj.array_options) : null,
+            newHash, dolibarrId
+          );
+          updated++;
+        } else {
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO dolibarr_projects (dolibarr_id, ref, title, description, fk_soc,
+             fk_opp_status, opp_amount, budget_amount, date_start, date_end, date_close,
+             fk_statut, public, note_public, note_private, array_options,
+             first_synced_at, last_synced_at, sync_hash, is_active)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
+            dolibarrId, proj.ref, proj.title, proj.description || null, pi(proj.fk_soc),
+            pi(proj.fk_opp_status), pf(proj.opp_amount), pf(proj.budget_amount),
+            dateStart, dateEnd, dateClose,
+            pi(proj.fk_statut), pi(proj.public), proj.note_public || null, proj.note_private || null,
+            proj.array_options ? JSON.stringify(proj.array_options) : null,
+            newHash
+          );
+          created++;
+        }
+      }
+
+      console.log(`[FinSync] Projects complete: ${total} total, ${created} created, ${updated} updated, ${unchanged} unchanged`);
+
+      const result: FinSyncResult = {
+        entityType: 'projects', status: 'success',
+        created, updated, unchanged, total,
+        durationMs: Date.now() - startTime,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
+    } catch (error: any) {
+      console.error('[FinSync] Projects sync failed:', error.message);
+      const result: FinSyncResult = {
+        entityType: 'projects', status: 'error',
+        created, updated, unchanged, total: 0,
+        durationMs: Date.now() - startTime, error: error.message,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
+    }
+  }
+
+  // ============================================
   // SYNC: CUSTOMER INVOICES
   // ============================================
 
@@ -278,15 +366,17 @@ export class FinancialSyncService {
             `SELECT sync_hash FROM fin_customer_invoices WHERE dolibarr_id = ?`, dolibarrId
           );
 
+          const fkProjet = pi(inv.fk_project || inv.fk_projet);
+
           if (existing.length > 0) {
             if (existing[0].sync_hash === newHash) { unchanged++; }
             else {
               await prisma.$executeRawUnsafe(
-                `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, type=?, status=?, is_paid=?,
+                `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, fk_projet=?, type=?, status=?, is_paid=?,
                  total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
                  dolibarr_raw=NULL, last_synced_at=NOW(), sync_hash=?, is_active=1
                  WHERE dolibarr_id=?`,
-                inv.ref, inv.ref_client, pi(inv.socid), pi(inv.type),
+                inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
                 pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
                 pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
                 invoiceDate, dueDate, creationDate, newHash, dolibarrId
@@ -295,11 +385,11 @@ export class FinancialSyncService {
             }
           } else {
             await prisma.$executeRawUnsafe(
-              `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, type, status, is_paid,
+              `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, fk_projet, type, status, is_paid,
                total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
                first_synced_at, last_synced_at, sync_hash, is_active)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)`,
-              dolibarrId, inv.ref, inv.ref_client, pi(inv.socid), pi(inv.type),
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)`,
+              dolibarrId, inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
               pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
               pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
               invoiceDate, dueDate, creationDate, newHash
@@ -450,21 +540,22 @@ export class FinancialSyncService {
           const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
           const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
           const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
+          const fkProjet = pi(inv.fk_project || inv.fk_projet);
           const isNew = !existingMap.has(dolibarrId);
           if (isNew) created++; else updated++;
 
           // Use INSERT...ON DUPLICATE KEY UPDATE for upsert
           await prisma.$executeRawUnsafe(
-            `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, type, status, is_paid,
+            `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, fk_projet, type, status, is_paid,
              total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
              first_synced_at, last_synced_at, sync_hash, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)
              ON DUPLICATE KEY UPDATE
-             ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), type=VALUES(type),
+             ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), fk_projet=VALUES(fk_projet), type=VALUES(type),
              status=VALUES(status), is_paid=VALUES(is_paid), total_ht=VALUES(total_ht), total_tva=VALUES(total_tva),
              total_ttc=VALUES(total_ttc), date_invoice=VALUES(date_invoice), date_due=VALUES(date_due),
              date_creation=VALUES(date_creation), last_synced_at=NOW(), sync_hash=VALUES(sync_hash), is_active=1`,
-            dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), pi(inv.type),
+            dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), fkProjet || null, pi(inv.type),
             pi(inv.statut || inv.status), (inv.paye === '1' || inv.paid === '1') ? 1 : 0,
             pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
             invoiceDate, dueDate, creationDate, newHash
@@ -1143,6 +1234,10 @@ export class FinancialSyncService {
             result.bankAccounts = await this.syncBankAccounts(triggeredBy);
             console.log(`[FinSync] Bank accounts: ${result.bankAccounts.created} created, ${result.bankAccounts.updated} updated`);
             break;
+          case 'projects':
+            result.projects = await this.syncProjects(triggeredBy);
+            console.log(`[FinSync] Projects: ${result.projects.created} created, ${result.projects.updated} updated`);
+            break;
           case 'customer_invoices': {
             const { invoiceResult, paymentResult } = await this.syncCustomerInvoices(triggeredBy);
             result.customerInvoices = invoiceResult;
@@ -1203,6 +1298,7 @@ export class FinancialSyncService {
     console.log('[FinSync] Starting full financial sync...');
 
     let bankAccounts: FinSyncResult | undefined;
+    let projects: FinSyncResult | undefined;
     let customerInvoices: FinSyncResult | undefined;
     let customerPayments: FinSyncResult | undefined;
     let supplierInvoices: FinSyncResult | undefined;
@@ -1218,6 +1314,13 @@ export class FinancialSyncService {
         console.log(`[FinSync] Bank accounts: ${bankAccounts.created} created, ${bankAccounts.updated} updated`);
       } catch (e: any) {
         console.error('[FinSync] Bank accounts sync failed:', e.message);
+      }
+
+      try {
+        projects = await this.syncProjects(triggeredBy);
+        console.log(`[FinSync] Projects: ${projects.created} created, ${projects.updated} updated`);
+      } catch (e: any) {
+        console.error('[FinSync] Projects sync failed:', e.message);
       }
 
       try {
@@ -1265,7 +1368,7 @@ export class FinancialSyncService {
     console.log(`[FinSync] Full sync completed in ${totalDurationMs}ms`);
 
     return {
-      bankAccounts, customerInvoices, customerPayments,
+      bankAccounts, projects, customerInvoices, customerPayments,
       supplierInvoices, supplierPayments, salaries, journalEntries,
       totalDurationMs,
     };

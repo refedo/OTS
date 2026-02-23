@@ -188,6 +188,26 @@ export interface DolibarrSalary {
   [key: string]: any;
 }
 
+export interface DolibarrProject {
+  id: number | string;
+  ref: string;
+  title: string;
+  description: string | null;
+  fk_soc: string | number | null;
+  fk_opp_status: string | number | null;
+  opp_amount: string | null;
+  budget_amount: string | null;
+  date_start: number | string | null; // Unix timestamp
+  date_end: number | string | null;
+  date_close: number | string | null;
+  fk_statut: string; // "0"=draft, "1"=validated, "2"=closed
+  public: string;
+  note_public: string | null;
+  note_private: string | null;
+  array_options: Record<string, any> | null;
+  [key: string]: any;
+}
+
 export interface DolibarrBankAccount {
   id: number | string;
   ref: string;
@@ -573,6 +593,40 @@ export class DolibarrClient {
     while (hasMore) {
       const batch = await this.getSalaries({ limit: batchSize, page });
       all.push(...batch);
+      hasMore = batch.length >= batchSize;
+      page++;
+    }
+
+    return all;
+  }
+
+  /**
+   * Fetch projects with pagination
+   */
+  async getProjects(params?: DolibarrPaginationParams): Promise<DolibarrProject[]> {
+    const result = await this.request<DolibarrProject[]>('projects', {
+      limit: params?.limit ?? 100,
+      page: params?.page ?? 0,
+      sortfield: params?.sortfield ?? 't.rowid',
+      sortorder: params?.sortorder ?? 'ASC',
+      sqlfilters: params?.sqlfilters,
+    });
+    return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Auto-paginate to fetch ALL projects
+   */
+  async getAllProjects(batchSize: number = 100): Promise<DolibarrProject[]> {
+    const all: DolibarrProject[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      console.log(`[Dolibarr] Fetching projects page ${page} (batch ${batchSize})...`);
+      const batch = await this.getProjects({ limit: batchSize, page });
+      all.push(...batch);
+      console.log(`[Dolibarr] Got ${batch.length} projects (total: ${all.length})`);
       hasMore = batch.length >= batchSize;
       page++;
     }
