@@ -351,10 +351,12 @@ export class FinancialSyncService {
           const dolibarrId = pi(inv.id);
           if (!dolibarrId) continue;
 
+          const fkProjet = pi(inv.fk_project || inv.fk_projet);
+
           const hashFields = {
             ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye,
             total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
-            date_echeance: inv.date_echeance,
+            date_echeance: inv.date_echeance, fk_project: fkProjet || null,
           };
           const newHash = computeHash(hashFields);
 
@@ -365,8 +367,6 @@ export class FinancialSyncService {
           const existing: any[] = await prisma.$queryRawUnsafe(
             `SELECT sync_hash FROM fin_customer_invoices WHERE dolibarr_id = ?`, dolibarrId
           );
-
-          const fkProjet = pi(inv.fk_project || inv.fk_projet);
 
           if (existing.length > 0) {
             if (existing[0].sync_hash === newHash) { unchanged++; }
@@ -524,10 +524,12 @@ export class FinancialSyncService {
           const dolibarrId = pi(inv.id);
           if (!dolibarrId) continue;
 
+          const fkProjet = pi(inv.fk_project || inv.fk_projet);
+
           const hashFields = {
             ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye || inv.paid,
             total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
-            date_echeance: inv.date_echeance,
+            date_echeance: inv.date_echeance, fk_project: fkProjet || null,
           };
           const newHash = computeHash(hashFields);
 
@@ -540,7 +542,6 @@ export class FinancialSyncService {
           const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
           const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
           const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
-          const fkProjet = pi(inv.fk_project || inv.fk_projet);
           const isNew = !existingMap.has(dolibarrId);
           if (isNew) created++; else updated++;
 

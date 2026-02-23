@@ -377,7 +377,7 @@ export default function AssemblyPartsPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-purple-600">
-                {(totals.totalWeight / 1000).toFixed(2)}
+                {((totals.totalWeight || 0) / 1000).toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">Total Weight (tons)</p>
             </CardContent>
@@ -385,7 +385,7 @@ export default function AssemblyPartsPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-indigo-600">
-                {totals.totalArea.toFixed(2)}
+                {(totals.totalArea || 0).toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">Total Area (m²)</p>
             </CardContent>

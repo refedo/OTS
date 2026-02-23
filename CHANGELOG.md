@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.8.0] - 2026-02-23
+
+### 🐛 Bug Fixes & Statement of Account Export
+
+#### Bug Fixes
+- **Assembly Parts page crash** — Fixed `totalArea.toFixed is not a function` error when Prisma returns null aggregates
+- **Project Analysis report empty** — Report requires a full financial sync to populate `dolibarr_projects` table (trigger sync from Financial Dashboard)
+
+#### New Features
+- **Statement of Account — PDF Export** with official form layout
+  - Hexa Steel branded header with company details (CR, VAT)
+  - Customer/Supplier info box with period and balance due
+  - Summary row: Total Invoiced, Total Paid, Outstanding Balance
+  - Transaction table with color-coded payment rows
+  - Totals row with debit/credit/balance
+  - Footer with company address and page numbers on all pages
+  - Auto-named file: `SOA_{name}_{from}_{to}.pdf`
+
+- **Statement of Account — Excel Export**
+  - Structured worksheet with header info, summary, and transaction table
+  - Proper column widths and numeric formatting
+  - Auto-named file: `SOA_{name}_{from}_{to}.xlsx`
+
+#### Notes
+- Salary sync 403 error is a Dolibarr API permission issue — grant salary read access to the API key in Dolibarr admin
+
+---
+
 ## [15.7.0] - 2026-02-23
 
 ### 📊 Project Analysis Report

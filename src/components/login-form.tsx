@@ -78,10 +78,12 @@ export function LoginForm() {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
-          throw new Error(data.error || 'Login failed');
+          const errorMsg = data.details ? `${data.error}: ${data.details}` : (data.error || 'Login failed');
+          console.error('Login API error:', data);
+          throw new Error(errorMsg);
         } else {
           const text = await response.text();
-          console.error('Server error:', text);
+          console.error('Server error (non-JSON):', text);
           throw new Error('Server error. Please check the console and try again.');
         }
       }
