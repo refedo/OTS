@@ -11,7 +11,7 @@ import {
   RefreshCw, TrendingUp, TrendingDown, DollarSign, Landmark, Receipt,
   FileText, BarChart3, Clock, Loader2,
   ArrowRight, CheckCircle, Building2, CreditCard, ChevronDown, ChevronUp,
-  Percent, Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package,
+  Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package,
 } from 'lucide-react';
 import Link from 'next/link';
 
