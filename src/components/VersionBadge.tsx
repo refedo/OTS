@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.4.1';
-const RELEASE_DATE = 'February 22, 2026';
+const CURRENT_VERSION = '15.9.0';
+const RELEASE_DATE = 'February 24, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Financial Sync Production Fix</li>
-              <li>• Journal Entry Data Loss Prevention</li>
-              <li>• Full CoA with English + Arabic Labels</li>
-              <li>• SOA Third Party Name Dropdown</li>
+              <li>• Financial Dashboard Improvements</li>
+              <li>• Clickable KPI cards with source reports</li>
+              <li>• Asset Report & Salaries Report pages</li>
+              <li>• Smart number formatting (K SAR)</li>
             </ul>
           </div>
 

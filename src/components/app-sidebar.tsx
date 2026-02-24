@@ -649,7 +649,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v15.4.1
+                  Hexa Steel® OTS v15.9.0
                 </p>
               </div>
             )}
