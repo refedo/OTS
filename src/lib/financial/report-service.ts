@@ -1735,7 +1735,8 @@ export class FinancialReportService {
   // ============================================
 
   async getProjectAnalysis(fromDate?: string, toDate?: string, projectId?: number): Promise<any> {
-    // 1. Get all projects with client info (try fk_soc join first, fallback to customer invoice client)
+    // 1. Get all projects with client info
+    // First try fk_soc join; fallback: pick the client with highest revenue per project (exactly 1 row)
     const projects: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         dp.dolibarr_id as project_id,
@@ -1754,11 +1755,15 @@ export class FinancialReportService {
       FROM dolibarr_projects dp
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = dp.fk_soc AND dp.fk_soc > 0
       LEFT JOIN (
-        SELECT ci.fk_projet, dt2.name as client_name
-        FROM fin_customer_invoices ci
-        JOIN dolibarr_thirdparties dt2 ON dt2.dolibarr_id = ci.socid
-        WHERE ci.is_active = 1 AND ci.status >= 1 AND ci.fk_projet IS NOT NULL AND ci.fk_projet > 0
-        GROUP BY ci.fk_projet, dt2.name
+        SELECT sub.fk_projet, sub.client_name
+        FROM (
+          SELECT ci.fk_projet, dt2.name as client_name,
+                 ROW_NUMBER() OVER (PARTITION BY ci.fk_projet ORDER BY SUM(ci.total_ht) DESC) as rn
+          FROM fin_customer_invoices ci
+          JOIN dolibarr_thirdparties dt2 ON dt2.dolibarr_id = ci.socid
+          WHERE ci.is_active = 1 AND ci.status >= 1 AND ci.fk_projet IS NOT NULL AND ci.fk_projet > 0
+          GROUP BY ci.fk_projet, dt2.name
+        ) sub WHERE sub.rn = 1
       ) inv_client ON inv_client.fk_projet = dp.dolibarr_id
       WHERE dp.is_active = 1
       ORDER BY dp.ref

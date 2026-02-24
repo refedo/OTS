@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
+import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 
 export const dynamic = 'force-dynamic';
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const store = await cookies();
-  const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-  const session = token ? verifySession(token) : null;
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireFinancialPermission('financial.manage');
+  if ('error' in auth) return auth.error;
 
   const { id } = await params;
 
@@ -42,10 +39,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const store = await cookies();
-  const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-  const session = token ? verifySession(token) : null;
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireFinancialPermission('financial.manage');
+  if ('error' in auth) return auth.error;
 
   const { id } = await params;
 

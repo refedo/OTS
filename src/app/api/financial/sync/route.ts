@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySession } from '@/lib/jwt';
 import { FinancialSyncService, isSyncRunning } from '@/lib/dolibarr/financial-sync-service';
+import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 600; // 10 minutes for full sync
@@ -9,10 +8,8 @@ export const maxDuration = 600; // 10 minutes for full sync
 const VALID_ENTITIES = ['bank_accounts', 'projects', 'customer_invoices', 'supplier_invoices', 'payments', 'salaries', 'journal_entries'];
 
 export async function POST(request: NextRequest) {
-  const store = await cookies();
-  const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-  const session = token ? verifySession(token) : null;
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireFinancialPermission('financial.manage');
+  if ('error' in auth) return auth.error;
 
   try {
     // Check if a sync is already running
@@ -24,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const service = new FinancialSyncService();
-    const triggeredBy = session.name || 'manual';
+    const triggeredBy = auth.session.name || 'manual';
 
     // Check for partial sync via query param or body
     const url = new URL(request.url);
@@ -49,10 +46,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const store = await cookies();
-  const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
-  const session = token ? verifySession(token) : null;
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireFinancialPermission('financial.view');
+  if ('error' in auth) return auth.error;
 
   try {
     const service = new FinancialSyncService();

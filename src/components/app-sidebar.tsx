@@ -343,8 +343,8 @@ export function AppSidebar() {
           const data = await response.json();
           setRiskCount(data.totalRisks || 0);
         }
-      } catch (error) {
-        console.error('Failed to fetch risk count:', error);
+      } catch {
+        // Silently ignore — non-critical background fetch
       }
     }
 
@@ -649,7 +649,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v15.11.0
+                  Hexa Steel® OTS v15.12.0
                 </p>
               </div>
             )}

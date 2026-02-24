@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.12.0] - 2026-02-24
+
+### 🔒 Financial API Security & Cost Fix
+
+#### New Features
+- **requireFinancialPermission()** — shared server-side guard for all financial API routes
+- **HTTP 403 Access Denied** for users without `financial.view` permission on any financial endpoint
+
+#### Bug Fixes
+- **CRITICAL: Cartesian product in client name subquery** — projects with multiple customers caused duplicate rows, showing identical costs across many projects
+- **All projects showing identical costs (SAR 311K)** — caused by duplicated rows in LEFT JOIN, not real data
+- **Financial reports accessible via direct URL** — now returns 403 instead of showing data
+- **Console TypeError: fetchRiskCount** — silenced non-critical background fetch error
+
+#### Improvements
+- **All 27 financial API routes** use `requireFinancialPermission()` instead of basic session-only check
+- **Client name subquery** uses `ROW_NUMBER()` to return exactly 1 client per project (highest revenue)
+- **Write operations** (sync, config PUT, chart-of-accounts POST/PUT/DELETE) require `financial.manage`
+
+---
+
 ## [15.11.0] - 2026-02-24
 
 ### 📊 Project Analysis & RBAC Fix
