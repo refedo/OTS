@@ -1735,7 +1735,7 @@ export class FinancialReportService {
   // ============================================
 
   async getProjectAnalysis(fromDate?: string, toDate?: string, projectId?: number): Promise<any> {
-    // 1. Get all projects with client info
+    // 1. Get all projects with client info (try fk_soc join first, fallback to customer invoice client)
     const projects: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         dp.dolibarr_id as project_id,
@@ -1750,9 +1750,16 @@ export class FinancialReportService {
         dp.date_end,
         dp.date_close,
         dp.array_options,
-        dt.name as client_name
+        COALESCE(dt.name, inv_client.client_name) as client_name
       FROM dolibarr_projects dp
-      LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = dp.fk_soc
+      LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = dp.fk_soc AND dp.fk_soc > 0
+      LEFT JOIN (
+        SELECT ci.fk_projet, dt2.name as client_name
+        FROM fin_customer_invoices ci
+        JOIN dolibarr_thirdparties dt2 ON dt2.dolibarr_id = ci.socid
+        WHERE ci.is_active = 1 AND ci.status >= 1 AND ci.fk_projet IS NOT NULL AND ci.fk_projet > 0
+        GROUP BY ci.fk_projet, dt2.name
+      ) inv_client ON inv_client.fk_projet = dp.dolibarr_id
       WHERE dp.is_active = 1
       ORDER BY dp.ref
     `);
@@ -1956,7 +1963,15 @@ export class FinancialReportService {
         percentOfRevenue: revenueHT > 0 ? (c.totalHT / revenueHT) * 100 : 0,
       }));
 
-      const statusLabel = proj.fk_statut === 0 ? 'Draft' : proj.fk_statut === 1 ? 'Open' : 'Closed';
+      // Dolibarr project statuses: 0=Draft, 1=Validated/Open, 2=Closed
+      // If fk_statut is 0 but project has revenue, treat as Open (sync may not have captured status yet)
+      let statusLabel = 'Draft';
+      const fkStatut = Number(proj.fk_statut || 0);
+      if (fkStatut === 2 || proj.date_close) {
+        statusLabel = 'Closed';
+      } else if (fkStatut === 1 || revenueHT > 0) {
+        statusLabel = 'Open';
+      }
 
       return {
         projectId: pid,
@@ -2116,6 +2131,19 @@ export class FinancialReportService {
       };
     }
 
+    // Get total supplier costs (including unlinked) for comparison
+    const totalSuppCosts: any[] = await prisma.$queryRawUnsafe(`
+      SELECT 
+        COUNT(*) as total_invoices,
+        SUM(total_ht) as total_ht,
+        SUM(CASE WHEN fk_projet IS NULL OR fk_projet = 0 THEN total_ht ELSE 0 END) as unlinked_ht,
+        SUM(CASE WHEN fk_projet IS NULL OR fk_projet = 0 THEN 1 ELSE 0 END) as unlinked_count,
+        SUM(CASE WHEN fk_projet IS NOT NULL AND fk_projet > 0 THEN 1 ELSE 0 END) as linked_count
+      FROM fin_supplier_invoices WHERE is_active = 1 AND status >= 1
+      ${fromDate && toDate ? `AND date_invoice BETWEEN '${fromDate}' AND '${toDate}'` : ''}
+    `);
+    const suppStats = totalSuppCosts[0] || {};
+
     return {
       mode: 'summary',
       fromDate: fromDate || null,
@@ -2135,6 +2163,12 @@ export class FinancialReportService {
         totalOutstandingPayables: projectList.reduce((s: number, p: any) => s + p.outstandingPayables, 0),
         profitableProjects: projectList.filter((p: any) => p.profit > 0).length,
         lossProjects: projectList.filter((p: any) => p.profit < 0 && p.revenueHT > 0).length,
+        // Unlinked cost info
+        totalSupplierCostsHT: Number(suppStats.total_ht || 0),
+        unlinkedCostsHT: Number(suppStats.unlinked_ht || 0),
+        unlinkedInvoiceCount: Number(suppStats.unlinked_count || 0),
+        linkedInvoiceCount: Number(suppStats.linked_count || 0),
+        totalSupplierInvoices: Number(suppStats.total_invoices || 0),
       },
       projects: projectList,
       aggregateCostCategories,

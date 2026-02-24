@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.10.0';
+const CURRENT_VERSION = '15.11.0';
 const RELEASE_DATE = 'February 24, 2026';
 
 export default function VersionBadge() {
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• RBAC fix: module restrictions now enforced</li>
-              <li>• User admin privileges & mobile number</li>
-              <li>• Financial module permission enforcement</li>
-              <li>• Project Analysis error handling</li>
+              <li>• RBAC fix: financial pages hidden without permission</li>
+              <li>• Project Analysis: client names, status, costs</li>
+              <li>• Clickable cost breakdown per project</li>
+              <li>• Project sync: client & status from Dolibarr</li>
             </ul>
           </div>
 

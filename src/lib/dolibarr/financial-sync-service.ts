@@ -252,9 +252,15 @@ export class FinancialSyncService {
         const dolibarrId = pi(proj.id);
         if (!dolibarrId) continue;
 
+        // Dolibarr API may return socid/statut instead of fk_soc/fk_statut
+        const raw = proj as any;
+        const socId = pi(proj.fk_soc) || pi(raw.socid) || pi(raw.thirdparty_id) || 0;
+        const statut = pi(proj.fk_statut) || pi(raw.statut) || pi(raw.status) || 0;
+        const oppStatus = pi(proj.fk_opp_status) || pi(raw.opp_status) || 0;
+
         const hashFields = {
-          ref: proj.ref, title: proj.title, fk_soc: proj.fk_soc,
-          fk_statut: proj.fk_statut, budget_amount: proj.budget_amount,
+          ref: proj.ref, title: proj.title, fk_soc: socId,
+          fk_statut: statut, budget_amount: proj.budget_amount,
           opp_amount: proj.opp_amount, date_start: proj.date_start, date_end: proj.date_end,
         };
         const newHash = computeHash(hashFields);
@@ -275,10 +281,10 @@ export class FinancialSyncService {
              fk_statut=?, public=?, note_public=?, note_private=?, array_options=?,
              last_synced_at=NOW(), sync_hash=?, is_active=1
              WHERE dolibarr_id=?`,
-            proj.ref, proj.title, proj.description || null, pi(proj.fk_soc),
-            pi(proj.fk_opp_status), pf(proj.opp_amount), pf(proj.budget_amount),
+            proj.ref, proj.title, proj.description || null, socId,
+            oppStatus, pf(proj.opp_amount), pf(proj.budget_amount),
             dateStart, dateEnd, dateClose,
-            pi(proj.fk_statut), pi(proj.public), proj.note_public || null, proj.note_private || null,
+            statut, pi(raw.public ?? proj.public), proj.note_public || null, proj.note_private || null,
             proj.array_options ? JSON.stringify(proj.array_options) : null,
             newHash, dolibarrId
           );
@@ -290,10 +296,10 @@ export class FinancialSyncService {
              fk_statut, public, note_public, note_private, array_options,
              first_synced_at, last_synced_at, sync_hash, is_active)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
-            dolibarrId, proj.ref, proj.title, proj.description || null, pi(proj.fk_soc),
-            pi(proj.fk_opp_status), pf(proj.opp_amount), pf(proj.budget_amount),
+            dolibarrId, proj.ref, proj.title, proj.description || null, socId,
+            oppStatus, pf(proj.opp_amount), pf(proj.budget_amount),
             dateStart, dateEnd, dateClose,
-            pi(proj.fk_statut), pi(proj.public), proj.note_public || null, proj.note_private || null,
+            statut, pi(raw.public ?? proj.public), proj.note_public || null, proj.note_private || null,
             proj.array_options ? JSON.stringify(proj.array_options) : null,
             newHash
           );

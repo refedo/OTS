@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.11.0] - 2026-02-24
+
+### 📊 Project Analysis & RBAC Fix
+
+#### New Features
+- **Clickable cost column** — click any cost value to see inline cost breakdown per project
+- **Unlinked supplier costs warning** — shows how many supplier invoices are not linked to projects
+- **Client name fallback** — resolves client from customer invoices when project has no fk_soc
+- **Enhanced monthly chart** — Y-axis gridlines, value labels, and legend with totals
+
+#### Bug Fixes
+- **RBAC: Financial pages visible without permission** — removed `settings.view` from all financial navigation permissions (root cause)
+- **Project status all showing "Draft"** — now inferred from revenue (Open if has revenue) and close date (Closed)
+- **Client column empty** — added fallback JOIN on customer invoices to resolve client names
+- **Project sync** — reads `socid`/`statut` as fallbacks from Dolibarr API response
+- **Percent icon HMR error** — removed unused import from project-analysis page
+
+#### Improvements
+- **Compact table layout** — smaller padding, text-xs font, truncated columns for better screen fit
+- **Revenue/Cost shown in compact format** — K SAR / M SAR instead of full numbers
+- **Monthly chart** — enhanced with gridlines, value labels, and legend totals
+
+---
+
 ## [15.10.0] - 2026-02-24
 
 ### 🔐 RBAC Overhaul & User Management

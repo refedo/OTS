@@ -2,33 +2,34 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.10.0',
+  version: '15.11.0',
   date: 'February 24, 2026',
   type: 'minor' as const,
-  mainTitle: '� RBAC Overhaul & User Management',
+  mainTitle: '📊 Project Analysis & RBAC Fix',
   highlights: [
-    'Financial module now properly hidden when disabled in role permissions',
-    'New isAdmin flag — admin privileges without requiring Admin role',
-    'Mobile number field for WhatsApp notifications',
-    'Module restrictions enforced on both server and client side',
+    'Financial pages now properly hidden without financial.view permission',
+    'Client names resolved from customer invoices when fk_soc is missing',
+    'Project status inferred from invoices (Open if has revenue)',
+    'Clickable cost breakdown per project in summary table',
   ],
   changes: {
     added: [
-      'isAdmin flag on User — grants all permissions regardless of role',
-      'Mobile number field (international format) for WhatsApp notifications',
-      'financial_module and dolibarr_module entries in MODULE_RESTRICTIONS',
-      'Better error handling for Project Analysis report',
+      'Clickable cost column — inline cost breakdown per project',
+      'Unlinked supplier costs warning with stats',
+      'Client name fallback from customer invoices',
+      'Enhanced monthly chart with Y-axis gridlines and totals',
     ],
     fixed: [
-      'RBAC: /api/auth/me now applies restrictedModules filtering (was missing)',
-      'Financial sidebar visible despite module being disabled in role',
-      'permission-checker.ts refactored to use shared resolveUserPermissions()',
-      'Missing navigation permissions for newer financial report pages',
+      'RBAC: removed settings.view from financial navigation permissions',
+      'Project status all showing Draft — now inferred from revenue/close date',
+      'Client column empty — added fallback JOIN on customer invoices',
+      'Project sync: reads socid/statut as fallbacks from Dolibarr API',
+      'Removed unused Percent icon import (HMR error)',
     ],
     changed: [
-      'User create/edit forms now include mobile number and admin toggle',
-      'API user routes accept isAdmin and mobileNumber fields',
-      'Navigation permissions updated for all financial report routes',
+      'Compact table layout — smaller padding, text-xs, truncated columns',
+      'Revenue/Cost/Collected shown in compact format (K SAR / M SAR)',
+      'Monthly chart enhanced with gridlines, value labels, and legend totals',
     ],
   },
 };

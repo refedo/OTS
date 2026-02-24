@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Loader2, ArrowLeft, Printer, DollarSign, TrendingUp, TrendingDown,
-  Percent, BarChart3, ChevronDown, ChevronUp, ArrowUpRight, ArrowDownRight,
-  Package, Truck, Users, Wrench, Building2, FileText, FolderOpen,
-  Eye, ArrowRight, CheckCircle, Clock, AlertTriangle, CreditCard,
+  BarChart3, ChevronDown, ChevronUp,
+  FileText, FolderOpen,
+  Eye, CheckCircle, Clock, AlertTriangle, CreditCard,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -53,6 +53,7 @@ export default function ProjectAnalysisPage() {
   const [showCostBreakdown, setShowCostBreakdown] = useState(true);
   const [sortField, setSortField] = useState<string>('revenueHT');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [costBreakdownProject, setCostBreakdownProject] = useState<number | null>(null);
 
   const generate = async () => {
     setLoading(true);
@@ -507,6 +508,25 @@ export default function ProjectAnalysisPage() {
             </Card>
           )}
 
+          {/* Unlinked Costs Warning */}
+          {s.unlinkedCostsHT > 0 && (
+            <Card className="border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-900/10">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-sm">Unlinked Supplier Costs</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <strong className="text-amber-600">{compact(s.unlinkedCostsHT)}</strong> ({s.unlinkedInvoiceCount} of {s.totalSupplierInvoices} supplier invoices)
+                      are not linked to any project in Dolibarr. These costs do not appear in the per-project breakdown.
+                      To fix this, link supplier invoices to projects in Dolibarr and re-sync.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Aggregate Monthly Trend */}
           {report.aggregateMonthlyTrend && report.aggregateMonthlyTrend.length > 0 && (
             <Card>
@@ -518,27 +538,68 @@ export default function ProjectAnalysisPage() {
               </CardHeader>
               {showMonthly && (
                 <CardContent>
-                  <div className="flex items-end gap-1 h-44 mb-4">
-                    {report.aggregateMonthlyTrend.map((m: any) => {
-                      const maxVal = Math.max(...report.aggregateMonthlyTrend.map((t: any) => Math.max(t.revenue, t.cost)));
-                      const revH = maxVal > 0 ? (m.revenue / maxVal) * 100 : 0;
-                      const costH = maxVal > 0 ? (m.cost / maxVal) * 100 : 0;
-                      return (
-                        <div key={m.month} className="flex-1 flex flex-col items-center gap-0.5">
-                          <div className={`text-[9px] font-mono ${m.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{compact(m.profit)}</div>
-                          <div className="w-full flex gap-0.5 items-end" style={{ height: '80%' }}>
-                            <div className="flex-1 bg-green-500 rounded-t transition-all" style={{ height: `${revH}%`, minHeight: m.revenue > 0 ? '2px' : 0 }} title={`Revenue: ${fmt(m.revenue)}`} />
-                            <div className="flex-1 bg-red-400 rounded-t transition-all" style={{ height: `${costH}%`, minHeight: m.cost > 0 ? '2px' : 0 }} title={`Cost: ${fmt(m.cost)}`} />
+                  {/* Enhanced chart with value labels and gridlines */}
+                  {(() => {
+                    const data = report.aggregateMonthlyTrend;
+                    const maxVal = Math.max(...data.map((t: any) => Math.max(t.revenue, t.cost)));
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-end gap-2 h-56 relative">
+                          {/* Y-axis gridlines */}
+                          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '24px', top: '20px' }}>
+                            {[100, 75, 50, 25, 0].map(pctLine => (
+                              <div key={pctLine} className="flex items-center w-full">
+                                <span className="text-[9px] text-muted-foreground w-12 text-right pr-1 shrink-0">{compact(maxVal * pctLine / 100)}</span>
+                                <div className="flex-1 border-b border-dashed border-muted-foreground/20" />
+                              </div>
+                            ))}
                           </div>
-                          <div className="text-[9px] text-muted-foreground">{m.monthLabel}</div>
+                          {/* Bars */}
+                          <div className="flex items-end gap-1 flex-1 ml-12" style={{ height: 'calc(100% - 24px)', paddingTop: '20px' }}>
+                            {data.map((m: any) => {
+                              const revH = maxVal > 0 ? (m.revenue / maxVal) * 100 : 0;
+                              const costH = maxVal > 0 ? (m.cost / maxVal) * 100 : 0;
+                              return (
+                                <div key={m.month} className="flex-1 flex flex-col items-center gap-0" style={{ minWidth: 0 }}>
+                                  <div className={`text-[10px] font-mono font-semibold mb-0.5 ${m.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {compact(m.profit)}
+                                  </div>
+                                  <div className="w-full flex gap-0.5 items-end flex-1">
+                                    <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                      <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${revH}%`, minHeight: m.revenue > 0 ? '3px' : 0 }} />
+                                    </div>
+                                    <div className="flex-1 flex flex-col items-center justify-end h-full">
+                                      <div className="w-full bg-red-400 rounded-t transition-all" style={{ height: `${costH}%`, minHeight: m.cost > 0 ? '3px' : 0 }} />
+                                    </div>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground mt-1 font-medium">{m.monthLabel}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-4 justify-center text-xs">
-                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-green-500" /> Revenue</div>
-                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-red-400" /> Cost</div>
-                  </div>
+                        {/* Legend with totals */}
+                        <div className="flex gap-6 justify-center text-xs pt-2 border-t">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm bg-green-500" />
+                            <span>Revenue</span>
+                            <span className="font-semibold text-green-600 ml-1">{compact(data.reduce((s: number, m: any) => s + m.revenue, 0))}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm bg-red-400" />
+                            <span>Cost</span>
+                            <span className="font-semibold text-red-600 ml-1">{compact(data.reduce((s: number, m: any) => s + m.cost, 0))}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span>Net Profit:</span>
+                            <span className={`font-semibold ${data.reduce((s: number, m: any) => s + m.profit, 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {compact(data.reduce((s: number, m: any) => s + m.profit, 0))}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               )}
             </Card>
@@ -553,85 +614,120 @@ export default function ProjectAnalysisPage() {
                 <Badge variant="outline">{sortedProjects.length}</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-2 sm:px-6">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left p-2 font-medium">Project</th>
-                      <th className="text-left p-2 font-medium">Client</th>
-                      <th className="text-center p-2 font-medium">Status</th>
-                      <th className="text-right p-2 font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('revenueHT')}>
+                      <th className="text-left py-2 px-1.5 font-medium whitespace-nowrap">Project</th>
+                      <th className="text-left py-2 px-1.5 font-medium whitespace-nowrap">Client</th>
+                      <th className="text-center py-2 px-1.5 font-medium whitespace-nowrap">Status</th>
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('revenueHT')}>
                         Revenue <SortIcon field="revenueHT" />
                       </th>
-                      <th className="text-right p-2 font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('collected')}>
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('collected')}>
                         Collected <SortIcon field="collected" />
                       </th>
-                      <th className="text-right p-2 font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('costHT')}>
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('costHT')}>
                         Costs <SortIcon field="costHT" />
                       </th>
-                      <th className="text-right p-2 font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('profit')}>
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('profit')}>
                         Profit <SortIcon field="profit" />
                       </th>
-                      <th className="text-right p-2 font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('marginPct')}>
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('marginPct')}>
                         Margin <SortIcon field="marginPct" />
                       </th>
-                      <th className="text-right p-2 font-medium cursor-pointer hover:text-primary" onClick={() => toggleSort('collectionRate')}>
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('collectionRate')}>
                         Collection <SortIcon field="collectionRate" />
                       </th>
-                      <th className="text-center p-2 font-medium print:hidden">Detail</th>
+                      <th className="text-center py-2 px-1.5 font-medium print:hidden whitespace-nowrap">Detail</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedProjects.map((p: any) => (
-                      <tr key={p.projectId} className="border-b hover:bg-muted/30">
-                        <td className="p-2">
-                          <div className="font-medium">{p.projectRef}</div>
-                          <div className="text-xs text-muted-foreground truncate max-w-[180px]" title={p.projectTitle}>{p.projectTitle}</div>
-                        </td>
-                        <td className="p-2 text-muted-foreground">{p.clientName}</td>
-                        <td className="p-2 text-center">
-                          <Badge className={`text-xs ${STATUS_BADGE[p.statusLabel] || STATUS_BADGE['Draft']}`}>{p.statusLabel}</Badge>
-                        </td>
-                        <td className="p-2 text-right font-mono">{p.revenueHT > 0 ? fmt(p.revenueHT) : '—'}</td>
-                        <td className="p-2 text-right font-mono">{p.collected > 0 ? fmt(p.collected) : '—'}</td>
-                        <td className="p-2 text-right font-mono text-red-600">{p.costHT > 0 ? fmt(p.costHT) : '—'}</td>
-                        <td className={`p-2 text-right font-mono font-semibold ${p.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {(p.revenueHT > 0 || p.costHT > 0) ? fmt(p.profit) : '—'}
-                        </td>
-                        <td className={`p-2 text-right ${p.marginPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {p.revenueHT > 0 ? pct(p.marginPct) : '—'}
-                        </td>
-                        <td className="p-2 text-right">
-                          {p.revenueTTC > 0 ? (
-                            <div className="flex items-center justify-end gap-1">
-                              <div className="w-10 bg-muted rounded-full h-1.5 overflow-hidden">
-                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(p.collectionRate, 100)}%` }} />
+                      <Fragment key={p.projectId}>
+                        <tr key={p.projectId} className="border-b hover:bg-muted/30">
+                          <td className="py-1.5 px-1.5">
+                            <div className="font-medium text-xs">{p.projectRef}</div>
+                            <div className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={p.projectTitle}>{p.projectTitle}</div>
+                          </td>
+                          <td className="py-1.5 px-1.5 text-muted-foreground max-w-[120px] truncate" title={p.clientName}>
+                            {p.clientName !== 'No Client' ? p.clientName : <span className="text-muted-foreground/50 italic">—</span>}
+                          </td>
+                          <td className="py-1.5 px-1.5 text-center">
+                            <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_BADGE[p.statusLabel] || STATUS_BADGE['Draft']}`}>{p.statusLabel}</Badge>
+                          </td>
+                          <td className="py-1.5 px-1.5 text-right font-mono text-green-600">{p.revenueHT > 0 ? compact(p.revenueHT) : <span className="text-muted-foreground">—</span>}</td>
+                          <td className="py-1.5 px-1.5 text-right font-mono text-blue-600">{p.collected > 0 ? compact(p.collected) : <span className="text-muted-foreground">—</span>}</td>
+                          <td className="py-1.5 px-1.5 text-right font-mono">
+                            {p.costHT > 0 ? (
+                              <button
+                                className="text-red-600 hover:text-red-800 hover:underline cursor-pointer font-mono"
+                                onClick={() => setCostBreakdownProject(costBreakdownProject === p.projectId ? null : p.projectId)}
+                                title="Click to see cost breakdown"
+                              >
+                                {compact(p.costHT)}
+                              </button>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className={`py-1.5 px-1.5 text-right font-mono font-semibold ${p.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {(p.revenueHT > 0 || p.costHT > 0) ? compact(p.profit) : <span className="text-muted-foreground font-normal">—</span>}
+                          </td>
+                          <td className={`py-1.5 px-1.5 text-right ${p.marginPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {p.revenueHT > 0 ? pct(p.marginPct) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="py-1.5 px-1.5 text-right">
+                            {p.revenueTTC > 0 ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <div className="w-8 bg-muted rounded-full h-1.5 overflow-hidden">
+                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(p.collectionRate, 100)}%` }} />
+                                </div>
+                                <span className="text-[10px] w-8 text-right">{pct(p.collectionRate)}</span>
                               </div>
-                              <span className="text-xs w-10 text-right">{pct(p.collectionRate)}</span>
-                            </div>
-                          ) : '—'}
-                        </td>
-                        <td className="p-2 text-center print:hidden">
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => loadDetail(p.projectId)}>
-                            {detailLoading && selectedProject === p.projectId
-                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              : <Eye className="h-3.5 w-3.5" />
-                            }
-                          </Button>
-                        </td>
-                      </tr>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="py-1.5 px-1.5 text-center print:hidden">
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => loadDetail(p.projectId)}>
+                              {detailLoading && selectedProject === p.projectId
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Eye className="h-3 w-3" />
+                              }
+                            </Button>
+                          </td>
+                        </tr>
+                        {/* Inline Cost Breakdown */}
+                        {costBreakdownProject === p.projectId && p.costCategories && p.costCategories.length > 0 && (
+                          <tr key={`${p.projectId}-cost`} className="bg-red-50/50 dark:bg-red-900/10">
+                            <td colSpan={10} className="py-2 px-3">
+                              <div className="text-xs font-medium mb-1.5 flex items-center gap-1">
+                                <BarChart3 className="h-3 w-3 text-red-500" />
+                                Cost Breakdown — {p.projectRef}
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
+                                {p.costCategories.map((cat: any, idx: number) => (
+                                  <div key={cat.category} className="flex items-center gap-1.5 text-[11px]">
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${CAT_COLORS[idx % CAT_COLORS.length]}`} />
+                                    <span className="truncate">{cat.category}</span>
+                                    <span className="font-mono font-semibold text-red-600 ml-auto">{compact(cat.totalHT)}</span>
+                                    <span className="text-muted-foreground w-8 text-right">{pct(cat.percentOfCost)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                     {/* Totals Row */}
-                    <tr className="border-t-2 font-bold bg-muted/50">
-                      <td className="p-2" colSpan={3}>Total ({sortedProjects.length} projects)</td>
-                      <td className="p-2 text-right font-mono">{fmt(s.totalRevenue)}</td>
-                      <td className="p-2 text-right font-mono">{fmt(s.totalCollected)}</td>
-                      <td className="p-2 text-right font-mono text-red-600">{fmt(s.totalCosts)}</td>
-                      <td className={`p-2 text-right font-mono ${s.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(s.totalProfit)}</td>
-                      <td className={`p-2 text-right ${s.overallMargin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{pct(s.overallMargin)}</td>
-                      <td className="p-2 text-right">{pct(s.overallCollectionRate)}</td>
-                      <td className="p-2 print:hidden"></td>
+                    <tr className="border-t-2 font-bold bg-muted/50 text-xs">
+                      <td className="py-2 px-1.5" colSpan={3}>Total ({sortedProjects.length} projects)</td>
+                      <td className="py-2 px-1.5 text-right font-mono text-green-700">{compact(s.totalRevenue)}</td>
+                      <td className="py-2 px-1.5 text-right font-mono text-blue-700">{compact(s.totalCollected)}</td>
+                      <td className="py-2 px-1.5 text-right font-mono text-red-700">{compact(s.totalCosts)}</td>
+                      <td className={`py-2 px-1.5 text-right font-mono ${s.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{compact(s.totalProfit)}</td>
+                      <td className={`py-2 px-1.5 text-right ${s.overallMargin >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{pct(s.overallMargin)}</td>
+                      <td className="py-2 px-1.5 text-right">{pct(s.overallCollectionRate)}</td>
+                      <td className="py-2 px-1.5 print:hidden"></td>
                     </tr>
                   </tbody>
                 </table>
