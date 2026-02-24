@@ -49,6 +49,8 @@ model User {
   password      String
   position      String?  // Job title/position (e.g., "Senior Engineer", "Project Manager")
   status        String   @default("active") // active | inactive
+  isAdmin       Boolean  @default(false) // Admin privileges without requiring "Admin" role
+  mobileNumber  String?  @db.VarChar(20) // International format phone for WhatsApp notifications (e.g. +966512345678)
   roleId        String   @db.Char(36)
   departmentId  String?  @db.Char(36)
   reportsToId   String?  @db.Char(36) // Manager/Supervisor this user reports to

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { filterPermissionsByModules } from '@/lib/module-restrictions';
+import { ALL_PERMISSIONS } from '@/lib/permissions';
 
 export async function GET() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -16,16 +18,25 @@ export async function GET() {
   });
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Get user permissions from role (customPermissions is used for user preferences like lastSeenVersion)
   let permissions: string[] = [];
-  
-  // Check if customPermissions has a permissions array (for custom role overrides)
-  const customPerms = user.customPermissions as Record<string, unknown> | null;
-  if (customPerms && Array.isArray(customPerms.permissions)) {
-    permissions = customPerms.permissions as string[];
-  } else if (user.role.permissions && Array.isArray(user.role.permissions)) {
-    // Use role permissions as default
-    permissions = user.role.permissions as string[];
+
+  // isAdmin flag grants all permissions regardless of role
+  if (user.isAdmin) {
+    permissions = ALL_PERMISSIONS.map(p => p.id);
+  } else {
+    // Check if customPermissions has a permissions array (for custom role overrides)
+    const customPerms = user.customPermissions as Record<string, unknown> | null;
+    if (customPerms && Array.isArray(customPerms.permissions)) {
+      permissions = customPerms.permissions as string[];
+    } else if (user.role.permissions && Array.isArray(user.role.permissions)) {
+      permissions = user.role.permissions as string[];
+    }
+
+    // Apply module restrictions — must match server-side permission-checker.ts behavior
+    const restrictedModules = (user.role.restrictedModules as string[]) || [];
+    if (restrictedModules.length > 0) {
+      permissions = filterPermissionsByModules(permissions, restrictedModules);
+    }
   }
 
   return NextResponse.json({
@@ -34,6 +45,8 @@ export async function GET() {
     email: user.email,
     role: user.role.name,
     department: user.department?.name ?? null,
-    permissions: permissions
+    permissions: permissions,
+    isAdmin: user.isAdmin || false,
+    mobileNumber: user.mobileNumber || null,
   });
 }

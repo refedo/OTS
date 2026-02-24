@@ -218,6 +218,28 @@ export const MODULE_RESTRICTIONS: ModuleRestriction[] = [
     ],
   },
   {
+    id: 'financial_module',
+    name: 'Financial Module',
+    description: 'Financial dashboard, reports, sync, and exports',
+    category: 'financial',
+    permissions: [
+      'financial.view',
+      'financial.manage',
+      'financial.sync',
+      'financial.export',
+    ],
+  },
+  {
+    id: 'dolibarr_module',
+    name: 'Dolibarr Integration',
+    description: 'Dolibarr ERP integration dashboard and sync',
+    category: 'operational',
+    permissions: [
+      'dolibarr.view',
+      'dolibarr.sync',
+    ],
+  },
+  {
     id: 'system_settings',
     name: 'System Settings',
     description: 'System configuration and settings',

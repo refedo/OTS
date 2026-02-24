@@ -23,11 +23,43 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.9.0',
+    version: '15.10.0',
     date: 'February 24, 2026',
     type: 'minor',
     status: 'current',
-    mainTitle: '� Financial Dashboard Improvements',
+    mainTitle: '🔐 RBAC Overhaul & User Management',
+    highlights: [
+      'Financial module now properly hidden when disabled in role permissions',
+      'New isAdmin flag — admin privileges without requiring Admin role',
+      'Mobile number field for WhatsApp notifications',
+      'Module restrictions enforced on both server and client side',
+    ],
+    changes: {
+      added: [
+        'isAdmin flag on User — grants all permissions regardless of role',
+        'Mobile number field (international format) for WhatsApp notifications',
+        'financial_module and dolibarr_module entries in MODULE_RESTRICTIONS',
+        'Better error handling for Project Analysis report',
+      ],
+      fixed: [
+        'RBAC: /api/auth/me now applies restrictedModules filtering (was missing)',
+        'Financial sidebar visible despite module being disabled in role',
+        'permission-checker.ts refactored to use shared resolveUserPermissions()',
+        'Missing navigation permissions for newer financial report pages',
+      ],
+      changed: [
+        'User create/edit forms now include mobile number and admin toggle',
+        'API user routes accept isAdmin and mobileNumber fields',
+        'Navigation permissions updated for all financial report routes',
+      ],
+    },
+  },
+  {
+    version: '15.9.0',
+    date: 'February 24, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '📊 Financial Dashboard Improvements',
     highlights: [
       'All dashboard KPIs are now clickable — links to source reports',
       'New Asset Report and Salaries Report pages',

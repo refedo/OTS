@@ -2,33 +2,33 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.9.0',
+  version: '15.10.0',
   date: 'February 24, 2026',
   type: 'minor' as const,
-  mainTitle: '📊 Financial Dashboard Improvements',
+  mainTitle: '� RBAC Overhaul & User Management',
   highlights: [
-    'All dashboard KPIs are now clickable — links to source reports',
-    'New Asset Report and Salaries Report pages',
-    'Smart number formatting (K SAR for small amounts)',
-    'Salaries now showing correctly and included in expenses',
+    'Financial module now properly hidden when disabled in role permissions',
+    'New isAdmin flag — admin privileges without requiring Admin role',
+    'Mobile number field for WhatsApp notifications',
+    'Module restrictions enforced on both server and client side',
   ],
   changes: {
     added: [
-      'Asset Report — all asset accounts grouped by category with balances',
-      'Salaries Report — salary records grouped by month with paid/unpaid status',
-      'Projects count on dashboard with sync button',
-      'All dashboard KPI cards link to their source reports',
+      'isAdmin flag on User — grants all permissions regardless of role',
+      'Mobile number field (international format) for WhatsApp notifications',
+      'financial_module and dolibarr_module entries in MODULE_RESTRICTIONS',
+      'Better error handling for Project Analysis report',
     ],
     fixed: [
-      'Salaries showing SAR 0 — falls back to fin_salaries table',
-      'Salaries now included in Total Expenses calculation',
-      'Invoice sync hash includes fk_project for project link backfill',
+      'RBAC: /api/auth/me now applies restrictedModules filtering (was missing)',
+      'Financial sidebar visible despite module being disabled in role',
+      'permission-checker.ts refactored to use shared resolveUserPermissions()',
+      'Missing navigation permissions for newer financial report pages',
     ],
     changed: [
-      'Smart formatting: amounts < 1M show as K SAR instead of 0.xxM',
-      'Removed duplicate Net Profit Margin — merged into Net Profit card',
-      'Removed duplicate Cost of Sales — kept Total Expenses only',
-      'Dashboard Row 2 reorganized: Gross Profit, ROA, ROE, Salaries, Projects',
+      'User create/edit forms now include mobile number and admin toggle',
+      'API user routes accept isAdmin and mobileNumber fields',
+      'Navigation permissions updated for all financial report routes',
     ],
   },
 };

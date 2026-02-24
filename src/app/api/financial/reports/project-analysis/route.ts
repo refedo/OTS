@@ -25,6 +25,14 @@ export async function GET(req: Request) {
     );
     return NextResponse.json(report);
   } catch (error: any) {
+    console.error('[Project Analysis] Error:', error.message);
+    // Check for common issues
+    if (error.message?.includes("doesn't exist") || error.message?.includes('dolibarr_projects')) {
+      return NextResponse.json({ 
+        error: 'Project data not available. Please run a full financial sync first to populate the dolibarr_projects table.',
+        details: error.message 
+      }, { status: 500 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, User, Shield } from 'lucide-react';
+import { Loader2, User, Shield, Phone, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionsMatrix } from '@/components/permissions-matrix';
 import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions';
@@ -35,6 +35,8 @@ type User = {
   email: string;
   position: string | null;
   status: string;
+  isAdmin?: boolean;
+  mobileNumber?: string | null;
   roleId: string;
   departmentId: string | null;
   reportsToId: string | null;
@@ -76,6 +78,8 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
       departmentId: formData.get('departmentId') as string || null,
       reportsToId: formData.get('reportsToId') as string || null,
       status: formData.get('status') as string,
+      isAdmin: formData.get('isAdmin') === 'on',
+      mobileNumber: formData.get('mobileNumber') as string || null,
       customPermissions: customPermissions.length > 0 ? customPermissions : null,
     };
 
@@ -274,6 +278,53 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
+        </div>
+
+        {/* Mobile Number */}
+        <div className="space-y-2">
+          <Label htmlFor="mobileNumber" className="flex items-center gap-1">
+            <Phone className="size-3" />
+            Mobile Number
+          </Label>
+          <Input
+            id="mobileNumber"
+            name="mobileNumber"
+            type="tel"
+            placeholder="+966512345678"
+            defaultValue={user.mobileNumber || ''}
+            disabled={loading}
+            pattern="\+[0-9]{7,15}"
+            title="International format: +CountryCode followed by number (e.g. +966512345678)"
+          />
+          <p className="text-xs text-muted-foreground">
+            International format for WhatsApp notifications (e.g. +966512345678)
+          </p>
+        </div>
+
+        {/* Is Administrator */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1">
+            <ShieldCheck className="size-3" />
+            Administrator Privileges
+          </Label>
+          <div className="flex items-center gap-3 p-3 rounded-md border bg-muted/30">
+            <input
+              type="checkbox"
+              id="isAdmin"
+              name="isAdmin"
+              defaultChecked={user.isAdmin || false}
+              disabled={loading}
+              className="rounded border-slate-300 h-4 w-4"
+            />
+            <div>
+              <label htmlFor="isAdmin" className="text-sm font-medium cursor-pointer">
+                Grant administrator access
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Grants full system access regardless of role. User keeps their role title but gets all permissions.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
         </TabsContent>

@@ -115,6 +115,11 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/reports/project-profitability': ['financial.view', 'settings.view'],
   '/financial/reports/wip': ['financial.view', 'settings.view'],
   '/financial/reports/projects-dashboard': ['financial.view', 'settings.view'],
+  '/financial/reports/project-cost-structure': ['financial.view', 'settings.view'],
+  '/financial/reports/expenses-analysis': ['financial.view', 'settings.view'],
+  '/financial/reports/project-analysis': ['financial.view', 'settings.view'],
+  '/financial/reports/assets': ['financial.view', 'settings.view'],
+  '/financial/reports/salaries': ['financial.view', 'settings.view'],
   '/financial/journal-entries': ['financial.view', 'settings.view'],
   '/financial/settings': ['financial.manage', 'settings.view'],
 

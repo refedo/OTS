@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.10.0] - 2026-02-24
+
+### 🔐 RBAC Overhaul & User Management
+
+#### New Features
+- **isAdmin flag on User** — grants all permissions regardless of role; user keeps their role title but gets full system access
+- **Mobile number field** — international format (e.g. +966512345678) for WhatsApp notifications
+- **financial_module restriction** — new MODULE_RESTRICTIONS entry covering financial.view/manage/sync/export
+- **dolibarr_module restriction** — new MODULE_RESTRICTIONS entry covering dolibarr.view/sync
+
+#### Bug Fixes
+- **RBAC: Financial sidebar visible despite module disabled** — `/api/auth/me` was not applying `restrictedModules` filtering
+- **permission-checker.ts** — refactored to use shared `resolveUserPermissions()` with isAdmin support
+- **Missing navigation permissions** — added entries for assets, salaries, cost-structure, expenses-analysis, project-analysis routes
+- **Project Analysis 500 error** — better error handling when dolibarr_projects table is empty
+
+#### Improvements
+- **User create/edit forms** — now include mobile number input and administrator toggle
+- **API user routes** — accept isAdmin and mobileNumber fields with validation
+- **Navigation permissions** — updated for all financial report routes
+
+---
+
 ## [15.9.0] - 2026-02-24
 
 ### 📊 Financial Dashboard Improvements
