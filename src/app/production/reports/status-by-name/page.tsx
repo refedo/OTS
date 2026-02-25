@@ -74,6 +74,7 @@ export default function StatusByNamePage() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -84,7 +85,9 @@ export default function StatusByNamePage() {
       ]);
 
       if (partsRes.ok) {
-        const partsData = await partsRes.json();
+        const partsResult = await partsRes.json();
+        // Handle paginated response - extract data array
+        const partsData = Array.isArray(partsResult) ? partsResult : (partsResult.data || []);
         setParts(partsData);
 
         // Extract unique buildings

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { verifySession } from '@/lib/jwt';
 import { logActivity, logSystemEvent } from '@/lib/api-utils';
 
@@ -200,8 +201,8 @@ export async function GET(req: Request) {
         totalPages: Math.ceil(total / limit),
       },
       totals: {
-        totalWeight: aggregates._sum.netWeightTotal || 0,
-        totalArea: aggregates._sum.netAreaTotal || 0,
+        totalWeight: Number(aggregates._sum.netWeightTotal) || 0,
+        totalArea: Number(aggregates._sum.netAreaTotal) || 0,
         statusCounts: statusCountMap,
       },
     });
@@ -220,7 +221,12 @@ export async function POST(req: Request) {
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    if (!session || !['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const permissions = await getCurrentUserPermissions();
+    if (!permissions.includes('production.upload_parts')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

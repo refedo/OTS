@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useState, Fragment, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Loader2, ArrowLeft, Printer, DollarSign, TrendingUp, TrendingDown,
-  BarChart3, ChevronDown, ChevronUp,
+  BarChart3, ChevronDown, ChevronUp, Search, Download,
   FileText, FolderOpen,
   Eye, CheckCircle, Clock, AlertTriangle, CreditCard,
 } from 'lucide-react';
@@ -54,6 +54,51 @@ export default function ProjectAnalysisPage() {
   const [sortField, setSortField] = useState<string>('revenueHT');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [costBreakdownProject, setCostBreakdownProject] = useState<number | null>(null);
+  const [costDetailProject, setCostDetailProject] = useState<number | null>(null);
+  const [costDetailCategory, setCostDetailCategory] = useState<string | null>(null);
+  const [costDetailData, setCostDetailData] = useState<any>(null);
+  const [costDetailLoading, setCostDetailLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [aggregateCostDetail, setAggregateCostDetail] = useState<string | null>(null);
+  const [aggregateCostData, setAggregateCostData] = useState<any>(null);
+  const [aggregateCostLoading, setAggregateCostLoading] = useState(false);
+
+  const loadCostDetail = async (projectId: number, category?: string) => {
+    setCostDetailProject(projectId);
+    setCostDetailCategory(category || null);
+    setCostDetailLoading(true);
+    try {
+      let url = `/api/financial/reports/project-analysis/cost-details?projectId=${projectId}`;
+      if (category) url += `&category=${encodeURIComponent(category)}`;
+      const res = await fetch(url);
+      if (res.ok) setCostDetailData(await res.json());
+    } catch (e) { console.error(e); }
+    finally { setCostDetailLoading(false); }
+  };
+
+  const closeCostDetail = () => {
+    setCostDetailProject(null);
+    setCostDetailCategory(null);
+    setCostDetailData(null);
+  };
+
+  const loadAggregateCostDetail = async (category: string) => {
+    setAggregateCostDetail(category);
+    setAggregateCostLoading(true);
+    try {
+      let url = `/api/financial/reports/project-analysis/cost-details?category=${encodeURIComponent(category)}`;
+      if (fromDate) url += `&from=${fromDate}`;
+      if (toDate) url += `&to=${toDate}`;
+      const res = await fetch(url);
+      if (res.ok) setAggregateCostData(await res.json());
+    } catch (e) { console.error(e); }
+    finally { setAggregateCostLoading(false); }
+  };
+
+  const closeAggregateCostDetail = () => {
+    setAggregateCostDetail(null);
+    setAggregateCostData(null);
+  };
 
   const generate = async () => {
     setLoading(true);
@@ -89,11 +134,24 @@ export default function ProjectAnalysisPage() {
     setDetail(null);
   };
 
-  const sortedProjects = report?.projects ? [...report.projects].sort((a: any, b: any) => {
-    const aVal = a[sortField] ?? 0;
-    const bVal = b[sortField] ?? 0;
-    return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
-  }) : [];
+  const filteredProjects = useMemo(() => {
+    if (!report?.projects) return [];
+    if (!searchQuery.trim()) return report.projects;
+    const q = searchQuery.toLowerCase();
+    return report.projects.filter((p: any) =>
+      p.projectRef?.toLowerCase().includes(q) ||
+      p.projectTitle?.toLowerCase().includes(q) ||
+      p.clientName?.toLowerCase().includes(q)
+    );
+  }, [report?.projects, searchQuery]);
+
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjects].sort((a: any, b: any) => {
+      const aVal = a[sortField] ?? 0;
+      const bVal = b[sortField] ?? 0;
+      return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+  }, [filteredProjects, sortField, sortDir]);
 
   const toggleSort = (field: string) => {
     if (sortField === field) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
@@ -181,13 +239,13 @@ export default function ProjectAnalysisPage() {
         {/* Cost Categories */}
         {p.costCategories && p.costCategories.length > 0 && (
           <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Cost Breakdown</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Cost Breakdown <span className="text-xs font-normal text-muted-foreground">(click category to drill down)</span></CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {p.costCategories.map((cat: any, idx: number) => (
-                  <div key={cat.category}>
+                  <div key={cat.category} className="cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors" onClick={() => loadCostDetail(p.projectId, cat.category)}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm">{cat.category}</span>
+                      <span className="text-sm hover:underline">{cat.category}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-semibold">{fmt(cat.totalHT)}</span>
                         <span className="text-xs text-muted-foreground w-14 text-right">{pct(cat.percentOfCost)}</span>
@@ -199,6 +257,72 @@ export default function ProjectAnalysisPage() {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Cost Detail Drill-Down Modal */}
+        {costDetailProject === p.projectId && costDetailData && (
+          <Card className="border-2 border-blue-300 dark:border-blue-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center justify-between">
+                <span>{costDetailCategory ? `${costDetailCategory} — Line Details` : 'All Cost Lines'}</span>
+                <Button variant="ghost" size="sm" onClick={closeCostDetail} className="text-xs">✕ Close</Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {costDetailLoading ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+              ) : (
+                <>
+                  {/* Category Summary */}
+                  {costDetailData.categorySummary && costDetailData.categorySummary.length > 1 && !costDetailCategory && (
+                    <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {costDetailData.categorySummary.map((cs: any) => (
+                        <div key={cs.category} className="p-2 border rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+                             onClick={() => loadCostDetail(p.projectId, cs.category)}>
+                          <div className="text-xs font-medium truncate">{cs.category}</div>
+                          <div className="text-sm font-bold">{compact(cs.totalHT)}</div>
+                          <div className="text-[10px] text-muted-foreground">{cs.lineCount} lines</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Line Items Table */}
+                  <div className="max-h-96 overflow-auto">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-background">
+                        <tr className="border-b">
+                          <th className="text-left py-1 px-1">Product</th>
+                          <th className="text-left py-1 px-1">Supplier</th>
+                          <th className="text-left py-1 px-1">Invoice</th>
+                          <th className="text-left py-1 px-1">Category</th>
+                          <th className="text-right py-1 px-1">Qty</th>
+                          <th className="text-right py-1 px-1">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {costDetailData.lines.slice(0, 100).map((line: any, i: number) => (
+                          <tr key={i} className="border-b border-muted hover:bg-muted/30">
+                            <td className="py-1 px-1 max-w-[200px] truncate" title={line.productLabel}>
+                              <div className="font-medium">{line.productLabel || line.productRef || '—'}</div>
+                              {line.productRef && <div className="text-[10px] text-muted-foreground">{line.productRef}</div>}
+                            </td>
+                            <td className="py-1 px-1 max-w-[120px] truncate">{line.supplierName || '—'}</td>
+                            <td className="py-1 px-1 text-muted-foreground">{line.invoiceRef}</td>
+                            <td className="py-1 px-1"><Badge variant="outline" className="text-[10px] px-1">{line.costCategory}</Badge></td>
+                            <td className="py-1 px-1 text-right font-mono">{line.qty}</td>
+                            <td className="py-1 px-1 text-right font-mono font-semibold">{fmt(line.totalHT)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {costDetailData.lines.length > 100 && (
+                      <div className="text-center text-xs text-muted-foreground py-2">Showing first 100 of {costDetailData.lines.length} lines</div>
+                    )}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
@@ -402,6 +526,33 @@ export default function ProjectAnalysisPage() {
         </CardContent>
       </Card>
 
+      {/* Search Box */}
+      {report && report.mode === 'summary' && (
+        <Card className="print:hidden">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by project number, name, or client..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {searchQuery && (
+                <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')}>
+                  Clear
+                </Button>
+              )}
+              <span className="text-sm text-muted-foreground">
+                Showing {sortedProjects.length} of {report.projects?.length || 0} projects
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {report && report.mode === 'summary' && (
         <>
           {/* Print Header */}
@@ -481,7 +632,7 @@ export default function ProjectAnalysisPage() {
             <Card>
               <CardHeader className="cursor-pointer select-none" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>
                 <CardTitle className="flex items-center justify-between text-base">
-                  <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Aggregate Cost Breakdown</div>
+                  <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Aggregate Cost Breakdown <span className="text-xs font-normal text-muted-foreground">(click category to drill down)</span></div>
                   {showCostBreakdown ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </CardTitle>
               </CardHeader>
@@ -489,9 +640,9 @@ export default function ProjectAnalysisPage() {
                 <CardContent>
                   <div className="space-y-2">
                     {report.aggregateCostCategories.map((cat: any, idx: number) => (
-                      <div key={cat.category}>
+                      <div key={cat.category} className="cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors" onClick={(e) => { e.stopPropagation(); loadAggregateCostDetail(cat.category); }}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm">{cat.category}</span>
+                          <span className="text-sm hover:underline">{cat.category}</span>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-semibold">{fmt(cat.totalHT)}</span>
                             <span className="text-xs text-muted-foreground w-14 text-right">{pct(cat.percentOfCost)}</span>
@@ -503,6 +654,53 @@ export default function ProjectAnalysisPage() {
                       </div>
                     ))}
                   </div>
+                  
+                  {/* Aggregate Cost Detail Drill-Down */}
+                  {aggregateCostDetail && (
+                    <div className="mt-4 border-t pt-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-sm">{aggregateCostDetail} — Invoice Details</h4>
+                        <Button variant="ghost" size="sm" onClick={closeAggregateCostDetail} className="text-xs">✕ Close</Button>
+                      </div>
+                      {aggregateCostLoading ? (
+                        <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                      ) : aggregateCostData?.lines ? (
+                        <div className="max-h-96 overflow-auto">
+                          <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-background">
+                              <tr className="border-b">
+                                <th className="text-left py-1 px-1">Product</th>
+                                <th className="text-left py-1 px-1">Supplier</th>
+                                <th className="text-left py-1 px-1">Invoice</th>
+                                <th className="text-left py-1 px-1">Project</th>
+                                <th className="text-right py-1 px-1">Qty</th>
+                                <th className="text-right py-1 px-1">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {aggregateCostData.lines.slice(0, 100).map((line: any, i: number) => (
+                                <tr key={i} className="border-b border-muted hover:bg-muted/30">
+                                  <td className="py-1 px-1 max-w-[200px] truncate" title={line.productLabel}>
+                                    <div className="font-medium">{line.productLabel || line.productRef || '—'}</div>
+                                  </td>
+                                  <td className="py-1 px-1 max-w-[120px] truncate">{line.supplierName || '—'}</td>
+                                  <td className="py-1 px-1 text-muted-foreground">{line.invoiceRef}</td>
+                                  <td className="py-1 px-1 text-muted-foreground">{line.projectRef || '—'}</td>
+                                  <td className="py-1 px-1 text-right font-mono">{line.qty}</td>
+                                  <td className="py-1 px-1 text-right font-mono font-semibold">{fmt(line.totalHT)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {aggregateCostData.lines.length > 100 && (
+                            <div className="text-center text-xs text-muted-foreground py-2">Showing first 100 of {aggregateCostData.lines.length} lines</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center text-muted-foreground py-4">No data available</div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               )}
             </Card>
@@ -622,9 +820,13 @@ export default function ProjectAnalysisPage() {
                       <th className="text-left py-2 px-1.5 font-medium whitespace-nowrap">Project</th>
                       <th className="text-left py-2 px-1.5 font-medium whitespace-nowrap">Client</th>
                       <th className="text-center py-2 px-1.5 font-medium whitespace-nowrap">Status</th>
-                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('revenueHT')}>
-                        Revenue <SortIcon field="revenueHT" />
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('budgetAmount')}>
+                        Contract <SortIcon field="budgetAmount" />
                       </th>
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('revenueHT')}>
+                        Invoiced <SortIcon field="revenueHT" />
+                      </th>
+                      <th className="text-right py-2 px-1.5 font-medium whitespace-nowrap">Balance</th>
                       <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('collected')}>
                         Collected <SortIcon field="collected" />
                       </th>
@@ -657,7 +859,15 @@ export default function ProjectAnalysisPage() {
                           <td className="py-1.5 px-1.5 text-center">
                             <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_BADGE[p.statusLabel] || STATUS_BADGE['Draft']}`}>{p.statusLabel}</Badge>
                           </td>
+                          <td className="py-1.5 px-1.5 text-right font-mono text-purple-600">{p.budgetAmount > 0 ? compact(p.budgetAmount) : <span className="text-muted-foreground">—</span>}</td>
                           <td className="py-1.5 px-1.5 text-right font-mono text-green-600">{p.revenueHT > 0 ? compact(p.revenueHT) : <span className="text-muted-foreground">—</span>}</td>
+                          <td className="py-1.5 px-1.5 text-right font-mono">
+                            {p.budgetAmount > 0 ? (
+                              <span className={(p.budgetAmount - p.revenueHT) > 0 ? 'text-amber-600' : 'text-emerald-600'}>
+                                {compact(p.budgetAmount - p.revenueHT)}
+                              </span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
                           <td className="py-1.5 px-1.5 text-right font-mono text-blue-600">{p.collected > 0 ? compact(p.collected) : <span className="text-muted-foreground">—</span>}</td>
                           <td className="py-1.5 px-1.5 text-right font-mono">
                             {p.costHT > 0 ? (
@@ -721,7 +931,9 @@ export default function ProjectAnalysisPage() {
                     {/* Totals Row */}
                     <tr className="border-t-2 font-bold bg-muted/50 text-xs">
                       <td className="py-2 px-1.5" colSpan={3}>Total ({sortedProjects.length} projects)</td>
+                      <td className="py-2 px-1.5 text-right font-mono text-purple-700">{compact(sortedProjects.reduce((sum: number, p: any) => sum + (p.budgetAmount || 0), 0))}</td>
                       <td className="py-2 px-1.5 text-right font-mono text-green-700">{compact(s.totalRevenue)}</td>
+                      <td className="py-2 px-1.5 text-right font-mono text-amber-700">{compact(sortedProjects.reduce((sum: number, p: any) => sum + ((p.budgetAmount || 0) - p.revenueHT), 0))}</td>
                       <td className="py-2 px-1.5 text-right font-mono text-blue-700">{compact(s.totalCollected)}</td>
                       <td className="py-2 px-1.5 text-right font-mono text-red-700">{compact(s.totalCosts)}</td>
                       <td className={`py-2 px-1.5 text-right font-mono ${s.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{compact(s.totalProfit)}</td>

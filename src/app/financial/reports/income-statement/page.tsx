@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, TrendingUp, Printer, ArrowLeft } from 'lucide-react';
+import { Loader2, TrendingUp, Printer, ArrowLeft, Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 function fmt(n: number): string {
@@ -22,6 +23,56 @@ export default function IncomeStatementPage() {
   const [toDate, setToDate] = useState(`${currentYear}-12-31`);
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
+
+  const exportToExcel = () => {
+    if (!report) return;
+    setExporting(true);
+    try {
+      const csvRows: string[] = [];
+      csvRows.push('Income Statement,' + report.fromDate + ' to ' + report.toDate);
+      csvRows.push('');
+      csvRows.push('Category,Account Code,Account Name,Amount,% of Revenue');
+      csvRows.push('REVENUE,,,');
+      for (const sec of report.revenue || []) {
+        for (const a of sec.accounts || []) {
+          csvRows.push(`"${sec.category}",${a.accountCode},"${a.accountName}",${a.amount?.toFixed(2)},${a.percentOfRevenue?.toFixed(1)}%`);
+        }
+      }
+      csvRows.push(`Total Revenue,,,${report.totalRevenue?.toFixed(2)},100%`);
+      csvRows.push('');
+      csvRows.push('COST OF SALES,,,');
+      for (const sec of report.costOfSales || []) {
+        for (const a of sec.accounts || []) {
+          csvRows.push(`"${sec.category || 'Cost of Sales'}",${a.accountCode},"${a.accountName}",${a.amount?.toFixed(2)},${a.percentOfRevenue?.toFixed(1)}%`);
+        }
+      }
+      csvRows.push(`Total Cost of Sales,,,${report.totalCostOfSales?.toFixed(2)},`);
+      csvRows.push(`Gross Profit,,,${report.grossProfit?.toFixed(2)},${report.grossProfitMargin?.toFixed(1)}%`);
+      csvRows.push('');
+      csvRows.push('OPERATING EXPENSES,,,');
+      for (const sec of report.operatingExpenses || []) {
+        for (const a of sec.accounts || []) {
+          csvRows.push(`"${sec.category}",${a.accountCode},"${a.accountName}",${a.amount?.toFixed(2)},${a.percentOfRevenue?.toFixed(1)}%`);
+        }
+      }
+      csvRows.push(`Total Operating Expenses,,,${report.totalOperatingExpenses?.toFixed(2)},`);
+      csvRows.push(`Operating Profit,,,${report.operatingProfit?.toFixed(2)},`);
+      csvRows.push(`Net Profit,,,${report.netProfit?.toFixed(2)},${report.netProfitMargin?.toFixed(1)}%`);
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `income-statement-${fromDate}-to-${toDate}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Export Complete', description: 'Income statement exported to CSV' });
+    } catch (e) {
+      toast({ title: 'Export Failed', description: 'Failed to export report', variant: 'destructive' });
+    }
+    setExporting(false);
+  };
 
   const generate = async () => {
     setLoading(true);
@@ -46,9 +97,15 @@ export default function IncomeStatementPage() {
             <p className="text-muted-foreground mt-1">Revenue, expenses, and net profit/loss</p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => window.print()} className="print:hidden">
-          <Printer className="h-4 w-4 mr-2" /> Print
-        </Button>
+        <div className="flex gap-2 print:hidden">
+          <Button variant="outline" onClick={exportToExcel} disabled={!report || exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Export Excel
+          </Button>
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="h-4 w-4 mr-2" /> Print
+          </Button>
+        </div>
       </div>
 
       <Card className="print:hidden">

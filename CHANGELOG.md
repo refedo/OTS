@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.14.0] - 2026-02-26
+
+### 📊 Financial & Production Module Enhancements
+
+#### New Features
+- **Project Analysis Search** — search projects by name, number, or client name in the project analysis report
+- **Contract Value Columns** — added Contract and Balance columns to project analysis table showing contract amount and remaining balance to invoice
+- **Aggregate Cost Drill-Down** — click any cost category in the aggregate cost breakdown to see detailed invoice lines (product, supplier, invoice, project, qty, amount)
+- **Journal Entries Excel Export** — export journal entries to CSV with one click
+- **Journal Entries Hierarchy View** — view entries grouped by accounting account with collapsible drill-down showing debits, credits, and balance per account
+- **Trial Balance Excel Export** — export trial balance report to CSV
+- **Income Statement Excel Export** — export P&L report to CSV
+- **Assembly Parts Length Column** — added Length (mm) column to assembly parts list
+
+#### Bug Fixes
+- **CRITICAL: Assembly parts page refresh loop** — `totalArea.toFixed is not a function` error caused by Prisma Decimal objects; now converted to Number
+- **Status-by-name report refresh loop** — API response format changed to paginated; fixed to extract data array correctly
+- **RBAC: CEO account forbidden on upload** — added CEO role to allowed roles in assembly-parts POST endpoint
+- **RBAC: CEO cannot mark tasks complete** — added CEO role to task GET/PATCH/DELETE permission checks
+- **RBAC: CEO cannot view all tasks** — added CEO to allowed roles alongside Admin and Manager
+
+#### Improvements
+- **Toast notifications** — replaced standard `alert()` calls with modern toast notifications in upload and assembly-parts pages
+- **Project analysis table** — renamed "Revenue" column to "Invoiced" for clarity
+
+---
+
+## [15.13.0] - 2026-02-25
+
+### 📊 Financial Report Accuracy & Cost Drill-Down
+
+#### New Features
+- **fin_dolibarr_account_mapping table** — maps Dolibarr accounting account rowids to OTS cost categories for accurate cost classification
+- **Cost detail drill-down** — click any cost category bar in project analysis to see line-level details (product, supplier, invoice, qty, amount)
+- **Account mapping management API** — GET/PUT `/api/financial/account-mapping` for viewing and editing category assignments
+- **Cost details API** — `/api/financial/reports/project-analysis/cost-details` with project and category filtering
+
+#### Bug Fixes
+- **CRITICAL: 6,079 supplier invoices had fk_projet=NULL** — Dolibarr API returned valid `fk_project` but sync code failed to persist it; backfilled from `dolibarr_raw` JSON
+- **PJ2411-0257 now shows 451 supplier invoices (SAR 3.7M)** — was showing 0 due to missing project linkage
+- **Cost categories were 99% "Other Costs"** — `accounting_code` contained Dolibarr internal rowids (e.g. 107317231) that never matched CoA account codes; now uses dedicated mapping table
+- **Raw Materials now correctly 72.3%** of total costs (was 0.1%) — proper for steel fabrication industry
+- **Sync stored dolibarr_raw as NULL** — now stores full JSON payload for future data recovery
+- **Building dropdown in task edit mode** — showed only designation prefix instead of full building name
+
+#### Improvements
+- **All cost category queries** in project analysis, cost structure, and expenses analysis use `fin_dolibarr_account_mapping` instead of broken CoA join
+- **102 Dolibarr accounting codes** auto-classified into 10 cost categories: Raw Materials, Subcontractors, Equipment, Transportation, Labor, Rent, Insurance, Admin, Production Supplies, Other
+- **Invoice sync** now stores `dolibarr_raw` JSON for both customer and supplier invoices
+
+---
+
 ## [15.12.0] - 2026-02-24
 
 ### 🔒 Financial API Security & Cost Fix

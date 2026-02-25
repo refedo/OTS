@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, BarChart3, Printer, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, BarChart3, Printer, AlertTriangle, CheckCircle, ArrowLeft, Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -24,6 +25,42 @@ export default function TrialBalancePage() {
   const [toDate, setToDate] = useState(`${currentYear}-12-31`);
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
+
+  const exportToExcel = () => {
+    if (!report?.rows) return;
+    setExporting(true);
+    try {
+      const headers = ['Account Code', 'Account Name', 'Type', 'Opening Debit', 'Opening Credit', 'Period Debit', 'Period Credit', 'Closing Debit', 'Closing Credit'];
+      const csvRows = [headers.join(',')];
+      for (const row of report.rows) {
+        csvRows.push([
+          row.accountCode,
+          `"${(row.accountName || '').replace(/"/g, '""')}"`,
+          row.accountType,
+          row.openingDebit?.toFixed(2) || '0.00',
+          row.openingCredit?.toFixed(2) || '0.00',
+          row.periodDebit?.toFixed(2) || '0.00',
+          row.periodCredit?.toFixed(2) || '0.00',
+          row.closingDebit?.toFixed(2) || '0.00',
+          row.closingCredit?.toFixed(2) || '0.00',
+        ].join(','));
+      }
+      csvRows.push(['TOTALS', '', '', report.totals.openingDebit?.toFixed(2), report.totals.openingCredit?.toFixed(2), report.totals.periodDebit?.toFixed(2), report.totals.periodCredit?.toFixed(2), report.totals.closingDebit?.toFixed(2), report.totals.closingCredit?.toFixed(2)].join(','));
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `trial-balance-${fromDate}-to-${toDate}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Export Complete', description: 'Trial balance exported to CSV' });
+    } catch (e) {
+      toast({ title: 'Export Failed', description: 'Failed to export report', variant: 'destructive' });
+    }
+    setExporting(false);
+  };
 
   const generate = async () => {
     setLoading(true);
@@ -46,9 +83,15 @@ export default function TrialBalancePage() {
             <p className="text-muted-foreground mt-1">Debit and credit balances for all accounts</p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => window.print()} className="print:hidden">
-          <Printer className="h-4 w-4 mr-2" /> Print
-        </Button>
+        <div className="flex gap-2 print:hidden">
+          <Button variant="outline" onClick={exportToExcel} disabled={!report || exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Export Excel
+          </Button>
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="h-4 w-4 mr-2" /> Print
+          </Button>
+        </div>
       </div>
 
       <Card className="print:hidden">

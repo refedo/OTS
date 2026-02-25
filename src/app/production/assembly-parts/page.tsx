@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +60,8 @@ interface Totals {
 }
 
 export default function AssemblyPartsPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [parts, setParts] = useState<AssemblyPart[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -184,10 +188,10 @@ export default function AssemblyPartsPage() {
       // Refresh the list
       await fetchParts();
       setSelectedParts(new Set());
-      alert(`Successfully deleted ${deletePromises.length} parts`);
+      toast({ title: 'Deleted', description: `Successfully deleted ${deletePromises.length} parts` });
     } catch (error) {
       console.error('Error deleting parts:', error);
-      alert('Failed to delete some parts');
+      toast({ title: 'Error', description: 'Failed to delete some parts', variant: 'destructive' });
     } finally {
       setIsDeleting(false);
     }
@@ -517,6 +521,7 @@ export default function AssemblyPartsPage() {
                   <th className="p-3 text-left text-sm font-medium">Project</th>
                   <th className="p-3 text-left text-sm font-medium">Building</th>
                   <th className="p-3 text-left text-sm font-medium">Qty</th>
+                  <th className="p-3 text-left text-sm font-medium">Length (mm)</th>
                   <th className="p-3 text-left text-sm font-medium">Upload Date</th>
                   <th className="p-3 text-left text-sm font-medium">Status</th>
                   <th className="p-3 text-left text-sm font-medium">Actions</th>
@@ -544,6 +549,7 @@ export default function AssemblyPartsPage() {
                     <td className="p-3 text-sm">{part.project.name}</td>
                     <td className="p-3 text-sm">{part.building?.name || 'N/A'}</td>
                     <td className="p-3 text-sm">{part.quantity}</td>
+                    <td className="p-3 text-sm">{part.lengthMm ? Number(part.lengthMm).toLocaleString() : 'N/A'}</td>
                     <td className="p-3 text-sm">{new Date(part.createdAt).toLocaleDateString()}</td>
                     <td className="p-3">
                       <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${getStatusColor(part.status)}`}>

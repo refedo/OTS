@@ -1827,7 +1827,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                             {allBuildings
                               .filter(building => !editData.projectId || building.projectId === editData.projectId)
                               .map((building) => (
-                                <option key={building.id} value={building.id}>{building.designation}</option>
+                                <option key={building.id} value={building.id}>{building.name} ({building.designation})</option>
                               ))}
                           </select>
                         ) : (

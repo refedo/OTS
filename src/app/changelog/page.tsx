@@ -23,10 +23,43 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.13.0',
+    date: 'February 25, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '📊 Financial Report Accuracy & Cost Drill-Down',
+    highlights: [
+      'Backfilled 6,079 supplier invoices with correct project linkage from Dolibarr raw data',
+      'Cost categories now accurate: Raw Materials 72.3% (was 0.1%), Other dropped from 99% to 5%',
+      'Clickable cost categories with line-level drill-down in project analysis',
+      'New Dolibarr accounting account mapping table for proper cost classification',
+    ],
+    changes: {
+      added: [
+        'fin_dolibarr_account_mapping table — maps Dolibarr accounting rowids to OTS cost categories',
+        'Cost detail drill-down API — /api/financial/reports/project-analysis/cost-details',
+        'Account mapping management API — /api/financial/account-mapping (GET/PUT)',
+        'Clickable cost category bars in project analysis with line-level detail view',
+      ],
+      fixed: [
+        'CRITICAL: 6,079 supplier invoices had fk_projet=NULL despite Dolibarr API returning valid project IDs',
+        'PJ2411-0257 now correctly shows 451 supplier invoices (SAR 3.7M) instead of 0',
+        'Cost categories were 99% Other Costs — now properly classified via Dolibarr account mapping',
+        'Sync code was storing dolibarr_raw as NULL — now stores full JSON for data recovery',
+        'Building dropdown in task edit mode showed only designation instead of full name',
+      ],
+      changed: [
+        'All cost category queries now use fin_dolibarr_account_mapping instead of broken CoA join',
+        'Supplier/customer invoice sync now stores dolibarr_raw JSON for future backfill capability',
+        'Project cost structure and expenses analysis reports use new mapping table',
+      ],
+    },
+  },
+  {
     version: '15.12.0',
     date: 'February 24, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔒 Financial API Security & Cost Fix',
     highlights: [
       'All 27 financial API routes now enforce server-side permission checks',

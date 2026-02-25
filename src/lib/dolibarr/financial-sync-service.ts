@@ -374,18 +374,19 @@ export class FinancialSyncService {
             `SELECT sync_hash FROM fin_customer_invoices WHERE dolibarr_id = ?`, dolibarrId
           );
 
+          const rawJson = JSON.stringify(inv);
           if (existing.length > 0) {
             if (existing[0].sync_hash === newHash) { unchanged++; }
             else {
               await prisma.$executeRawUnsafe(
                 `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, fk_projet=?, type=?, status=?, is_paid=?,
                  total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
-                 dolibarr_raw=NULL, last_synced_at=NOW(), sync_hash=?, is_active=1
+                 dolibarr_raw=?, last_synced_at=NOW(), sync_hash=?, is_active=1
                  WHERE dolibarr_id=?`,
                 inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
                 pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
                 pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-                invoiceDate, dueDate, creationDate, newHash, dolibarrId
+                invoiceDate, dueDate, creationDate, rawJson, newHash, dolibarrId
               );
               updated++;
             }
@@ -394,11 +395,11 @@ export class FinancialSyncService {
               `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, fk_projet, type, status, is_paid,
                total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
                first_synced_at, last_synced_at, sync_hash, is_active)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)`,
               dolibarrId, inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
               pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
               pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-              invoiceDate, dueDate, creationDate, newHash
+              invoiceDate, dueDate, creationDate, rawJson, newHash
             );
             created++;
           }
@@ -552,20 +553,21 @@ export class FinancialSyncService {
           if (isNew) created++; else updated++;
 
           // Use INSERT...ON DUPLICATE KEY UPDATE for upsert
+          const rawJson = JSON.stringify(inv);
           await prisma.$executeRawUnsafe(
             `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, fk_projet, type, status, is_paid,
              total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
              first_synced_at, last_synced_at, sync_hash, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW(), ?, 1)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)
              ON DUPLICATE KEY UPDATE
              ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), fk_projet=VALUES(fk_projet), type=VALUES(type),
              status=VALUES(status), is_paid=VALUES(is_paid), total_ht=VALUES(total_ht), total_tva=VALUES(total_tva),
              total_ttc=VALUES(total_ttc), date_invoice=VALUES(date_invoice), date_due=VALUES(date_due),
-             date_creation=VALUES(date_creation), last_synced_at=NOW(), sync_hash=VALUES(sync_hash), is_active=1`,
+             date_creation=VALUES(date_creation), dolibarr_raw=VALUES(dolibarr_raw), last_synced_at=NOW(), sync_hash=VALUES(sync_hash), is_active=1`,
             dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), fkProjet || null, pi(inv.type),
             pi(inv.statut || inv.status), (inv.paye === '1' || inv.paid === '1') ? 1 : 0,
             pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-            invoiceDate, dueDate, creationDate, newHash
+            invoiceDate, dueDate, creationDate, rawJson, newHash
           );
 
           // Sync invoice lines - delete old and batch insert new

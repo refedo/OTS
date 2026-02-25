@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type Project = {
   id: string;
@@ -37,6 +38,7 @@ const DB_FIELDS = [
 
 export default function UploadPartsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -95,7 +97,7 @@ export default function UploadPartsPage() {
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       ];
       if (!validTypes.includes(selectedFile.type)) {
-        alert('Please upload an Excel file (.xls or .xlsx)');
+        toast({ title: 'Invalid File', description: 'Please upload an Excel file (.xls or .xlsx)', variant: 'destructive' });
         return;
       }
       setFile(selectedFile);
@@ -167,7 +169,7 @@ export default function UploadPartsPage() {
 
   const proceedToMapping = () => {
     if (!file || !selectedProject) {
-      alert('Please select a project and file');
+      toast({ title: 'Missing Selection', description: 'Please select a project and file', variant: 'destructive' });
       return;
     }
     setStep('mapping');
@@ -175,7 +177,7 @@ export default function UploadPartsPage() {
 
   const handleUpload = async () => {
     if (!file || !selectedProject) {
-      alert('Please select a project and file');
+      toast({ title: 'Missing Selection', description: 'Please select a project and file', variant: 'destructive' });
       return;
     }
 
@@ -185,7 +187,7 @@ export default function UploadPartsPage() {
     const missingFields = requiredFields.filter(field => !mappedFields.includes(field));
     
     if (missingFields.length > 0) {
-      alert(`Please map the following required fields: ${missingFields.join(', ')}`);
+      toast({ title: 'Missing Fields', description: `Please map the following required fields: ${missingFields.join(', ')}`, variant: 'destructive' });
       return;
     }
 
@@ -242,6 +244,7 @@ export default function UploadPartsPage() {
       if (response.ok) {
         const result = await response.json();
         setUploadResult(result);
+        toast({ title: 'Upload Complete', description: `${result.success} parts uploaded successfully` });
         
         if (result.failed === 0) {
           setTimeout(() => {
@@ -250,11 +253,11 @@ export default function UploadPartsPage() {
         }
       } else {
         const error = await response.json();
-        alert(error.error || 'Upload failed');
+        toast({ title: 'Upload Failed', description: error.error || 'Upload failed', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('An error occurred during upload');
+      toast({ title: 'Error', description: 'An error occurred during upload', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -262,7 +265,7 @@ export default function UploadPartsPage() {
 
   const downloadTemplate = () => {
     // In production, generate and download an Excel template
-    alert('Template download feature - to be implemented with actual Excel generation');
+    toast({ title: 'Coming Soon', description: 'Template download feature will be available soon' });
   };
 
   return (

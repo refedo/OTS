@@ -1365,8 +1365,8 @@ export class FinancialReportService {
         sil.product_label,
         sil.product_ref,
         sil.accounting_code,
-        COALESCE(coa.account_category, 'Uncategorized') as cost_category,
-        COALESCE(coa.account_name, 'Other Costs') as account_name,
+        COALESCE(dam.ots_cost_category, 'Other / Unclassified') as cost_category,
+        COALESCE(dam.dolibarr_account_label, sil.product_label, 'Unknown') as account_name,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_tva) as total_vat,
         SUM(sil.total_ttc) as total_ttc,
@@ -1375,28 +1375,18 @@ export class FinancialReportService {
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
-      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = sil.accounting_code
+      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
       WHERE si.is_active = 1 AND si.status >= 1
         AND si.date_invoice BETWEEN ? AND ?
       GROUP BY si.socid, dt.name, sil.product_label, sil.product_ref, sil.accounting_code,
-               coa.account_category, coa.account_name
+               dam.ots_cost_category, dam.dolibarr_account_label
       ORDER BY dt.name, total_ttc DESC
     `, fromDate, toDate);
 
     // 2. Get cost breakdown by category (aggregate)
     const costByCategory: any[] = await prisma.$queryRawUnsafe(`
       SELECT
-        COALESCE(coa.account_category, 
-          CASE 
-            WHEN sil.product_label LIKE '%raw%' OR sil.product_label LIKE '%material%' OR sil.product_label LIKE '%مواد%' OR sil.product_label LIKE '%خام%' THEN 'Raw Materials'
-            WHEN sil.product_label LIKE '%sub%contract%' OR sil.product_label LIKE '%مقاول%' THEN 'Subcontractors'
-            WHEN sil.product_label LIKE '%transport%' OR sil.product_label LIKE '%shipping%' OR sil.product_label LIKE '%freight%' OR sil.product_label LIKE '%نقل%' OR sil.product_label LIKE '%شحن%' THEN 'Transportation'
-            WHEN sil.product_label LIKE '%labor%' OR sil.product_label LIKE '%wage%' OR sil.product_label LIKE '%عمال%' THEN 'Labor'
-            WHEN sil.product_label LIKE '%equip%' OR sil.product_label LIKE '%machine%' OR sil.product_label LIKE '%معد%' THEN 'Equipment'
-            WHEN sil.product_label LIKE '%rent%' OR sil.product_label LIKE '%إيجار%' THEN 'Rent & Facilities'
-            ELSE 'Other Costs'
-          END
-        ) as cost_category,
+        COALESCE(dam.ots_cost_category, 'Other / Unclassified') as cost_category,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_tva) as total_vat,
         SUM(sil.total_ttc) as total_ttc,
@@ -1404,7 +1394,7 @@ export class FinancialReportService {
         COUNT(*) as line_count
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
-      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = sil.accounting_code
+      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
       WHERE si.is_active = 1 AND si.status >= 1
         AND si.date_invoice BETWEEN ? AND ?
       GROUP BY cost_category
@@ -1545,17 +1535,7 @@ export class FinancialReportService {
       SELECT
         si.socid as supplier_id,
         dt.name as supplier_name,
-        COALESCE(coa.account_category,
-          CASE 
-            WHEN sil.product_label LIKE '%raw%' OR sil.product_label LIKE '%material%' OR sil.product_label LIKE '%مواد%' OR sil.product_label LIKE '%خام%' THEN 'Raw Materials'
-            WHEN sil.product_label LIKE '%sub%contract%' OR sil.product_label LIKE '%مقاول%' THEN 'Subcontractors'
-            WHEN sil.product_label LIKE '%transport%' OR sil.product_label LIKE '%shipping%' OR sil.product_label LIKE '%freight%' OR sil.product_label LIKE '%نقل%' OR sil.product_label LIKE '%شحن%' THEN 'Transportation'
-            WHEN sil.product_label LIKE '%labor%' OR sil.product_label LIKE '%wage%' OR sil.product_label LIKE '%عمال%' THEN 'Labor'
-            WHEN sil.product_label LIKE '%equip%' OR sil.product_label LIKE '%machine%' OR sil.product_label LIKE '%معد%' THEN 'Equipment'
-            WHEN sil.product_label LIKE '%rent%' OR sil.product_label LIKE '%إيجار%' THEN 'Rent & Facilities'
-            ELSE 'Other Costs'
-          END
-        ) as expense_category,
+        COALESCE(dam.ots_cost_category, 'Other / Unclassified') as expense_category,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_tva) as total_vat,
         SUM(sil.total_ttc) as total_ttc,
@@ -1563,7 +1543,7 @@ export class FinancialReportService {
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
-      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = sil.accounting_code
+      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
       WHERE si.is_active = 1 AND si.status >= 1
         AND si.date_invoice BETWEEN ? AND ?
       GROUP BY si.socid, dt.name, expense_category
@@ -1842,26 +1822,16 @@ export class FinancialReportService {
     const suppPmtMap = new Map<number, any>();
     for (const sp of suppPmtByProject) suppPmtMap.set(Number(sp.project_id), sp);
 
-    // 6. Cost breakdown by category per project
+    // 6. Cost breakdown by category per project (using Dolibarr account mapping table)
     const costCatByProject: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         si.fk_projet as project_id,
-        COALESCE(coa.account_category,
-          CASE
-            WHEN sil.product_label LIKE '%raw%' OR sil.product_label LIKE '%material%' OR sil.product_label LIKE '%مواد%' OR sil.product_label LIKE '%خام%' THEN 'Raw Materials'
-            WHEN sil.product_label LIKE '%sub%contract%' OR sil.product_label LIKE '%مقاول%' THEN 'Subcontractors'
-            WHEN sil.product_label LIKE '%transport%' OR sil.product_label LIKE '%shipping%' OR sil.product_label LIKE '%freight%' OR sil.product_label LIKE '%نقل%' OR sil.product_label LIKE '%شحن%' THEN 'Transportation'
-            WHEN sil.product_label LIKE '%labor%' OR sil.product_label LIKE '%wage%' OR sil.product_label LIKE '%عمال%' THEN 'Labor'
-            WHEN sil.product_label LIKE '%equip%' OR sil.product_label LIKE '%machine%' OR sil.product_label LIKE '%معد%' THEN 'Equipment'
-            WHEN sil.product_label LIKE '%rent%' OR sil.product_label LIKE '%إيجار%' THEN 'Rent & Facilities'
-            ELSE 'Other Costs'
-          END
-        ) as cost_category,
+        COALESCE(dam.ots_cost_category, 'Other / Unclassified') as cost_category,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_ttc) as total_ttc
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
-      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = sil.accounting_code
+      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
       WHERE si.is_active = 1 AND si.status >= 1 AND si.fk_projet IS NOT NULL AND si.fk_projet > 0
         ${dateFilterSup}
       GROUP BY si.fk_projet, cost_category

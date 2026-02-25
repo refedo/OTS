@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 
@@ -119,9 +120,9 @@ export async function GET(
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
 
-  // Check permissions: Admins/Managers see all, others only their assigned tasks
-  // Also check private task access
-  if (session.role !== 'Admin' && session.role !== 'Manager') {
+  // Check permissions: users with tasks.view_all see all, others only their assigned tasks
+  const permissions = await getCurrentUserPermissions();
+  if (!permissions.includes('tasks.view_all')) {
     if (task.assignedToId !== session.sub && task.createdById !== session.sub) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -164,9 +165,10 @@ export async function PATCH(
   }
 
   // Permission check:
-  // - Admins/Managers can update everything
-  // - Assigned users can only update status
-  if (session.role !== 'Admin' && session.role !== 'Manager') {
+  // Only users with tasks.manage permission can update tasks fully
+  // Assigned users can only update status and approved fields
+  const permissions = await getCurrentUserPermissions();
+  if (!permissions.includes('tasks.manage')) {
     if (task.assignedToId !== session.sub) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -427,8 +429,8 @@ export async function DELETE(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  // Only Admins can delete tasks
-  if (!session || session.role !== 'Admin') {
+  // Only CEO/Admins can delete tasks
+  if (!session || (session.role !== 'CEO' && session.role !== 'Admin')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

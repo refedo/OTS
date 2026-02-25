@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.12.0';
-const RELEASE_DATE = 'February 24, 2026';
+const CURRENT_VERSION = '15.14.0';
+const RELEASE_DATE = 'February 26, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Server-side permission enforcement on all financial APIs</li>
-              <li>• Fixed duplicate project rows (Cartesian join bug)</li>
-              <li>• Correct per-project cost from supplier invoices</li>
-              <li>• Access denied for unauthorized financial access</li>
+              <li>• Project analysis: search, contract value, and aggregate cost drill-down</li>
+              <li>• Journal entries: Excel export and hierarchical account view</li>
+              <li>• Financial reports: Excel export for Trial Balance and P&L</li>
+              <li>• Assembly parts: length column and fixed refresh loop bug</li>
             </ul>
           </div>
 
