@@ -47,40 +47,19 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
     dueDate: taskData.dueDate ? new Date(taskData.dueDate).toISOString() : null,
   };
 
-  // Fetch users for assignment with department info
-  let users;
-  if (['CEO', 'Admin'].includes(session.role)) {
-    users = await prisma.user.findMany({
-      where: { status: 'active' },
-      select: { 
-        id: true, 
-        name: true, 
-        email: true, 
-        position: true,
-        departmentId: true,
-        department: { select: { id: true, name: true } }
-      },
-      orderBy: { name: 'asc' },
-    });
-  } else {
-    const manager = await prisma.user.findUnique({
-      where: { id: session.sub },
-      include: {
-        subordinates: {
-          where: { status: 'active' },
-          select: { 
-            id: true, 
-            name: true, 
-            email: true, 
-            position: true,
-            departmentId: true,
-            department: { select: { id: true, name: true } }
-          },
-        },
-      },
-    });
-    users = manager?.subordinates || [];
-  }
+  // Fetch all active users for assignment dropdown
+  const users = await prisma.user.findMany({
+    where: { status: 'active' },
+    select: { 
+      id: true, 
+      name: true, 
+      email: true, 
+      position: true,
+      departmentId: true,
+      department: { select: { id: true, name: true } }
+    },
+    orderBy: { name: 'asc' },
+  });
 
   // Fetch projects
   const projects = await prisma.project.findMany({

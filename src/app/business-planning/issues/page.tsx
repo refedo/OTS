@@ -57,7 +57,7 @@ export default function WeeklyIssuesPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch('/api/users?forAssignment=true');
       const data = await res.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {

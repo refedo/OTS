@@ -19,13 +19,36 @@ const createSchema = z.object({
   customPermissions: z.array(z.string()).nullable().optional()
 });
 
-export async function GET() {
+export async function GET(req: Request) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? await verifySession(token) : null;
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  
+  // Check if this is a request for assignment purposes (all active users)
+  const { searchParams } = new URL(req.url);
+  const forAssignment = searchParams.get('forAssignment') === 'true';
+  
+  // For assignment dropdowns, show all active users regardless of role
+  if (forAssignment) {
+    const users = await prisma.user.findMany({ 
+      where: { status: 'active' },
+      select: { 
+        id: true, 
+        name: true, 
+        email: true, 
+        position: true,
+        departmentId: true,
+        department: { select: { id: true, name: true } }
+      },
+      orderBy: { name: 'asc' } 
+    });
+    return NextResponse.json(users);
+  }
+  
+  // For user management, maintain role-based filtering
   // Admin: full access. Manager: only same department. Engineer/Operator: self
-  if (session.role === 'Admin') {
+  if (session.role === 'Admin' || session.role === 'CEO') {
     const users = await prisma.user.findMany({ include: { role: true, department: true }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(users);
   }
