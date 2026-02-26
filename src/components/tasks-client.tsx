@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -189,8 +189,8 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     revision: '',
   });
   const [updating, setUpdating] = useState(false);
-  
-  // Rejection dialog state
+  const [undoingTaskId, setUndoingTaskId] = useState<string | null>(null);
+  const [recentlyChangedTasks, setRecentlyChangedTasks] = useState<Set<string>>(new Set());
   const [rejectionDialog, setRejectionDialog] = useState<{
     open: boolean;
     taskId: string | null;
@@ -294,7 +294,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
         switch (sortColumn) {
           case 'title': aVal = a.title.toLowerCase(); bVal = b.title.toLowerCase(); break;
           case 'assignedTo': aVal = a.assignedTo?.name?.toLowerCase() || ''; bVal = b.assignedTo?.name?.toLowerCase() || ''; break;
-          case 'department': aVal = a.department?.name?.toLowerCase() || ''; bVal = b.department?.name?.toLowerCase() || ''; break;
+          case 'department': aVal = a.department?.name?.toLowerCase() || ''; bVal = a.department?.name?.toLowerCase() || ''; break;
           case 'project': aVal = a.project?.projectNumber || ''; bVal = b.project?.projectNumber || ''; break;
           case 'building': aVal = a.building?.designation || ''; bVal = b.building?.designation || ''; break;
           case 'priority': {
@@ -305,7 +305,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
             const order: Record<string, number> = { 'Pending': 0, 'In Progress': 1, 'Waiting for Approval': 2, 'Completed': 3, 'Cancelled': 4 };
             aVal = order[a.status] ?? 99; bVal = order[b.status] ?? 99; break;
           }
-          case 'requester': aVal = a.requester?.name?.toLowerCase() || ''; bVal = b.requester?.name?.toLowerCase() || ''; break;
+          case 'requester': aVal = a.requester?.name?.toLowerCase() || ''; bVal = a.requester?.name?.toLowerCase() || ''; break;
           case 'taskInputDate': aVal = a.taskInputDate || ''; bVal = b.taskInputDate || ''; break;
           case 'dueDate': aVal = a.dueDate || ''; bVal = b.dueDate || ''; break;
           case 'releaseDate': aVal = a.releaseDate || ''; bVal = b.releaseDate || ''; break;
@@ -525,10 +525,51 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
       const updatedTask = await response.json();
       setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
+      
+      // Mark as recently changed
+      setRecentlyChangedTasks(prev => new Set(prev).add(taskId));
+      setTimeout(() => {
+        setRecentlyChangedTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskId);
+          return newSet;
+        });
+      }, 5 * 60 * 1000); // 5 minutes
+      
       router.refresh();
       showAlert(currentlyApproved ? 'Task approval revoked' : 'Task approved successfully', { type: 'success' });
     } catch (error) {
       showAlert('Failed to update approval status', { type: 'error' });
+    }
+  };
+
+  const handleUndo = async (taskId: string) => {
+    if (!confirm('Are you sure you want to undo the last change to this task?')) return;
+
+    setUndoingTaskId(taskId);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/undo`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to undo changes');
+      }
+
+      const result = await response.json();
+      setTasks(tasks.map(t => t.id === taskId ? result.task : t));
+      setRecentlyChangedTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
+      showAlert('Changes undone successfully', { type: 'success' });
+      router.refresh();
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to undo changes', { type: 'error' });
+    } finally {
+      setUndoingTaskId(null);
     }
   };
 
@@ -759,44 +800,22 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const handleQuickEdit = async () => {
     if (!editingTaskId) return;
 
+    // Validate required fields
     if (!editData.title.trim()) {
-      showAlert('Please enter a task title', { type: 'warning' });
+      showAlert('Title is required', { type: 'error' });
       return;
     }
-
     if (!editData.dueDate) {
-      showAlert('Please enter a due date', { type: 'warning' });
+      showAlert('Due date is required', { type: 'error' });
       return;
     }
 
-    // Validate due date is not before input date
-    if (editData.taskInputDate && editData.dueDate && new Date(editData.dueDate) < new Date(editData.taskInputDate)) {
-      showAlert('Due date cannot be before input date', { type: 'warning' });
-      return;
-    }
-
+    setUpdating(true);
     try {
-      setUpdating(true);
       const response = await fetch(`/api/tasks/${editingTaskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: editData.title,
-          description: editData.description || null,
-          assignedToId: editData.assignedToId || null,
-          requesterId: editData.requesterId || null,
-          projectId: editData.projectId || null,
-          buildingId: editData.buildingId || null,
-          departmentId: editData.departmentId || null,
-          priority: editData.priority,
-          taskInputDate: editData.taskInputDate || null,
-          dueDate: editData.dueDate,
-          releaseDate: editData.releaseDate || null,
-          status: editData.status,
-          isPrivate: editData.isPrivate,
-          remark: editData.remark || null,
-          revision: editData.revision || null,
-        }),
+        body: JSON.stringify(editData),
       });
 
       if (!response.ok) {
@@ -806,6 +825,17 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
       const updatedTask = await response.json();
       setTasks(tasks.map(t => t.id === editingTaskId ? updatedTask : t));
+      
+      // Mark as recently changed
+      setRecentlyChangedTasks(prev => new Set(prev).add(editingTaskId));
+      setTimeout(() => {
+        setRecentlyChangedTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(editingTaskId);
+          return newSet;
+        });
+      }, 5 * 60 * 1000); // 5 minutes
+      
       handleCancelEdit();
       router.refresh();
     } catch (error) {
@@ -2086,6 +2116,16 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                   <Eye className="size-4" />
                                   View Details
                                 </DropdownMenuItem>
+                                {canEditTask && recentlyChangedTasks.has(task.id) && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleUndo(task.id)}
+                                    disabled={undoingTaskId === task.id}
+                                    className="text-orange-600"
+                                  >
+                                    <Undo2 className="size-4" />
+                                    {undoingTaskId === task.id ? 'Undoing...' : 'Undo Last Change'}
+                                  </DropdownMenuItem>
+                                )}
                                 {canEditTask && (
                                   <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
                                     <Edit className="size-4" />
@@ -2142,6 +2182,16 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           <Eye className="size-4" />
                           View Details
                         </DropdownMenuItem>
+                        {canEditTask && recentlyChangedTasks.has(task.id) && (
+                          <DropdownMenuItem 
+                            onClick={() => handleUndo(task.id)}
+                            disabled={undoingTaskId === task.id}
+                            className="text-orange-600"
+                          >
+                            <Undo2 className="size-4" />
+                            {undoingTaskId === task.id ? 'Undoing...' : 'Undo Last Change'}
+                          </DropdownMenuItem>
+                        )}
                         {canEditTask && (
                           <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}/edit`)}>
                             <Edit className="size-4" />
