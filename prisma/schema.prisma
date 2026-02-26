@@ -474,12 +474,17 @@ model TaskAuditLog {
   field       String?  // Which field was changed (null for creation)
   oldValue    String?  @db.Text // Previous value
   newValue    String?  @db.Text // New value
+  snapshot    String?  @db.Text // JSON snapshot of task state before change (for undo)
+  undone      Boolean  @default(false) // Whether this action has been undone
+  undoneAt    DateTime? // When this action was undone
+  undoneBy    String?  @db.Char(36) // User who undid this action
   
   createdAt   DateTime @default(now())
   
   @@index([taskId])
   @@index([userId])
   @@index([createdAt])
+  @@index([undone])
 }
 
 /// Inspection & Test Plan (ITP) Models

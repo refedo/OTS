@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +75,8 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
   const [updating, setUpdating] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(true);
+  const [undoing, setUndoing] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
 
   // Check permissions - use permission-based check if available, fallback to role-based
   const canEdit = userPermissions.includes('tasks.edit') || ['CEO', 'Admin', 'Manager'].includes(userRole);
@@ -89,6 +91,13 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
         if (response.ok) {
           const data = await response.json();
           setAuditLogs(data);
+          // Check if there's an undoable action (recent change with snapshot, not undone)
+          const hasUndoableAction = data.some((log: AuditLog) => 
+            log.action !== 'created' && 
+            log.action !== 'undone' &&
+            new Date(log.createdAt).getTime() > Date.now() - 5 * 60 * 1000 // Within last 5 minutes
+          );
+          setCanUndo(hasUndoableAction);
         }
       } catch (error) {
         console.error('Failed to fetch audit logs:', error);
@@ -210,6 +219,29 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
     }
   };
 
+  const handleUndo = async () => {
+    if (!confirm('Are you sure you want to undo the last change?')) return;
+
+    setUndoing(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/undo`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to undo changes');
+      }
+
+      alert('Changes undone successfully');
+      router.refresh();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to undo changes');
+    } finally {
+      setUndoing(false);
+    }
+  };
+
   // Stage approval circles component
   const StageApprovalCircles = () => {
     // Check if task is overdue (due date passed and not completed)
@@ -278,6 +310,17 @@ export function TaskDetails({ task, userRole, userId, userPermissions = [] }: Ta
             <p className="text-muted-foreground mt-1">Task Details</p>
           </div>
           <div className="flex gap-2">
+            {canUndo && canEdit && (
+              <Button 
+                variant="outline" 
+                onClick={handleUndo} 
+                disabled={undoing}
+                className="text-orange-600 hover:text-orange-700"
+              >
+                <Undo2 className="size-4 mr-2" />
+                {undoing ? 'Undoing...' : 'Undo'}
+              </Button>
+            )}
             {canEdit && (
               <Button variant="outline" asChild>
                 <Link href={`/tasks/${task.id}/edit`}>

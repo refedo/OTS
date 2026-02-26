@@ -37,7 +37,8 @@ async function createTaskAuditLog(
   action: string,
   field?: string,
   oldValue?: string | null,
-  newValue?: string | null
+  newValue?: string | null,
+  snapshot?: string | null
 ) {
   try {
     await prisma.taskAuditLog.create({
@@ -48,6 +49,7 @@ async function createTaskAuditLog(
         field,
         oldValue,
         newValue,
+        snapshot,
       },
     });
   } catch (error) {
@@ -359,6 +361,26 @@ export async function PATCH(
     });
   }
 
+  // Create snapshot of task state before changes for undo functionality
+  const taskSnapshot = JSON.stringify({
+    title: task.title,
+    description: task.description,
+    assignedToId: task.assignedToId,
+    requesterId: task.requesterId,
+    projectId: task.projectId,
+    buildingId: task.buildingId,
+    departmentId: task.departmentId,
+    taskInputDate: task.taskInputDate,
+    dueDate: task.dueDate,
+    releaseDate: task.releaseDate,
+    priority: task.priority,
+    status: task.status,
+    isPrivate: task.isPrivate,
+    isCeoTask: task.isCeoTask,
+    remark: task.remark,
+    revision: task.revision,
+  });
+
   // Create audit log entries for all changes (non-blocking)
   const auditPromises: Promise<void>[] = [];
   
@@ -419,7 +441,9 @@ export async function PATCH(
           action = newVal === 'Completed' ? 'completed' : 'status_changed';
         }
         
-        auditPromises.push(createTaskAuditLog(id, session.sub, action, field, oldDisplay, newDisplay));
+        // Include snapshot only for the first change in this update
+        const includeSnapshot = auditPromises.length === 0 ? taskSnapshot : null;
+        auditPromises.push(createTaskAuditLog(id, session.sub, action, field, oldDisplay, newDisplay, includeSnapshot));
       }
     }
   }
