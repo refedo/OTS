@@ -47,6 +47,9 @@ export async function GET(req: Request) {
     const processFilter = searchParams.get('process');
     const projectId = searchParams.get('projectId');
     const buildingId = searchParams.get('buildingId');
+    const sourceFilter = searchParams.get('source');
+    const sortBy = searchParams.get('sortBy') || 'dateProcessed';
+    const orderBy = searchParams.get('orderBy') || 'desc';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '100');
     const skip = (page - 1) * limit;
@@ -64,6 +67,10 @@ export async function GET(req: Request) {
 
     if (buildingId && buildingId !== 'all') {
       where.assemblyPart = { ...where.assemblyPart, buildingId };
+    }
+
+    if (sourceFilter && sourceFilter !== 'all') {
+      where.assemblyPart = { ...where.assemblyPart, source: sourceFilter };
     }
 
     if (search) {
@@ -122,9 +129,9 @@ export async function GET(req: Request) {
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: sortBy === 'partDesignation' || sortBy === 'source' || sortBy === 'totalQty'
+        ? { assemblyPart: { [sortBy === 'partDesignation' ? 'partDesignation' : sortBy === 'source' ? 'source' : 'quantity']: orderBy } }
+        : { [sortBy]: orderBy },
     });
 
     // Calculate total stats for the entire filtered dataset (not just current page)

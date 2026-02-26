@@ -77,6 +77,8 @@ export default function AssemblyPartsPage() {
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 100, total: 0, totalPages: 0 });
   const [totals, setTotals] = useState<Totals>({ totalWeight: 0, totalArea: 0, statusCounts: {} });
   const [pageSize, setPageSize] = useState(100);
+  const [sortBy, setSortBy] = useState<string>('createdAt');
+  const [orderBy, setOrderBy] = useState<'asc' | 'desc'>('desc');
 
   const fetchParts = useCallback(async (page = 1, search = searchQuery, limit = pageSize) => {
     setLoading(true);
@@ -88,6 +90,8 @@ export default function AssemblyPartsPage() {
       if (projectFilter !== 'all') params.set('projectId', projectFilter);
       if (buildingFilter !== 'all') params.set('buildingId', buildingFilter);
       if (statusFilter !== 'all') params.set('status', statusFilter);
+      params.set('sortBy', sortBy);
+      params.set('orderBy', orderBy);
 
       const response = await fetch(`/api/production/assembly-parts?${params}`);
       if (response.ok) {
@@ -101,12 +105,12 @@ export default function AssemblyPartsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, projectFilter, buildingFilter, statusFilter, pageSize]);
+  }, [searchQuery, projectFilter, buildingFilter, statusFilter, sortBy, orderBy, pageSize]);
 
   useEffect(() => {
     fetchParts(1);
     fetchProjects();
-  }, [projectFilter, buildingFilter, statusFilter, pageSize]);
+  }, [projectFilter, buildingFilter, statusFilter, sortBy, orderBy, pageSize]);
 
   useEffect(() => {
     if (projectFilter && projectFilter !== 'all') {
@@ -132,6 +136,20 @@ export default function AssemblyPartsPage() {
     if (page >= 1 && page <= pagination.totalPages) {
       fetchParts(page);
     }
+  };
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setOrderBy(orderBy === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setOrderBy('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortBy !== column) return null;
+    return orderBy === 'asc' ? '↑' : '↓';
   };
 
   const fetchProjects = async () => {
@@ -511,19 +529,37 @@ export default function AssemblyPartsPage() {
                     <input
                       type="checkbox"
                       checked={selectedParts.size === parts.length && parts.length > 0}
-                      onChange={toggleSelectAll}
+                      onChange={handleSelectAll}
                       className="h-4 w-4 rounded border-gray-300"
                     />
                   </th>
-                  <th className="p-3 text-left text-sm font-medium">Part Designation</th>
-                  <th className="p-3 text-left text-sm font-medium">Name</th>
-                  <th className="p-3 text-left text-sm font-medium">Source</th>
-                  <th className="p-3 text-left text-sm font-medium">Project</th>
-                  <th className="p-3 text-left text-sm font-medium">Building</th>
-                  <th className="p-3 text-left text-sm font-medium">Qty</th>
-                  <th className="p-3 text-left text-sm font-medium">Length (mm)</th>
-                  <th className="p-3 text-left text-sm font-medium">Upload Date</th>
-                  <th className="p-3 text-left text-sm font-medium">Status</th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('partDesignation')}>
+                    Part Designation {getSortIcon('partDesignation')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('name')}>
+                    Name {getSortIcon('name')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('source')}>
+                    Source {getSortIcon('source')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('projectNumber')}>
+                    Project {getSortIcon('projectNumber')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('buildingName')}>
+                    Building {getSortIcon('buildingName')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('quantity')}>
+                    Qty {getSortIcon('quantity')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('lengthMm')}>
+                    Length (mm) {getSortIcon('lengthMm')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('createdAt')}>
+                    Upload Date {getSortIcon('createdAt')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('status')}>
+                    Status {getSortIcon('status')}
+                  </th>
                   <th className="p-3 text-left text-sm font-medium">Actions</th>
                 </tr>
               </thead>

@@ -77,6 +77,9 @@ export default function ProductionLogsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [processFilter, setProcessFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<string>('dateProcessed');
+  const [orderBy, setOrderBy] = useState<'asc' | 'desc'>('desc');
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [showRFIDialog, setShowRFIDialog] = useState(false);
   const [creatingRFI, setCreatingRFI] = useState(false);
@@ -107,6 +110,9 @@ export default function ProductionLogsPage() {
       if (search) params.set('search', search);
       if (processFilter !== 'all') params.set('process', processFilter);
       if (projectFilter !== 'all') params.set('projectId', projectFilter);
+      if (sourceFilter !== 'all') params.set('source', sourceFilter);
+      params.set('sortBy', sortBy);
+      params.set('orderBy', orderBy);
 
       const response = await fetch(`/api/production/logs?${params}`);
       if (response.ok) {
@@ -120,11 +126,11 @@ export default function ProductionLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, processFilter, projectFilter, pageSize]);
+  }, [searchQuery, processFilter, projectFilter, sourceFilter, sortBy, orderBy, pageSize]);
 
   useEffect(() => {
     fetchLogs(1);
-  }, [processFilter, projectFilter, pageSize]);
+  }, [processFilter, projectFilter, sourceFilter, sortBy, orderBy, pageSize]);
 
   useEffect(() => {
     fetchProjects();
@@ -157,6 +163,20 @@ export default function ProductionLogsPage() {
     if (page >= 1 && page <= pagination.totalPages) {
       fetchLogs(page);
     }
+  };
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setOrderBy(orderBy === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setOrderBy('asc');
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortBy !== column) return null;
+    return orderBy === 'asc' ? <ChevronUp className="h-4 w-4 inline ml-1" /> : <ChevronDown className="h-4 w-4 inline ml-1" />;
   };
 
   const getSourceBadge = (source: string | null) => {
@@ -557,6 +577,15 @@ export default function ProductionLogsPage() {
             <option value="Approved">QC Approved</option>
             <option value="Rejected">QC Rejected</option>
           </select>
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="h-9 px-3 rounded-md border bg-background text-sm"
+          >
+            <option value="all">All Sources</option>
+            <option value="OTS">OTS</option>
+            <option value="PTS">PTS</option>
+          </select>
         </div>
       </div>
 
@@ -731,14 +760,30 @@ export default function ProductionLogsPage() {
                       className="rounded"
                     />
                   </th>
-                  <th className="p-3 text-left text-sm font-medium">Part Designation</th>
-                  <th className="p-3 text-left text-sm font-medium">Source</th>
-                  <th className="p-3 text-left text-sm font-medium">Process</th>
-                  <th className="p-3 text-left text-sm font-medium">Date</th>
-                  <th className="p-3 text-left text-sm font-medium">Processed Qty</th>
-                  <th className="p-3 text-left text-sm font-medium">Total Qty</th>
-                  <th className="p-3 text-left text-sm font-medium">QC Status</th>
-                  <th className="p-3 text-left text-sm font-medium">Team</th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('partDesignation')}>
+                    Part Designation {getSortIcon('partDesignation')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('source')}>
+                    Source {getSortIcon('source')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('processType')}>
+                    Process {getSortIcon('processType')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('dateProcessed')}>
+                    Date {getSortIcon('dateProcessed')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('processedQty')}>
+                    Processed Qty {getSortIcon('processedQty')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('totalQty')}>
+                    Total Qty {getSortIcon('totalQty')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('qcStatus')}>
+                    QC Status {getSortIcon('qcStatus')}
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('processingTeam')}>
+                    Team {getSortIcon('processingTeam')}
+                  </th>
                   <th className="p-3 text-left text-sm font-medium">Actions</th>
                 </tr>
               </thead>

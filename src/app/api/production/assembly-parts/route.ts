@@ -89,6 +89,8 @@ export async function GET(req: Request) {
     const status = searchParams.get('status');
     const includeLogs = searchParams.get('includeLogs') === 'true';
     const search = searchParams.get('search');
+    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const orderBy = searchParams.get('orderBy') || 'desc';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '100');
     const skip = (page - 1) * limit;
@@ -143,6 +145,9 @@ export async function GET(req: Request) {
       where,
       skip,
       take: limit,
+      orderBy: sortBy === 'projectNumber' || sortBy === 'buildingName'
+        ? { [sortBy === 'projectNumber' ? 'project' : 'building']: { [sortBy === 'projectNumber' ? 'projectNumber' : 'name']: orderBy } }
+        : { [sortBy]: orderBy },
       select: {
         id: true,
         partDesignation: true,
