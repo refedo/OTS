@@ -66,9 +66,12 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'tasks.view', name: 'View Tasks', description: 'View task list and details', category: 'tasks' },
       { id: 'tasks.view_all', name: 'View All Tasks', description: 'View all tasks across projects', category: 'tasks' },
       { id: 'tasks.create', name: 'Create Tasks', description: 'Create new tasks', category: 'tasks' },
-      { id: 'tasks.edit', name: 'Edit Tasks', description: 'Modify task information', category: 'tasks' },
-      { id: 'tasks.delete', name: 'Delete Tasks', description: 'Delete tasks', category: 'tasks' },
+      { id: 'tasks.edit', name: 'Edit Own Tasks', description: 'Modify own assigned tasks', category: 'tasks' },
+      { id: 'tasks.edit_all', name: 'Edit All Tasks', description: 'Modify any task regardless of assignment', category: 'tasks' },
+      { id: 'tasks.delete', name: 'Delete Own Tasks', description: 'Delete own tasks', category: 'tasks' },
+      { id: 'tasks.delete_all', name: 'Delete All Tasks', description: 'Delete any task regardless of assignment', category: 'tasks' },
       { id: 'tasks.assign', name: 'Assign Tasks', description: 'Assign users to tasks', category: 'tasks' },
+      { id: 'tasks.manage', name: 'Full Task Management', description: 'Complete control over all tasks (legacy permission)', category: 'tasks' },
     ],
   },
   {
@@ -330,7 +333,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'tasks.view_all',
     'tasks.create',
     'tasks.edit',
+    'tasks.edit_all',
+    'tasks.delete',
+    'tasks.delete_all',
     'tasks.assign',
+    'tasks.manage',
     // Production Management
     'production.view_dashboard',
     'production.view_status',
@@ -435,6 +442,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Task Management
     'tasks.view',
     'tasks.edit',
+    'tasks.delete',
     // Production Access
     'production.view_dashboard',
     'production.view_status',
@@ -499,6 +507,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Task Access
     'tasks.view',
     'tasks.edit',
+    'tasks.delete',
     // Production Access (Read-Only + Logging)
     'production.view_dashboard',
     'production.view_status',
@@ -540,6 +549,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'tasks.view_all',
     'tasks.create',
     'tasks.edit',
+    'tasks.edit_all',
+    'tasks.delete',
+    'tasks.delete_all',
     'tasks.assign',
     // Document Management (Full Access)
     'documents.view',

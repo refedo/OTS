@@ -165,16 +165,25 @@ export async function PATCH(
   }
 
   // Permission check:
-  // Only users with tasks.manage permission can update tasks fully
-  // Assigned users can only update status and approved fields
+  // 1. Users with tasks.manage or tasks.edit_all can update any task fully
+  // 2. Assigned users with tasks.edit can update their own tasks
+  // 3. Users without edit_all can only update status and approved fields on others' tasks
   const permissions = await getCurrentUserPermissions();
-  if (!permissions.includes('tasks.manage')) {
-    if (task.assignedToId !== session.sub) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    // Engineers/Operators can only update status and approval
-    if (Object.keys(parsed.data).some(key => key !== 'status' && key !== 'approved')) {
-      return NextResponse.json({ error: 'You can only update task status' }, { status: 403 });
+  const canEditAll = permissions.includes('tasks.manage') || permissions.includes('tasks.edit_all');
+  const canEdit = permissions.includes('tasks.edit');
+  const isAssignedUser = task.assignedToId === session.sub;
+  const isCreator = task.createdById === session.sub;
+
+  if (!canEditAll && !canEdit) {
+    return NextResponse.json({ error: 'Forbidden: No permission to edit tasks' }, { status: 403 });
+  }
+
+  // If user doesn't have edit_all permission and is not assigned/creator, restrict to status updates only
+  if (!canEditAll && !isAssignedUser && !isCreator) {
+    const allowedFields = ['status', 'approved'];
+    const hasRestrictedFields = Object.keys(parsed.data).some(key => !allowedFields.includes(key));
+    if (hasRestrictedFields) {
+      return NextResponse.json({ error: 'Forbidden: You can only update status and approval for tasks not assigned to you' }, { status: 403 });
     }
   }
 
@@ -429,14 +438,38 @@ export async function DELETE(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  // Only CEO/Admins can delete tasks
-  if (!session || (session.role !== 'CEO' && session.role !== 'Admin')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id: taskId } = await params;
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+  });
+
+  if (!task) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
+
+  // Permission check:
+  // 1. Users with tasks.manage or tasks.delete_all can delete any task
+  // 2. Users with tasks.delete can delete their own tasks (assigned or created)
+  const permissions = await getCurrentUserPermissions();
+  const canDeleteAll = permissions.includes('tasks.manage') || permissions.includes('tasks.delete_all');
+  const canDelete = permissions.includes('tasks.delete');
+  const isAssignedUser = task.assignedToId === session.sub;
+  const isCreator = task.createdById === session.sub;
+
+  if (!canDeleteAll && !canDelete) {
+    return NextResponse.json({ error: 'Forbidden: No permission to delete tasks' }, { status: 403 });
+  }
+
+  if (!canDeleteAll && !isAssignedUser && !isCreator) {
+    return NextResponse.json({ error: 'Forbidden: You can only delete your own tasks' }, { status: 403 });
+  }
+
   await prisma.task.delete({
-    where: { id },
+    where: { id: taskId },
   });
 
   return NextResponse.json({ success: true });
