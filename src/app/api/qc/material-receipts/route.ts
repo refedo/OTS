@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       // Create receipt
       const newReceipt = await tx.materialInspectionReceipt.create({
         data: {
-          id: uuidv4(),
+          id: randomUUID(),
           receiptNumber,
           dolibarrPoId,
           dolibarrPoRef,
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
 
       // Create receipt items
       const itemsData = items.map((item: any) => ({
-        id: uuidv4(),
+        id: randomUUID(),
         receiptId: newReceipt.id,
         dolibarrLineId: item.dolibarrLineId || null,
         dolibarrProductId: item.dolibarrProductId || null,
