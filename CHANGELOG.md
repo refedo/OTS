@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.16.0] - 2026-02-27
+
+### 🔐 Task Visibility Control
+
+#### New Features
+- **View Other Users Tasks Permission** — new `tasks.view_others` permission added to role management
+  - Allows granular control over whether users can see tasks assigned to other users
+  - Users with this permission can view non-private tasks across the system
+  - Users without this permission only see their own assigned or created tasks
+  - Automatically added to Manager and Document Controller default roles
+
+#### Permission Logic
+- **tasks.view_all** — see all tasks including private tasks (except those not belonging to user)
+- **tasks.view_others** — see other users' non-private tasks + own tasks
+- **No permission** — only see own assigned or created tasks
+
+#### API Changes
+- Updated `GET /api/tasks` to respect new permission level
+- Updated `GET /api/tasks/[id]` to enforce permission-based access control
+- Enhanced filtering logic for better task visibility control
+
+---
+
+## [15.15.0] - 2026-02-27
+
+### 🔍 Material Inspection Receipt (MIR) System & Purchase Order Integration
+
+#### New Features
+- **Material Inspection Receipt (MIR) System** — complete revamp of QC Material Inspection module to integrate with Dolibarr purchase orders
+- **Purchase Order Lookup** — search and select purchase orders directly from Dolibarr to create material receipts
+- **Automatic Item Population** — receipt items automatically populated from PO line items with supplier and product details
+- **Partial Receiving Support** — receive materials in multiple batches with quantity tracking (ordered, received, accepted, rejected)
+- **Per-Item Quality Inspection** — comprehensive quality checks for each item:
+  - Surface condition assessment (Good, Minor Defects, Major Defects, Unacceptable)
+  - Dimensional verification (Within Tolerance, Minor Deviation, Out of Tolerance)
+  - Thickness measurements with status tracking
+  - Specifications compliance verification
+  - Material Test Certificate (MTC) tracking with number and file path
+  - Heat number and batch number tracking
+- **Quality Rejection Tracking** — reject items with detailed rejection reasons
+- **Receipt Status Management** — track receipts through In Progress, Partially Received, and Completed statuses
+- **PO Supplier & Project Display** — purchase orders now show supplier name and project reference in list and detail views
+
+#### Database Changes
+- **material_inspection_receipts** — new table linking to Dolibarr POs with supplier and project info
+- **material_inspection_receipt_items** — detailed item tracking with quality inspection fields
+- **material_inspection_receipt_attachments** — support for MTC files and inspection photos
+
+#### API Enhancements
+- **GET/POST/PATCH /api/qc/material-receipts** — receipt management endpoints
+- **PATCH /api/qc/material-receipts/items** — item inspection updates
+- **GET /api/qc/material-receipts/lookup-po** — search Dolibarr purchase orders
+- **Enhanced /api/dolibarr/purchase-orders** — enriched with supplier names and project references
+- **DolibarrClient.getThirdPartyById()** — fetch supplier details by ID
+- **DolibarrClient.getProjectById()** — fetch project details by ID
+
+#### UI Improvements
+- **Modern MIR Interface** — clean, intuitive UI for material receiving workflow
+- **PO Search Dialog** — quick search and selection of purchase orders
+- **Receipt Dashboard** — overview with stats (total, in progress, partial, completed)
+- **Item Inspection Dialog** — comprehensive form for quality checks per item
+- **Status Badges** — visual indicators for receipt and inspection statuses
+- **Filtering & Search** — filter receipts by status and search by receipt/PO number
+
+---
+
 ## [15.14.0] - 2026-02-26
 
 ### 📊 Financial & Production Module Enhancements

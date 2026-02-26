@@ -48,8 +48,10 @@ export async function GET(req: Request) {
 
   // Permission-based filtering
   const isCeo = session.role === 'CEO';
+  const canViewAll = userPermissions.includes('tasks.view_all');
+  const canViewOthers = userPermissions.includes('tasks.view_others');
   
-  if (userPermissions.includes('tasks.view_all')) {
+  if (canViewAll) {
     // Users with tasks.view_all can see all tasks (or can filter)
     // But still filter out private tasks that don't belong to them
     if (assignedTo) {
@@ -68,9 +70,30 @@ export async function GET(req: Request) {
       // CEO task visibility: only CEO can see CEO tasks
       isCeo ? {} : { isCeoTask: false },
     ];
+  } else if (canViewOthers) {
+    // Users with tasks.view_others can see other users' tasks but not all tasks
+    // They can see: their own tasks + tasks created by them + non-private tasks
+    whereClause.AND = [
+      {
+        OR: [
+          { assignedToId: session.sub },
+          { createdById: session.sub },
+          { isPrivate: false },
+        ],
+      },
+      // Non-CEO users cannot see CEO tasks
+      isCeo ? {} : { isCeoTask: false },
+    ];
+    // Apply assignedTo filter if specified
+    if (assignedTo) {
+      whereClause.assignedToId = assignedTo;
+    }
   } else {
-    // Users without tasks.view_all only see their assigned tasks
-    whereClause.assignedToId = session.sub;
+    // Users without tasks.view_all or tasks.view_others only see their assigned/created tasks
+    whereClause.OR = [
+      { assignedToId: session.sub },
+      { createdById: session.sub },
+    ];
     // Non-CEO users cannot see CEO tasks even if assigned
     if (!isCeo) {
       whereClause.isCeoTask = false;

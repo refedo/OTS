@@ -1,6 +1,6 @@
 {
   "name": "hexa-steel-ots",
-  "version": "15.14.0",
+  "version": "15.15.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -69,6 +69,7 @@
     "@types/puppeteer": "^5.4.7",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",

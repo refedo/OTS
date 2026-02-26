@@ -87,6 +87,43 @@ interface ThirdParty {
   [key: string]: any;
 }
 
+interface PurchaseOrderLine {
+  rowid?: number;
+  fk_product?: number | null;
+  product_ref?: string | null;
+  product_label?: string | null;
+  description?: string | null;
+  qty: number;
+  subprice: number;
+  remise_percent?: number;
+  tva_tx: number;
+  total_ht: number;
+  total_tva: number;
+  total_ttc: number;
+}
+
+interface PurchaseOrder {
+  id: number;
+  ref: string;
+  ref_supplier?: string | null;
+  socid: number;
+  supplier_name?: string | null;
+  statut: string;
+  status: string;
+  billed: string;
+  total_ht: number;
+  total_tva: number;
+  total_ttc: number;
+  date_creation: number;
+  date_validation: number | null;
+  date_commande: number | null;
+  date_livraison: number | null;
+  fk_projet?: number | null;
+  project_ref?: string | null;
+  lines: PurchaseOrderLine[];
+  [key: string]: any;
+}
+
 // ============================================
 // MAIN PAGE
 // ============================================
@@ -116,6 +153,13 @@ export default function DolibarrIntegrationPage() {
   const [tpTypeFilter, setTpTypeFilter] = useState('');
   const [tpPage, setTpPage] = useState(0);
   const [tpTotal, setTpTotal] = useState(0);
+
+  // Purchase orders state
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [poLoading, setPoLoading] = useState(false);
+  const [poPage, setPoPage] = useState(0);
+  const [poTotal, setPoTotal] = useState(0);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
 
   // Reference data
   const [refData, setRefData] = useState<any>(null);
@@ -187,6 +231,27 @@ export default function DolibarrIntegrationPage() {
     }
   }, [tpPage, tpSearch, tpTypeFilter]);
 
+  const fetchPurchaseOrders = useCallback(async () => {
+    setPoLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(poPage),
+        limit: String(PAGE_SIZE),
+      });
+
+      const res = await fetch(`/api/dolibarr/purchase-orders?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPurchaseOrders(data.orders || []);
+        setPoTotal(data.pagination?.total || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch purchase orders:', err);
+    } finally {
+      setPoLoading(false);
+    }
+  }, [poPage]);
+
   const fetchReferenceData = useCallback(async () => {
     try {
       const res = await fetch('/api/dolibarr/reference-data');
@@ -201,6 +266,7 @@ export default function DolibarrIntegrationPage() {
   useEffect(() => { fetchSyncStatus(); fetchReferenceData(); }, [fetchSyncStatus, fetchReferenceData]);
   useEffect(() => { if (activeTab === 'products') fetchProducts(); }, [activeTab, fetchProducts]);
   useEffect(() => { if (activeTab === 'thirdparties') fetchThirdParties(); }, [activeTab, fetchThirdParties]);
+  useEffect(() => { if (activeTab === 'purchase-orders') fetchPurchaseOrders(); }, [activeTab, fetchPurchaseOrders]);
 
   // ============================================
   // ACTIONS
@@ -253,6 +319,21 @@ export default function DolibarrIntegrationPage() {
   const formatDuration = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(1)}s`;
+  };
+
+  const getPOStatusBadge = (statut: string) => {
+    const statusMap: Record<string, { label: string; className: string }> = {
+      '0': { label: 'Draft', className: 'bg-gray-500/10 text-gray-600' },
+      '1': { label: 'Validated', className: 'bg-blue-500/10 text-blue-600' },
+      '2': { label: 'Approved', className: 'bg-green-500/10 text-green-600' },
+      '3': { label: 'Ordered', className: 'bg-purple-500/10 text-purple-600' },
+      '4': { label: 'Received Partially', className: 'bg-yellow-500/10 text-yellow-600' },
+      '5': { label: 'Received', className: 'bg-green-500/10 text-green-600' },
+      '6': { label: 'Canceled', className: 'bg-red-500/10 text-red-600' },
+      '7': { label: 'Refused', className: 'bg-red-500/10 text-red-600' },
+    };
+    const status = statusMap[statut] || { label: 'Unknown', className: 'bg-gray-500/10 text-gray-600' };
+    return <Badge className={`${status.className} text-xs`}>{status.label}</Badge>;
   };
 
   // ============================================
@@ -331,7 +412,7 @@ export default function DolibarrIntegrationPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview" className="flex items-center gap-1">
               <Settings className="h-4 w-4" /> Overview
             </TabsTrigger>
@@ -340,6 +421,9 @@ export default function DolibarrIntegrationPage() {
             </TabsTrigger>
             <TabsTrigger value="thirdparties" className="flex items-center gap-1">
               <Users className="h-4 w-4" /> Third Parties
+            </TabsTrigger>
+            <TabsTrigger value="purchase-orders" className="flex items-center gap-1">
+              <FileText className="h-4 w-4" /> Purchase Orders
             </TabsTrigger>
             <TabsTrigger value="bulk" className="flex items-center gap-1">
               <Zap className="h-4 w-4" /> Bulk Specs
@@ -805,6 +889,238 @@ export default function DolibarrIntegrationPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ============================================ */}
+          {/* PURCHASE ORDERS TAB */}
+          {/* ============================================ */}
+          <TabsContent value="purchase-orders" className="space-y-4 mt-4">
+            <Card>
+              <CardContent className="p-0">
+                {poLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : purchaseOrders.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No purchase orders found in Dolibarr.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left py-3 px-3 font-medium">Ref</th>
+                          <th className="text-left py-3 px-3 font-medium">Supplier</th>
+                          <th className="text-left py-3 px-3 font-medium">Project</th>
+                          <th className="text-center py-3 px-3 font-medium">Status</th>
+                          <th className="text-center py-3 px-3 font-medium">Billed</th>
+                          <th className="text-right py-3 px-3 font-medium">Total HT</th>
+                          <th className="text-right py-3 px-3 font-medium">VAT</th>
+                          <th className="text-right py-3 px-3 font-medium">Total TTC</th>
+                          <th className="text-left py-3 px-3 font-medium">Order Date</th>
+                          <th className="text-center py-3 px-3 font-medium">Items</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {purchaseOrders.map((po) => (
+                          <tr
+                            key={po.id}
+                            className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                            onClick={() => setSelectedPO(po)}
+                          >
+                            <td className="py-2 px-3 font-mono text-xs font-semibold">{po.ref}</td>
+                            <td className="py-2 px-3 text-xs">{po.supplier_name || '—'}</td>
+                            <td className="py-2 px-3 text-xs font-mono">{po.project_ref || '—'}</td>
+                            <td className="py-2 px-3 text-center">{getPOStatusBadge(po.statut)}</td>
+                            <td className="py-2 px-3 text-center">
+                              {po.billed === '1' ? (
+                                <Badge className="bg-green-500/10 text-green-600 text-xs">Yes</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">No</Badge>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-right font-medium">
+                              {Number(po.total_ht || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-3 text-right text-muted-foreground">
+                              {Number(po.total_tva || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-3 text-right font-semibold">
+                              {Number(po.total_ttc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-3 text-xs">
+                              {po.date_commande ? new Date(Number(po.date_commande) * 1000).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              <Badge variant="secondary" className="text-xs">{po.lines?.length || 0}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {poTotal > PAGE_SIZE && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {poPage * PAGE_SIZE + 1}–{Math.min((poPage + 1) * PAGE_SIZE, poTotal)} of {poTotal}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" disabled={poPage === 0} onClick={() => setPoPage(p => p - 1)}>
+                        Previous
+                      </Button>
+                      <Button variant="outline" size="sm" disabled={(poPage + 1) * PAGE_SIZE >= poTotal} onClick={() => setPoPage(p => p + 1)}>
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Purchase Order Details Modal */}
+            {selectedPO && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedPO(null)}>
+                <div className="bg-background rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                  <div className="border-b p-4 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Purchase Order: {selectedPO.ref}
+                      </h2>
+                      <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
+                        {selectedPO.supplier_name && (
+                          <span>Supplier: <span className="font-medium text-foreground">{selectedPO.supplier_name}</span></span>
+                        )}
+                        {selectedPO.project_ref && (
+                          <span>Project: <span className="font-medium font-mono text-foreground">{selectedPO.project_ref}</span></span>
+                        )}
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedPO(null)}>✕</Button>
+                  </div>
+
+                  <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                    {/* Order Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Status</p>
+                        <div className="mt-1">{getPOStatusBadge(selectedPO.statut)}</div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Billed</p>
+                        <p className="font-medium mt-1">{selectedPO.billed === '1' ? 'Yes' : 'No'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Order Date</p>
+                        <p className="font-medium mt-1">
+                          {selectedPO.date_commande ? new Date(Number(selectedPO.date_commande) * 1000).toLocaleDateString() : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Delivery Date</p>
+                        <p className="font-medium mt-1">
+                          {selectedPO.date_livraison ? new Date(Number(selectedPO.date_livraison) * 1000).toLocaleDateString() : '—'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Order Lines */}
+                    <div className="mb-6">
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        Order Items ({selectedPO.lines?.length || 0})
+                      </h3>
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-muted/50 border-b">
+                              <th className="text-left py-2 px-3 font-medium">Product</th>
+                              <th className="text-left py-2 px-3 font-medium">Description</th>
+                              <th className="text-right py-2 px-3 font-medium">Qty</th>
+                              <th className="text-right py-2 px-3 font-medium">Unit Price</th>
+                              <th className="text-right py-2 px-3 font-medium">Discount</th>
+                              <th className="text-right py-2 px-3 font-medium">VAT %</th>
+                              <th className="text-right py-2 px-3 font-medium">Total HT</th>
+                              <th className="text-right py-2 px-3 font-medium">Total TTC</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(selectedPO.lines || []).map((line, idx) => (
+                              <tr key={idx} className="border-b last:border-0">
+                                <td className="py-2 px-3">
+                                  {line.product_ref ? (
+                                    <div>
+                                      <div className="font-mono text-xs font-semibold">{line.product_ref}</div>
+                                      <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                        {line.product_label}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">—</span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-xs max-w-[200px] truncate">
+                                  {line.description || line.product_desc || '—'}
+                                </td>
+                                <td className="py-2 px-3 text-right font-medium">{Number(line.qty || 0).toFixed(2)}</td>
+                                <td className="py-2 px-3 text-right">
+                                  {Number(line.subprice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="py-2 px-3 text-right text-muted-foreground">
+                                  {line.remise_percent ? `${Number(line.remise_percent).toFixed(1)}%` : '—'}
+                                </td>
+                                <td className="py-2 px-3 text-right">{Number(line.tva_tx || 0).toFixed(1)}%</td>
+                                <td className="py-2 px-3 text-right font-medium">
+                                  {Number(line.total_ht || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="py-2 px-3 text-right font-semibold">
+                                  {Number(line.total_ttc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-muted/30 font-semibold">
+                              <td colSpan={6} className="py-3 px-3 text-right">Total:</td>
+                              <td className="py-3 px-3 text-right">
+                                {Number(selectedPO.total_ht || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                {Number(selectedPO.total_ttc || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    {(selectedPO.note_public || selectedPO.note_private) && (
+                      <div>
+                        <h3 className="font-semibold mb-3">Notes</h3>
+                        {selectedPO.note_public && (
+                          <div className="mb-3">
+                            <p className="text-xs text-muted-foreground mb-1">Public Note:</p>
+                            <div className="bg-muted/30 p-3 rounded text-sm">{selectedPO.note_public}</div>
+                          </div>
+                        )}
+                        {selectedPO.note_private && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Private Note:</p>
+                            <div className="bg-muted/30 p-3 rounded text-sm">{selectedPO.note_private}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* ============================================ */}

@@ -223,6 +223,54 @@ export interface DolibarrBankAccount {
   [key: string]: any;
 }
 
+export interface DolibarrPurchaseOrderLine {
+  rowid?: number | string;
+  fk_commande?: number | string; // purchase order id
+  fk_product?: number | string | null;
+  product_ref?: string | null;
+  product_label?: string | null;
+  product_desc?: string | null;
+  description?: string | null;
+  label?: string | null;
+  qty: string | number;
+  subprice: string | number; // unit price
+  remise_percent?: string | number; // discount percentage
+  tva_tx: string | number; // VAT rate
+  total_ht: string | number; // total excl. tax
+  total_tva: string | number; // total VAT
+  total_ttc: string | number; // total incl. tax
+  date_start?: number | string | null;
+  date_end?: number | string | null;
+  info_bits?: string | number;
+  special_code?: string | number;
+  rang?: string | number;
+  [key: string]: any;
+}
+
+export interface DolibarrPurchaseOrder {
+  id: number | string;
+  ref: string;
+  ref_supplier?: string | null; // supplier reference
+  socid: number | string; // supplier thirdparty id
+  supplier_name?: string | null; // supplier name (fetched separately)
+  statut: string; // "0"=draft, "1"=validated, "2"=approved, "3"=ordered, "4"=received partially, "5"=received completely, "6"=canceled, "7"=refused
+  status: string;
+  billed: string; // "0"=not billed, "1"=billed
+  total_ht: string | number;
+  total_tva: string | number;
+  total_ttc: string | number;
+  date_creation: number | string;
+  date_validation: number | string | null;
+  date_commande: number | string | null; // order date
+  date_livraison: number | string | null; // delivery date
+  fk_projet?: number | string | null; // project id
+  project_ref?: string | null; // project reference (fetched separately)
+  note_public?: string | null;
+  note_private?: string | null;
+  lines: DolibarrPurchaseOrderLine[];
+  [key: string]: any;
+}
+
 export interface DolibarrConnectionInfo {
   success: boolean;
   version?: string;
@@ -431,6 +479,19 @@ export class DolibarrClient {
   }
 
   /**
+   * Fetch a single third party by ID
+   */
+  async getThirdPartyById(thirdPartyId: number | string): Promise<DolibarrThirdParty | null> {
+    try {
+      const result = await this.request<DolibarrThirdParty>(`thirdparties/${thirdPartyId}`);
+      return result;
+    } catch (error: any) {
+      if (error.message?.includes('404')) return null;
+      throw error;
+    }
+  }
+
+  /**
    * Fetch contacts with pagination
    */
   async getContacts(params?: DolibarrPaginationParams): Promise<DolibarrContact[]> {
@@ -635,6 +696,19 @@ export class DolibarrClient {
   }
 
   /**
+   * Fetch a single project by ID
+   */
+  async getProjectById(projectId: number | string): Promise<DolibarrProject | null> {
+    try {
+      const result = await this.request<DolibarrProject>(`projects/${projectId}`);
+      return result;
+    } catch (error: any) {
+      if (error.message?.includes('404')) return null;
+      throw error;
+    }
+  }
+
+  /**
    * Fetch all bank accounts
    */
   async getBankAccounts(): Promise<DolibarrBankAccount[]> {
@@ -644,6 +718,53 @@ export class DolibarrClient {
       sortorder: 'ASC',
     });
     return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Fetch purchase orders with pagination
+   */
+  async getPurchaseOrders(params?: DolibarrPaginationParams): Promise<DolibarrPurchaseOrder[]> {
+    const result = await this.request<DolibarrPurchaseOrder[]>('supplierorders', {
+      limit: params?.limit ?? 100,
+      page: params?.page ?? 0,
+      sortfield: params?.sortfield ?? 't.rowid',
+      sortorder: params?.sortorder ?? 'DESC',
+      sqlfilters: params?.sqlfilters,
+    });
+    return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Fetch a single purchase order by ID with full details including lines
+   */
+  async getPurchaseOrderById(orderId: number | string): Promise<DolibarrPurchaseOrder | null> {
+    try {
+      const result = await this.request<DolibarrPurchaseOrder>(`supplierorders/${orderId}`);
+      return result;
+    } catch (error: any) {
+      if (error.message?.includes('404')) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Auto-paginate to fetch ALL purchase orders
+   */
+  async getAllPurchaseOrders(batchSize: number = 500): Promise<DolibarrPurchaseOrder[]> {
+    const all: DolibarrPurchaseOrder[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      console.log(`[Dolibarr] Fetching purchase orders page ${page} (batch ${batchSize})...`);
+      const batch = await this.getPurchaseOrders({ limit: batchSize, page });
+      all.push(...batch);
+      console.log(`[Dolibarr] Got ${batch.length} purchase orders (total: ${all.length})`);
+      hasMore = batch.length >= batchSize;
+      page++;
+    }
+
+    return all;
   }
 }
 

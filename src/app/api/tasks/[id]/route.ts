@@ -122,10 +122,19 @@ export async function GET(
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
 
-  // Check permissions: users with tasks.view_all see all, others only their assigned tasks
+  // Check permissions: users with tasks.view_all or tasks.view_others see more, others only their assigned/created tasks
   const permissions = await getCurrentUserPermissions();
-  if (!permissions.includes('tasks.view_all')) {
+  const canViewAll = permissions.includes('tasks.view_all');
+  const canViewOthers = permissions.includes('tasks.view_others');
+  
+  if (!canViewAll && !canViewOthers) {
+    // Without view_all or view_others, can only see own assigned/created tasks
     if (task.assignedToId !== session.sub && task.createdById !== session.sub) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  } else if (canViewOthers && !canViewAll) {
+    // With view_others but not view_all, can see non-private tasks + own tasks
+    if (task.isPrivate && task.assignedToId !== session.sub && task.createdById !== session.sub) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

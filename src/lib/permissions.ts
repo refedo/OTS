@@ -65,6 +65,7 @@ export const PERMISSIONS: PermissionCategory[] = [
     permissions: [
       { id: 'tasks.view', name: 'View Tasks', description: 'View task list and details', category: 'tasks' },
       { id: 'tasks.view_all', name: 'View All Tasks', description: 'View all tasks across projects', category: 'tasks' },
+      { id: 'tasks.view_others', name: 'View Other Users Tasks', description: 'View tasks assigned to other users', category: 'tasks' },
       { id: 'tasks.create', name: 'Create Tasks', description: 'Create new tasks', category: 'tasks' },
       { id: 'tasks.edit', name: 'Edit Own Tasks', description: 'Modify own assigned tasks', category: 'tasks' },
       { id: 'tasks.edit_all', name: 'Edit All Tasks', description: 'Modify any task regardless of assignment', category: 'tasks' },
@@ -331,6 +332,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Task Management
     'tasks.view',
     'tasks.view_all',
+    'tasks.view_others',
     'tasks.create',
     'tasks.edit',
     'tasks.edit_all',
@@ -547,6 +549,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Task Management
     'tasks.view',
     'tasks.view_all',
+    'tasks.view_others',
     'tasks.create',
     'tasks.edit',
     'tasks.edit_all',

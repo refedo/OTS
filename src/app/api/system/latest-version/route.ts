@@ -2,15 +2,15 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.14.0',
-  date: 'February 26, 2026',
+  version: '15.15.0',
+  date: 'February 27, 2026',
   type: 'minor' as const,
-  mainTitle: 'Financial & Production Module Enhancements',
+  mainTitle: 'Material Inspection Receipt (MIR) System & Purchase Order Integration',
   highlights: [
-    'Project analysis: search by name/number, contract value columns, aggregate cost drill-down',
-    'Journal entries: Excel export and hierarchical account view with collapsible drill-down',
-    'Financial reports: Excel export for Trial Balance and Income Statement',
-    'Assembly parts: length column added and fixed critical refresh loop bug',
+    'Material Inspection Receipt (MIR) system — complete revamp with Dolibarr PO integration',
+    'Purchase order lookup — search and select POs to create material receipts',
+    'Per-item quality inspection — surface, dimensional, thickness, specs compliance, MTC tracking',
+    'Partial receiving support — track ordered, received, accepted, and rejected quantities',
   ],
   changes: {
     added: [

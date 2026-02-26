@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.14.0';
-const RELEASE_DATE = 'February 26, 2026';
+const CURRENT_VERSION = '15.15.0';
+const RELEASE_DATE = 'February 27, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Project analysis: search, contract value, and aggregate cost drill-down</li>
-              <li>• Journal entries: Excel export and hierarchical account view</li>
-              <li>• Financial reports: Excel export for Trial Balance and P&L</li>
-              <li>• Assembly parts: length column and fixed refresh loop bug</li>
+              <li>• Material Inspection Receipt (MIR) system with Dolibarr PO integration</li>
+              <li>• Per-item quality inspection: surface, dimensional, thickness, specs, MTC</li>
+              <li>• Partial receiving support with quantity tracking</li>
+              <li>• Purchase orders now show supplier name and project reference</li>
             </ul>
           </div>
 

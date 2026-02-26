@@ -88,6 +88,8 @@ model User {
   assignedNCRs       NCRReport[] @relation("NCRAssignedTo")
   closedNCRs         NCRReport[] @relation("NCRClosedBy")
   materialInspections MaterialInspection[] @relation("MaterialInspector")
+  materialInspectionReceipts MaterialInspectionReceipt[] @relation("MIRInspector")
+  mirAttachments     MaterialInspectionReceiptAttachment[] @relation("MIRAttachmentUploader")
   weldingInspections WeldingInspection[] @relation("WeldingInspector")
   dimensionalInspections DimensionalInspection[] @relation("DimensionalInspector")
   ndtInspections     NDTInspection[] @relation("NDTInspector")
@@ -304,6 +306,7 @@ model Project {
   rfiRequests                     RFIRequest[]
   ncrReports                      NCRReport[]
   materialInspections             MaterialInspection[]
+  materialInspectionReceipts      MaterialInspectionReceipt[] @relation("MIRProject")
   weldingInspections              WeldingInspection[]
   dimensionalInspections          DimensionalInspection[]
   ndtInspections                  NDTInspection[]
@@ -966,6 +969,137 @@ model MaterialInspection {
   @@index([inspectorId])
   @@index([result])
   @@index([inspectionDate])
+}
+
+model MaterialInspectionReceipt {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  receiptNumber         String                @unique
+  
+  // Dolibarr PO linkage
+  dolibarrPoId          String
+  dolibarrPoRef         String
+  supplierName          String?
+  projectId             String?               @db.Char(36)
+  
+  // Receipt info
+  receiptDate           DateTime              @default(now())
+  inspectorId           String                @db.Char(36)
+  
+  // Overall status
+  status                String                @default("In Progress")
+  
+  // Notes
+  remarks               String?               @db.Text
+  
+  // Relations
+  project               Project?              @relation("MIRProject", fields: [projectId], references: [id], onDelete: SetNull)
+  inspector             User                  @relation("MIRInspector", fields: [inspectorId], references: [id])
+  items                 MaterialInspectionReceiptItem[]
+  attachments           MaterialInspectionReceiptAttachment[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([dolibarrPoId])
+  @@index([projectId])
+  @@index([inspectorId])
+  @@index([receiptDate])
+  @@index([status])
+}
+
+model MaterialInspectionReceiptItem {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  receiptId             String                @db.Char(36)
+  
+  // PO line item reference
+  dolibarrLineId        String?
+  dolibarrProductId     String?
+  
+  // Item details
+  itemName              String
+  itemDescription       String?               @db.Text
+  specification         String?
+  
+  // Quantities
+  orderedQty            Float
+  receivedQty           Float                 @default(0)
+  acceptedQty           Float                 @default(0)
+  rejectedQty           Float                 @default(0)
+  unit                  String                @default("pcs")
+  
+  // Quality inspection per item
+  qualityStatus         String                @default("Pending")
+  
+  // Surface condition check
+  surfaceCondition      String?
+  surfaceNotes          String?               @db.Text
+  
+  // Dimensional check
+  dimensionStatus       String?
+  dimensionNotes        String?               @db.Text
+  
+  // Thickness check
+  thicknessStatus       String?
+  thicknessMeasured     String?
+  thicknessNotes        String?               @db.Text
+  
+  // Specs compliance
+  specsCompliance       String?
+  specsNotes            String?               @db.Text
+  
+  // Material Test Certificate (MTC)
+  mtcAvailable          Boolean               @default(false)
+  mtcNumber             String?
+  mtcFilePath           String?
+  
+  // Heat/Batch tracking
+  heatNumber            String?
+  batchNumber           String?
+  
+  // Overall item result
+  inspectionResult      String                @default("Pending")
+  rejectionReason       String?               @db.Text
+  
+  // Item notes
+  remarks               String?               @db.Text
+  
+  // Relations
+  receipt               MaterialInspectionReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  attachments           MaterialInspectionReceiptAttachment[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  @@index([receiptId])
+  @@index([dolibarrProductId])
+  @@index([qualityStatus])
+  @@index([inspectionResult])
+}
+
+model MaterialInspectionReceiptAttachment {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  receiptId             String?               @db.Char(36)
+  itemId                String?               @db.Char(36)
+  
+  fileName              String
+  filePath              String
+  fileType              String?
+  fileSize              Int?
+  
+  attachmentType        String
+  description           String?               @db.Text
+  
+  uploadedBy            String                @db.Char(36)
+  uploadedAt            DateTime              @default(now())
+  
+  // Relations
+  receipt               MaterialInspectionReceipt? @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  item                  MaterialInspectionReceiptItem? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  uploader              User                  @relation("MIRAttachmentUploader", fields: [uploadedBy], references: [id])
+  
+  @@index([receiptId])
+  @@index([itemId])
+  @@index([attachmentType])
 }
 
 model WeldingInspection {
