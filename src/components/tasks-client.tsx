@@ -201,6 +201,22 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
   const canCreateTask = userPermissions.includes('tasks.create');
   const canEditTask = userPermissions.includes('tasks.edit') || userPermissions.includes('tasks.create');
 
+  // Fetch tasks with recent undoable changes on mount
+  useEffect(() => {
+    const fetchRecentlyChangedTasks = async () => {
+      try {
+        const response = await fetch('/api/tasks/recently-changed');
+        if (response.ok) {
+          const data = await response.json();
+          setRecentlyChangedTasks(new Set(data.taskIds || []));
+        }
+      } catch (error) {
+        console.error('Failed to fetch recently changed tasks:', error);
+      }
+    };
+    fetchRecentlyChangedTasks();
+  }, []);
+
   // Helper to toggle multi-select filter values
   const toggleStatusFilter = (status: string, e: React.MouseEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -2094,6 +2110,21 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-1">
+                            {canEditTask && recentlyChangedTasks.has(task.id) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleUndo(task.id)}
+                                disabled={undoingTaskId === task.id}
+                                title="Undo last change"
+                              >
+                                <Undo2 className={cn(
+                                  "size-4",
+                                  undoingTaskId === task.id ? "animate-spin" : "text-orange-600 hover:text-orange-700"
+                                )} />
+                              </Button>
+                            )}
                             {canEditTask && (
                               <Button
                                 variant="ghost"
