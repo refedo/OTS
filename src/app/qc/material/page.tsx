@@ -513,8 +513,19 @@ export default function MaterialInspectionReceiptPage() {
               )}
             </div>
 
+            {/* Search Results */}
+            {poSearchQuery.trim() && !poSearching && poSearchResults.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No purchase orders found matching "{poSearchQuery}"</p>
+                <p className="text-sm mt-1">Try a different search term</p>
+              </div>
+            )}
+
             {poSearchResults.length > 0 && (
               <div className="border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                  Found {poSearchResults.length} purchase order(s)
+                </div>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 border-b">
