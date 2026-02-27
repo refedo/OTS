@@ -1005,6 +1005,7 @@ model MaterialInspectionReceipt {
   @@index([inspectorId])
   @@index([receiptDate])
   @@index([status])
+  @@map("material_inspection_receipts")
 }
 
 model MaterialInspectionReceiptItem {
@@ -1074,6 +1075,7 @@ model MaterialInspectionReceiptItem {
   @@index([dolibarrProductId])
   @@index([qualityStatus])
   @@index([inspectionResult])
+  @@map("material_inspection_receipt_items")
 }
 
 model MaterialInspectionReceiptAttachment {
@@ -1100,6 +1102,7 @@ model MaterialInspectionReceiptAttachment {
   @@index([receiptId])
   @@index([itemId])
   @@index([attachmentType])
+  @@map("material_inspection_receipt_attachments")
 }
 
 model WeldingInspection {
