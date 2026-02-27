@@ -17,30 +17,35 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search');
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const search = searchParams.get('search')?.toLowerCase() || '';
+    const limit = parseInt(searchParams.get('limit') || '100', 10);
 
     const client = createDolibarrClient();
 
-    // Build SQL filter for search
-    let sqlfilters = '';
-    if (search) {
-      // Search by PO ref or supplier ref
-      sqlfilters = `(t.ref:like:'%${search}%' OR t.ref_supplier:like:'%${search}%')`;
-    }
-
-    // Fetch purchase orders
-    const orders = await client.getPurchaseOrders({
+    // Fetch recent purchase orders (no SQL filter - more reliable)
+    console.log('[PO Lookup] Fetching recent POs, search term:', search);
+    const allOrders = await client.getPurchaseOrders({
       limit,
       page: 0,
       sortfield: 't.rowid',
       sortorder: 'DESC',
-      sqlfilters: sqlfilters || undefined,
     });
+    console.log('[PO Lookup] Fetched orders:', allOrders.length);
 
-    // Enrich with supplier names and project references
+    // Filter client-side by search term
+    let filteredOrders = allOrders;
+    if (search) {
+      filteredOrders = allOrders.filter(order => 
+        order.ref?.toLowerCase().includes(search) ||
+        order.ref_supplier?.toLowerCase().includes(search)
+      );
+      console.log('[PO Lookup] Filtered to:', filteredOrders.length, 'orders matching:', search);
+    }
+
+    // Enrich with supplier names and project references (limit to first 20 to avoid timeout)
+    const ordersToEnrich = filteredOrders.slice(0, 20);
     const enrichedOrders = await Promise.all(
-      orders.map(async (order) => {
+      ordersToEnrich.map(async (order) => {
         // Fetch supplier name
         if (order.socid) {
           try {
@@ -49,7 +54,7 @@ export async function GET(request: NextRequest) {
               order.supplier_name = supplier.name;
             }
           } catch (err) {
-            console.error(`Failed to fetch supplier ${order.socid}:`, err);
+            // Silently ignore supplier fetch errors
           }
         }
         
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
               order.project_ref = project.ref;
             }
           } catch (err) {
-            console.error(`Failed to fetch project ${order.fk_projet}:`, err);
+            // Silently ignore project fetch errors
           }
         }
         
@@ -69,6 +74,7 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    console.log('[PO Lookup] Returning', enrichedOrders.length, 'enriched orders');
     return NextResponse.json({ orders: enrichedOrders });
   } catch (error: any) {
     console.error('[API] PO lookup error:', error);

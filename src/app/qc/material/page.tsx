@@ -181,7 +181,11 @@ export default function MaterialInspectionReceiptPage() {
       const response = await fetch(`/api/qc/material-receipts/lookup-po?search=${encodeURIComponent(poSearchQuery)}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('[PO Search] Response:', data);
+        console.log('[PO Search] Orders count:', data.orders?.length || 0);
         setPoSearchResults(data.orders || []);
+      } else {
+        console.error('[PO Search] Response not OK:', response.status);
       }
     } catch (error) {
       console.error('Error searching POs:', error);
@@ -495,16 +499,18 @@ export default function MaterialInspectionReceiptPage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by PO reference..."
+                placeholder="Type PO number to search (e.g., HU-PO-2602-1581)..."
+                className="pl-10"
                 value={poSearchQuery}
                 onChange={(e) => setPoSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && searchPurchaseOrders()}
+                autoFocus
               />
-              <Button onClick={searchPurchaseOrders} disabled={poSearching}>
-                {poSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </Button>
+              {poSearching && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
             </div>
 
             {poSearchResults.length > 0 && (
