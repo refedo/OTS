@@ -973,17 +973,17 @@ model MaterialInspection {
 
 model MaterialInspectionReceipt {
   id                    String                @id @default(uuid()) @db.Char(36)
-  receiptNumber         String                @unique
+  receiptNumber         String                @unique @map("receipt_number")
   
   // Dolibarr PO linkage
-  dolibarrPoId          String
-  dolibarrPoRef         String
-  supplierName          String?
-  projectId             String?               @db.Char(36)
+  dolibarrPoId          String                @map("dolibarr_po_id")
+  dolibarrPoRef         String                @map("dolibarr_po_ref")
+  supplierName          String?               @map("supplier_name")
+  projectId             String?               @db.Char(36) @map("project_id")
   
   // Receipt info
-  receiptDate           DateTime              @default(now())
-  inspectorId           String                @db.Char(36)
+  receiptDate           DateTime              @default(now()) @map("receipt_date")
+  inspectorId           String                @db.Char(36) @map("inspector_id")
   
   // Overall status
   status                String                @default("In Progress")
@@ -997,8 +997,8 @@ model MaterialInspectionReceipt {
   items                 MaterialInspectionReceiptItem[]
   attachments           MaterialInspectionReceiptAttachment[]
   
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
   
   @@index([dolibarrPoId])
   @@index([projectId])
@@ -1010,56 +1010,56 @@ model MaterialInspectionReceipt {
 
 model MaterialInspectionReceiptItem {
   id                    String                @id @default(uuid()) @db.Char(36)
-  receiptId             String                @db.Char(36)
+  receiptId             String                @db.Char(36) @map("receipt_id")
   
   // PO line item reference
-  dolibarrLineId        String?
-  dolibarrProductId     String?
+  dolibarrLineId        String?               @map("dolibarr_line_id")
+  dolibarrProductId     String?               @map("dolibarr_product_id")
   
   // Item details
-  itemName              String
-  itemDescription       String?               @db.Text
+  itemName              String                @map("item_name")
+  itemDescription       String?               @db.Text @map("item_description")
   specification         String?
   
   // Quantities
-  orderedQty            Float
-  receivedQty           Float                 @default(0)
-  acceptedQty           Float                 @default(0)
-  rejectedQty           Float                 @default(0)
+  orderedQty            Float                 @map("ordered_qty")
+  receivedQty           Float                 @default(0) @map("received_qty")
+  acceptedQty           Float                 @default(0) @map("accepted_qty")
+  rejectedQty           Float                 @default(0) @map("rejected_qty")
   unit                  String                @default("pcs")
   
   // Quality inspection per item
-  qualityStatus         String                @default("Pending")
+  qualityStatus         String                @default("Pending") @map("quality_status")
   
   // Surface condition check
-  surfaceCondition      String?
-  surfaceNotes          String?               @db.Text
+  surfaceCondition      String?               @map("surface_condition")
+  surfaceNotes          String?               @db.Text @map("surface_notes")
   
   // Dimensional check
-  dimensionStatus       String?
-  dimensionNotes        String?               @db.Text
+  dimensionStatus       String?               @map("dimension_status")
+  dimensionNotes        String?               @db.Text @map("dimension_notes")
   
   // Thickness check
-  thicknessStatus       String?
-  thicknessMeasured     String?
-  thicknessNotes        String?               @db.Text
+  thicknessStatus       String?               @map("thickness_status")
+  thicknessMeasured     String?               @map("thickness_measured")
+  thicknessNotes        String?               @db.Text @map("thickness_notes")
   
   // Specs compliance
-  specsCompliance       String?
-  specsNotes            String?               @db.Text
+  specsCompliance       String?               @map("specs_compliance")
+  specsNotes            String?               @db.Text @map("specs_notes")
   
   // Material Test Certificate (MTC)
-  mtcAvailable          Boolean               @default(false)
-  mtcNumber             String?
-  mtcFilePath           String?
+  mtcAvailable          Boolean               @default(false) @map("mtc_available")
+  mtcNumber             String?               @map("mtc_number")
+  mtcFilePath           String?               @map("mtc_file_path")
   
   // Heat/Batch tracking
-  heatNumber            String?
-  batchNumber           String?
+  heatNumber            String?               @map("heat_number")
+  batchNumber           String?               @map("batch_number")
   
   // Overall item result
-  inspectionResult      String                @default("Pending")
-  rejectionReason       String?               @db.Text
+  inspectionResult      String                @default("Pending") @map("inspection_result")
+  rejectionReason       String?               @db.Text @map("rejection_reason")
   
   // Item notes
   remarks               String?               @db.Text
@@ -1068,8 +1068,8 @@ model MaterialInspectionReceiptItem {
   receipt               MaterialInspectionReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   attachments           MaterialInspectionReceiptAttachment[]
   
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
   
   @@index([receiptId])
   @@index([dolibarrProductId])
@@ -1080,19 +1080,19 @@ model MaterialInspectionReceiptItem {
 
 model MaterialInspectionReceiptAttachment {
   id                    String                @id @default(uuid()) @db.Char(36)
-  receiptId             String?               @db.Char(36)
-  itemId                String?               @db.Char(36)
+  receiptId             String?               @db.Char(36) @map("receipt_id")
+  itemId                String?               @db.Char(36) @map("item_id")
   
-  fileName              String
-  filePath              String
-  fileType              String?
-  fileSize              Int?
+  fileName              String                @map("file_name")
+  filePath              String                @map("file_path")
+  fileType              String?               @map("file_type")
+  fileSize              Int?                  @map("file_size")
   
-  attachmentType        String
+  attachmentType        String                @map("attachment_type")
   description           String?               @db.Text
   
-  uploadedBy            String                @db.Char(36)
-  uploadedAt            DateTime              @default(now())
+  uploadedBy            String                @db.Char(36) @map("uploaded_by")
+  uploadedAt            DateTime              @default(now()) @map("uploaded_at")
   
   // Relations
   receipt               MaterialInspectionReceipt? @relation(fields: [receiptId], references: [id], onDelete: Cascade)
