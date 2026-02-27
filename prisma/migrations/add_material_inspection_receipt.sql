@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS material_inspection_receipts (
   INDEX idx_receipt_date (receipt_date),
   INDEX idx_status (status),
   
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-  FOREIGN KEY (inspector_id) REFERENCES users(id) ON DELETE RESTRICT
+  FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE SET NULL,
+  FOREIGN KEY (inspector_id) REFERENCES user(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- MIR Items - one row per item from PO being received
@@ -128,5 +128,5 @@ CREATE TABLE IF NOT EXISTS material_inspection_receipt_attachments (
   
   FOREIGN KEY (receipt_id) REFERENCES material_inspection_receipts(id) ON DELETE CASCADE,
   FOREIGN KEY (item_id) REFERENCES material_inspection_receipt_items(id) ON DELETE CASCADE,
-  FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT
+  FOREIGN KEY (uploaded_by) REFERENCES user(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
