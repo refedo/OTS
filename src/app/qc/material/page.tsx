@@ -139,6 +139,26 @@ export default function MaterialInspectionReceiptPage() {
     fetchReceipts();
   }, []);
 
+  // Auto-search POs as user types with debounce
+  useEffect(() => {
+    if (!showPOLookup) {
+      setPoSearchResults([]);
+      setPoSearchQuery('');
+      return;
+    }
+
+    if (!poSearchQuery.trim()) {
+      setPoSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      searchPurchaseOrders();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [poSearchQuery, showPOLookup]);
+
   const fetchReceipts = async () => {
     try {
       const response = await fetch('/api/qc/material-receipts');
