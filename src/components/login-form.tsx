@@ -44,10 +44,10 @@ export function LoginForm() {
         });
         if (res.ok) {
           const data = await res.json();
-          setVersion(data.version || '15.15.0');
+          setVersion(data.version || '15.16.1');
         }
       } catch (error) {
-        setVersion('15.15.0');
+        setVersion('15.16.1');
       }
     };
     

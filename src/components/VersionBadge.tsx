@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.15.0';
+const CURRENT_VERSION = '15.16.1';
 const RELEASE_DATE = 'February 27, 2026';
 
 export default function VersionBadge() {
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Material Inspection Receipt (MIR) system with Dolibarr PO integration</li>
-              <li>• Per-item quality inspection: surface, dimensional, thickness, specs, MTC</li>
-              <li>• Partial receiving support with quantity tracking</li>
-              <li>• Purchase orders now show supplier name and project reference</li>
+              <li>• Fixed MIR database migration and Prisma schema mapping issues</li>
+              <li>• Simplified PO lookup with client-side filtering for better reliability</li>
+              <li>• Added comprehensive error handling and empty state UI</li>
+              <li>• Resolved authentication issues in PO lookup API</li>
             </ul>
           </div>
 

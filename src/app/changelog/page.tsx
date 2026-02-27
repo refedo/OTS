@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.15.0',
+    version: '15.16.1',
     date: 'February 27, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: '🔍 Material Inspection Receipt (MIR) System - Critical Fixes',
+    highlights: [
+      'Fixed database migration and Prisma schema mapping issues',
+      'Simplified PO lookup with client-side filtering for better reliability',
+      'Added comprehensive error handling and empty state UI',
+      'Resolved authentication issues in PO lookup API',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Database migration foreign key references — corrected from projects to project and users to user',
+        'Prisma schema mapping — added @@map directives to all MIR models for snake_case database tables',
+        'PO lookup reliability — removed complex SQL filters, now fetches recent POs and filters client-side',
+        'Error handling — added comprehensive logging and empty state UI for PO search results',
+        'Authentication — fixed intermittent 401 errors in PO lookup API',
+      ],
+      changed: [
+        'QC Material Inspection module completely revamped to integrate with Dolibarr purchase orders',
+        'Purchase order API enriched with supplier names and project references',
+        'Material receiving workflow now supports item-level quality inspection and partial receiving',
+      ],
+    },
+  },
+  {
+    version: '15.15.0',
+    date: 'February 27, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: '🔍 Material Inspection Receipt (MIR) System & Purchase Order Integration',
     highlights: [
       'Complete revamp of QC Material Inspection module with Dolibarr PO integration',

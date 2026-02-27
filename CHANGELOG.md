@@ -30,6 +30,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.16.1] - 2026-02-27
+
+### 🔍 Material Inspection Receipt (MIR) System - Critical Fixes
+
+#### Bug Fixes
+- **Database Migration Fixed** — corrected foreign key references from `projects` to `project` and `users` to `user`
+- **Prisma Schema Mapping** — added `@@map` directives to all MIR models to map to snake_case database tables
+- **PO Lookup Simplified** — removed complex SQL filters, now fetches recent POs and filters client-side for better reliability
+- **Error Handling Improved** — added comprehensive logging and empty state UI for PO search results
+- **Authentication Issues Resolved** — fixed intermittent 401 errors in PO lookup API
+
+#### Technical Improvements
+- MIR tables now created successfully without migration errors
+- Prisma client properly maps camelCase fields to snake_case columns
+- PO search now shows clear feedback when no results found
+- Added result count display and loading states
+- Enhanced debug logging for troubleshooting
+
+---
+
 ## [15.15.0] - 2026-02-27
 
 ### 🔍 Material Inspection Receipt (MIR) System & Purchase Order Integration

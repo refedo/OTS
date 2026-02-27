@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.15.0',
+  version: '15.16.1',
   date: 'February 27, 2026',
   type: 'minor' as const,
   mainTitle: 'Material Inspection Receipt (MIR) System & Purchase Order Integration',
