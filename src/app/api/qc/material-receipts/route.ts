@@ -6,8 +6,8 @@ import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-// Generate Material Inspection Receipt Number
-async function generateReceiptNumber(): Promise<string> {
+// Generate Material Inspection Receipt Number with retry for uniqueness
+async function generateReceiptNumber(retryCount = 0): Promise<string> {
   const now = new Date();
   const year = now.getFullYear().toString().slice(-2);
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -24,8 +24,22 @@ async function generateReceiptNumber(): Promise<string> {
     },
   });
 
-  const sequence = (count + 1).toString().padStart(4, '0');
-  return `MIR-${year}${month}-${sequence}`;
+  // Add retry offset to handle race conditions
+  const sequence = (count + 1 + retryCount).toString().padStart(4, '0');
+  const receiptNumber = `MIR-${year}${month}-${sequence}`;
+  
+  // Check if this number already exists
+  const existing = await prisma.materialInspectionReceipt.findUnique({
+    where: { receiptNumber },
+    select: { id: true },
+  });
+  
+  if (existing && retryCount < 10) {
+    // Number exists, retry with incremented count
+    return generateReceiptNumber(retryCount + 1);
+  }
+  
+  return receiptNumber;
 }
 
 // GET - Fetch all material inspection receipts
@@ -226,8 +240,17 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(createdReceipt, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating material inspection receipt:', error);
+    
+    // Handle unique constraint violation (P2002)
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A receipt for this PO may already exist, or there was a conflict generating the receipt number. Please try again.' },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create material inspection receipt' },
       { status: 500 }
