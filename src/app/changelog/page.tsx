@@ -42,6 +42,10 @@ const hardcodedVersions: ChangelogVersion[] = [
         'Excel export with full journal entry details',
         'Category summary with visual distribution bars',
         'Shows balanced/unbalanced status for each entry',
+        'Account Mapping Management Page — GUI for mapping Dolibarr accounting codes to OTS cost categories',
+        'Find unmapped accounting codes with automatic category suggestions',
+        'Edit existing mappings with dropdown category selection',
+        'One-click mapping creation from unmapped codes list',
       ],
       fixed: [
         'Journal Entries Export — resolved "Unknown column je.description" error that broke Excel export and group-by-account features',

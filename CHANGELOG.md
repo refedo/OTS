@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Excel export with full journal entry details
   - Category summary with visual distribution bars
   - Shows balanced/unbalanced status for each entry
+- **Account Mapping Management Page** — GUI for mapping Dolibarr accounting codes to OTS cost categories
+  - Find unmapped accounting codes with automatic category suggestions
+  - Edit existing mappings with dropdown category selection
+  - View total amounts per mapping to prioritize important codes
+  - One-click mapping creation from unmapped codes list
 
 #### Bug Fixes
 - **Journal Entries Export Fixed** — resolved "Unknown column 'je.description'" error that broke Excel export and group-by-account features

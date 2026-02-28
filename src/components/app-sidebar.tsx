@@ -242,6 +242,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Expenses Analysis', href: '/financial/reports/expenses-analysis', icon: Truck, isNew: true },
       { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen, isNew: true },
       { name: 'Journal Entries', href: '/financial/journal-entries', icon: List, isNew: true },
+      { name: 'Account Mapping', href: '/financial/account-mapping', icon: GitBranch, isNew: true },
       { name: 'Settings', href: '/financial/settings', icon: Settings, isNew: true },
     ],
   },
@@ -650,7 +651,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v15.16.1
+                  Hexa Steel® OTS v15.17.0
                 </p>
               </div>
             )}
