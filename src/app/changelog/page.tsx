@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.16.1',
-    date: 'February 27, 2026',
+    version: '15.17.0',
+    date: 'February 28, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: '📊 OTS Journal Entries Report & Bug Fixes',
+    highlights: [
+      'New OTS Journal Entries report with proper double-entry accounting from supplier invoices',
+      'Fixed journal entries export and group-by-account features',
+      'Expense categorization uses fin_dolibarr_account_mapping for accurate cost classification',
+      'Excel export with full journal entry details',
+    ],
+    changes: {
+      added: [
+        'OTS Journal Entries Report — double-entry journal entries from supplier invoices with proper expense categorization',
+        'Creates proper DR/CR entries: Expense accounts (by category), VAT Input, and Accounts Payable',
+        'Group by category view with drill-down to individual entries',
+        'Excel export with full journal entry details',
+        'Category summary with visual distribution bars',
+        'Shows balanced/unbalanced status for each entry',
+      ],
+      fixed: [
+        'Journal Entries Export — resolved "Unknown column je.description" error that broke Excel export and group-by-account features',
+        'Root cause: SQL queries referenced je.description but fin_journal_entries table uses label column',
+      ],
+      changed: [
+        'OTS Journal Entries uses fin_dolibarr_account_mapping for accurate expense categorization instead of flat Dolibarr journal entries',
+      ],
+    },
+  },
+  {
+    version: '15.16.1',
+    date: 'February 27, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '🔍 Material Inspection Receipt (MIR) System - Critical Fixes',
     highlights: [
       'Fixed database migration and Prisma schema mapping issues',

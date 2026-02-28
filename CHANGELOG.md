@@ -7,26 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [15.16.0] - 2026-02-27
+## [15.17.0] - 2026-02-28
 
-### 🔐 Task Visibility Control
+### 📊 OTS Journal Entries Report & Bug Fixes
 
 #### New Features
-- **View Other Users Tasks Permission** — new `tasks.view_others` permission added to role management
-  - Allows granular control over whether users can see tasks assigned to other users
-  - Users with this permission can view non-private tasks across the system
-  - Users without this permission only see their own assigned or created tasks
-  - Automatically added to Manager and Document Controller default roles
+- **OTS Journal Entries Report** — new double-entry journal entries report generated from supplier invoices with proper expense categorization
+  - Creates proper DR/CR entries: Expense accounts (by category), VAT Input, and Accounts Payable
+  - Uses `fin_dolibarr_account_mapping` for accurate expense categorization
+  - Group by category view with drill-down to individual entries
+  - Excel export with full journal entry details
+  - Category summary with visual distribution bars
+  - Shows balanced/unbalanced status for each entry
 
-#### Permission Logic
-- **tasks.view_all** — see all tasks including private tasks (except those not belonging to user)
-- **tasks.view_others** — see other users' non-private tasks + own tasks
-- **No permission** — only see own assigned or created tasks
+#### Bug Fixes
+- **Journal Entries Export Fixed** — resolved "Unknown column 'je.description'" error that broke Excel export and group-by-account features
+  - Root cause: SQL queries referenced `je.description` but the `fin_journal_entries` table uses `label` column
+  - Fixed in `/api/financial/journal-entries` route
 
-#### API Changes
-- Updated `GET /api/tasks` to respect new permission level
-- Updated `GET /api/tasks/[id]` to enforce permission-based access control
-- Enhanced filtering logic for better task visibility control
+#### Expense Categorization Explained
+The expense categorization system works as follows:
+- **Journal Entry Categories**: Uses `fin_chart_of_accounts.account_category` (e.g., "Cost of Sales", "Operating Expenses")
+- **Supplier Invoice Categories**: Uses `fin_dolibarr_account_mapping.ots_cost_category` which maps Dolibarr's internal accounting rowids to OTS cost categories
+- The new OTS Journal Entries report uses the supplier invoice categorization for more accurate expense breakdown
 
 ---
 
@@ -47,6 +50,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PO search now shows clear feedback when no results found
 - Added result count display and loading states
 - Enhanced debug logging for troubleshooting
+
+---
+
+## [15.16.0] - 2026-02-27
+
+### 🔐 Task Visibility Control
+
+#### New Features
+- **View Other Users Tasks Permission** — new `tasks.view_others` permission added to role management
+  - Allows granular control over whether users can see tasks assigned to other users
+  - Users with this permission can view non-private tasks across the system
+  - Users without this permission only see their own assigned or created tasks
+  - Automatically added to Manager and Document Controller default roles
+
+#### Permission Logic
+- **tasks.view_all** — see all tasks including private tasks (except those not belonging to user)
+- **tasks.view_others** — see other users' non-private tasks + own tasks
+- **No permission** — only see own assigned or created tasks
+
+#### API Changes
+- Updated `GET /api/tasks` to respect new permission level
+- Updated `GET /api/tasks/[id]` to enforce permission-based access control
+- Enhanced filtering logic for better task visibility control
 
 ---
 

@@ -48,7 +48,7 @@ export async function GET(req: Request) {
       const accounts = await Promise.all(accountsData.map(async (acct: any) => {
         const accountParams = [...params, acct.account_code];
         const entries: any[] = await prisma.$queryRawUnsafe(
-          `SELECT je.entry_date, je.journal_code, je.description, je.debit, je.credit, je.source_type
+          `SELECT je.entry_date, je.journal_code, je.label, je.debit, je.credit, je.source_type
            FROM fin_journal_entries je
            WHERE ${where.replace('WHERE ', '')} AND je.account_code = ?
            ORDER BY je.entry_date DESC
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
           entries: entries.map((e: any) => ({
             entry_date: e.entry_date ? new Date(e.entry_date).toISOString().slice(0, 10) : '',
             journal_code: e.journal_code,
-            description: e.description,
+            description: e.label,
             debit: Number(e.debit),
             credit: Number(e.credit),
             source_type: e.source_type,
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
     if (exportFormat === 'excel') {
       const allRows: any[] = await prisma.$queryRawUnsafe(
         `SELECT je.entry_date, je.journal_code, je.account_code, coa.account_name,
-                je.description, je.debit, je.credit, je.source_type, je.piece_num
+                je.label, je.debit, je.credit, je.source_type, je.piece_num
          FROM fin_journal_entries je
          LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
          ${where}
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
           row.journal_code || '',
           row.account_code || '',
           `"${(row.account_name || '').replace(/"/g, '""')}"`,
-          `"${(row.description || '').replace(/"/g, '""')}"`,
+          `"${(row.label || '').replace(/"/g, '""')}"`,
           Number(row.debit || 0).toFixed(2),
           Number(row.credit || 0).toFixed(2),
           row.source_type || '',
