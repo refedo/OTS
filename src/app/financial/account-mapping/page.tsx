@@ -332,7 +332,8 @@ export default function AccountMappingPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Accounting Code</TableHead>
+                  <TableHead>CoA Code</TableHead>
+                  <TableHead>Account Name</TableHead>
                   <TableHead>Line Count</TableHead>
                   <TableHead className="text-right">Total Amount</TableHead>
                   <TableHead>Suggested Category</TableHead>
@@ -341,16 +342,19 @@ export default function AccountMappingPage() {
               </TableHeader>
               <TableBody>
                 {unmappedCodes.slice(0, 20).map((code: any) => (
-                  <TableRow key={code.accounting_code}>
+                  <TableRow key={code.dolibarr_rowid}>
                     <TableCell>
                       <Button
                         variant="link"
-                        className="font-mono p-0 h-auto"
-                        onClick={() => openDrillDown(code.accounting_code)}
+                        className="font-mono p-0 h-auto font-semibold"
+                        onClick={() => openDrillDown(code.dolibarr_rowid)}
                       >
                         <Eye className="h-3 w-3 mr-1" />
-                        {code.accounting_code}
+                        {code.coa_code}
                       </Button>
+                    </TableCell>
+                    <TableCell className="max-w-[250px] truncate" title={code.coa_label}>
+                      {code.coa_label}
                     </TableCell>
                     <TableCell>{code.line_count}</TableCell>
                     <TableCell className="text-right font-semibold">{formatSAR(code.total_ht)}</TableCell>
@@ -362,10 +366,10 @@ export default function AccountMappingPage() {
                     <TableCell className="text-right">
                       <Button
                         size="sm"
-                        onClick={() => createMapping(code.accounting_code, code.suggested_category)}
-                        disabled={saving === parseInt(code.accounting_code)}
+                        onClick={() => createMapping(code.dolibarr_rowid, code.suggested_category)}
+                        disabled={saving === parseInt(code.dolibarr_rowid)}
                       >
-                        {saving === parseInt(code.accounting_code) ? (
+                        {saving === parseInt(code.dolibarr_rowid) ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
                           'Map'
@@ -525,10 +529,14 @@ export default function AccountMappingPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Accounting Code Details: {drillDownCode}
+              {drillDownData?.coaCode && drillDownData.coaCode !== drillDownCode ? (
+                <>Account Details: {drillDownData.coaCode} - {drillDownData.coaLabel}</>
+              ) : (
+                <>Accounting Code Details: {drillDownCode}</>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Invoice lines and transactions using this Dolibarr accounting code
+              Invoice lines and transactions using this accounting code
             </DialogDescription>
           </DialogHeader>
 

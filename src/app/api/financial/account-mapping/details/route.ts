@@ -19,6 +19,14 @@ export async function GET(req: Request) {
   }
 
   try {
+    // Get CoA information for this accounting code
+    const coaInfo: any[] = await prisma.$queryRawUnsafe(`
+      SELECT account_number, label
+      FROM dolibarr_accounting_account
+      WHERE rowid = ?
+      LIMIT 1
+    `, accountingCode);
+
     // Get invoice lines for this accounting code
     const lines: any[] = await prisma.$queryRawUnsafe(`
       SELECT 
@@ -100,6 +108,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       accountingCode,
+      coaCode: coaInfo[0]?.account_number || accountingCode,
+      coaLabel: coaInfo[0]?.label || 'Unknown Account',
       summary: {
         invoiceCount: Number(summary[0]?.invoice_count || 0),
         lineCount: Number(summary[0]?.line_count || 0),
