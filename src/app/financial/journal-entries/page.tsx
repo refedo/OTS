@@ -113,8 +113,10 @@ export default function JournalEntriesPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `journal-entries-${fromDate}-to-${toDate}.xlsx`;
+        a.download = `journal-entries-${fromDate}-to-${toDate}.csv`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
         toast({ title: 'Export Complete', description: 'Journal entries exported to Excel' });
       } else {
