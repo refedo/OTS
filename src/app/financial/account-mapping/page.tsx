@@ -22,8 +22,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
   Loader2, ArrowLeft, Save, AlertCircle, CheckCircle2, Search,
-  DollarSign, FileText, TrendingUp, RefreshCw,
+  DollarSign, FileText, TrendingUp, RefreshCw, Eye, Package,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +64,9 @@ export default function AccountMappingPage() {
   const [editValues, setEditValues] = useState<any>({});
   const [showUnmapped, setShowUnmapped] = useState(false);
   const [loadingUnmapped, setLoadingUnmapped] = useState(false);
+  const [drillDownCode, setDrillDownCode] = useState<string | null>(null);
+  const [drillDownData, setDrillDownData] = useState<any>(null);
+  const [loadingDrillDown, setLoadingDrillDown] = useState(false);
 
   useEffect(() => {
     loadMappings();
@@ -172,8 +182,8 @@ export default function AccountMappingPage() {
           title: 'Success',
           description: 'Mapping created successfully',
         });
-        loadMappings();
-        loadUnmappedCodes();
+        await loadMappings();
+        await loadUnmappedCodes();
       } else {
         const error = await res.json();
         toast({
@@ -192,6 +202,38 @@ export default function AccountMappingPage() {
     } finally {
       setSaving(null);
     }
+  };
+
+  const openDrillDown = async (accountingCode: string) => {
+    setDrillDownCode(accountingCode);
+    setLoadingDrillDown(true);
+    try {
+      const res = await fetch(`/api/financial/account-mapping/details?accounting_code=${accountingCode}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDrillDownData(data);
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to load account details',
+          variant: 'destructive',
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: 'Error',
+        description: 'Failed to load account details',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingDrillDown(false);
+    }
+  };
+
+  const closeDrillDown = () => {
+    setDrillDownCode(null);
+    setDrillDownData(null);
   };
 
   const filteredMappings = mappings.filter(m => {
@@ -294,13 +336,22 @@ export default function AccountMappingPage() {
                   <TableHead>Line Count</TableHead>
                   <TableHead className="text-right">Total Amount</TableHead>
                   <TableHead>Suggested Category</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {unmappedCodes.slice(0, 20).map((code: any) => (
                   <TableRow key={code.accounting_code}>
-                    <TableCell className="font-mono">{code.accounting_code}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="link"
+                        className="font-mono p-0 h-auto"
+                        onClick={() => openDrillDown(code.accounting_code)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        {code.accounting_code}
+                      </Button>
+                    </TableCell>
                     <TableCell>{code.line_count}</TableCell>
                     <TableCell className="text-right font-semibold">{formatSAR(code.total_ht)}</TableCell>
                     <TableCell>
@@ -467,6 +518,145 @@ export default function AccountMappingPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Drill-Down Modal */}
+      <Dialog open={drillDownCode !== null} onOpenChange={(open) => !open && closeDrillDown()}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Accounting Code Details: {drillDownCode}
+            </DialogTitle>
+            <DialogDescription>
+              Invoice lines and transactions using this Dolibarr accounting code
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingDrillDown ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : drillDownData ? (
+            <div className="space-y-4">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="text-sm text-muted-foreground">Invoices</div>
+                    <div className="text-2xl font-bold">{drillDownData.summary.invoiceCount}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="text-sm text-muted-foreground">Line Items</div>
+                    <div className="text-2xl font-bold">{drillDownData.summary.lineCount}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="text-sm text-muted-foreground">Suppliers</div>
+                    <div className="text-2xl font-bold">{drillDownData.summary.supplierCount}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="text-sm text-muted-foreground">Total Amount</div>
+                    <div className="text-lg font-bold">{formatSAR(drillDownData.summary.totalHT)}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Top Suppliers */}
+              {drillDownData.topSuppliers && drillDownData.topSuppliers.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Top Suppliers</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Supplier</TableHead>
+                        <TableHead className="text-right">Lines</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {drillDownData.topSuppliers.slice(0, 5).map((s: any, idx: number) => (
+                        <TableRow key={idx}>
+                          <TableCell>{s.supplierName}</TableCell>
+                          <TableCell className="text-right">{s.lineCount}</TableCell>
+                          <TableCell className="text-right font-semibold">{formatSAR(s.totalHT)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Top Products */}
+              {drillDownData.topProducts && drillDownData.topProducts.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Top Products/Items</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Lines</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {drillDownData.topProducts.slice(0, 5).map((p: any, idx: number) => (
+                        <TableRow key={idx}>
+                          <TableCell>
+                            <div className="font-medium">{p.productLabel}</div>
+                            {p.productRef && <div className="text-xs text-muted-foreground">{p.productRef}</div>}
+                          </TableCell>
+                          <TableCell className="text-right">{p.lineCount}</TableCell>
+                          <TableCell className="text-right font-semibold">{formatSAR(p.totalHT)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Recent Invoice Lines */}
+              {drillDownData.lines && drillDownData.lines.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Recent Invoice Lines (Last 100)</h3>
+                  <div className="max-h-[300px] overflow-y-auto border rounded">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Invoice</TableHead>
+                          <TableHead>Supplier</TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead className="text-right">Qty</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {drillDownData.lines.map((line: any) => (
+                          <TableRow key={line.id}>
+                            <TableCell className="text-xs">{line.dateInvoice}</TableCell>
+                            <TableCell className="text-xs font-mono">{line.invoiceRef}</TableCell>
+                            <TableCell className="text-xs">{line.supplierName}</TableCell>
+                            <TableCell className="text-xs max-w-[200px] truncate" title={line.productLabel}>
+                              {line.productLabel}
+                            </TableCell>
+                            <TableCell className="text-right text-xs">{line.qty}</TableCell>
+                            <TableCell className="text-right text-xs font-semibold">{formatSAR(line.totalHT)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

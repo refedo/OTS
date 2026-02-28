@@ -285,8 +285,22 @@ export default function FinancialDashboardPage() {
         </Link>
       </div>
 
-      {/* VAT Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Row 3: VAT Summary & Account Mapping */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Link href="/financial/account-mapping">
+          <Card className="border-amber-200 dark:border-amber-900/50 hover:border-amber-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Account Mapping</span>
+                <ArrowUpDown className="h-3.5 w-3.5 text-amber-500" />
+              </div>
+              <div className="text-lg font-bold text-amber-600">Manage</div>
+              <div className="text-[10px] text-muted-foreground">Map Dolibarr codes to categories</div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Configure <ArrowRight className="h-3 w-3 ml-1" /></div>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link href="/financial/reports/vat">
           <Card className="border-orange-200 dark:border-orange-900/50 hover:border-orange-400 transition-colors cursor-pointer h-full">
             <CardContent className="pt-5 pb-4">

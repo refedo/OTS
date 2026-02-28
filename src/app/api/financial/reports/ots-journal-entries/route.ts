@@ -350,7 +350,7 @@ export async function GET(req: Request) {
         csvRows.push('');
       }
 
-      const csvContent = csvRows.join('\n');
+      const csvContent = '\uFEFF' + csvRows.join('\n'); // Add BOM for Excel UTF-8 support
       return new NextResponse(csvContent, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
