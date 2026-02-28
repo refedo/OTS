@@ -19,13 +19,19 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Get CoA information for this accounting code
-    const coaInfo: any[] = await prisma.$queryRawUnsafe(`
-      SELECT account_number, label
-      FROM dolibarr_accounting_account
-      WHERE rowid = ?
-      LIMIT 1
-    `, accountingCode);
+    // Try to get CoA information from existing mapping if available
+    let coaInfo: any[] = [];
+    try {
+      coaInfo = await prisma.$queryRawUnsafe(`
+        SELECT dolibarr_account_code as account_number, dolibarr_account_label as label
+        FROM fin_dolibarr_account_mapping
+        WHERE dolibarr_account_id = ?
+        LIMIT 1
+      `, accountingCode);
+    } catch (e) {
+      // If mapping doesn't exist, that's fine - we'll use the rowid
+      console.log('[Account Details] No CoA mapping found for', accountingCode);
+    }
 
     // Get invoice lines for this accounting code
     const lines: any[] = await prisma.$queryRawUnsafe(`
@@ -33,7 +39,6 @@ export async function GET(req: Request) {
         sil.id,
         sil.product_ref,
         sil.product_label,
-        sil.description,
         sil.qty,
         sil.total_ht,
         sil.total_tva,
@@ -134,7 +139,6 @@ export async function GET(req: Request) {
         id: Number(line.id),
         productRef: line.product_ref || '',
         productLabel: line.product_label || 'N/A',
-        description: line.description || '',
         qty: Number(line.qty),
         totalHT: Number(line.total_ht),
         totalVAT: Number(line.total_tva),

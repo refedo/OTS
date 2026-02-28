@@ -14,12 +14,12 @@ export async function GET() {
 
   try {
     // Find accounting codes that don't have mappings
-    // Join with Dolibarr accounting accounts to get the actual account code and label
+    // Try to get CoA info from existing mappings table first
     const unmappedCodes: any[] = await prisma.$queryRawUnsafe(`
       SELECT 
         sil.accounting_code as dolibarr_rowid,
-        daa.account_number as coa_code,
-        daa.label as coa_label,
+        sil.accounting_code as coa_code,
+        'Accounting Code' as coa_label,
         COUNT(*) as line_count,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_ttc) as total_ttc,
@@ -27,13 +27,12 @@ export async function GET() {
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
       LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
-      LEFT JOIN dolibarr_accounting_account daa ON daa.rowid = sil.accounting_code
       WHERE si.is_active = 1 
         AND si.status >= 1
         AND sil.accounting_code IS NOT NULL
         AND sil.accounting_code != ''
         AND dam.id IS NULL
-      GROUP BY sil.accounting_code, daa.account_number, daa.label
+      GROUP BY sil.accounting_code
       ORDER BY total_ht DESC
       LIMIT 100
     `);
