@@ -53,7 +53,7 @@ export default function OTSJournalEntriesPage() {
   const currentYear = new Date().getFullYear();
   const [fromDate, setFromDate] = useState(`${currentYear}-01-01`);
   const [toDate, setToDate] = useState(`${currentYear}-12-31`);
-  const [groupBy, setGroupBy] = useState<string>('');
+  const [groupBy, setGroupBy] = useState<string>('none');
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
@@ -63,7 +63,7 @@ export default function OTSJournalEntriesPage() {
     setLoading(true);
     try {
       let url = `/api/financial/reports/ots-journal-entries?from=${fromDate}&to=${toDate}`;
-      if (groupBy) url += `&groupBy=${groupBy}`;
+      if (groupBy && groupBy !== 'none') url += `&groupBy=${groupBy}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -159,7 +159,7 @@ export default function OTSJournalEntriesPage() {
                   <SelectValue placeholder="No grouping" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No grouping</SelectItem>
+                  <SelectItem value="none">No grouping</SelectItem>
                   <SelectItem value="category">By Category</SelectItem>
                 </SelectContent>
               </Select>
