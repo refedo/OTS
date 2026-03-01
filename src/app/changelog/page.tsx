@@ -23,10 +23,44 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.18.0',
+    date: 'March 1, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '📊 Financial Reports Enhancements',
+    highlights: [
+      'New Expenses by Account report with monthly breakdown',
+      'Improved Project Analysis chart visualization',
+      'Fixed contract amount to use Lead Amount from Dolibarr',
+      'Fixed Excel export and account mapping errors',
+    ],
+    changes: {
+      added: [
+        'Expenses by Account Report — monthly breakdown of expenses grouped by accounting account',
+        'Shows all 12 months (Jan-Dec) with amounts per account',
+        'Displays account code and account name from Dolibarr',
+        'Monthly totals and grand total columns',
+        'Excel/CSV export functionality',
+      ],
+      fixed: [
+        'Excel Export — Journal entries and OTS Journal entries exports now work correctly',
+        'Changed file extension from .xlsx to .csv to match actual content',
+        'Account Mapping Errors — removed dependency on non-existent dolibarr_accounting_account table',
+        'Fixed "Unknown column sil.description" error in drill-down modal',
+      ],
+      changed: [
+        'Project Analysis Report — improved monthly revenue vs cost chart with horizontal bars',
+        'Shows actual values directly on bars for better readability',
+        'Contract Amount Fix — now reads Lead Amount (opp_amount) instead of Budget',
+        'Balance calculation updated to use contract amount',
+      ],
+    },
+  },
+  {
     version: '15.17.0',
     date: 'February 28, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '📊 OTS Journal Entries Report & Bug Fixes',
     highlights: [
       'New OTS Journal Entries report with proper double-entry accounting from supplier invoices',

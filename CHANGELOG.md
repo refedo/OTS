@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.18.0] - 2026-03-01
+
+### 📊 Financial Reports Enhancements
+
+#### New Features
+- **Expenses by Account Report** — monthly breakdown of expenses grouped by accounting account
+  - Shows all 12 months (Jan-Dec) with amounts per account
+  - Displays account code and account name from Dolibarr
+  - Monthly totals and grand total columns
+  - Excel/CSV export functionality
+  - Sticky column headers for easy scrolling
+  - Color-coded rows for better readability
+
+#### Improvements
+- **Project Analysis Report** — improved monthly revenue vs cost chart
+  - Replaced ineffective line chart with horizontal bar chart
+  - Shows actual values directly on bars (e.g., "SAR 2.74M")
+  - Clear profit/loss display for each month
+  - Better visual comparison between revenue and cost
+- **Contract Amount Fix** — Project Analysis now reads Lead Amount instead of Budget
+  - Contract column now displays `opp_amount` (Lead amount from Dolibarr)
+  - Previously showed `budget_amount` which was incorrect
+  - Balance calculation updated to use contract amount
+
+#### Bug Fixes
+- **Excel Export Fixed** — Journal entries and OTS Journal entries exports now work correctly
+  - Changed file extension from `.xlsx` to `.csv` to match actual content
+  - Added proper blob download with cleanup
+  - Files now open in Excel without corruption errors
+- **Account Mapping Errors Fixed** — resolved database table issues
+  - Removed dependency on non-existent `dolibarr_accounting_account` table
+  - Fixed "Unknown column 'sil.description'" error in drill-down modal
+  - Now uses `fin_dolibarr_account_mapping` for CoA information
+
+---
+
 ## [15.17.0] - 2026-02-28
 
 ### 📊 OTS Journal Entries Report & Bug Fixes

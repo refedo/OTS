@@ -240,6 +240,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Projects Financial', href: '/financial/reports/projects-dashboard', icon: Building2, isNew: true },
       { name: 'Cost Structure', href: '/financial/reports/project-cost-structure', icon: Package, isNew: true },
       { name: 'Expenses Analysis', href: '/financial/reports/expenses-analysis', icon: Truck, isNew: true },
+      { name: 'Expenses by Account', href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet, isNew: true },
       { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen, isNew: true },
       { name: 'Journal Entries', href: '/financial/journal-entries', icon: List, isNew: true },
       { name: 'Account Mapping', href: '/financial/account-mapping', icon: GitBranch, isNew: true },

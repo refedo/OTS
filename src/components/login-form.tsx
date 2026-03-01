@@ -220,9 +220,9 @@ export function LoginForm() {
         <p className="text-white font-medium mt-4">
           Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
         </p>
-        <p className="text-xs text-muted-foreground">
-          {version ? `Version ${version}` : 'Loading...'}
-        </p>
+        <div className="text-xs text-muted-foreground">
+          v15.18.0 • March 1, 2026
+        </div>
       </div>
     </div>
   );

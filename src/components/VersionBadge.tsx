@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.17.0';
-const RELEASE_DATE = 'February 28, 2026';
+const CURRENT_VERSION = '15.18.0';
+const RELEASE_DATE = 'March 1, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• Fixed MIR database migration and Prisma schema mapping issues</li>
-              <li>• Simplified PO lookup with client-side filtering for better reliability</li>
-              <li>• Added comprehensive error handling and empty state UI</li>
-              <li>• Resolved authentication issues in PO lookup API</li>
+              <li>• New Expenses by Account report with monthly breakdown</li>
+              <li>• Improved Project Analysis chart visualization</li>
+              <li>• Fixed contract amount to use Lead Amount from Dolibarr</li>
+              <li>• Fixed Excel export and account mapping errors</li>
             </ul>
           </div>
 
