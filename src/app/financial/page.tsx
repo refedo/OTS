@@ -11,7 +11,7 @@ import {
   RefreshCw, TrendingUp, TrendingDown, DollarSign, Landmark, Receipt,
   FileText, BarChart3, Clock, Loader2,
   ArrowRight, CheckCircle, Building2, CreditCard, ChevronDown, ChevronUp,
-  Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package,
+  Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package, BookOpen, FileSpreadsheet,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -395,6 +395,8 @@ export default function FinancialDashboardPage() {
           { href: '/financial/reports/projects-dashboard', icon: Banknote, color: 'lime', title: 'Projects Financial', desc: 'All projects invoicing & collection' },
           { href: '/financial/reports/project-cost-structure', icon: BarChart3, color: 'rose', title: 'Cost Structure', desc: 'Project cost breakdown by category' },
           { href: '/financial/reports/expenses-analysis', icon: TrendingDown, color: 'fuchsia', title: 'Expenses Analysis', desc: 'Detailed expense analysis & trends' },
+          { href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet, color: 'cyan', title: 'Expenses by Account', desc: 'Monthly breakdown by accounting account' },
+          { href: '/financial/reports/ots-journal-entries', icon: BookOpen, color: 'emerald', title: 'OTS Journal Entries', desc: 'Double-entry journal from supplier invoices' },
           { href: '/financial/reports/assets', icon: Package, color: 'indigo', title: 'Asset Report', desc: 'All asset accounts and balances' },
           { href: '/financial/reports/salaries', icon: Users, color: 'teal', title: 'Salaries & Wages', desc: 'Salary records synced from Dolibarr' },
           { href: '/financial/journal-entries', icon: FileText, color: 'slate', title: 'Journal Entries', desc: 'Browse auto-generated entries' },

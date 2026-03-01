@@ -18,16 +18,17 @@ export async function GET(req: Request) {
 
   try {
     // Get expenses grouped by accounting account and month
+    // Join with Dolibarr accounting_account table to get actual account codes and labels
     const expenses: any[] = await prisma.$queryRawUnsafe(`
       SELECT 
-        sil.accounting_code,
-        COALESCE(dam.dolibarr_account_code, sil.accounting_code) as account_code,
-        COALESCE(dam.dolibarr_account_label, 'Unknown Account') as account_label,
+        sil.accounting_code as dolibarr_rowid,
+        COALESCE(daa.account_number, sil.accounting_code) as account_code,
+        COALESCE(daa.label, 'Unknown Account') as account_label,
         MONTH(si.date_invoice) as month,
         SUM(sil.total_ht) as amount
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
-      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
+      LEFT JOIN dolibarr_accounting_account daa ON daa.rowid = sil.accounting_code
       WHERE si.is_active = 1 
         AND si.status >= 1
         AND YEAR(si.date_invoice) = ?
@@ -41,10 +42,10 @@ export async function GET(req: Request) {
     const accountMap = new Map<string, any>();
     
     for (const exp of expenses) {
-      const key = exp.accounting_code;
+      const key = exp.dolibarr_rowid;
       if (!accountMap.has(key)) {
         accountMap.set(key, {
-          accountingCode: exp.accounting_code,
+          accountingCode: exp.dolibarr_rowid,
           accountCode: exp.account_code,
           accountLabel: exp.account_label,
           months: Array(12).fill(0),
