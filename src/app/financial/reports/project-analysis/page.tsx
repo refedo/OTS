@@ -820,8 +820,8 @@ export default function ProjectAnalysisPage() {
                       <th className="text-left py-2 px-1.5 font-medium whitespace-nowrap">Project</th>
                       <th className="text-left py-2 px-1.5 font-medium whitespace-nowrap">Client</th>
                       <th className="text-center py-2 px-1.5 font-medium whitespace-nowrap">Status</th>
-                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('budgetAmount')}>
-                        Contract <SortIcon field="budgetAmount" />
+                      <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('contractAmount')}>
+                        Contract <SortIcon field="contractAmount" />
                       </th>
                       <th className="text-right py-2 px-1.5 font-medium cursor-pointer hover:text-primary whitespace-nowrap" onClick={() => toggleSort('revenueHT')}>
                         Invoiced <SortIcon field="revenueHT" />
@@ -859,12 +859,12 @@ export default function ProjectAnalysisPage() {
                           <td className="py-1.5 px-1.5 text-center">
                             <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_BADGE[p.statusLabel] || STATUS_BADGE['Draft']}`}>{p.statusLabel}</Badge>
                           </td>
-                          <td className="py-1.5 px-1.5 text-right font-mono text-purple-600">{p.budgetAmount > 0 ? compact(p.budgetAmount) : <span className="text-muted-foreground">—</span>}</td>
+                          <td className="py-1.5 px-1.5 text-right font-mono text-purple-600">{p.contractAmount > 0 ? compact(p.contractAmount) : <span className="text-muted-foreground">—</span>}</td>
                           <td className="py-1.5 px-1.5 text-right font-mono text-green-600">{p.revenueHT > 0 ? compact(p.revenueHT) : <span className="text-muted-foreground">—</span>}</td>
                           <td className="py-1.5 px-1.5 text-right font-mono">
-                            {p.budgetAmount > 0 ? (
-                              <span className={(p.budgetAmount - p.revenueHT) > 0 ? 'text-amber-600' : 'text-emerald-600'}>
-                                {compact(p.budgetAmount - p.revenueHT)}
+                            {p.contractAmount > 0 ? (
+                              <span className={(p.contractAmount - p.revenueHT) > 0 ? 'text-amber-600' : 'text-emerald-600'}>
+                                {compact(p.contractAmount - p.revenueHT)}
                               </span>
                             ) : <span className="text-muted-foreground">—</span>}
                           </td>
@@ -931,9 +931,9 @@ export default function ProjectAnalysisPage() {
                     {/* Totals Row */}
                     <tr className="border-t-2 font-bold bg-muted/50 text-xs">
                       <td className="py-2 px-1.5" colSpan={3}>Total ({sortedProjects.length} projects)</td>
-                      <td className="py-2 px-1.5 text-right font-mono text-purple-700">{compact(sortedProjects.reduce((sum: number, p: any) => sum + (p.budgetAmount || 0), 0))}</td>
+                      <td className="py-2 px-1.5 text-right font-mono text-purple-700">{compact(sortedProjects.reduce((sum: number, p: any) => sum + (p.contractAmount || 0), 0))}</td>
                       <td className="py-2 px-1.5 text-right font-mono text-green-700">{compact(s.totalRevenue)}</td>
-                      <td className="py-2 px-1.5 text-right font-mono text-amber-700">{compact(sortedProjects.reduce((sum: number, p: any) => sum + ((p.budgetAmount || 0) - p.revenueHT), 0))}</td>
+                      <td className="py-2 px-1.5 text-right font-mono text-amber-700">{compact(sortedProjects.reduce((sum: number, p: any) => sum + ((p.contractAmount || 0) - p.revenueHT), 0))}</td>
                       <td className="py-2 px-1.5 text-right font-mono text-blue-700">{compact(s.totalCollected)}</td>
                       <td className="py-2 px-1.5 text-right font-mono text-red-700">{compact(s.totalCosts)}</td>
                       <td className={`py-2 px-1.5 text-right font-mono ${s.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{compact(s.totalProfit)}</td>

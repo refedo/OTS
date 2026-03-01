@@ -1957,6 +1957,7 @@ export class FinancialReportService {
         clientId: Number(proj.fk_soc || 0),
         status: proj.fk_statut,
         statusLabel,
+        contractAmount: Number(proj.opp_amount || 0), // Lead amount from Dolibarr
         budgetAmount: Number(proj.budget_amount || 0),
         oppAmount: Number(proj.opp_amount || 0),
         dateStart: proj.date_start,
