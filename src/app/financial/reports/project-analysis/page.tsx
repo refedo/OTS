@@ -736,56 +736,70 @@ export default function ProjectAnalysisPage() {
               </CardHeader>
               {showMonthly && (
                 <CardContent>
-                  {/* Enhanced chart with value labels and gridlines */}
+                  {/* Improved horizontal bar chart with clear values */}
                   {(() => {
                     const data = report.aggregateMonthlyTrend;
                     const maxVal = Math.max(...data.map((t: any) => Math.max(t.revenue, t.cost)));
                     return (
-                      <div className="space-y-2">
-                        <div className="flex items-end gap-2 h-56 relative">
-                          {/* Y-axis gridlines */}
-                          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '24px', top: '20px' }}>
-                            {[100, 75, 50, 25, 0].map(pctLine => (
-                              <div key={pctLine} className="flex items-center w-full">
-                                <span className="text-[9px] text-muted-foreground w-12 text-right pr-1 shrink-0">{compact(maxVal * pctLine / 100)}</span>
-                                <div className="flex-1 border-b border-dashed border-muted-foreground/20" />
-                              </div>
-                            ))}
-                          </div>
-                          {/* Bars */}
-                          <div className="flex items-end gap-1 flex-1 ml-12" style={{ height: 'calc(100% - 24px)', paddingTop: '20px' }}>
-                            {data.map((m: any) => {
-                              const revH = maxVal > 0 ? (m.revenue / maxVal) * 100 : 0;
-                              const costH = maxVal > 0 ? (m.cost / maxVal) * 100 : 0;
-                              return (
-                                <div key={m.month} className="flex-1 flex flex-col items-center gap-0" style={{ minWidth: 0 }}>
-                                  <div className={`text-[10px] font-mono font-semibold mb-0.5 ${m.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {compact(m.profit)}
-                                  </div>
-                                  <div className="w-full flex gap-0.5 items-end flex-1">
-                                    <div className="flex-1 flex flex-col items-center justify-end h-full">
-                                      <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${revH}%`, minHeight: m.revenue > 0 ? '3px' : 0 }} />
-                                    </div>
-                                    <div className="flex-1 flex flex-col items-center justify-end h-full">
-                                      <div className="w-full bg-red-400 rounded-t transition-all" style={{ height: `${costH}%`, minHeight: m.cost > 0 ? '3px' : 0 }} />
-                                    </div>
-                                  </div>
-                                  <div className="text-[10px] text-muted-foreground mt-1 font-medium">{m.monthLabel}</div>
+                      <div className="space-y-4">
+                        {/* Monthly breakdown with horizontal bars */}
+                        <div className="space-y-3">
+                          {data.map((m: any) => {
+                            const revPct = maxVal > 0 ? (m.revenue / maxVal) * 100 : 0;
+                            const costPct = maxVal > 0 ? (m.cost / maxVal) * 100 : 0;
+                            const profitPct = maxVal > 0 ? (m.profit / maxVal) * 100 : 0;
+                            return (
+                              <div key={m.month} className="space-y-1.5">
+                                <div className="flex items-center justify-between text-xs font-medium">
+                                  <span className="text-muted-foreground">{m.monthLabel}</span>
+                                  <span className={`font-mono font-semibold ${m.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    Profit: {compact(m.profit)}
+                                  </span>
                                 </div>
-                              );
-                            })}
-                          </div>
+                                <div className="space-y-1">
+                                  {/* Revenue bar */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-muted-foreground w-12 text-right">Revenue</span>
+                                    <div className="flex-1 bg-muted rounded-full h-6 relative overflow-hidden">
+                                      <div 
+                                        className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-end pr-2 transition-all"
+                                        style={{ width: `${Math.max(revPct, 2)}%` }}
+                                      >
+                                        <span className="text-[10px] font-mono font-semibold text-white drop-shadow">
+                                          {compact(m.revenue)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {/* Cost bar */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-muted-foreground w-12 text-right">Cost</span>
+                                    <div className="flex-1 bg-muted rounded-full h-6 relative overflow-hidden">
+                                      <div 
+                                        className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-end pr-2 transition-all"
+                                        style={{ width: `${Math.max(costPct, 2)}%` }}
+                                      >
+                                        <span className="text-[10px] font-mono font-semibold text-white drop-shadow">
+                                          {compact(m.cost)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        {/* Legend with totals */}
-                        <div className="flex gap-6 justify-center text-xs pt-2 border-t">
+                        {/* Summary totals */}
+                        <div className="flex gap-6 justify-center text-xs pt-3 border-t">
                           <div className="flex items-center gap-1.5">
                             <div className="w-3 h-3 rounded-sm bg-green-500" />
-                            <span>Revenue</span>
+                            <span>Total Revenue</span>
                             <span className="font-semibold text-green-600 ml-1">{compact(data.reduce((s: number, m: any) => s + m.revenue, 0))}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <div className="w-3 h-3 rounded-sm bg-red-400" />
-                            <span>Cost</span>
+                            <span>Total Cost</span>
                             <span className="font-semibold text-red-600 ml-1">{compact(data.reduce((s: number, m: any) => s + m.cost, 0))}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
