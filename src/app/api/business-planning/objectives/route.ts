@@ -61,23 +61,29 @@ export async function GET(request: NextRequest) {
       orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
     });
 
-    // Calculate objective progress from initiatives
+    // Calculate objective progress from Key Results
     const objectivesWithProgress = objectives.map(obj => {
-      if (obj.initiatives && obj.initiatives.length > 0) {
-        // Calculate average progress from initiatives
-        const totalProgress = obj.initiatives.reduce((sum, init) => {
-          // Use effective progress (status-based if progress is 0)
-          const effectiveProgress = init.progress > 0 ? init.progress : getProgressFromStatus(init.status);
-          return sum + effectiveProgress;
+      let calculatedProgress = obj.progress; // Default to stored progress
+      
+      // If there are key results, calculate progress from them
+      if (obj.keyResults && obj.keyResults.length > 0) {
+        const totalProgress = obj.keyResults.reduce((sum: number, kr: any) => {
+          // Use the latest progress update if available, otherwise use currentValue/targetValue
+          let krProgress = 0;
+          if (kr.progressUpdates && kr.progressUpdates.length > 0) {
+            krProgress = kr.progressUpdates[0].value || 0;
+          } else if (kr.targetValue > 0) {
+            krProgress = Math.round((kr.currentValue / kr.targetValue) * 100);
+          }
+          return sum + Math.min(krProgress, 100);
         }, 0);
-        const calculatedProgress = Math.round(totalProgress / obj.initiatives.length);
-        
-        return {
-          ...obj,
-          progress: calculatedProgress,
-        };
+        calculatedProgress = Math.round(totalProgress / obj.keyResults.length);
       }
-      return obj;
+      
+      return {
+        ...obj,
+        progress: calculatedProgress,
+      };
     });
 
     console.log(`[Objectives API] Found ${objectives.length} objectives`);

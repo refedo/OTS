@@ -278,6 +278,9 @@ export default function ObjectivesPage() {
           <p className="text-muted-foreground mt-2">
             Strategic objectives defining WHAT Hexa Steel must achieve
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Progress is measured by Key Results. Initiatives support objectives but don't directly measure them.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           {/* Year Selector */}
@@ -627,17 +630,20 @@ export default function ObjectivesPage() {
                 )}
               </div>
 
-              {/* Initiatives Progress */}
+              {/* Supporting Initiatives */}
               {objective.initiatives && objective.initiatives.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <div className="text-sm font-medium">Initiatives ({objective.initiatives.length})</div>
+                <div className="mt-4 space-y-2 pt-4 border-t">
+                  <div className="text-sm font-medium text-muted-foreground">Supporting Initiatives ({objective.initiatives.length})</div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    These initiatives support achieving this objective but don't directly measure its progress
+                  </p>
                   {objective.initiatives.map((initiative: any) => (
                     <div key={initiative.id} className="flex items-center justify-between bg-muted/50 p-2 rounded text-sm">
                       <span className="flex-1">{initiative.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 bg-gray-200 rounded-full h-1.5">
                           <div 
-                            className="bg-blue-500 h-1.5 rounded-full" 
+                            className="bg-green-500 h-1.5 rounded-full" 
                             style={{ width: `${initiative.progress || 0}%` }}
                           ></div>
                         </div>
