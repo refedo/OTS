@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { TrendingUp, Plus, DollarSign, Users, Cog, GraduationCap, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { TrendingUp, Plus, DollarSign, Users, Cog, GraduationCap, ArrowUp, ArrowDown, Minus, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function KPIsPage() {
@@ -22,6 +22,7 @@ export default function KPIsPage() {
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [objectives, setObjectives] = useState<any[]>([]);
+  const [editingKPI, setEditingKPI] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     year: new Date().getFullYear(),
@@ -105,18 +106,22 @@ export default function KPIsPage() {
 
     setSaving(true);
     try {
+      const method = editingKPI ? 'PUT' : 'POST';
+      const payload = editingKPI ? { ...formData, id: editingKPI.id, category: finalCategory } : { ...formData, category: finalCategory };
+      
       const res = await fetch('/api/business-planning/kpis', {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, category: finalCategory }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         toast({
           title: 'Success',
-          description: 'KPI created successfully',
+          description: editingKPI ? 'KPI updated successfully' : 'KPI created successfully',
         });
         setDialogOpen(false);
+        setEditingKPI(null);
         setFormData({
           year: new Date().getFullYear(),
           objectiveId: '',
@@ -134,16 +139,63 @@ export default function KPIsPage() {
         setCustomCategory('');
         fetchKPIs();
       } else {
-        throw new Error('Failed to create KPI');
+        throw new Error(editingKPI ? 'Failed to update KPI' : 'Failed to create KPI');
       }
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create KPI',
+        description: editingKPI ? 'Failed to update KPI' : 'Failed to create KPI',
         variant: 'destructive',
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEdit = (kpi: any) => {
+    setEditingKPI(kpi);
+    setFormData({
+      year: kpi.year,
+      objectiveId: kpi.objectiveId || '',
+      name: kpi.name,
+      description: kpi.description || '',
+      category: kpi.category,
+      targetValue: kpi.targetValue.toString(),
+      currentValue: kpi.currentValue.toString(),
+      unit: kpi.unit || '',
+      frequency: kpi.frequency,
+      ownerId: kpi.ownerId,
+      formula: kpi.formula || '',
+      status: kpi.status,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (kpi: any) => {
+    if (!confirm(`Are you sure you want to delete "${kpi.name}"?`)) return;
+    
+    try {
+      const res = await fetch('/api/business-planning/kpis', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: kpi.id }),
+      });
+
+      if (res.ok) {
+        toast({
+          title: 'Success',
+          description: 'KPI deleted successfully',
+        });
+        fetchKPIs();
+      } else {
+        throw new Error('Failed to delete KPI');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete KPI',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -240,45 +292,65 @@ export default function KPIsPage() {
             </SelectContent>
           </Select>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) {
+              setEditingKPI(null);
+              setFormData({
+                year: new Date().getFullYear(),
+                objectiveId: '',
+                name: '',
+                description: '',
+                category: 'Financial',
+                targetValue: '',
+                currentValue: '0',
+                unit: '',
+                frequency: 'Monthly',
+                ownerId: '',
+                formula: '',
+                status: 'On Track',
+              });
+              setCustomCategory('');
+            }
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
                 New KPI
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New KPI</DialogTitle>
-                <DialogDescription>
-                  Define a KPI to measure strategic performance across BSC perspectives or custom categories
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4 py-4">
-                {/* Year */}
-                <div className="space-y-2">
-                  <Label htmlFor="year">Year *</Label>
-                  <Select
-                    value={formData.year.toString()}
-                    onValueChange={(value) => {
-                      const newYear = parseInt(value);
-                      setFormData({ ...formData, year: newYear, objectiveId: '' });
-                      fetchObjectives(newYear);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableYears.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingKPI ? 'Edit KPI' : 'Create New KPI'}</DialogTitle>
+              <DialogDescription>
+                {editingKPI ? 'Update the KPI details and measurements' : 'Define a key performance indicator with target and measurement details'}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              {/* Year */}
+              <div className="space-y-2">
+                <Label htmlFor="year">Year *</Label>
+                <Select
+                  value={formData.year.toString()}
+                  onValueChange={(value) => {
+                    const newYear = parseInt(value);
+                    setFormData({ ...formData, year: newYear, objectiveId: '' });
+                    fetchObjectives(newYear);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
                 {/* Objective (Optional) */}
                 <div className="space-y-2">
@@ -492,7 +564,7 @@ export default function KPIsPage() {
                   Cancel
                 </Button>
                 <Button onClick={handleSubmit} disabled={saving}>
-                  {saving ? 'Creating...' : 'Create KPI'}
+                  {saving ? (editingKPI ? 'Updating...' : 'Creating...') : (editingKPI ? 'Update KPI' : 'Create KPI')}
                 </Button>
               </div>
             </DialogContent>
@@ -616,9 +688,20 @@ export default function KPIsPage() {
                         </div>
 
                         {/* Footer */}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-                          <span>{kpi.frequency}</span>
-                          <span>Owner: {kpi.owner?.name}</span>
+                        <div className="flex items-center justify-between text-xs pt-2 border-t">
+                          <div className="text-muted-foreground">
+                            <span>{kpi.frequency}</span>
+                            <span className="mx-2">•</span>
+                            <span>Owner: {kpi.owner?.name}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => handleEdit(kpi)} className="h-7 px-2">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(kpi)} className="h-7 px-2 text-red-600 hover:text-red-700">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -678,9 +761,20 @@ export default function KPIsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-                  <span>{kpi.frequency}</span>
-                  <span>Owner: {kpi.owner?.name}</span>
+                <div className="flex items-center justify-between text-xs pt-2 border-t">
+                  <div className="text-muted-foreground">
+                    <span>{kpi.frequency}</span>
+                    <span className="mx-2">•</span>
+                    <span>Owner: {kpi.owner?.name}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(kpi)} className="h-7 px-2">
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(kpi)} className="h-7 px-2 text-red-600 hover:text-red-700">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

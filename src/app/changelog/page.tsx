@@ -152,6 +152,34 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '15.16.0',
+    date: 'February 27, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '🔐 Task Visibility Control',
+    highlights: [
+      'New tasks.view_others permission for granular task visibility control',
+      'Users can now control who sees tasks assigned to other users',
+      'Enhanced permission logic for better task access management',
+      'Automatically added to Manager and Document Controller roles',
+    ],
+    changes: {
+      added: [
+        'View Other Users Tasks Permission — new tasks.view_others permission added to role management',
+        'Allows granular control over whether users can see tasks assigned to other users',
+        'Users with this permission can view non-private tasks across the system',
+        'Users without this permission only see their own assigned or created tasks',
+        'Automatically added to Manager and Document Controller default roles',
+      ],
+      fixed: [],
+      changed: [
+        'Updated GET /api/tasks to respect new permission level',
+        'Updated GET /api/tasks/[id] to enforce permission-based access control',
+        'Enhanced filtering logic for better task visibility control',
+      ],
+    },
+  },
+  {
     version: '15.15.0',
     date: 'February 27, 2026',
     type: 'minor',

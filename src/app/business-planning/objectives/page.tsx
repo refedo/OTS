@@ -627,12 +627,35 @@ export default function ObjectivesPage() {
                 )}
               </div>
 
+              {/* Initiatives Progress */}
+              {objective.initiatives && objective.initiatives.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <div className="text-sm font-medium">Initiatives ({objective.initiatives.length})</div>
+                  {objective.initiatives.map((initiative: any) => (
+                    <div key={initiative.id} className="flex items-center justify-between bg-muted/50 p-2 rounded text-sm">
+                      <span className="flex-1">{initiative.name}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 bg-gray-200 rounded-full h-1.5">
+                          <div 
+                            className="bg-blue-500 h-1.5 rounded-full" 
+                            style={{ width: `${initiative.progress || 0}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-muted-foreground w-10 text-right">
+                          {initiative.progress || 0}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Footer */}
               <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center gap-4">
                   <span>Owner: {objective.owner?.name}</span>
                   <span>•</span>
-                  <span>{objective._count?.initiatives || 0} initiatives</span>
+                  <span>{objective.initiatives?.length || 0} initiatives</span>
                 </div>
                 <div className="flex gap-2">
                   <Button 

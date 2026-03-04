@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Helper function to calculate progress from status
+function getProgressFromStatus(status: string): number {
+  switch (status) {
+    case 'Planned': return 0;
+    case 'In Progress': return 50;
+    case 'On Hold': return 25;
+    case 'Completed': return 100;
+    case 'Cancelled': return 0;
+    default: return 0;
+  }
+}
+
 // GET - Fetch Company Objectives
 export async function GET(request: NextRequest) {
   try {
@@ -29,6 +41,14 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        initiatives: {
+          select: {
+            id: true,
+            name: true,
+            progress: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             keyResults: true,
@@ -41,8 +61,27 @@ export async function GET(request: NextRequest) {
       orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
     });
 
+    // Calculate objective progress from initiatives
+    const objectivesWithProgress = objectives.map(obj => {
+      if (obj.initiatives && obj.initiatives.length > 0) {
+        // Calculate average progress from initiatives
+        const totalProgress = obj.initiatives.reduce((sum, init) => {
+          // Use effective progress (status-based if progress is 0)
+          const effectiveProgress = init.progress > 0 ? init.progress : getProgressFromStatus(init.status);
+          return sum + effectiveProgress;
+        }, 0);
+        const calculatedProgress = Math.round(totalProgress / obj.initiatives.length);
+        
+        return {
+          ...obj,
+          progress: calculatedProgress,
+        };
+      }
+      return obj;
+    });
+
     console.log(`[Objectives API] Found ${objectives.length} objectives`);
-    return NextResponse.json(objectives);
+    return NextResponse.json(objectivesWithProgress);
   } catch (error) {
     console.error('[Objectives API] Error fetching objectives:', error);
     console.error('[Objectives API] Error details:', {
