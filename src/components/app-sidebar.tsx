@@ -352,7 +352,8 @@ export function AppSidebar() {
     }
 
     fetchRiskCount();
-    const interval = setInterval(fetchRiskCount, 60000);
+    // Poll every 5 minutes to reduce server load
+    const interval = setInterval(fetchRiskCount, 300000);
     return () => clearInterval(interval);
   }, []);
 

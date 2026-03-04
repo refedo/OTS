@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.18.1] - 2026-03-05
+
+### 🎯 Strategic Planning & Initiatives Enhancements
+
+#### New Features
+- **Strategic Objectives Module** — 5-7 year mid-term planning
+  - Create and manage strategic objectives with 5-7 year horizons
+  - Link yearly company objectives to strategic objectives
+  - Track progress, priority, and status for long-term goals
+  - Category-based organization (Financial, Customer, Internal Process, Learning & Growth)
+  - Full CRUD operations with card and table views
+
+- **Initiatives Progress Tracking** — automatic progress calculation
+  - Progress now auto-calculates from status when not manually set
+  - Planned: 0%, In Progress: 50%, On Hold: 25%, Completed: 100%
+  - Manual progress override still available
+  - Average progress calculation fixed to use effective progress
+
+- **Delayed Initiative Alerts** — visual indicators for overdue initiatives
+  - Red border and background for delayed initiatives
+  - "DELAYED" badge displayed prominently
+  - Red progress bars for delayed items
+  - Automatic detection based on end date and status
+
+#### Improvements
+- **Enhanced Initiatives Dashboard** — improved visual design
+  - Colorized status cards with matching backgrounds
+  - Smaller, more compact card layout
+  - Color-coded progress indicators
+  - Better visual hierarchy
+
+- **Task Update Permissions** — fixed admin access issues
+  - Admins now bypass permission checks via direct database lookup
+  - Task requesters can now edit their tasks
+  - Fixed stale session permission errors
+  - Added rejection fields to allowed updates
+
+#### Database Changes
+- New `strategic_objectives` table created
+- `company_objectives.strategicObjectiveId` field added
+- `annual_initiatives.objectiveId` made nullable
+- `initiative_objectives` junction table for many-to-many relationships
+- Existing initiative-objective relationships migrated automatically
+
+---
+
 ## [15.18.0] - 2026-03-01
 
 ### 📊 Financial Reports Enhancements

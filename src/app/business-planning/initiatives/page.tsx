@@ -20,6 +20,25 @@ const statusColors: Record<string, { bg: string; text: string; btn: string }> = 
   'Cancelled': { bg: 'bg-red-100', text: 'text-red-800', btn: 'bg-red-600' },
 };
 
+// Calculate progress based on status (if no milestones)
+const getProgressFromStatus = (status: string): number => {
+  switch (status) {
+    case 'Planned': return 0;
+    case 'In Progress': return 50;
+    case 'On Hold': return 25;
+    case 'Completed': return 100;
+    case 'Cancelled': return 0;
+    default: return 0;
+  }
+};
+
+// Check if initiative is delayed (end date passed and not completed)
+const isDelayed = (initiative: any): boolean => {
+  if (!initiative.endDate) return false;
+  if (initiative.status === 'Completed' || initiative.status === 'Cancelled') return false;
+  return new Date(initiative.endDate) < new Date();
+};
+
 export default function InitiativesPage() {
   const { toast } = useToast();
   const [initiatives, setInitiatives] = useState<any[]>([]);
@@ -205,6 +224,14 @@ export default function InitiativesPage() {
     }
   };
 
+  // Calculate effective progress for an initiative
+  const getEffectiveProgress = (initiative: any): number => {
+    // If progress is manually set and > 0, use it
+    if (initiative.progress > 0) return initiative.progress;
+    // Otherwise derive from status
+    return getProgressFromStatus(initiative.status);
+  };
+
   const filteredInitiatives = filter === 'all' 
     ? initiatives 
     : initiatives.filter(init => init.status === filter);
@@ -246,16 +273,17 @@ export default function InitiativesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         {statuses.map((status) => {
           const count = initiatives.filter(i => i.status === status).length;
+          const colors = statusColors[status];
           return (
-            <Card key={status}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">{status}</CardTitle>
+            <Card key={status} className={`${colors.bg} border-none`}>
+              <CardHeader className="pb-1 pt-3">
+                <CardTitle className={`text-xs font-medium ${colors.text}`}>{status}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{count}</div>
+              <CardContent className="pb-3">
+                <div className={`text-xl font-bold ${colors.text}`}>{count}</div>
               </CardContent>
             </Card>
           );
@@ -334,16 +362,20 @@ export default function InitiativesPage() {
       {/* Card View */}
       {viewMode === 'cards' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredInitiatives.map((initiative) => (
-          <Card key={initiative.id} className="hover:shadow-md transition-shadow">
+          {filteredInitiatives.map((initiative) => {
+            const effectiveProgress = getEffectiveProgress(initiative);
+            const delayed = isDelayed(initiative);
+            return (
+          <Card key={initiative.id} className={`hover:shadow-md transition-shadow ${delayed ? 'border-red-500 border-2 bg-red-50' : ''}`}>
             <CardHeader>
               <div className="flex items-start justify-between mb-2">
                 <Badge className={getStatusColor(initiative.status)}>
                   {initiative.status}
                 </Badge>
                 <div className="text-right">
+                  {delayed && <div className="text-xs text-red-600 font-medium">DELAYED</div>}
                   <div className="text-xs text-muted-foreground">Progress</div>
-                  <div className="text-lg font-bold">{initiative.progress}%</div>
+                  <div className="text-lg font-bold">{effectiveProgress}%</div>
                 </div>
               </div>
               <CardTitle className="text-lg">{initiative.name}</CardTitle>
@@ -354,8 +386,8 @@ export default function InitiativesPage() {
               <div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all"
-                    style={{ width: `${initiative.progress}%` }}
+                    className={`h-2 rounded-full transition-all ${delayed ? 'bg-red-500' : 'bg-blue-500'}`}
+                    style={{ width: `${effectiveProgress}%` }}
                   ></div>
                 </div>
               </div>
@@ -416,7 +448,8 @@ export default function InitiativesPage() {
               </div>
             </CardContent>
           </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -452,9 +485,10 @@ export default function InitiativesPage() {
                         <td className="p-4">
                           <div className="flex items-center gap-2">
                             <div className="w-16 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${initiative.progress}%` }}></div>
+                              <div className={`h-2 rounded-full ${isDelayed(initiative) ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${getEffectiveProgress(initiative)}%` }}></div>
                             </div>
-                            <span className="text-sm">{initiative.progress}%</span>
+                            <span className="text-sm">{getEffectiveProgress(initiative)}%</span>
+                            {isDelayed(initiative) && <span className="text-xs text-red-600 font-medium">DELAYED</span>}
                           </div>
                         </td>
                         <td className="p-4 text-sm">{initiative.owner?.name || '-'}</td>
@@ -494,7 +528,7 @@ export default function InitiativesPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Lightbulb className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4">No initiatives found</p>
-            <Button>
+            <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Create First Initiative
             </Button>
@@ -519,7 +553,7 @@ export default function InitiativesPage() {
               <div>
                 <div className="text-sm text-muted-foreground">Average Progress</div>
                 <div className="text-2xl font-bold">
-                  {Math.round(initiatives.reduce((sum, i) => sum + i.progress, 0) / initiatives.length)}%
+                  {Math.round(initiatives.reduce((sum, i) => sum + getEffectiveProgress(i), 0) / initiatives.length)}%
                 </div>
               </div>
               <div>

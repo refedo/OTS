@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 
-const CURRENT_VERSION = '15.18.0';
-const RELEASE_DATE = 'March 1, 2026';
+const CURRENT_VERSION = '15.18.1';
+const RELEASE_DATE = 'March 5, 2026';
 
 export default function VersionBadge() {
   const router = useRouter();
@@ -49,10 +49,10 @@ export default function VersionBadge() {
           <div className="pt-2 border-t">
             <h5 className="text-xs font-semibold mb-2">Latest Updates</h5>
             <ul className="text-xs space-y-1 text-muted-foreground">
-              <li>• New Expenses by Account report with monthly breakdown</li>
-              <li>• Improved Project Analysis chart visualization</li>
-              <li>• Fixed contract amount to use Lead Amount from Dolibarr</li>
-              <li>• Fixed Excel export and account mapping errors</li>
+              <li>• Strategic Objectives module with 5-7 year planning</li>
+              <li>• Enhanced initiatives with progress tracking & delayed alerts</li>
+              <li>• Fixed task update permissions for admins</li>
+              <li>• Improved initiatives dashboard with colorization</li>
             </ul>
           </div>
 

@@ -184,14 +184,24 @@ export async function PATCH(
   const canEdit = permissions.includes('tasks.edit');
   const isAssignedUser = task.assignedToId === session.sub;
   const isCreator = task.createdById === session.sub;
+  const isRequester = task.requesterId === session.sub;
 
-  if (!canEditAll && !canEdit) {
+  // Check if user is admin directly from database (for cases where session might be stale)
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { isAdmin: true }
+  });
+  const isAdmin = currentUser?.isAdmin === true;
+
+  if (!canEditAll && !canEdit && !isAdmin) {
     return NextResponse.json({ error: 'Forbidden: No permission to edit tasks' }, { status: 403 });
   }
 
-  // If user doesn't have edit_all permission and is not assigned/creator, restrict to status updates only
-  if (!canEditAll && !isAssignedUser && !isCreator) {
-    const allowedFields = ['status', 'approved'];
+  // Admins and users with edit_all can update everything
+  // Assigned users, creators, and requesters can also update their tasks
+  // Others are restricted to status updates only
+  if (!canEditAll && !isAdmin && !isAssignedUser && !isCreator && !isRequester) {
+    const allowedFields = ['status', 'approved', 'rejected', 'rejectionReason'];
     const hasRestrictedFields = Object.keys(parsed.data).some(key => !allowedFields.includes(key));
     if (hasRestrictedFields) {
       return NextResponse.json({ error: 'Forbidden: You can only update status and approval for tasks not assigned to you' }, { status: 403 });

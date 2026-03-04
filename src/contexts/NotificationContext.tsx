@@ -74,8 +74,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshUnreadCount();
     
-    // Poll every 60 seconds (reduced from 30s to minimize server load)
-    const interval = setInterval(refreshUnreadCount, 60000);
+    // Poll every 5 minutes to reduce server load and terminal noise
+    const interval = setInterval(refreshUnreadCount, 300000);
     
     return () => clearInterval(interval);
   }, [refreshUnreadCount]);
