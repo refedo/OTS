@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, FileSpreadsheet } from 'lucide-react';
+import { Download, Loader2, FileSpreadsheet, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -70,9 +71,16 @@ export default function ExpensesByAccountPage() {
     <div className="container mx-auto p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Expenses by Account</h1>
-          <p className="text-sm text-muted-foreground">Monthly breakdown of expenses grouped by accounting account</p>
+        <div className="flex items-center gap-4">
+          <Link href="/financial">
+            <button className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 hover:bg-accent hover:text-accent-foreground">
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            </button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Expenses by Account</h1>
+            <p className="text-sm text-muted-foreground">Monthly breakdown of expenses grouped by accounting account</p>
+          </div>
         </div>
         <div className="flex gap-2 items-center">
           <Select value={year} onValueChange={setYear}>

@@ -113,6 +113,7 @@ model User {
   submittedRevisions DocumentRevision[] @relation("RevisionSubmitter")
   handledRevisions   DocumentRevision[] @relation("RevisionHandler")
   ownedObjectives    CompanyObjective[] @relation("ObjectiveOwner")
+  ownedStrategicObjectives StrategicObjective[] @relation("StrategicObjectiveOwner")
   keyResultProgress  KeyResultProgress[] @relation("KeyResultProgressRecorder")
   ownedBSCKPIs       BalancedScorecardKPI[] @relation("BSCKPIOwner")
   bscKPIMeasurements BSCKPIMeasurement[] @relation("BSCKPIMeasurementRecorder")
@@ -1799,11 +1800,41 @@ model AnnualPlan {
   @@map("annual_plans")
 }
 
+// Strategic Objectives (5-7 Year Mid-Term Goals)
+// Long-term strategic direction that yearly objectives align to
+model StrategicObjective {
+  id                String   @id @default(uuid()) @db.Char(36)
+  title             String
+  description       String?  @db.Text
+  category          String   // Financial | Customer | Internal Process | Learning & Growth
+  startYear         Int      // Start year of the strategic period
+  endYear           Int      // End year of the strategic period (5-7 years)
+  ownerId           String   @db.Char(36)
+  priority          String   @default("Medium") // Low | Medium | High | Critical
+  status            String   @default("Not Started") // Not Started | On Track | At Risk | Behind | Completed
+  progress          Float    @default(0) // 0-100%
+  targetOutcome     String?  @db.Text // What success looks like
+  
+  owner             User       @relation("StrategicObjectiveOwner", fields: [ownerId], references: [id])
+  yearlyObjectives  CompanyObjective[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([startYear])
+  @@index([endYear])
+  @@index([ownerId])
+  @@index([category])
+  @@index([status])
+  @@map("strategic_objectives")
+}
+
 // Company Objectives (OKRs) - TOP LEVEL
 // Objectives define WHAT Hexa Steel must achieve
 model CompanyObjective {
   id                String   @id @default(uuid()) @db.Char(36)
   year              Int      // Year this objective applies to (e.g., 2026)
+  strategicObjectiveId String? @db.Char(36) // Link to strategic objective
   title             String
   description       String?  @db.Text
   category          String   // Financial | Customer | Internal Process | Learning & Growth
@@ -1814,16 +1845,19 @@ model CompanyObjective {
   progress          Float    @default(0) // 0-100%
   quarterlyActions  Json?    // Q1-Q4 action plans: {Q1: [], Q2: [], Q3: [], Q4: []}
   
+  strategicObjective StrategicObjective? @relation(fields: [strategicObjectiveId], references: [id])
   owner             User       @relation("ObjectiveOwner", fields: [ownerId], references: [id])
   keyResults        KeyResult[]
   departmentObjectives DepartmentObjective[]
   initiatives       AnnualInitiative[]
+  initiativeLinks   InitiativeObjective[] @relation("InitiativeObjectives")
   kpis              BalancedScorecardKPI[]
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   
   @@index([year])
+  @@index([strategicObjectiveId])
   @@index([ownerId])
   @@index([category])
   @@index([status])
@@ -1928,7 +1962,7 @@ model BSCKPIMeasurement {
 model AnnualInitiative {
   id                String   @id @default(uuid()) @db.Char(36)
   year              Int      // Year this initiative applies to
-  objectiveId       String   @db.Char(36) // Must link to company objective
+  objectiveId       String?  @db.Char(36) // Primary objective (kept for backward compatibility)
   name              String
   description       String?  @db.Text
   expectedImpact    String?  @db.Text
@@ -1940,7 +1974,8 @@ model AnnualInitiative {
   progress          Float    @default(0) // 0-100%
   budget            Float?   @default(0)
   
-  objective         CompanyObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  objective         CompanyObjective? @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
+  objectives        InitiativeObjective[] // Many-to-many with objectives
   owner             User             @relation("AnnualInitiativeOwner", fields: [ownerId], references: [id])
   department        Department?      @relation("AnnualInitiativeDepartment", fields: [departmentId], references: [id])
   
@@ -1953,6 +1988,24 @@ model AnnualInitiative {
   @@index([departmentId])
   @@index([status])
   @@map("annual_initiatives")
+}
+
+// Many-to-many relationship between Initiatives and Objectives
+model InitiativeObjective {
+  id            String   @id @default(uuid()) @db.Char(36)
+  initiativeId  String   @db.Char(36)
+  objectiveId   String   @db.Char(36)
+  isPrimary     Boolean  @default(false) // Mark primary objective
+  
+  initiative    AnnualInitiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  objective     CompanyObjective @relation("InitiativeObjectives", fields: [objectiveId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([initiativeId, objectiveId])
+  @@index([initiativeId])
+  @@index([objectiveId])
+  @@map("initiative_objectives")
 }
 
 // D. Department Plans (Per Year, Per Department)

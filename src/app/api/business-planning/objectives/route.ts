@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         owner: { select: { id: true, name: true, email: true } },
+        strategicObjective: { select: { id: true, title: true, startYear: true, endYear: true } },
         keyResults: {
           include: {
             progressUpdates: {
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
       description,
       category,
       ownerId,
+      strategicObjectiveId,
       tags,
       priority,
       status,
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
         description,
         category,
         ownerId,
+        strategicObjectiveId: strategicObjectiveId || null,
         tags: tags || [],
         priority: priority || 'Medium',
         status: status || 'Not Started',
@@ -98,6 +101,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         owner: { select: { id: true, name: true, email: true } },
+        strategicObjective: { select: { id: true, title: true } },
         keyResults: true,
       },
     });
@@ -123,6 +127,7 @@ export async function PUT(request: NextRequest) {
       description,
       category,
       ownerId,
+      strategicObjectiveId,
       tags,
       priority,
       status,
@@ -152,6 +157,7 @@ export async function PUT(request: NextRequest) {
         description,
         category,
         ownerId,
+        strategicObjectiveId: strategicObjectiveId !== undefined ? (strategicObjectiveId || null) : undefined,
         tags: tags || [],
         priority,
         status,
@@ -172,6 +178,7 @@ export async function PUT(request: NextRequest) {
       },
       include: {
         owner: { select: { id: true, name: true, email: true } },
+        strategicObjective: { select: { id: true, title: true } },
         keyResults: true,
       },
     });

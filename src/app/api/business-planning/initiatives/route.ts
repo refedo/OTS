@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      title,
+      name,
       description,
       objectiveId,
       year,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const initiative = await prisma.annualInitiative.create({
       data: {
-        title,
+        name,
         description,
         objectiveId,
         year: year || new Date().getFullYear(),
@@ -72,6 +72,80 @@ export async function POST(request: NextRequest) {
     console.error('Error creating initiative:', error);
     return NextResponse.json(
       { error: 'Failed to create initiative' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Update Initiative
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Initiative ID required' }, { status: 400 });
+    }
+
+    const {
+      name,
+      description,
+      objectiveId,
+      year,
+      startDate,
+      endDate,
+      budget,
+      ownerId,
+      status,
+    } = body;
+
+    const initiative = await prisma.annualInitiative.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        objectiveId,
+        year,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        budget: budget ? parseFloat(budget) : null,
+        ownerId,
+        status,
+      },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        objective: { select: { id: true, title: true } },
+      },
+    });
+
+    return NextResponse.json(initiative);
+  } catch (error) {
+    console.error('Error updating initiative:', error);
+    return NextResponse.json(
+      { error: 'Failed to update initiative' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete Initiative
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Initiative ID required' }, { status: 400 });
+    }
+
+    await prisma.annualInitiative.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting initiative:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete initiative' },
       { status: 500 }
     );
   }

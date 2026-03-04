@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Lightbulb, Plus, Calendar, DollarSign, User, X } from 'lucide-react';
+import { Lightbulb, Plus, Calendar, DollarSign, User, X, Edit, Trash2, LayoutGrid, List } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,17 +12,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
+const statusColors: Record<string, { bg: string; text: string; btn: string }> = {
+  'Planned': { bg: 'bg-slate-100', text: 'text-slate-800', btn: 'bg-slate-500' },
+  'In Progress': { bg: 'bg-blue-100', text: 'text-blue-800', btn: 'bg-blue-600' },
+  'On Hold': { bg: 'bg-amber-100', text: 'text-amber-800', btn: 'bg-amber-500' },
+  'Completed': { bg: 'bg-emerald-100', text: 'text-emerald-800', btn: 'bg-emerald-600' },
+  'Cancelled': { bg: 'bg-red-100', text: 'text-red-800', btn: 'bg-red-600' },
+};
+
 export default function InitiativesPage() {
   const { toast } = useToast();
   const [initiatives, setInitiatives] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedInitiative, setSelectedInitiative] = useState<any>(null);
   const [objectives, setObjectives] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
-    title: '',
+    name: '',
     description: '',
     objectiveId: '',
     year: new Date().getFullYear(),
@@ -72,10 +84,10 @@ export default function InitiativesPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.objectiveId || !formData.ownerId) {
+    if (!formData.name || !formData.objectiveId || !formData.ownerId) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required fields (Title, Objective, Owner)',
+        description: 'Please fill in all required fields (Name, Objective, Owner)',
         variant: 'destructive',
       });
       return;
@@ -83,47 +95,103 @@ export default function InitiativesPage() {
 
     setSaving(true);
     try {
-      const res = await fetch('/api/business-planning/initiatives', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          budget: formData.budget ? parseFloat(formData.budget) : null,
-          startDate: formData.startDate || null,
-          endDate: formData.endDate || null,
-        }),
-      });
+      const payload = {
+        ...formData,
+        budget: formData.budget ? parseFloat(formData.budget) : null,
+        startDate: formData.startDate || null,
+        endDate: formData.endDate || null,
+      };
+
+      const res = selectedInitiative
+        ? await fetch(`/api/business-planning/initiatives?id=${selectedInitiative.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+        : await fetch('/api/business-planning/initiatives', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
 
       if (res.ok) {
         toast({
           title: 'Success',
-          description: 'Initiative created successfully',
+          description: selectedInitiative ? 'Initiative updated successfully' : 'Initiative created successfully',
         });
         setDialogOpen(false);
-        setFormData({
-          title: '',
-          description: '',
-          objectiveId: '',
-          year: new Date().getFullYear(),
-          startDate: '',
-          endDate: '',
-          budget: '',
-          ownerId: '',
-          status: 'Planned',
-        });
+        resetForm();
         fetchInitiatives();
       } else {
-        throw new Error('Failed to create initiative');
+        throw new Error('Failed to save initiative');
       }
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create initiative',
+        description: 'Failed to save initiative',
         variant: 'destructive',
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedInitiative) return;
+    try {
+      const res = await fetch(`/api/business-planning/initiatives?id=${selectedInitiative.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast({ title: 'Success', description: 'Initiative deleted successfully' });
+        setDeleteOpen(false);
+        setSelectedInitiative(null);
+        fetchInitiatives();
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete initiative', variant: 'destructive' });
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      objectiveId: '',
+      year: new Date().getFullYear(),
+      startDate: '',
+      endDate: '',
+      budget: '',
+      ownerId: '',
+      status: 'Planned',
+    });
+    setSelectedInitiative(null);
+  };
+
+  const openEdit = (initiative: any) => {
+    setSelectedInitiative(initiative);
+    setFormData({
+      name: initiative.name || '',
+      description: initiative.description || '',
+      objectiveId: initiative.objectiveId || '',
+      year: initiative.year || new Date().getFullYear(),
+      startDate: initiative.startDate ? initiative.startDate.split('T')[0] : '',
+      endDate: initiative.endDate ? initiative.endDate.split('T')[0] : '',
+      budget: initiative.budget?.toString() || '',
+      ownerId: initiative.ownerId || '',
+      status: initiative.status || 'Planned',
+    });
+    setDialogOpen(true);
+  };
+
+  const openDetails = (initiative: any) => {
+    setSelectedInitiative(initiative);
+    setDetailsOpen(true);
+  };
+
+  const openDelete = (initiative: any) => {
+    setSelectedInitiative(initiative);
+    setDeleteOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -171,7 +239,7 @@ export default function InitiativesPage() {
             Major projects and initiatives aligned with company objectives
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
           New Initiative
         </Button>
@@ -194,30 +262,79 @@ export default function InitiativesPage() {
         })}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          variant={filter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('all')}
-        >
-          All Initiatives
-        </Button>
-        {statuses.map((status) => (
+      {/* Filters & View Toggle */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
           <Button
-            key={status}
-            variant={filter === status ? 'default' : 'outline'}
+            variant={filter === 'all' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter(status)}
+            onClick={() => setFilter('all')}
           >
-            {status}
+            All Initiatives
           </Button>
-        ))}
+          <Button
+            variant={filter === 'Planned' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('Planned')}
+            className={filter === 'Planned' ? 'bg-slate-600 hover:bg-slate-700' : ''}
+          >
+            Planned
+          </Button>
+          <Button
+            variant={filter === 'In Progress' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('In Progress')}
+            className={filter === 'In Progress' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+          >
+            In Progress
+          </Button>
+          <Button
+            variant={filter === 'On Hold' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('On Hold')}
+            className={filter === 'On Hold' ? 'bg-amber-500 hover:bg-amber-600' : ''}
+          >
+            On Hold
+          </Button>
+          <Button
+            variant={filter === 'Completed' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('Completed')}
+            className={filter === 'Completed' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+          >
+            Completed
+          </Button>
+          <Button
+            variant={filter === 'Cancelled' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('Cancelled')}
+            className={filter === 'Cancelled' ? 'bg-red-600 hover:bg-red-700' : ''}
+          >
+            Cancelled
+          </Button>
+        </div>
+        <div className="flex gap-1 border rounded-md p-1">
+          <Button
+            variant={viewMode === 'cards' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('cards')}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Initiatives Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredInitiatives.map((initiative) => (
+      {/* Card View */}
+      {viewMode === 'cards' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredInitiatives.map((initiative) => (
           <Card key={initiative.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between mb-2">
@@ -257,7 +374,7 @@ export default function InitiativesPage() {
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Budget:</span>
-                    <span className="font-medium">${initiative.budget.toLocaleString()}</span>
+                    <span className="font-medium">SAR {initiative.budget.toLocaleString()}</span>
                   </div>
                 )}
                 {initiative.owner && (
@@ -286,15 +403,91 @@ export default function InitiativesPage() {
               </div>
 
               {/* Actions */}
-              <div className="pt-2 border-t">
-                <Button variant="ghost" size="sm" className="w-full">
+              <div className="pt-2 border-t flex gap-2">
+                <Button variant="ghost" size="sm" className="flex-1" onClick={() => openDetails(initiative)}>
                   View Details
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => openEdit(initiative)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => openDelete(initiative)}>
+                  <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Table View */}
+      {viewMode === 'table' && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-4 font-medium">Name</th>
+                    <th className="text-left p-4 font-medium">Status</th>
+                    <th className="text-left p-4 font-medium">Progress</th>
+                    <th className="text-left p-4 font-medium">Owner</th>
+                    <th className="text-left p-4 font-medium">Timeline</th>
+                    <th className="text-left p-4 font-medium">Budget</th>
+                    <th className="text-right p-4 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredInitiatives.map((initiative) => {
+                    const colors = statusColors[initiative.status];
+                    return (
+                      <tr key={initiative.id} className="border-t hover:bg-muted/30">
+                        <td className="p-4">
+                          <div className="font-medium">{initiative.name}</div>
+                          <div className="text-xs text-muted-foreground line-clamp-1">{initiative.description}</div>
+                        </td>
+                        <td className="p-4">
+                          <Badge className={`${colors.bg} ${colors.text}`}>{initiative.status}</Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-2">
+                              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${initiative.progress}%` }}></div>
+                            </div>
+                            <span className="text-sm">{initiative.progress}%</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-sm">{initiative.owner?.name || '-'}</td>
+                        <td className="p-4 text-sm">
+                          {initiative.startDate && initiative.endDate
+                            ? `${new Date(initiative.startDate).toLocaleDateString()} - ${new Date(initiative.endDate).toLocaleDateString()}`
+                            : '-'}
+                        </td>
+                        <td className="p-4 text-sm">
+                          {initiative.budget ? `SAR ${initiative.budget.toLocaleString()}` : '-'}
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Button variant="ghost" size="sm" onClick={() => openDetails(initiative)}>
+                              View
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(initiative)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => openDelete(initiative)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {filteredInitiatives.length === 0 && (
         <Card className="border-dashed">
@@ -320,7 +513,7 @@ export default function InitiativesPage() {
               <div>
                 <div className="text-sm text-muted-foreground">Total Budget</div>
                 <div className="text-2xl font-bold">
-                  ${initiatives.reduce((sum, i) => sum + (i.budget || 0), 0).toLocaleString()}
+                  SAR {initiatives.reduce((sum, i) => sum + (i.budget || 0), 0).toLocaleString()}
                 </div>
               </div>
               <div>
@@ -356,8 +549,8 @@ export default function InitiativesPage() {
               <Label htmlFor="title">Initiative Title *</Label>
               <Input
                 id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Launch New Product Line"
               />
             </div>
@@ -503,7 +696,90 @@ export default function InitiativesPage() {
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={saving}>
-              {saving ? 'Creating...' : 'Create Initiative'}
+              {saving ? 'Saving...' : selectedInitiative ? 'Update Initiative' : 'Create Initiative'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">{selectedInitiative?.name}</DialogTitle>
+            <DialogDescription>Initiative Details</DialogDescription>
+          </DialogHeader>
+          {selectedInitiative && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Badge className={`${getStatusColor(selectedInitiative.status)} text-sm px-3 py-1`}>
+                  {selectedInitiative.status}
+                </Badge>
+                <span className="text-muted-foreground">Year: {selectedInitiative.year}</span>
+              </div>
+              
+              {selectedInitiative.description && (
+                <div>
+                  <h4 className="font-medium mb-2">Description</h4>
+                  <p className="text-muted-foreground">{selectedInitiative.description}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium mb-1 text-sm text-muted-foreground">Owner</h4>
+                  <p>{selectedInitiative.owner?.name || '-'}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-1 text-sm text-muted-foreground">Budget</h4>
+                  <p>{selectedInitiative.budget ? `SAR ${selectedInitiative.budget.toLocaleString()}` : '-'}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-1 text-sm text-muted-foreground">Start Date</h4>
+                  <p>{selectedInitiative.startDate ? new Date(selectedInitiative.startDate).toLocaleDateString() : '-'}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-1 text-sm text-muted-foreground">End Date</h4>
+                  <p>{selectedInitiative.endDate ? new Date(selectedInitiative.endDate).toLocaleDateString() : '-'}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-1 text-sm text-muted-foreground">Progress</h4>
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${selectedInitiative.progress}%` }}></div>
+                    </div>
+                    <span>{selectedInitiative.progress}%</span>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-1 text-sm text-muted-foreground">Aligned Objective</h4>
+                  <p>{selectedInitiative.objective?.title || '-'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>Close</Button>
+            <Button onClick={() => { setDetailsOpen(false); openEdit(selectedInitiative); }}>
+              <Edit className="h-4 w-4 mr-2" /> Edit
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Initiative</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{selectedInitiative?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4 mr-2" /> Delete
             </Button>
           </div>
         </DialogContent>

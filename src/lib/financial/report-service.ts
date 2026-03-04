@@ -821,9 +821,10 @@ export class FinancialReportService {
   async getStatementOfAccount(thirdpartyId: number, type: 'ar' | 'ap', fromDate: string, toDate: string): Promise<any> {
     const table = type === 'ar' ? 'fin_customer_invoices' : 'fin_supplier_invoices';
 
+    const refSupplierCol = type === 'ap' ? ', inv.ref_supplier' : '';
     const invoices: any[] = await prisma.$queryRawUnsafe(`
       SELECT inv.dolibarr_id, inv.ref, inv.total_ht, inv.total_tva, inv.total_ttc,
-             inv.date_invoice, inv.date_due, inv.is_paid, inv.type,
+             inv.date_invoice, inv.date_due, inv.is_paid, inv.type${refSupplierCol},
              COALESCE(dt.name, CONCAT('Third Party #', inv.socid)) as thirdparty_name
       FROM ${table} inv
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = inv.socid
@@ -867,6 +868,7 @@ export class FinancialReportService {
       lines.push({
         date: inv.date_invoice ? new Date(inv.date_invoice).toISOString().slice(0, 10) : '',
         ref: inv.ref,
+        refSupplier: type === 'ap' ? (inv.ref_supplier || null) : null,
         type: inv.type === 2 ? 'Credit Note' : 'Invoice',
         debit: type === 'ar' ? totalTtc : 0,
         credit: type === 'ar' ? 0 : totalTtc,

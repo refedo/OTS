@@ -5,12 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowUpDown, ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Loader2, ArrowUpDown, ArrowLeft, TrendingUp, TrendingDown, X } from 'lucide-react';
 import Link from 'next/link';
 
 function formatSAR(amount: number): string {
   return new Intl.NumberFormat('en-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 2 }).format(amount);
 }
+
+type DrilldownType = 'in' | 'out' | null;
 
 export default function MonthlyCashFlowPage() {
   const [report, setReport] = useState<any>(null);
@@ -18,6 +21,13 @@ export default function MonthlyCashFlowPage() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear.toString());
   const yearOptions = Array.from({ length: 10 }, (_, i) => currentYear - i);
+  
+  // Drill-down modal state
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [drilldownMonth, setDrilldownMonth] = useState<number | null>(null);
+  const [drilldownType, setDrilldownType] = useState<DrilldownType>(null);
+  const [drilldownData, setDrilldownData] = useState<any>(null);
+  const [drilldownLoading, setDrilldownLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -27,6 +37,31 @@ export default function MonthlyCashFlowPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [year]);
+
+  const openDrilldown = async (month: number, type: DrilldownType) => {
+    if (!type) return;
+    setDrilldownMonth(month);
+    setDrilldownType(type);
+    setDrilldownOpen(true);
+    setDrilldownLoading(true);
+    setDrilldownData(null);
+    
+    try {
+      const res = await fetch(`/api/financial/reports/cash-flow/details?year=${year}&month=${month}&type=${type}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDrilldownData(data);
+      }
+    } catch (e) {
+      console.error('Failed to load drill-down:', e);
+    } finally {
+      setDrilldownLoading(false);
+    }
+  };
+
+  const getMonthName = (month: number) => {
+    return new Date(parseInt(year), month - 1, 1).toLocaleString('en', { month: 'long' });
+  };
 
   if (loading) {
     return (
@@ -109,8 +144,24 @@ export default function MonthlyCashFlowPage() {
                     {report.months.map((m: any) => (
                       <tr key={m.month} className="border-b hover:bg-muted/30">
                         <td className="p-3 font-medium">{m.monthName} {year}</td>
-                        <td className="p-3 text-right text-green-600">{formatSAR(m.cashIn)}</td>
-                        <td className="p-3 text-right text-red-600">{formatSAR(m.cashOut)}</td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => m.cashIn > 0 && openDrilldown(m.month, 'in')}
+                            className={`text-green-600 ${m.cashIn > 0 ? 'hover:underline cursor-pointer font-medium' : ''}`}
+                            disabled={m.cashIn === 0}
+                          >
+                            {formatSAR(m.cashIn)}
+                          </button>
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => m.cashOut > 0 && openDrilldown(m.month, 'out')}
+                            className={`text-red-600 ${m.cashOut > 0 ? 'hover:underline cursor-pointer font-medium' : ''}`}
+                            disabled={m.cashOut === 0}
+                          >
+                            {formatSAR(m.cashOut)}
+                          </button>
+                        </td>
                         <td className={`p-3 text-right font-semibold ${m.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {formatSAR(m.net)}
                         </td>
@@ -131,6 +182,79 @@ export default function MonthlyCashFlowPage() {
           </Card>
         </>
       )}
+
+      {/* Drill-down Modal */}
+      <Dialog open={drilldownOpen} onOpenChange={setDrilldownOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {drilldownType === 'in' ? (
+                <TrendingUp className="h-5 w-5 text-green-500" />
+              ) : (
+                <TrendingDown className="h-5 w-5 text-red-500" />
+              )}
+              {drilldownType === 'in' ? 'Cash In' : 'Cash Out'} — {drilldownMonth && getMonthName(drilldownMonth)} {year}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {drilldownLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : drilldownData ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{drilldownData.count} payments</span>
+                <span className={`font-bold ${drilldownType === 'in' ? 'text-green-600' : 'text-red-600'}`}>
+                  Total: {formatSAR(drilldownData.total)}
+                </span>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-2">Date</th>
+                      <th className="text-left p-2">{drilldownType === 'in' ? 'Customer' : 'Supplier'}</th>
+                      <th className="text-left p-2">Invoice</th>
+                      <th className="text-left p-2">Payment Ref</th>
+                      <th className="text-left p-2">Method</th>
+                      <th className="text-right p-2">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {drilldownData.payments.map((p: any, idx: number) => (
+                      <tr key={p.id || idx} className="border-b hover:bg-muted/30">
+                        <td className="p-2">{p.date}</td>
+                        <td className="p-2 max-w-[200px] truncate" title={p.thirdpartyName}>{p.thirdpartyName}</td>
+                        <td className="p-2 font-mono text-xs">{p.invoiceRef}</td>
+                        <td className="p-2 font-mono text-xs">{p.paymentRef || '—'}</td>
+                        <td className="p-2">
+                          {p.method && <Badge variant="outline" className="text-xs">{p.method}</Badge>}
+                        </td>
+                        <td className={`p-2 text-right font-mono ${drilldownType === 'in' ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatSAR(p.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                    {drilldownData.payments.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          No payments found for this period
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              Failed to load payment details
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

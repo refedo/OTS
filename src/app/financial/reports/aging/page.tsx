@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Clock, Printer, ChevronDown, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Loader2, Clock, Printer, ChevronDown, ChevronRight, ArrowLeft, Search } from 'lucide-react';
 import Link from 'next/link';
 
 function fmt(n: number): string {
@@ -22,6 +22,7 @@ export default function AgingReportPage() {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [search, setSearch] = useState('');
 
   const generate = async () => {
     setLoading(true);
@@ -38,6 +39,11 @@ export default function AgingReportPage() {
     if (next.has(id)) next.delete(id); else next.add(id);
     setExpanded(next);
   };
+
+  const filteredRows = report?.rows?.filter((row: any) =>
+    !search || row.thirdpartyName?.toLowerCase().includes(search.toLowerCase()) ||
+    row.invoices?.some((inv: any) => inv.ref?.toLowerCase().includes(search.toLowerCase()))
+  ) || [];
 
   return (
     <div className="space-y-6">
@@ -79,6 +85,17 @@ export default function AgingReportPage() {
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
               Generate
             </Button>
+            {report && (
+              <div className="relative">
+                <Input
+                  placeholder="Search by name or invoice..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-[250px] pl-8"
+                />
+                <Search className="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -105,7 +122,7 @@ export default function AgingReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {report.rows.map((row: any, idx: number) => (
+                  {filteredRows.map((row: any, idx: number) => (
                     <React.Fragment key={`tp-${row.thirdpartyId}-${idx}`}>
                       <tr className="border-b hover:bg-muted/30 cursor-pointer"
                         onClick={() => toggleExpand(row.thirdpartyId)}>
@@ -144,7 +161,7 @@ export default function AgingReportPage() {
                       ))}
                     </React.Fragment>
                   ))}
-                  {report.rows.length === 0 && (
+                  {filteredRows.length === 0 && (
                     <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No outstanding invoices found</td></tr>
                   )}
                 </tbody>

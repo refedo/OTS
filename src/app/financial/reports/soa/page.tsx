@@ -114,16 +114,26 @@ async function exportToPDF(report: any, type: 'ar' | 'ap', fromDate: string, toD
   y += 20;
 
   // ---- TRANSACTION TABLE ----
-  const tableHeaders = ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)'];
-  const tableRows = report.lines.map((line: any, i: number) => [
-    String(i + 1),
-    line.date || '',
-    line.ref || '',
-    line.type || '',
-    line.debit > 0 ? fmtNum(line.debit) : '',
-    line.credit > 0 ? fmtNum(line.credit) : '',
-    fmtNum(line.balance),
-  ]);
+  const tableHeaders = type === 'ap' 
+    ? ['#', 'Date', 'Reference', 'Supplier Ref', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)']
+    : ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)'];
+  const tableRows = report.lines.map((line: any, i: number) => {
+    const baseRow = [
+      String(i + 1),
+      line.date || '',
+      line.ref || '',
+    ];
+    if (type === 'ap') {
+      baseRow.push(line.refSupplier || '');
+    }
+    baseRow.push(
+      line.type || '',
+      line.debit > 0 ? fmtNum(line.debit) : '',
+      line.credit > 0 ? fmtNum(line.credit) : '',
+      fmtNum(line.balance)
+    );
+    return baseRow;
+  });
 
   autoTable(doc, {
     head: [tableHeaders],
@@ -227,21 +237,29 @@ async function exportToExcel(report: any, type: 'ar' | 'ap', fromDate: string, t
   ];
 
   // Table header
-  const tableHeader = ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)'];
-  const tableRows = report.lines.map((line: any, i: number) => [
-    i + 1,
-    line.date || '',
-    line.ref || '',
-    line.type || '',
-    line.debit > 0 ? line.debit : '',
-    line.credit > 0 ? line.credit : '',
-    line.balance,
-  ]);
+  const tableHeader = type === 'ap'
+    ? ['#', 'Date', 'Reference', 'Supplier Ref', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)']
+    : ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)'];
+  const tableRows = report.lines.map((line: any, i: number) => {
+    const baseRow: any[] = [i + 1, line.date || '', line.ref || ''];
+    if (type === 'ap') {
+      baseRow.push(line.refSupplier || '');
+    }
+    baseRow.push(
+      line.type || '',
+      line.debit > 0 ? line.debit : '',
+      line.credit > 0 ? line.credit : '',
+      line.balance
+    );
+    return baseRow;
+  });
 
   // Totals row
   const totalDebit = report.lines.reduce((s: number, l: any) => s + (l.debit || 0), 0);
   const totalCredit = report.lines.reduce((s: number, l: any) => s + (l.credit || 0), 0);
-  const totalsRow = ['', '', '', 'TOTALS', totalDebit, totalCredit, report.balance];
+  const totalsRow = type === 'ap'
+    ? ['', '', '', '', 'TOTALS', totalDebit, totalCredit, report.balance]
+    : ['', '', '', 'TOTALS', totalDebit, totalCredit, report.balance];
 
   const allRows = [...headerRows, tableHeader, ...tableRows, [], totalsRow];
   const ws = XLSX.utils.aoa_to_sheet(allRows);
@@ -437,6 +455,7 @@ export default function SOAReportPage() {
                     <tr className="border-b bg-muted/50">
                       <th className="text-left p-3">Date</th>
                       <th className="text-left p-3">Reference</th>
+                      {type === 'ap' && <th className="text-left p-3">Supplier Ref</th>}
                       <th className="text-left p-3">Type</th>
                       <th className="text-right p-3">Debit</th>
                       <th className="text-right p-3">Credit</th>
@@ -448,6 +467,9 @@ export default function SOAReportPage() {
                       <tr key={i} className={`border-b ${line.type === 'Payment' ? 'bg-green-50 dark:bg-green-950/20' : ''}`}>
                         <td className="p-3">{line.date}</td>
                         <td className="p-3 font-mono text-xs">{line.ref}</td>
+                        {type === 'ap' && (
+                          <td className="p-3 font-mono text-xs text-muted-foreground">{line.refSupplier || '—'}</td>
+                        )}
                         <td className="p-3">
                           <Badge variant={line.type === 'Payment' ? 'default' : line.type === 'Credit Note' ? 'secondary' : 'outline'}>
                             {line.type}

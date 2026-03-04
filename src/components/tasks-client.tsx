@@ -142,7 +142,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
     buildingId: '',
     departmentId: '',
     priority: 'Medium',
-    status: 'Pending',
+    status: 'In Progress',
     taskInputDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     releaseDate: '',
@@ -828,10 +828,23 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
 
     setUpdating(true);
     try {
+      // Convert empty strings to null for optional UUID fields
+      const payload = {
+        ...editData,
+        assignedToId: editData.assignedToId || null,
+        requesterId: editData.requesterId || null,
+        projectId: editData.projectId || null,
+        buildingId: editData.buildingId || null,
+        departmentId: editData.departmentId || null,
+        taskInputDate: editData.taskInputDate || null,
+        releaseDate: editData.releaseDate || null,
+        remark: editData.remark || null,
+        revision: editData.revision || null,
+      };
       const response = await fetch(`/api/tasks/${editingTaskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
