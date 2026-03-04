@@ -41,12 +41,16 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        initiatives: {
-          select: {
-            id: true,
-            name: true,
-            progress: true,
-            status: true,
+        initiativeLinks: {
+          include: {
+            initiative: {
+              select: {
+                id: true,
+                name: true,
+                progress: true,
+                status: true,
+              },
+            },
           },
         },
         _count: {
@@ -61,8 +65,8 @@ export async function GET(request: NextRequest) {
       orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
     });
 
-    // Calculate objective progress from Key Results
-    const objectivesWithProgress = objectives.map(obj => {
+    // Calculate objective progress from Key Results and transform initiatives
+    const objectivesWithProgress = objectives.map((obj: any) => {
       let calculatedProgress = obj.progress; // Default to stored progress
       
       // If there are key results, calculate progress from them
@@ -80,9 +84,13 @@ export async function GET(request: NextRequest) {
         calculatedProgress = Math.round(totalProgress / obj.keyResults.length);
       }
       
+      // Transform initiativeLinks to initiatives array
+      const initiatives = obj.initiativeLinks?.map((link: any) => link.initiative) || [];
+      
       return {
         ...obj,
         progress: calculatedProgress,
+        initiatives, // Replace initiativeLinks with flattened initiatives
       };
     });
 
