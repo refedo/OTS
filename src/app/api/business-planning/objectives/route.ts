@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         _count: {
           select: {
             keyResults: true,
-            initiatives: true,
+            initiativeLinks: true,
             departmentObjectives: true,
             kpis: true,
           },
@@ -91,6 +91,10 @@ export async function GET(request: NextRequest) {
         ...obj,
         progress: calculatedProgress,
         initiatives, // Replace initiativeLinks with flattened initiatives
+        _count: {
+          ...obj._count,
+          initiatives: initiatives.length, // Fix count to match actual initiatives
+        },
       };
     });
 

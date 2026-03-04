@@ -59,6 +59,7 @@ import { useNotifications } from '@/contexts/NotificationContext';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { UserMenu } from '@/components/user-menu';
 import { hasAccessToRoute, hasAccessToSection, NAVIGATION_PERMISSIONS } from '@/lib/navigation-permissions';
+import { useVersion } from '@/hooks/use-version';
 
 type NavigationItem = {
   name: string;
@@ -653,7 +654,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="mt-auto p-4 border-t">
                 <p className="text-xs text-muted-foreground text-center">
-                  Hexa Steel® OTS v15.17.0
+                  Hexa Steel® OTS v{version}
                 </p>
               </div>
             )}
