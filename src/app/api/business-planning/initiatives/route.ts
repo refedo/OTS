@@ -19,6 +19,11 @@ export async function GET(request: NextRequest) {
       include: {
         owner: { select: { id: true, name: true, email: true } },
         objective: { select: { id: true, title: true } },
+        objectives: {
+          include: {
+            objective: { select: { id: true, title: true, category: true } },
+          },
+        },
       },
       orderBy: [{ year: 'desc' }, { startDate: 'asc' }],
     });
@@ -41,6 +46,7 @@ export async function POST(request: NextRequest) {
       name,
       description,
       objectiveId,
+      objectiveIds,
       year,
       startDate,
       endDate,
@@ -49,11 +55,14 @@ export async function POST(request: NextRequest) {
       status,
     } = body;
 
+    // Use first objectiveId for backward compatibility
+    const primaryObjectiveId = objectiveIds?.length > 0 ? objectiveIds[0] : objectiveId;
+
     const initiative = await prisma.annualInitiative.create({
       data: {
         name,
         description,
-        objectiveId,
+        objectiveId: primaryObjectiveId || null,
         year: year || new Date().getFullYear(),
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
@@ -61,13 +70,36 @@ export async function POST(request: NextRequest) {
         ownerId,
         status: status || 'Planned',
       },
+    });
+
+    // Create junction table entries for all objectives
+    const allObjectiveIds = objectiveIds?.length > 0 ? objectiveIds : (objectiveId ? [objectiveId] : []);
+    if (allObjectiveIds.length > 0) {
+      await prisma.initiativeObjective.createMany({
+        data: allObjectiveIds.map((objId: string, index: number) => ({
+          initiativeId: initiative.id,
+          objectiveId: objId,
+          isPrimary: index === 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Fetch the complete initiative with relations
+    const result = await prisma.annualInitiative.findUnique({
+      where: { id: initiative.id },
       include: {
         owner: { select: { id: true, name: true, email: true } },
         objective: { select: { id: true, title: true } },
+        objectives: {
+          include: {
+            objective: { select: { id: true, title: true, category: true } },
+          },
+        },
       },
     });
 
-    return NextResponse.json(initiative, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('Error creating initiative:', error);
     return NextResponse.json(
@@ -92,6 +124,7 @@ export async function PUT(request: NextRequest) {
       name,
       description,
       objectiveId,
+      objectiveIds,
       year,
       startDate,
       endDate,
@@ -100,12 +133,15 @@ export async function PUT(request: NextRequest) {
       status,
     } = body;
 
-    const initiative = await prisma.annualInitiative.update({
+    // Use first objectiveId for backward compatibility
+    const primaryObjectiveId = objectiveIds?.length > 0 ? objectiveIds[0] : objectiveId;
+
+    await prisma.annualInitiative.update({
       where: { id },
       data: {
         name,
         description,
-        objectiveId,
+        objectiveId: primaryObjectiveId || null,
         year,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
@@ -113,13 +149,37 @@ export async function PUT(request: NextRequest) {
         ownerId,
         status,
       },
+    });
+
+    // Sync junction table: delete old entries and create new ones
+    const allObjectiveIds = objectiveIds?.length > 0 ? objectiveIds : (objectiveId ? [objectiveId] : []);
+    await prisma.initiativeObjective.deleteMany({ where: { initiativeId: id } });
+    if (allObjectiveIds.length > 0) {
+      await prisma.initiativeObjective.createMany({
+        data: allObjectiveIds.map((objId: string, index: number) => ({
+          initiativeId: id,
+          objectiveId: objId,
+          isPrimary: index === 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Fetch the complete initiative with relations
+    const result = await prisma.annualInitiative.findUnique({
+      where: { id },
       include: {
         owner: { select: { id: true, name: true, email: true } },
         objective: { select: { id: true, title: true } },
+        objectives: {
+          include: {
+            objective: { select: { id: true, title: true, category: true } },
+          },
+        },
       },
     });
 
-    return NextResponse.json(initiative);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error updating initiative:', error);
     return NextResponse.json(

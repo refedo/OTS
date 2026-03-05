@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Lightbulb, Plus, Calendar, DollarSign, User, X, Edit, Trash2, LayoutGrid, List } from 'lucide-react';
+import { Lightbulb, Plus, Calendar, DollarSign, User, X, Edit, Trash2, LayoutGrid, List, Target, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +56,7 @@ export default function InitiativesPage() {
     name: '',
     description: '',
     objectiveId: '',
+    objectiveIds: [] as string[],
     year: new Date().getFullYear(),
     startDate: '',
     endDate: '',
@@ -103,10 +104,10 @@ export default function InitiativesPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.objectiveId || !formData.ownerId) {
+    if (!formData.name || (formData.objectiveIds.length === 0 && !formData.objectiveId) || !formData.ownerId) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required fields (Name, Objective, Owner)',
+        description: 'Please fill in all required fields (Name, at least one Objective, Owner)',
         variant: 'destructive',
       });
       return;
@@ -116,6 +117,8 @@ export default function InitiativesPage() {
     try {
       const payload = {
         ...formData,
+        objectiveId: formData.objectiveIds.length > 0 ? formData.objectiveIds[0] : formData.objectiveId,
+        objectiveIds: formData.objectiveIds.length > 0 ? formData.objectiveIds : (formData.objectiveId ? [formData.objectiveId] : []),
         budget: formData.budget ? parseFloat(formData.budget) : null,
         startDate: formData.startDate || null,
         endDate: formData.endDate || null,
@@ -177,6 +180,7 @@ export default function InitiativesPage() {
       name: '',
       description: '',
       objectiveId: '',
+      objectiveIds: [],
       year: new Date().getFullYear(),
       startDate: '',
       endDate: '',
@@ -189,10 +193,15 @@ export default function InitiativesPage() {
 
   const openEdit = (initiative: any) => {
     setSelectedInitiative(initiative);
+    // Get objective IDs from both direct and many-to-many relationships
+    const linkedIds = initiative.objectives?.map((link: any) => link.objectiveId) || [];
+    const allIds = initiative.objectiveId ? [initiative.objectiveId, ...linkedIds] : linkedIds;
+    const uniqueIds = [...new Set(allIds)];
     setFormData({
       name: initiative.name || '',
       description: initiative.description || '',
       objectiveId: initiative.objectiveId || '',
+      objectiveIds: uniqueIds.length > 0 ? uniqueIds : (initiative.objectiveId ? [initiative.objectiveId] : []),
       year: initiative.year || new Date().getFullYear(),
       startDate: initiative.startDate ? initiative.startDate.split('T')[0] : '',
       endDate: initiative.endDate ? initiative.endDate.split('T')[0] : '',
@@ -432,6 +441,20 @@ export default function InitiativesPage() {
                     </span>
                   </div>
                 )}
+                {(initiative.objectives?.length > 0 || initiative.objective) && (
+                  <div className="flex items-start gap-2">
+                    <Target className="h-3 w-3 text-muted-foreground mt-0.5" />
+                    <span className="text-muted-foreground">Objective{initiative.objectives?.length > 1 ? 's' : ''}:</span>
+                    <div className="flex-1">
+                      {initiative.objectives?.length > 0
+                        ? initiative.objectives.map((link: any) => (
+                            <span key={link.objective?.id || link.id} className="font-medium block">{link.objective?.title}</span>
+                          ))
+                        : <span className="font-medium">{initiative.objective?.title}</span>
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
@@ -646,25 +669,41 @@ export default function InitiativesPage() {
               </div>
             </div>
 
-            {/* Objective */}
+            {/* Objectives (Multi-select) */}
             <div className="space-y-2">
-              <Label htmlFor="objective">Aligned Objective *</Label>
-              <Select
-                value={formData.objectiveId || "none"}
-                onValueChange={(value) => setFormData({ ...formData, objectiveId: value === "none" ? "" : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select objective" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Select objective...</SelectItem>
-                  {objectives.map((obj) => (
-                    <SelectItem key={obj.id} value={obj.id}>
-                      {obj.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Aligned Objectives * <span className="text-xs text-muted-foreground">(select one or more)</span></Label>
+              <div className="border rounded-md max-h-40 overflow-y-auto">
+                {objectives.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground">No objectives found for {formData.year}</div>
+                ) : (
+                  objectives.map((obj) => {
+                    const isSelected = formData.objectiveIds.includes(obj.id);
+                    return (
+                      <div
+                        key={obj.id}
+                        className={`flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-blue-50' : ''}`}
+                        onClick={() => {
+                          const newIds = isSelected
+                            ? formData.objectiveIds.filter(id => id !== obj.id)
+                            : [...formData.objectiveIds, obj.id];
+                          setFormData({ ...formData, objectiveIds: newIds, objectiveId: newIds[0] || '' });
+                        }}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                          {isSelected && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-sm">{obj.title}</span>
+                          {obj.category && <span className="text-xs text-muted-foreground ml-2">({obj.category})</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              {formData.objectiveIds.length > 0 && (
+                <p className="text-xs text-muted-foreground">{formData.objectiveIds.length} objective(s) selected</p>
+              )}
             </div>
 
             {/* Owner */}

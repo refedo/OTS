@@ -30,6 +30,7 @@ export async function GET(req: Request) {
   const forAssignment = searchParams.get('forAssignment') === 'true';
   
   // For assignment dropdowns, show all active users regardless of role
+  // Also check if user has projects.browse_users permission
   if (forAssignment) {
     const users = await prisma.user.findMany({ 
       where: { status: 'active' },
@@ -39,7 +40,8 @@ export async function GET(req: Request) {
         email: true, 
         position: true,
         departmentId: true,
-        department: { select: { id: true, name: true } }
+        department: { select: { id: true, name: true } },
+        role: { select: { id: true, name: true } }
       },
       orderBy: { name: 'asc' } 
     });
@@ -52,18 +54,31 @@ export async function GET(req: Request) {
     const users = await prisma.user.findMany({ include: { role: true, department: true }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(users);
   }
+  
+  // Check if user has browse_users or projects.create permission - allow them to see users for assignment
+  const currentUser = await prisma.user.findUnique({ 
+    where: { id: session.sub }, 
+    include: { role: true, department: true } 
+  });
+  const userPermissions: string[] = Array.isArray(currentUser?.role?.permissions) ? currentUser.role.permissions as string[] : [];
+  const customPerms: string[] = Array.isArray(currentUser?.customPermissions) ? currentUser.customPermissions as string[] : [];
+  const allPerms = [...userPermissions, ...customPerms];
+  
+  if (allPerms.includes('projects.browse_users') || allPerms.includes('users.view')) {
+    const users = await prisma.user.findMany({ include: { role: true, department: true }, orderBy: { createdAt: 'desc' } });
+    return NextResponse.json(users);
+  }
+  
   if (session.role === 'Manager') {
-    const me = await prisma.user.findUnique({ where: { id: session.sub } });
     const users = await prisma.user.findMany({
-      where: { departmentId: me?.departmentId ?? undefined },
+      where: { departmentId: currentUser?.departmentId ?? undefined },
       include: { role: true, department: true },
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(users);
   }
-  // Engineer/Operator: only self
-  const self = await prisma.user.findUnique({ where: { id: session.sub }, include: { role: true, department: true } });
-  return NextResponse.json(self ? [self] : []);
+  // Default: only self
+  return NextResponse.json(currentUser ? [currentUser] : []);
 }
 
 export async function POST(req: Request) {

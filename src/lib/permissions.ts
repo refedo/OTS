@@ -53,10 +53,11 @@ export const PERMISSIONS: PermissionCategory[] = [
     permissions: [
       { id: 'projects.view', name: 'View Projects', description: 'View project list and details', category: 'projects' },
       { id: 'projects.view_all', name: 'View All Projects', description: 'View all projects across departments', category: 'projects' },
-      { id: 'projects.create', name: 'Create Projects', description: 'Create new projects', category: 'projects' },
+      { id: 'projects.create', name: 'Create Projects', description: 'Create new projects via project wizard', category: 'projects' },
       { id: 'projects.edit', name: 'Edit Projects', description: 'Modify project information', category: 'projects' },
       { id: 'projects.delete', name: 'Delete Projects', description: 'Delete projects', category: 'projects' },
       { id: 'projects.assign', name: 'Assign Projects', description: 'Assign users to projects', category: 'projects' },
+      { id: 'projects.browse_users', name: 'Browse Users for Assignment', description: 'Browse user lists when assigning project managers or team members (without full user management access)', category: 'projects' },
     ],
   },
   {

@@ -41,6 +41,14 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        initiatives: {
+          select: {
+            id: true,
+            name: true,
+            progress: true,
+            status: true,
+          },
+        },
         initiativeLinks: {
           include: {
             initiative: {
@@ -56,7 +64,7 @@ export async function GET(request: NextRequest) {
         _count: {
           select: {
             keyResults: true,
-            initiativeLinks: true,
+            initiatives: true,
             departmentObjectives: true,
             kpis: true,
           },
@@ -84,16 +92,23 @@ export async function GET(request: NextRequest) {
         calculatedProgress = Math.round(totalProgress / obj.keyResults.length);
       }
       
-      // Transform initiativeLinks to initiatives array
-      const initiatives = obj.initiativeLinks?.map((link: any) => link.initiative) || [];
+      // Merge initiatives from both direct relationship and junction table
+      const directInitiatives = obj.initiatives || [];
+      const linkedInitiatives = obj.initiativeLinks?.map((link: any) => link.initiative) || [];
+      
+      // Deduplicate by id
+      const allInitiativesMap = new Map();
+      directInitiatives.forEach((init: any) => allInitiativesMap.set(init.id, init));
+      linkedInitiatives.forEach((init: any) => allInitiativesMap.set(init.id, init));
+      const allInitiatives = Array.from(allInitiativesMap.values());
       
       return {
         ...obj,
         progress: calculatedProgress,
-        initiatives, // Replace initiativeLinks with flattened initiatives
+        initiatives: allInitiatives,
         _count: {
           ...obj._count,
-          initiatives: initiatives.length, // Fix count to match actual initiatives
+          initiatives: allInitiatives.length,
         },
       };
     });
