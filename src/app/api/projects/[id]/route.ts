@@ -272,8 +272,16 @@ export async function DELETE(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  if (!session || session.role !== 'Admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check RBAC permission for deleting projects
+  const { checkPermission } = await import('@/lib/permission-checker');
+  const canDelete = await checkPermission('projects.delete');
+  
+  if (!canDelete) {
+    return NextResponse.json({ error: 'Forbidden - You do not have permission to delete projects' }, { status: 403 });
   }
 
   // Check if project exists and get all related record counts

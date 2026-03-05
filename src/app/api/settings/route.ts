@@ -58,9 +58,16 @@ export async function PATCH(req: Request) {
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    // Only Admins can update settings
-    if (!session || session.role !== 'Admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check RBAC permission for managing settings
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canManage = await checkPermission('settings.manage');
+    
+    if (!canManage) {
+      return NextResponse.json({ error: 'Forbidden - You do not have permission to update settings' }, { status: 403 });
     }
 
     const body = await req.json();

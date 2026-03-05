@@ -37,11 +37,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has Admin or PMO role
-    const userRole = session.role;
-    if (userRole !== 'Admin' && userRole !== 'PMO') {
+    // Check RBAC permission for extracting columns
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canExtract = await checkPermission('projects.create');
+    
+    if (!canExtract) {
       return NextResponse.json(
-        { error: 'Forbidden. Only Admin and PMO users can extract columns.' },
+        { error: 'Forbidden - You do not have permission to extract columns.' },
         { status: 403 }
       );
     }

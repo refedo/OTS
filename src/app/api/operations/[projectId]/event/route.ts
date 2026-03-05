@@ -17,11 +17,13 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions (Admin or Project Manager only)
-    const userRole = session.role;
-    if (userRole !== 'Admin' && userRole !== 'Project Manager') {
+    // Check RBAC permission for creating operations events
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canCreate = await checkPermission('operations.create');
+    
+    if (!canCreate) {
       return NextResponse.json(
-        { error: 'Insufficient permissions. Only Admin and Project Manager can add manual events.' },
+        { error: 'Forbidden - You do not have permission to add manual events.' },
         { status: 403 }
       );
     }

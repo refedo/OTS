@@ -39,11 +39,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has Admin or PMO role
-    const userRole = session.role;
-    if (userRole !== 'Admin' && userRole !== 'PMO') {
+    // Check RBAC permission for importing projects
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canImport = await checkPermission('projects.create');
+    
+    if (!canImport) {
       return NextResponse.json(
-        { error: 'Forbidden. Only Admin and PMO users can import projects.' },
+        { error: 'Forbidden - You do not have permission to import projects.' },
         { status: 403 }
       );
     }

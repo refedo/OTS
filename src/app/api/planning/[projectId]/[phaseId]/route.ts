@@ -17,9 +17,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin and Manager can update plans
-    if (session.role !== 'Admin' && session.role !== 'Manager') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Check RBAC permission for editing planning phases
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canEdit = await checkPermission('planning.edit');
+    
+    if (!canEdit) {
+      return NextResponse.json({ error: 'Forbidden - You do not have permission to update plans' }, { status: 403 });
     }
 
     const { phaseId } = params;
@@ -116,9 +119,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin can delete phases
-    if (session.role !== 'Admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Check RBAC permission for deleting planning phases
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canDelete = await checkPermission('planning.delete');
+    
+    if (!canDelete) {
+      return NextResponse.json({ error: 'Forbidden - You do not have permission to delete phases' }, { status: 403 });
     }
 
     const { phaseId } = params;

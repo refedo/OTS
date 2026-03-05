@@ -17,11 +17,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions (Admin or Project Manager only)
-    const userRole = session.role;
-    if (userRole !== 'Admin' && userRole !== 'Project Manager') {
+    // Check RBAC permission for editing operations events
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canEdit = await checkPermission('operations.edit');
+    
+    if (!canEdit) {
       return NextResponse.json(
-        { error: 'Insufficient permissions' },
+        { error: 'Forbidden - You do not have permission to edit events' },
         { status: 403 }
       );
     }
@@ -105,11 +107,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions (Admin only)
-    const userRole = session.role;
-    if (userRole !== 'Admin') {
+    // Check RBAC permission for deleting operations events
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canDelete = await checkPermission('operations.delete');
+    
+    if (!canDelete) {
       return NextResponse.json(
-        { error: 'Only Admin can delete events' },
+        { error: 'Forbidden - You do not have permission to delete events' },
         { status: 403 }
       );
     }

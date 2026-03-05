@@ -38,8 +38,16 @@ export async function PATCH(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? await verifySession(token) : null;
   
-  if (!session || session.role !== 'Admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check RBAC permission for editing roles
+  const { checkPermission } = await import('@/lib/permission-checker');
+  const canEdit = await checkPermission('roles.edit');
+  
+  if (!canEdit) {
+    return NextResponse.json({ error: 'Forbidden - You do not have permission to edit roles' }, { status: 403 });
   }
 
   const body = await req.json();
@@ -74,8 +82,16 @@ export async function DELETE(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? await verifySession(token) : null;
   
-  if (!session || session.role !== 'Admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check RBAC permission for deleting roles
+  const { checkPermission } = await import('@/lib/permission-checker');
+  const canDelete = await checkPermission('roles.delete');
+  
+  if (!canDelete) {
+    return NextResponse.json({ error: 'Forbidden - You do not have permission to delete roles' }, { status: 403 });
   }
 
   try {

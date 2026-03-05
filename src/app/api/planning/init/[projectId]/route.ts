@@ -27,9 +27,12 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin and Manager can initialize plans
-    if (session.role !== 'Admin' && session.role !== 'Manager') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Check RBAC permission for creating planning phases
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canCreate = await checkPermission('planning.create');
+    
+    if (!canCreate) {
+      return NextResponse.json({ error: 'Forbidden - You do not have permission to initialize plans' }, { status: 403 });
     }
 
     const { projectId } = params;

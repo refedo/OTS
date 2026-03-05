@@ -31,11 +31,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user has Admin or PMO role
-    const userRole = session.role;
-    if (userRole !== 'Admin' && userRole !== 'PMO') {
+    // Check RBAC permission for downloading templates
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canDownload = await checkPermission('projects.create');
+    
+    if (!canDownload) {
       return NextResponse.json(
-        { error: 'Forbidden. Only Admin and PMO users can download templates.' },
+        { error: 'Forbidden - You do not have permission to download templates.' },
         { status: 403 }
       );
     }

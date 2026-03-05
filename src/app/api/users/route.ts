@@ -85,7 +85,18 @@ export async function POST(req: Request) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? await verifySession(token) : null;
-  if (!session || session.role !== 'Admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check RBAC permission for creating users
+  const { checkPermission } = await import('@/lib/permission-checker');
+  const canCreate = await checkPermission('users.create');
+  
+  if (!canCreate) {
+    return NextResponse.json({ error: 'Forbidden - You do not have permission to create users' }, { status: 403 });
+  }
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);

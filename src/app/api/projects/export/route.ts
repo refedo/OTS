@@ -32,11 +32,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user has Admin or PMO role
-    const userRole = session.role;
-    if (userRole !== 'Admin' && userRole !== 'PMO') {
+    // Check RBAC permission for exporting projects
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canExport = await checkPermission('projects.view');
+    
+    if (!canExport) {
       return NextResponse.json(
-        { error: 'Forbidden. Only Admin and PMO users can export projects.' },
+        { error: 'Forbidden - You do not have permission to export projects.' },
         { status: 403 }
       );
     }

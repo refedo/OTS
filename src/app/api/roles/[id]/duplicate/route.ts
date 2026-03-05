@@ -17,9 +17,12 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins can duplicate roles
-    if (session.role !== 'Admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Check RBAC permission for creating roles (duplicate = create)
+    const { checkPermission } = await import('@/lib/permission-checker');
+    const canCreate = await checkPermission('roles.create');
+    
+    if (!canCreate) {
+      return NextResponse.json({ error: 'Forbidden - You do not have permission to duplicate roles' }, { status: 403 });
     }
 
     const { id } = await params;
