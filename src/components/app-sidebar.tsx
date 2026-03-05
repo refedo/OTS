@@ -275,6 +275,7 @@ export function AppSidebar() {
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [riskCount, setRiskCount] = useState(0);
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
+  const { version } = useVersion();
   
   // Find which section contains the active route
   const getActiveSections = () => {
