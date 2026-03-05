@@ -85,6 +85,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/business-planning/dashboard': ['business.view_dashboard'],
   '/business-planning/guide': ['business.view_dashboard'],
   '/business-planning/foundation': ['business.view_foundation', 'business.edit_foundation'],
+  '/business-planning/strategic-objectives': ['business.view_objectives', 'business.manage_objectives'],
   '/business-planning/swot': ['business.view_swot', 'business.edit_swot'],
   '/business-planning/objectives': ['business.view_objectives', 'business.manage_objectives'],
   '/business-planning/kpis': ['business.view_kpis', 'business.manage_kpis'],
