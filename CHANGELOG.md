@@ -7,23 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [15.16.1] - 2026-02-27
+## [15.18.5] - 2026-03-05
 
-### 🔍 Material Inspection Receipt (MIR) System - Critical Fixes
+### 🔐 RBAC Overhaul - Permissions Now Work Correctly
+
+#### CRITICAL FIX
+This release fixes a fundamental issue where the RBAC permission system was being bypassed by hardcoded `role !== 'Admin'` checks. Users with proper permissions (like CEO with `projects.delete`) were getting "Forbidden" errors because the code only checked for Admin role, not actual permissions.
 
 #### Bug Fixes
-- **Database Migration Fixed** — corrected foreign key references from `projects` to `project` and `users` to `user`
-- **Prisma Schema Mapping** — added `@@map` directives to all MIR models to map to snake_case database tables
-- **PO Lookup Simplified** — removed complex SQL filters, now fetches recent POs and filters client-side for better reliability
-- **Error Handling Improved** — added comprehensive logging and empty state UI for PO search results
-- **Authentication Issues Resolved** — fixed intermittent 401 errors in PO lookup API
+- **CRITICAL: CEO could not delete projects** — Despite having `projects.delete` permission, CEO users got Forbidden errors
+- **CRITICAL: RBAC permissions ignored** — 18 API routes had hardcoded Admin-only checks that bypassed the permission system
+- **projects/[id] DELETE** — Now uses `projects.delete` permission
+- **users CRUD** — Now uses `users.create`, `users.edit`, `users.delete` permissions
+- **departments POST** — Now uses `departments.create` permission
+- **roles CRUD** — Now uses `roles.create`, `roles.edit`, `roles.delete` permissions
+- **clients DELETE** — Now uses `clients.delete` permission
+- **settings PATCH** — Now uses `settings.manage` permission
+- **planning routes** — Now use `planning.create`, `planning.edit`, `planning.delete` permissions
+- **operations routes** — Now use `operations.create`, `operations.edit`, `operations.delete` permissions
+- **ITP DELETE** — Now uses `qc.delete` permission
+- **Project import/export** — Now use `projects.create`, `projects.view` permissions
 
-#### Technical Improvements
-- MIR tables now created successfully without migration errors
-- Prisma client properly maps camelCase fields to snake_case columns
-- PO search now shows clear feedback when no results found
-- Added result count display and loading states
-- Enhanced debug logging for troubleshooting
+#### Technical Changes
+- All 18 affected API routes now use `checkPermission()` from `@/lib/permission-checker`
+- `isAdmin` flag on users still grants all permissions as intended
+- Clear error messages now indicate which specific permission is missing
+- Permission checks are centralized and consistent across the application
+
+#### How RBAC Now Works
+1. If user has `isAdmin: true` → All permissions granted
+2. If user's role has the required permission → Action allowed
+3. Otherwise → "Forbidden - You do not have permission to [action]"
 
 ---
 

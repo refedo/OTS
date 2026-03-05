@@ -4,26 +4,36 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🛠️ Infrastructure Updates & Version Management',
+  mainTitle: '� RBAC Overhaul - Permissions Now Work Correctly',
   highlights: [
-    'Centralized version management system',
-    'Automated version synchronization across all files',
-    'Fixed build version display showing correct v15.18.4',
-    'Added Strategic Objectives link to sidebar menu',
+    'CRITICAL: Fixed RBAC system - permissions now respected for all roles',
+    'CEO and other roles can now use their assigned permissions',
+    'Replaced 18 hardcoded Admin-only checks with proper permission checks',
+    'Users with isAdmin flag or appropriate permissions can perform actions',
   ],
   changes: {
     added: [
-      'Centralized Version Management — Single source of truth in src/lib/version.ts',
-      'Automated Version Updates — scripts/update-version.js syncs version across all files',
-      'Strategic Objectives Menu Link — Added to Business Planning section in sidebar',
+      'Proper RBAC permission checks in all critical API routes',
+      'Clear error messages indicating which permission is missing',
     ],
     fixed: [
-      'Build Version Display — Now correctly shows v15.18.4 instead of outdated v15.18.1',
-      'All components now import version from centralized location',
-      'Package.json version automatically synchronized',
+      'CRITICAL: CEO could not delete projects despite having projects.delete permission',
+      'CRITICAL: Users with permissions were blocked by hardcoded Admin-only checks',
+      'projects/[id] DELETE: now uses projects.delete permission',
+      'users CRUD: now uses users.create/edit/delete permissions',
+      'departments POST: now uses departments.create permission',
+      'roles CRUD: now uses roles.create/edit/delete permissions',
+      'clients DELETE: now uses clients.delete permission',
+      'settings PATCH: now uses settings.manage permission',
+      'planning routes: now use planning.create/edit/delete permissions',
+      'operations routes: now use operations.create/edit/delete permissions',
+      'ITP DELETE: now uses qc.delete permission',
+      'Project import/export: now use projects.create/view permissions',
     ],
     changed: [
-      'Easier version updates going forward — just edit one file and run the script',
+      'RBAC system now properly respects permissions assigned to roles',
+      'isAdmin flag grants all permissions as intended',
+      'Permission checks use centralized checkPermission() function',
     ],
   },
 };
