@@ -188,6 +188,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Dashboard', href: '/business-planning/dashboard', icon: TrendingUp },
       { name: '📖 Quick Guide', href: '/business-planning/guide', icon: BookOpen },
       { name: 'Strategic Foundation', href: '/business-planning/foundation', icon: Target },
+      { name: 'Strategic Objectives', href: '/business-planning/strategic-objectives', icon: Star },
       { name: 'SWOT Analysis', href: '/business-planning/swot', icon: Activity },
       { name: 'Objectives (OKRs)', href: '/business-planning/objectives', icon: Target },
       { name: 'KPIs', href: '/business-planning/kpis', icon: TrendingUp },
