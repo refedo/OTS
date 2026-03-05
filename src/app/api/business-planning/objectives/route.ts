@@ -32,7 +32,6 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         owner: { select: { id: true, name: true, email: true } },
-        strategicObjective: { select: { id: true, title: true, startYear: true, endYear: true } },
         keyResults: {
           include: {
             progressUpdates: {
