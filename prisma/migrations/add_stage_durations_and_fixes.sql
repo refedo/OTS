@@ -11,38 +11,38 @@ DROP PROCEDURE IF EXISTS add_column_if_not_exists//
 CREATE PROCEDURE add_column_if_not_exists()
 BEGIN
     -- engineeringWeeksMin
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'projects' AND column_name = 'engineeringWeeksMin') THEN
-        ALTER TABLE `projects` ADD COLUMN `engineeringWeeksMin` INT NULL;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Project' AND column_name = 'engineeringWeeksMin') THEN
+        ALTER TABLE `Project` ADD COLUMN `engineeringWeeksMin` INT NULL;
     END IF;
     
     -- engineeringWeeksMax
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'projects' AND column_name = 'engineeringWeeksMax') THEN
-        ALTER TABLE `projects` ADD COLUMN `engineeringWeeksMax` INT NULL;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Project' AND column_name = 'engineeringWeeksMax') THEN
+        ALTER TABLE `Project` ADD COLUMN `engineeringWeeksMax` INT NULL;
     END IF;
     
     -- operationsWeeksMin
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'projects' AND column_name = 'operationsWeeksMin') THEN
-        ALTER TABLE `projects` ADD COLUMN `operationsWeeksMin` INT NULL;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Project' AND column_name = 'operationsWeeksMin') THEN
+        ALTER TABLE `Project` ADD COLUMN `operationsWeeksMin` INT NULL;
     END IF;
     
     -- operationsWeeksMax
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'projects' AND column_name = 'operationsWeeksMax') THEN
-        ALTER TABLE `projects` ADD COLUMN `operationsWeeksMax` INT NULL;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Project' AND column_name = 'operationsWeeksMax') THEN
+        ALTER TABLE `Project` ADD COLUMN `operationsWeeksMax` INT NULL;
     END IF;
     
     -- siteWeeksMin
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'projects' AND column_name = 'siteWeeksMin') THEN
-        ALTER TABLE `projects` ADD COLUMN `siteWeeksMin` INT NULL;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Project' AND column_name = 'siteWeeksMin') THEN
+        ALTER TABLE `Project` ADD COLUMN `siteWeeksMin` INT NULL;
     END IF;
     
     -- siteWeeksMax
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'projects' AND column_name = 'siteWeeksMax') THEN
-        ALTER TABLE `projects` ADD COLUMN `siteWeeksMax` INT NULL;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Project' AND column_name = 'siteWeeksMax') THEN
+        ALTER TABLE `Project` ADD COLUMN `siteWeeksMax` INT NULL;
     END IF;
     
     -- thirdPartyResponsibility
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'projects' AND column_name = 'thirdPartyResponsibility') THEN
-        ALTER TABLE `projects` ADD COLUMN `thirdPartyResponsibility` VARCHAR(191) NULL;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Project' AND column_name = 'thirdPartyResponsibility') THEN
+        ALTER TABLE `Project` ADD COLUMN `thirdPartyResponsibility` VARCHAR(191) NULL;
     END IF;
 END//
 
