@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.18.4] - 2026-03-05
+
+### 🛠️ Infrastructure Updates
+
+#### Changes
+- **Centralized Version Management** — Created single source of truth for version numbers in `src/lib/version.ts`
+- **Automated Version Updates** — Added `scripts/update-version.js` to sync version across all files
+- **Fixed Build Version Display** — Build now correctly shows v15.18.4 instead of outdated v15.18.1
+- **Strategic Objectives Menu Link** — Added Strategic Objectives link to Business Planning section in sidebar
+
+#### Technical Improvements
+- All components now import version from centralized location
+- Package.json version automatically synchronized
+- Easier version updates going forward - just edit one file and run the script
+
+---
+
 ## [15.18.3] - 2026-03-05
 
 ### Project Wizard Enhancements & Personalized Notifications
