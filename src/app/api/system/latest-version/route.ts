@@ -2,34 +2,31 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.18.1',
+  version: '15.18.2',
   date: 'March 5, 2026',
   type: 'patch' as const,
-  mainTitle: 'Strategic Planning & Initiatives Enhancements',
+  mainTitle: 'Initiatives Display & RBAC Enhancements',
   highlights: [
-    'Strategic Objectives module with 5-7 year planning',
-    'Enhanced initiatives with progress tracking & delayed alerts',
-    'Fixed task update permissions for admins',
-    'Improved initiatives dashboard with colorization',
+    'Fixed initiatives showing 0% progress on objectives page',
+    'Multi-select objectives for initiatives support',
+    'Enhanced RBAC with browse_users permission',
+    'Objective names now displayed in initiative cards',
   ],
   changes: {
     added: [
-      'Strategic Objectives Module — 5-7 year mid-term planning with full CRUD operations',
-      'Link yearly company objectives to strategic objectives',
-      'Track progress, priority, and status for long-term goals',
-      'Initiatives Progress Tracking — automatic progress calculation from status',
-      'Delayed Initiative Alerts — visual indicators for overdue initiatives with red borders',
+      'Multi-select objectives for initiatives — link one initiative to multiple objectives',
+      'New projects.browse_users permission — allows browsing user lists without full user management access',
+      'Objective names displayed in initiative cards — shows next to budget and timeline',
     ],
     fixed: [
-      'Task Update Permissions — admins now bypass permission checks via direct database lookup',
-      'Task requesters can now edit their tasks',
-      'Fixed stale session permission errors',
-      'Average progress calculation now uses effective progress',
+      'Initiatives now show correct progress on objectives page — calculated from status when progress field is 0',
+      'Fixed initiatives not appearing under objectives — merged direct and junction table relationships',
+      'Version display in sidebar now dynamically updates from system version',
     ],
     changed: [
-      'Enhanced Initiatives Dashboard — colorized status cards with matching backgrounds',
-      'Smaller, more compact card layout for better space utilization',
-      'Progress bars now show red for delayed initiatives',
+      'Enhanced initiatives form UI — replaced dropdown with multi-select checkbox list',
+      'Updated objectives API to handle both direct and many-to-many initiative relationships',
+      'Users API now checks projects.browse_users permission for user dropdown access',
     ],
   },
 };

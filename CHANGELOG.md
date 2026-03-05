@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.18.2] - 2026-03-05
+
+### 🎯 Initiatives Display & RBAC Enhancements
+
+#### New Features
+- **Multi-select Objectives for Initiatives** — link one initiative to multiple objectives
+  - Replaced single-select dropdown with checkbox-based multi-select interface
+  - Support for many-to-many relationships via junction table
+  - Backward compatibility maintained with direct objectiveId field
+  - Visual feedback showing selected objectives count
+
+- **Enhanced RBAC with browse_users Permission** — granular user access control
+  - New `projects.browse_users` permission for browsing user lists
+  - Allows Project Coordinators and Document Controllers to see user dropdowns
+  - No need for full user management access to assign project managers
+  - Users API updated to check this permission for assignment purposes
+
+- **Objective Names in Initiative Cards** — improved visibility
+  - Initiative cards now display linked objective names
+  - Shows next to budget, owner, and timeline information
+  - Supports displaying multiple objectives when linked
+  - Uses Target icon for visual consistency
+
+#### Bug Fixes
+- **Initiatives Progress on Objectives Page** — fixed 0% display issue
+  - Initiatives now show correct progress percentages on objectives page
+  - Progress calculated from status when progress field is 0 or null
+  - Completed initiatives now properly show 100% progress
+  - Matches behavior on initiatives page for consistency
+
+- **Initiatives Not Showing Under Objectives** — merged relationship handling
+  - Fixed initiatives completely vanishing from objectives page
+  - API now fetches from both direct and junction table relationships
+  - Properly deduplicates initiatives by ID
+  - Accurate initiative count displayed for each objective
+
+- **Dynamic Version Display in Sidebar** — real-time version updates
+  - Sidebar version now dynamically fetches from system version API
+  - No more hardcoded version strings
+  - Automatically reflects latest system version
+  - Uses useVersion hook for reactive updates
+
+#### Technical Improvements
+- **Objectives API Enhanced** — handles complex initiative relationships
+  - Supports both direct and many-to-many initiative relationships
+  - Merges and deduplicates initiatives from multiple sources
+  - Calculates effective progress for each initiative
+  - Maintains backward compatibility with existing data
+
+- **Users API Permission Checks** — more granular access control
+  - Added projects.browse_users permission check
+  - Allows user list access for assignment purposes
+  - Respects both role permissions and custom permissions
+  - Maintains security while enabling necessary functionality
+
+#### Database Changes
+- Junction table `InitiativeObjective` properly utilized for many-to-many relationships
+- Direct `objectiveId` field maintained for backward compatibility
+- Permission system extended with new projects.browse_users permission
+
+---
+
 ## [15.18.1] - 2026-03-05
 
 ### 🎯 Strategic Planning & Initiatives Enhancements
