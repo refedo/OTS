@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { CURRENT_VERSION } from '@/lib/version';
 
 interface VersionInfo {
   version: string;
@@ -13,28 +14,31 @@ interface VersionInfo {
 }
 
 export function useVersion() {
-  const [version, setVersion] = useState<string>('15.18.1');
+  const [version, setVersion] = useState<string>(CURRENT_VERSION);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchVersion = async () => {
+    async function fetchVersion() {
       try {
         const response = await fetch('/api/system/latest-version');
-        if (response.ok) {
-          const data = await response.json();
-          setVersion(data.version);
-          setVersionInfo(data);
+        if (!response.ok) {
+          throw new Error('Failed to fetch version');
         }
-      } catch (error) {
-        console.error('Failed to fetch version:', error);
+        const data = await response.json();
+        setVersion(data.version);
+        setVersionInfo(data);
+      } catch (err) {
+        console.error('Error fetching version:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     fetchVersion();
   }, []);
 
-  return { version, versionInfo, loading };
+  return { version, versionInfo, loading, error };
 }

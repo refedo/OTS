@@ -5,6 +5,7 @@
  * Displays current system version
  */
 
+import { Badge } from '@/components/ui/badge';
 import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,8 +14,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
+import { CURRENT_VERSION } from '@/lib/version';
 
-const CURRENT_VERSION = '15.18.1';
 const RELEASE_DATE = 'March 5, 2026';
 
 export default function VersionBadge() {

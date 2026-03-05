@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
+import { APP_VERSION } from '@/lib/version';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.18.3',
-  date: 'March 5, 2026',
-  type: 'minor' as const,
+  ...APP_VERSION,
   mainTitle: 'Project Wizard Enhancements & Personalized Notifications',
   highlights: [
     'Stage durations from wizard now persist and show in project details',

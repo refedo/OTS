@@ -44,10 +44,10 @@ export function LoginForm() {
         });
         if (res.ok) {
           const data = await res.json();
-          setVersion(data.version || '15.18.1');
+          setVersion(data.version || '15.18.3');
         }
       } catch (error) {
-        setVersion('15.18.1');
+        setVersion('15.18.3');
       }
     };
     
@@ -101,7 +101,7 @@ export function LoginForm() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#2c3e50' }}>
       {/* System Header */}
       <div className="text-center py-3">
-        <span className="text-slate-400 text-sm">Operations Tracking System v{version || '15.13.0'}</span>
+        <span className="text-slate-400 text-sm">Operations Tracking System v{version || '15.18.3'}</span>
       </div>
 
       {/* Main Content */}
@@ -221,7 +221,7 @@ export function LoginForm() {
           Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
         </p>
         <div className="text-xs text-muted-foreground">
-          v15.18.0 • March 1, 2026
+          v15.18.3 • March 5, 2026
         </div>
       </div>
     </div>
