@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `strategic_objectives` (
   INDEX `strategic_objectives_ownerId_idx` (`ownerId`),
   INDEX `strategic_objectives_category_idx` (`category`),
   INDEX `strategic_objectives_status_idx` (`status`),
-  CONSTRAINT `strategic_objectives_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT `strategic_objectives_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `User` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Add strategicObjectiveId column to company_objectives (ignore if exists)

@@ -187,7 +187,7 @@ export async function POST(req: Request) {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
-    if (!session || !['Admin', 'Manager'].includes(session.role)) {
+    if (!session || !['Admin', 'Manager', 'Project Coordinator', 'CEO'].includes(session.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
