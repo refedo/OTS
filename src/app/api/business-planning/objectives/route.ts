@@ -102,13 +102,19 @@ export async function GET(request: NextRequest) {
       linkedInitiatives.forEach((init: any) => allInitiativesMap.set(init.id, init));
       const allInitiatives = Array.from(allInitiativesMap.values());
       
+      // Calculate effective progress for each initiative (use status if progress is 0)
+      const initiativesWithProgress = allInitiatives.map((init: any) => ({
+        ...init,
+        progress: init.progress > 0 ? init.progress : getProgressFromStatus(init.status),
+      }));
+      
       return {
         ...obj,
         progress: calculatedProgress,
-        initiatives: allInitiatives,
+        initiatives: initiativesWithProgress,
         _count: {
           ...obj._count,
-          initiatives: allInitiatives.length,
+          initiatives: initiativesWithProgress.length,
         },
       };
     });
