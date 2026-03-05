@@ -60,10 +60,18 @@ const updateSchema = z.object({
   projectNature: z.string().optional().nullable(),
   projectLocation: z.string().optional().nullable(),
   
-  // Durations
+  // Durations (legacy)
   engineeringDuration: z.number().int().optional().nullable(),
   fabricationDeliveryDuration: z.number().int().optional().nullable(),
   erectionDuration: z.number().int().optional().nullable(),
+  
+  // Stage Durations (weeks - from wizard)
+  engineeringWeeksMin: z.number().int().optional().nullable(),
+  engineeringWeeksMax: z.number().int().optional().nullable(),
+  operationsWeeksMin: z.number().int().optional().nullable(),
+  operationsWeeksMax: z.number().int().optional().nullable(),
+  siteWeeksMin: z.number().int().optional().nullable(),
+  siteWeeksMax: z.number().int().optional().nullable(),
   
   // Technical
   cranesIncluded: z.boolean().optional(),
@@ -99,6 +107,7 @@ const updateSchema = z.object({
   wpsNumber: z.string().optional().nullable(),
   standardCode: z.string().optional().nullable(),
   thirdPartyRequired: z.boolean().optional(),
+  thirdPartyResponsibility: z.string().optional().nullable(),
   ndtTest: z.string().optional().nullable(),
   applicableCodes: z.string().optional().nullable(),
   
@@ -144,7 +153,7 @@ export async function GET(
   // Check permissions
   if (session.role === 'Engineer' || session.role === 'Operator') {
     const hasAccess = await prisma.projectAssignment.findFirst({
-      where: { projectId: params.id, userId: session.sub },
+      where: { projectId: id, userId: session.sub },
     });
     
     if (!hasAccess) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -76,9 +76,13 @@ const STAGE_SCOPES: Record<string, string[]> = {
 
 export default function ProjectSetupWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resumeProjectId = searchParams.get('resume');
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [resumingDraft, setResumingDraft] = useState(false);
+  const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
 
   // Step 1: Project Details
   const [projectNumber, setProjectNumber] = useState('');
@@ -132,6 +136,73 @@ export default function ProjectSetupWizard() {
   useEffect(() => {
     fetchManagers();
   }, []);
+
+  // Resume draft project if ?resume=projectId is in the URL
+  useEffect(() => {
+    if (!resumeProjectId) return;
+    const loadDraft = async () => {
+      setResumingDraft(true);
+      try {
+        const res = await fetch(`/api/projects/${resumeProjectId}`);
+        if (!res.ok) return;
+        const project = await res.json();
+        
+        // Restore basic fields
+        setDraftProjectId(project.id);
+        if (project.projectNumber && !project.projectNumber.startsWith('DRAFT-')) {
+          setProjectNumber(project.projectNumber);
+        }
+        if (project.name && project.name !== 'Untitled Draft') setProjectName(project.name);
+        if (project.client?.name && project.client.name !== 'TBD') setClientName(project.client.name);
+        if (project.projectManagerId) setProjectManagerId(project.projectManagerId);
+        if (project.contractualTonnage) setContractualTonnage(String(project.contractualTonnage));
+        if (project.contractDate) setContractDate(project.contractDate.split('T')[0]);
+        if (project.downPaymentDate) setDownPaymentDate(project.downPaymentDate.split('T')[0]);
+        if (project.contractValue) setContractValue(String(project.contractValue));
+
+        // Restore wizard state from remarks
+        if (project.remarks) {
+          try {
+            const parsed = JSON.parse(project.remarks);
+            if (parsed?.__wizardDraft && parsed.data) {
+              const d = parsed.data;
+              if (d.scopeOfWork) setScopeOfWork(d.scopeOfWork);
+              if (d.stageDurations) setStageDurations(d.stageDurations);
+              if (d.paymentTerms) setPaymentTerms(d.paymentTerms);
+              if (d.coatingCoats) setCoatingCoats(d.coatingCoats);
+              if (d.isGalvanized !== undefined) setIsGalvanized(d.isGalvanized);
+              if (d.cranesIncluded !== undefined) setCranesIncluded(d.cranesIncluded);
+              if (d.surveyorIncluded !== undefined) setSurveyorIncluded(d.surveyorIncluded);
+              if (d.thirdPartyRequired !== undefined) setThirdPartyRequired(d.thirdPartyRequired);
+              if (d.thirdPartyResponsibility) setThirdPartyResponsibility(d.thirdPartyResponsibility);
+              if (d.buildings?.length > 0) setBuildings(d.buildings);
+              // Go to the step where user left off
+              if (parsed.step) setCurrentStep(parsed.step);
+            }
+          } catch {}
+        }
+
+        // Also load buildings from API if wizard data didn't have them
+        const buildingsRes = await fetch(`/api/projects/${resumeProjectId}/buildings`);
+        if (buildingsRes.ok) {
+          const buildingsData = await buildingsRes.json();
+          if (buildingsData.length > 0 && buildings.length === 0) {
+            setBuildings(buildingsData.map((b: any) => ({
+              id: b.id,
+              name: b.name,
+              designation: b.designation,
+              weight: b.weight || undefined,
+            })));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+      } finally {
+        setResumingDraft(false);
+      }
+    };
+    loadDraft();
+  }, [resumeProjectId]);
 
   const fetchManagers = async () => {
     try {
@@ -379,6 +450,19 @@ export default function ProjectSetupWizard() {
     setLoading(true);
     try {
       // Save minimal project data as draft
+      const wizardState = {
+        wizardStep: currentStep,
+        buildings: buildings,
+        scopeOfWork: scopeOfWork,
+        stageDurations: stageDurations,
+        paymentTerms: paymentTerms,
+        coatingCoats: coatingCoats,
+        isGalvanized: isGalvanized,
+        cranesIncluded: cranesIncluded,
+        surveyorIncluded: surveyorIncluded,
+        thirdPartyRequired: thirdPartyRequired,
+        thirdPartyResponsibility: thirdPartyResponsibility,
+      };
       const projectData = {
         projectNumber: projectNumber || `DRAFT-${Date.now()}`,
         name: projectName || 'Untitled Draft',
@@ -390,8 +474,7 @@ export default function ProjectSetupWizard() {
         downPaymentDate: downPaymentDate || null,
         contractValue: contractValue ? parseFloat(contractValue) : null,
         scopeOfWork: generateScopeText(),
-        // Store wizard progress in description for now
-        description: `[WIZARD DRAFT - Step ${currentStep}]\n\nBuildings: ${buildings.length}\nScopes selected: ${scopeOfWork.filter(s => s.checked).length}`,
+        remarks: JSON.stringify({ __wizardDraft: true, step: currentStep, data: wizardState }),
       };
 
       const response = await fetch('/api/projects', {
@@ -488,13 +571,22 @@ export default function ProjectSetupWizard() {
       const operationsStage = stageDurations.find(s => s.stage === 'operations');
       const siteStage = stageDurations.find(s => s.stage === 'site');
 
+      // If resuming a draft, delete the old draft first
+      if (draftProjectId) {
+        try {
+          await fetch(`/api/projects/${draftProjectId}`, { method: 'DELETE' });
+        } catch (e) {
+          console.warn('Could not delete draft project:', e);
+        }
+      }
+
       // Create project
       const projectData = {
         projectNumber,
         name: projectName,
         clientName,
         projectManagerId,
-        status,
+        status: 'Active',
         contractualTonnage: contractualTonnage ? parseFloat(contractualTonnage) : 0,
         contractDate: contractDate || null,
         downPaymentDate: downPaymentDate || null,

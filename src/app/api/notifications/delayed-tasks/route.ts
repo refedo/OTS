@@ -15,8 +15,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check cache first (30 second TTL)
-    const cacheKey = 'delayed-tasks';
+    // Get current user info for personalized filtering
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.sub },
+      select: { id: true, departmentId: true, role: { select: { name: true } } },
+    });
+
+    const isAdmin = currentUser?.role?.name === 'Admin' || currentUser?.role?.name === 'CEO';
+
+    // Check cache first (30 second TTL) - cache per user
+    const cacheKey = `delayed-tasks-${session.sub}`;
     const cached = cache.get(cacheKey, 30000);
     if (cached) {
       return NextResponse.json(cached);
@@ -24,7 +32,20 @@ export async function GET(req: Request) {
 
     const now = new Date();
 
-    // Find all tasks that are past due date and not completed
+    // Build user-specific filter: only tasks the user is involved in
+    // Admin/CEO see all delayed tasks; others see only their own
+    const userFilter = isAdmin ? {} : {
+      OR: [
+        { assignedToId: session.sub },           // assigned to user
+        { createdById: session.sub },             // created by user
+        { requesterId: session.sub },             // requested by user
+        ...(currentUser?.departmentId ? [{
+          departmentId: currentUser.departmentId, // same department (for dept heads)
+        }] : []),
+      ],
+    };
+
+    // Find delayed tasks personalized to the user
     const delayedTasks = await prisma.task.findMany({
       where: {
         dueDate: {
@@ -33,6 +54,7 @@ export async function GET(req: Request) {
         status: {
           not: 'Completed', // Not completed
         },
+        ...userFilter,
       },
       include: {
         assignedTo: {

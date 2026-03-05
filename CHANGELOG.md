@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.18.3] - 2026-03-05
+
+### Project Wizard Enhancements & Personalized Notifications
+
+#### New Features
+- **Stage Durations Persist from Wizard** — Engineering/Operations/Site week durations now saved to project and displayed in project details card
+- **Resume Draft Projects** — PlayCircle icon appears next to Draft projects in projects list; clicking resumes the wizard from the saved step
+- **Department Head Notifications** — Department managers are notified when tasks in their department are created, completed, or reassigned
+- **Personalized Delayed Tasks** — Users only see delayed tasks they are involved in (assignee, creator, requester, or same department)
+- **Personalized Schedule Alerts** — Users only see underperforming schedules for projects they manage or are assigned to
+
+#### Bug Fixes
+- **Wizard Status Fix** — Projects completed through the wizard are now set to `Active` status; only `Save as Draft` creates `Draft` projects
+- **Stage Duration API Fields** — Added `engineeringWeeksMin/Max`, `operationsWeeksMin/Max`, `siteWeeksMin/Max` to both create and update API schemas
+- **thirdPartyResponsibility Field** — Added to API schemas so wizard 3rd party responsibility data persists
+- **params.id Lint Fix** — Fixed Promise access error in projects `[id]` API route
+
+#### Changes
+- Draft projects now store full wizard state (step, buildings, scopes, coatings, payments) in `remarks` field as JSON for resume capability
+- Notification endpoints cache per-user instead of globally
+- Admin/CEO users still see all delayed tasks and schedule alerts; other roles see only personalized data
+
+#### Production Commands
+```bash
+# Run on production MySQL:
+mysql -u root -p ots_db < prisma/migrations/add_stage_durations_and_fixes.sql
+mysql -u root -p ots_db < prisma/migrations/add_strategic_objectives.sql  # if not already run
+
+# Then restart the app:
+pm2 restart ots
+```
+
+---
+
 ## [15.18.2] - 2026-03-05
 
 ### 🎯 Initiatives Display & RBAC Enhancements

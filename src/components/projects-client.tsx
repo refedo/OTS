@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, PlayCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,7 @@ type Project = {
   contractValue: number | null;
   contractualTonnage: number | null;
   engineeringTonnage: number | null;
+  remarks: string | null;
   _count: { tasks: number; buildings: number };
 };
 
@@ -69,6 +70,17 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
   
   // Check if financial data should be hidden
   const hideFinancialData = restrictedModules.includes('financial_contracts') || restrictedModules.includes('financial_reports');
+
+  // Check if a draft project was created via the wizard
+  function isWizardDraft(project: Project): boolean {
+    if (!project.remarks) return false;
+    try {
+      const parsed = JSON.parse(project.remarks);
+      return parsed?.__wizardDraft === true;
+    } catch {
+      return false;
+    }
+  }
 
   useEffect(() => {
     fetchProjects();
@@ -563,12 +575,19 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={statusColors[project.status as keyof typeof statusColors]}
-                      >
-                        {project.status}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge
+                          variant="outline"
+                          className={statusColors[project.status as keyof typeof statusColors]}
+                        >
+                          {project.status}
+                        </Badge>
+                        {project.status === 'Draft' && isWizardDraft(project) && (
+                          <Link href={`/projects/wizard?resume=${project.id}`} title="Resume wizard setup">
+                            <PlayCircle className="size-4 text-blue-500 hover:text-blue-700 cursor-pointer" />
+                          </Link>
+                        )}
+                      </div>
                     </TableCell>
                     {!hideFinancialData && (
                       <TableCell>
@@ -600,6 +619,12 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                             <Edit className="size-4" />
                             Edit Project
                           </DropdownMenuItem>
+                          {project.status === 'Draft' && isWizardDraft(project) && (
+                            <DropdownMenuItem onClick={() => router.push(`/projects/wizard?resume=${project.id}`)}>
+                              <PlayCircle className="size-4" />
+                              Resume Wizard
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={() => handleDelete(project.id)}
                             className="text-destructive"
@@ -652,6 +677,12 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                         <Edit className="size-4" />
                         Edit Project
                       </DropdownMenuItem>
+                      {project.status === 'Draft' && isWizardDraft(project) && (
+                        <DropdownMenuItem onClick={() => router.push(`/projects/wizard?resume=${project.id}`)}>
+                          <PlayCircle className="size-4" />
+                          Resume Wizard
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         onClick={() => handleDelete(project.id)}
                         className="text-destructive"

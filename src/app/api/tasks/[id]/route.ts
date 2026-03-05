@@ -349,6 +349,39 @@ export async function PATCH(
     }
   }
 
+  // Notify department head on task completion or reassignment
+  if (updatedTask.departmentId && (
+    (parsed.data.status === 'Completed' && task.status !== 'Completed') ||
+    (parsed.data.assignedToId && parsed.data.assignedToId !== task.assignedToId)
+  )) {
+    try {
+      const department = await prisma.department.findUnique({
+        where: { id: updatedTask.departmentId },
+        select: { managerId: true, name: true },
+      });
+      if (department?.managerId && department.managerId !== session.sub && department.managerId !== updatedTask.assignedToId) {
+        const isCompletion = parsed.data.status === 'Completed' && task.status !== 'Completed';
+        await NotificationService.createNotification({
+          userId: department.managerId,
+          type: isCompletion ? 'TASK_COMPLETED' : 'TASK_ASSIGNED',
+          title: isCompletion ? 'Task Completed in Your Department' : 'Task Reassigned in Your Department',
+          message: isCompletion
+            ? `${session.name} completed "${updatedTask.title}" in ${department.name}`
+            : `"${updatedTask.title}" was reassigned in ${department.name}`,
+          relatedEntityType: 'task',
+          relatedEntityId: updatedTask.id,
+          metadata: {
+            taskTitle: updatedTask.title,
+            departmentName: department.name,
+            projectName: updatedTask.project?.name,
+          },
+        });
+      }
+    } catch (deptNotifError) {
+      console.error('Failed to notify department head:', deptNotifError);
+    }
+  }
+
   // Try to fetch completedBy and approvedBy
   try {
     const taskExtras = await prisma.task.findUnique({

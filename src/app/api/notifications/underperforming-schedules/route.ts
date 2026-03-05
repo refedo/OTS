@@ -165,8 +165,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check cache first (30 second TTL)
-    const cacheKey = 'underperforming-schedules';
+    // Get current user info for personalized filtering
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.sub },
+      select: { id: true, role: { select: { name: true } } },
+    });
+
+    const isAdmin = currentUser?.role?.name === 'Admin' || currentUser?.role?.name === 'CEO';
+
+    // Check cache first (30 second TTL) - cache per user
+    const cacheKey = `underperforming-schedules-${session.sub}`;
     const cached = cache.get(cacheKey, 30000);
     if (cached) {
       return NextResponse.json(cached);
@@ -174,8 +182,21 @@ export async function GET(req: Request) {
 
     const now = new Date();
 
-    // Get all scope schedules
+    // Build project filter: only projects the user is involved in
+    const projectFilter = isAdmin ? {} : {
+      project: {
+        OR: [
+          { projectManagerId: session.sub },
+          { assignments: { some: { userId: session.sub } } },
+        ],
+      },
+    };
+
+    // Get scope schedules filtered to user's projects
     const scopeSchedules = await prisma.scopeSchedule.findMany({
+      where: {
+        ...projectFilter,
+      },
       include: {
         project: {
           select: {

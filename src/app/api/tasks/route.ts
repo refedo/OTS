@@ -308,6 +308,34 @@ export async function POST(req: Request) {
       }
     }
 
+    // Notify department head if task has a department
+    if (task.departmentId) {
+      try {
+        const department = await prisma.department.findUnique({
+          where: { id: task.departmentId },
+          select: { managerId: true, name: true },
+        });
+        if (department?.managerId && department.managerId !== session.sub && department.managerId !== task.assignedToId) {
+          await NotificationService.createNotification({
+            userId: department.managerId,
+            type: 'TASK_ASSIGNED',
+            title: 'New Task in Your Department',
+            message: `A new task "${task.title}" has been created in ${department.name}${task.project ? ` for project ${task.project.name}` : ''}`,
+            relatedEntityType: 'task',
+            relatedEntityId: task.id,
+            deadlineAt: task.dueDate || undefined,
+            metadata: {
+              taskTitle: task.title,
+              departmentName: department.name,
+              projectName: task.project?.name,
+            },
+          });
+        }
+      } catch (deptNotifError) {
+        console.error('Failed to notify department head:', deptNotifError);
+      }
+    }
+
     // Sync to WorkUnit for Operations Control (non-blocking)
     WorkUnitSyncService.syncFromTask({
       id: task.id,

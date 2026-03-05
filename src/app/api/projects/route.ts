@@ -61,10 +61,18 @@ const createSchema = z.object({
   projectNature: z.string().optional().nullable(),
   projectLocation: z.string().optional().nullable(),
   
-  // Durations
+  // Durations (legacy)
   engineeringDuration: z.number().int().optional().nullable(),
   fabricationDeliveryDuration: z.number().int().optional().nullable(),
   erectionDuration: z.number().int().optional().nullable(),
+  
+  // Stage Durations (weeks - from wizard)
+  engineeringWeeksMin: z.number().int().optional().nullable(),
+  engineeringWeeksMax: z.number().int().optional().nullable(),
+  operationsWeeksMin: z.number().int().optional().nullable(),
+  operationsWeeksMax: z.number().int().optional().nullable(),
+  siteWeeksMin: z.number().int().optional().nullable(),
+  siteWeeksMax: z.number().int().optional().nullable(),
   
   // Technical
   cranesIncluded: z.boolean().optional(),
@@ -101,6 +109,7 @@ const createSchema = z.object({
   wpsNumber: z.string().optional().nullable(),
   standardCode: z.string().optional().nullable(),
   thirdPartyRequired: z.boolean().optional(),
+  thirdPartyResponsibility: z.string().optional().nullable(),
   ndtTest: z.string().optional().nullable(),
   applicableCodes: z.string().optional().nullable(),
   
@@ -156,6 +165,7 @@ export async function GET(req: Request) {
         engineeringTonnage: true,
         createdAt: true,
         updatedAt: true,
+        remarks: true,
         client: { select: { id: true, name: true } },
         projectManager: { select: { id: true, name: true, position: true } },
         salesEngineer: { select: { id: true, name: true } },

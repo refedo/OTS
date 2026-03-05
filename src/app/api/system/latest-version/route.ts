@@ -2,31 +2,34 @@ import { NextResponse } from 'next/server';
 
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
-  version: '15.18.2',
+  version: '15.18.3',
   date: 'March 5, 2026',
-  type: 'patch' as const,
-  mainTitle: 'Initiatives Display & RBAC Enhancements',
+  type: 'minor' as const,
+  mainTitle: 'Project Wizard Enhancements & Personalized Notifications',
   highlights: [
-    'Fixed initiatives showing 0% progress on objectives page',
-    'Multi-select objectives for initiatives support',
-    'Enhanced RBAC with browse_users permission',
-    'Objective names now displayed in initiative cards',
+    'Stage durations from wizard now persist and show in project details',
+    'Completed wizard projects are set to Active status automatically',
+    'Draft projects can be resumed from the projects list',
+    'Notifications are now personalized per user role and involvement',
   ],
   changes: {
     added: [
-      'Multi-select objectives for initiatives — link one initiative to multiple objectives',
-      'New projects.browse_users permission — allows browsing user lists without full user management access',
-      'Objective names displayed in initiative cards — shows next to budget and timeline',
+      'Stage durations (Engineering/Operations/Site weeks) now saved from project wizard to project details',
+      'Resume wizard draft — PlayCircle icon next to Draft projects in projects list to resume setup',
+      'Department head notifications — dept managers notified on task creation, completion, and reassignment',
+      'Personalized delayed tasks — users only see delayed tasks they are involved in (assignee/creator/requester)',
+      'Personalized schedule alerts — users only see underperforming schedules for their projects',
     ],
     fixed: [
-      'Initiatives now show correct progress on objectives page — calculated from status when progress field is 0',
-      'Fixed initiatives not appearing under objectives — merged direct and junction table relationships',
-      'Version display in sidebar now dynamically updates from system version',
+      'Project wizard now sets status to Active on completion instead of Draft',
+      'Stage duration fields added to API schemas (create + update) so wizard data persists',
+      'Fixed lint error: params.id replaced with awaited id variable in projects API',
+      'Production migration SQL generated for missing stage duration columns',
     ],
     changed: [
-      'Enhanced initiatives form UI — replaced dropdown with multi-select checkbox list',
-      'Updated objectives API to handle both direct and many-to-many initiative relationships',
-      'Users API now checks projects.browse_users permission for user dropdown access',
+      'Save as Draft stores full wizard state in remarks field for resume capability',
+      'Delayed tasks endpoint now caches per-user instead of globally',
+      'Underperforming schedules filtered to user\'s managed/assigned projects',
     ],
   },
 };
