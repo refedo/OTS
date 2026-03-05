@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.18.1',
+    version: '15.18.4',
     date: 'March 5, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '🛠️ Infrastructure Updates & Version Management',
+    highlights: [
+      'Centralized version management system',
+      'Automated version synchronization across all files',
+      'Fixed build version display showing correct v15.18.4',
+      'Added Strategic Objectives link to sidebar menu',
+    ],
+    changes: {
+      added: [
+        'Centralized Version Management — Single source of truth in src/lib/version.ts',
+        'Automated Version Updates — scripts/update-version.js syncs version across all files',
+        'Strategic Objectives Menu Link — Added to Business Planning section in sidebar',
+      ],
+      fixed: [
+        'Build Version Display — Now correctly shows v15.18.4 instead of outdated v15.18.1',
+        'All components now import version from centralized location',
+        'Package.json version automatically synchronized',
+      ],
+      changed: [
+        'Easier version updates going forward — just edit one file and run the script',
+      ],
+    },
+  },
+  {
+    version: '15.18.1',
+    date: 'March 5, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '🎯 Strategic Planning & Initiatives Enhancements',
     highlights: [
       'Strategic Objectives module with 5-7 year planning',
