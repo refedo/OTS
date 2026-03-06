@@ -191,6 +191,20 @@ export async function PATCH(
     }, { status: 400 });
   }
 
+  // Check if project number is being changed and if it already exists
+  if (parsed.data.projectNumber) {
+    const existingProject = await prisma.project.findUnique({
+      where: { projectNumber: parsed.data.projectNumber },
+    });
+
+    if (existingProject && existingProject.id !== id) {
+      return NextResponse.json({ 
+        error: 'Project number already exists', 
+        details: `Project number "${parsed.data.projectNumber}" is already in use by another project. Please use a different project number.` 
+      }, { status: 409 });
+    }
+  }
+
   // Handle client name if provided
   let updateData: any = { ...parsed.data };
   

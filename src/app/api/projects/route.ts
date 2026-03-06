@@ -198,6 +198,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid input', details: parsed.error }, { status: 400 });
     }
 
+  // Check if project number already exists
+  const existingProject = await prisma.project.findUnique({
+    where: { projectNumber: parsed.data.projectNumber },
+  });
+
+  if (existingProject) {
+    return NextResponse.json({ 
+      error: 'Project number already exists', 
+      details: `Project number "${parsed.data.projectNumber}" is already in use. Please use a different project number.` 
+    }, { status: 409 });
+  }
+
   // Find or create client by name
   let clientId = parsed.data.clientId;
   
