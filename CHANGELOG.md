@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.18.6] - 2026-03-08
+
+### ⚡ CI/CD & Deployment Improvements
+
+#### Changes
+- **Next.js Build Caching** — Added `actions/cache` for `.next/cache` directory in deploy workflow, significantly reducing build times on subsequent deploys
+- **Fixed PM2 Process Name** — Corrected PM2 process name from `ots-app` to `hexa-steel-ots` to match actual server configuration
+- **Build-time Prisma Fix** — Added dummy `DATABASE_URL` during CI build so Prisma Client can initialize without a real database connection
+- **Lazy Service Initialization** — OpenAI and Puppeteer clients are now lazily initialized, preventing build failures when API keys are not available at build time
+
+#### Technical Improvements
+- Deploy workflow now caches `.next/cache` keyed by `package-lock.json` and source file hashes
+- Partial cache hits still provide benefit via restore keys fallback
+- npm dependencies already cached via `setup-node` action
+
+---
+
 ## [15.18.5] - 2026-03-05
 
 ### 🔐 RBAC Overhaul - Permissions Now Work Correctly
