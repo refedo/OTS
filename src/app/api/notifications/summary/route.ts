@@ -8,9 +8,9 @@ import { verifySession } from '@/lib/jwt';
 import NotificationService from '@/lib/services/notification.service';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   const authHeader = request.headers.get('authorization');
@@ -96,7 +96,7 @@ Provide a brief summary (max 200 words) highlighting:
 3. Task assignments
 4. Upcoming deadlines`;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
