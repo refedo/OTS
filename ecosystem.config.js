@@ -2,8 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'hexa-steel-ots',
-      script: 'node_modules/next/dist/bin/next',
-      args: 'start',
+      script: '.next/standalone/server.js',
       instances: 1,
       exec_mode: 'fork',
       node_args: '--max-old-space-size=1024 --expose-gc',
