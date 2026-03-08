@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'hexa-steel-ots',
-      script: '.next/standalone/server.js',
+      script: 'server.js',
       instances: 1,
       exec_mode: 'fork',
       node_args: '--max-old-space-size=1024 --expose-gc',
@@ -11,6 +11,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
+        HOSTNAME: '0.0.0.0',
         NEXT_PUBLIC_BASE_PATH: '/ots',
         NEXT_PUBLIC_APP_URL: 'https://hexasteel.sa/ots',
       },
