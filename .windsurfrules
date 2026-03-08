@@ -1,0 +1,95 @@
+# Hexa Steel® OTS — Windsurf Development Rules
+
+## Project Overview
+Enterprise ERP for steel fabrication. Next.js 15 App Router + TypeScript + Prisma + MySQL.
+Base URL: `hexasteel.sa/ots` (configurable via `NEXT_PUBLIC_BASE_PATH`).
+
+---
+
+## Tech Stack
+- Next.js 15, React 19, TypeScript 5 (strict mode)
+- Prisma 6 + MySQL 8
+- shadcn/ui + Radix UI + Tailwind CSS 4
+- Zod for all validation
+- Pino logger via `@/lib/logger` — NEVER use console.log
+- JWT auth with `ots_session` cookie
+
+---
+
+## Critical Rules
+
+### Logging
+- NEVER use `console.log`, `console.error`, `console.warn`
+- ALWAYS use: `import { logger } from '@/lib/logger'`
+- Pattern: `logger.error({ error, context }, 'Message')`
+
+### Type Safety
+- NEVER use `any` type
+- Use `unknown` + type narrowing or define proper interfaces
+- Use `Prisma.EntityGetPayload<>` for Prisma result types
+
+### Validation
+- ALL API endpoints must validate input with Zod
+- Return `{ error: 'Invalid input', details: parsed.error.flatten() }` on validation failure with status 400
+
+### API Routes
+- ALL routes must use `withApiContext` from `@/lib/api-utils`
+- Pattern: `export const GET = withApiContext(async (req, session) => { ... })`
+- Check roles: `if (!['Admin', 'Manager'].includes(session!.role))`
+
+### Database
+- Import: `import prisma from '@/lib/db'` (never from @prisma/client directly)
+- Always filter soft-deleted: `where: { deletedAt: null }`
+- Use `select` to avoid over-fetching
+
+### Environment Variables
+- Never access `process.env.VAR` directly in components or pages
+- Import validated env from `@/lib/env`
+
+---
+
+## File Structure
+```
+src/app/api/<resource>/route.ts         → API routes
+src/app/<page>/page.tsx                 → Pages (Server Components by default)
+src/components/ui/                      → shadcn/ui (DO NOT MODIFY)
+src/components/<domain>/               → Domain components
+src/lib/db.ts                          → Prisma client
+src/lib/logger.ts                      → Pino logger
+src/lib/api-utils.ts                   → withApiContext, logActivity
+src/lib/services/                      → Business logic
+src/lib/utils/                         → Pure utilities
+prisma/schema.prisma                   → DB schema (90 models)
+```
+
+---
+
+## Component Rules
+- Default to Server Components in `app/`
+- Add `'use client'` only for: event handlers, hooks, browser APIs
+- Use `cn()` from `@/lib/utils` for conditional classnames
+- Use shadcn/ui components from `@/components/ui/`
+
+---
+
+## Soft Delete Pattern
+Most entities support soft delete. Always:
+```typescript
+// Query
+prisma.entity.findMany({ where: { deletedAt: null } })
+
+// Delete (use soft delete service, not prisma.delete)
+import { softDeleteService } from '@/lib/services/governance'
+```
+
+---
+
+## Avoid
+- `console.log` / `console.error` / `console.warn`
+- `any` type
+- Unvalidated API inputs
+- Modifying `src/components/ui/` files
+- Using raw `prisma.entity.delete()` on soft-deletable models
+- Hardcoding config values that belong in `.env`
+- Unnecessary comments on self-explanatory code
+- Over-engineering: keep it simple, no premature abstractions

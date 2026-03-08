@@ -14,6 +14,7 @@ import { runWithContextAsync, createContextFromSession } from '@/lib/services/go
 import { auditService } from '@/lib/services/governance';
 import { eventService } from '@/lib/services/event.service';
 import { AuditAction } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 export interface SessionData {
   userId: string;
@@ -74,7 +75,7 @@ export function withApiContext<T = any>(
         return handler(request, session, context);
       });
     } catch (error) {
-      console.error('[API] Error:', error);
+      logger.error({ error }, '[API] Unhandled error in route handler');
       return NextResponse.json(
         { error: 'Internal server error' },
         { status: 500 }
@@ -106,7 +107,7 @@ export async function logAuditEvent(params: {
       metadata: params.metadata,
     });
   } catch (error) {
-    console.error('[AuditLog] Failed to log:', error);
+    logger.error({ error }, '[AuditLog] Failed to log audit event');
   }
 }
 
@@ -137,7 +138,7 @@ export async function logSystemEvent(params: {
       metadata: params.metadata,
     });
   } catch (error) {
-    console.error('[SystemEvent] Failed to log:', error);
+    logger.error({ error }, '[SystemEvent] Failed to log system event');
   }
 }
 
