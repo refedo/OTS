@@ -51,6 +51,9 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   
+  // Keep heavy server-only packages out of the webpack bundle
+  serverExternalPackages: ['puppeteer'],
+
   // Build optimizations
   experimental: {
     // Disable CSS optimization to avoid critters module error

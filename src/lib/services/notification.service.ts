@@ -4,9 +4,8 @@
  * Part of the Hexa Steel OTS Notification Center Module
  */
 
-import { PrismaClient, NotificationType, Notification } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NotificationType, Notification } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
 export interface CreateNotificationParams {
   userId: string;

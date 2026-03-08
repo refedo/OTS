@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { reportEngine } from './reportEngine';
+import { getReportEngine } from './reportEngine';
 import { ReportGenerationRequest, ReportGenerationResponse } from './reportTypes';
 
 /**
@@ -60,7 +60,7 @@ export async function generateReportHandler(
     }
 
     // Generate report
-    const result = await reportEngine.generateReport({
+    const result = await getReportEngine().generateReport({
       reportType,
       projectId,
       language,
