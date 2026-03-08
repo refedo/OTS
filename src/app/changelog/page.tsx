@@ -23,10 +23,37 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.18.6',
+    date: 'March 8, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '⚡ CI/CD & Deployment Improvements',
+    highlights: [
+      'Next.js build caching for faster deploys',
+      'Fixed PM2 process name mismatch causing deploy failures',
+      'Build-time Prisma initialization fix',
+      'Lazy OpenAI/Puppeteer initialization to prevent build crashes',
+    ],
+    changes: {
+      added: [
+        'Next.js Build Caching — actions/cache for .next/cache directory, reducing build times on subsequent deploys',
+      ],
+      fixed: [
+        'PM2 Process Name — Corrected from ots-app to hexa-steel-ots to match server configuration',
+        'Build-time Prisma Fix — Added dummy DATABASE_URL during CI build so Prisma Client can initialize',
+        'Lazy Service Initialization — OpenAI and Puppeteer clients lazily initialized, preventing build failures',
+      ],
+      changed: [
+        'Deploy workflow caches .next/cache keyed by package-lock.json and source file hashes',
+        'Partial cache hits provide benefit via restore keys fallback',
+      ],
+    },
+  },
+  {
     version: '15.18.5',
     date: 'March 5, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔐 RBAC Overhaul - Permissions Now Work Correctly',
     highlights: [
       'CRITICAL: Fixed RBAC system - permissions now respected for all roles',
