@@ -61,6 +61,8 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_BASE_PATH: "/ots"
+          NEXT_PUBLIC_APP_URL: "https://hexasteel.sa/ots"
       
       - name: Create release package
         run: |
