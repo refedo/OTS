@@ -80,12 +80,19 @@ jobs:
             echo "Stopping application..."
             pm2 stop hexa-steel-ots || true
 
+            # Preserve .env file before extraction
+            cp .env /tmp/.env.backup 2>/dev/null || true
+
             echo "Extracting pre-built standalone files..."
             tar -xzf /tmp/deploy.tar.gz -C /var/www/hexasteel.sa/ots
             rm -f /tmp/deploy.tar.gz
 
+            # Restore .env file
+            cp /tmp/.env.backup .env 2>/dev/null || true
+            rm -f /tmp/.env.backup
+
             echo "Running database migrations..."
-            npx prisma migrate deploy
+            node node_modules/prisma/build/index.js migrate deploy
 
             echo "Restarting application..."
             pm2 restart hexa-steel-ots --update-env || pm2 start ecosystem.config.js
