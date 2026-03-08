@@ -71,6 +71,9 @@ jobs:
           script: |
             cd /var/www/hexasteel.sa/ots
 
+            echo "Stopping application..."
+            pm2 stop hexa-steel-ots || true
+
             echo "Pulling latest code..."
             git pull origin main || true
 
@@ -82,6 +85,10 @@ jobs:
 
             echo "Running database migrations..."
             npx prisma migrate deploy
+
+            echo "Cleaning old build artifacts..."
+            rm -rf .next
+            rm -f server.js
 
             echo "Extracting pre-built files..."
             tar -xzf /tmp/deploy.tar.gz -C /var/www/hexasteel.sa/ots
