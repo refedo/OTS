@@ -6,10 +6,9 @@ import { buildAIContext, ContextType } from '@/lib/ai-assistant/contextBuilder';
 import OpenAI from 'openai';
 import { z } from 'zod';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 // Request validation schema
 const requestSchema = z.object({
@@ -184,7 +183,7 @@ ${message}`;
     ];
 
     // 8. Call OpenAI API with function calling
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4-turbo-preview', // Supports 128k tokens
       messages,
       temperature: 0.7,
