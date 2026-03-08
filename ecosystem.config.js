@@ -12,8 +12,8 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
-        NEXT_PUBLIC_BASE_PATH: '/ots',
-        NEXT_PUBLIC_APP_URL: 'https://hexasteel.sa/ots',
+        // No NEXT_PUBLIC_BASE_PATH - nginx proxies ots.hexasteel.sa directly to localhost:3000
+        NEXT_PUBLIC_APP_URL: 'https://ots.hexasteel.sa',
       },
       cron_restart: '0 */6 * * *', // Restart every 6 hours to prevent memory buildup
       error_file: './logs/pm2-error.log',

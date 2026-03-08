@@ -35,8 +35,8 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_BASE_PATH: "/ots"
-          NEXT_PUBLIC_APP_URL: "https://hexasteel.sa/ots"
+          # No NEXT_PUBLIC_BASE_PATH - nginx proxies ots.hexasteel.sa directly to localhost:3000
+          NEXT_PUBLIC_APP_URL: "https://ots.hexasteel.sa"
           # Dummy values so Prisma Client can initialise without a real DB during build
           DATABASE_URL: "mysql://placeholder:placeholder@localhost:3306/placeholder"
 
