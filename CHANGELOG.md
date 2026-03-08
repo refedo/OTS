@@ -12,15 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ⚡ CI/CD & Deployment Improvements
 
 #### Changes
-- **Next.js Build Caching** — Added `actions/cache` for `.next/cache` directory in deploy workflow, significantly reducing build times on subsequent deploys
+- **Next.js Standalone Output** — Enabled `output: 'standalone'` for self-contained production builds; eliminates `npm ci` on the server
+- **Next.js Build Caching** — Added `actions/cache` for `.next/cache` directory, scoped to `src/` files only for reliable cache hits
+- **Optimized Deploy Package** — Ships only `.next/standalone`, `.next/static`, `public`, and prisma instead of full `.next` + all dependencies
 - **Fixed PM2 Process Name** — Corrected PM2 process name from `ots-app` to `hexa-steel-ots` to match actual server configuration
 - **Build-time Prisma Fix** — Added dummy `DATABASE_URL` during CI build so Prisma Client can initialize without a real database connection
 - **Lazy Service Initialization** — OpenAI and Puppeteer clients are now lazily initialized, preventing build failures when API keys are not available at build time
 
 #### Technical Improvements
-- Deploy workflow now caches `.next/cache` keyed by `package-lock.json` and source file hashes
-- Partial cache hits still provide benefit via restore keys fallback
-- npm dependencies already cached via `setup-node` action
+- Standalone mode bundles only required `node_modules` into the build output
+- PM2 now runs `server.js` directly instead of `next start`, reducing startup overhead
+- Removed redundant `git pull`, `npm ci --omit=dev`, and `prisma generate` from server-side deploy
+- Deploy workflow caches `.next/cache` keyed by `package-lock.json` and `src/**` file hashes
+- Removed duplicate `prisma generate` step (already runs as part of `npm run build`)
 
 ---
 
