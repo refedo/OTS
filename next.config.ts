@@ -49,12 +49,6 @@ const nextConfig: NextConfig = {
   // Turbopack configuration
   turbopack: {
     root: __dirname,
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
   },
   
   // Build optimizations
@@ -87,13 +81,15 @@ const nextConfig: NextConfig = {
       };
     }
     
-    // Ignore handlebars warnings
+    // Ignore handlebars warnings by replacing with empty module
     config.module.rules.push({
       test: /\.js$/,
       include: /node_modules\/handlebars/,
-      use: 'null-loader',
+      resolve: {
+        fullySpecified: false,
+      },
     });
-    
+
     return config;
   },
 };
