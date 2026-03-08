@@ -31,6 +31,8 @@ jobs:
           NODE_ENV: production
           NEXT_PUBLIC_BASE_PATH: "/ots"
           NEXT_PUBLIC_APP_URL: "https://hexasteel.sa/ots"
+          # Dummy values so Prisma Client can initialise without a real DB during build
+          DATABASE_URL: "mysql://placeholder:placeholder@localhost:3306/placeholder"
 
       - name: Create deployment package
         run: |

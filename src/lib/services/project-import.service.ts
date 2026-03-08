@@ -3,7 +3,7 @@
  * Handles database operations for importing projects from Excel
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import {
   ParsedExcelData,
   ImportSummary,
@@ -11,8 +11,6 @@ import {
   ProjectRow,
   BuildingRow,
 } from '@/lib/types/project-migration';
-
-const prisma = new PrismaClient();
 
 // ============================================
 // HELPER FUNCTIONS

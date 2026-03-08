@@ -3,11 +3,11 @@
  * Professional PDF report generation using Puppeteer
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer';
+import type { Browser, Page } from 'puppeteer';
 import Handlebars from 'handlebars';
 import fs from 'fs/promises';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import {
   ReportGenerationRequest,
   ReportGenerationResponse,
@@ -19,8 +19,6 @@ import {
   DeliveryNoteData,
   PuppeteerConfig,
 } from './reportTypes';
-
-const prisma = new PrismaClient();
 
 /**
  * Hexa Reporting Engine Class
@@ -62,6 +60,7 @@ export class HexaReportingEngine {
    */
   private async initBrowser(): Promise<Browser> {
     if (!this.browser) {
+      const puppeteer = (await import('puppeteer')).default;
       this.browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -776,5 +775,14 @@ export class HexaReportingEngine {
   }
 }
 
-// Export singleton instance
-export const reportEngine = new HexaReportingEngine();
+// Lazy singleton – avoid instantiating at module scope during next build
+let _reportEngine: HexaReportingEngine | null = null;
+export function getReportEngine(): HexaReportingEngine {
+  if (!_reportEngine) {
+    _reportEngine = new HexaReportingEngine();
+  }
+  return _reportEngine;
+}
+
+/** @deprecated Use getReportEngine() instead */
+export const reportEngine = undefined as unknown as HexaReportingEngine;

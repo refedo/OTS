@@ -5,10 +5,8 @@
  */
 
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import NotificationService from './notification.service';
-
-const prisma = new PrismaClient();
 
 export class DeadlineSchedulerService {
   private static isRunning = false;
