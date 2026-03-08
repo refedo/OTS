@@ -43,18 +43,12 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deploy-package
-          # Standalone output includes only necessary node_modules
-          cp -r .next/standalone/. deploy-package/
-          # Static assets and public files must be copied separately
-          mkdir -p deploy-package/.next/static
-          cp -r .next/static/. deploy-package/.next/static/
-          cp -r public deploy-package/public || true
-          # Include prisma for migrations and ecosystem config for PM2
+          cp -r .next deploy-package/
+          cp -r public deploy-package/ || true
           cp -r prisma deploy-package/
-          mkdir -p deploy-package/node_modules
-          cp -r node_modules/prisma deploy-package/node_modules/prisma
-          cp -r node_modules/@prisma deploy-package/node_modules/@prisma
+          cp package*.json deploy-package/
           cp ecosystem.config.js deploy-package/ || true
+          cp next.config.ts deploy-package/ || true
           tar -czf deploy.tar.gz -C deploy-package .
 
       - name: Deploy to Digital Ocean
@@ -77,22 +71,21 @@ jobs:
           script: |
             cd /var/www/hexasteel.sa/ots
 
-            echo "Stopping application..."
-            pm2 stop hexa-steel-ots || true
+            echo "Pulling latest code..."
+            git pull origin main || true
 
-            # Preserve .env file before extraction
-            cp .env /tmp/.env.backup 2>/dev/null || true
+            echo "Installing production dependencies..."
+            npm ci --omit=dev
 
-            echo "Extracting pre-built standalone files..."
-            tar -xzf /tmp/deploy.tar.gz -C /var/www/hexasteel.sa/ots
-            rm -f /tmp/deploy.tar.gz
-
-            # Restore .env file
-            cp /tmp/.env.backup .env 2>/dev/null || true
-            rm -f /tmp/.env.backup
+            echo "Generating Prisma Client..."
+            npx prisma generate
 
             echo "Running database migrations..."
-            node node_modules/prisma/build/index.js migrate deploy
+            npx prisma migrate deploy
+
+            echo "Extracting pre-built files..."
+            tar -xzf /tmp/deploy.tar.gz -C /var/www/hexasteel.sa/ots
+            rm -f /tmp/deploy.tar.gz
 
             echo "Restarting application..."
             pm2 restart hexa-steel-ots --update-env || pm2 start ecosystem.config.js
