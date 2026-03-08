@@ -66,6 +66,10 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    // Parallel compilation for faster builds
+    webpackBuildWorker: true,
+    parallelServerCompiles: true,
+    parallelServerAndClientTracing: true,
   },
   
   // Reduce build time
