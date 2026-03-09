@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.18.7] - 2026-03-09
+
+### 📊 System Events V2 - Enhanced Activity Tracking
+
+#### New Features
+- **User Filter** — Added user dropdown filter to system events page to view activities by specific users
+- **Enhanced Colorization** — Category badges now use distinct color schemes (purple for files, blue for records, cyan for sync, orange for production, green for QC, indigo for projects)
+- **Improved Table Layout** — Dolibarr-style table with separate Date and Time columns for better readability
+- **User Column** — Each event now displays the user who performed the action with user icon
+- **Project Reference** — Events linked to projects show project number with folder icon
+- **Event Type Icons** — Visual icons for created (green), updated (blue), deleted (red), uploaded (purple), synced (cyan), approved (green), rejected (red)
+
+#### Technical Details
+- Added `userId` filter parameter to `/api/events` endpoint
+- System events page fetches user list from `/api/users` for filter dropdown
+- Event service already supported userId filtering in database queries
+- Category colors defined in `CATEGORY_COLORS` constant with Tailwind CSS classes
+
+---
+
 ## [15.18.6] - 2026-03-08
 
 ### ⚡ CI/CD & Deployment Improvements

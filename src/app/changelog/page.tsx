@@ -23,10 +23,37 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.18.7',
+    date: 'March 9, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '📊 System Events V2 - Enhanced Activity Tracking',
+    highlights: [
+      'User filter dropdown to view activities by specific users',
+      'Enhanced category colorization with distinct color schemes',
+      'Improved table layout with separate Date and Time columns',
+      'Visual icons for different event types (created, updated, deleted, etc.)',
+    ],
+    changes: {
+      added: [
+        'User Filter — Dropdown filter to view events by specific users',
+        'Enhanced Colorization — Category badges with distinct colors (purple/blue/cyan/orange/green/indigo)',
+        'User Column — Each event displays the user who performed the action',
+        'Event Type Icons — Visual icons for created (green), updated (blue), deleted (red), uploaded (purple), synced (cyan)',
+      ],
+      fixed: [],
+      changed: [
+        'System events page now fetches user list for filter dropdown',
+        'API endpoint supports userId filter parameter',
+        'Improved table layout with Dolibarr-style design',
+      ],
+    },
+  },
+  {
     version: '15.18.6',
     date: 'March 8, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '⚡ CI/CD & Deployment Improvements',
     highlights: [
       'Standalone output mode — self-contained builds, no npm install on server',

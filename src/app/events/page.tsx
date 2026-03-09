@@ -76,12 +76,18 @@ export default function EventsPage() {
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
+  const [users, setUsers] = useState<{id: string; name: string}[]>([]);
   const limit = 20;
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     fetchEvents();
     fetchStats();
-  }, [page, categoryFilter, eventTypeFilter]);
+  }, [page, categoryFilter, eventTypeFilter, userFilter]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -91,6 +97,7 @@ export default function EventsPage() {
       params.set('offset', ((page - 1) * limit).toString());
       if (categoryFilter !== 'all') params.set('category', categoryFilter);
       if (eventTypeFilter !== 'all') params.set('eventType', eventTypeFilter);
+      if (userFilter !== 'all') params.set('userId', userFilter);
 
       const response = await fetch(`/api/events?${params}`);
       if (response.ok) {
@@ -114,6 +121,18 @@ export default function EventsPage() {
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   };
 
@@ -239,6 +258,16 @@ export default function EventsPage() {
               <option value="synced">Synced</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
+            </select>
+            <select
+              value={userFilter}
+              onChange={(e) => { setUserFilter(e.target.value); setPage(1); }}
+              className="h-9 px-3 rounded-md border bg-background text-sm"
+            >
+              <option value="all">All Users</option>
+              {users.map(user => (
+                <option key={user.id} value={user.id}>{user.name}</option>
+              ))}
             </select>
           </div>
         </CardContent>

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') as any;
     const entityType = searchParams.get('entityType') || undefined;
     const projectId = searchParams.get('projectId') || undefined;
+    const userId = searchParams.get('userId') || undefined;
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
       category,
       entityType,
       projectId,
+      userId,
     };
 
     const result = await eventService.getEvents(filter, limit, offset);
