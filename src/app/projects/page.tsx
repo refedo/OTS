@@ -5,7 +5,7 @@ import { ProjectsClient } from '@/components/projects-client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Plus, Upload } from 'lucide-react';
-import { getCurrentUserRestrictedModules } from '@/lib/permission-checker';
+import { getCurrentUserRestrictedModules, checkPermission } from '@/lib/permission-checker';
 
 export default async function ProjectsPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -17,8 +17,9 @@ export default async function ProjectsPage() {
     redirect('/login');
   }
 
-  const canCreate = ['CEO', 'Admin', 'Manager'].includes(session.role);
-  const canImportExport = ['CEO', 'Admin', 'PMO'].includes(session.role);
+  // Use RBAC permissions instead of hardcoded role checks
+  const canCreate = await checkPermission('projects.create');
+  const canImportExport = await checkPermission('projects.import_export') || ['CEO', 'Admin', 'PMO'].includes(session.role);
   
   // Get user's restricted modules for hiding financial data
   const restrictedModules = await getCurrentUserRestrictedModules();
