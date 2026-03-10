@@ -126,10 +126,12 @@ export default function EventsPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('/api/users?forAssignment=true');
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users || []);
+        // API returns array directly when forAssignment=true
+        const userList = Array.isArray(data) ? data : (data.users || []);
+        setUsers(userList.map((u: any) => ({ id: u.id, name: u.name })));
       }
     } catch (error) {
       console.error('Error fetching users:', error);
