@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.19.0',
+    date: 'March 10, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🔐 PBAC Migration — Permission-Based Access Control',
+    highlights: [
+      'Complete migration from role-based to permission-based access control',
+      'Custom user permissions with grants/revokes override system',
+      'Clone permissions API to copy permissions between users',
+      'Legacy rbac.ts deleted — all access uses permission-checker.ts',
+    ],
+    changes: {
+      added: [
+        'Permission Resolution Service — hybrid model: Role Permissions + User Grants - User Revokes - Module Restrictions',
+        'Custom Permissions with Grants/Revokes — user edit form supports granting extra permissions and revoking role permissions per user',
+        'Clone Permissions API — POST /api/users/[id]/clone-permissions copies custom permissions between users',
+        'PBAC Verification Script — npx tsx scripts/verify-pbac-migration.ts scans codebase for remaining role-based patterns',
+      ],
+      fixed: [
+        '18+ API routes migrated from hardcoded role checks to checkPermission() calls',
+        '12+ page components migrated from role checks to getCurrentUserPermissions()',
+        '9 client components migrated from userRole prop to userPermissions: string[] prop',
+      ],
+      changed: [
+        'Deleted src/lib/rbac.ts — legacy role-based access control module removed entirely',
+        'customPermissions JSON field now uses { grants: string[], revokes: string[] } format (backward compatible)',
+        'User PATCH API accepts both legacy array and new grants/revokes object format via Zod union schema',
+        'resolvePermissionsFromData() pure function works both server-side and client-side',
+      ],
+    },
+  },
+  {
     version: '15.18.7',
     date: 'March 9, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '📊 System Events V2 - Enhanced Activity Tracking',
     highlights: [
       'User filter dropdown to view activities by specific users',

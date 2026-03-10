@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('[CEO Insights] Session role:', session.role);
-    console.log('[CEO Insights] User ID:', session.sub);
+    const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
+    const userPermissions = await getCurrentUserPermissions();
 
     const user = await prisma.user.findUnique({
       where: { id: session.sub },
@@ -22,15 +22,11 @@ export async function GET(request: NextRequest) {
     });
 
     console.log('[CEO Insights] User found:', user?.name);
-    console.log('[CEO Insights] User role from DB:', user?.role?.name);
-
-    // Check both session role and database role
-    const isCEO = session.role === 'CEO' || user?.role?.name === 'CEO';
+    const canViewInsights = userPermissions.includes('backlog.manage');
     
-    if (!user || !isCEO) {
-      console.log('[CEO Insights] Access denied - Session role:', session.role, 'DB role:', user?.role?.name);
+    if (!user || !canViewInsights) {
       return NextResponse.json(
-        { error: 'Access denied. CEO only.' },
+        { error: 'Access denied. backlog.manage permission required.' },
         { status: 403 }
       );
     }

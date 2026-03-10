@@ -74,6 +74,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'tasks.delete_all', name: 'Delete All Tasks', description: 'Delete any task regardless of assignment', category: 'tasks' },
       { id: 'tasks.assign', name: 'Assign Tasks', description: 'Assign users to tasks', category: 'tasks' },
       { id: 'tasks.manage', name: 'Full Task Management', description: 'Complete control over all tasks (legacy permission)', category: 'tasks' },
+      { id: 'tasks.manage_ceo_tasks', name: 'Manage CEO Tasks', description: 'Create, view, and modify CEO-level tasks', category: 'tasks' },
     ],
   },
   {

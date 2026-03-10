@@ -87,12 +87,12 @@ type Project = {
 
 type ITPDetailsProps = {
   itp: ITP;
-  userRole: string;
+  userPermissions: string[];
   userId: string;
   projects: Project[];
 };
 
-export function ITPDetails({ itp, userRole, userId, projects }: ITPDetailsProps) {
+export function ITPDetails({ itp, userPermissions, userId, projects }: ITPDetailsProps) {
   const router = useRouter();
   const [approvalDialog, setApprovalDialog] = useState(false);
   const [cloneDialog, setCloneDialog] = useState(false);
@@ -102,12 +102,12 @@ export function ITPDetails({ itp, userRole, userId, projects }: ITPDetailsProps)
   const [cloneItpNumber, setCloneItpNumber] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  const canEdit = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole) && itp.status === 'Draft';
-  const canDelete = ['CEO', 'Admin'].includes(userRole);
-  const canSubmit = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole) && itp.status === 'Draft';
-  const canApprove = ['CEO', 'Admin', 'Manager'].includes(userRole) && itp.status === 'Under Review';
-  const canSaveAsTemplate = ['CEO', 'Admin', 'Manager'].includes(userRole) && itp.type === 'CUSTOM';
-  const canClone = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole);
+  const canEdit = userPermissions.includes('quality.edit_itp') && itp.status === 'Draft';
+  const canDelete = userPermissions.includes('quality.edit_itp');
+  const canSubmit = userPermissions.includes('quality.edit_itp') && itp.status === 'Draft';
+  const canApprove = userPermissions.includes('quality.approve_itp') && itp.status === 'Under Review';
+  const canSaveAsTemplate = userPermissions.includes('quality.edit_itp') && itp.type === 'CUSTOM';
+  const canClone = userPermissions.includes('quality.create_itp');
 
   const formatDate = (date: string | null) => {
     if (!date) return '-';

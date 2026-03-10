@@ -5,6 +5,15 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { hashPassword } from '@/lib/password';
 
+const customPermissionsSchema = z.union([
+  z.object({
+    grants: z.array(z.string()).optional().default([]),
+    revokes: z.array(z.string()).optional().default([]),
+  }),
+  z.array(z.string()),
+  z.null(),
+]).optional();
+
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
@@ -16,7 +25,7 @@ const updateSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   isAdmin: z.boolean().optional(),
   mobileNumber: z.string().max(20).nullable().optional(),
-  customPermissions: z.array(z.string()).nullable().optional()
+  customPermissions: customPermissionsSchema,
 });
 
 export async function GET(

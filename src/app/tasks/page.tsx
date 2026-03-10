@@ -67,7 +67,6 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   return (
     <TasksClient 
       initialTasks={tasks} 
-      userRole={session.role} 
       userId={session.sub}
       allUsers={users}
       allProjects={projects}

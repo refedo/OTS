@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.19.0] - 2026-03-10
+
+### 🔐 PBAC Migration — Permission-Based Access Control
+
+#### Breaking Changes
+- **Deleted `src/lib/rbac.ts`** — Legacy role-based access control module removed entirely. All consumers now use `permission-checker.ts` and `permission-resolution.service.ts`.
+
+#### New Features
+- **Permission Resolution Service** — Hybrid permission model: `Final Permissions = Role Permissions + User Grants - User Revokes - Module Restrictions`
+- **Custom Permissions with Grants/Revokes** — User edit form now supports granting extra permissions beyond their role and revoking specific role permissions per user
+- **Clone Permissions API** — `POST /api/users/[id]/clone-permissions` copies custom permissions from one user to another
+- **PBAC Verification Script** — `npx tsx scripts/verify-pbac-migration.ts` scans codebase for remaining role-based patterns
+
+#### Migration Details
+- **18+ API routes migrated** — All `['CEO', 'Admin'].includes(session.role)` checks replaced with `checkPermission()` calls
+- **12+ page components migrated** — All role-based access checks replaced with `getCurrentUserPermissions()` + `userPermissions.includes()`
+- **9 client components migrated** — `userRole` props replaced with `userPermissions: string[]` props:
+  - `task-details.tsx`, `tasks-client.tsx`, `itp-client.tsx`, `itp-details.tsx`
+  - `initiatives-client.tsx`, `initiative-detail.tsx`, `initiative-tasks-client.tsx`
+  - `milestones-client.tsx`, `OperationTimelineClient.tsx`
+- **Sidebar** — Already used permission-based navigation filtering (no changes needed)
+
+#### Permission Mapping (Role Check → Permission)
+- `['CEO', 'Admin', 'Manager'].includes(role)` → `quality.approve_wps`, `quality.approve_itp`, `documents.approve`, `initiatives.edit`
+- `['CEO', 'Admin'].includes(role)` → `tasks.delete`, `initiatives.delete`, `quality.edit_itp`
+- `['CEO', 'Admin', 'Manager', 'Engineer'].includes(role)` → `quality.create_itp`, `quality.edit_itp`, `tasks.edit`
+- `session.role === 'Admin'` → `checkPermission('specific.permission')`
+
+#### Technical Changes
+- `customPermissions` JSON field on User model now uses `{ grants: string[], revokes: string[] }` format
+- Backward compatible with legacy `string[]` format (treated as grants-only)
+- `resolvePermissionsFromData()` pure function works both server-side and client-side
+- User PATCH API accepts both legacy array and new grants/revokes object format via Zod union schema
+
+---
+
 ## [15.18.7] - 2026-03-09
 
 ### 📊 System Events V2 - Enhanced Activity Tracking

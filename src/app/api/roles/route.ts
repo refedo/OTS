@@ -3,6 +3,8 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import { logger } from '@/lib/logger';
 
 const createSchema = z.object({ 
   name: z.string().min(2), 
@@ -19,19 +21,19 @@ export async function POST(req: Request) {
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  console.log('[Roles API] POST - Session role:', session?.role);
-  
-  if (!session || !['Admin', 'CEO'].includes(session.role)) {
-    console.log('[Roles API] Access denied - Role:', session?.role);
-    return NextResponse.json({ error: 'Forbidden. Admin or CEO access required.' }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userPermissions = await getCurrentUserPermissions();
+  if (!userPermissions.includes('roles.create')) {
+    logger.warn({ userId: session.sub }, '[Roles API] Access denied - missing roles.create permission');
+    return NextResponse.json({ error: 'Forbidden - roles.create permission required' }, { status: 403 });
   }
 
   const body = await req.json();
-  console.log('[Roles API] Request body:', body);
-  
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    console.log('[Roles API] Validation failed:', parsed.error);
     return NextResponse.json({ 
       error: 'Invalid input',
       details: parsed.error.format() 
@@ -39,6 +41,6 @@ export async function POST(req: Request) {
   }
 
   const role = await prisma.role.create({ data: parsed.data });
-  console.log('[Roles API] Role created:', role.name);
+  logger.info({ roleName: role.name }, '[Roles API] Role created');
   return NextResponse.json(role, { status: 201 });
 }

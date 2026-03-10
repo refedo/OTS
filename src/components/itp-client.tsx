@@ -59,18 +59,18 @@ const typeColors = {
 
 type ITPClientProps = {
   initialITPs: ITP[];
-  userRole: string;
+  userPermissions: string[];
 };
 
-export function ITPClient({ initialITPs, userRole }: ITPClientProps) {
+export function ITPClient({ initialITPs, userPermissions }: ITPClientProps) {
   const router = useRouter();
   const [itps, setITPs] = useState<ITP[]>(initialITPs);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
 
-  const canCreate = ['CEO', 'Admin', 'Manager', 'Engineer'].includes(userRole);
-  const canDelete = ['CEO', 'Admin'].includes(userRole);
+  const canCreate = userPermissions.includes('quality.create_itp');
+  const canDelete = userPermissions.includes('quality.edit_itp');
 
   const filteredITPs = useMemo(() => {
     return itps.filter((itp) => {

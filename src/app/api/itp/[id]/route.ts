@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const updateSchema = z.object({
   itpNumber: z.string().min(1).optional(),
@@ -90,7 +91,12 @@ export async function PATCH(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    if (!session || !['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('quality.edit_itp')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

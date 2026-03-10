@@ -33,7 +33,6 @@ interface OperationTimelineClientProps {
   project: Project;
   buildings: Building[];
   canEdit: boolean;
-  userRole: string;
 }
 
 export function OperationTimelineClient({
@@ -41,7 +40,6 @@ export function OperationTimelineClient({
   project,
   buildings,
   canEdit,
-  userRole,
 }: OperationTimelineClientProps) {
   const router = useRouter();
   const [timeline, setTimeline] = useState<any[]>([]);

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
 
 const updateSchema = z.object({
@@ -150,14 +151,20 @@ export async function GET(
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
-  // Check permissions
-  if (session.role === 'Engineer' || session.role === 'Operator') {
-    const hasAccess = await prisma.projectAssignment.findFirst({
-      where: { projectId: id, userId: session.sub },
-    });
-    
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Permission-based access check
+  const viewPermissions = await getCurrentUserPermissions();
+  const canViewAll = viewPermissions.includes('projects.view_all');
+  if (!canViewAll) {
+    // Check if user is assigned to the project or is PM/SE
+    const isProjectMember = project.projectManagerId === session.sub ||
+      project.salesEngineerId === session.sub;
+    if (!isProjectMember) {
+      const hasAccess = await prisma.projectAssignment.findFirst({
+        where: { projectId: id, userId: session.sub },
+      });
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
   }
 
@@ -174,7 +181,12 @@ export async function PATCH(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    if (!session || !['Admin', 'Manager'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const patchPermissions = await getCurrentUserPermissions();
+    if (!patchPermissions.includes('projects.edit')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const approveSchema = z.object({
   action: z.enum(['submit', 'approve', 'reject']),
@@ -40,12 +41,12 @@ export async function POST(
       return NextResponse.json({ error: 'ITP not found' }, { status: 404 });
     }
 
+    const userPermissions = await getCurrentUserPermissions();
     let updateData: any = {};
 
     switch (parsed.data.action) {
       case 'submit':
-        // Engineer submits for review
-        if (!['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+        if (!userPermissions.includes('quality.edit_itp')) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
         updateData = {
@@ -54,8 +55,7 @@ export async function POST(
         break;
 
       case 'approve':
-        // Manager/QC Manager approves
-        if (!['Admin', 'Manager'].includes(session.role)) {
+        if (!userPermissions.includes('quality.approve_itp')) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
         updateData = {
@@ -69,8 +69,7 @@ export async function POST(
         break;
 
       case 'reject':
-        // Manager can reject
-        if (!['Admin', 'Manager'].includes(session.role)) {
+        if (!userPermissions.includes('quality.approve_itp')) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
         updateData = {

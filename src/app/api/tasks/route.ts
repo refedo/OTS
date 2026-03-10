@@ -47,7 +47,7 @@ export async function GET(req: Request) {
   let whereClause: any = {};
 
   // Permission-based filtering
-  const isCeo = session.role === 'CEO';
+  const canManageCeoTasks = userPermissions.includes('tasks.manage_ceo_tasks');
   const canViewAll = userPermissions.includes('tasks.view_all');
   const canViewOthers = userPermissions.includes('tasks.view_others');
   
@@ -67,8 +67,8 @@ export async function GET(req: Request) {
           { assignedToId: session.sub },
         ],
       },
-      // CEO task visibility: only CEO can see CEO tasks
-      isCeo ? {} : { isCeoTask: false },
+      // CEO task visibility: only users with manage_ceo_tasks can see CEO tasks
+      canManageCeoTasks ? {} : { isCeoTask: false },
     ];
   } else if (canViewOthers) {
     // Users with tasks.view_others can see other users' tasks but not all tasks
@@ -81,8 +81,8 @@ export async function GET(req: Request) {
           { isPrivate: false },
         ],
       },
-      // Non-CEO users cannot see CEO tasks
-      isCeo ? {} : { isCeoTask: false },
+      // Users without manage_ceo_tasks cannot see CEO tasks
+      canManageCeoTasks ? {} : { isCeoTask: false },
     ];
     // Apply assignedTo filter if specified
     if (assignedTo) {
@@ -94,8 +94,8 @@ export async function GET(req: Request) {
       { assignedToId: session.sub },
       { createdById: session.sub },
     ];
-    // Non-CEO users cannot see CEO tasks even if assigned
-    if (!isCeo) {
+    // Users without manage_ceo_tasks cannot see CEO tasks even if assigned
+    if (!canManageCeoTasks) {
       whereClause.isCeoTask = false;
     }
   }
@@ -254,8 +254,9 @@ export async function POST(req: Request) {
       taskData.isPrivate = true;
     }
     
-    // CEO task visibility - only CEO can create CEO tasks
-    if (parsed.data.isCeoTask && session.role === 'CEO') {
+    // CEO task visibility - only users with manage_ceo_tasks can create CEO tasks
+    const postPermissions = await getCurrentUserPermissions();
+    if (parsed.data.isCeoTask && postPermissions.includes('tasks.manage_ceo_tasks')) {
       taskData.isCeoTask = true;
     }
     

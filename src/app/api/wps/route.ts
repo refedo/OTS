@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 // Helper to transform empty strings to null
 const emptyStringToNull = z.string().transform(val => val.trim() === '' ? null : val).nullable();
@@ -111,8 +112,12 @@ export async function POST(req: Request) {
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    // Only Welding Engineers, Managers, and Admins can create WPS
-    if (!session || !['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('quality.create_wps')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

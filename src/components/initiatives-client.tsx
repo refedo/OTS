@@ -55,7 +55,7 @@ type Department = {
 
 type InitiativesClientProps = {
   initialInitiatives: Initiative[];
-  userRole: string;
+  userPermissions: string[];
   userId: string;
   allUsers: User[];
   allDepartments: Department[];
@@ -89,7 +89,7 @@ const categories = [
 
 export function InitiativesClient({ 
   initialInitiatives, 
-  userRole, 
+  userPermissions, 
   userId,
   allUsers,
   allDepartments,
@@ -102,7 +102,7 @@ export function InitiativesClient({
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
 
-  const canManage = ['CEO', 'Admin', 'Manager'].includes(userRole);
+  const canManage = userPermissions.includes('initiatives.edit');
 
   const filteredInitiatives = useMemo(() => {
     return initiatives.filter((initiative) => {
@@ -377,7 +377,7 @@ export function InitiativesClient({
                                   Edit
                                 </Link>
                               </DropdownMenuItem>
-                              {['CEO', 'Admin'].includes(userRole) && (
+                              {userPermissions.includes('initiatives.delete') && (
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(initiative.id)}
                                   className="text-destructive"

@@ -176,13 +176,14 @@ export default function AssemblyPartsPage() {
     }
   };
 
-  const toggleSelectAll = () => {
+  const handleSelectAll = () => {
     if (selectedParts.size === parts.length) {
       setSelectedParts(new Set());
     } else {
       setSelectedParts(new Set(parts.map(p => p.id)));
     }
   };
+  const toggleSelectAll = handleSelectAll;
 
   const toggleSelectPart = (partId: string) => {
     const newSelected = new Set(selectedParts);
@@ -529,7 +530,7 @@ export default function AssemblyPartsPage() {
                     <input
                       type="checkbox"
                       checked={selectedParts.size === parts.length && parts.length > 0}
-                      onChange={handleSelectAll}
+                      onChange={toggleSelectAll}
                       className="h-4 w-4 rounded border-gray-300"
                     />
                   </th>

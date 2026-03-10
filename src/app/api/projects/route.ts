@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
 
 const createSchema = z.object({
@@ -127,13 +128,17 @@ export async function GET(req: Request) {
   const search = searchParams.get('search');
   const projectManagerId = searchParams.get('projectManagerId');
 
+  const userPermissions = await getCurrentUserPermissions();
   let where: any = {};
 
-  // Role-based filtering
-  if (session.role === 'Manager') {
-    where.projectManagerId = session.sub;
-  } else if (session.role === 'Engineer' || session.role === 'Operator') {
-    where.assignments = { some: { userId: session.sub } };
+  // Permission-based filtering
+  const canViewAll = userPermissions.includes('projects.view_all');
+  if (!canViewAll) {
+    where.OR = [
+      { projectManagerId: session.sub },
+      { salesEngineerId: session.sub },
+      { assignments: { some: { userId: session.sub } } },
+    ];
   }
 
   // Additional filters
@@ -187,7 +192,12 @@ export async function POST(req: Request) {
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
-    if (!session || !['Admin', 'Manager', 'Project Coordinator', 'CEO'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const postPermissions = await getCurrentUserPermissions();
+    if (!postPermissions.includes('projects.create')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

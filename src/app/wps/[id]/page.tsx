@@ -16,6 +16,7 @@ import {
 import { Edit, CheckCircle, Clock } from 'lucide-react';
 import { WPSExportButton } from '@/components/wps-export-button';
 import { WPSApproveButton } from '@/components/wps-approve-button';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function WPSDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,7 +28,8 @@ export default async function WPSDetailsPage({ params }: { params: Promise<{ id:
     redirect('/login');
   }
 
-  const canApprove = ['CEO', 'Admin', 'Manager'].includes(session.role);
+  const userPermissions = await getCurrentUserPermissions();
+  const canApprove = userPermissions.includes('quality.approve_wps');
 
   const wps = await prisma.wPS.findUnique({
     where: { id },

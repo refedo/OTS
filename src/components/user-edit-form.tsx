@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,21 @@ import { Loader2, User, Shield, Phone, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionsMatrix } from '@/components/permissions-matrix';
 import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions';
+
+function parseCustomPerms(raw: unknown): { grants: string[]; revokes: string[] } {
+  if (!raw) return { grants: [], revokes: [] };
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    return {
+      grants: Array.isArray(obj.grants) ? obj.grants.filter((g): g is string => typeof g === 'string') : [],
+      revokes: Array.isArray(obj.revokes) ? obj.revokes.filter((r): r is string => typeof r === 'string') : [],
+    };
+  }
+  if (Array.isArray(raw)) {
+    return { grants: raw.filter((g): g is string => typeof g === 'string'), revokes: [] };
+  }
+  return { grants: [], revokes: [] };
+}
 
 type Role = {
   id: string;
@@ -55,13 +70,29 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedRoleId, setSelectedRoleId] = useState<string>(user.roleId);
-  const [customPermissions, setCustomPermissions] = useState<string[]>(
-    user.customPermissions ? (Array.isArray(user.customPermissions) ? user.customPermissions : []) : []
-  );
+  const initialCustom = useMemo(() => parseCustomPerms(user.customPermissions), [user.customPermissions]);
+  const [grants, setGrants] = useState<string[]>(initialCustom.grants);
+  const [revokes, setRevokes] = useState<string[]>(initialCustom.revokes);
   const [activeTab, setActiveTab] = useState('basic');
 
   const selectedRole = roles.find(r => r.id === selectedRoleId);
   const rolePermissions = selectedRole ? (DEFAULT_ROLE_PERMISSIONS[selectedRole.name] || []) : [];
+
+  const effectivePermissions = useMemo(() => {
+    const perms = new Set(rolePermissions);
+    for (const g of grants) perms.add(g);
+    for (const r of revokes) perms.delete(r);
+    return [...perms];
+  }, [rolePermissions, grants, revokes]);
+
+  const handlePermissionsChange = (selected: string[]) => {
+    const selectedSet = new Set(selected);
+    const roleSet = new Set(rolePermissions);
+    const newGrants = selected.filter(p => !roleSet.has(p));
+    const newRevokes = rolePermissions.filter(p => !selectedSet.has(p));
+    setGrants(newGrants);
+    setRevokes(newRevokes);
+  };
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -80,7 +111,7 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
       status: formData.get('status') as string,
       isAdmin: formData.get('isAdmin') === 'on',
       mobileNumber: formData.get('mobileNumber') as string || null,
-      customPermissions: customPermissions.length > 0 ? customPermissions : null,
+      customPermissions: (grants.length > 0 || revokes.length > 0) ? { grants, revokes } : null,
     };
 
     try {
@@ -350,8 +381,8 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
                 </p>
               </div>
               <PermissionsMatrix
-                selectedPermissions={customPermissions}
-                onChange={setCustomPermissions}
+                selectedPermissions={effectivePermissions}
+                onChange={handlePermissionsChange}
                 rolePermissions={rolePermissions}
                 disabled={loading}
               />

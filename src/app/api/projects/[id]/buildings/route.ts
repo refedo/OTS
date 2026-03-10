@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -173,8 +174,9 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions
-    if (!['CEO', 'Admin', 'Manager'].includes(session.role)) {
+    // Permission-based check
+    const postPermissions = await getCurrentUserPermissions();
+    if (!postPermissions.includes('projects.edit')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

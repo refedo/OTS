@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { ITPClient } from '@/components/itp-client';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function ITPPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -23,5 +24,6 @@ export default async function ITPPage() {
 
   const itps = response.ok ? await response.json() : [];
 
-  return <ITPClient initialITPs={itps} userRole={session.role} />;
+  const userPermissions = await getCurrentUserPermissions();
+  return <ITPClient initialITPs={itps} userPermissions={userPermissions} />;
 }

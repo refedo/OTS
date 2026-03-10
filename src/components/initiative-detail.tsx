@@ -66,7 +66,7 @@ type Initiative = {
 
 type InitiativeDetailProps = {
   initiative: Initiative;
-  userRole: string;
+  userPermissions: string[];
   userId: string;
 };
 
@@ -87,12 +87,12 @@ const priorityColors = {
   Critical: 'bg-purple-100 text-purple-800 border-purple-300',
 };
 
-export function InitiativeDetail({ initiative, userRole, userId }: InitiativeDetailProps) {
+export function InitiativeDetail({ initiative, userPermissions, userId }: InitiativeDetailProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
-  const canManage = ['CEO', 'Admin', 'Manager'].includes(userRole);
-  const canDelete = ['CEO', 'Admin'].includes(userRole);
+  const canManage = userPermissions.includes('initiatives.edit');
+  const canDelete = userPermissions.includes('initiatives.delete');
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this initiative? This action cannot be undone.')) {

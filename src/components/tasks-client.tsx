@@ -99,7 +99,6 @@ type Department = {
 
 type TasksClientProps = {
   initialTasks: Task[];
-  userRole: string;
   userId: string;
   allUsers: User[];
   allProjects: Project[];
@@ -110,7 +109,7 @@ type TasksClientProps = {
   initialProjectFilter?: string;
 };
 
-export function TasksClient({ initialTasks, userRole, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, initialProjectFilter }: TasksClientProps) {
+export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, initialProjectFilter }: TasksClientProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
@@ -2182,7 +2181,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                                     Duplicate Task
                                   </DropdownMenuItem>
                                 )}
-                                {['CEO', 'Admin'].includes(userRole) && (
+                                {userPermissions?.includes('tasks.delete') && (
                                   <DropdownMenuItem
                                     onClick={() => handleDelete(task.id)}
                                     className="text-destructive"
@@ -2248,7 +2247,7 @@ export function TasksClient({ initialTasks, userRole, userId, allUsers, allProje
                             Duplicate Task
                           </DropdownMenuItem>
                         )}
-                        {['CEO', 'Admin'].includes(userRole) && (
+                        {userPermissions?.includes('tasks.delete') && (
                           <DropdownMenuItem
                             onClick={() => handleDelete(task.id)}
                             className="text-destructive"

@@ -19,8 +19,7 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
   // Check permissions - allow if user has tasks.edit or tasks.create permission, or is CEO/Admin/Manager
   const userPermissions = await getCurrentUserPermissions();
   const canEdit = userPermissions.includes('tasks.edit') || 
-                  userPermissions.includes('tasks.create') || 
-                  ['CEO', 'Admin', 'Manager'].includes(session.role);
+                  userPermissions.includes('tasks.create');
   
   if (!canEdit) {
     redirect('/tasks');

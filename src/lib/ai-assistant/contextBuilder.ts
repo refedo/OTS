@@ -4,6 +4,9 @@
  */
 
 import prisma from '@/lib/db';
+import { resolveUserPermissions } from '@/lib/services/permission-resolution.service';
+import { hasPermission } from '@/lib/permissions';
+import { logger } from '@/lib/logger';
 
 export type ContextType = 'projects' | 'tasks' | 'kpis' | 'initiatives' | 'departments';
 
@@ -79,35 +82,37 @@ export async function buildAIContext(
   // Admin and Manager see everything, others see their own data
   try {
     // Always fetch core data
+    const userPermissions = await resolveUserPermissions(userId);
+
     const [hsps, projects, tasks, departments] = await Promise.allSettled([
-      getHSPSContext(userId, user.role.name, user.departmentId),
-      getProjectsContext(userId, user.role.name, user.departmentId),
-      getTasksContext(userId, user.role.name),
-      getDepartmentsContext(userId, user.role.name),
+      getHSPSContext(userId, userPermissions, user.departmentId),
+      getProjectsContext(userId, userPermissions, user.departmentId),
+      getTasksContext(userId, userPermissions),
+      getDepartmentsContext(userId, userPermissions),
     ]);
 
     if (hsps.status === 'fulfilled') {
       context.hsps = hsps.value;
-      console.log(`[AI Context] HSPS data: ${JSON.stringify(hsps.value).length} chars`);
+      logger.debug({ chars: JSON.stringify(hsps.value).length }, '[AI Context] HSPS data');
     }
     if (projects.status === 'fulfilled') {
       context.projects = projects.value;
-      console.log(`[AI Context] Projects: ${Array.isArray(projects.value) ? projects.value.length : 0} items`);
+      logger.debug({ count: Array.isArray(projects.value) ? projects.value.length : 0 }, '[AI Context] Projects');
     }
     if (tasks.status === 'fulfilled') {
       context.tasks = tasks.value;
-      console.log(`[AI Context] Tasks: ${Array.isArray(tasks.value) ? tasks.value.length : 0} items`);
+      logger.debug({ count: Array.isArray(tasks.value) ? tasks.value.length : 0 }, '[AI Context] Tasks');
     }
     if (departments.status === 'fulfilled') {
       context.departments = departments.value;
-      console.log(`[AI Context] Departments: ${Array.isArray(departments.value) ? departments.value.length : 0} items`);
+      logger.debug({ count: Array.isArray(departments.value) ? departments.value.length : 0 }, '[AI Context] Departments');
     }
     
     // Add production and QC data for relevant contexts
     if (['projects', 'kpis'].includes(contextType)) {
       const [production, qc] = await Promise.allSettled([
-        getProductionContext(userId, user.role.name),
-        getQCContext(userId, user.role.name),
+        getProductionContext(userId, userPermissions),
+        getQCContext(userId, userPermissions),
       ]);
       
       if (production.status === 'fulfilled') context.production = production.value;
@@ -118,10 +123,10 @@ export async function buildAIContext(
     const predictiveOps = await getPredictiveOpsContext();
     if (predictiveOps) {
       context.predictiveOps = predictiveOps;
-      console.log(`[AI Context] Predictive Ops: ${predictiveOps.riskEvents.length} risks, ${predictiveOps.workUnits.length} work units`);
+      logger.debug({ risks: predictiveOps.riskEvents.length, workUnits: predictiveOps.workUnits.length }, '[AI Context] Predictive Ops');
     }
   } catch (error) {
-    console.error('Error building context:', error);
+    logger.error({ error }, '[AI Context] Error building context');
     // Continue with partial context if some queries fail
   }
 
@@ -131,7 +136,7 @@ export async function buildAIContext(
 /**
  * Get HSPS context (objectives, KPIs, initiatives)
  */
-async function getHSPSContext(userId: string, role: string, departmentId?: string | null) {
+async function getHSPSContext(userId: string, userPermissions: string[], departmentId?: string | null) {
   const currentYear = new Date().getFullYear();
 
   // Fetch Company Objectives
@@ -192,13 +197,13 @@ async function getHSPSContext(userId: string, role: string, departmentId?: strin
 /**
  * Get Projects context
  */
-async function getProjectsContext(userId: string, role: string, departmentId?: string | null) {
+async function getProjectsContext(userId: string, userPermissions: string[], departmentId?: string | null) {
   const whereClause: any = {
-    status: { in: ['Active', 'On-Hold'] }, // Focus on active projects
+    status: { in: ['Active', 'On-Hold'] },
   };
 
-  // Role-based filtering
-  if (!['CEO', 'Admin', 'Manager'].includes(role)) {
+  const canViewAllProjects = hasPermission(userPermissions, 'projects.view_all');
+  if (!canViewAllProjects) {
     whereClause.OR = [
       { projectManagerId: userId },
       { salesEngineerId: userId },
@@ -235,11 +240,11 @@ async function getProjectsContext(userId: string, role: string, departmentId?: s
 /**
  * Get Tasks context
  */
-async function getTasksContext(userId: string, role: string) {
+async function getTasksContext(userId: string, userPermissions: string[]) {
   const whereClause: any = {};
 
-  // Role-based filtering
-  if (!['CEO', 'Admin', 'Manager'].includes(role)) {
+  const canViewAllTasks = hasPermission(userPermissions, 'tasks.view_all');
+  if (!canViewAllTasks) {
     whereClause.assignedToId = userId;
   }
 
@@ -290,14 +295,14 @@ async function getTasksContext(userId: string, role: string) {
     take: 20, // Reduced from 50 to save tokens
   });
 
-  console.log(`[AI Context] Found ${tasks.length} tasks for user ${userId} (role: ${role})`);
+  logger.debug({ count: tasks.length, userId }, '[AI Context] Tasks fetched');
   return tasks;
 }
 
 /**
  * Get Production context (last 30 days)
  */
-async function getProductionContext(userId: string, role: string) {
+async function getProductionContext(userId: string, userPermissions: string[]) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -336,14 +341,14 @@ async function getProductionContext(userId: string, role: string) {
     take: 15, // Reduced from 30 to save tokens
   });
 
-  console.log(`[AI Context] Found ${productionLogs.length} production logs`);
+  logger.debug({ count: productionLogs.length }, '[AI Context] Production logs fetched');
   return productionLogs;
 }
 
 /**
  * Get QC context (NCRs and inspections)
  */
-async function getQCContext(userId: string, role: string) {
+async function getQCContext(userId: string, userPermissions: string[]) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -368,7 +373,7 @@ async function getQCContext(userId: string, role: string) {
     take: 10, // Reduced from 20 to save tokens
   });
 
-  console.log(`[AI Context] Found ${ncrs.length} NCRs`);
+  logger.debug({ count: ncrs.length }, '[AI Context] NCRs fetched');
   return {
     ncrs,
     inspections: [], // Can add material/welding/dimensional inspections if needed
@@ -378,7 +383,7 @@ async function getQCContext(userId: string, role: string) {
 /**
  * Get Departments context
  */
-async function getDepartmentsContext(userId: string, role: string) {
+async function getDepartmentsContext(userId: string, userPermissions: string[]) {
   const departments = await prisma.department.findMany({
     select: {
       id: true,
@@ -506,7 +511,7 @@ async function getPredictiveOpsContext() {
       capacityOverloads,
     };
   } catch (error) {
-    console.error('Error fetching predictive ops context:', error);
+    logger.error({ error }, '[AI Context] Error fetching predictive ops context');
     return null;
   }
 }
@@ -570,7 +575,7 @@ async function getCapacityOverloadsForAI() {
 
     return overloads;
   } catch (error) {
-    console.error('Error fetching capacity overloads:', error);
+    logger.error({ error }, '[AI Context] Error fetching capacity overloads');
     return [];
   }
 }

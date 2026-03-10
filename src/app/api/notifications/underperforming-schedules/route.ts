@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { cache } from '@/lib/cache';
 
 // Cache for assembly parts to avoid N+1 queries
@@ -165,13 +166,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get current user info for personalized filtering
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.sub },
-      select: { id: true, role: { select: { name: true } } },
-    });
-
-    const isAdmin = currentUser?.role?.name === 'Admin' || currentUser?.role?.name === 'CEO';
+    // Permission-based filtering
+    const userPermissions = await getCurrentUserPermissions();
+    const isAdmin = userPermissions.includes('projects.view_all');
 
     // Check cache first (30 second TTL) - cache per user
     const cacheKey = `underperforming-schedules-${session.sub}`;

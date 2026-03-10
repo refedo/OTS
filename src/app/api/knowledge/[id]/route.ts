@@ -116,16 +116,18 @@ export async function PATCH(
     }
 
     const isOwner = existingEntry.reportedById === session.sub || existingEntry.ownerId === session.sub;
-    const isSupervisorOrAbove = ['Supervisor', 'Manager', 'Admin', 'CEO', 'Document Controller'].includes(session.role);
+    const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
+    const userPermissions = await getCurrentUserPermissions();
+    const canEditAll = userPermissions.includes('knowledge.edit');
 
-    if (!isOwner && !isSupervisorOrAbove) {
+    if (!isOwner && !canEditAll) {
       return NextResponse.json({ error: 'Unauthorized to update this entry' }, { status: 403 });
     }
 
     const updateData: any = { ...validated };
 
-    if (validated.status === 'Validated' && !isSupervisorOrAbove) {
-      return NextResponse.json({ error: 'Only Supervisor, Manager, Document Controller or above can validate entries' }, { status: 403 });
+    if (validated.status === 'Validated' && !canEditAll) {
+      return NextResponse.json({ error: 'knowledge.edit permission required to validate entries' }, { status: 403 });
     }
 
     if (validated.status === 'Validated' && existingEntry.status !== 'Validated') {
@@ -184,9 +186,11 @@ export async function DELETE(
     }
 
     const isOwner = existingEntry.reportedById === session.sub;
-    const isAdmin = ['Admin', 'CEO'].includes(session.role);
+    const { getCurrentUserPermissions: getDelPerms } = await import('@/lib/permission-checker');
+    const delPermissions = await getDelPerms();
+    const canDelete = delPermissions.includes('knowledge.delete');
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !canDelete) {
       return NextResponse.json({ error: 'Unauthorized to delete this entry' }, { status: 403 });
     }
 

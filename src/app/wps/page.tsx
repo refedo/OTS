@@ -7,6 +7,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { WPSList } from '@/components/wps-list';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 async function getWPSList() {
   const wps = await prisma.wPS.findMany({
@@ -60,7 +61,8 @@ export default async function WPSListPage() {
 
   const wpsList = await getWPSList();
   const projects = await getProjects();
-  const canApprove = ['CEO', 'Admin', 'Manager'].includes(session.role);
+  const userPermissions = await getCurrentUserPermissions();
+  const canApprove = userPermissions.includes('quality.approve_wps');
 
   // Serialize WPS data to convert Decimal objects to numbers
   const serializedWpsList = wpsList.map(wps => ({

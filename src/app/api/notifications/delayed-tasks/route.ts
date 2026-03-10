@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { cache } from '@/lib/cache';
 
 // GET - Fetch delayed tasks (past due date and not completed)
@@ -15,13 +16,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get current user info for personalized filtering
+    // Permission-based filtering
+    const userPermissions = await getCurrentUserPermissions();
+    const isAdmin = userPermissions.includes('tasks.view_all');
+
+    // Get department for filtering
     const currentUser = await prisma.user.findUnique({
       where: { id: session.sub },
-      select: { id: true, departmentId: true, role: { select: { name: true } } },
+      select: { id: true, departmentId: true },
     });
-
-    const isAdmin = currentUser?.role?.name === 'Admin' || currentUser?.role?.name === 'CEO';
 
     // Check cache first (30 second TTL) - cache per user
     const cacheKey = `delayed-tasks-${session.sub}`;

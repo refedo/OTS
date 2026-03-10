@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { ITPDetails } from '@/components/itp-details';
 import prisma from '@/lib/db';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function ITPDetailPage({ params }: { params: { id: string } }) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -40,5 +41,6 @@ export default async function ITPDetailPage({ params }: { params: { id: string }
     orderBy: { projectNumber: 'asc' },
   });
 
-  return <ITPDetails itp={itp} userRole={session.role} userId={session.sub} projects={projects} />;
+  const userPermissions = await getCurrentUserPermissions();
+  return <ITPDetails itp={itp} userPermissions={userPermissions} userId={session.sub} projects={projects} />;
 }

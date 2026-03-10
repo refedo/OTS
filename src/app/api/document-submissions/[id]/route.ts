@@ -215,11 +215,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Document submission not found' }, { status: 404 });
     }
 
-    // Only Admin and Manager can delete
-    if (!['Admin', 'Manager'].includes(session.role)) {
+    // Permission-based deletion check
+    const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('documents.delete')) {
       return NextResponse.json({ 
         error: 'Unauthorized', 
-        message: 'Only Admin and Manager roles can delete submissions' 
+        message: 'documents.delete permission required to delete submissions' 
       }, { status: 403 });
     }
 

@@ -12,7 +12,9 @@ export async function GET() {
   const session = token ? verifySession(token) : null;
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (['CEO', 'Admin'].includes(session.role)) {
+  const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
+  const userPermissions = await getCurrentUserPermissions();
+  if (userPermissions.includes('departments.view')) {
     const items = await prisma.department.findMany({ orderBy: { name: 'asc' } });
     return NextResponse.json(items);
   }

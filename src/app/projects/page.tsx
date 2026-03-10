@@ -19,7 +19,7 @@ export default async function ProjectsPage() {
 
   // Use RBAC permissions instead of hardcoded role checks
   const canCreate = await checkPermission('projects.create');
-  const canImportExport = await checkPermission('projects.import_export') || ['CEO', 'Admin', 'PMO'].includes(session.role);
+  const canImportExport = await checkPermission('projects.import_export');
   
   // Get user's restricted modules for hiding financial data
   const restrictedModules = await getCurrentUserRestrictedModules();

@@ -11,7 +11,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const userPermissions = await getCurrentUserPermissions();
-  if (!userPermissions.includes('tasks.view_all') && !['CEO', 'Admin', 'Manager'].includes(session.role)) {
+  if (!userPermissions.includes('tasks.view_all')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -26,10 +26,10 @@ export async function GET() {
     },
   });
 
-  // Fetch all tasks (non-CEO tasks unless user is CEO)
-  const isCeo = session.role === 'CEO';
+  // Fetch all tasks (non-CEO tasks unless user has manage_ceo_tasks)
+  const canManageCeoTasks = userPermissions.includes('tasks.manage_ceo_tasks');
   const tasks = await prisma.task.findMany({
-    where: isCeo ? {} : { isCeoTask: false },
+    where: canManageCeoTasks ? {} : { isCeoTask: false },
     select: {
       id: true,
       assignedToId: true,

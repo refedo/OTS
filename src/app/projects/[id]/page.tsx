@@ -4,7 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import { ProjectDetails } from '@/components/project-details';
 import { BuildingsList } from '@/components/buildings-list';
 import { ScopeSchedulesView } from '@/components/scope-schedules-view';
-import { getCurrentUserRestrictedModules } from '@/lib/permission-checker';
+import { getCurrentUserRestrictedModules, getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -52,7 +52,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   const scopeSchedules = schedulesResponse.ok ? await schedulesResponse.json() : [];
 
-  const canEdit = ['CEO', 'Admin', 'Manager'].includes(session.role);
+  const userPermissions = await getCurrentUserPermissions();
+  const canEdit = userPermissions.includes('projects.edit');
   
   // Get user's restricted modules for hiding financial data
   const restrictedModules = await getCurrentUserRestrictedModules();

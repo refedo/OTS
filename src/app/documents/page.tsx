@@ -7,6 +7,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { DocumentsList } from '@/components/documents-list';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 async function getDocuments() {
   const documents = await prisma.document.findMany({
@@ -92,7 +93,7 @@ export default async function DocumentsPage() {
 
         <DocumentsList 
           initialDocuments={documents} 
-          canDelete={['CEO', 'Admin', 'Manager'].includes(session.role)}
+          canDelete={(await getCurrentUserPermissions()).includes('documents.delete')}
         />
       </div>
     </main>

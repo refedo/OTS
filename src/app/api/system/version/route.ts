@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 
@@ -80,10 +81,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin can record deployments
-    if (session.role !== 'Admin') {
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('settings.edit')) {
       return NextResponse.json(
-        { error: 'Only Admin can record deployments' },
+        { error: 'Forbidden - settings.edit permission required' },
         { status: 403 }
       );
     }

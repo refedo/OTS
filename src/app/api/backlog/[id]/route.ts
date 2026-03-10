@@ -70,7 +70,9 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const isCEOOrAdmin = user.role.name === 'CEO' || user.role.name === 'Admin';
+    const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
+    const userPermissions = await getCurrentUserPermissions();
+    const isCEOOrAdmin = userPermissions.includes('backlog.manage');
 
     // Check permissions for status changes
     if (body.status) {
@@ -159,7 +161,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const isCEOOrAdmin = user.role.name === 'CEO' || user.role.name === 'Admin';
+    const { getCurrentUserPermissions: getDelPerms } = await import('@/lib/permission-checker');
+    const delPermissions = await getDelPerms();
+    const isCEOOrAdmin = delPermissions.includes('backlog.manage');
 
     if (!isCEOOrAdmin) {
       return NextResponse.json(

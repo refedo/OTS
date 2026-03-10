@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export async function GET(
   req: NextRequest,
@@ -34,19 +35,19 @@ export async function GET(
   }
 
   // Check access permissions
-  const isCeo = session.role === 'CEO';
-  const isAdmin = session.role === 'Admin';
-  const isManager = session.role === 'Manager';
+  const userPermissions = await getCurrentUserPermissions();
+  const canManageCeoTasks = userPermissions.includes('tasks.manage_ceo_tasks');
+  const canViewAll = userPermissions.includes('tasks.view_all');
   const isCreator = task.createdById === session.sub;
   const isAssignee = task.assignedToId === session.sub;
 
-  // CEO tasks are only visible to CEO
-  if (task.isCeoTask && !isCeo) {
+  // CEO tasks are only visible to users with manage_ceo_tasks
+  if (task.isCeoTask && !canManageCeoTasks) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Private tasks are only visible to creator/assignee
-  if (task.isPrivate && !isCreator && !isAssignee && !isAdmin) {
+  // Private tasks are only visible to creator/assignee or users with view_all
+  if (task.isPrivate && !isCreator && !isAssignee && !canViewAll) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

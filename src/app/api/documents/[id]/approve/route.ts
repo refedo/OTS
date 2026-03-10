@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const approvalSchema = z.object({
   action: z.enum(['approve', 'reject']),
@@ -18,9 +19,13 @@ export async function POST(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    // Only Managers and Admins can approve documents
-    if (!session || !['Admin', 'Manager'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden - Only Managers and Admins can approve documents' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('documents.approve')) {
+      return NextResponse.json({ error: 'Forbidden - documents.approve permission required' }, { status: 403 });
     }
 
     const body = await req.json();

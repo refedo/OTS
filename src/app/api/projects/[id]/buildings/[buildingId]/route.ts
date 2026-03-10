@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const buildingSchema = z.object({
   designation: z.string().min(2).max(4).regex(/^[A-Z0-9]+$/).optional(),
@@ -18,7 +19,12 @@ export async function PATCH(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  if (!session || !['CEO', 'Admin', 'Manager'].includes(session.role)) {
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userPermissions = await getCurrentUserPermissions();
+  if (!userPermissions.includes('projects.edit')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -45,7 +51,12 @@ export async function DELETE(
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   
-  if (!session || !['CEO', 'Admin'].includes(session.role)) {
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const delPermissions = await getCurrentUserPermissions();
+  if (!delPermissions.includes('projects.delete')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

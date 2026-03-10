@@ -72,7 +72,13 @@ export async function POST(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    if (!session || !['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('quality.edit_itp')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { hashPassword } from '@/lib/password';
 
 const createSchema = z.object({
@@ -48,36 +49,21 @@ export async function GET(req: Request) {
     return NextResponse.json(users);
   }
   
-  // For user management, maintain role-based filtering
-  // Admin: full access. Manager: only same department. Engineer/Operator: self
-  if (session.role === 'Admin' || session.role === 'CEO') {
+  // Permission-based user listing
+  const userPermissions = await getCurrentUserPermissions();
+  const canViewUsers = userPermissions.includes('users.view');
+  const canBrowseUsers = userPermissions.includes('projects.browse_users');
+  
+  if (canViewUsers || canBrowseUsers) {
     const users = await prisma.user.findMany({ include: { role: true, department: true }, orderBy: { createdAt: 'desc' } });
     return NextResponse.json(users);
   }
   
-  // Check if user has browse_users or projects.create permission - allow them to see users for assignment
+  // Default: only self
   const currentUser = await prisma.user.findUnique({ 
     where: { id: session.sub }, 
     include: { role: true, department: true } 
   });
-  const userPermissions: string[] = Array.isArray(currentUser?.role?.permissions) ? currentUser.role.permissions as string[] : [];
-  const customPerms: string[] = Array.isArray(currentUser?.customPermissions) ? currentUser.customPermissions as string[] : [];
-  const allPerms = [...userPermissions, ...customPerms];
-  
-  if (allPerms.includes('projects.browse_users') || allPerms.includes('users.view')) {
-    const users = await prisma.user.findMany({ include: { role: true, department: true }, orderBy: { createdAt: 'desc' } });
-    return NextResponse.json(users);
-  }
-  
-  if (session.role === 'Manager') {
-    const users = await prisma.user.findMany({
-      where: { departmentId: currentUser?.departmentId ?? undefined },
-      include: { role: true, department: true },
-      orderBy: { createdAt: 'desc' }
-    });
-    return NextResponse.json(users);
-  }
-  // Default: only self
   return NextResponse.json(currentUser ? [currentUser] : []);
 }
 

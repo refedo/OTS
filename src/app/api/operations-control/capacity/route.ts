@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 
@@ -160,8 +161,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin and Manager can create capacities
-    if (!['Admin', 'Manager'].includes(session.role)) {
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('production.manage_settings')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

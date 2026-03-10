@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Download, Edit, CheckCircle, Clock, Eye, Check, X } from 'lucide-react';
 import { DocumentApprovalButtons } from '@/components/document-approval-buttons';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function DocumentDetailsPage({ params }: { params: { id: string } }) {
   const store = await cookies();
@@ -101,7 +102,7 @@ export default async function DocumentDetailsPage({ params }: { params: { id: st
             <DocumentApprovalButtons 
               documentId={document.id}
               status={document.status}
-              canApprove={['CEO', 'Admin', 'Manager'].includes(session.role)}
+              canApprove={(await getCurrentUserPermissions()).includes('documents.approve')}
             />
             <Link href={`/documents/${document.id}/edit`}>
               <Button variant="outline">

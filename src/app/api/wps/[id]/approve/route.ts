@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const approvalSchema = z.object({
   action: z.enum(['approve', 'reject']),
@@ -18,8 +19,12 @@ export async function POST(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    // Only QC Managers and Admins can approve WPS
-    if (!session || !['Admin', 'Manager'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('quality.approve_wps')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

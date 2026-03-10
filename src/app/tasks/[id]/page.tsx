@@ -33,5 +33,5 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
   // Get user permissions for proper access control
   const userPermissions = await getCurrentUserPermissions();
 
-  return <TaskDetails task={task} userRole={session.role} userId={session.sub} userPermissions={userPermissions} />;
+  return <TaskDetails task={task} userId={session.sub} userPermissions={userPermissions} />;
 }

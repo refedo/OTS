@@ -59,9 +59,10 @@ interface MilestonesClientProps {
     role: string;
     departmentId?: string | null;
   };
+  userPermissions?: string[];
 }
 
-export default function MilestonesClient({ initiative, session }: MilestonesClientProps) {
+export default function MilestonesClient({ initiative, session, userPermissions = [] }: MilestonesClientProps) {
   const router = useRouter();
   const [milestones, setMilestones] = useState<Milestone[]>(initiative.milestones || []);
   const [users, setUsers] = useState<User[]>([]);
@@ -71,8 +72,8 @@ export default function MilestonesClient({ initiative, session }: MilestonesClie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const canEdit = ['CEO', 'Admin', 'Manager'].includes(session.role);
-  const canDelete = ['CEO', 'Admin'].includes(session.role);
+  const canEdit = userPermissions.includes('initiatives.edit');
+  const canDelete = userPermissions.includes('initiatives.delete');
 
   // Fetch users for assignment
   useEffect(() => {

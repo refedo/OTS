@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { MemoryMonitor } from '@/lib/monitoring/memory-monitor';
 import { dbPool } from '@/lib/middleware/db-connection-pool';
 import prisma from '@/lib/db';
@@ -33,23 +34,10 @@ export async function GET() {
       );
     }
 
-    // Get user details to check role
-    const user = await prisma.user.findUnique({
-      where: { id: session.sub },
-      include: { role: true }
-    });
-
-    if (!user) {
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('settings.view')) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Only allow Admin and CEO roles
-    if (!['Admin', 'CEO'].includes(user.role.name)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
+        { error: 'Forbidden - settings.view permission required' },
         { status: 403 }
       );
     }

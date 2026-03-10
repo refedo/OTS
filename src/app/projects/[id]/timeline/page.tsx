@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { OperationTimelineClient } from '@/components/operations/OperationTimelineClient';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 export default async function ProjectTimelinePage({ params }: { params: { id: string } }) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -44,7 +45,8 @@ export default async function ProjectTimelinePage({ params }: { params: { id: st
 
   const buildings = buildingsResponse.ok ? await buildingsResponse.json() : [];
 
-  const canEdit = ['CEO', 'Admin', 'Project Manager'].includes(session.role);
+  const userPermissions = await getCurrentUserPermissions();
+  const canEdit = userPermissions.includes('projects.edit');
 
   return (
     <OperationTimelineClient
@@ -52,7 +54,6 @@ export default async function ProjectTimelinePage({ params }: { params: { id: st
       project={project}
       buildings={buildings}
       canEdit={canEdit}
-      userRole={session.role}
     />
   );
 }

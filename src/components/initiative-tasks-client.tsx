@@ -59,9 +59,10 @@ interface InitiativeTasksClientProps {
     role: string;
     departmentId?: string | null;
   };
+  userPermissions?: string[];
 }
 
-export default function InitiativeTasksClient({ initiative, session }: InitiativeTasksClientProps) {
+export default function InitiativeTasksClient({ initiative, session, userPermissions = [] }: InitiativeTasksClientProps) {
   const router = useRouter();
   const [tasks, setTasks] = useState<InitiativeTask[]>(initiative.tasks || []);
   const [users, setUsers] = useState<User[]>([]);
@@ -71,8 +72,8 @@ export default function InitiativeTasksClient({ initiative, session }: Initiativ
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const canEdit = ['CEO', 'Admin', 'Manager'].includes(session.role);
-  const canDelete = ['CEO', 'Admin'].includes(session.role);
+  const canEdit = userPermissions.includes('initiatives.edit');
+  const canDelete = userPermissions.includes('initiatives.delete');
 
   // Fetch users for assignment
   useEffect(() => {

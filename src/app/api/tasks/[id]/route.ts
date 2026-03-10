@@ -269,9 +269,9 @@ export async function PATCH(
     console.log('Rejection tracking fields not available in database yet');
   }
   
-  // CEO task visibility - only CEO can set/modify isCeoTask
+  // CEO task visibility - only users with manage_ceo_tasks can set/modify isCeoTask
   if (parsed.data.isCeoTask !== undefined) {
-    if (session.role === 'CEO') {
+    if (permissions.includes('tasks.manage_ceo_tasks')) {
       updateData.isCeoTask = parsed.data.isCeoTask;
     } else {
       delete updateData.isCeoTask;

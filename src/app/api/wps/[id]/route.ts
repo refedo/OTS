@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 // Helper to transform empty strings to null
 const emptyStringToNull = z.string().transform(val => val.trim() === '' ? null : val).nullable();
@@ -112,7 +113,12 @@ export async function PATCH(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    if (!session || !['Admin', 'Manager', 'Engineer'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('quality.edit_wps')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -165,7 +171,12 @@ export async function DELETE(
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
     
-    if (!session || !['Admin', 'Manager'].includes(session.role)) {
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const delPermissions = await getCurrentUserPermissions();
+    if (!delPermissions.includes('quality.edit_wps')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
