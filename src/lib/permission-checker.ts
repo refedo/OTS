@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/jwt';
 import db from '@/lib/db';
 import { hasPermission, hasAnyPermission, hasAllPermissions, ALL_PERMISSIONS } from './permissions';
 import { filterPermissionsByModules } from './module-restrictions';
+import { logger } from '@/lib/logger';
 
 // Helper: resolve effective permissions for a user (handles isAdmin, role, module restrictions)
 async function resolveUserPermissions(userId: string): Promise<string[]> {
@@ -11,19 +12,32 @@ async function resolveUserPermissions(userId: string): Promise<string[]> {
     include: { role: true },
   });
 
-  if (!user || !user.role) return [];
+  if (!user || !user.role) {
+    logger.warn({ userId }, '[RBAC] User or role not found');
+    return [];
+  }
 
   // isAdmin flag grants all permissions regardless of role
   if (user.isAdmin) {
+    logger.debug({ userId, userName: user.name }, '[RBAC] User is admin, granting all permissions');
     return ALL_PERMISSIONS.map(p => p.id);
   }
 
   let permissions = (user.role.permissions as string[]) || [];
   const restrictedModules = (user.role.restrictedModules as string[]) || [];
   
+  logger.debug({ 
+    userId, 
+    userName: user.name, 
+    roleName: user.role.name,
+    permissionCount: permissions.length,
+    restrictedModules 
+  }, '[RBAC] Resolved user permissions from role');
+  
   // Apply module restrictions if any
   if (restrictedModules.length > 0) {
     permissions = filterPermissionsByModules(permissions, restrictedModules);
+    logger.debug({ userId, filteredCount: permissions.length }, '[RBAC] Applied module restrictions');
   }
 
   return permissions;
@@ -36,10 +50,23 @@ export async function checkPermission(requiredPermission: string): Promise<boole
   const token = store.get(cookieName)?.value;
   const session = token ? verifySession(token) : null;
 
-  if (!session) return false;
+  if (!session) {
+    logger.warn({ requiredPermission }, '[RBAC] No session found, denying permission');
+    return false;
+  }
 
   const permissions = await resolveUserPermissions(session.sub);
-  return hasPermission(permissions, requiredPermission);
+  const hasAccess = hasPermission(permissions, requiredPermission);
+  
+  logger.info({ 
+    userId: session.sub, 
+    userName: session.name,
+    requiredPermission, 
+    hasAccess,
+    hasPermissionInArray: permissions.includes(requiredPermission)
+  }, '[RBAC] Permission check result');
+  
+  return hasAccess;
 }
 
 // Server-side check for any permission with module restrictions support
