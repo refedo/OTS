@@ -17,12 +17,15 @@ export const MODULE_RESTRICTIONS: ModuleRestriction[] = [
   {
     id: 'financial_contracts',
     name: 'Financial - Contracts & Payments',
-    description: 'Access to contract values, payment schedules, and financial terms',
+    description: 'Access to contract values, payment schedules, and financial terms within projects',
     category: 'financial',
     permissions: [
-      'projects.view', // Can view projects but financial data will be hidden
-      'projects.create',
-      'projects.edit',
+      // NOTE: Do NOT include projects.view, projects.create, projects.edit here!
+      // Restricting this module should hide financial DATA within projects,
+      // not block project access entirely. The UI components should check
+      // for this module restriction to hide financial fields.
+      'projects.view_financials', // Specific permission for viewing financial data in projects
+      'projects.edit_financials', // Specific permission for editing financial data in projects
     ],
   },
   {
