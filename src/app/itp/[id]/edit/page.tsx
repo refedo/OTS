@@ -3,6 +3,7 @@ import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { ITPFormNew } from '@/components/itp-form-new';
 import prisma from '@/lib/db';
+import { checkPermission } from '@/lib/permission-checker';
 
 export default async function EditITPPage({ params }: { params: { id: string } }) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -14,8 +15,8 @@ export default async function EditITPPage({ params }: { params: { id: string } }
     redirect('/login');
   }
 
-  // Only CEO, QA/QC Engineers, Managers, and Admins can edit ITPs
-  if (!['CEO', 'Admin', 'Manager', 'Engineer'].includes(session.role)) {
+  const hasPermission = await checkPermission('quality.edit_itp');
+  if (!hasPermission) {
     redirect('/itp');
   }
 

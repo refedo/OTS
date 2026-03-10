@@ -19,7 +19,7 @@ export default async function EditProjectPage({ params }: { params: { id: string
     redirect('/login');
   }
 
-  const hasPermission = await checkPermission(session.sub, 'projects.edit');
+  const hasPermission = await checkPermission('projects.edit');
   if (!hasPermission) {
     redirect('/projects');
   }

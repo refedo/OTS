@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { checkPermission } from '@/lib/permission-checker';
 
 export default async function NewProjectPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -18,7 +19,8 @@ export default async function NewProjectPage() {
     redirect('/login');
   }
 
-  if (!['CEO', 'Admin', 'Manager'].includes(session.role)) {
+  const hasPermission = await checkPermission('projects.create');
+  if (!hasPermission) {
     redirect('/projects');
   }
 
