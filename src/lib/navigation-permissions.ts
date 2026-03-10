@@ -128,7 +128,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/detailed-project-planner': ['planning.view', 'projects.view'],
 
   // Dolibarr Integration
-  '/dolibarr': ['settings.view', 'dolibarr.view'],
+  '/dolibarr': ['dolibarr.view'],
 
   // Organization
   '/users': ['users.view'],

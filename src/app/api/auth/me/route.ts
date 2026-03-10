@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
-import { filterPermissionsByModules } from '@/lib/module-restrictions';
+import { resolvePermissionsFromData, parseCustomPermissions } from '@/lib/services/permission-resolution.service';
 import { ALL_PERMISSIONS } from '@/lib/permissions';
 
 export async function GET() {
@@ -18,26 +18,14 @@ export async function GET() {
   });
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  let permissions: string[] = [];
-
-  // isAdmin flag grants all permissions regardless of role
-  if (user.isAdmin) {
-    permissions = ALL_PERMISSIONS.map(p => p.id);
-  } else {
-    // Check if customPermissions has a permissions array (for custom role overrides)
-    const customPerms = user.customPermissions as Record<string, unknown> | null;
-    if (customPerms && Array.isArray(customPerms.permissions)) {
-      permissions = customPerms.permissions as string[];
-    } else if (user.role.permissions && Array.isArray(user.role.permissions)) {
-      permissions = user.role.permissions as string[];
-    }
-
-    // Apply module restrictions — must match server-side permission-checker.ts behavior
-    const restrictedModules = (user.role.restrictedModules as string[]) || [];
-    if (restrictedModules.length > 0) {
-      permissions = filterPermissionsByModules(permissions, restrictedModules);
-    }
-  }
+  const permissions = user.isAdmin
+    ? ALL_PERMISSIONS.map(p => p.id)
+    : resolvePermissionsFromData({
+        isAdmin: false,
+        rolePermissions: (user.role.permissions as string[]) || [],
+        customPermissions: parseCustomPermissions(user.customPermissions),
+        restrictedModules: (user.role.restrictedModules as string[]) || [],
+      });
 
   return NextResponse.json({
     id: user.id,
