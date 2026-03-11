@@ -3,15 +3,16 @@
 import { AppSidebar } from '@/components/app-sidebar';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
+import { RouteGuard } from '@/components/RouteGuard';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
-  
+
   return (
     <div className="flex min-h-screen">
       <AppSidebar />
       <main className={`flex-1 p-4 transition-all duration-300 ${collapsed ? 'ml-16' : 'ml-64'}`}>
-        {children}
+        <RouteGuard>{children}</RouteGuard>
       </main>
     </div>
   );

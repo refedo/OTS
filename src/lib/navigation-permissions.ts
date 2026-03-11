@@ -179,3 +179,71 @@ export function hasAccessToSection(userPermissions: string[], sectionRoutes: str
   }
   return sectionRoutes.some(route => hasAccessToRoute(userPermissions, route));
 }
+
+/**
+ * Find the required permissions for a given pathname by matching against
+ * the NAVIGATION_PERMISSIONS map. Handles dynamic segments (e.g., /projects/abc123)
+ * by walking up the path tree until a match is found.
+ *
+ * Returns:
+ * - `null` if the route is explicitly public (no permission needed)
+ * - `string[]` of required permissions if a match is found
+ * - `undefined` if no matching route exists in the map (unregistered route)
+ */
+export function getRequiredPermissionsForPath(pathname: string): string[] | null | undefined {
+  // Strip query params for matching
+  const cleanPath = pathname.split('?')[0];
+
+  // 1. Exact match (with and without trailing slash)
+  const exactMatch = NAVIGATION_PERMISSIONS[cleanPath] ?? NAVIGATION_PERMISSIONS[cleanPath.replace(/\/$/, '')];
+  if (exactMatch !== undefined) {
+    if (exactMatch === null) return null;
+    return Array.isArray(exactMatch) ? exactMatch : [exactMatch];
+  }
+
+  // 2. Walk up the path segments to find the closest parent match.
+  //    This handles dynamic routes like /projects/abc123 → /projects,
+  //    /qc/rfi/abc123 → /qc/rfi, etc.
+  const segments = cleanPath.split('/').filter(Boolean);
+  for (let i = segments.length - 1; i >= 1; i--) {
+    const parentPath = '/' + segments.slice(0, i).join('/');
+    const parentMatch = NAVIGATION_PERMISSIONS[parentPath];
+    if (parentMatch !== undefined) {
+      if (parentMatch === null) return null;
+      return Array.isArray(parentMatch) ? parentMatch : [parentMatch];
+    }
+  }
+
+  // 3. No match found - this is an unregistered route
+  return undefined;
+}
+
+/**
+ * Check if a user has access to a given pathname.
+ * Unlike hasAccessToRoute, this handles dynamic segments and sub-paths.
+ *
+ * Returns:
+ * - { allowed: true } if access is granted
+ * - { allowed: false, requiredPermissions } if access is denied
+ */
+export function checkPathAccess(userPermissions: string[], pathname: string): {
+  allowed: boolean;
+  requiredPermissions?: string[];
+} {
+  if (!Array.isArray(userPermissions)) {
+    return { allowed: false, requiredPermissions: [] };
+  }
+
+  const required = getRequiredPermissionsForPath(pathname);
+
+  // Public route or unregistered route (allow unregistered to avoid blocking legitimate pages)
+  if (required === null || required === undefined) {
+    return { allowed: true };
+  }
+
+  // Check if user has ANY of the required permissions
+  const hasAccess = required.some(perm => userPermissions.includes(perm));
+  return hasAccess
+    ? { allowed: true }
+    : { allowed: false, requiredPermissions: required };
+}
