@@ -187,17 +187,22 @@ export default function NotificationsPage() {
   const [collapsedActivities, setCollapsedActivities] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(tabParam || 'all');
+  const [severityFilter, setSeverityFilter] = useState<string | null>(searchParams.get('severity'));
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
 
-  // Handle tab parameter from URL
+  // Handle tab and severity parameters from URL
   useEffect(() => {
     if (tabParam && tabParam !== activeTab) {
       setActiveTab(tabParam);
       handleTabChange(tabParam);
     }
-  }, [tabParam]);
+    const severityParam = searchParams.get('severity');
+    if (severityParam !== severityFilter) {
+      setSeverityFilter(severityParam);
+    }
+  }, [tabParam, searchParams]);
 
   const fetchDelayedTasks = async () => {
     try {
@@ -654,9 +659,12 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <>
-          {/* Stats Cards */}
+          {/* Stats Cards - Clickable to filter */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
+            <Card
+              className={`cursor-pointer transition-all hover:shadow-md ${!severityFilter ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => { setSeverityFilter(null); router.replace('/notifications?tab=delayed-tasks', { scroll: false }); }}
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-gray-100 rounded-lg">
@@ -669,7 +677,10 @@ export default function NotificationsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-red-200">
+            <Card
+              className={`border-red-200 cursor-pointer transition-all hover:shadow-md ${severityFilter === 'critical' ? 'ring-2 ring-red-500' : ''}`}
+              onClick={() => { setSeverityFilter('critical'); router.replace('/notifications?tab=delayed-tasks&severity=critical', { scroll: false }); }}
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-red-100 rounded-lg">
@@ -682,7 +693,10 @@ export default function NotificationsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-orange-200">
+            <Card
+              className={`border-orange-200 cursor-pointer transition-all hover:shadow-md ${severityFilter === 'warning' ? 'ring-2 ring-orange-500' : ''}`}
+              onClick={() => { setSeverityFilter('warning'); router.replace('/notifications?tab=delayed-tasks&severity=warning', { scroll: false }); }}
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-orange-100 rounded-lg">
@@ -695,7 +709,10 @@ export default function NotificationsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-yellow-200">
+            <Card
+              className={`border-yellow-200 cursor-pointer transition-all hover:shadow-md ${severityFilter === 'minor' ? 'ring-2 ring-yellow-500' : ''}`}
+              onClick={() => { setSeverityFilter('minor'); router.replace('/notifications?tab=delayed-tasks&severity=minor', { scroll: false }); }}
+            >
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-yellow-100 rounded-lg">
@@ -710,8 +727,40 @@ export default function NotificationsPage() {
             </Card>
           </div>
 
+          {/* Severity Filter Buttons */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm text-muted-foreground mr-1">Filter:</span>
+            {[
+              { value: null, label: 'All' },
+              { value: 'critical', label: 'Critical', color: 'text-red-600' },
+              { value: 'warning', label: 'Warning', color: 'text-orange-600' },
+              { value: 'minor', label: 'Minor', color: 'text-yellow-600' },
+            ].map((filter) => (
+              <button
+                key={filter.value ?? 'all'}
+                onClick={() => {
+                  setSeverityFilter(filter.value);
+                  const params = new URLSearchParams(searchParams.toString());
+                  if (filter.value) {
+                    params.set('severity', filter.value);
+                  } else {
+                    params.delete('severity');
+                  }
+                  router.replace(`/notifications?${params.toString()}`, { scroll: false });
+                }}
+                className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                  severityFilter === filter.value
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background hover:bg-muted border-border'
+                } ${filter.color || ''}`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+
           {/* Delayed Tasks List */}
-          {delayedTasks.length === 0 ? (
+          {delayedTasks.filter(t => !severityFilter || t.delayStatus === severityFilter).length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500 opacity-50" />
@@ -723,7 +772,7 @@ export default function NotificationsPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {delayedTasks.map((task) => (
+              {delayedTasks.filter(t => !severityFilter || t.delayStatus === severityFilter).map((task) => (
                 <Card
                   key={task.id}
                   className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${
