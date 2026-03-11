@@ -11,8 +11,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   AlertTriangle,
   AlertOctagon,
@@ -154,19 +152,27 @@ export function DelayedTasksNotificationDialog() {
 
         {/* Admin Toggle */}
         {isAdmin && (
-          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border">
-            <div className="flex items-center gap-2">
-              {showAll ? <Users className="size-4 text-muted-foreground" /> : <User className="size-4 text-muted-foreground" />}
-              <Label htmlFor="scope-toggle" className="text-sm cursor-pointer">
-                {showAll ? 'Showing all tasks' : 'Showing my tasks'}
-              </Label>
-            </div>
-            <Switch
-              id="scope-toggle"
-              checked={showAll}
-              onCheckedChange={handleToggleScope}
+          <div className="flex items-center gap-2 px-1">
+            <Button
+              variant={!showAll ? 'default' : 'outline'}
+              size="sm"
+              className="flex-1 gap-1.5"
+              onClick={() => { if (showAll) handleToggleScope(false); }}
               disabled={loading}
-            />
+            >
+              <User className="size-3.5" />
+              My Tasks
+            </Button>
+            <Button
+              variant={showAll ? 'default' : 'outline'}
+              size="sm"
+              className="flex-1 gap-1.5"
+              onClick={() => { if (!showAll) handleToggleScope(true); }}
+              disabled={loading}
+            >
+              <Users className="size-3.5" />
+              All Tasks
+            </Button>
           </div>
         )}
 

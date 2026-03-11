@@ -4,29 +4,27 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'PBAC Migration — Permission-Based Access Control',
+  mainTitle: 'Delayed Tasks Widget & Login Notification',
   highlights: [
-    'Complete migration from role-based to permission-based access control',
-    'Custom user permissions with grants/revokes override system',
-    'Clone permissions API to copy permissions between users',
-    'Legacy rbac.ts deleted — all access uses permission-checker.ts',
+    'New dashboard widget showing delayed tasks with severity breakdown',
+    'Login notification dialog alerts users about overdue tasks',
+    'Admin toggle to switch between personal and all delayed tasks',
+    'Clickable severity cards to filter tasks by Critical, Warning, or Minor',
   ],
   changes: {
     added: [
-      'Permission Resolution Service — hybrid model: Role Permissions + Grants - Revokes - Module Restrictions',
-      'Custom Permissions with Grants/Revokes in user edit form',
-      'Clone Permissions API — POST /api/users/[id]/clone-permissions',
-      'PBAC Verification Script — scripts/verify-pbac-migration.ts',
+      'Delayed Tasks Dashboard Widget — severity breakdown (Critical 7+ days, Warning 3-7 days, Minor 1-3 days) with most overdue tasks list',
+      'Login Notification Dialog — prompts users once per session about their delayed tasks requiring attention',
+      'Admin toggle (My Tasks / All Tasks) — admin users can switch between personal tasks and system-wide delayed tasks',
+      'Clickable severity cards — Critical, Warning, Minor cards navigate to notifications page with severity pre-filter',
+      'Severity filter on Notifications page — ?severity=critical|warning|minor query param with filter pill buttons and clickable stat cards',
     ],
     fixed: [
-      '18+ API routes migrated from hardcoded role checks to checkPermission() calls',
-      '12+ page components migrated from role checks to getCurrentUserPermissions()',
-      '9 client components migrated from userRole prop to userPermissions prop',
+      'Delayed tasks scoped to user\'s own tasks (assigned to, created by, or requested by) instead of showing all system tasks',
     ],
     changed: [
-      'Deleted src/lib/rbac.ts — legacy role-based access control removed',
-      'customPermissions JSON uses { grants, revokes } format (backward compatible)',
-      'User PATCH API accepts both legacy array and new grants/revokes format',
+      'Delayed tasks API supports ?personal=true param to always filter to user\'s own tasks regardless of admin permissions',
+      'Notifications page stat cards are now clickable with active filter ring indicator',
     ],
   },
 };
