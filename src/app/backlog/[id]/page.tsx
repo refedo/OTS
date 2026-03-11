@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download } from 'lucide-react';
 
 interface BacklogItem {
   id: string;
@@ -33,6 +33,13 @@ interface BacklogItem {
   approvedAt: string | null;
   plannedAt: string | null;
   completedAt: string | null;
+  attachments: Array<{
+    fileName: string;
+    filePath: string;
+    fileType: string;
+    fileSize: number;
+    uploadedAt: string;
+  }> | null;
   tasks: Array<{
     id: string;
     title: string;
@@ -324,6 +331,43 @@ export default function BacklogItemDetail() {
               </CardContent>
             </Card>
 
+
+            {/* Attachments */}
+            {item.attachments && item.attachments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Paperclip className="size-5" />
+                    Attachments ({item.attachments.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {item.attachments.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <FileText className="size-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{file.fileName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {file.fileSize < 1024 * 1024
+                            ? `${(file.fileSize / 1024).toFixed(1)} KB`
+                            : `${(file.fileSize / (1024 * 1024)).toFixed(1)} MB`}
+                          {' · '}
+                          {new Date(file.uploadedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <a href={file.filePath} target="_blank" rel="noopener noreferrer">
+                        <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                          <Download className="size-4" />
+                        </Button>
+                      </a>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Linked Tasks */}
             <Card>

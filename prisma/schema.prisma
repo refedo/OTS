@@ -2955,6 +2955,7 @@ model ProductBacklogItem {
   status            BacklogStatus
 
   affectedModules   Json              // Array of strings e.g. ["Design","Production","QC","AI"]
+  attachments       Json?             // Array of {fileName, filePath, fileType, fileSize, uploadedAt}
   riskLevel         RiskLevel
   complianceFlag    Boolean           @default(false)
 
