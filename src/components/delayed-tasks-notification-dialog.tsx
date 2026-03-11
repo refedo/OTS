@@ -57,7 +57,7 @@ export function DelayedTasksNotificationDialog() {
         return;
       }
 
-      const response = await fetch('/api/notifications/delayed-tasks');
+      const response = await fetch('/api/notifications/delayed-tasks?personal=true');
       if (!response.ok) return;
 
       const result: DelayedTasksData = await response.json();
