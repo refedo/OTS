@@ -35,7 +35,7 @@ export default function DelayedTasksWidget() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/notifications/delayed-tasks');
+      const response = await fetch('/api/notifications/delayed-tasks?personal=true');
       if (!response.ok) throw new Error('Failed to fetch data');
       const result = await response.json();
       setData(result);

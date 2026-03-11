@@ -16,6 +16,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check if personal-only mode is requested (used by widgets/dialogs)
+    const url = new URL(req.url);
+    const personalOnly = url.searchParams.get('personal') === 'true';
+
     // Permission-based filtering
     const userPermissions = await getCurrentUserPermissions();
     const isAdmin = userPermissions.includes('tasks.view_all');
@@ -26,8 +30,8 @@ export async function GET(req: Request) {
       select: { id: true, departmentId: true },
     });
 
-    // Check cache first (30 second TTL) - cache per user
-    const cacheKey = `delayed-tasks-${session.sub}`;
+    // Check cache first (30 second TTL) - cache per user and mode
+    const cacheKey = `delayed-tasks-${session.sub}-${personalOnly ? 'personal' : 'all'}`;
     const cached = cache.get(cacheKey, 30000);
     if (cached) {
       return NextResponse.json(cached);
@@ -35,18 +39,30 @@ export async function GET(req: Request) {
 
     const now = new Date();
 
-    // Build user-specific filter: only tasks the user is involved in
-    // Admin/CEO see all delayed tasks; others see only their own
-    const userFilter = isAdmin ? {} : {
+    // Personal filter: tasks where user is assigner, assignee, or requester
+    const personalFilter = {
       OR: [
-        { assignedToId: session.sub },           // assigned to user
-        { createdById: session.sub },             // created by user
-        { requesterId: session.sub },             // requested by user
-        ...(currentUser?.departmentId ? [{
-          departmentId: currentUser.departmentId, // same department (for dept heads)
-        }] : []),
+        { assignedToId: session.sub },
+        { createdById: session.sub },
+        { requesterId: session.sub },
       ],
     };
+
+    // Build user-specific filter
+    // personalOnly mode: always filter to user's own tasks (for widgets/dialogs)
+    // Otherwise: Admin/CEO see all delayed tasks; others see own + department
+    const userFilter = personalOnly
+      ? personalFilter
+      : isAdmin
+        ? {}
+        : {
+            OR: [
+              ...personalFilter.OR,
+              ...(currentUser?.departmentId ? [{
+                departmentId: currentUser.departmentId,
+              }] : []),
+            ],
+          };
 
     // Find delayed tasks personalized to the user
     const delayedTasks = await prisma.task.findMany({
