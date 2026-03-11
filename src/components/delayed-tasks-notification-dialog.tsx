@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   AlertTriangle,
   AlertOctagon,
@@ -18,6 +20,8 @@ import {
   Info,
   Clock,
   ArrowRight,
+  Users,
+  User,
 } from 'lucide-react';
 
 interface DelayedTask {
@@ -44,6 +48,24 @@ interface DelayedTasksData {
 export function DelayedTasksNotificationDialog() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<DelayedTasksData | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const fetchDelayedTasks = useCallback(async (personal: boolean) => {
+    setLoading(true);
+    try {
+      const param = personal ? 'personal=true' : '';
+      const response = await fetch(`/api/notifications/delayed-tasks?${param}`);
+      if (!response.ok) return;
+      const result: DelayedTasksData = await response.json();
+      setData(result);
+    } catch {
+      // Silently fail
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     checkDelayedTasks();
@@ -51,10 +73,16 @@ export function DelayedTasksNotificationDialog() {
 
   const checkDelayedTasks = async () => {
     try {
-      // Only show once per session (not on every page navigation)
       const sessionKey = 'delayed_tasks_prompt_shown';
       if (sessionStorage.getItem(sessionKey)) {
         return;
+      }
+
+      // Check if user is admin
+      const meResponse = await fetch('/api/auth/me');
+      if (meResponse.ok) {
+        const meData = await meResponse.json();
+        setIsAdmin(meData.isAdmin === true);
       }
 
       const response = await fetch('/api/notifications/delayed-tasks?personal=true');
@@ -68,17 +96,24 @@ export function DelayedTasksNotificationDialog() {
         sessionStorage.setItem(sessionKey, 'true');
       }
     } catch {
-      // Silently fail - this is a non-critical notification
+      // Silently fail
     }
+  };
+
+  const handleToggleScope = (checked: boolean) => {
+    setShowAll(checked);
+    fetchDelayedTasks(!checked);
   };
 
   const handleClose = () => {
     setOpen(false);
   };
 
-  const handleViewTasks = () => {
+  const handleNavigate = (severity?: string) => {
     setOpen(false);
-    window.location.href = '/notifications?tab=delayed-tasks';
+    const params = new URLSearchParams({ tab: 'delayed-tasks' });
+    if (severity) params.set('severity', severity);
+    window.location.href = `/notifications?${params.toString()}`;
   };
 
   if (!data) return null;
@@ -117,36 +152,63 @@ export function DelayedTasksNotificationDialog() {
           </div>
         </DialogHeader>
 
-        {/* Severity Summary */}
+        {/* Admin Toggle */}
+        {isAdmin && (
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border">
+            <div className="flex items-center gap-2">
+              {showAll ? <Users className="size-4 text-muted-foreground" /> : <User className="size-4 text-muted-foreground" />}
+              <Label htmlFor="scope-toggle" className="text-sm cursor-pointer">
+                {showAll ? 'Showing all tasks' : 'Showing my tasks'}
+              </Label>
+            </div>
+            <Switch
+              id="scope-toggle"
+              checked={showAll}
+              onCheckedChange={handleToggleScope}
+              disabled={loading}
+            />
+          </div>
+        )}
+
+        {/* Severity Summary - Clickable */}
         <div className="grid grid-cols-3 gap-3 py-2">
           {data.critical > 0 && (
-            <div className="flex flex-col items-center p-3 rounded-lg bg-red-50 border border-red-200">
+            <button
+              onClick={() => handleNavigate('critical')}
+              className="flex flex-col items-center p-3 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer"
+            >
               <AlertOctagon className="size-5 text-red-600 mb-1" />
               <p className="text-xl font-bold text-red-700">{data.critical}</p>
               <p className="text-xs text-red-600 font-medium">Critical</p>
               <p className="text-xs text-muted-foreground">7+ days late</p>
-            </div>
+            </button>
           )}
           {data.warning > 0 && (
-            <div className="flex flex-col items-center p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <button
+              onClick={() => handleNavigate('warning')}
+              className="flex flex-col items-center p-3 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-colors cursor-pointer"
+            >
               <AlertCircle className="size-5 text-amber-600 mb-1" />
               <p className="text-xl font-bold text-amber-700">{data.warning}</p>
               <p className="text-xs text-amber-600 font-medium">Warning</p>
               <p className="text-xs text-muted-foreground">3-7 days late</p>
-            </div>
+            </button>
           )}
           {data.minor > 0 && (
-            <div className="flex flex-col items-center p-3 rounded-lg bg-blue-50 border border-blue-200">
+            <button
+              onClick={() => handleNavigate('minor')}
+              className="flex flex-col items-center p-3 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-colors cursor-pointer"
+            >
               <Info className="size-5 text-blue-600 mb-1" />
               <p className="text-xl font-bold text-blue-700">{data.minor}</p>
               <p className="text-xs text-blue-600 font-medium">Minor</p>
               <p className="text-xs text-muted-foreground">1-3 days late</p>
-            </div>
+            </button>
           )}
         </div>
 
         {/* Task List */}
-        <ScrollArea className="max-h-[calc(85vh-320px)]">
+        <ScrollArea className="max-h-[calc(85vh-380px)]">
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Most Overdue Tasks
@@ -189,7 +251,7 @@ export function DelayedTasksNotificationDialog() {
           <Button variant="ghost" onClick={handleClose}>
             Remind me later
           </Button>
-          <Button onClick={handleViewTasks} className="gap-2">
+          <Button onClick={() => handleNavigate()} className="gap-2">
             View All Delayed Tasks
             <ArrowRight className="size-4" />
           </Button>
