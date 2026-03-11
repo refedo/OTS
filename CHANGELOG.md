@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.19.1] - 2026-03-11
+
+### Delayed Tasks Widget & Login Notification
+
+#### New Features
+- **Delayed Tasks Dashboard Widget** — New widget showing delayed tasks with severity breakdown (Critical 7+ days, Warning 3-7 days, Minor 1-3 days) and a list of most overdue tasks
+- **Login Notification Dialog** — Prompts users once per session about their delayed tasks requiring attention, with severity summary and task preview
+- **Admin Toggle (My Tasks / All Tasks)** — Admin users can switch between viewing only their personal delayed tasks and all system-wide delayed tasks in both the widget and login dialog
+- **Clickable Severity Cards** — Critical, Warning, and Minor severity cards in widget and dialog navigate to the notifications page with severity pre-filter applied
+- **Severity Filter on Notifications Page** — Added `?severity=critical|warning|minor` query parameter support with filter pill buttons and clickable stat cards with active ring indicator
+
+#### Bug Fixes
+- **Delayed tasks scoped to user** — Widget and dialog now show only tasks where the user is assignee, assigner, or requester instead of all system tasks
+
+#### Technical Changes
+- Delayed tasks API supports `?personal=true` param to filter to user's own tasks regardless of admin permissions
+- New `DELAYED_TASKS` widget type registered in WidgetContainer for drag-and-drop dashboard customization
+- `DelayedTasksNotificationDialog` added to SessionProvider for all authenticated users
+
+---
+
 ## [15.19.0] - 2026-03-10
 
 ### 🔐 PBAC Migration — Permission-Based Access Control
