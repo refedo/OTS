@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Paperclip, X, FileText, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
 import {
@@ -17,6 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
+interface AttachmentFile {
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: string;
+}
 
 const backlogTypes = ['FEATURE', 'BUG', 'TECH_DEBT', 'PERFORMANCE', 'REPORTING', 'REFACTOR', 'COMPLIANCE', 'INSIGHT'];
 const backlogCategories = ['CORE_SYSTEM', 'PRODUCTION', 'DESIGN', 'DETAILING', 'PROCUREMENT', 'QC', 'LOGISTICS', 'FINANCE', 'REPORTING', 'AI', 'GOVERNANCE'];
@@ -28,6 +36,9 @@ export default function NewBacklogItemPage() {
   const [generatingTitle, setGeneratingTitle] = useState(false);
   const [generatingValue, setGeneratingValue] = useState(false);
   const [generatingModules, setGeneratingModules] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -155,6 +166,61 @@ export default function NewBacklogItemPage() {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingFile(true);
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAttachments(prev => [...prev, {
+            fileName: data.originalName,
+            filePath: data.filePath,
+            fileType: data.fileType,
+            fileSize: data.fileSize,
+            uploadedAt: new Date().toISOString(),
+          }]);
+        } else {
+          const error = await response.json();
+          showConfirmation({
+            type: 'error',
+            title: 'Upload Failed',
+            message: error.error || `Failed to upload ${file.name}`,
+          });
+        }
+      }
+    } catch {
+      showConfirmation({
+        type: 'error',
+        title: 'Upload Failed',
+        message: 'Failed to upload file. Please try again.',
+      });
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -172,6 +238,7 @@ export default function NewBacklogItemPage() {
           category: formData.category,
           priority: formData.priority,
           affectedModules: formData.affectedModules.split(',').map(m => m.trim()).filter(Boolean),
+          attachments,
         }),
       });
 
@@ -377,6 +444,71 @@ export default function NewBacklogItemPage() {
                 <p className="text-sm text-muted-foreground">
                   Enter module names separated by commas
                 </p>
+              </div>
+
+              {/* Attachments */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Attachments</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                    className="gap-2"
+                  >
+                    {uploadingFile ? (
+                      <>
+                        <Upload className="size-4 animate-pulse" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Paperclip className="size-4" />
+                        Attach File
+                      </>
+                    )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    onChange={handleFileUpload}
+                  />
+                </div>
+
+                {attachments.length > 0 ? (
+                  <div className="space-y-2">
+                    {attachments.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50"
+                      >
+                        <FileText className="size-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.fileName}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(file.fileSize)}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 shrink-0"
+                          onClick={() => removeAttachment(index)}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Attach relevant documents, screenshots, or specs (PDF, Word, Excel, TXT — max 10 MB each)
+                  </p>
+                )}
               </div>
 
               {/* Actions */}

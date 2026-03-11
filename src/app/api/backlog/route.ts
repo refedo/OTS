@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
         priority: body.priority || 'MEDIUM',
         status,
         affectedModules: body.affectedModules || [],
+        attachments: body.attachments || [],
         riskLevel: body.riskLevel || 'MEDIUM',
         complianceFlag: body.complianceFlag || false,
         linkedObjectiveId: body.linkedObjectiveId,
