@@ -19,9 +19,14 @@ export function LoginForm() {
 
   // Fetch login logo and version from settings
   useEffect(() => {
-    // Clear any stale session data when login page loads
+    // Clear stale session data when login page loads,
+    // but preserve version-seen marker so "What's New" only shows once per release
+    const lastSeenVersion = localStorage.getItem('lastSeenVersion');
     localStorage.clear();
     sessionStorage.clear();
+    if (lastSeenVersion) {
+      localStorage.setItem('lastSeenVersion', lastSeenVersion);
+    }
     
     const fetchLoginLogo = async () => {
       try {
