@@ -7,6 +7,7 @@ import KPISummaryWidget from './widgets/KPISummaryWidget';
 import ObjectivesSummaryWidget from './widgets/ObjectivesSummaryWidget';
 import WeeklyProductionWidget from './widgets/WeeklyProductionWidget';
 import WorkOrdersWidget from './widgets/WorkOrdersWidget';
+import DelayedTasksWidget from './widgets/DelayedTasksWidget';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, X, GripVertical } from 'lucide-react';
 import {
@@ -49,6 +50,7 @@ const WIDGET_COMPONENTS: { [key: string]: React.ComponentType } = {
   OBJECTIVE_SUMMARY: ObjectivesSummaryWidget,
   WEEKLY_PRODUCTION: WeeklyProductionWidget,
   WORK_ORDERS: WorkOrdersWidget,
+  DELAYED_TASKS: DelayedTasksWidget,
 };
 
 const WIDGET_DEFINITIONS = [
@@ -58,6 +60,7 @@ const WIDGET_DEFINITIONS = [
   { type: 'OBJECTIVE_SUMMARY', name: 'Company Objectives', description: 'Strategic goals tracking', size: 'medium' },
   { type: 'WEEKLY_PRODUCTION', name: 'Weekly Production', description: 'Production trends and metrics', size: 'large' },
   { type: 'WORK_ORDERS', name: 'Work Orders', description: 'Ongoing work orders status', size: 'medium' },
+  { type: 'DELAYED_TASKS', name: 'Delayed Tasks', description: 'Tasks past their due date requiring attention', size: 'medium' },
 ];
 
 // Sortable Widget Wrapper

@@ -11,6 +11,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { SessionActivityProvider } from './session-activity-provider';
 import { UpdateNotificationDialog } from './update-notification-dialog';
+import { DelayedTasksNotificationDialog } from './delayed-tasks-notification-dialog';
 
 interface SessionProviderProps {
   children: React.ReactNode;
@@ -137,6 +138,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       <NotificationProvider>
         <SessionActivityProvider>
           <UpdateNotificationDialog />
+          <DelayedTasksNotificationDialog />
           {children}
         </SessionActivityProvider>
       </NotificationProvider>
