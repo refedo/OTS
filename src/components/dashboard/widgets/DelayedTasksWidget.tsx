@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { AlertTriangle, Clock, Loader2, AlertOctagon, AlertCircle, Info, Users, User } from 'lucide-react';
 import Link from 'next/link';
 
@@ -141,20 +140,27 @@ export default function DelayedTasksWidget() {
         </CardTitle>
         {/* Admin Toggle */}
         {isAdmin && (
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2">
-              {showAll ? <Users className="size-3.5 text-muted-foreground" /> : <User className="size-3.5 text-muted-foreground" />}
-              <Label htmlFor="widget-scope-toggle" className="text-xs cursor-pointer text-muted-foreground">
-                {showAll ? 'All tasks' : 'My tasks'}
-              </Label>
-            </div>
-            <Switch
-              id="widget-scope-toggle"
-              checked={showAll}
-              onCheckedChange={handleToggleScope}
+          <div className="flex items-center gap-1.5 pt-2">
+            <Button
+              variant={!showAll ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 text-xs flex-1 gap-1"
+              onClick={() => { if (showAll) handleToggleScope(false); }}
               disabled={loading}
-              className="scale-75"
-            />
+            >
+              <User className="size-3" />
+              My Tasks
+            </Button>
+            <Button
+              variant={showAll ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 text-xs flex-1 gap-1"
+              onClick={() => { if (!showAll) handleToggleScope(true); }}
+              disabled={loading}
+            >
+              <Users className="size-3" />
+              All Tasks
+            </Button>
           </div>
         )}
       </CardHeader>
