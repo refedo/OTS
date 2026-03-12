@@ -6,6 +6,8 @@
 
 import { NotificationType, Notification } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { PushService } from '@/lib/services/push.service';
+import { logger } from '@/lib/logger';
 
 export interface CreateNotificationParams {
   userId: string;
@@ -55,9 +57,22 @@ export class NotificationService {
         },
       });
 
+      // Send push notification (fire and forget — don't block in-app notification)
+      PushService.sendPushToUser({
+        userId: params.userId,
+        notificationId: notification.id,
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        relatedEntityType: params.relatedEntityType,
+        relatedEntityId: params.relatedEntityId,
+      }).catch((err) => {
+        logger.error({ error: err, userId: params.userId }, 'Failed to send push notification');
+      });
+
       return notification;
     } catch (error) {
-      console.error('Error creating notification:', error);
+      logger.error({ error }, 'Error creating notification');
       throw new Error('Failed to create notification');
     }
   }
