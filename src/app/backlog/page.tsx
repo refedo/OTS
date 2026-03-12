@@ -1,34 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionValidator } from '@/hooks/use-session-validator';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { showConfirmation } from '@/components/ui/confirmation-dialog';
+import {
+  Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown,
+  MoreHorizontal, Eye, CheckCircle, XCircle, Layers,
+  AlertTriangle, TrendingUp, ShieldCheck, ListTodo,
+} from 'lucide-react';
 
 interface BacklogItem {
   id: string;
   code: string;
   title: string;
-  description: string;
   type: string;
   category: string;
-  businessReason: string;
-  expectedValue: string | null;
   priority: string;
   status: string;
-  affectedModules: string[];
-  riskLevel: string;
   complianceFlag: boolean;
   createdAt: string;
-  tasks: Array<{
-    id: string;
-    title: string;
-    status: string;
-  }>;
+  createdBy: { id: string; name: string };
+  tasks: Array<{ id: string; title: string; status: string }>;
+}
+
+type SortKey = 'code' | 'title' | 'type' | 'priority' | 'status' | 'createdBy';
+type SortDir = 'asc' | 'desc';
+
+const PRIORITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+const STATUS_ORDER: Record<string, number> = {
+  BLOCKED: 0, IN_PROGRESS: 1, PLANNED: 2, APPROVED: 3,
+  UNDER_REVIEW: 4, IDEA: 5, COMPLETED: 6, DROPPED: 7,
+};
+
+function codeNum(code: string) {
+  return parseInt(code.match(/\d+$/)?.[0] ?? '0');
 }
 
 export default function BacklogBoard() {
@@ -36,20 +53,10 @@ export default function BacklogBoard() {
   const router = useRouter();
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    type: '',
-    category: '',
-    status: '',
-    priority: '',
-    search: '',
-  });
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filters, setFilters] = useState({ type: '', category: '', status: '', priority: '', search: '' });
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'code', dir: 'asc' });
 
-  useEffect(() => {
-    fetchBacklogItems();
-  }, [filters]);
-
-  const fetchBacklogItems = async () => {
+  const fetchBacklogItems = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -58,49 +65,125 @@ export default function BacklogBoard() {
       if (filters.status) params.append('status', filters.status);
       if (filters.priority) params.append('priority', filters.priority);
       if (filters.search) params.append('search', filters.search);
-
       const response = await fetch(`/api/backlog?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setItems(data);
-      }
-    } catch (error) {
-      console.error('Error fetching backlog items:', error);
+      if (response.ok) setItems(await response.json());
     } finally {
       setLoading(false);
     }
+  }, [filters]);
+
+  useEffect(() => { fetchBacklogItems(); }, [fetchBacklogItems]);
+
+  const handleSort = (key: SortKey) => {
+    setSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
+  const sorted = [...items].sort((a, b) => {
+    const mul = sort.dir === 'asc' ? 1 : -1;
+    switch (sort.key) {
+      case 'code':     return mul * (codeNum(a.code) - codeNum(b.code));
+      case 'title':    return mul * a.title.localeCompare(b.title);
+      case 'type':     return mul * a.type.localeCompare(b.type);
+      case 'priority': return mul * ((PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9));
+      case 'status':   return mul * ((STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
+      case 'createdBy': return mul * a.createdBy.name.localeCompare(b.createdBy.name);
+      default:         return 0;
+    }
+  });
+
+  const patchStatus = async (id: string, status: string, label: string) => {
+    const res = await fetch(`/api/backlog/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      showConfirmation({ type: 'success', title: `${label}`, message: `Item marked as ${label.toLowerCase()}.` });
+      fetchBacklogItems();
+    } else {
+      const err = await res.json();
+      showConfirmation({ type: 'error', title: 'Failed', message: err.error || 'Could not update status.' });
+    }
+  };
+
+  const getPriorityStyle = (p: string) => {
+    switch (p) {
       case 'CRITICAL': return 'bg-red-100 text-red-800 border-red-300';
-      case 'HIGH': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'LOW': return 'bg-green-100 text-green-800 border-green-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'HIGH':     return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'MEDIUM':   return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'LOW':      return 'bg-green-100 text-green-800 border-green-300';
+      default:         return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'IDEA': return 'bg-gray-100 text-gray-700';
+  const getStatusStyle = (s: string) => {
+    switch (s) {
+      case 'IDEA':         return 'bg-slate-100 text-slate-600';
       case 'UNDER_REVIEW': return 'bg-blue-100 text-blue-700';
-      case 'APPROVED': return 'bg-green-100 text-green-700';
-      case 'PLANNED': return 'bg-purple-100 text-purple-700';
-      case 'IN_PROGRESS': return 'bg-indigo-100 text-indigo-700';
-      case 'BLOCKED': return 'bg-red-100 text-red-700';
-      case 'COMPLETED': return 'bg-emerald-100 text-emerald-700';
-      case 'DROPPED': return 'bg-gray-100 text-gray-500';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'APPROVED':     return 'bg-green-100 text-green-700';
+      case 'PLANNED':      return 'bg-violet-100 text-violet-700';
+      case 'IN_PROGRESS':  return 'bg-indigo-100 text-indigo-700';
+      case 'BLOCKED':      return 'bg-red-100 text-red-700';
+      case 'COMPLETED':    return 'bg-emerald-100 text-emerald-700';
+      case 'DROPPED':      return 'bg-gray-100 text-gray-400';
+      default:             return 'bg-gray-100 text-gray-600';
     }
   };
 
-  if (isValidating || loading) {
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sort.key !== col) return <ChevronsUpDown className="size-3 opacity-40" />;
+    return sort.dir === 'asc' ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />;
+  };
+
+  const SortTh = ({ col, label, className = '' }: { col: SortKey; label: string; className?: string }) => (
+    <th
+      onClick={() => handleSort(col)}
+      className={`px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors ${className}`}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <SortIcon col={col} />
+      </span>
+    </th>
+  );
+
+  const stats = [
+    {
+      label: 'Total Items',
+      value: items.length,
+      icon: <ListTodo className="size-5" />,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+    },
+    {
+      label: 'High / Critical',
+      value: items.filter(i => ['HIGH', 'CRITICAL'].includes(i.priority)).length,
+      icon: <AlertTriangle className="size-5" />,
+      color: 'text-orange-600',
+      bg: 'bg-orange-100',
+    },
+    {
+      label: 'In Progress',
+      value: items.filter(i => ['APPROVED', 'PLANNED', 'IN_PROGRESS'].includes(i.status)).length,
+      icon: <TrendingUp className="size-5" />,
+      color: 'text-green-600',
+      bg: 'bg-green-100',
+    },
+    {
+      label: 'Compliance',
+      value: items.filter(i => i.complianceFlag).length,
+      icon: <ShieldCheck className="size-5" />,
+      color: 'text-purple-600',
+      bg: 'bg-purple-100',
+    },
+  ];
+
+  if (isValidating) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading backlog...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          <p className="mt-4 text-muted-foreground">Loading backlog...</p>
         </div>
       </div>
     );
@@ -109,269 +192,200 @@ export default function BacklogBoard() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-20">
+
         {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Product Backlog</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm">
               Single source of truth for features, bugs, tech debt, and system improvements
             </p>
           </div>
-          <Button 
-            className="bg-primary hover:bg-primary/90"
-            onClick={() => router.push('/backlog/new')}
-          >
+          <Button className="shrink-0" onClick={() => router.push('/backlog/new')}>
             <Plus className="size-4 mr-2" />
             New Backlog Item
           </Button>
         </div>
 
-        {/* Filters Card */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Search
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search by title, code, or reason..."
-                    value={filters.search}
-                    onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                    className="pl-9"
-                  />
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map(s => (
+            <Card key={s.label} className="border-0 shadow-sm">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${s.bg} ${s.color}`}>{s.icon}</div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Type
-                </label>
-                <select
-                  value={filters.type}
-                  onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">All Types</option>
-                  <option value="FEATURE">Feature</option>
-                  <option value="BUG">Bug</option>
-                  <option value="TECH_DEBT">Tech Debt</option>
-                  <option value="PERFORMANCE">Performance</option>
-                  <option value="REPORTING">Reporting</option>
-                  <option value="REFACTOR">Refactor</option>
-                  <option value="COMPLIANCE">Compliance</option>
-                  <option value="INSIGHT">Insight</option>
-                </select>
+        {/* Filters */}
+        <Card>
+          <CardHeader className="pb-3 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Filters</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={filters.search}
+                  onChange={e => setFilters({ ...filters, search: e.target.value })}
+                  className="pl-8 h-9 text-sm"
+                />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Priority
-                </label>
+              {[
+                { key: 'type', options: [['', 'All Types'], ['FEATURE', 'Feature'], ['BUG', 'Bug'], ['TECH_DEBT', 'Tech Debt'], ['PERFORMANCE', 'Performance'], ['REPORTING', 'Reporting'], ['REFACTOR', 'Refactor'], ['COMPLIANCE', 'Compliance'], ['INSIGHT', 'Insight']] },
+                { key: 'priority', options: [['', 'All Priorities'], ['CRITICAL', 'Critical'], ['HIGH', 'High'], ['MEDIUM', 'Medium'], ['LOW', 'Low']] },
+                { key: 'status', options: [['', 'All Statuses'], ['IDEA', 'Idea'], ['UNDER_REVIEW', 'Under Review'], ['APPROVED', 'Approved'], ['PLANNED', 'Planned'], ['IN_PROGRESS', 'In Progress'], ['BLOCKED', 'Blocked'], ['COMPLETED', 'Completed'], ['DROPPED', 'Dropped']] },
+                { key: 'category', options: [['', 'All Categories'], ['CORE_SYSTEM', 'Core System'], ['PRODUCTION', 'Production'], ['DESIGN', 'Design'], ['DETAILING', 'Detailing'], ['PROCUREMENT', 'Procurement'], ['QC', 'QC'], ['LOGISTICS', 'Logistics'], ['FINANCE', 'Finance'], ['REPORTING', 'Reporting'], ['AI', 'AI'], ['GOVERNANCE', 'Governance']] },
+              ].map(({ key, options }) => (
                 <select
-                  value={filters.priority}
-                  onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  key={key}
+                  value={filters[key as keyof typeof filters]}
+                  onChange={e => setFilters({ ...filters, [key]: e.target.value })}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 >
-                  <option value="">All Priorities</option>
-                  <option value="CRITICAL">Critical</option>
-                  <option value="HIGH">High</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="LOW">Low</option>
+                  {options.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Status
-                </label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="IDEA">Idea</option>
-                  <option value="UNDER_REVIEW">Under Review</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="PLANNED">Planned</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="BLOCKED">Blocked</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="DROPPED">Dropped</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Category
-                </label>
-                <select
-                  value={filters.category}
-                  onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">All Categories</option>
-                  <option value="CORE_SYSTEM">Core System</option>
-                  <option value="PRODUCTION">Production</option>
-                  <option value="DESIGN">Design</option>
-                  <option value="DETAILING">Detailing</option>
-                  <option value="PROCUREMENT">Procurement</option>
-                  <option value="QC">QC</option>
-                  <option value="LOGISTICS">Logistics</option>
-                  <option value="FINANCE">Finance</option>
-                  <option value="REPORTING">Reporting</option>
-                  <option value="AI">AI</option>
-                  <option value="GOVERNANCE">Governance</option>
-                </select>
-              </div>
+              ))}
             </div>
-
-            <div className="mt-4 flex justify-between items-center">
-              <Button
-                variant="ghost"
+            {Object.values(filters).some(Boolean) && (
+              <button
                 onClick={() => setFilters({ type: '', category: '', status: '', priority: '', search: '' })}
+                className="mt-3 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
               >
-                Clear Filters
-              </Button>
-            </div>
+                Clear all filters
+              </button>
+            )}
           </CardContent>
         </Card>
 
-        {/* Table Card */}
-        <Card>
-          <CardContent className="p-0">
-            <table className="min-w-full divide-y">
-              <thead className="bg-muted/50">
+        {/* Table */}
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/40">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Code
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Title
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Priority
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <SortTh col="code"      label="Code"       className="w-28" />
+                  <SortTh col="title"     label="Title" />
+                  <SortTh col="type"      label="Type"       className="w-32 hidden md:table-cell" />
+                  <SortTh col="priority"  label="Priority"   className="w-28" />
+                  <SortTh col="status"    label="Status"     className="w-32" />
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24 hidden lg:table-cell">
                     Tasks
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <SortTh col="createdBy" label="Creator"    className="w-32 hidden lg:table-cell" />
+                  <th className="px-4 py-3 w-12" />
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {items.length === 0 ? (
+              <tbody className="divide-y divide-border">
+                {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                      No backlog items found. Create your first item to get started.
+                    <td colSpan={8} className="px-4 py-12 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                    </td>
+                  </tr>
+                ) : sorted.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-16 text-center">
+                      <Layers className="size-10 mx-auto mb-3 text-muted-foreground/40" />
+                      <p className="text-muted-foreground text-sm">No backlog items found.</p>
+                      <Button size="sm" className="mt-4" onClick={() => router.push('/backlog/new')}>
+                        <Plus className="size-3.5 mr-1.5" /> Create first item
+                      </Button>
                     </td>
                   </tr>
                 ) : (
-                  items.map((item) => (
+                  sorted.map(item => (
                     <tr
                       key={item.id}
                       onClick={() => router.push(`/backlog/${item.id}`)}
-                      className="hover:bg-muted/50 cursor-pointer transition-colors"
+                      className="hover:bg-muted/40 cursor-pointer transition-colors group"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {item.code}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="text-xs font-mono font-semibold text-muted-foreground">{item.code}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex items-center">
-                          {item.title}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium truncate max-w-xs">{item.title}</span>
                           {item.complianceFlag && (
-                            <Badge variant="secondary" className="ml-2">
-                              Compliance
+                            <Badge variant="outline" className="text-xs px-1.5 py-0 border-purple-300 text-purple-700 bg-purple-50 shrink-0">
+                              C
                             </Badge>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {item.type.replace('_', ' ')}
+                      <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
+                        <span className="text-xs text-muted-foreground">{item.type.replace(/_/g, ' ')}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant="outline" className={getPriorityColor(item.priority)}>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge variant="outline" className={`text-xs ${getPriorityStyle(item.priority)}`}>
                           {item.priority}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge className={getStatusColor(item.status)}>
-                          {item.status.replace('_', ' ')}
-                        </Badge>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusStyle(item.status)}`}>
+                          {item.status.replace(/_/g, ' ')}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-4 py-3 whitespace-nowrap hidden lg:table-cell">
                         {item.tasks.length > 0 ? (
-                          <span className="text-primary">
-                            {item.tasks.length} task{item.tasks.length !== 1 ? 's' : ''}
-                          </span>
+                          <span className="text-xs text-primary font-medium">{item.tasks.length} task{item.tasks.length !== 1 ? 's' : ''}</span>
                         ) : (
-                          <span className="text-muted-foreground">No tasks</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/backlog/${item.id}`);
-                          }}
-                        >
-                          View
-                        </Button>
+                      <td className="px-4 py-3 whitespace-nowrap hidden lg:table-cell">
+                        <span className="text-xs text-muted-foreground">{item.createdBy.name}</span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right" onClick={e => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity">
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => router.push(`/backlog/${item.id}`)}>
+                              <Eye className="size-4 mr-2" /> View
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {!['APPROVED', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'DROPPED'].includes(item.status) && (
+                              <DropdownMenuItem onClick={() => patchStatus(item.id, 'APPROVED', 'Approved')} className="text-green-700">
+                                <CheckCircle className="size-4 mr-2" /> Approve
+                              </DropdownMenuItem>
+                            )}
+                            {!['COMPLETED', 'DROPPED'].includes(item.status) && (
+                              <DropdownMenuItem onClick={() => patchStatus(item.id, 'COMPLETED', 'Completed')} className="text-emerald-700">
+                                <CheckCircle className="size-4 mr-2" /> Complete
+                              </DropdownMenuItem>
+                            )}
+                            {item.status !== 'DROPPED' && (
+                              <DropdownMenuItem onClick={() => patchStatus(item.id, 'DROPPED', 'Dropped')} className="text-destructive">
+                                <XCircle className="size-4 mr-2" /> Drop
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </CardContent>
+          </div>
+          {!loading && sorted.length > 0 && (
+            <div className="px-4 py-2.5 border-t bg-muted/20 text-xs text-muted-foreground">
+              Showing {sorted.length} of {items.length} item{items.length !== 1 ? 's' : ''}
+            </div>
+          )}
         </Card>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">Total Items</div>
-              <div className="text-2xl font-bold">{items.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">High/Critical Priority</div>
-              <div className="text-2xl font-bold text-orange-600">
-                {items.filter(i => ['HIGH', 'CRITICAL'].includes(i.priority)).length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">Approved</div>
-              <div className="text-2xl font-bold text-green-600">
-                {items.filter(i => ['APPROVED', 'PLANNED', 'IN_PROGRESS'].includes(i.status)).length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">Compliance Items</div>
-              <div className="text-2xl font-bold text-purple-600">
-                {items.filter(i => i.complianceFlag).length}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </main>
   );
