@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.20.0',
+    date: 'March 12, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Mobile App & Push Notifications (PWA)',
+    highlights: [
+      'Progressive Web App — installable on mobile devices via browser',
+      'Web Push Notifications — real-time alerts even when the app is closed',
+      'Per-type notification preferences — toggle push and in-app per notification type',
+      'Service Worker with auto-update and smart install prompt',
+    ],
+    changes: {
+      added: [
+        'PWA Support — installable Progressive Web App with service worker, manifest, and app icons',
+        'Web Push Notifications — VAPID-based push delivery to mobile and desktop browsers via web-push library',
+        'Push Subscription Management — subscribe/unsubscribe devices via /api/push-subscription endpoint',
+        'Notification Preferences UI — per-type toggles for push and in-app notifications in Settings page',
+        'Service Worker Provider — auto-registration, update detection, and smart install prompt banner',
+        'VAPID Key Generation Script — scripts/generate-vapid-keys.mjs for easy key setup',
+        'PushSubscription & UserNotificationPreference database models with migration',
+      ],
+      fixed: [],
+      changed: [
+        'Notification service now sends push notifications alongside in-app notifications',
+        'Middleware updated to allow PWA static assets and public push endpoints',
+        'Root layout uses separate viewport export (Next.js 15 best practice)',
+      ],
+    },
+  },
+  {
     version: '15.19.1',
     date: 'March 11, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Delayed Tasks Widget & Login Notification',
     highlights: [
       'New dashboard widget showing delayed tasks with severity breakdown',
