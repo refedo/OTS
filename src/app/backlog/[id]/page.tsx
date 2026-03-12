@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User } from 'lucide-react';
 
 interface BacklogItem {
   id: string;
@@ -33,6 +33,7 @@ interface BacklogItem {
   approvedAt: string | null;
   plannedAt: string | null;
   completedAt: string | null;
+  createdBy: { id: string; name: string };
   attachments: Array<{
     fileName: string;
     filePath: string;
@@ -471,37 +472,110 @@ export default function BacklogItemDetail() {
               </CardContent>
             </Card>
 
-            {/* Timeline */}
+            {/* Activity Trail */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="size-5" />
-                  Status Timeline
+                  Activity Trail
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-4">
-                  <div className="w-24 text-sm font-medium text-muted-foreground">Created:</div>
-                  <div>{new Date(item.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                </div>
-                {item.approvedAt && (
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 text-sm font-medium text-muted-foreground">Approved:</div>
-                    <div>{new Date(item.approvedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                  </div>
-                )}
-                {item.plannedAt && (
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 text-sm font-medium text-muted-foreground">Planned:</div>
-                    <div>{new Date(item.plannedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                  </div>
-                )}
-                {item.completedAt && (
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 text-sm font-medium text-muted-foreground">Completed:</div>
-                    <div>{new Date(item.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                  </div>
-                )}
+              <CardContent>
+                {(() => {
+                  const trail = [
+                    {
+                      key: 'created',
+                      label: 'Submitted',
+                      sub: `by ${item.createdBy.name}`,
+                      date: item.createdAt,
+                      dot: 'bg-slate-400',
+                      line: 'bg-slate-200',
+                      active: true,
+                    },
+                    {
+                      key: 'under_review',
+                      label: 'Under Review',
+                      sub: null,
+                      date: ['UNDER_REVIEW', 'APPROVED', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'DROPPED'].includes(item.status) ? item.createdAt : null,
+                      dot: 'bg-blue-400',
+                      line: 'bg-blue-200',
+                      active: ['UNDER_REVIEW', 'APPROVED', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'DROPPED'].includes(item.status),
+                    },
+                    {
+                      key: 'approved',
+                      label: 'Approved',
+                      sub: null,
+                      date: item.approvedAt,
+                      dot: 'bg-green-500',
+                      line: 'bg-green-200',
+                      active: !!item.approvedAt,
+                    },
+                    {
+                      key: 'planned',
+                      label: 'Planned',
+                      sub: null,
+                      date: item.plannedAt,
+                      dot: 'bg-violet-500',
+                      line: 'bg-violet-200',
+                      active: !!item.plannedAt,
+                    },
+                    {
+                      key: 'in_progress',
+                      label: 'In Progress',
+                      sub: null,
+                      date: item.status === 'IN_PROGRESS' || item.status === 'COMPLETED' ? item.plannedAt : null,
+                      dot: 'bg-indigo-500',
+                      line: 'bg-indigo-200',
+                      active: ['IN_PROGRESS', 'COMPLETED'].includes(item.status),
+                    },
+                    {
+                      key: 'completed',
+                      label: item.status === 'DROPPED' ? 'Dropped' : 'Completed',
+                      sub: null,
+                      date: item.completedAt,
+                      dot: item.status === 'DROPPED' ? 'bg-gray-400' : 'bg-emerald-500',
+                      line: item.status === 'DROPPED' ? 'bg-gray-200' : 'bg-emerald-200',
+                      active: !!item.completedAt || item.status === 'DROPPED',
+                    },
+                  ].filter(t => {
+                    if (t.key === 'under_review') return true;
+                    if (t.key === 'completed') return !!item.completedAt || item.status === 'DROPPED';
+                    return true;
+                  });
+
+                  const fmt = (d: string) =>
+                    new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                  return (
+                    <div className="space-y-0">
+                      {trail.map((step, idx) => (
+                        <div key={step.key} className="flex gap-4">
+                          {/* Dot + line column */}
+                          <div className="flex flex-col items-center w-6 shrink-0">
+                            <div className={`size-3 rounded-full mt-0.5 shrink-0 ${step.active ? step.dot : 'bg-muted border-2 border-border'}`} />
+                            {idx < trail.length - 1 && (
+                              <div className={`w-0.5 flex-1 min-h-[24px] ${step.active ? step.line : 'bg-border'}`} />
+                            )}
+                          </div>
+                          {/* Content */}
+                          <div className={`pb-5 ${idx === trail.length - 1 ? 'pb-0' : ''}`}>
+                            <p className={`text-sm font-medium leading-none mt-0.5 ${step.active ? 'text-foreground' : 'text-muted-foreground'}`}>
+                              {step.label}
+                            </p>
+                            {step.sub && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{step.sub}</p>
+                            )}
+                            {step.active && step.date ? (
+                              <p className="text-xs text-muted-foreground mt-1">{fmt(step.date)}</p>
+                            ) : !step.active ? (
+                              <p className="text-xs text-muted-foreground/50 mt-1">Pending</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -556,12 +630,21 @@ export default function BacklogItemDetail() {
                 <CardTitle>Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <User className="size-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <div className="text-xs text-muted-foreground">Submitted by</div>
+                    <div className="text-sm font-medium">{item.createdBy.name}</div>
+                  </div>
+                </div>
                 <div>
-                  <div className="text-sm font-medium text-muted-foreground">Risk Level</div>
-                  <div className="mt-1">{item.riskLevel}</div>
+                  <div className="text-xs text-muted-foreground">Risk Level</div>
+                  <div className="text-sm font-medium mt-0.5">{item.riskLevel}</div>
                 </div>
                 {item.complianceFlag && (
-                  <Badge variant="secondary">Compliance Required</Badge>
+                  <Badge variant="secondary" className="border-purple-300 text-purple-700 bg-purple-50">
+                    Compliance Required
+                  </Badge>
                 )}
               </CardContent>
             </Card>
