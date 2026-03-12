@@ -190,8 +190,8 @@ export default function BacklogBoard() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-20">
+    <main className="min-h-screen">
+      <div className="p-6 lg:p-8 space-y-6 max-lg:pt-20">
 
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -312,7 +312,7 @@ export default function BacklogBoard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm font-medium truncate max-w-xs">{item.title}</span>
+                          <span className="text-sm font-medium">{item.title}</span>
                           {item.complianceFlag && (
                             <Badge variant="outline" className="text-xs px-1.5 py-0 border-purple-300 text-purple-700 bg-purple-50 shrink-0">
                               C

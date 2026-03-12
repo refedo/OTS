@@ -19,15 +19,10 @@ export async function GET(
     const item = await prisma.productBacklogItem.findUnique({
       where: { id: params.id },
       include: {
+        createdBy: { select: { id: true, name: true } },
         tasks: {
           include: {
-            assignedTo: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
+            assignedTo: { select: { id: true, name: true, email: true } },
           },
         },
       },
