@@ -35,14 +35,44 @@ interface PushPayload {
   url?: string;
   notificationId?: string;
   type?: string;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
   requireInteraction?: boolean;
   actions?: Array<{ action: string; title: string }>;
 }
 
-function getNotificationUrl(type: NotificationType, relatedEntityType?: string | null, relatedEntityId?: string | null): string {
-  if (!relatedEntityType || !relatedEntityId) return '/notifications';
+function getNotificationActions(type: NotificationType, relatedEntityType?: string | null): Array<{ action: string; title: string }> {
+  if (!relatedEntityType) return [];
 
+  if (relatedEntityType === 'task') {
+    switch (type) {
+      case 'TASK_ASSIGNED':
+        return [{ action: 'complete', title: '✓ Complete' }];
+      case 'APPROVAL_REQUIRED':
+        return [
+          { action: 'approve', title: '✓ Approve' },
+          { action: 'reject', title: '✗ Reject' },
+        ];
+      default:
+        return [];
+    }
+  }
+
+  if (type === 'APPROVAL_REQUIRED') {
+    return [
+      { action: 'approve', title: '✓ Approve' },
+      { action: 'reject', title: '✗ Reject' },
+    ];
+  }
+
+  return [];
+}
+
+function getNotificationUrl(type: NotificationType, relatedEntityType?: string | null, relatedEntityId?: string | null): string {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
+  if (!relatedEntityType || !relatedEntityId) return `${basePath}/notifications`;
+
   const entityRoutes: Record<string, string> = {
     task: '/tasks',
     project: '/projects',
@@ -133,6 +163,8 @@ export class PushService {
 
     const url = getNotificationUrl(params.type, params.relatedEntityType, params.relatedEntityId);
 
+    const actions = getNotificationActions(params.type, params.relatedEntityType);
+
     const payload: PushPayload = {
       title: params.title,
       body: params.message,
@@ -141,7 +173,10 @@ export class PushService {
       url,
       notificationId: params.notificationId,
       type: params.type,
+      relatedEntityType: params.relatedEntityType,
+      relatedEntityId: params.relatedEntityId,
       requireInteraction: ['APPROVAL_REQUIRED', 'DEADLINE_WARNING', 'REJECTED'].includes(params.type),
+      actions,
     };
 
     const staleEndpoints: string[] = [];
