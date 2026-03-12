@@ -358,7 +358,7 @@ export default function BacklogItemDetail() {
                           {new Date(file.uploadedAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <a href={file.filePath} target="_blank" rel="noopener noreferrer">
+                      <a href={`/api/files?path=${encodeURIComponent(file.filePath)}`} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="icon" className="size-7 shrink-0">
                           <Download className="size-4" />
                         </Button>

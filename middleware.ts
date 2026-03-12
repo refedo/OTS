@@ -23,7 +23,8 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/assets') ||
-    pathname.startsWith('/public')
+    pathname.startsWith('/public') ||
+    pathname.startsWith('/uploads')
   ) {
     return NextResponse.next();
   }
