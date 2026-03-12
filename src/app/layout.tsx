@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Hexa Steel® OTS - Operations Tracking System",
   description: "Comprehensive operations tracking and management system for Hexa Steel",
-  manifest: "/manifest.json",
+  manifest: "/api/manifest",
   themeColor: "#0f172a",
   appleWebApp: {
     capable: true,
