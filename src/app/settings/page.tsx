@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch } from 'lucide-react';
+import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Smartphone } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { NotificationPreferences } from '@/components/notifications/NotificationPreferences';
 
 type Settings = {
   id: string;
@@ -533,9 +534,9 @@ export default function SettingsPage() {
           <TabsContent value="notifications" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
+                <CardTitle>System Notifications</CardTitle>
                 <CardDescription>
-                  Manage system notification settings
+                  Manage system-wide notification settings
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -572,6 +573,8 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <NotificationPreferences />
           </TabsContent>
 
           {/* Version Management */}
