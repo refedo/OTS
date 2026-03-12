@@ -50,6 +50,8 @@ self.addEventListener('push', (event) => {
       url: data.url || '/',
       notificationId: data.notificationId,
       type: data.type,
+      relatedEntityType: data.relatedEntityType,
+      relatedEntityId: data.relatedEntityId,
     },
     actions: data.actions || [],
     vibrate: [200, 100, 200],
@@ -65,23 +67,90 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/';
+  const notifData = event.notification.data || {};
+  const action = event.action; // empty string if body clicked, action id if button clicked
 
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Try to focus an existing window
+  // If an action button was clicked, execute it via API
+  if (action && notifData.notificationId) {
+    event.waitUntil(
+      handleNotificationAction(action, notifData).then(() => {
+        // After the action, navigate to the task
+        return navigateToUrl(notifData.url || '/');
+      })
+    );
+    return;
+  }
+
+  // Body click — navigate to the related entity
+  const urlToOpen = notifData.url || '/';
+  event.waitUntil(navigateToUrl(urlToOpen));
+});
+
+/**
+ * Execute a notification action (complete/approve/reject) via API
+ */
+async function handleNotificationAction(action, notifData) {
+  const basePath = self.registration.scope.replace(/\/$/, '').replace(self.location.origin, '');
+  const apiUrl = `${basePath}/api/notifications/${notifData.notificationId}/action`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+
+    if (response.ok) {
+      // Show a brief confirmation notification
+      const actionLabels = {
+        complete: 'completed',
+        approve: 'approved',
+        reject: 'rejected',
+      };
+      await self.registration.showNotification('Hexa Steel® OTS', {
+        body: `Task ${actionLabels[action] || action} successfully`,
+        icon: '/icons/icon-192x192.png',
+        tag: 'ots-action-confirmation',
+        requireInteraction: false,
+        silent: true,
+      });
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      await self.registration.showNotification('Hexa Steel® OTS', {
+        body: errorData.error || `Failed to ${action} — please try from the app`,
+        icon: '/icons/icon-192x192.png',
+        tag: 'ots-action-error',
+        requireInteraction: false,
+      });
+    }
+  } catch {
+    await self.registration.showNotification('Hexa Steel® OTS', {
+      body: `Could not ${action} — you appear to be offline`,
+      icon: '/icons/icon-192x192.png',
+      tag: 'ots-action-error',
+      requireInteraction: false,
+    });
+  }
+}
+
+/**
+ * Navigate to a URL, reusing an existing window if possible
+ */
+function navigateToUrl(url) {
+  return self.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.focus();
-          client.navigate(urlToOpen);
+          client.navigate(url);
           return;
         }
       }
-      // Open new window if none exists
-      return self.clients.openWindow(urlToOpen);
-    })
-  );
-});
+      return self.clients.openWindow(url);
+    });
+}
 
 // Fetch handler — network-first strategy (required for PWA installability)
 self.addEventListener('fetch', (event) => {
@@ -112,7 +181,8 @@ self.addEventListener('message', (event) => {
 self.addEventListener('notificationclose', (event) => {
   const notificationId = event.notification.data?.notificationId;
   if (notificationId) {
-    fetch(`/api/notifications/${notificationId}/read`, {
+    const basePath = self.registration.scope.replace(/\/$/, '').replace(self.location.origin, '');
+    fetch(`${basePath}/api/notifications/${notificationId}/read`, {
       method: 'PATCH',
       credentials: 'same-origin',
     }).catch(() => {
