@@ -83,6 +83,31 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
+// Fetch handler — network-first strategy (required for PWA installability)
+self.addEventListener('fetch', (event) => {
+  // Only handle same-origin navigation requests
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(OFFLINE_URL) || new Response('Offline', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain' },
+        });
+      })
+    );
+    return;
+  }
+  // Let all other requests pass through to the network
+  return;
+});
+
+// Skip waiting when told by the client
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Notification close handler - mark as read via API
 self.addEventListener('notificationclose', (event) => {
   const notificationId = event.notification.data?.notificationId;
