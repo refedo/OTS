@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.20.0] - 2026-03-12
+
+### Mobile App & Push Notifications (PWA)
+
+#### New Features
+- **Progressive Web App (PWA)** — OTS is now installable as a mobile app on Android, iOS, and desktop via the browser. Includes manifest, service worker, and app icons
+- **Web Push Notifications** — Users receive real-time push notifications on their mobile/desktop devices even when OTS is not open. Powered by VAPID/web-push
+- **Per-Type Notification Preferences** — New settings page (`/settings/notifications`) where users can toggle push and in-app notifications individually for each type:
+  - Task Assigned, Task Completed, Approval Required, Deadline Warning, Approved, Rejected, System
+- **PWA Install Prompt** — Smart install banner appears for mobile users who haven't installed the app yet
+- **Auto Service Worker Registration** — Handles background push events, notification click navigation to the relevant entity, and automatic cleanup of expired push subscriptions
+- **Dynamic PWA Manifest** — Manifest served via `/api/manifest` to correctly handle base path configuration
+- **VAPID Key Generation Script** — `node scripts/generate-vapid-keys.mjs` generates the required keys for push notification setup
+
+#### Database Changes
+- Added `push_subscriptions` table — Stores device push subscriptions per user (endpoint, keys, user agent)
+- Added `user_notification_preferences` table — Per-type push/in-app toggle preferences per user
+
+#### Technical Changes
+- `NotificationService.createNotification()` now automatically triggers push delivery (fire-and-forget, non-blocking)
+- New `PushService` handles VAPID configuration, push delivery, user preference checks, and stale subscription cleanup
+- Middleware updated to allow PWA files (`sw.js`, `manifest.json`, `/icons/`) and public API routes (`/api/push/vapid-key`, `/api/manifest`)
+- New API routes: `POST/DELETE/GET /api/push-subscription`, `GET/PUT /api/notification-preferences`, `GET /api/push/vapid-key`, `GET /api/manifest`
+- Added `@radix-ui/react-switch` and `web-push` dependencies
+- Architecture is Capacitor-ready for future app store distribution
+
+#### Setup
+1. Generate VAPID keys: `node scripts/generate-vapid-keys.mjs`
+2. Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` to `.env`
+3. Run migration: `npx prisma migrate deploy`
+4. Restart the application
+
+---
+
 ## [15.19.1] - 2026-03-11
 
 ### Delayed Tasks Widget & Login Notification

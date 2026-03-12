@@ -4,27 +4,26 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'Delayed Tasks Widget & Login Notification',
+  mainTitle: 'Mobile App & Push Notifications (PWA)',
   highlights: [
-    'New dashboard widget showing delayed tasks with severity breakdown',
-    'Login notification dialog alerts users about overdue tasks',
-    'Admin toggle to switch between personal and all delayed tasks',
-    'Clickable severity cards to filter tasks by Critical, Warning, or Minor',
+    'Progressive Web App — installable on mobile devices via browser',
+    'Web Push Notifications — real-time alerts even when the app is closed',
+    'Per-type notification preferences — toggle push and in-app per notification type',
+    'Service Worker with auto-update and smart install prompt',
   ],
   changes: {
     added: [
-      'Delayed Tasks Dashboard Widget — severity breakdown (Critical 7+ days, Warning 3-7 days, Minor 1-3 days) with most overdue tasks list',
-      'Login Notification Dialog — prompts users once per session about their delayed tasks requiring attention',
-      'Admin toggle (My Tasks / All Tasks) — admin users can switch between personal tasks and system-wide delayed tasks',
-      'Clickable severity cards — Critical, Warning, Minor cards navigate to notifications page with severity pre-filter',
-      'Severity filter on Notifications page — ?severity=critical|warning|minor query param with filter pill buttons and clickable stat cards',
+      'PWA Support — installable Progressive Web App with service worker, manifest, and app icons',
+      'Web Push Notifications — VAPID-based push delivery to mobile and desktop browsers',
+      'Push Subscription Management — subscribe/unsubscribe devices via /api/push-subscription',
+      'Notification Preferences UI — per-type toggles for push and in-app notifications in Settings',
+      'Service Worker Provider — auto-registration, update detection, and install prompt',
+      'VAPID Key Generation Script — scripts/generate-vapid-keys.mjs',
     ],
-    fixed: [
-      'Delayed tasks scoped to user\'s own tasks (assigned to, created by, or requested by) instead of showing all system tasks',
-    ],
+    fixed: [],
     changed: [
-      'Delayed tasks API supports ?personal=true param to always filter to user\'s own tasks regardless of admin permissions',
-      'Notifications page stat cards are now clickable with active filter ring indicator',
+      'Notification service now sends push notifications alongside in-app notifications',
+      'Middleware updated to allow PWA static assets and public push endpoints',
     ],
   },
 };

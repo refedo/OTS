@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/SessionProvider";
@@ -22,17 +22,18 @@ export const metadata: Metadata = {
   title: "Hexa Steel® OTS - Operations Tracking System",
   description: "Comprehensive operations tracking and management system for Hexa Steel",
   manifest: "/api/manifest",
-  themeColor: "#0f172a",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Hexa Steel® OTS",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
