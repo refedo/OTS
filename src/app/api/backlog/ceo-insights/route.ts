@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,17 +22,14 @@ export async function GET(request: NextRequest) {
       include: { role: true },
     });
 
-    console.log('[CEO Insights] User found:', user?.name);
-    const canViewInsights = userPermissions.includes('backlog.manage');
-    
+    const canViewInsights = userPermissions.includes('backlog.ceo_center');
+
     if (!user || !canViewInsights) {
       return NextResponse.json(
-        { error: 'Access denied. backlog.manage permission required.' },
+        { error: 'Access denied. CEO or Admin role required.' },
         { status: 403 }
       );
     }
-
-    console.log('[CEO Insights] Access granted for CEO:', user.name);
 
     // Fetch all backlog items
     const allItems = await prisma.productBacklogItem.findMany({
@@ -192,7 +190,7 @@ export async function GET(request: NextRequest) {
       silentOperationsHealth: silentOpsHealth,
     });
   } catch (error) {
-    console.error('Error fetching CEO insights:', error);
+    logger.error({ error }, 'Failed to fetch CEO insights');
     return NextResponse.json(
       { error: 'Failed to fetch CEO insights' },
       { status: 500 }

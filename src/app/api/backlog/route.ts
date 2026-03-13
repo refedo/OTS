@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     // Validate status - only IDEA allowed for non-CEO/Admin users
     const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
     const userPermissions = await getCurrentUserPermissions();
-    const isCEOOrAdmin = userPermissions.includes('backlog.manage');
+    const isCEOOrAdmin = userPermissions.includes('backlog.ceo_center');
 
     let status = body.status || 'IDEA';
     if (!isCEOOrAdmin && status !== 'IDEA') {
