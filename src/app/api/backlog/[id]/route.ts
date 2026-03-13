@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,7 @@ export async function GET(
 
     return NextResponse.json(item);
   } catch (error) {
-    console.error('Error fetching backlog item:', error);
+    logger.error({ error }, 'Failed to fetch backlog item');
     return NextResponse.json(
       { error: 'Failed to fetch backlog item' },
       { status: 500 }
@@ -67,7 +68,7 @@ export async function PATCH(
     const body = await request.json();
     const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
     const userPermissions = await getCurrentUserPermissions();
-    const isCEOOrAdmin = userPermissions.includes('backlog.manage');
+    const isCEOOrAdmin = userPermissions.includes('backlog.ceo_center');
 
     // Check permissions for status changes
     if (body.status) {
@@ -126,7 +127,7 @@ export async function PATCH(
 
     return NextResponse.json(item);
   } catch (error) {
-    console.error('Error updating backlog item:', error);
+    logger.error({ error }, 'Failed to update backlog item');
     return NextResponse.json(
       { error: 'Failed to update backlog item' },
       { status: 500 }
@@ -158,7 +159,7 @@ export async function DELETE(
 
     const { getCurrentUserPermissions: getDelPerms } = await import('@/lib/permission-checker');
     const delPermissions = await getDelPerms();
-    const isCEOOrAdmin = delPermissions.includes('backlog.manage');
+    const isCEOOrAdmin = delPermissions.includes('backlog.ceo_center');
 
     if (!isCEOOrAdmin) {
       return NextResponse.json(
@@ -173,7 +174,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Backlog item deleted successfully' });
   } catch (error) {
-    console.error('Error deleting backlog item:', error);
+    logger.error({ error }, 'Failed to delete backlog item');
     return NextResponse.json(
       { error: 'Failed to delete backlog item' },
       { status: 500 }
