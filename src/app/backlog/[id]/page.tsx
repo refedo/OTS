@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon } from 'lucide-react';
 
 interface BacklogItem {
   id: string;
@@ -31,9 +31,14 @@ interface BacklogItem {
   linkedKpiId: string | null;
   createdAt: string;
   approvedAt: string | null;
+  reviewedAt: string | null;
   plannedAt: string | null;
   completedAt: string | null;
-  createdBy: { id: string; name: string };
+  createdBy:   { id: string; name: string };
+  approvedBy:  { id: string; name: string } | null;
+  reviewedBy:  { id: string; name: string } | null;
+  plannedBy:   { id: string; name: string } | null;
+  completedBy: { id: string; name: string } | null;
   attachments: Array<{
     fileName: string;
     filePath: string;
@@ -83,8 +88,7 @@ export default function BacklogItemDetail() {
       } else {
         router.push('/backlog');
       }
-    } catch (error) {
-      console.error('Error fetching backlog item:', error);
+    } catch {
       router.push('/backlog');
     } finally {
       setLoading(false);
@@ -238,6 +242,7 @@ export default function BacklogItemDetail() {
       case 'REPORTING': return 'bg-indigo-100 text-indigo-800 border-indigo-300';
       case 'AI': return 'bg-pink-100 text-pink-800 border-pink-300';
       case 'GOVERNANCE': return 'bg-slate-100 text-slate-800 border-slate-300';
+      case 'PROJECTS':   return 'bg-teal-100 text-teal-800 border-teal-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
@@ -343,29 +348,36 @@ export default function BacklogItemDetail() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {item.attachments.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <FileText className="size-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{file.fileName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {file.fileSize < 1024 * 1024
-                            ? `${(file.fileSize / 1024).toFixed(1)} KB`
-                            : `${(file.fileSize / (1024 * 1024)).toFixed(1)} MB`}
-                          {' · '}
-                          {new Date(file.uploadedAt).toLocaleDateString()}
-                        </p>
+                  {item.attachments.map((file, index) => {
+                    const isImage = file.fileType.startsWith('image/');
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        {isImage ? (
+                          <ImageIcon className="size-4 text-blue-500 shrink-0" />
+                        ) : (
+                          <FileText className="size-4 text-muted-foreground shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.fileName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {file.fileSize < 1024 * 1024
+                              ? `${(file.fileSize / 1024).toFixed(1)} KB`
+                              : `${(file.fileSize / (1024 * 1024)).toFixed(1)} MB`}
+                            {' · '}
+                            {new Date(file.uploadedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <a href={`/api/files?path=${encodeURIComponent(file.filePath)}`} target="_blank" rel="noopener noreferrer">
+                          <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                            <Download className="size-4" />
+                          </Button>
+                        </a>
                       </div>
-                      <a href={`/api/files?path=${encodeURIComponent(file.filePath)}`} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="icon" className="size-7 shrink-0">
-                          <Download className="size-4" />
-                        </Button>
-                      </a>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -482,6 +494,7 @@ export default function BacklogItemDetail() {
               </CardHeader>
               <CardContent>
                 {(() => {
+                  const pastStatuses = ['UNDER_REVIEW', 'APPROVED', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'DROPPED'];
                   const trail = [
                     {
                       key: 'created',
@@ -495,16 +508,16 @@ export default function BacklogItemDetail() {
                     {
                       key: 'under_review',
                       label: 'Under Review',
-                      sub: null,
-                      date: ['UNDER_REVIEW', 'APPROVED', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'DROPPED'].includes(item.status) ? item.createdAt : null,
+                      sub: item.reviewedBy ? `by ${item.reviewedBy.name}` : null,
+                      date: pastStatuses.includes(item.status) ? item.reviewedAt ?? item.createdAt : null,
                       dot: 'bg-blue-400',
                       line: 'bg-blue-200',
-                      active: ['UNDER_REVIEW', 'APPROVED', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'DROPPED'].includes(item.status),
+                      active: pastStatuses.includes(item.status),
                     },
                     {
                       key: 'approved',
                       label: 'Approved',
-                      sub: null,
+                      sub: item.approvedBy ? `by ${item.approvedBy.name}` : null,
                       date: item.approvedAt,
                       dot: 'bg-green-500',
                       line: 'bg-green-200',
@@ -513,7 +526,7 @@ export default function BacklogItemDetail() {
                     {
                       key: 'planned',
                       label: 'Planned',
-                      sub: null,
+                      sub: item.plannedBy ? `by ${item.plannedBy.name}` : null,
                       date: item.plannedAt,
                       dot: 'bg-violet-500',
                       line: 'bg-violet-200',
@@ -531,7 +544,7 @@ export default function BacklogItemDetail() {
                     {
                       key: 'completed',
                       label: item.status === 'DROPPED' ? 'Dropped' : 'Completed',
-                      sub: null,
+                      sub: item.completedBy ? `by ${item.completedBy.name}` : null,
                       date: item.completedAt,
                       dot: item.status === 'DROPPED' ? 'bg-gray-400' : 'bg-emerald-500',
                       line: item.status === 'DROPPED' ? 'bg-gray-200' : 'bg-emerald-200',

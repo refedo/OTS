@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Sparkles, Paperclip, X, FileText, Upload } from 'lucide-react';
+import { ArrowLeft, Sparkles, Paperclip, X, FileText, Upload, ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
 import {
@@ -27,7 +27,7 @@ interface AttachmentFile {
 }
 
 const backlogTypes = ['FEATURE', 'BUG', 'TECH_DEBT', 'PERFORMANCE', 'REPORTING', 'REFACTOR', 'COMPLIANCE', 'INSIGHT'];
-const backlogCategories = ['CORE_SYSTEM', 'PRODUCTION', 'DESIGN', 'DETAILING', 'PROCUREMENT', 'QC', 'LOGISTICS', 'FINANCE', 'REPORTING', 'AI', 'GOVERNANCE'];
+const backlogCategories = ['CORE_SYSTEM', 'PRODUCTION', 'DESIGN', 'DETAILING', 'PROCUREMENT', 'QC', 'LOGISTICS', 'FINANCE', 'REPORTING', 'AI', 'GOVERNANCE', 'PROJECTS'];
 const backlogPriorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 export default function NewBacklogItemPage() {
@@ -251,17 +251,15 @@ export default function NewBacklogItemPage() {
         });
       } else {
         const error = await response.json();
-        console.error('[Backlog Form] Server error:', error);
         showConfirmation({
           type: 'error',
           title: 'Creation Failed',
-          message: error.details 
-            ? `${error.error}\n\nDetails: ${error.details}` 
+          message: error.details
+            ? `${error.error}\n\nDetails: ${error.details}`
             : error.error || 'Failed to create backlog item',
         });
       }
     } catch (error) {
-      console.error('[Backlog Form] Client error:', error);
       showConfirmation({
         type: 'error',
         title: 'Creation Failed',
@@ -475,38 +473,45 @@ export default function NewBacklogItemPage() {
                     type="file"
                     multiple
                     className="hidden"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif,.webp,.svg"
                     onChange={handleFileUpload}
                   />
                 </div>
 
                 {attachments.length > 0 ? (
                   <div className="space-y-2">
-                    {attachments.map((file, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50"
-                      >
-                        <FileText className="size-4 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{file.fileName}</p>
-                          <p className="text-xs text-muted-foreground">{formatFileSize(file.fileSize)}</p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 shrink-0"
-                          onClick={() => removeAttachment(index)}
+                    {attachments.map((file, index) => {
+                      const isImage = file.fileType.startsWith('image/');
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50"
                         >
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
+                          {isImage ? (
+                            <ImageIcon className="size-4 text-blue-500 shrink-0" />
+                          ) : (
+                            <FileText className="size-4 text-muted-foreground shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{file.fileName}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(file.fileSize)}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 shrink-0"
+                            onClick={() => removeAttachment(index)}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Attach relevant documents, screenshots, or specs (PDF, Word, Excel, TXT — max 10 MB each)
+                    Attach documents, images, or specs (PDF, Word, Excel, TXT, JPEG, PNG — max 10 MB each)
                   </p>
                 )}
               </div>
