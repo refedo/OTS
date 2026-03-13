@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { logger } from '@/lib/logger';
 import path from 'path';
 import { existsSync } from 'fs';
 
@@ -30,11 +31,16 @@ export async function POST(req: Request) {
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'text/plain',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml',
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid file type. Only PDF, Word, Excel, and text files are allowed.' 
+      return NextResponse.json({
+        error: 'Invalid file type. Only PDF, Word, Excel, text files, and images (JPEG, PNG, GIF, WebP, SVG) are allowed.'
       }, { status: 400 });
     }
 
@@ -73,10 +79,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json(fileInfo);
   } catch (error) {
-    console.error('Error uploading file:', error);
-    return NextResponse.json({ 
-      error: 'Failed to upload file', 
-      message: error instanceof Error ? error.message : 'Unknown error' 
+    logger.error({ error }, 'Failed to upload file');
+    return NextResponse.json({
+      error: 'Failed to upload file',
+      message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }

@@ -150,7 +150,11 @@ model User {
   knowledgeApplications KnowledgeApplication[] @relation("KnowledgeApplicationUser")
 
   // Product Backlog relations
-  createdBacklogItems ProductBacklogItem[] @relation("BacklogItemCreatedBy")
+  createdBacklogItems  ProductBacklogItem[] @relation("BacklogItemCreatedBy")
+  approvedBacklogItems ProductBacklogItem[] @relation("BacklogItemApprovedBy")
+  reviewedBacklogItems ProductBacklogItem[] @relation("BacklogItemReviewedBy")
+  plannedBacklogItems  ProductBacklogItem[] @relation("BacklogItemPlannedBy")
+  completedBacklogItems ProductBacklogItem[] @relation("BacklogItemCompletedBy")
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -2916,6 +2920,7 @@ enum BacklogCategory {
   REPORTING
   AI
   GOVERNANCE
+  PROJECTS
 }
 
 enum BacklogPriority {
@@ -2966,11 +2971,19 @@ model ProductBacklogItem {
   createdAt         DateTime          @default(now())
   approvedById      String?           @db.Char(36)
   approvedAt        DateTime?
+  reviewedById      String?           @db.Char(36)
+  reviewedAt        DateTime?
+  plannedById       String?           @db.Char(36)
   plannedAt         DateTime?
+  completedById     String?           @db.Char(36)
   completedAt       DateTime?
 
   tasks             Task[]            @relation("BacklogItemTasks")
   createdBy         User              @relation("BacklogItemCreatedBy", fields: [createdById], references: [id])
+  approvedBy        User?             @relation("BacklogItemApprovedBy", fields: [approvedById], references: [id])
+  reviewedBy        User?             @relation("BacklogItemReviewedBy", fields: [reviewedById], references: [id])
+  plannedBy         User?             @relation("BacklogItemPlannedBy", fields: [plannedById], references: [id])
+  completedBy       User?             @relation("BacklogItemCompletedBy", fields: [completedById], references: [id])
 
   @@index([type, status, priority])
   @@index([category])

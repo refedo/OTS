@@ -20,7 +20,11 @@ export async function GET(
     const item = await prisma.productBacklogItem.findUnique({
       where: { id: params.id },
       include: {
-        createdBy: { select: { id: true, name: true } },
+        createdBy:   { select: { id: true, name: true } },
+        approvedBy:  { select: { id: true, name: true } },
+        reviewedBy:  { select: { id: true, name: true } },
+        plannedBy:   { select: { id: true, name: true } },
+        completedBy: { select: { id: true, name: true } },
         tasks: {
           include: {
             assignedTo: { select: { id: true, name: true, email: true } },
@@ -103,16 +107,23 @@ export async function PATCH(
     if (body.status !== undefined) {
       updateData.status = body.status;
 
+      if (body.status === 'UNDER_REVIEW') {
+        updateData.reviewedById = session.sub;
+        updateData.reviewedAt = new Date();
+      }
+
       if (body.status === 'APPROVED') {
         updateData.approvedById = session.sub;
         updateData.approvedAt = new Date();
       }
 
       if (body.status === 'PLANNED') {
+        updateData.plannedById = session.sub;
         updateData.plannedAt = new Date();
       }
 
-      if (body.status === 'COMPLETED') {
+      if (body.status === 'COMPLETED' || body.status === 'DROPPED') {
+        updateData.completedById = session.sub;
         updateData.completedAt = new Date();
       }
     }
@@ -121,6 +132,11 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData,
       include: {
+        createdBy:   { select: { id: true, name: true } },
+        approvedBy:  { select: { id: true, name: true } },
+        reviewedBy:  { select: { id: true, name: true } },
+        plannedBy:   { select: { id: true, name: true } },
+        completedBy: { select: { id: true, name: true } },
         tasks: true,
       },
     });

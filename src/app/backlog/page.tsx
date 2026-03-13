@@ -154,6 +154,7 @@ export default function BacklogBoard() {
       icon: <ListTodo className="size-5" />,
       color: 'text-primary',
       bg: 'bg-primary/10',
+      filter: null,
     },
     {
       label: 'High / Critical',
@@ -161,6 +162,7 @@ export default function BacklogBoard() {
       icon: <AlertTriangle className="size-5" />,
       color: 'text-orange-600',
       bg: 'bg-orange-100',
+      filter: { key: 'priority', value: 'HIGH' },
     },
     {
       label: 'In Progress',
@@ -168,6 +170,15 @@ export default function BacklogBoard() {
       icon: <TrendingUp className="size-5" />,
       color: 'text-green-600',
       bg: 'bg-green-100',
+      filter: { key: 'status', value: 'IN_PROGRESS' },
+    },
+    {
+      label: 'Completed',
+      value: items.filter(i => i.status === 'COMPLETED').length,
+      icon: <CheckCircle className="size-5" />,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-100',
+      filter: { key: 'status', value: 'COMPLETED' },
     },
     {
       label: 'Compliance',
@@ -175,6 +186,7 @@ export default function BacklogBoard() {
       icon: <ShieldCheck className="size-5" />,
       color: 'text-purple-600',
       bg: 'bg-purple-100',
+      filter: { key: 'status', value: '' },
     },
   ];
 
@@ -208,9 +220,13 @@ export default function BacklogBoard() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {stats.map(s => (
-            <Card key={s.label} className="border-0 shadow-sm">
+            <Card
+              key={s.label}
+              className={`border-0 shadow-sm transition-all ${s.filter ? 'cursor-pointer hover:shadow-md hover:scale-[1.02]' : ''}`}
+              onClick={s.filter ? () => setFilters(prev => ({ ...prev, [s.filter!.key]: prev[s.filter!.key as keyof typeof prev] === s.filter!.value ? '' : s.filter!.value })) : undefined}
+            >
               <CardContent className="p-4 flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${s.bg} ${s.color}`}>{s.icon}</div>
                 <div>
@@ -242,7 +258,7 @@ export default function BacklogBoard() {
                 { key: 'type', options: [['', 'All Types'], ['FEATURE', 'Feature'], ['BUG', 'Bug'], ['TECH_DEBT', 'Tech Debt'], ['PERFORMANCE', 'Performance'], ['REPORTING', 'Reporting'], ['REFACTOR', 'Refactor'], ['COMPLIANCE', 'Compliance'], ['INSIGHT', 'Insight']] },
                 { key: 'priority', options: [['', 'All Priorities'], ['CRITICAL', 'Critical'], ['HIGH', 'High'], ['MEDIUM', 'Medium'], ['LOW', 'Low']] },
                 { key: 'status', options: [['', 'All Statuses'], ['IDEA', 'Idea'], ['UNDER_REVIEW', 'Under Review'], ['APPROVED', 'Approved'], ['PLANNED', 'Planned'], ['IN_PROGRESS', 'In Progress'], ['BLOCKED', 'Blocked'], ['COMPLETED', 'Completed'], ['DROPPED', 'Dropped']] },
-                { key: 'category', options: [['', 'All Categories'], ['CORE_SYSTEM', 'Core System'], ['PRODUCTION', 'Production'], ['DESIGN', 'Design'], ['DETAILING', 'Detailing'], ['PROCUREMENT', 'Procurement'], ['QC', 'QC'], ['LOGISTICS', 'Logistics'], ['FINANCE', 'Finance'], ['REPORTING', 'Reporting'], ['AI', 'AI'], ['GOVERNANCE', 'Governance']] },
+                { key: 'category', options: [['', 'All Categories'], ['CORE_SYSTEM', 'Core System'], ['PRODUCTION', 'Production'], ['DESIGN', 'Design'], ['DETAILING', 'Detailing'], ['PROCUREMENT', 'Procurement'], ['QC', 'QC'], ['LOGISTICS', 'Logistics'], ['FINANCE', 'Finance'], ['REPORTING', 'Reporting'], ['AI', 'AI'], ['GOVERNANCE', 'Governance'], ['PROJECTS', 'Projects']] },
               ].map(({ key, options }) => (
                 <select
                   key={key}
@@ -346,7 +362,7 @@ export default function BacklogBoard() {
                       <td className="px-4 py-3 whitespace-nowrap text-right" onClick={e => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="size-7 data-[state=open]:bg-muted">
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
