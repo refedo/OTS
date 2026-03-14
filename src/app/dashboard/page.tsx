@@ -4,6 +4,11 @@ import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { LogOut, Sparkles } from 'lucide-react';
 import WidgetContainer from '@/components/dashboard/WidgetContainer';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Dashboard',
+};
+
 
 export default async function DashboardPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

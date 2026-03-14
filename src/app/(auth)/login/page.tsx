@@ -2,6 +2,11 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { LoginForm } from '@/components/login-form';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Login',
+};
+
 
 export const dynamic = 'force-dynamic';
 

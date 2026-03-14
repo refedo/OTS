@@ -5,6 +5,11 @@ import { ProjectDetails } from '@/components/project-details';
 import { BuildingsList } from '@/components/buildings-list';
 import { ScopeSchedulesView } from '@/components/scope-schedules-view';
 import { getCurrentUserRestrictedModules, getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Projects',
+};
+
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

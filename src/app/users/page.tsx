@@ -3,6 +3,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import db from '@/lib/db';
 import { UsersClient } from '@/components/users-client';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Users',
+};
+
 
 export default async function UsersPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

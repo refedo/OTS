@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.20.2] - 2026-03-14
+
+### Unique Browser Tab Titles
+
+#### Improved
+- **Page Titles** — Every page now displays a unique, descriptive title in the browser tab using the format `Hexa Steel® OTS ™ - <Page Name>` (e.g., "Hexa Steel® OTS ™ - Tasks", "Hexa Steel® OTS ™ - Settings", "Hexa Steel® OTS ™ - Financial"). Users can now easily identify and navigate between open tabs
+- **Root Layout Template** — Updated the root metadata to use Next.js title template (`"Hexa Steel® OTS ™ - %s"`) so all pages inherit the brand prefix automatically
+- **Coverage** — All 147 pages across the application have unique titles: Tasks, Projects, Dashboard, Settings, Financial reports, Production pages, QC, Business Planning, Operations Control, Knowledge Center, Backlog, and more
+- **PWA Title** — Updated Apple Web App title to `Hexa Steel® OTS ™`
+
+#### Technical Changes
+- Updated `src/app/layout.tsx` metadata to use title template
+- Added `export const metadata` to 37 server component pages
+- Created server metadata wrapper (`page.tsx` + `_page-client.tsx`) pattern for 109 client component pages, enabling metadata export without breaking client-side interactivity
+
+---
+
 ## [15.20.1] - 2026-03-14
 
 ### SWOT Analysis Bug Fixes

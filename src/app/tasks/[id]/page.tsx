@@ -3,6 +3,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { TaskDetails } from '@/components/task-details';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Tasks',
+};
+
 
 export default async function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

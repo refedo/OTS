@@ -4,6 +4,11 @@ import { redirect } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import prisma from '@/lib/db';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'New Task',
+};
+
 
 export default async function NewTaskPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

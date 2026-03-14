@@ -2,6 +2,11 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { OperationsDashboardClient } from '@/components/operations/OperationsDashboardClient';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Operations Dashboard',
+};
+
 
 export default async function OperationsDashboardPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

@@ -8,6 +8,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { WPSList } from '@/components/wps-list';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'WPS',
+};
+
 
 async function getWPSList() {
   const wps = await prisma.wPS.findMany({

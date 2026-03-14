@@ -4,6 +4,11 @@ import { redirect } from 'next/navigation';
 import { TasksClient } from '@/components/tasks-client';
 import prisma from '@/lib/db';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Tasks',
+};
+
 
 export default async function TasksPage({ searchParams }: { searchParams: Promise<{ filter?: string; project?: string }> }) {
   const params = await searchParams;

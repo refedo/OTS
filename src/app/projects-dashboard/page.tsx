@@ -2,6 +2,11 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { SingleProjectDashboard } from '@/components/project-dashboard/SingleProjectDashboard';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Projects Dashboard',
+};
+
 
 export default async function ProjectsDashboardPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

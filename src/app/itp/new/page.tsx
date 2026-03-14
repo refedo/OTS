@@ -4,6 +4,11 @@ import { redirect } from 'next/navigation';
 import { ITPFormNew } from '@/components/itp-form-new';
 import prisma from '@/lib/db';
 import { checkPermission } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'New ITP',
+};
+
 
 export default async function NewITPPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
