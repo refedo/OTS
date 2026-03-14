@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.20.1',
+    date: 'March 14, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'SWOT Analysis Bug Fixes',
+    highlights: [
+      'Fixed API 500 error - Prisma client generation issue resolved',
+      'Fixed input field clearing bug - all fields now clear after adding items',
+      'Fixed data persistence - SWOT data now saves and persists correctly',
+      'API standards compliance - proper imports and authentication',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'API 500 Error — Fixed Prisma client generation issue where swotAnalysis model wasn\'t recognized',
+        'Database Query Method — Changed from findUnique() to findFirst() for year-based queries',
+        'Input Field Clearing — Fixed bug where Weaknesses field wasn\'t clearing after clicking + button',
+        'Data Persistence — SWOT data now saves correctly and persists after page refresh',
+        'API Standards — Updated to use proper imports (@/lib/db, logger, withApiContext)',
+      ],
+      changed: [
+        'SWOT API route now uses findFirst() instead of findUnique() for all year-based queries',
+        'Replaced console.error with logger.error throughout SWOT API',
+        'All SWOT API handlers wrapped with withApiContext for proper authentication',
+      ],
+    },
+  },
+  {
     version: '15.20.0',
     date: 'March 12, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Mobile App & Push Notifications (PWA)',
     highlights: [
       'Progressive Web App — installable on mobile devices via browser',

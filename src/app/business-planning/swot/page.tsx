@@ -14,6 +14,7 @@ export default function SwotAnalysisPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [swot, setSwot] = useState<any>({
     strengths: [],
     weaknesses: [],
@@ -34,6 +35,19 @@ export default function SwotAnalysisPage() {
     fetchSwot();
   }, [year]);
 
+  // Warn user about unsaved changes before leaving page
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   const fetchSwot = async () => {
     try {
       const res = await fetch(`/api/business-planning/swot?year=${year}`);
@@ -49,6 +63,7 @@ export default function SwotAnalysisPage() {
           strategies: [],
         });
       }
+      setHasUnsavedChanges(false);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching SWOT:', error);
@@ -70,6 +85,7 @@ export default function SwotAnalysisPage() {
           title: 'Success',
           description: 'SWOT Analysis saved successfully',
         });
+        setHasUnsavedChanges(false);
         fetchSwot();
       } else {
         throw new Error('Failed to save');
@@ -91,6 +107,7 @@ export default function SwotAnalysisPage() {
         ...swot,
         [category]: [...(swot[category] || []), value.trim()],
       });
+      setHasUnsavedChanges(true);
       // Map category to newItem key
       const keyMap: Record<string, string> = {
         strengths: 'strength',
@@ -108,6 +125,7 @@ export default function SwotAnalysisPage() {
       ...swot,
       [category]: swot[category].filter((_: any, i: number) => i !== index),
     });
+    setHasUnsavedChanges(true);
   };
 
   if (loading) {
