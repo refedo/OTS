@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.20.1] - 2026-03-14
+
+### SWOT Analysis Bug Fixes
+
+#### Fixed Issues
+- **API 500 Error** - Fixed Prisma client generation issue where `swotAnalysis` model wasn't recognized. Regenerated Prisma client to include the `SwotAnalysis` model
+- **Database Query Method** - Changed from `findUnique()` to `findFirst()` for year-based queries since `year` field doesn't have unique constraint
+- **Input Field Clearing** - Fixed bug where input fields (especially Weaknesses) weren't clearing after clicking + button. Implemented proper category-to-field mapping
+- **Data Persistence** - SWOT data now saves correctly and persists after page refresh
+- **API Standards Compliance** - Updated API route to use proper imports (`@/lib/db`, `logger`, `withApiContext`) instead of deprecated patterns
+
+#### Technical Changes
+- Fixed `src/app/api/business-planning/swot/route.ts`:
+  - Corrected Prisma import path
+  - Replaced `console.error` with `logger.error`
+  - Wrapped handlers with `withApiContext` for authentication
+  - Updated all queries to use `findFirst()` instead of `findUnique()`
+- Fixed `src/app/business-planning/swot/page.tsx`:
+  - Fixed `addItem` function field clearing with proper key mapping
+  - Replaced `category.slice(0, -1)` with explicit `keyMap` object
+
+---
+
 ## [15.20.0] - 2026-03-12
 
 ### Mobile App & Push Notifications (PWA)

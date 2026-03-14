@@ -257,7 +257,7 @@ GIVEN I am logged in
 WHEN I navigate to /changelog
 THEN I should see a list of version updates
 AND each entry should show:
-  - Version number (e.g., v15.20.0)
+  - Version number (e.g., v15.20.1)
   - Release date
   - Features/updates/fixes
 AND new features (< 7 days old) should have a star badge
@@ -268,7 +268,7 @@ AND new features (< 7 days old) should have a star badge
 GIVEN I am on any page
 THEN I should see the current version in the footer (lower-left)
 AND it should match the latest version in /changelog
-AND the format should be "v15.20.0"
+AND the format should be "v15.20.1"
 ```
 
 ---
@@ -470,4 +470,4 @@ Before running tests, ensure:
 ---
 
 **Last Updated:** March 14, 2026  
-**Version:** 15.20.0
+**Version:** 15.20.1
