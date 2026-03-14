@@ -4,6 +4,11 @@ import { redirect, notFound } from 'next/navigation';
 import { ITPFormNew } from '@/components/itp-form-new';
 import prisma from '@/lib/db';
 import { checkPermission } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Edit ITP',
+};
+
 
 export default async function EditITPPage({ params }: { params: { id: string } }) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

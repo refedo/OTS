@@ -1,4 +1,9 @@
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Reset Password',
+};
+
 
 export default function ResetPasswordPage({ searchParams }: { searchParams: { token?: string } }) {
   const token = searchParams.token;

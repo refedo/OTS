@@ -10,6 +10,11 @@ import { ArrowLeft, Shield, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { checkPermission } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Role Permissions',
+};
+
 
 export default async function RolePermissionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

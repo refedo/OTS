@@ -2,6 +2,11 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { BuildingsClient } from '@/components/buildings-client';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Buildings',
+};
+
 
 export default async function BuildingsPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

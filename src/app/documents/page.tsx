@@ -8,6 +8,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { DocumentsList } from '@/components/documents-list';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Documents',
+};
+
 
 async function getDocuments() {
   const documents = await prisma.document.findMany({

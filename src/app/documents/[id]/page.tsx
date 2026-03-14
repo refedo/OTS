@@ -8,6 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Download, Edit, CheckCircle, Clock, Eye, Check, X } from 'lucide-react';
 import { DocumentApprovalButtons } from '@/components/document-approval-buttons';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Documents',
+};
+
 
 export default async function DocumentDetailsPage({ params }: { params: { id: string } }) {
   const store = await cookies();

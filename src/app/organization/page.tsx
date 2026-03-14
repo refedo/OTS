@@ -3,6 +3,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { buildHierarchyTree } from '@/lib/hierarchy';
 import { OrganizationChartViews } from '@/components/organization-chart-views';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Organization',
+};
+
 
 export default async function OrganizationPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

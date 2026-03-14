@@ -3,6 +3,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { OperationTimelineClient } from '@/components/operations/OperationTimelineClient';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Timeline',
+};
+
 
 export default async function ProjectTimelinePage({ params }: { params: { id: string } }) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

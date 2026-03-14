@@ -8,6 +8,11 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { checkPermission } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'New Project',
+};
+
 
 export default async function NewProjectPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

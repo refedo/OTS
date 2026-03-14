@@ -4,6 +4,11 @@ import { redirect, notFound } from 'next/navigation';
 import { ITPDetails } from '@/components/itp-details';
 import prisma from '@/lib/db';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'ITP',
+};
+
 
 export default async function ITPDetailPage({ params }: { params: { id: string } }) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
