@@ -91,7 +91,15 @@ export default function SwotAnalysisPage() {
         ...swot,
         [category]: [...(swot[category] || []), value.trim()],
       });
-      setNewItem({ ...newItem, [category.slice(0, -1)]: '' });
+      // Map category to newItem key
+      const keyMap: Record<string, string> = {
+        strengths: 'strength',
+        weaknesses: 'weakness',
+        opportunities: 'opportunity',
+        threats: 'threat',
+        strategies: 'strategy',
+      };
+      setNewItem({ ...newItem, [keyMap[category]]: '' });
     }
   };
 
