@@ -23,10 +23,67 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.22.2',
+    date: 'March 15, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Mobile Push Notifications for Delayed & Upcoming Tasks',
+    highlights: [
+      'New Push button on delayed tasks lets supervisors instantly nudge assignees via in-app + Web Push',
+      'New daily cron endpoint scans tasks due in ~2 days and sends DEADLINE_WARNING push notifications automatically',
+      'Build fix: CRON_SECRET now read lazily to prevent CI build failures',
+    ],
+    changes: {
+      added: [
+        'Push Nudge Button — each row in the Delayed Tasks list has a Push button that sends an immediate in-app + Web Push notification to the assignee asking them to update task status',
+        'Deadline Reminder Cron — POST /api/cron/deadline-reminders scans tasks due within ~2 days and sends DEADLINE_WARNING push notifications; protected by CRON_SECRET bearer token, schedule daily at 08:00',
+        'notify-task API — POST /api/notifications/notify-task creates a DEADLINE_WARNING notification for a given task\'s assignee, fanned out via PushService',
+      ],
+      fixed: [
+        'CRON_SECRET read lazily inside handler instead of at module-import time, preventing Next.js build failures when environment variables are absent in CI',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '15.22.1',
+    date: 'March 15, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Task Workflow Fixes & PBAC Toggle Consistency',
+    highlights: [
+      'Task status set to In Progress (not Pending) when duplicating or revising after rejection',
+      'Completing a task now routes to the Approvals tab with inline Approve/Reject buttons',
+      'Task notifications now link directly to the task detail page',
+      'Logout now reliably clears the session cookie',
+      "What's New dialog no longer reappears after it's been dismissed",
+      'PBAC tasks.view_all permission now drives the My Tasks / All Tasks admin toggle',
+    ],
+    changes: {
+      added: [
+        'Reject button on task detail page — Approve and Reject buttons now appear side-by-side when a task is Completed and not yet actioned',
+        'Approval/rejection activity trail — approved, approval_revoked, and rejected events recorded with human-readable labels',
+      ],
+      fixed: [
+        'Task status after rejection — duplicating or revising a rejected task now sets status to In Progress instead of Pending',
+        'Completion notification routed to Approvals — completing a task sends APPROVAL_REQUIRED to requester so it surfaces in the Approvals tab with Approve/Reject buttons',
+        'Notification deep links — task notifications navigate to /tasks/[id] instead of the list page that discarded the id parameter',
+        'Logout cookie not clearing — logout awaits the API fetch before redirecting so Set-Cookie headers are applied by the browser',
+        "What's New dialog reappearing — server now returns alreadySeen:true when the user has already dismissed the dialog; mark-version-seen merges into existing permissions instead of overwriting",
+        'Approval notifications on task detail page — approving or rejecting from the detail page now notifies the assignee',
+        'Completion circle turns grey after approval — circle uses status===Completed || !!completedAt so older tasks without completedAt still show green',
+        'Reset All hidden on mobile — moved out of the overflowing filter row into the search bar row',
+        'PBAC toggle uses wrong permission — My Tasks / All Tasks toggle now checks tasks.view_all PBAC permission instead of isAdmin boolean',
+        'Admin isAdmin bypassed PBAC revokes — isAdmin users now have customPermissions.revokes and restrictedModules applied correctly',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '15.22.0',
     date: 'March 15, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Global Notification Bar & Dashboard Layout Improvements',
     highlights: [
       'Notification bell and logout button now visible on every system page via a fixed global TopBar',
