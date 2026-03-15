@@ -4,9 +4,9 @@
  */
 
 export const APP_VERSION = {
-  version: '15.22.1',
+  version: '15.22.2',
   date: 'March 15, 2026',
-  type: 'minor' as const,
+  type: 'patch' as const,
   name: 'Hexa Steel Operation Tracking System',
 };
 
