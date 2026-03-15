@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.22.0] - 2026-03-15
+
+### Global Notification Bar & Dashboard Layout Improvements
+
+#### New Features
+- **Global TopBar** — Notification bell and logout button are now permanently visible in the top-right corner on every system page, giving users instant access regardless of which page they are on
+- **Actionable Notification Dropdown** — The notification panel now supports inline actions directly from the dropdown list:
+  - **Complete** button on task-assigned notifications to mark the task done immediately
+  - **Approve / Reject** buttons on approval-request notifications to act without navigating away
+- **Clear on Read** — Clicking any notification marks it as read and removes it from the dropdown list, keeping the list clean and focused on unread items
+- **Clear All** — New trash icon in the notification panel header archives all notifications at once (POST `/api/notifications/bulk-archive`)
+- **Unread Count Badge** — The panel header now displays the current unread count next to the "Notifications" title
+- **New bulk-archive API** — `POST /api/notifications/bulk-archive` archives all unread notifications for the authenticated user
+
+#### Improvements
+- **Dashboard Full-Width Layout** — Removed `container mx-auto` constraint from the dashboard page; content now uses the full available width with consistent padding
+- **Widget Grid Enhancement** — Updated widget grid from `sm:grid-cols-2 lg:grid-cols-3` to `md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4`, better utilizing wide-screen space and allowing four widgets per row on large monitors
+- **Dashboard Header Simplified** — Removed the redundant per-page logout button from the dashboard since logout is now always accessible via the global TopBar
+- **Notification Panel Polish** — Unread indicator dot, smaller timestamps, tighter spacing, and improved dark-mode-aware highlight colors
+
+---
+
 ## [15.21.0] - 2026-03-15
 
 ### Task Management UX & Delayed Tasks Improvements

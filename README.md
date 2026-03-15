@@ -94,7 +94,8 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Google Sheets Sync**: Automated data export and synchronization
 - **PTS Sync**: External project tracking system integration
 - **Scheduled Jobs**: Automated cron-based background processing
-- **Notifications**: Real-time in-app user notifications
+- **Notifications**: Real-time in-app user notifications with actionable dropdown (complete, approve, reject inline)
+- **Global TopBar**: Persistent notification bell and logout button visible on every page
 
 ### Mobile App & Push Notifications (PWA)
 - **Progressive Web App**: Installable on mobile devices via browser — no app store needed
@@ -438,6 +439,6 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 15.20.0
+**Version**: 15.22.0
 **Last Updated**: March 2026
 **Repository**: https://github.com/refedo/OTS

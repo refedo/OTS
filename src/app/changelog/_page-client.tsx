@@ -23,10 +23,41 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.21.0',
+    version: '15.22.0',
     date: 'March 15, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Global Notification Bar & Dashboard Layout Improvements',
+    highlights: [
+      'Notification bell and logout button now visible on every system page via a fixed global TopBar',
+      'Notification dropdown is now fully actionable — complete tasks, approve or reject requests inline',
+      'Clicking a notification marks it as read and removes it from the list automatically',
+      'New "Clear All" button archives all notifications at once',
+      'Dashboard widgets now use full screen width for better space utilization',
+    ],
+    changes: {
+      added: [
+        'Global TopBar — persistent notification bell and logout button fixed to the top-right corner on every authenticated page',
+        'Actionable notifications — Complete button on task notifications; Approve / Reject buttons on approval notifications',
+        'Clear All (bulk archive) — trash icon in notification panel header archives all notifications at once',
+        'New API: POST /api/notifications/bulk-archive — archives all unread notifications for the user',
+        'Unread count badge shown in the notification panel header',
+      ],
+      fixed: [],
+      changed: [
+        'Clicking any notification marks it as read and removes it from the dropdown list immediately',
+        'Dashboard page no longer has a dedicated logout button (replaced by global TopBar)',
+        'Dashboard container changed from max-width constrained to full-width layout for better widget space utilization',
+        'Widget grid updated to md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 for optimal use of large screens',
+        'Notification panel has smaller, denser layout with unread dot indicators and improved dark mode colors',
+      ],
+    },
+  },
+  {
+    version: '15.21.0',
+    date: 'March 15, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Task Management UX & Delayed Tasks Improvements',
     highlights: [
       'Delayed tasks in widget and login dialog are now clickable — navigate directly to task details',
