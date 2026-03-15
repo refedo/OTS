@@ -84,7 +84,7 @@ function SortableWidget({ widget, children }: { widget: Widget; children: React.
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group ${widget.widgetSize === 'large' ? 'sm:col-span-2' : 'col-span-1'}`}
+      className={`relative group ${widget.widgetSize === 'large' ? 'md:col-span-2' : 'col-span-1'}`}
       {...attributes}
     >
       {/* Drag Handle */}
@@ -293,7 +293,7 @@ export default function WidgetContainer() {
         </Dialog>
       </div>
 
-      {/* Widgets Grid - Mobile optimized with drag and drop */}
+      {/* Widgets Grid - Responsive, full-width layout with drag and drop */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -303,7 +303,7 @@ export default function WidgetContainer() {
           items={widgets.map(w => w.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {widgets.map((widget) => {
               const WidgetComponent = WIDGET_COMPONENTS[widget.widgetType];
               if (!WidgetComponent) return null;
