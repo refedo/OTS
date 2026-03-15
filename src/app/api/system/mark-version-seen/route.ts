@@ -19,12 +19,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Version is required' }, { status: 400 });
     }
 
-    // Update user's last seen version
+    // Read current customPermissions to avoid overwriting real permission data
+    const user = await prisma.user.findUnique({
+      where: { id: session.sub },
+      select: { customPermissions: true },
+    });
+    const existing = (user?.customPermissions as Record<string, unknown>) ?? {};
+
     await prisma.user.update({
       where: { id: session.sub },
       data: {
         customPermissions: {
-          // Store in customPermissions JSON field as it's already nullable
+          ...existing,
           lastSeenVersion: version,
           lastSeenAt: new Date().toISOString(),
         },

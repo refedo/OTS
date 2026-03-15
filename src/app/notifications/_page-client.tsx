@@ -386,17 +386,17 @@ export default function NotificationsPage() {
     }
 
     if (notification.relatedEntityType && notification.relatedEntityId) {
-      const routes: Record<string, string> = {
-        task: '/tasks',
-        project: '/projects',
-        rfi: '/qc/rfi',
-        ncr: '/qc/ncr',
-        document: '/documents',
+      const directRoutes: Record<string, (id: string) => string> = {
+        task: (id) => `/tasks/${id}`,
+        project: (id) => `/projects?id=${id}`,
+        rfi: (id) => `/qc/rfi?id=${id}`,
+        ncr: (id) => `/qc/ncr?id=${id}`,
+        document: (id) => `/documents?id=${id}`,
       };
 
-      const basePath = routes[notification.relatedEntityType];
-      if (basePath) {
-        router.push(`${basePath}?id=${notification.relatedEntityId}`);
+      const buildUrl = directRoutes[notification.relatedEntityType];
+      if (buildUrl) {
+        router.push(buildUrl(notification.relatedEntityId));
       }
     }
   };

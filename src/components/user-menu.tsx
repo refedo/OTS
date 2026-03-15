@@ -98,18 +98,18 @@ export function UserMenu() {
       // Clear all local storage and session storage first
       localStorage.clear();
       sessionStorage.clear();
-      
-      // Call logout API (don't wait for response, just fire and redirect)
-      fetch('/api/auth/logout', {
+
+      // Await logout API so the Set-Cookie headers are applied before redirect
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       }).catch(() => {});
-      
+
       // Force full page redirect to login with cache busting
-      const loginUrl = process.env.NODE_ENV === 'production' 
+      const loginUrl = process.env.NODE_ENV === 'production'
         ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
         : '/login?t=' + Date.now();
-      
+
       window.location.href = loginUrl;
     } catch (error) {
       console.error('Error logging out:', error);
