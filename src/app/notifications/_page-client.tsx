@@ -194,6 +194,8 @@ export default function NotificationsPage() {
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
   const [canViewAllTasks, setCanViewAllTasks] = useState(false);
   const [delayedShowAll, setDelayedShowAll] = useState(false);
+  const [sendingPush, setSendingPush] = useState<Set<string>>(new Set());
+  const [pushedTasks, setPushedTasks] = useState<Set<string>>(new Set());
 
   // Handle tab and severity parameters from URL
   useEffect(() => {
@@ -226,6 +228,28 @@ export default function NotificationsPage() {
       // Silently fail
     } finally {
       setLoadingDelayedTasks(false);
+    }
+  };
+
+  const sendPushNotification = async (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (sendingPush.has(taskId) || pushedTasks.has(taskId)) return;
+    setSendingPush((prev) => new Set(prev).add(taskId));
+    try {
+      const res = await fetch('/api/notifications/notify-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId }),
+      });
+      if (res.ok) {
+        setPushedTasks((prev) => new Set(prev).add(taskId));
+      }
+    } finally {
+      setSendingPush((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
     }
   };
 
@@ -875,20 +899,36 @@ export default function NotificationsPage() {
                         </div>
 
                         {/* Contact Actions */}
-                        {task.assignedTo && task.assignedTo.email && (
-                          <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                        {task.assignedTo && (
+                          <div className="flex items-center gap-2 mt-3 pt-3 border-t flex-wrap">
                             <span className="text-xs text-muted-foreground mr-2">Notify:</span>
+                            {task.assignedTo.email && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `mailto:${task.assignedTo!.email}?subject=Task Overdue: ${task.title}&body=Dear ${task.assignedTo!.name},%0D%0A%0D%0AThis is a reminder that the following task is ${task.delayDays} days overdue:%0D%0A%0D%0ATask: ${task.title}%0D%0ADue Date: ${new Date(task.dueDate).toLocaleDateString()}%0D%0A%0D%0APlease update the status or complete the task as soon as possible.`;
+                                }}
+                              >
+                                <Mail className="h-3 w-3 mr-1" />
+                                Email
+                              </Button>
+                            )}
                             <Button
-                              variant="outline"
+                              variant={pushedTasks.has(task.id) ? 'default' : 'outline'}
                               size="sm"
                               className="h-7 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.location.href = `mailto:${task.assignedTo!.email}?subject=Task Overdue: ${task.title}&body=Dear ${task.assignedTo!.name},%0D%0A%0D%0AThis is a reminder that the following task is ${task.delayDays} days overdue:%0D%0A%0D%0ATask: ${task.title}%0D%0ADue Date: ${new Date(task.dueDate).toLocaleDateString()}%0D%0A%0D%0APlease update the status or complete the task as soon as possible.`;
-                              }}
+                              disabled={sendingPush.has(task.id) || pushedTasks.has(task.id)}
+                              onClick={(e) => sendPushNotification(task.id, e)}
                             >
-                              <Mail className="h-3 w-3 mr-1" />
-                              Email
+                              <Bell className="h-3 w-3 mr-1" />
+                              {sendingPush.has(task.id)
+                                ? 'Sending…'
+                                : pushedTasks.has(task.id)
+                                ? 'Sent'
+                                : 'Push'}
                             </Button>
                           </div>
                         )}
