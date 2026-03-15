@@ -635,7 +635,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
             priority: task.priority,
             dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null,
             taskInputDate: new Date().toISOString().split('T')[0],
-            status: 'Pending',
+            status: 'In Progress',
             isPrivate: task.isPrivate,
             remark: `Revision of rejected task. Original rejection reason: ${rejectionDialog.reason || 'Not specified'}`,
             revision: task.revision ? `${task.revision}-R` : 'R1',
@@ -676,7 +676,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
           priority: task.priority,
           dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null,
           taskInputDate: new Date().toISOString().split('T')[0],
-          status: 'Pending',
+          status: 'In Progress',
           isPrivate: task.isPrivate,
         }),
       });
