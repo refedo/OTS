@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.22.2] - 2026-03-15
+
+### Mobile Push Notifications for Delayed & Upcoming Tasks
+
+#### New Features
+- **Manual Push Nudge** — New Push button on each row in the Delayed Tasks list lets supervisors send an immediate in-app + Web Push notification to the assigned user, asking them to update task status
+- **Deadline Reminder Cron** — New `POST /api/cron/deadline-reminders` endpoint scans all tasks due within ~2 days and sends `DEADLINE_WARNING` push notifications to assignees automatically; protected by `CRON_SECRET` bearer token — schedule daily at 08:00
+
+#### Technical Changes
+- New `POST /api/notifications/notify-task` route creates a `DEADLINE_WARNING` notification (which PushService fans out as a Web Push) for a given task's assignee; validates task ownership and requires `tasks.view_all` or assignment
+- New `POST /api/cron/deadline-reminders` route; `CRON_SECRET` is now read lazily inside the handler (not at module-import time) to prevent Next.js build failures when environment variables are absent in CI
+
+#### Setup
+1. Add `CRON_SECRET=<secret>` to `.env`
+2. Configure a daily cron at 08:00: `curl -X POST https://<host>/api/cron/deadline-reminders -H "Authorization: Bearer <secret>"`
+
+---
+
+## [15.22.1] - 2026-03-15
+
+### Task Workflow Fixes & PBAC Toggle Consistency
+
+#### Fixed
+- **Task status after rejection** — Duplicating a task or creating a revision after rejection now sets the initial status to `In Progress` instead of `Pending`, so tasks are immediately actionable
+- **Completion notification routed to Approvals** — Completing a task now sends an `APPROVAL_REQUIRED` notification to the requester (instead of `TASK_COMPLETED`) so it surfaces in the Approvals tab with inline Approve/Reject buttons; the assignee is notified with `APPROVED`/`REJECTED` once the requester acts
+- **Notification deep links** — Task notifications now navigate to `/tasks/[id]` (detail page) instead of the list page that silently discarded the `?id=` parameter
+- **Logout cookie not clearing** — Logout now awaits the API fetch before redirecting so the browser applies the `Set-Cookie` headers that clear the session cookie; the logout API returns JSON (not a redirect) to prevent the response from being swallowed before headers are processed
+- **What's New dialog reappearing** — Latest-version API now reads the user's `lastSeenVersion` from the server and returns `alreadySeen: true` when the user has already dismissed the dialog; `mark-version-seen` merges into existing `customPermissions` JSON instead of overwriting it to prevent accidental permission loss
+- **Approval notifications on task detail page** — Approving or rejecting a task from the task detail page now notifies the assignee; previously only the notification action center triggered these notifications
+- **Approval/rejection not logged** — `approved`, `approval_revoked`, and `rejected` events are now recorded in the task activity trail with human-readable labels
+- **Missing Reject button on task detail** — Approve and Reject buttons now appear side-by-side when a task is Completed and not yet actioned
+- **Completion circle turns grey after approval** — Circle now uses `status === 'Completed' || !!completedAt` so older tasks (where `completedAt` was `null`) correctly show green
+- **Reset All hidden on mobile** — Moved Reset All out of the overflowing filter row into the search bar row so it is always reachable on narrow screens
+- **PBAC toggle uses wrong permission** — My Tasks / All Tasks toggle in `DelayedTasksWidget`, `DelayedTasksNotificationDialog`, and the notifications page now checks the `tasks.view_all` PBAC permission instead of the `isAdmin` boolean; any user with a PBAC grant for `tasks.view_all` sees the toggle, and it can be revoked individually
+- **Admin isAdmin bypassed PBAC revokes** — `permission-resolution.service.ts`: `isAdmin=true` users now start with all permissions but still have `customPermissions.revokes` and `restrictedModules` applied; previously the early-return for isAdmin bypassed the full PBAC resolution, making module restrictions ineffective for admins
+
+---
+
 ## [15.22.0] - 2026-03-15
 
 ### Global Notification Bar & Dashboard Layout Improvements
