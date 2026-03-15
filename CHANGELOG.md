@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.21.0] - 2026-03-15
+
+### Task Management UX & Delayed Tasks Improvements
+
+#### New Features
+- **Clickable Delayed Tasks** — Tasks in the delayed tasks widget and login notification dialog are now clickable, navigating directly to the task detail page
+- **Requested by Me** — New sidebar menu item under Tasks showing tasks where the current user is the requester
+- **Requester Filter** — New dropdown filter on the Tasks page to filter tasks by requester, alongside the existing Assigned To filter
+- **Delayed Tasks Scope Toggle** — Notifications page delayed tasks tab now defaults to showing only the user's own delayed tasks with an admin toggle to switch between "My Tasks" and "All Tasks"
+
+#### Improvements
+- Delayed tasks on the notifications page now default to personal tasks (`?personal=true`) instead of showing all system tasks
+- Admin users see a My Tasks / All Tasks toggle on the delayed tasks tab for switching between personal and system-wide views
+- Task filter reset now includes the new requester filter
+
+---
+
 ## [15.20.2] - 2026-03-14
 
 ### Unique Browser Tab Titles

@@ -106,10 +106,11 @@ type TasksClientProps = {
   allDepartments: Department[];
   userPermissions: string[];
   filterMyTasks?: boolean;
+  filterRequesterTasks?: boolean;
   initialProjectFilter?: string;
 };
 
-export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, initialProjectFilter }: TasksClientProps) {
+export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, filterRequesterTasks = false, initialProjectFilter }: TasksClientProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
@@ -150,6 +151,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     revision: '',
   });
   const [assignedToFilter, setAssignedToFilter] = useState<string>('');
+  const [requesterFilter, setRequesterFilter] = useState<string>('');
   const [creating, setCreating] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -281,6 +283,11 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
         return false;
       }
 
+      // Filter for Requested by Me - only show tasks where user is requester
+      if (filterRequesterTasks && task.requester?.id !== userId) {
+        return false;
+      }
+
       const matchesSearch = !search || 
         task.title.toLowerCase().includes(search.toLowerCase()) ||
         task.description?.toLowerCase().includes(search.toLowerCase()) ||
@@ -293,11 +300,12 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       const matchesBuilding = !buildingFilter || task.building?.id === buildingFilter;
       const matchesDepartment = !departmentFilter || task.department?.id === departmentFilter;
       const matchesAssignedTo = !assignedToFilter || task.assignedTo?.id === assignedToFilter;
-      const matchesApproval = !approvalFilter || 
+      const matchesRequester = !requesterFilter || task.requester?.id === requesterFilter;
+      const matchesApproval = !approvalFilter ||
         (approvalFilter === 'approved' && task.approvedAt) ||
         (approvalFilter === 'not_approved' && !task.approvedAt);
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment && matchesAssignedTo && matchesApproval;
+      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment && matchesAssignedTo && matchesRequester && matchesApproval;
     });
 
     // Apply sorting
@@ -335,7 +343,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     }
 
     return result;
-  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, assignedToFilter, approvalFilter, filterMyTasks, userId, sortColumn, sortDirection]);
+  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, assignedToFilter, requesterFilter, approvalFilter, filterMyTasks, filterRequesterTasks, userId, sortColumn, sortDirection]);
 
   // Expand/Collapse All for project management view
   const expandAll = useCallback(() => {
@@ -1350,6 +1358,20 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   ))}
                 </select>
 
+                {/* Requester Filter */}
+                <select
+                  value={requesterFilter}
+                  onChange={(e) => setRequesterFilter(e.target.value)}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                >
+                  <option value="">All Requesters</option>
+                  {allUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+
                 {/* Department Filter */}
                 <select
                   value={departmentFilter}
@@ -1365,7 +1387,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                 </select>
 
                 {/* Reset All Filters */}
-                {(statusFilter.length > 0 || priorityFilter.length > 0 || projectFilter || buildingFilter || departmentFilter || assignedToFilter || approvalFilter || search) && (
+                {(statusFilter.length > 0 || priorityFilter.length > 0 || projectFilter || buildingFilter || departmentFilter || assignedToFilter || requesterFilter || approvalFilter || search) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1376,6 +1398,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                       setBuildingFilter('');
                       setDepartmentFilter('');
                       setAssignedToFilter('');
+                      setRequesterFilter('');
                       setApprovalFilter('');
                       setSearch('');
                     }}

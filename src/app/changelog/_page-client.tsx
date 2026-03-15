@@ -23,10 +23,37 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.21.0',
+    date: 'March 15, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Task Management UX & Delayed Tasks Improvements',
+    highlights: [
+      'Delayed tasks in widget and login dialog are now clickable — navigate directly to task details',
+      'New "Requested by Me" sidebar item under Tasks for filtering tasks by requester role',
+      'Requester filter dropdown added to the Tasks page alongside Assigned To',
+      'Delayed tasks tab on Notifications page defaults to personal tasks with admin toggle',
+    ],
+    changes: {
+      added: [
+        'Clickable Delayed Tasks — tasks in dashboard widget and login notification dialog link directly to the task detail page',
+        'Requested by Me — new sidebar menu item under Tasks showing tasks where the user is the requester',
+        'Requester Filter — dropdown on the Tasks page to filter by requester, next to the Assigned To filter',
+        'Delayed Tasks Scope Toggle — Notifications page delayed tasks tab has My Tasks / All Tasks toggle for admins',
+      ],
+      fixed: [],
+      changed: [
+        'Delayed tasks on notifications page now default to personal tasks instead of all system tasks',
+        'Admin users see a toggle to switch between personal and system-wide delayed task views',
+        'Task filter reset includes the new requester filter',
+      ],
+    },
+  },
+  {
     version: '15.20.2',
     date: 'March 14, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Unique Browser Tab Titles',
     highlights: [
       'Every page now shows a unique title — e.g. "Hexa Steel® OTS ™ - Tasks", "Hexa Steel® OTS ™ - Settings"',

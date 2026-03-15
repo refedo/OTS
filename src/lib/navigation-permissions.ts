@@ -13,6 +13,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/risk-dashboard': ['risk.view_dashboard', 'risk.view_alerts'],
   '/tasks': ['tasks.view', 'tasks.view_all'],
   '/tasks?filter=my-tasks': ['tasks.view'],
+  '/tasks?filter=requested-by-me': ['tasks.view'],
   '/tasks/new': ['tasks.create'],
   '/tasks/dashboard': ['tasks.view_all'],
   '/ai-assistant': ['ai.use'],

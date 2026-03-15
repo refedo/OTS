@@ -25,6 +25,7 @@ import {
   MessageSquare,
   Phone,
   User,
+  Users,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -191,6 +192,8 @@ export default function NotificationsPage() {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [delayedShowAll, setDelayedShowAll] = useState(false);
 
   // Handle tab and severity parameters from URL
   useEffect(() => {
@@ -204,15 +207,13 @@ export default function NotificationsPage() {
     }
   }, [tabParam, searchParams]);
 
-  const fetchDelayedTasks = async () => {
+  const fetchDelayedTasks = async (personal = true) => {
     try {
       setLoadingDelayedTasks(true);
-      console.log('Fetching delayed tasks...');
-      const response = await fetch('/api/notifications/delayed-tasks');
-      console.log('Response status:', response.status);
+      const param = personal ? '?personal=true' : '';
+      const response = await fetch(`/api/notifications/delayed-tasks${param}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Delayed tasks data:', data);
         setDelayedTasks(data.tasks || []);
         setDelayedTasksStats({
           total: data.total || 0,
@@ -220,12 +221,9 @@ export default function NotificationsPage() {
           warning: data.warning || 0,
           minor: data.minor || 0,
         });
-        console.log('Delayed tasks set:', data.tasks?.length || 0);
-      } else {
-        console.error('Failed to fetch delayed tasks:', response.status);
       }
-    } catch (error) {
-      console.error('Error fetching delayed tasks:', error);
+    } catch {
+      // Silently fail
     } finally {
       setLoadingDelayedTasks(false);
     }
@@ -302,8 +300,14 @@ export default function NotificationsPage() {
   };
 
   useEffect(() => {
+    // Check admin status
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(me => { if (me?.isAdmin) setIsAdmin(true); })
+      .catch(() => {});
+
     fetchNotifications();
-    fetchDelayedTasks();
+    fetchDelayedTasks(true); // Default to personal tasks
     fetchUnderperformingSchedules();
     fetchOperationsRisks();
   }, []);
@@ -659,6 +663,42 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <>
+          {/* Admin Toggle - My Tasks / All Tasks */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 mb-4">
+              <Button
+                variant={!delayedShowAll ? 'default' : 'outline'}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  if (delayedShowAll) {
+                    setDelayedShowAll(false);
+                    fetchDelayedTasks(true);
+                  }
+                }}
+                disabled={loadingDelayedTasks}
+              >
+                <User className="size-3.5" />
+                My Tasks
+              </Button>
+              <Button
+                variant={delayedShowAll ? 'default' : 'outline'}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  if (!delayedShowAll) {
+                    setDelayedShowAll(true);
+                    fetchDelayedTasks(false);
+                  }
+                }}
+                disabled={loadingDelayedTasks}
+              >
+                <Users className="size-3.5" />
+                All Tasks
+              </Button>
+            </div>
+          )}
+
           {/* Stats Cards - Clickable to filter */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card
