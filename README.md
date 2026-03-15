@@ -84,7 +84,9 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 ### Initiatives & Tasks
 - **Strategic Initiatives**: Company-wide initiative management
 - **Milestone Tracking**: Initiative milestones with progress monitoring
-- **Task Management**: Detailed task tracking and assignment
+- **Task Management**: Detailed task tracking, assignment, and requester filtering
+- **Requested by Me**: Filter tasks where the current user is the requester
+- **Delayed Tasks Alerts**: Dashboard widget and login notification with clickable task links
 - **Budget Tracking**: Financial monitoring and analysis
 
 ### AI & Automation

@@ -88,6 +88,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'All Tasks', href: '/tasks', icon: ListChecks },
       { name: 'My Tasks', href: '/tasks?filter=my-tasks', icon: User },
+      { name: 'Requested by Me', href: '/tasks?filter=requested-by-me', icon: FileCheck },
       { name: 'Tasks Dashboard', href: '/tasks/dashboard', icon: BarChart3 },
       { name: 'Create Task', href: '/tasks/new', icon: Plus },
     ],
