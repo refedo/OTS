@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { NotificationService } from '@/lib/services/notification.service';
-import { env } from '@/lib/env';
 
 /**
  * Cron job: send push notifications to task assignees whose task is due in ~2 days.
@@ -14,7 +13,8 @@ import { env } from '@/lib/env';
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-  const cronSecret = env.CRON_SECRET;
+  // Read lazily so env validation does not run at module-load time during build
+  const cronSecret = process.env.CRON_SECRET;
 
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
