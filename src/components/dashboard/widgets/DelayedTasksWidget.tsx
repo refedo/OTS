@@ -32,7 +32,7 @@ export default function DelayedTasksWidget() {
   const [data, setData] = useState<DelayedTasksData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewAll, setCanViewAll] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const fetchData = useCallback(async (personal: boolean) => {
@@ -52,10 +52,10 @@ export default function DelayedTasksWidget() {
   }, []);
 
   useEffect(() => {
-    // Check admin status
+    // Check if user can view all tasks (tasks.view_all PBAC permission)
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
-      .then(me => { if (me?.isAdmin) setIsAdmin(true); })
+      .then(me => { if (me?.permissions?.includes('tasks.view_all')) setCanViewAll(true); })
       .catch(() => {});
 
     fetchData(true);
@@ -138,8 +138,8 @@ export default function DelayedTasksWidget() {
             </Badge>
           )}
         </CardTitle>
-        {/* Admin Toggle */}
-        {isAdmin && (
+        {/* Scope Toggle (visible to users with tasks.view_all permission) */}
+        {canViewAll && (
           <div className="flex items-center gap-1.5 pt-2">
             <Button
               variant={!showAll ? 'default' : 'outline'}

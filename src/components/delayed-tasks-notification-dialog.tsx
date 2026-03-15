@@ -48,7 +48,7 @@ interface DelayedTasksData {
 export function DelayedTasksNotificationDialog() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<DelayedTasksData | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewAll, setCanViewAll] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -78,11 +78,11 @@ export function DelayedTasksNotificationDialog() {
         return;
       }
 
-      // Check if user is admin
+      // Check if user can view all tasks (tasks.view_all PBAC permission)
       const meResponse = await fetch('/api/auth/me');
       if (meResponse.ok) {
         const meData = await meResponse.json();
-        setIsAdmin(meData.isAdmin === true);
+        setCanViewAll(Array.isArray(meData.permissions) && meData.permissions.includes('tasks.view_all'));
       }
 
       const response = await fetch('/api/notifications/delayed-tasks?personal=true');
@@ -152,8 +152,8 @@ export function DelayedTasksNotificationDialog() {
           </div>
         </DialogHeader>
 
-        {/* Admin Toggle */}
-        {isAdmin && (
+        {/* Scope Toggle (visible to users with tasks.view_all permission) */}
+        {canViewAll && (
           <div className="flex items-center gap-2 px-1">
             <Button
               variant={!showAll ? 'default' : 'outline'}
