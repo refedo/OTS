@@ -192,7 +192,7 @@ export default function NotificationsPage() {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewAllTasks, setCanViewAllTasks] = useState(false);
   const [delayedShowAll, setDelayedShowAll] = useState(false);
 
   // Handle tab and severity parameters from URL
@@ -300,10 +300,10 @@ export default function NotificationsPage() {
   };
 
   useEffect(() => {
-    // Check admin status
+    // Check if user can view all tasks (tasks.view_all PBAC permission)
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
-      .then(me => { if (me?.isAdmin) setIsAdmin(true); })
+      .then(me => { if (me?.permissions?.includes('tasks.view_all')) setCanViewAllTasks(true); })
       .catch(() => {});
 
     fetchNotifications();
@@ -663,8 +663,8 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <>
-          {/* Admin Toggle - My Tasks / All Tasks */}
-          {isAdmin && (
+          {/* Scope Toggle - My Tasks / All Tasks (visible to users with tasks.view_all permission) */}
+          {canViewAllTasks && (
             <div className="flex items-center gap-2 mb-4">
               <Button
                 variant={!delayedShowAll ? 'default' : 'outline'}

@@ -226,9 +226,6 @@ export function LoginForm() {
         <p className="text-white font-medium mt-4">
           Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
         </p>
-        <div className="text-xs text-muted-foreground">
-          v15.21.0 • March 15, 2026
-        </div>
       </div>
     </div>
   );
