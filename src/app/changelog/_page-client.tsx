@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.23.0',
+    date: 'March 15, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Tasks Management View',
+    highlights: [
+      'New Tasks Management page in the Projects sidebar section with a focused table view',
+      'Quick Add row lets you create tasks inline without leaving the page',
+      'Inline Edit — edit any task row directly in the table',
+    ],
+    changes: {
+      added: [
+        'Tasks Management page (/project-tasks) — lean tasks table in the Projects navigation section showing Task Name, Assigned To, Status, Project, Building, Input Date, Due Date',
+        'Quick Add row — inline task creation form at the top of the table; press Enter or click Add',
+        'Inline Edit — click ⋮ → Edit to edit a row in-place; Save / Cancel confirm or discard',
+        '3-dot action menu per row — View, Edit, Delete actions',
+        'Overdue highlighting — past-due non-completed rows shown in red; completed rows in green',
+        'Search, status filter, and project filter with Reset button',
+        'Sortable columns — click any header to sort ascending/descending',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '15.22.2',
     date: 'March 15, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Mobile Push Notifications for Delayed & Upcoming Tasks',
     highlights: [
       'New Push button on delayed tasks lets supervisors instantly nudge assignees via in-app + Web Push',
