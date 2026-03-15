@@ -1,4 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/jwt';
+import prisma from '@/lib/db';
 import { APP_VERSION } from '@/lib/version';
 
 // This should match the latest version in changelog
@@ -28,6 +31,26 @@ const CURRENT_VERSION = {
   },
 };
 
-export async function GET() {
-  return NextResponse.json(CURRENT_VERSION);
+export async function GET(_req: NextRequest) {
+  const store = await cookies();
+  const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+  const session = token ? verifySession(token) : null;
+
+  let alreadySeen = false;
+  if (session) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: session.sub },
+        select: { customPermissions: true },
+      });
+      const perms = user?.customPermissions as Record<string, unknown> | null;
+      if (perms?.lastSeenVersion === CURRENT_VERSION.version) {
+        alreadySeen = true;
+      }
+    } catch {
+      // Non-critical; fall back to client-side check
+    }
+  }
+
+  return NextResponse.json({ ...CURRENT_VERSION, alreadySeen });
 }

@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle, AlertCircle, Wrench, Sparkles, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -24,11 +25,13 @@ type ChangelogVersion = {
     fixed: Array<{ title: string; items: string[] } | string>;
     changed: string[];
   };
+  alreadySeen?: boolean;
 };
 
 export function UpdateNotificationDialog() {
   const [open, setOpen] = useState(false);
   const [latestVersion, setLatestVersion] = useState<ChangelogVersion | null>(null);
+  const [dontShowAgain, setDontShowAgain] = useState(true);
 
   useEffect(() => {
     checkForUpdates();
@@ -38,12 +41,10 @@ export function UpdateNotificationDialog() {
     try {
       const response = await fetch('/api/system/latest-version');
       if (response.ok) {
-        const data = await response.json();
-        
-        // Check if user has seen this version
-        const lastSeenVersion = localStorage.getItem('lastSeenVersion');
-        
-        if (data.version && lastSeenVersion !== data.version) {
+        const data: ChangelogVersion = await response.json();
+
+        // Server already checked if the user has seen this version
+        if (data.version && !data.alreadySeen) {
           setLatestVersion(data);
           setOpen(true);
         }
@@ -53,17 +54,18 @@ export function UpdateNotificationDialog() {
     }
   };
 
+  const markSeen = (version: string) => {
+    localStorage.setItem('lastSeenVersion', version);
+    fetch('/api/system/mark-version-seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version }),
+    }).catch(err => console.error('Failed to mark version as seen:', err));
+  };
+
   const handleClose = () => {
-    if (latestVersion) {
-      // Mark this version as seen
-      localStorage.setItem('lastSeenVersion', latestVersion.version);
-      
-      // Also update on server
-      fetch('/api/system/mark-version-seen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ version: latestVersion.version }),
-      }).catch(err => console.error('Failed to mark version as seen:', err));
+    if (latestVersion && dontShowAgain) {
+      markSeen(latestVersion.version);
     }
     setOpen(false);
   };
@@ -84,7 +86,7 @@ export function UpdateNotificationDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[85vh]">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -231,19 +233,31 @@ export function UpdateNotificationDialog() {
         </ScrollArea>
 
         <div className="flex items-center justify-between pt-4 border-t">
-          <Button
-            variant="link"
-            onClick={() => {
-              handleClose();
-              window.location.href = '/changelog';
-            }}
-            className="text-sm"
-          >
-            View Full Changelog
-          </Button>
-          <Button onClick={handleClose}>
-            Got it, thanks!
-          </Button>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="dont-show-again"
+              checked={dontShowAgain}
+              onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+            />
+            <label htmlFor="dont-show-again" className="text-sm text-muted-foreground cursor-pointer select-none">
+              Don't show again
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="link"
+              onClick={() => {
+                handleClose();
+                window.location.href = '/changelog';
+              }}
+              className="text-sm"
+            >
+              View Full Changelog
+            </Button>
+            <Button onClick={handleClose}>
+              Got it, thanks!
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
