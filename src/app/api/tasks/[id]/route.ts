@@ -303,7 +303,7 @@ export async function PATCH(
     },
   });
 
-  // Send notification to requester when task is completed
+  // Send approval request to requester when task is completed
   if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
     try {
       const requesterId = (updatedTask as any).requesterId || task.createdById;
@@ -311,9 +311,9 @@ export async function PATCH(
       if (requesterId && requesterId !== session.sub) {
         await NotificationService.createNotification({
           userId: requesterId,
-          type: 'TASK_COMPLETED',
-          title: 'Task Completed',
-          message: `${session.name} completed the task: "${updatedTask.title}"`,
+          type: 'APPROVAL_REQUIRED',
+          title: 'Task Awaiting Your Approval',
+          message: `${session.name} completed the task: "${updatedTask.title}" — please approve or reject`,
           relatedEntityType: 'task',
           relatedEntityId: updatedTask.id,
           metadata: {

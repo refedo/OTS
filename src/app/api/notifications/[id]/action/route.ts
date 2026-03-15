@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { logger } from '@/lib/logger';
+import NotificationService from '@/lib/services/notification.service';
 
 const actionSchema = z.object({
   action: z.enum(['complete', 'approve', 'reject']),
@@ -66,10 +67,36 @@ export async function POST(
         updateData.approvedById = null;
       }
 
-      await prisma.task.update({
+      const updatedTask = await prisma.task.update({
         where: { id: entityId },
         data: updateData,
+        select: { id: true, title: true, assignedToId: true },
       });
+
+      // Notify the assignee of the requester's decision
+      if ((action === 'approve' || action === 'reject') && updatedTask.assignedToId && updatedTask.assignedToId !== session.sub) {
+        try {
+          if (action === 'approve') {
+            await NotificationService.notifyApproved({
+              userId: updatedTask.assignedToId,
+              entityType: 'task',
+              entityId: updatedTask.id,
+              entityName: updatedTask.title,
+              approverName: session.name,
+            });
+          } else {
+            await NotificationService.notifyRejected({
+              userId: updatedTask.assignedToId,
+              entityType: 'task',
+              entityId: updatedTask.id,
+              entityName: updatedTask.title,
+              rejectorName: session.name,
+            });
+          }
+        } catch (notifError) {
+          logger.error({ error: notifError, taskId: entityId, action }, 'Failed to notify assignee of task decision');
+        }
+      }
     } else {
       return NextResponse.json({ error: 'Unsupported entity type for this action' }, { status: 400 });
     }
