@@ -124,7 +124,6 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
       { name: 'List Projects', href: '/projects', icon: FolderKanban },
-      { name: 'Tasks Management', href: '/project-tasks', icon: ListChecks },
       { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
       { name: 'Project Planning', href: '/planning', icon: Calendar },

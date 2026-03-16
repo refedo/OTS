@@ -7,18 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [15.23.0] - 2026-03-15
+## [15.23.0] - 2026-03-16
 
-### Tasks Management View
+### Simple Tasks View
 
 #### New Features
-- **Tasks Management page** (`/project-tasks`) — a lean, focused tasks table placed in the Projects sidebar section, right below "List Projects"
+- **Simple Tasks View toggle** — new 4th view button (LayoutList icon) on `/tasks`, placed right next to the existing Project Management View toggle
 - **Columns:** Task Name (links to detail), Assigned To, Status, Project, Building, Input Date, Due Date
 - **Quick Add row** — inline form at the top of the table; press Enter or click Add to create a task without leaving the page
 - **Inline Edit** — click the ⋮ menu → Edit to edit any row directly in the table; Save / Cancel buttons confirm or discard changes
 - **3-dot action menu** — each row exposes View, Edit, and Delete actions
 - **Overdue highlighting** — rows with a past due date and non-completed status are highlighted in red; completed tasks show a green left border
-- **Search & filters** — search by title / assignee / project, filter by status and project, with a Reset button when filters are active
 - **Sortable columns** — click any column header to sort ascending/descending
 
 ---

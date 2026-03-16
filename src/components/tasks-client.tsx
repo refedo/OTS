@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2 } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -121,7 +121,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter || '');
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'project'>('table');
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'project' | 'simple'>('table');
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -1163,6 +1163,14 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   >
                     <FolderTree className="size-4" />
                   </Button>
+                  <Button
+                    variant={viewMode === 'simple' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('simple')}
+                    title="Simple Tasks View"
+                  >
+                    <LayoutList className="size-4" />
+                  </Button>
                 </div>
 
                 <div className="h-6 w-px bg-border" />
@@ -1456,7 +1464,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
               </p>
             </CardContent>
           </Card>
-        ) : viewMode === 'table' || showQuickAdd ? (
+        ) : viewMode === 'table' || (showQuickAdd && viewMode !== 'simple') ? (
           <Card>
             <CardContent className="p-0 overflow-x-auto">
               <Table>
@@ -2349,6 +2357,370 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
               </Card>
             ))}
           </div>
+        ) : viewMode === 'simple' ? (
+          /* Simple Tasks View — focused columns */
+          <Card>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('title')}>
+                      <div className="flex items-center">Task Name {getSortIcon('title')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('assignedTo')}>
+                      <div className="flex items-center">Assigned To {getSortIcon('assignedTo')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('status')}>
+                      <div className="flex items-center">Status {getSortIcon('status')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('project')}>
+                      <div className="flex items-center">Project {getSortIcon('project')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('building')}>
+                      <div className="flex items-center">Building {getSortIcon('building')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('taskInputDate')}>
+                      <div className="flex items-center">Input Date {getSortIcon('taskInputDate')}</div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('dueDate')}>
+                      <div className="flex items-center">Due Date {getSortIcon('dueDate')}</div>
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Quick Add Row */}
+                  {canCreateTask && showQuickAdd && (
+                    <TableRow className="bg-emerald-50/50">
+                      <TableCell>
+                        <Input
+                          placeholder="Task title..."
+                          value={quickAddData.title}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, title: e.target.value })}
+                          onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+                          autoFocus
+                          disabled={creating}
+                          className="h-8 text-sm"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.assignedToId}
+                          onChange={(e) => {
+                            const selectedUser = allUsers.find(u => u.id === e.target.value);
+                            setQuickAddData({ ...quickAddData, assignedToId: e.target.value, departmentId: selectedUser?.departmentId || '' });
+                          }}
+                          className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating}
+                        >
+                          <option value="">Unassigned</option>
+                          {allUsers.map((u) => (
+                            <option key={u.id} value={u.id}>{u.name}</option>
+                          ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.status}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, status: e.target.value })}
+                          className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Waiting for Approval">Waiting for Approval</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.projectId}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, projectId: e.target.value, buildingId: '' })}
+                          className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating}
+                        >
+                          <option value="">No Project</option>
+                          {allProjects.map((p) => (
+                            <option key={p.id} value={p.id}>{p.projectNumber}</option>
+                          ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.buildingId}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, buildingId: e.target.value })}
+                          className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating || !quickAddData.projectId}
+                        >
+                          <option value="">{quickAddData.projectId ? 'No Building' : '— select project first —'}</option>
+                          {allBuildings
+                            .filter(b => !quickAddData.projectId || b.projectId === quickAddData.projectId)
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>{b.designation} — {b.name}</option>
+                            ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={quickAddData.taskInputDate}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, taskInputDate: e.target.value })}
+                          className="h-8 text-sm"
+                          disabled={creating}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="date"
+                          value={quickAddData.dueDate}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, dueDate: e.target.value })}
+                          className={cn('h-8 text-sm', !quickAddData.dueDate && 'border-red-300')}
+                          disabled={creating}
+                          required
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" onClick={handleQuickAdd} disabled={creating} className="h-7 px-2 text-xs">
+                            {creating ? <Loader2 className="size-3 animate-spin" /> : 'Add'}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setShowQuickAdd(false)} disabled={creating} className="h-7 px-2 text-xs">
+                            <X className="size-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {filteredTasks.map((task) => {
+                    const isEditing = editingTaskId === task.id;
+                    const overdue = task.dueDate ? isOverdue(task.dueDate, task.status) : false;
+
+                    return (
+                      <TableRow
+                        key={task.id}
+                        className={cn(
+                          task.status === 'Completed' && 'bg-green-50/60 border-l-4 border-l-green-500',
+                          overdue && task.status !== 'Completed' && 'bg-red-50/40 border-l-4 border-l-red-400',
+                          isEditing && 'bg-blue-50/50',
+                        )}
+                      >
+                        {/* Task Name */}
+                        <TableCell>
+                          {isEditing ? (
+                            <Input
+                              value={editData.title}
+                              onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                              className="h-8 text-sm"
+                              disabled={updating}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              {task.isPrivate && <Lock className="size-3.5 text-amber-600 shrink-0" title="Private task" />}
+                              <Link href={`/tasks/${task.id}`} className="font-medium hover:text-primary hover:underline">
+                                {task.title}
+                              </Link>
+                            </div>
+                          )}
+                        </TableCell>
+
+                        {/* Assigned To */}
+                        <TableCell>
+                          {isEditing ? (
+                            <select
+                              value={editData.assignedToId}
+                              onChange={(e) => {
+                                const selectedUser = allUsers.find(u => u.id === e.target.value);
+                                setEditData({ ...editData, assignedToId: e.target.value, departmentId: selectedUser?.departmentId || '' });
+                              }}
+                              className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                              disabled={updating}
+                            >
+                              <option value="">Unassigned</option>
+                              {allUsers.map((u) => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                              ))}
+                            </select>
+                          ) : task.assignedTo ? (
+                            <div>
+                              <p className="text-sm">{task.assignedTo.name}</p>
+                              {task.assignedTo.position && (
+                                <p className="text-xs text-muted-foreground">{task.assignedTo.position}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Unassigned</span>
+                          )}
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>
+                          {isEditing ? (
+                            <select
+                              value={editData.status}
+                              onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                              className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                              disabled={updating}
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="In Progress">In Progress</option>
+                              <option value="Waiting for Approval">Waiting for Approval</option>
+                              <option value="Completed">Completed</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                          ) : (
+                            <Badge variant="outline" className={statusColors[task.status as keyof typeof statusColors]}>
+                              {task.status}
+                            </Badge>
+                          )}
+                        </TableCell>
+
+                        {/* Project */}
+                        <TableCell>
+                          {isEditing ? (
+                            <select
+                              value={editData.projectId}
+                              onChange={(e) => setEditData({ ...editData, projectId: e.target.value, buildingId: '' })}
+                              className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                              disabled={updating}
+                            >
+                              <option value="">No Project</option>
+                              {allProjects.map((p) => (
+                                <option key={p.id} value={p.id}>{p.projectNumber}</option>
+                              ))}
+                            </select>
+                          ) : task.project ? (
+                            <div>
+                              <p className="text-sm font-medium">{task.project.projectNumber}</p>
+                              <p className="text-xs text-muted-foreground">{task.project.name}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Building */}
+                        <TableCell>
+                          {isEditing ? (
+                            <select
+                              value={editData.buildingId}
+                              onChange={(e) => setEditData({ ...editData, buildingId: e.target.value })}
+                              className="w-full h-8 px-2 rounded-md border bg-background text-sm"
+                              disabled={updating || !editData.projectId}
+                            >
+                              <option value="">{editData.projectId ? 'No Building' : '— select project first —'}</option>
+                              {allBuildings
+                                .filter(b => !editData.projectId || b.projectId === editData.projectId)
+                                .map((b) => (
+                                  <option key={b.id} value={b.id}>{b.designation} — {b.name}</option>
+                                ))}
+                            </select>
+                          ) : task.building ? (
+                            <div>
+                              <p className="text-sm">{task.building.name}</p>
+                              <p className="text-xs text-muted-foreground">{task.building.designation}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Input Date */}
+                        <TableCell>
+                          {isEditing ? (
+                            <Input
+                              type="date"
+                              value={editData.taskInputDate}
+                              onChange={(e) => setEditData({ ...editData, taskInputDate: e.target.value })}
+                              className="h-8 text-sm"
+                              disabled={updating}
+                            />
+                          ) : task.taskInputDate ? (
+                            <span className="text-sm">{formatDate(task.taskInputDate)}</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Due Date */}
+                        <TableCell>
+                          {isEditing ? (
+                            <Input
+                              type="date"
+                              value={editData.dueDate}
+                              onChange={(e) => setEditData({ ...editData, dueDate: e.target.value })}
+                              className={cn('h-8 text-sm', !editData.dueDate && 'border-red-300')}
+                              disabled={updating}
+                              required
+                            />
+                          ) : task.dueDate ? (
+                            <div className={cn('flex items-center gap-1', overdue && 'text-destructive')}>
+                              {overdue && <AlertCircle className="size-3" />}
+                              <span className="text-sm">{formatDate(task.dueDate)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="text-right">
+                          {isEditing ? (
+                            <div className="flex gap-1 justify-end">
+                              <Button size="sm" onClick={handleQuickEdit} disabled={updating} className="h-7 px-2 text-xs">
+                                {updating ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updating} className="h-7 px-2 text-xs">
+                                <X className="size-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8">
+                                  <MoreVertical className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
+                                  <Eye className="size-4" />
+                                  View
+                                </DropdownMenuItem>
+                                {canEditTask && (
+                                  <DropdownMenuItem onClick={() => handleStartEdit(task)}>
+                                    <Edit className="size-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                )}
+                                {canDeleteTask && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleDelete(task.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="size-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+
+                  {filteredTasks.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        No tasks found matching your filters
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         ) : (
           /* Project Management View - hierarchical: Project > Building > Activity > Task */
           <Card>
