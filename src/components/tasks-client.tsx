@@ -2693,7 +2693,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                     Edit
                                   </DropdownMenuItem>
                                 )}
-                                {canDeleteTask && (
+                                {userPermissions?.includes('tasks.delete') && (
                                   <DropdownMenuItem
                                     onClick={() => handleDelete(task.id)}
                                     className="text-destructive focus:text-destructive"
