@@ -4,6 +4,11 @@ import { redirect } from 'next/navigation';
 import db from '@/lib/db';
 import { RolesClient } from '@/components/roles-client';
 import { checkPermission } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Roles',
+};
+
 
 export default async function RolesPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

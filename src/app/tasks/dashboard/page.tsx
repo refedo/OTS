@@ -3,6 +3,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { TasksDashboardClient } from '@/components/tasks-dashboard-client';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Tasks Dashboard',
+};
+
 
 export default async function TasksDashboardPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

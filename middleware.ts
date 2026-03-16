@@ -12,19 +12,24 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/forgot-password',
-  '/api/auth/reset-password'
+  '/api/auth/reset-password',
+  '/api/push/vapid-key',
+  '/api/manifest'
 ]);
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Allow static assets and Next internals
+  // Allow static assets, Next internals, and PWA files
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/assets') ||
     pathname.startsWith('/public') ||
-    pathname.startsWith('/uploads')
+    pathname.startsWith('/uploads') ||
+    pathname.startsWith('/icons') ||
+    pathname === '/sw.js' ||
+    pathname === '/manifest.json'
   ) {
     return NextResponse.next();
   }

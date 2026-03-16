@@ -6,6 +6,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Plus, Upload } from 'lucide-react';
 import { getCurrentUserRestrictedModules, checkPermission } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Projects',
+};
+
 
 export default async function ProjectsPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

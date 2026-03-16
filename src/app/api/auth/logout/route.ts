@@ -44,22 +44,9 @@ export async function POST(request: NextRequest) {
     }
   }
   
-  // Build the redirect URL - always redirect to /login
-  // Use the request URL to determine the base
   const requestUrl = new URL(request.url);
-  const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-  
-  // In production, use the correct domain and base path
-  let loginUrl: string;
-  if (process.env.NODE_ENV === 'production') {
-    // Production: redirect to ots.hexasteel.sa/login
-    loginUrl = 'https://ots.hexasteel.sa/login';
-  } else {
-    // Development: use the request host
-    loginUrl = `${baseUrl}/login`;
-  }
-  
-  const res = NextResponse.redirect(loginUrl, { status: 302 });
+
+  const res = NextResponse.json({ success: true });
   
   // Clear the session cookie with multiple domain variations to ensure removal
   // Try without domain first (most common case)

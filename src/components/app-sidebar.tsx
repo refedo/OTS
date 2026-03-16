@@ -88,6 +88,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'All Tasks', href: '/tasks', icon: ListChecks },
       { name: 'My Tasks', href: '/tasks?filter=my-tasks', icon: User },
+      { name: 'Requested by Me', href: '/tasks?filter=requested-by-me', icon: FileCheck },
       { name: 'Tasks Dashboard', href: '/tasks/dashboard', icon: BarChart3 },
       { name: 'Create Task', href: '/tasks/new', icon: Plus },
     ],
@@ -123,6 +124,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
       { name: 'List Projects', href: '/projects', icon: FolderKanban },
+      { name: 'Tasks Management', href: '/project-tasks', icon: ListChecks },
       { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
       { name: 'Project Planning', href: '/planning', icon: Calendar },

@@ -30,23 +30,22 @@ export interface PermissionResolutionData {
 
 /**
  * Pure function: resolves effective permissions from data (works client-side)
- * 
+ *
  * Resolution order:
- * 1. If isAdmin → return ALL_PERMISSIONS
- * 2. Start with rolePermissions
+ * 1. If isAdmin → start with ALL_PERMISSIONS (instead of rolePermissions)
+ * 2. Otherwise start with rolePermissions
  * 3. Add customPermissions.grants
- * 4. Remove customPermissions.revokes
- * 5. Apply restrictedModules filter
+ * 4. Remove customPermissions.revokes  ← applied even for isAdmin (PBAC overrides RBAC)
+ * 5. Apply restrictedModules filter     ← applied even for isAdmin
  * 6. Return deduplicated array
  */
 export function resolvePermissionsFromData(params: PermissionResolutionData): string[] {
   const { isAdmin, rolePermissions, customPermissions, restrictedModules } = params;
 
-  if (isAdmin) {
-    return ALL_PERMISSIONS.map(p => p.id);
-  }
-
-  let permissions = [...rolePermissions];
+  // isAdmin users start with ALL permissions but still respect PBAC revokes + module restrictions
+  let permissions = isAdmin
+    ? ALL_PERMISSIONS.map(p => p.id)
+    : [...rolePermissions];
 
   if (customPermissions) {
     const grants = Array.isArray(customPermissions.grants) ? customPermissions.grants : [];
@@ -114,17 +113,13 @@ export async function resolveUserPermissions(userId: string): Promise<string[]> 
     return [];
   }
 
-  if (user.isAdmin) {
-    logger.debug({ userId, userName: user.name }, '[PBAC] User is admin, granting all permissions');
-    return ALL_PERMISSIONS.map(p => p.id);
-  }
-
   const rolePermissions = (user.role.permissions as string[]) || [];
   const customPerms = parseCustomPermissions(user.customPermissions);
   const restrictedModules = (user.role.restrictedModules as string[]) || [];
 
+  // isAdmin starts with ALL permissions but PBAC revokes + module restrictions still apply
   const resolved = resolvePermissionsFromData({
-    isAdmin: false,
+    isAdmin: user.isAdmin,
     rolePermissions,
     customPermissions: customPerms,
     restrictedModules,
@@ -134,7 +129,8 @@ export async function resolveUserPermissions(userId: string): Promise<string[]> 
     userId,
     userName: user.name,
     roleName: user.role.name,
-    rolePermCount: rolePermissions.length,
+    isAdmin: user.isAdmin,
+    rolePermCount: user.isAdmin ? 'all' : rolePermissions.length,
     grants: customPerms?.grants?.length ?? 0,
     revokes: customPerms?.revokes?.length ?? 0,
     restrictedModules,

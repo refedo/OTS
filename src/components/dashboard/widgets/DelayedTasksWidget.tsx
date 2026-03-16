@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Clock, Loader2, AlertOctagon, AlertCircle, Info, Users, User } from 'lucide-react';
+import { AlertTriangle, Clock, Loader2, AlertOctagon, AlertCircle, Info, Users, User, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface DelayedTask {
@@ -32,7 +32,7 @@ export default function DelayedTasksWidget() {
   const [data, setData] = useState<DelayedTasksData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewAll, setCanViewAll] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const fetchData = useCallback(async (personal: boolean) => {
@@ -52,10 +52,10 @@ export default function DelayedTasksWidget() {
   }, []);
 
   useEffect(() => {
-    // Check admin status
+    // Check if user can view all tasks (tasks.view_all PBAC permission)
     fetch('/api/auth/me')
       .then(res => res.ok ? res.json() : null)
-      .then(me => { if (me?.isAdmin) setIsAdmin(true); })
+      .then(me => { if (me?.permissions?.includes('tasks.view_all')) setCanViewAll(true); })
       .catch(() => {});
 
     fetchData(true);
@@ -138,8 +138,8 @@ export default function DelayedTasksWidget() {
             </Badge>
           )}
         </CardTitle>
-        {/* Admin Toggle */}
-        {isAdmin && (
+        {/* Scope Toggle (visible to users with tasks.view_all permission) */}
+        {canViewAll && (
           <div className="flex items-center gap-1.5 pt-2">
             <Button
               variant={!showAll ? 'default' : 'outline'}
@@ -204,13 +204,14 @@ export default function DelayedTasksWidget() {
                 Most Overdue
               </p>
               {data.tasks.slice(0, 4).map((task) => (
-                <div
+                <Link
                   key={task.id}
-                  className="flex items-start gap-2 p-2 rounded-lg bg-muted/50"
+                  href={`/tasks/${task.id}`}
+                  className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
                 >
                   {getDelayIcon(task.delayStatus)}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{task.title}</p>
+                    <p className="text-sm font-medium truncate group-hover:text-primary">{task.title}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant={getDelayBadgeVariant(task.delayStatus)} className="text-xs">
                         {task.delayDays}d late
@@ -225,7 +226,8 @@ export default function DelayedTasksWidget() {
                       </p>
                     )}
                   </div>
-                </div>
+                  <ExternalLink className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+                </Link>
               ))}
               {data.total > 4 && (
                 <Link

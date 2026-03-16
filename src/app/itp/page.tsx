@@ -3,6 +3,11 @@ import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { ITPClient } from '@/components/itp-client';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'ITP',
+};
+
 
 export default async function ITPPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

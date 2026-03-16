@@ -7,6 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Create User',
+};
+
 
 export default async function CreateUserPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';

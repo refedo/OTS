@@ -7,6 +7,173 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.23.0] - 2026-03-15
+
+### Tasks Management View
+
+#### New Features
+- **Tasks Management page** (`/project-tasks`) — a lean, focused tasks table placed in the Projects sidebar section, right below "List Projects"
+- **Columns:** Task Name (links to detail), Assigned To, Status, Project, Building, Input Date, Due Date
+- **Quick Add row** — inline form at the top of the table; press Enter or click Add to create a task without leaving the page
+- **Inline Edit** — click the ⋮ menu → Edit to edit any row directly in the table; Save / Cancel buttons confirm or discard changes
+- **3-dot action menu** — each row exposes View, Edit, and Delete actions
+- **Overdue highlighting** — rows with a past due date and non-completed status are highlighted in red; completed tasks show a green left border
+- **Search & filters** — search by title / assignee / project, filter by status and project, with a Reset button when filters are active
+- **Sortable columns** — click any column header to sort ascending/descending
+
+---
+
+## [15.22.2] - 2026-03-15
+
+### Mobile Push Notifications for Delayed & Upcoming Tasks
+
+#### New Features
+- **Manual Push Nudge** — New Push button on each row in the Delayed Tasks list lets supervisors send an immediate in-app + Web Push notification to the assigned user, asking them to update task status
+- **Deadline Reminder Cron** — New `POST /api/cron/deadline-reminders` endpoint scans all tasks due within ~2 days and sends `DEADLINE_WARNING` push notifications to assignees automatically; protected by `CRON_SECRET` bearer token — schedule daily at 08:00
+
+#### Technical Changes
+- New `POST /api/notifications/notify-task` route creates a `DEADLINE_WARNING` notification (which PushService fans out as a Web Push) for a given task's assignee; validates task ownership and requires `tasks.view_all` or assignment
+- New `POST /api/cron/deadline-reminders` route; `CRON_SECRET` is now read lazily inside the handler (not at module-import time) to prevent Next.js build failures when environment variables are absent in CI
+
+#### Setup
+1. Add `CRON_SECRET=<secret>` to `.env`
+2. Configure a daily cron at 08:00: `curl -X POST https://<host>/api/cron/deadline-reminders -H "Authorization: Bearer <secret>"`
+
+---
+
+## [15.22.1] - 2026-03-15
+
+### Task Workflow Fixes & PBAC Toggle Consistency
+
+#### Fixed
+- **Task status after rejection** — Duplicating a task or creating a revision after rejection now sets the initial status to `In Progress` instead of `Pending`, so tasks are immediately actionable
+- **Completion notification routed to Approvals** — Completing a task now sends an `APPROVAL_REQUIRED` notification to the requester (instead of `TASK_COMPLETED`) so it surfaces in the Approvals tab with inline Approve/Reject buttons; the assignee is notified with `APPROVED`/`REJECTED` once the requester acts
+- **Notification deep links** — Task notifications now navigate to `/tasks/[id]` (detail page) instead of the list page that silently discarded the `?id=` parameter
+- **Logout cookie not clearing** — Logout now awaits the API fetch before redirecting so the browser applies the `Set-Cookie` headers that clear the session cookie; the logout API returns JSON (not a redirect) to prevent the response from being swallowed before headers are processed
+- **What's New dialog reappearing** — Latest-version API now reads the user's `lastSeenVersion` from the server and returns `alreadySeen: true` when the user has already dismissed the dialog; `mark-version-seen` merges into existing `customPermissions` JSON instead of overwriting it to prevent accidental permission loss
+- **Approval notifications on task detail page** — Approving or rejecting a task from the task detail page now notifies the assignee; previously only the notification action center triggered these notifications
+- **Approval/rejection not logged** — `approved`, `approval_revoked`, and `rejected` events are now recorded in the task activity trail with human-readable labels
+- **Missing Reject button on task detail** — Approve and Reject buttons now appear side-by-side when a task is Completed and not yet actioned
+- **Completion circle turns grey after approval** — Circle now uses `status === 'Completed' || !!completedAt` so older tasks (where `completedAt` was `null`) correctly show green
+- **Reset All hidden on mobile** — Moved Reset All out of the overflowing filter row into the search bar row so it is always reachable on narrow screens
+- **PBAC toggle uses wrong permission** — My Tasks / All Tasks toggle in `DelayedTasksWidget`, `DelayedTasksNotificationDialog`, and the notifications page now checks the `tasks.view_all` PBAC permission instead of the `isAdmin` boolean; any user with a PBAC grant for `tasks.view_all` sees the toggle, and it can be revoked individually
+- **Admin isAdmin bypassed PBAC revokes** — `permission-resolution.service.ts`: `isAdmin=true` users now start with all permissions but still have `customPermissions.revokes` and `restrictedModules` applied; previously the early-return for isAdmin bypassed the full PBAC resolution, making module restrictions ineffective for admins
+
+---
+
+## [15.22.0] - 2026-03-15
+
+### Global Notification Bar & Dashboard Layout Improvements
+
+#### New Features
+- **Global TopBar** — Notification bell and logout button are now permanently visible in the top-right corner on every system page, giving users instant access regardless of which page they are on
+- **Actionable Notification Dropdown** — The notification panel now supports inline actions directly from the dropdown list:
+  - **Complete** button on task-assigned notifications to mark the task done immediately
+  - **Approve / Reject** buttons on approval-request notifications to act without navigating away
+- **Clear on Read** — Clicking any notification marks it as read and removes it from the dropdown list, keeping the list clean and focused on unread items
+- **Clear All** — New trash icon in the notification panel header archives all notifications at once (POST `/api/notifications/bulk-archive`)
+- **Unread Count Badge** — The panel header now displays the current unread count next to the "Notifications" title
+- **New bulk-archive API** — `POST /api/notifications/bulk-archive` archives all unread notifications for the authenticated user
+
+#### Improvements
+- **Dashboard Full-Width Layout** — Removed `container mx-auto` constraint from the dashboard page; content now uses the full available width with consistent padding
+- **Widget Grid Enhancement** — Updated widget grid from `sm:grid-cols-2 lg:grid-cols-3` to `md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4`, better utilizing wide-screen space and allowing four widgets per row on large monitors
+- **Dashboard Header Simplified** — Removed the redundant per-page logout button from the dashboard since logout is now always accessible via the global TopBar
+- **Notification Panel Polish** — Unread indicator dot, smaller timestamps, tighter spacing, and improved dark-mode-aware highlight colors
+
+---
+
+## [15.21.0] - 2026-03-15
+
+### Task Management UX & Delayed Tasks Improvements
+
+#### New Features
+- **Clickable Delayed Tasks** — Tasks in the delayed tasks widget and login notification dialog are now clickable, navigating directly to the task detail page
+- **Requested by Me** — New sidebar menu item under Tasks showing tasks where the current user is the requester
+- **Requester Filter** — New dropdown filter on the Tasks page to filter tasks by requester, alongside the existing Assigned To filter
+- **Delayed Tasks Scope Toggle** — Notifications page delayed tasks tab now defaults to showing only the user's own delayed tasks with an admin toggle to switch between "My Tasks" and "All Tasks"
+
+#### Improvements
+- Delayed tasks on the notifications page now default to personal tasks (`?personal=true`) instead of showing all system tasks
+- Admin users see a My Tasks / All Tasks toggle on the delayed tasks tab for switching between personal and system-wide views
+- Task filter reset now includes the new requester filter
+
+---
+
+## [15.20.2] - 2026-03-14
+
+### Unique Browser Tab Titles
+
+#### Improved
+- **Page Titles** — Every page now displays a unique, descriptive title in the browser tab using the format `Hexa Steel® OTS ™ - <Page Name>` (e.g., "Hexa Steel® OTS ™ - Tasks", "Hexa Steel® OTS ™ - Settings", "Hexa Steel® OTS ™ - Financial"). Users can now easily identify and navigate between open tabs
+- **Root Layout Template** — Updated the root metadata to use Next.js title template (`"Hexa Steel® OTS ™ - %s"`) so all pages inherit the brand prefix automatically
+- **Coverage** — All 147 pages across the application have unique titles: Tasks, Projects, Dashboard, Settings, Financial reports, Production pages, QC, Business Planning, Operations Control, Knowledge Center, Backlog, and more
+- **PWA Title** — Updated Apple Web App title to `Hexa Steel® OTS ™`
+
+#### Technical Changes
+- Updated `src/app/layout.tsx` metadata to use title template
+- Added `export const metadata` to 37 server component pages
+- Created server metadata wrapper (`page.tsx` + `_page-client.tsx`) pattern for 109 client component pages, enabling metadata export without breaking client-side interactivity
+
+---
+
+## [15.20.1] - 2026-03-14
+
+### SWOT Analysis Bug Fixes
+
+#### Fixed Issues
+- **API 500 Error** - Fixed Prisma client generation issue where `swotAnalysis` model wasn't recognized. Regenerated Prisma client to include the `SwotAnalysis` model
+- **Database Query Method** - Changed from `findUnique()` to `findFirst()` for year-based queries since `year` field doesn't have unique constraint
+- **Input Field Clearing** - Fixed bug where input fields (especially Weaknesses) weren't clearing after clicking + button. Implemented proper category-to-field mapping
+- **Data Persistence** - SWOT data now saves correctly and persists after page refresh
+- **API Standards Compliance** - Updated API route to use proper imports (`@/lib/db`, `logger`, `withApiContext`) instead of deprecated patterns
+
+#### Technical Changes
+- Fixed `src/app/api/business-planning/swot/route.ts`:
+  - Corrected Prisma import path
+  - Replaced `console.error` with `logger.error`
+  - Wrapped handlers with `withApiContext` for authentication
+  - Updated all queries to use `findFirst()` instead of `findUnique()`
+- Fixed `src/app/business-planning/swot/page.tsx`:
+  - Fixed `addItem` function field clearing with proper key mapping
+  - Replaced `category.slice(0, -1)` with explicit `keyMap` object
+
+---
+
+## [15.20.0] - 2026-03-12
+
+### Mobile App & Push Notifications (PWA)
+
+#### New Features
+- **Progressive Web App (PWA)** — OTS is now installable as a mobile app on Android, iOS, and desktop via the browser. Includes manifest, service worker, and app icons
+- **Web Push Notifications** — Users receive real-time push notifications on their mobile/desktop devices even when OTS is not open. Powered by VAPID/web-push
+- **Per-Type Notification Preferences** — New settings page (`/settings/notifications`) where users can toggle push and in-app notifications individually for each type:
+  - Task Assigned, Task Completed, Approval Required, Deadline Warning, Approved, Rejected, System
+- **PWA Install Prompt** — Smart install banner appears for mobile users who haven't installed the app yet
+- **Auto Service Worker Registration** — Handles background push events, notification click navigation to the relevant entity, and automatic cleanup of expired push subscriptions
+- **Dynamic PWA Manifest** — Manifest served via `/api/manifest` to correctly handle base path configuration
+- **VAPID Key Generation Script** — `node scripts/generate-vapid-keys.mjs` generates the required keys for push notification setup
+
+#### Database Changes
+- Added `push_subscriptions` table — Stores device push subscriptions per user (endpoint, keys, user agent)
+- Added `user_notification_preferences` table — Per-type push/in-app toggle preferences per user
+
+#### Technical Changes
+- `NotificationService.createNotification()` now automatically triggers push delivery (fire-and-forget, non-blocking)
+- New `PushService` handles VAPID configuration, push delivery, user preference checks, and stale subscription cleanup
+- Middleware updated to allow PWA files (`sw.js`, `manifest.json`, `/icons/`) and public API routes (`/api/push/vapid-key`, `/api/manifest`)
+- New API routes: `POST/DELETE/GET /api/push-subscription`, `GET/PUT /api/notification-preferences`, `GET /api/push/vapid-key`, `GET /api/manifest`
+- Added `@radix-ui/react-switch` and `web-push` dependencies
+- Architecture is Capacitor-ready for future app store distribution
+
+#### Setup
+1. Generate VAPID keys: `node scripts/generate-vapid-keys.mjs`
+2. Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` to `.env`
+3. Run migration: `npx prisma migrate deploy`
+4. Restart the application
+
+---
+
 ## [15.19.1] - 2026-03-11
 
 ### Delayed Tasks Widget & Login Notification

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { cache } from '@/lib/cache';
+import { logger } from '@/lib/logger';
 
 // GET - Fetch delayed tasks (past due date and not completed)
 export async function GET(req: Request) {
@@ -125,10 +126,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching delayed tasks:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fetch delayed tasks', 
-      message: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 });
+    logger.error({ error }, 'Failed to fetch delayed tasks');
+    return NextResponse.json({ error: 'Failed to fetch delayed tasks' }, { status: 500 });
   }
 }

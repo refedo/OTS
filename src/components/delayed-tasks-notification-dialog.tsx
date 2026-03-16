@@ -20,7 +20,9 @@ import {
   ArrowRight,
   Users,
   User,
+  ExternalLink,
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface DelayedTask {
   id: string;
@@ -46,7 +48,7 @@ interface DelayedTasksData {
 export function DelayedTasksNotificationDialog() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<DelayedTasksData | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewAll, setCanViewAll] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -76,11 +78,11 @@ export function DelayedTasksNotificationDialog() {
         return;
       }
 
-      // Check if user is admin
+      // Check if user can view all tasks (tasks.view_all PBAC permission)
       const meResponse = await fetch('/api/auth/me');
       if (meResponse.ok) {
         const meData = await meResponse.json();
-        setIsAdmin(meData.isAdmin === true);
+        setCanViewAll(Array.isArray(meData.permissions) && meData.permissions.includes('tasks.view_all'));
       }
 
       const response = await fetch('/api/notifications/delayed-tasks?personal=true');
@@ -150,8 +152,8 @@ export function DelayedTasksNotificationDialog() {
           </div>
         </DialogHeader>
 
-        {/* Admin Toggle */}
-        {isAdmin && (
+        {/* Scope Toggle (visible to users with tasks.view_all permission) */}
+        {canViewAll && (
           <div className="flex items-center gap-2 px-1">
             <Button
               variant={!showAll ? 'default' : 'outline'}
@@ -220,13 +222,15 @@ export function DelayedTasksNotificationDialog() {
               Most Overdue Tasks
             </p>
             {data.tasks.slice(0, 5).map((task) => (
-              <div
+              <Link
                 key={task.id}
-                className="flex items-start gap-3 p-3 rounded-lg border bg-card"
+                href={`/tasks/${task.id}`}
+                onClick={() => setOpen(false)}
+                className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
               >
                 {getDelayIcon(task.delayStatus)}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{task.title}</p>
+                  <p className="text-sm font-medium truncate group-hover:text-primary">{task.title}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                     <Badge variant="destructive" className="text-xs">
                       <Clock className="size-3 mr-1" />
@@ -242,7 +246,8 @@ export function DelayedTasksNotificationDialog() {
                     )}
                   </div>
                 </div>
-              </div>
+                <ExternalLink className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1 flex-shrink-0" />
+              </Link>
             ))}
             {data.total > 5 && (
               <p className="text-sm text-muted-foreground text-center py-2">

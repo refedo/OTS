@@ -268,7 +268,7 @@ export async function PATCH(
   } catch (error) {
     console.log('Rejection tracking fields not available in database yet');
   }
-  
+
   // CEO task visibility - only users with manage_ceo_tasks can set/modify isCeoTask
   if (parsed.data.isCeoTask !== undefined) {
     if (permissions.includes('tasks.manage_ceo_tasks')) {
@@ -303,7 +303,7 @@ export async function PATCH(
     },
   });
 
-  // Send notification to requester when task is completed
+  // Send approval request to requester when task is completed
   if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
     try {
       const requesterId = (updatedTask as any).requesterId || task.createdById;
@@ -311,9 +311,9 @@ export async function PATCH(
       if (requesterId && requesterId !== session.sub) {
         await NotificationService.createNotification({
           userId: requesterId,
-          type: 'TASK_COMPLETED',
-          title: 'Task Completed',
-          message: `${session.name} completed the task: "${updatedTask.title}"`,
+          type: 'APPROVAL_REQUIRED',
+          title: 'Task Awaiting Your Approval',
+          message: `${session.name} completed the task: "${updatedTask.title}" — please approve or reject`,
           relatedEntityType: 'task',
           relatedEntityId: updatedTask.id,
           metadata: {
@@ -379,6 +379,43 @@ export async function PATCH(
       }
     } catch (deptNotifError) {
       console.error('Failed to notify department head:', deptNotifError);
+    }
+  }
+
+  // Notify assignee when their task is approved
+  if (parsed.data.approved === true && !(task as any).approvedAt) {
+    try {
+      const assigneeId = updatedTask.assignedToId;
+      if (assigneeId && assigneeId !== session.sub) {
+        await NotificationService.notifyApproved({
+          userId: assigneeId,
+          entityType: 'task',
+          entityId: updatedTask.id,
+          entityName: updatedTask.title,
+          approverName: session.name,
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to send approval notification to assignee:', notifError);
+    }
+  }
+
+  // Notify assignee when their task is rejected
+  if (parsed.data.rejected === true && !(task as any).rejectedAt) {
+    try {
+      const assigneeId = updatedTask.assignedToId;
+      if (assigneeId && assigneeId !== session.sub) {
+        await NotificationService.notifyRejected({
+          userId: assigneeId,
+          entityType: 'task',
+          entityId: updatedTask.id,
+          entityName: updatedTask.title,
+          rejectorName: session.name,
+          reason: parsed.data.rejectionReason || undefined,
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to send rejection notification to assignee:', notifError);
     }
   }
 
@@ -500,6 +537,16 @@ export async function PATCH(
     }
   }
   
+  // Log approval / rejection changes to activity trail
+  if (parsed.data.approved === true && !(task as any).approvedAt) {
+    auditPromises.push(createTaskAuditLog(id, session.sub, 'approved', 'approvedAt', null, new Date().toISOString().split('T')[0]));
+  } else if (parsed.data.approved === false && (task as any).approvedAt) {
+    auditPromises.push(createTaskAuditLog(id, session.sub, 'approval_revoked', 'approvedAt', (task as any).approvedAt?.toString(), null));
+  }
+  if (parsed.data.rejected === true && !(task as any).rejectedAt) {
+    auditPromises.push(createTaskAuditLog(id, session.sub, 'rejected', 'rejectionReason', null, parsed.data.rejectionReason || null));
+  }
+
   // Execute all audit logs (non-blocking)
   Promise.all(auditPromises).catch(err => console.error('Audit logging failed:', err));
 

@@ -3,6 +3,11 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import { WPSForm } from '@/components/wps-form';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Edit WPS',
+};
+
 
 export default async function EditWPSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

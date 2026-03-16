@@ -5,9 +5,17 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 type Task = {
   id: string;
@@ -76,6 +84,8 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [loadingAudit, setLoadingAudit] = useState(true);
   const [undoing, setUndoing] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Check permissions - use permission-based check if available, fallback to role-based
   const canEdit = userPermissions.includes('tasks.edit');
@@ -133,6 +143,9 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     if (action === 'created') return 'Created task';
     if (action === 'completed') return 'Marked as completed';
     if (action === 'status_changed') return 'Changed status';
+    if (action === 'approved') return 'Approved task';
+    if (action === 'approval_revoked') return 'Revoked approval';
+    if (action === 'rejected') return 'Rejected task';
     if (action === 'updated' && field) return `Updated ${formatFieldName(field)}`;
     return action;
   };
@@ -218,6 +231,25 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     }
   };
 
+  const handleReject = async () => {
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rejected: true, rejectionReason }),
+      });
+      if (!response.ok) throw new Error('Failed to reject task');
+      setShowRejectDialog(false);
+      setRejectionReason('');
+      router.refresh();
+    } catch {
+      alert('Failed to reject task');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleUndo = async () => {
     if (!confirm('Are you sure you want to undo the last change?')) return;
 
@@ -250,7 +282,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
       { label: 'Input Date', completed: !!task.taskInputDate, date: task.taskInputDate, overdue: false },
       { label: 'Due Date', completed: !!task.dueDate, date: task.dueDate, overdue: isTaskOverdue },
       { label: 'Release Date', completed: !!task.releaseDate, date: task.releaseDate, overdue: false },
-      { label: 'Completion', completed: !!task.completedAt, date: task.completedAt, overdue: isTaskOverdue && !task.completedAt },
+      { label: 'Completion', completed: task.status === 'Completed' || !!task.completedAt, date: task.completedAt, overdue: isTaskOverdue && task.status !== 'Completed' && !task.completedAt },
       { label: 'Approval', completed: !!task.approvedAt, date: task.approvedAt, overdue: isTaskOverdue && !task.approvedAt },
     ];
 
@@ -443,17 +475,28 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                     </div>
                   )}
 
-                  {/* Approval Button */}
+                  {/* Approval / Rejection Buttons */}
                   <div className="flex gap-2">
-                    {task.status === 'Completed' && !task.approvedAt && (
-                      <Button
-                        onClick={handleToggleApproval}
-                        disabled={updating}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                      >
-                        <ShieldCheck className="size-4 mr-2" />
-                        Approve Task
-                      </Button>
+                    {task.status === 'Completed' && !task.approvedAt && !task.rejectedAt && (
+                      <>
+                        <Button
+                          onClick={handleToggleApproval}
+                          disabled={updating}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <ShieldCheck className="size-4 mr-2" />
+                          Approve Task
+                        </Button>
+                        <Button
+                          onClick={() => setShowRejectDialog(true)}
+                          disabled={updating}
+                          variant="outline"
+                          className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
+                        >
+                          <XCircle className="size-4 mr-2" />
+                          Reject Task
+                        </Button>
+                      </>
                     )}
                     {task.approvedAt && (
                       <Button
@@ -714,6 +757,42 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
           </CardContent>
         </Card>
       </div>
+
+      {/* Rejection Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="size-5" />
+              Reject Task
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground mb-3">
+              Provide a reason for rejection. The assignee will be notified.
+            </p>
+            <Textarea
+              placeholder="Reason for rejection..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)} disabled={updating}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReject}
+              disabled={updating || !rejectionReason.trim()}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <XCircle className="size-4 mr-2" />
+              Confirm Rejection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

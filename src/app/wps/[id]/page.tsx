@@ -17,6 +17,11 @@ import { Edit, CheckCircle, Clock } from 'lucide-react';
 import { WPSExportButton } from '@/components/wps-export-button';
 import { WPSApproveButton } from '@/components/wps-approve-button';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'WPS',
+};
+
 
 export default async function WPSDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

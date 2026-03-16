@@ -2,7 +2,7 @@
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-Deployed at: `hexasteel.sa/ots`
+
 
 ---
 
@@ -84,7 +84,9 @@ Deployed at: `hexasteel.sa/ots`
 ### Initiatives & Tasks
 - **Strategic Initiatives**: Company-wide initiative management
 - **Milestone Tracking**: Initiative milestones with progress monitoring
-- **Task Management**: Detailed task tracking and assignment
+- **Task Management**: Detailed task tracking, assignment, and requester filtering
+- **Requested by Me**: Filter tasks where the current user is the requester
+- **Delayed Tasks Alerts**: Dashboard widget and login notification with clickable task links
 - **Budget Tracking**: Financial monitoring and analysis
 
 ### AI & Automation
@@ -92,7 +94,16 @@ Deployed at: `hexasteel.sa/ots`
 - **Google Sheets Sync**: Automated data export and synchronization
 - **PTS Sync**: External project tracking system integration
 - **Scheduled Jobs**: Automated cron-based background processing
-- **Notifications**: Real-time in-app user notifications
+- **Notifications**: Real-time in-app user notifications with actionable dropdown (complete, approve, reject inline)
+- **Global TopBar**: Persistent notification bell and logout button visible on every page
+
+### Mobile App & Push Notifications (PWA)
+- **Progressive Web App**: Installable on mobile devices via browser — no app store needed
+- **Web Push Notifications**: Real-time push notifications delivered to mobile/desktop even when the app is closed
+- **Per-Type Notification Preferences**: Users can toggle push and in-app notifications individually for each type (Task Assigned, Approval Required, Deadline Warning, etc.)
+- **Auto Service Worker Registration**: Background push handling, notification click navigation, and auto-cleanup of stale subscriptions
+- **PWA Install Prompt**: Smart install banner for mobile users
+- **Capacitor-Ready**: Architecture supports wrapping with Capacitor for future app store distribution
 
 ### User Management
 - **Role-Based Access Control**: Admin, Manager, Employee roles
@@ -127,6 +138,7 @@ Deployed at: `hexasteel.sa/ots`
 | Google Integration | googleapis 169.0.0 |
 | Scheduler | node-cron 4.2.1 |
 | Date Handling | date-fns |
+| Push Notifications | web-push (VAPID) |
 
 ---
 
@@ -191,6 +203,11 @@ DOLIBARR_API_RETRIES="3"
 # Background Jobs (optional)
 CRON_SECRET="your-cron-secret"
 ENABLE_RISK_SCHEDULER="false"        # true in production to enable automated risk detection
+
+# Push Notifications (optional — required for mobile push)
+VAPID_PUBLIC_KEY=""                  # Generate with: node scripts/generate-vapid-keys.mjs
+VAPID_PRIVATE_KEY=""
+VAPID_SUBJECT="mailto:admin@hexasteel.sa"
 ```
 
 ### 4. Database Setup
@@ -361,6 +378,7 @@ npm run db:seed          # Seed database with initial data
 npx prisma generate      # Regenerate Prisma client
 npx prisma migrate dev   # Create and apply a new migration
 npx prisma migrate deploy # Apply pending migrations (production)
+node scripts/generate-vapid-keys.mjs # Generate VAPID keys for push notifications
 ```
 
 ---
@@ -421,6 +439,6 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 2.0.0
+**Version**: 15.22.0
 **Last Updated**: March 2026
 **Repository**: https://github.com/refedo/OTS

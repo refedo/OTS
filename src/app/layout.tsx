@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/SessionProvider";
@@ -6,6 +6,7 @@ import { DialogProvider } from "@/contexts/DialogContext";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import { ChunkErrorHandler } from "@/components/ChunkErrorHandler";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ServiceWorkerProvider } from "@/components/ServiceWorkerProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +19,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hexa Steel® OTS - Operations Tracking System",
+  title: {
+    template: "Hexa Steel® OTS ™ - %s",
+    default: "Hexa Steel® OTS ™",
+  },
   description: "Comprehensive operations tracking and management system for Hexa Steel",
+  manifest: "/api/manifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Hexa Steel® OTS ™",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
@@ -37,7 +54,9 @@ export default function RootLayout({
           <ThemeProvider>
             <SessionProvider>
               <DialogProvider>
-                {children}
+                <ServiceWorkerProvider>
+                  {children}
+                </ServiceWorkerProvider>
               </DialogProvider>
             </SessionProvider>
           </ThemeProvider>

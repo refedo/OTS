@@ -2,10 +2,12 @@
 
 /**
  * Notification Panel Component
- * Displays list of notifications with tabs and actions
+ * Actionable dropdown with complete/approve/reject actions per notification.
+ * Clicking a notification marks it as read and removes it from the list.
+ * "Clear All" archives all notifications.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Bell,
@@ -15,8 +17,11 @@ import {
   CheckCircle,
   XCircle,
   Info,
-  Archive,
   ExternalLink,
+  Trash2,
+  Check,
+  X,
+  ThumbsUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,21 +39,28 @@ interface Notification {
   deadlineAt?: string;
   relatedEntityType?: string;
   relatedEntityId?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface NotificationPanelProps {
   onClose?: () => void;
 }
 
+const TYPE_FILTERS: Record<string, string> = {
+  notifications: 'isArchived=false',
+  tasks: 'type=TASK_ASSIGNED&isArchived=false',
+  approvals: 'type=APPROVAL_REQUIRED&isArchived=false',
+};
+
 export default function NotificationPanel({ onClose }: NotificationPanelProps) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notifications');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { refreshUnreadCount } = useNotifications();
 
-  const fetchNotifications = async (filters: string = '') => {
+  const fetchNotifications = useCallback(async (filters: string = '') => {
     try {
       setLoading(true);
       const response = await fetch(`/api/notifications?${filters}`);
@@ -56,106 +68,75 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
         const data = await response.json();
         setNotifications(data.notifications || []);
       }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
   }, []);
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    let filters = '';
+  useEffect(() => {
+    fetchNotifications(TYPE_FILTERS[activeTab] ?? TYPE_FILTERS.notifications);
+  }, [activeTab, fetchNotifications]);
 
-    switch (tab) {
-      case 'tasks':
-        filters = 'type=TASK_ASSIGNED&isArchived=false';
-        break;
-      case 'approvals':
-        filters = 'type=APPROVAL_REQUIRED&isArchived=false';
-        break;
-      case 'deadlines':
-        filters = 'type=DEADLINE_WARNING&isArchived=false';
-        break;
-      default:
-        filters = 'isArchived=false';
-    }
-
-    fetchNotifications(filters);
+  const removeFromList = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    refreshUnreadCount();
   };
 
-  const markAsRead = async (id: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${id}/read`, {
-        method: 'PATCH',
-      });
+  const markAsReadAndRemove = async (id: string) => {
+    await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+    removeFromList(id);
+  };
 
-      if (response.ok) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-        );
-        refreshUnreadCount();
+  const handleNotificationClick = async (notification: Notification) => {
+    await markAsReadAndRemove(notification.id);
+
+    if (notification.relatedEntityType && notification.relatedEntityId) {
+      const directRoutes: Record<string, (id: string) => string> = {
+        task: (id) => `/tasks/${id}`,
+        project: (id) => `/projects?id=${id}`,
+        rfi: (id) => `/qc/rfi?id=${id}`,
+        ncr: (id) => `/qc/ncr?id=${id}`,
+        document: (id) => `/documents?id=${id}`,
+      };
+      const buildUrl = directRoutes[notification.relatedEntityType];
+      if (buildUrl) {
+        router.push(buildUrl(notification.relatedEntityId));
+        onClose?.();
       }
-    } catch (error) {
-      console.error('Error marking as read:', error);
     }
   };
 
-  const archiveNotification = async (id: string) => {
+  const handleAction = async (
+    e: React.MouseEvent,
+    notification: Notification,
+    action: 'complete' | 'approve' | 'reject'
+  ) => {
+    e.stopPropagation();
+    setActionLoading(`${notification.id}-${action}`);
     try {
-      const response = await fetch(`/api/notifications/${id}/archive`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/notifications/${notification.id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
       });
-
       if (response.ok) {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-        refreshUnreadCount();
+        removeFromList(notification.id);
       }
-    } catch (error) {
-      console.error('Error archiving notification:', error);
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const markAllAsRead = async () => {
-    try {
-      const response = await fetch('/api/notifications/bulk-read', {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        fetchNotifications();
-        refreshUnreadCount();
-      }
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    }
+    await fetch('/api/notifications/bulk-read', { method: 'POST' });
+    fetchNotifications(TYPE_FILTERS[activeTab] ?? TYPE_FILTERS.notifications);
+    refreshUnreadCount();
   };
 
-  const handleNotificationClick = (notification: Notification) => {
-    if (!notification.isRead) {
-      markAsRead(notification.id);
-    }
-
-    // Navigate to related entity
-    if (notification.relatedEntityType && notification.relatedEntityId) {
-      const routes: Record<string, string> = {
-        task: '/tasks',
-        project: '/projects',
-        rfi: '/qc/rfi',
-        ncr: '/qc/ncr',
-        document: '/documents',
-      };
-
-      const basePath = routes[notification.relatedEntityType];
-      if (basePath) {
-        router.push(`${basePath}?id=${notification.relatedEntityId}`);
-        onClose?.();
-      }
-    }
+  const clearAll = async () => {
+    await fetch('/api/notifications/bulk-archive', { method: 'POST' });
+    setNotifications([]);
+    refreshUnreadCount();
   };
 
   const getNotificationIcon = (type: string) => {
@@ -177,124 +158,194 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
     }
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const getIconBg = (type: string) => {
+    switch (type) {
+      case 'APPROVED': return 'bg-green-100';
+      case 'REJECTED': return 'bg-red-100';
+      case 'DEADLINE_WARNING': return 'bg-orange-100';
+      case 'APPROVAL_REQUIRED': return 'bg-orange-100';
+      default: return 'bg-blue-100';
+    }
+  };
 
+  const formatTimeAgo = (dateString: string) => {
+    const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
     if (seconds < 60) return 'Just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return date.toLocaleDateString();
+    return new Date(dateString).toLocaleDateString();
   };
 
   const getDeadlineBadge = (deadlineAt?: string) => {
     if (!deadlineAt) return null;
-
-    const deadline = new Date(deadlineAt);
-    const now = new Date();
-    const hoursRemaining = Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60));
-
-    if (hoursRemaining < 0) {
-      return <span className="text-xs font-semibold text-red-600">Overdue</span>;
-    } else if (hoursRemaining < 24) {
-      return <span className="text-xs font-semibold text-red-600">{hoursRemaining}h left</span>;
-    } else if (hoursRemaining < 48) {
-      return (
-        <span className="text-xs font-semibold text-orange-600">
-          {Math.floor(hoursRemaining / 24)}d left
-        </span>
-      );
-    }
-
+    const hoursRemaining = Math.floor((new Date(deadlineAt).getTime() - Date.now()) / (1000 * 60 * 60));
+    if (hoursRemaining < 0) return <span className="text-xs font-semibold text-red-600">Overdue</span>;
+    if (hoursRemaining < 24) return <span className="text-xs font-semibold text-red-600">{hoursRemaining}h left</span>;
+    if (hoursRemaining < 48) return <span className="text-xs font-semibold text-orange-600">{Math.floor(hoursRemaining / 24)}d left</span>;
     return null;
   };
 
+  const canComplete = (n: Notification) =>
+    n.relatedEntityType === 'task' && n.type === 'TASK_ASSIGNED';
+  const canApproveReject = (n: Notification) =>
+    n.relatedEntityType === 'task' && n.type === 'APPROVAL_REQUIRED';
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
   return (
-    <div className="flex flex-col h-[500px]">
+    <div className="flex flex-col h-[520px]">
       {/* Header */}
       <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-base">Notifications</h3>
-          <Button 
-            variant="link" 
-            size="sm" 
-            onClick={markAllAsRead}
-            className="text-blue-600 hover:text-blue-700 p-0 h-auto font-normal"
-          >
-            Mark as read
-          </Button>
+          <h3 className="font-semibold text-base">
+            Notifications
+            {unreadCount > 0 && (
+              <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                {unreadCount}
+              </span>
+            )}
+          </h3>
+          <div className="flex items-center gap-1">
+            {notifications.length > 0 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={markAllAsRead}
+                  className="text-xs text-blue-600 hover:text-blue-700 h-7 px-2"
+                >
+                  Mark all read
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAll}
+                  className="text-xs text-red-500 hover:text-red-600 h-7 px-2"
+                  title="Clear all notifications"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
-        <TabsList className="w-full justify-start rounded-none border-b px-4 bg-transparent h-auto p-0">
-          <TabsTrigger 
-            value="notifications" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-4 py-2"
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex-1 flex flex-col overflow-hidden"
+      >
+        <TabsList className="w-full justify-start rounded-none border-b px-4 bg-transparent h-auto p-0 shrink-0">
+          <TabsTrigger
+            value="notifications"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-3 py-2 text-xs"
           >
-            Notifications
+            All
           </TabsTrigger>
-          <TabsTrigger 
-            value="tasks" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-4 py-2"
+          <TabsTrigger
+            value="tasks"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-3 py-2 text-xs"
           >
             Tasks
           </TabsTrigger>
-          <TabsTrigger 
-            value="approvals" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-4 py-2"
+          <TabsTrigger
+            value="approvals"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-3 py-2 text-xs"
           >
             Approvals
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeTab} className="flex-1 m-0">
+        <TabsContent value={activeTab} className="flex-1 m-0 overflow-hidden">
           <ScrollArea className="h-full">
             {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading...</div>
+              <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                <Bell className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                <p>No notifications</p>
+                <Bell className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">No notifications</p>
               </div>
             ) : (
               <div className="divide-y">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${
-                      !notification.isRead ? 'border-l-green-500 bg-green-50/30' : 'border-l-transparent'
+                    className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors border-l-4 ${
+                      !notification.isRead
+                        ? 'border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/20'
+                        : 'border-l-transparent'
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex gap-3">
                       <div className="flex-shrink-0 mt-0.5">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          notification.type === 'APPROVED' ? 'bg-green-100' :
-                          notification.type === 'REJECTED' ? 'bg-blue-100' :
-                          notification.type === 'DEADLINE_WARNING' ? 'bg-orange-100' :
-                          'bg-blue-100'
-                        }`}>
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center ${getIconBg(notification.type)}`}
+                        >
                           {getNotificationIcon(notification.type)}
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-sm text-gray-900 mb-0.5">
-                              {notification.title}
-                            </h4>
-                            <p className="text-sm text-gray-600 line-clamp-2 mb-1">
-                              {notification.message}
-                            </p>
-                            <span className="text-xs text-gray-500">
-                              {formatTimeAgo(notification.createdAt)}
-                            </span>
-                          </div>
+                        <div className="flex items-start justify-between gap-1">
+                          <h4 className="font-medium text-xs text-foreground leading-tight">
+                            {notification.title}
+                            {!notification.isRead && (
+                              <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" />
+                            )}
+                          </h4>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {formatTimeAgo(notification.createdAt)}
+                          </span>
                         </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                          {notification.message}
+                        </p>
+                        {getDeadlineBadge(notification.deadlineAt)}
+
+                        {/* Action buttons */}
+                        {(canComplete(notification) || canApproveReject(notification)) && (
+                          <div className="flex gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
+                            {canComplete(notification) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-[10px] text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                                disabled={actionLoading === `${notification.id}-complete`}
+                                onClick={(e) => handleAction(e, notification, 'complete')}
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                Complete
+                              </Button>
+                            )}
+                            {canApproveReject(notification) && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[10px] text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                                  disabled={actionLoading === `${notification.id}-approve`}
+                                  onClick={(e) => handleAction(e, notification, 'approve')}
+                                >
+                                  <ThumbsUp className="h-3 w-3 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[10px] text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                                  disabled={actionLoading === `${notification.id}-reject`}
+                                  onClick={(e) => handleAction(e, notification, 'reject')}
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -307,17 +358,18 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
 
       {/* Footer */}
       <Separator />
-      <div className="p-3">
+      <div className="p-2">
         <Button
           variant="ghost"
-          className="w-full justify-between"
+          size="sm"
+          className="w-full justify-between text-xs"
           onClick={() => {
             router.push('/notifications');
             onClose?.();
           }}
         >
           View all notifications
-          <ExternalLink className="h-4 w-4" />
+          <ExternalLink className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>

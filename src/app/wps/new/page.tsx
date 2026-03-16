@@ -3,6 +3,11 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
 import { WPSForm } from '@/components/wps-form';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'New WPS',
+};
+
 
 export default async function NewWPSPage() {
   const store = await cookies();

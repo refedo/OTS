@@ -4,6 +4,11 @@ import { redirect, notFound } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
 import prisma from '@/lib/db';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Edit Task',
+};
+
 
 export default async function EditTaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/db';
+import { logger } from '@/lib/logger';
+import { withApiContext } from '@/lib/api-utils';
 
 // GET - Fetch SWOT Analysis by year
-export async function GET(request: NextRequest) {
+export const GET = withApiContext(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year');
 
     if (year) {
-      const swot = await prisma.swotAnalysis.findUnique({
+      const swot = await prisma.swotAnalysis.findFirst({
         where: { year: parseInt(year) },
       });
       return NextResponse.json(swot || null);
@@ -21,22 +23,22 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(swots);
   } catch (error) {
-    console.error('Error fetching SWOT analysis:', error);
+    logger.error({ error }, 'Error fetching SWOT analysis');
     return NextResponse.json(
       { error: 'Failed to fetch SWOT analysis' },
       { status: 500 }
     );
   }
-}
+});
 
 // POST - Create or Update SWOT Analysis
-export async function POST(request: NextRequest) {
+export const POST = withApiContext(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { year, strengths, weaknesses, opportunities, threats, strategies } = body;
 
     // Check if SWOT for this year exists
-    const existing = await prisma.swotAnalysis.findUnique({
+    const existing = await prisma.swotAnalysis.findFirst({
       where: { year: parseInt(year) },
     });
 
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       // Update existing
       swot = await prisma.swotAnalysis.update({
-        where: { year: parseInt(year) },
+        where: { id: existing.id },
         data: {
           strengths,
           weaknesses,
@@ -69,16 +71,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(swot);
   } catch (error) {
-    console.error('Error saving SWOT analysis:', error);
+    logger.error({ error }, 'Error saving SWOT analysis');
     return NextResponse.json(
       { error: 'Failed to save SWOT analysis' },
       { status: 500 }
     );
   }
-}
+});
 
 // DELETE - Delete SWOT Analysis
-export async function DELETE(request: NextRequest) {
+export const DELETE = withApiContext(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year');
@@ -90,16 +92,27 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.swotAnalysis.delete({
+    const existing = await prisma.swotAnalysis.findFirst({
       where: { year: parseInt(year) },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'SWOT analysis not found' },
+        { status: 404 }
+      );
+    }
+
+    await prisma.swotAnalysis.delete({
+      where: { id: existing.id },
     });
 
     return NextResponse.json({ message: 'SWOT analysis deleted successfully' });
   } catch (error) {
-    console.error('Error deleting SWOT analysis:', error);
+    logger.error({ error }, 'Error deleting SWOT analysis');
     return NextResponse.json(
       { error: 'Failed to delete SWOT analysis' },
       { status: 500 }
     );
   }
-}
+});

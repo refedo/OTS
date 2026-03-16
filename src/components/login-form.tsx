@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import { CURRENT_VERSION } from '@/lib/version';
 
 export function LoginForm() {
   const router = useRouter();
@@ -49,10 +50,10 @@ export function LoginForm() {
         });
         if (res.ok) {
           const data = await res.json();
-          setVersion(data.version || '15.18.3');
+          setVersion(data.version || CURRENT_VERSION);
         }
       } catch (error) {
-        setVersion('15.18.3');
+        setVersion(CURRENT_VERSION);
       }
     };
     
@@ -106,7 +107,7 @@ export function LoginForm() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#2c3e50' }}>
       {/* System Header */}
       <div className="text-center py-3">
-        <span className="text-slate-400 text-sm">Operations Tracking System v{version || '15.18.3'}</span>
+        <span className="text-slate-400 text-sm">Operations Tracking System v{version || CURRENT_VERSION}</span>
       </div>
 
       {/* Main Content */}
@@ -225,9 +226,6 @@ export function LoginForm() {
         <p className="text-white font-medium mt-4">
           Hexa Steel<sup>®</sup> — <span className="italic">"Forward Thinking"</span>
         </p>
-        <div className="text-xs text-muted-foreground">
-          v15.18.3 • March 5, 2026
-        </div>
       </div>
     </div>
   );

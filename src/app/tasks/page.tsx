@@ -4,10 +4,16 @@ import { redirect } from 'next/navigation';
 import { TasksClient } from '@/components/tasks-client';
 import prisma from '@/lib/db';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'Tasks',
+};
+
 
 export default async function TasksPage({ searchParams }: { searchParams: Promise<{ filter?: string; project?: string }> }) {
   const params = await searchParams;
   const filterMyTasks = params.filter === 'my-tasks';
+  const filterRequesterTasks = params.filter === 'requested-by-me';
   const projectId = params.project;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
@@ -74,6 +80,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       allDepartments={departments}
       userPermissions={userPermissions}
       filterMyTasks={filterMyTasks}
+      filterRequesterTasks={filterRequesterTasks}
       initialProjectFilter={projectId}
     />
   );

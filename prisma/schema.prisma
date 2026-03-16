@@ -125,6 +125,8 @@ model User {
   raisedWeeklyIssues WeeklyIssue[] @relation("WeeklyIssueRaisedBy")
   assignedWeeklyIssues WeeklyIssue[] @relation("WeeklyIssueAssignedTo")
   notifications      Notification[] @relation("UserNotifications")
+  pushSubscriptions  PushSubscription[] @relation("UserPushSubscriptions")
+  notificationPreferences UserNotificationPreference[] @relation("UserNotificationPreferences")
   dashboardWidgets   UserDashboardWidget[] @relation("UserDashboardWidgets")
   workOrdersEngineered WorkOrder[] @relation("WorkOrderEngineer")
   createdWorkOrders  WorkOrder[] @relation("WorkOrderCreatedBy")
@@ -2299,6 +2301,43 @@ model Notification {
   @@index([createdAt])
   @@index([deadlineAt])
   @@map("notifications")
+}
+
+// ============================================
+// PUSH SUBSCRIPTIONS & NOTIFICATION PREFERENCES
+// ============================================
+
+model PushSubscription {
+  id         String   @id @default(uuid()) @db.Char(36)
+  userId     String   @db.Char(36)
+  endpoint   String   @db.Text
+  p256dh     String   @db.Text
+  auth       String   @db.VarChar(255)
+  userAgent  String?  @db.VarChar(512)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation("UserPushSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint(length: 500)])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+model UserNotificationPreference {
+  id                String           @id @default(uuid()) @db.Char(36)
+  userId            String           @db.Char(36)
+  notificationType  NotificationType
+  pushEnabled       Boolean          @default(true)
+  inAppEnabled      Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user              User             @relation("UserNotificationPreferences", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationType])
+  @@index([userId])
+  @@map("user_notification_preferences")
 }
 
 // ============================================

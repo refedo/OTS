@@ -6,6 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Search, MoreVertical, Mail, Building2, Shield } from 'lucide-react';
 import Link from 'next/link';
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: 'User Management',
+};
+
 
 export default async function UsersPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
