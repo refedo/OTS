@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.24.0] - 2026-03-16
+
+### Parts Upload Enhancements & Bug Fixes
+
+#### Added
+- **CSV File Support** — Upload page now accepts `.csv` files in addition to `.xls` and `.xlsx`; CSV is read as text and parsed via the XLSX library
+- **Header Row Selector** — New numeric input (default: 1) lets you specify which row contains column names; column mapping and preview update live on change; handles files where the header is not on the first row
+- **Rollback Upload** — After a successful bulk upload a *Rollback Upload* button appears; clicking it soft-deletes all uploaded parts (`deletedAt` set) so the batch can be recovered from the Governance page; requires `production.delete_parts` permission; the rollback is logged as a system event
+- **`POST /api/production/assembly-parts/rollback`** — New endpoint that accepts `{ partIds, projectId }` and soft-deletes the specified parts
+- **`POST /api/user/tips-dismissed`** — New endpoint that writes a `tipsDismissed_<key>` flag into the user's `customPermissions` to persist feature-tip dismissals across devices and sessions
+
+#### Fixed
+- **Parts Upload 403 Forbidden** — Upload API was checking `production.upload_parts` (which does not exist); fixed to use the correct key `production.create_parts`
+- **Part Mark now optional** — Bulk upload no longer fails when the Part Mark column is absent or unmapped; `partMark` defaults to an empty string and the part designation is generated without a trailing dash
+- **Tasks "New Features" tips keep returning** — Dismissed state is now saved server-side in the user's `customPermissions`; dismissal persists across browser sessions, private windows, and different devices
+
+#### Improved
+- Bulk upload logs `entityType: 'AssemblyPart'` and the full `partIds` array in system events for downstream traceability (e.g. rollback)
+- Bulk upload now also writes one `logActivity` (CREATE) record to the Governance audit trail in addition to the system event
+- Upload error messages are now more descriptive; 403 responses show a clear "You do not have permission" message instead of a generic failure
+
+---
+
 ## [15.23.0] - 2026-03-16
 
 ### Simple Tasks View
