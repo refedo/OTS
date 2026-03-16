@@ -24,7 +24,7 @@ const DB_FIELDS = [
   { value: '', label: '-- Do Not Import --' },
   { value: 'assemblyMark', label: 'Assembly Mark *', required: true },
   { value: 'subAssemblyMark', label: 'Sub-Assembly Mark' },
-  { value: 'partMark', label: 'Part Mark *', required: true },
+  { value: 'partMark', label: 'Part Mark' },
   { value: 'quantity', label: 'Quantity *', required: true },
   { value: 'name', label: 'Name *', required: true },
   { value: 'profile', label: 'Profile' },
@@ -182,7 +182,7 @@ export default function UploadPartsPage() {
     }
 
     // Validate required mappings
-    const requiredFields = ['assemblyMark', 'partMark', 'quantity', 'name'];
+    const requiredFields = ['assemblyMark', 'quantity', 'name'];
     const mappedFields = Object.values(columnMapping);
     const missingFields = requiredFields.filter(field => !mappedFields.includes(field));
     
@@ -245,15 +245,18 @@ export default function UploadPartsPage() {
         const result = await response.json();
         setUploadResult(result);
         toast({ title: 'Upload Complete', description: `${result.success} parts uploaded successfully` });
-        
+
         if (result.failed === 0) {
           setTimeout(() => {
             router.push('/production/assembly-parts');
           }, 2000);
         }
       } else {
-        const error = await response.json();
-        toast({ title: 'Upload Failed', description: error.error || 'Upload failed', variant: 'destructive' });
+        const errorBody = await response.json().catch(() => ({}));
+        const description = response.status === 403
+          ? 'You do not have permission to upload parts. Contact your administrator.'
+          : errorBody.error || `Upload failed (${response.status})`;
+        toast({ title: 'Upload Failed', description, variant: 'destructive' });
       }
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -289,10 +292,10 @@ export default function UploadPartsPage() {
                 1. Download the Excel template and fill in your assembly parts data
               </p>
               <p className="text-sm text-muted-foreground">
-                2. Required columns: Assembly Mark, Part Mark, Quantity, Name
+                2. Required columns: Assembly Mark, Quantity, Name
               </p>
               <p className="text-sm text-muted-foreground">
-                3. Optional columns: Sub-Assembly Mark, Profile, Grade, Length, Weight, Area
+                3. Optional columns: Part Mark, Sub-Assembly Mark, Profile, Grade, Length, Weight, Area
               </p>
               <p className="text-sm text-muted-foreground">
                 4. Select project and building, then upload your completed file

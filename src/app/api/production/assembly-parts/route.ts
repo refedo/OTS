@@ -5,13 +5,14 @@ import { cookies } from 'next/headers';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { verifySession } from '@/lib/jwt';
 import { logActivity, logSystemEvent } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
 
 const assemblyPartSchema = z.object({
   projectId: z.string().uuid(),
   buildingId: z.string().uuid().optional().nullable(),
   assemblyMark: z.string().min(1),
   subAssemblyMark: z.string().optional().nullable(),
-  partMark: z.string().min(1),
+  partMark: z.string().optional().nullable(),
   quantity: z.number().int().min(1),
   name: z.string().min(1),
   profile: z.string().optional().nullable(),
@@ -24,9 +25,9 @@ const assemblyPartSchema = z.object({
 });
 
 async function generatePartDesignation(
-  projectId: string, 
-  buildingId: string | null, 
-  partMark: string
+  projectId: string,
+  buildingId: string | null,
+  partMark: string | null | undefined
 ): Promise<string> {
   // Get project number
   const project = await prisma.project.findUnique({
@@ -49,7 +50,9 @@ async function generatePartDesignation(
   }
 
   // Base designation: ProjectNumber-BuildingDesignation-PartMark (e.g., "274-EXT-A1")
-  const baseDesignation = `${project.projectNumber}${buildingDesignation}-${partMark}`;
+  const baseDesignation = partMark
+    ? `${project.projectNumber}${buildingDesignation}-${partMark}`
+    : `${project.projectNumber}${buildingDesignation}`;
   
   // Check if this designation already exists
   const existingPart = await prisma.assemblyPart.findUnique({
@@ -212,7 +215,7 @@ export async function GET(req: Request) {
       },
     });
   } catch (error) {
-    console.error('Error fetching assembly parts:', error);
+    logger.error({ error }, 'Error fetching assembly parts');
     return NextResponse.json({ 
       error: 'Failed to fetch assembly parts', 
       message: error instanceof Error ? error.message : 'Unknown error' 
@@ -231,7 +234,7 @@ export async function POST(req: Request) {
     }
 
     const permissions = await getCurrentUserPermissions();
-    if (!permissions.includes('production.upload_parts')) {
+    if (!permissions.includes('production.create_parts')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -264,6 +267,7 @@ export async function POST(req: Request) {
           const assemblyPart = await prisma.assemblyPart.create({
             data: {
               ...parsed.data,
+              partMark: parsed.data.partMark ?? '',
               partDesignation,
               createdById: session.sub,
             },
@@ -322,6 +326,7 @@ export async function POST(req: Request) {
     const assemblyPart = await prisma.assemblyPart.create({
       data: {
         ...parsed.data,
+        partMark: parsed.data.partMark ?? '',
         partDesignation,
         createdById: session.sub,
       },
@@ -348,7 +353,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(assemblyPart, { status: 201 });
   } catch (error) {
-    console.error('Error creating assembly part:', error);
+    logger.error({ error }, 'Error creating assembly part');
     return NextResponse.json({ 
       error: 'Failed to create assembly part', 
       message: error instanceof Error ? error.message : 'Unknown error' 
