@@ -40,8 +40,15 @@ self.addEventListener('push', (event) => {
     };
   }
 
+  // iOS Safari doesn't support notification actions — append a tap hint
+  let body = data.body || data.message || '';
+  const supportsActions = 'actions' in Notification.prototype;
+  if (!supportsActions && data.actions && data.actions.length > 0) {
+    body += '\nTap to open and take action.';
+  }
+
   const options = {
-    body: data.body || data.message || '',
+    body,
     icon: data.icon || '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
     tag: data.tag || data.notificationId || 'ots-notification',
@@ -53,7 +60,7 @@ self.addEventListener('push', (event) => {
       relatedEntityType: data.relatedEntityType,
       relatedEntityId: data.relatedEntityId,
     },
-    actions: data.actions || [],
+    actions: supportsActions ? (data.actions || []) : [],
     vibrate: [200, 100, 200],
     requireInteraction: data.requireInteraction || false,
   };
@@ -138,17 +145,22 @@ async function handleNotificationAction(action, notifData) {
  * Navigate to a URL, reusing an existing window if possible
  */
 function navigateToUrl(url) {
+  // Ensure we have a full absolute URL for both navigate() and openWindow()
+  const fullUrl = url.startsWith('http') ? url : new URL(url, self.location.origin).href;
+
   return self.clients
     .matchAll({ type: 'window', includeUncontrolled: true })
     .then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.focus();
-          client.navigate(url);
-          return;
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          return client.focus().then((focusedClient) => {
+            if (focusedClient && 'navigate' in focusedClient) {
+              return focusedClient.navigate(fullUrl);
+            }
+          });
         }
       }
-      return self.clients.openWindow(url);
+      return self.clients.openWindow(fullUrl);
     });
 }
 
