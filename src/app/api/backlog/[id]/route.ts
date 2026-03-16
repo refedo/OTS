@@ -93,6 +93,7 @@ export async function PATCH(
     if (body.businessReason !== undefined) updateData.businessReason = body.businessReason;
     if (body.expectedValue !== undefined) updateData.expectedValue = body.expectedValue;
     if (body.affectedModules !== undefined) updateData.affectedModules = body.affectedModules;
+    if (body.attachments !== undefined) updateData.attachments = body.attachments;
     if (body.riskLevel !== undefined) updateData.riskLevel = body.riskLevel;
     if (body.complianceFlag !== undefined) updateData.complianceFlag = body.complianceFlag;
     if (body.linkedObjectiveId !== undefined) updateData.linkedObjectiveId = body.linkedObjectiveId;
