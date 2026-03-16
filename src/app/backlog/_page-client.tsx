@@ -186,7 +186,7 @@ export default function BacklogBoard() {
       icon: <ShieldCheck className="size-5" />,
       color: 'text-purple-600',
       bg: 'bg-purple-100',
-      filter: { key: 'status', value: '' },
+      filter: null,
     },
   ];
 
@@ -225,7 +225,11 @@ export default function BacklogBoard() {
             <Card
               key={s.label}
               className={`border-0 shadow-sm transition-all ${s.filter ? 'cursor-pointer hover:shadow-md hover:scale-[1.02]' : ''}`}
-              onClick={s.filter ? () => setFilters(prev => ({ ...prev, [s.filter!.key]: prev[s.filter!.key as keyof typeof prev] === s.filter!.value ? '' : s.filter!.value })) : undefined}
+              onClick={s.filter ? (() => {
+                const fk = s.filter!.key as keyof typeof filters;
+                const fv = s.filter!.value;
+                setFilters(prev => ({ ...prev, [fk]: prev[fk] === fv ? '' : fv }));
+              }) : undefined}
             >
               <CardContent className="p-4 flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${s.bg} ${s.color}`}>{s.icon}</div>

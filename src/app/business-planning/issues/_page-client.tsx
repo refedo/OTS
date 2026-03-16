@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertTriangle, Plus, User, Calendar, Table, LayoutGrid, Edit, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Plus, User, Calendar, Table, LayoutGrid, Edit, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function WeeklyIssuesPage() {
@@ -18,6 +18,7 @@ export default function WeeklyIssuesPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'issueNumber', dir: 'desc' });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIssue, setEditingIssue] = useState<any>(null);
   const [saving, setSaving] = useState(false);
@@ -257,9 +258,48 @@ export default function WeeklyIssuesPage() {
   const statuses = ['Open', 'In Progress', 'Resolved', 'Closed'];
   const priorities = ['Critical', 'High', 'Medium', 'Low'];
 
-  const filteredIssues = filter === 'all' 
-    ? issues 
+  const filteredIssues = filter === 'all'
+    ? issues
     : issues.filter(issue => issue.status === filter);
+
+  const handleSort = (key: string) => {
+    setSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+  };
+
+  const PRIORITY_ORDER: Record<string, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+  const STATUS_ORDER: Record<string, number> = { Open: 0, 'In Progress': 1, Resolved: 2, Closed: 3 };
+
+  const sortedIssues = [...filteredIssues].sort((a, b) => {
+    const mul = sort.dir === 'asc' ? 1 : -1;
+    switch (sort.key) {
+      case 'issueNumber': return mul * (a.issueNumber - b.issueNumber);
+      case 'title':       return mul * a.title.localeCompare(b.title);
+      case 'priority':    return mul * ((PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9));
+      case 'status':      return mul * ((STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
+      case 'assignedTo':  return mul * (a.assignedTo?.name ?? '').localeCompare(b.assignedTo?.name ?? '');
+      case 'raisedBy':    return mul * (a.raisedBy?.name ?? '').localeCompare(b.raisedBy?.name ?? '');
+      case 'department':  return mul * (a.department?.name ?? '').localeCompare(b.department?.name ?? '');
+      case 'dueDate':     return mul * (new Date(a.dueDate ?? 0).getTime() - new Date(b.dueDate ?? 0).getTime());
+      case 'meetingDate': return mul * (new Date(a.meetingDate ?? 0).getTime() - new Date(b.meetingDate ?? 0).getTime());
+      default: return 0;
+    }
+  });
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sort.key !== col) return <ChevronsUpDown className="size-3 opacity-40 inline ml-1" />;
+    return sort.dir === 'asc'
+      ? <ChevronUp className="size-3 inline ml-1" />
+      : <ChevronDown className="size-3 inline ml-1" />;
+  };
+
+  const SortTh = ({ col, label, className = '' }: { col: string; label: string; className?: string }) => (
+    <th
+      onClick={() => handleSort(col)}
+      className={`text-left p-3 font-medium cursor-pointer select-none hover:bg-muted/80 transition-colors whitespace-nowrap ${className}`}
+    >
+      {label}<SortIcon col={col} />
+    </th>
+  );
 
   if (loading) {
     return (
@@ -533,26 +573,27 @@ export default function WeeklyIssuesPage() {
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="text-left p-3 font-medium">#</th>
-                    <th className="text-left p-3 font-medium">Title</th>
-                    <th className="text-left p-3 font-medium">Priority</th>
-                    <th className="text-left p-3 font-medium">Status</th>
-                    <th className="text-left p-3 font-medium">Assigned To</th>
-                    <th className="text-left p-3 font-medium">Department</th>
-                    <th className="text-left p-3 font-medium">Due Date</th>
-                    <th className="text-left p-3 font-medium">Meeting Date</th>
+                    <SortTh col="issueNumber"  label="#" />
+                    <SortTh col="title"        label="Title" />
+                    <SortTh col="priority"     label="Priority" />
+                    <SortTh col="status"       label="Status" />
+                    <SortTh col="raisedBy"     label="Raised By" />
+                    <SortTh col="assignedTo"   label="Assigned To" />
+                    <SortTh col="department"   label="Department" />
+                    <SortTh col="dueDate"      label="Due Date" />
+                    <SortTh col="meetingDate"  label="Meeting Date" />
                     <th className="text-left p-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredIssues.length === 0 ? (
+                  {sortedIssues.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center p-8 text-muted-foreground">
+                      <td colSpan={10} className="text-center p-8 text-muted-foreground">
                         No issues found
                       </td>
                     </tr>
                   ) : (
-                    filteredIssues.map((issue) => (
+                    sortedIssues.map((issue) => (
                       <tr key={issue.id} className="border-b hover:bg-muted/50">
                         <td className="p-3">
                           <span className="font-mono text-sm font-semibold">#{issue.issueNumber}</span>
@@ -576,6 +617,9 @@ export default function WeeklyIssuesPage() {
                           <Badge className={getStatusColor(issue.status)}>
                             {issue.status}
                           </Badge>
+                        </td>
+                        <td className="p-3 text-sm">
+                          {issue.raisedBy?.name || '-'}
                         </td>
                         <td className="p-3 text-sm">
                           {issue.assignedTo?.name || 'Unassigned'}

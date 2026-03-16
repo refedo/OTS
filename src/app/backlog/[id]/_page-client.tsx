@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSessionValidator } from '@/hooks/use-session-validator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload } from 'lucide-react';
 
 interface BacklogItem {
   id: string;
@@ -71,6 +71,8 @@ export default function BacklogItemDetail() {
     priority: 'MEDIUM',
   });
   const [creatingTask, setCreatingTask] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (params.id) {
@@ -208,6 +210,43 @@ export default function BacklogItemDetail() {
     }
   };
 
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!item || !e.target.files || e.target.files.length === 0) return;
+    setUploadingAttachment(true);
+    const newAttachments = [...(item.attachments ?? [])];
+    try {
+      for (const file of Array.from(e.target.files)) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+        if (res.ok) {
+          const data = await res.json();
+          newAttachments.push({
+            fileName: data.originalName,
+            filePath: data.filePath,
+            fileType: data.fileType,
+            fileSize: data.fileSize,
+            uploadedAt: new Date().toISOString(),
+          });
+        } else {
+          const err = await res.json();
+          showConfirmation({ type: 'error', title: 'Upload Failed', message: err.error || `Failed to upload ${file.name}` });
+        }
+      }
+      const patch = await fetch(`/api/backlog/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attachments: newAttachments }),
+      });
+      if (patch.ok) {
+        fetchBacklogItem();
+      }
+    } finally {
+      setUploadingAttachment(false);
+      if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    }
+  };
+
   if (isValidating || loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -339,16 +378,39 @@ export default function BacklogItemDetail() {
 
 
             {/* Attachments */}
-            {item.attachments && item.attachments.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Paperclip className="size-5" />
-                    Attachments ({item.attachments.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {item.attachments.map((file, index) => {
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="size-5" />
+                  Attachments ({item.attachments?.length ?? 0})
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={uploadingAttachment}
+                  onClick={() => attachmentInputRef.current?.click()}
+                >
+                  {uploadingAttachment ? (
+                    <><Upload className="size-4 animate-pulse" /> Uploading...</>
+                  ) : (
+                    <><Paperclip className="size-4" /> Add Files</>
+                  )}
+                </Button>
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif,.webp,.svg"
+                  onChange={handleAttachmentUpload}
+                />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {!item.attachments || item.attachments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">No attachments yet. Click &quot;Add Files&quot; to upload documents or images.</p>
+                ) : (
+                  item.attachments.map((file, index) => {
                     const isImage = file.fileType.startsWith('image/');
                     return (
                       <div
@@ -377,10 +439,10 @@ export default function BacklogItemDetail() {
                         </a>
                       </div>
                     );
-                  })}
-                </CardContent>
-              </Card>
-            )}
+                  })
+                )}
+              </CardContent>
+            </Card>
 
             {/* Linked Tasks */}
             <Card>
