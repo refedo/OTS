@@ -281,19 +281,37 @@ export async function POST(req: Request) {
         }
       }
 
-      // Log bulk import event
+      // Log bulk import event to system events and governance audit trail
       if (results.length > 0) {
+        const uploadedIds = results.map((p: { id: string }) => p.id);
         await logSystemEvent({
           eventType: 'imported',
           category: 'production',
           title: `Bulk imported ${results.length} assembly parts`,
           description: `Successfully imported ${results.length} assembly parts${errors.length > 0 ? `, ${errors.length} failed` : ''}`,
+          entityType: 'AssemblyPart',
           userId: session.sub,
           projectId: results[0]?.projectId,
-          metadata: { 
-            successCount: results.length, 
+          metadata: {
+            successCount: results.length,
             failedCount: errors.length,
-            partDesignations: results.slice(0, 10).map((p: any) => p.partDesignation),
+            partIds: uploadedIds,
+            partDesignations: results.slice(0, 10).map((p: { partDesignation: string }) => p.partDesignation),
+          },
+        });
+
+        await logActivity({
+          action: 'CREATE',
+          entityType: 'AssemblyPart',
+          entityId: results[0]?.projectId ?? results[0]?.id,
+          entityName: `Bulk import — ${results.length} parts`,
+          userId: session.sub,
+          projectId: results[0]?.projectId,
+          metadata: {
+            bulkImport: true,
+            successCount: results.length,
+            failedCount: errors.length,
+            partIds: uploadedIds,
           },
         });
       }
