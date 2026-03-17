@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
+import { SUB_ACTIVITY_DEPENDENCIES } from '@/lib/activity-constants';
 
 import NotificationService from '@/lib/services/notification.service';
 
@@ -16,6 +17,8 @@ const updateSchema = z.object({
   projectId: z.string().uuid().optional().nullable(),
   buildingId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
+  mainActivity: z.string().optional().nullable(),
+  subActivity: z.string().optional().nullable(),
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
   releaseDate: z.string().optional().nullable(),
@@ -275,6 +278,35 @@ export async function PATCH(
       updateData.isCeoTask = parsed.data.isCeoTask;
     } else {
       delete updateData.isCeoTask;
+    }
+  }
+
+  // Check finish-to-start dependency warning when status is being advanced
+  let dependencyWarning: string | undefined;
+  const newStatus = parsed.data.status;
+  const taskSubActivity = parsed.data.subActivity ?? task.subActivity;
+  const taskProjectId = parsed.data.projectId ?? task.projectId;
+  const taskBuildingId = parsed.data.buildingId ?? task.buildingId;
+
+  if (
+    newStatus &&
+    ['In Progress', 'Waiting for Approval', 'Completed'].includes(newStatus) &&
+    taskSubActivity
+  ) {
+    const predecessorSubActivity = SUB_ACTIVITY_DEPENDENCIES[taskSubActivity];
+    if (predecessorSubActivity) {
+      const predecessorTask = await prisma.task.findFirst({
+        where: {
+          subActivity: predecessorSubActivity,
+          projectId: taskProjectId ?? undefined,
+          buildingId: taskBuildingId ?? undefined,
+          status: { not: 'Completed' },
+        },
+        select: { id: true, title: true, status: true, subActivity: true },
+      });
+      if (predecessorTask) {
+        dependencyWarning = `Predecessor activity "${predecessorTask.title}" (${predecessorSubActivity.replace(/_/g, ' ')}) is not yet completed.`;
+      }
     }
   }
 
@@ -550,7 +582,7 @@ export async function PATCH(
   // Execute all audit logs (non-blocking)
   Promise.all(auditPromises).catch(err => console.error('Audit logging failed:', err));
 
-  return NextResponse.json(updatedTask);
+  return NextResponse.json({ ...updatedTask, ...(dependencyWarning ? { dependencyWarning } : {}) });
 }
 
 export async function DELETE(

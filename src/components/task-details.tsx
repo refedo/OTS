@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity } from 'lucide-react';
+import { getMainActivityLabel, getSubActivityLabel } from '@/lib/activity-constants';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import {
@@ -34,6 +35,8 @@ type Task = {
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; designation: string; name: string } | null;
   department: { id: string; name: string } | null;
+  mainActivity: string | null;
+  subActivity: string | null;
   completedAt: string | null;
   completedBy: { id: string; name: string; email: string; position: string | null } | null;
   approvedAt: string | null;
@@ -126,6 +129,8 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
       projectId: 'Project',
       buildingId: 'Building',
       departmentId: 'Department',
+      mainActivity: 'Main Activity',
+      subActivity: 'Sub-Activity',
       taskInputDate: 'Input Date',
       dueDate: 'Due Date',
       releaseDate: 'Release Date',
@@ -583,6 +588,26 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                     <p className="font-medium">{task.project.projectNumber}</p>
                     <p className="text-sm text-muted-foreground">{task.project.name}</p>
                   </Link>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Activity */}
+            {task.mainActivity && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Activity className="size-4" />
+                    Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  <p className="font-medium">{getMainActivityLabel(task.mainActivity)}</p>
+                  {task.subActivity && (
+                    <p className="text-sm text-muted-foreground">
+                      {getSubActivityLabel(task.mainActivity, task.subActivity)}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}

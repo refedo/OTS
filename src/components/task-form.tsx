@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, AlertTriangle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { MAIN_ACTIVITIES, SUB_ACTIVITIES, SUB_ACTIVITY_DEPENDENCIES, getSubActivityLabel } from '@/lib/activity-constants';
 
 type User = {
   id: string;
@@ -46,6 +47,8 @@ type Task = {
   projectId: string | null;
   buildingId?: string | null;
   departmentId?: string | null;
+  mainActivity?: string | null;
+  subActivity?: string | null;
   dueDate: string | null;
   releaseDate?: string | null;
   priority: string;
@@ -72,9 +75,18 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(task?.departmentId || '');
   const [selectedProjectId, setSelectedProjectId] = useState(task?.projectId || '');
   const [selectedBuildingId, setSelectedBuildingId] = useState(task?.buildingId || '');
+  const [selectedMainActivity, setSelectedMainActivity] = useState(task?.mainActivity || '');
+  const [selectedSubActivity, setSelectedSubActivity] = useState(task?.subActivity || '');
   const [isPrivate, setIsPrivate] = useState(task?.isPrivate || false);
   const [priority, setPriority] = useState(task?.priority || 'Medium');
   const [status, setStatus] = useState(task?.status || 'In Progress');
+
+  const subActivities = selectedMainActivity ? (SUB_ACTIVITIES[selectedMainActivity] ?? []) : [];
+
+  const predecessorKey = selectedSubActivity ? SUB_ACTIVITY_DEPENDENCIES[selectedSubActivity] : undefined;
+  const predecessorLabel = predecessorKey && selectedMainActivity
+    ? getSubActivityLabel(selectedMainActivity, predecessorKey)
+    : undefined;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,6 +102,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       projectId: (formData.get('projectId') as string) || null,
       buildingId: (formData.get('buildingId') as string) || null,
       departmentId: (formData.get('departmentId') as string) || null,
+      mainActivity: selectedMainActivity || null,
+      subActivity: selectedSubActivity || null,
       taskInputDate: (formData.get('taskInputDate') as string) || null,
       dueDate: formData.get('dueDate') as string,
       releaseDate: (formData.get('releaseDate') as string) || null,
@@ -218,7 +232,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 onChange={(e) => {
                   const newProjectId = e.target.value;
                   setSelectedProjectId(newProjectId);
-                  setSelectedBuildingId(''); // Reset building when project changes
+                  setSelectedBuildingId('');
                 }}
                 disabled={loading}
                 className="w-full h-10 px-3 rounded-md border bg-background"
@@ -227,6 +241,102 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.projectNumber} - {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Building */}
+            <div className="space-y-2">
+              <Label htmlFor="buildingId">Building (Optional)</Label>
+              <select
+                id="buildingId"
+                name="buildingId"
+                value={selectedBuildingId}
+                onChange={(e) => setSelectedBuildingId(e.target.value)}
+                disabled={loading || !selectedProjectId}
+                className="w-full h-10 px-3 rounded-md border bg-background"
+              >
+                <option value="">{selectedProjectId ? 'No Building' : 'Select Project First'}</option>
+                {buildings
+                  .filter(building => !selectedProjectId || building.projectId === selectedProjectId)
+                  .map((building) => (
+                    <option key={building.id} value={building.id}>
+                      {building.designation} - {building.name}
+                    </option>
+                  ))}
+              </select>
+              {!selectedProjectId && (
+                <p className="text-xs text-muted-foreground">
+                  Please select a project first to see available buildings
+                </p>
+              )}
+            </div>
+
+            {/* Main Activity */}
+            <div className="space-y-2">
+              <Label htmlFor="mainActivity">Main Activity (Optional)</Label>
+              <select
+                id="mainActivity"
+                value={selectedMainActivity}
+                onChange={(e) => {
+                  setSelectedMainActivity(e.target.value);
+                  setSelectedSubActivity('');
+                }}
+                disabled={loading}
+                className="w-full h-10 px-3 rounded-md border bg-background"
+              >
+                <option value="">No Activity</option>
+                {MAIN_ACTIVITIES.map((act) => (
+                  <option key={act.key} value={act.key}>
+                    {act.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sub-Activity */}
+            <div className="space-y-2">
+              <Label htmlFor="subActivity">Sub-Activity (Optional)</Label>
+              <select
+                id="subActivity"
+                value={selectedSubActivity}
+                onChange={(e) => setSelectedSubActivity(e.target.value)}
+                disabled={loading || !selectedMainActivity}
+                className="w-full h-10 px-3 rounded-md border bg-background"
+              >
+                <option value="">{selectedMainActivity ? 'No Sub-Activity' : 'Select Main Activity First'}</option>
+                {subActivities.map((sub) => (
+                  <option key={sub.key} value={sub.key}>
+                    {sub.label}
+                  </option>
+                ))}
+              </select>
+              {predecessorLabel && (
+                <div className="flex items-start gap-1.5 p-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                  <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    Depends on: <strong>{predecessorLabel}</strong> — ensure it is completed before starting this sub-activity.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Department */}
+            <div className="space-y-2">
+              <Label htmlFor="departmentId">Department (Optional)</Label>
+              <select
+                id="departmentId"
+                name="departmentId"
+                value={selectedDepartmentId}
+                onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                disabled={loading}
+                className="w-full h-10 px-3 rounded-md border bg-background"
+              >
+                <option value="">No Department</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
                   </option>
                 ))}
               </select>
@@ -271,53 +381,6 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 <option value="Waiting for Approval">Waiting for Approval</option>
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            {/* Building */}
-            <div className="space-y-2">
-              <Label htmlFor="buildingId">Building (Optional)</Label>
-              <select
-                id="buildingId"
-                name="buildingId"
-                value={selectedBuildingId}
-                onChange={(e) => setSelectedBuildingId(e.target.value)}
-                disabled={loading || !selectedProjectId}
-                className="w-full h-10 px-3 rounded-md border bg-background"
-              >
-                <option value="">{selectedProjectId ? 'No Building' : 'Select Project First'}</option>
-                {buildings
-                  .filter(building => !selectedProjectId || building.projectId === selectedProjectId)
-                  .map((building) => (
-                    <option key={building.id} value={building.id}>
-                      {building.designation} - {building.name}
-                    </option>
-                  ))}
-              </select>
-              {!selectedProjectId && (
-                <p className="text-xs text-muted-foreground">
-                  Please select a project first to see available buildings
-                </p>
-              )}
-            </div>
-
-            {/* Department */}
-            <div className="space-y-2">
-              <Label htmlFor="departmentId">Department (Optional)</Label>
-              <select
-                id="departmentId"
-                name="departmentId"
-                value={selectedDepartmentId}
-                onChange={(e) => setSelectedDepartmentId(e.target.value)}
-                disabled={loading}
-                className="w-full h-10 px-3 rounded-md border bg-background"
-              >
-                <option value="">No Department</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
               </select>
             </div>
 

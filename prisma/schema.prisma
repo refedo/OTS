@@ -432,7 +432,11 @@ model Task {
   // Backlog item relation (optional - for system development tasks)
   backlogItemId String?  @db.Char(36)
   backlogItem   ProductBacklogItem? @relation("BacklogItemTasks", fields: [backlogItemId], references: [id])
-  
+
+  // Activity classification (main activity and sub-activity per project scope)
+  mainActivity  String?  // e.g. "design", "detailing", "procurement", etc.
+  subActivity   String?  // e.g. "proposal_coordination", "design_package", etc.
+
   // Task details
   taskInputDate DateTime? // When the task was entered/created
   dueDate       DateTime?
