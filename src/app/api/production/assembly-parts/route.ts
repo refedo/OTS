@@ -27,7 +27,7 @@ const assemblyPartSchema = z.object({
 async function generatePartDesignation(
   projectId: string,
   buildingId: string | null,
-  partMark: string | null | undefined
+  assemblyMark: string
 ): Promise<string> {
   // Get project number
   const project = await prisma.project.findUnique({
@@ -49,9 +49,9 @@ async function generatePartDesignation(
     buildingDesignation = building ? `-${building.designation}` : '';
   }
 
-  // Base designation: ProjectNumber-BuildingDesignation-PartMark (e.g., "274-EXT-A1")
-  const baseDesignation = partMark
-    ? `${project.projectNumber}${buildingDesignation}-${partMark}`
+  // Base designation: ProjectNumber-BuildingDesignation-AssemblyMark (e.g., "270-GH1-B1")
+  const baseDesignation = assemblyMark
+    ? `${project.projectNumber}${buildingDesignation}-${assemblyMark}`
     : `${project.projectNumber}${buildingDesignation}`;
   
   // Check if this designation already exists
@@ -257,11 +257,11 @@ export async function POST(req: Request) {
         }
 
         try {
-          // Generate part designation
+          // Generate part designation using assembly mark (e.g. 270-GH1-B1)
           const partDesignation = await generatePartDesignation(
             parsed.data.projectId,
             parsed.data.buildingId || null,
-            parsed.data.partMark
+            parsed.data.assemblyMark
           );
 
           const assemblyPart = await prisma.assemblyPart.create({
@@ -334,11 +334,11 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Generate part designation
+    // Generate part designation using assembly mark (e.g. 270-GH1-B1)
     const partDesignation = await generatePartDesignation(
       parsed.data.projectId,
       parsed.data.buildingId || null,
-      parsed.data.partMark
+      parsed.data.assemblyMark
     );
 
     const assemblyPart = await prisma.assemblyPart.create({
