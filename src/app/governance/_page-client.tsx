@@ -72,10 +72,17 @@ interface AuditLog {
   entityId: string;
   action: string;
   changes: Record<string, { old: unknown; new: unknown }> | null;
+  metadata: { batchSize?: number; entityIds?: string[] } | null;
   performedBy: { id: string; name: string };
   performedAt: string;
   reason: string | null;
   sourceModule: string | null;
+}
+
+interface EntityLookupResult {
+  id: string;
+  label: string;
+  sub?: string;
 }
 
 interface DeletedItem {
@@ -223,6 +230,10 @@ export default function GovernancePage() {
   // Version History state
   const [versionEntityType, setVersionEntityType] = useState('Project');
   const [versionEntityId, setVersionEntityId] = useState('');
+  const [selectedEntityLabel, setSelectedEntityLabel] = useState('');
+  const [entitySearchQuery, setEntitySearchQuery] = useState('');
+  const [entitySearchResults, setEntitySearchResults] = useState<EntityLookupResult[]>([]);
+  const [loadingEntitySearch, setLoadingEntitySearch] = useState(false);
   const [versions, setVersions] = useState<EntityVersion[]>([]);
   const [versionTotal, setVersionTotal] = useState(0);
   const [loadingVersions, setLoadingVersions] = useState(false);
@@ -235,6 +246,11 @@ export default function GovernancePage() {
   const [rollbackReason, setRollbackReason] = useState('');
   const [rollingBack, setRollingBack] = useState(false);
   const [rollbackTargetVersion, setRollbackTargetVersion] = useState<number | null>(null);
+
+  // Undo state
+  const [undoTarget, setUndoTarget] = useState<AuditLog | null>(null);
+  const [showUndoDialog, setShowUndoDialog] = useState(false);
+  const [undoing, setUndoing] = useState(false);
 
   // Deleted Items state
   const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([]);
@@ -303,6 +319,22 @@ export default function GovernancePage() {
     }
   }, [versionEntityType, versionEntityId, toast]);
 
+  const fetchEntityLookup = useCallback(async (query: string) => {
+    if (!query.trim()) { setEntitySearchResults([]); return; }
+    setLoadingEntitySearch(true);
+    try {
+      const res = await fetch(
+        `/api/governance/entity-lookup?entityType=${versionEntityType}&q=${encodeURIComponent(query)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setEntitySearchResults(data.results || []);
+      }
+    } finally {
+      setLoadingEntitySearch(false);
+    }
+  }, [versionEntityType]);
+
   const fetchVersionDetail = async (versionNum: number) => {
     setVersionDetail(null);
     setVersionDiff(null);
@@ -341,6 +373,10 @@ export default function GovernancePage() {
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { if (activeTab === 'audit') fetchAuditLogs(); }, [activeTab, fetchAuditLogs]);
   useEffect(() => { if (activeTab === 'deleted') fetchDeletedItems(); }, [activeTab, fetchDeletedItems]);
+  // Auto-load versions when an entity is selected from search
+  useEffect(() => { if (versionEntityId) fetchVersions(); }, [versionEntityId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Clear search results when entity type changes
+  useEffect(() => { setVersionEntityId(''); setSelectedEntityLabel(''); setVersions([]); setEntitySearchResults([]); setEntitySearchQuery(''); }, [versionEntityType]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -396,6 +432,30 @@ export default function GovernancePage() {
       }
     } finally {
       setRollingBack(false);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoTarget) return;
+    setUndoing(true);
+    try {
+      const res = await fetch('/api/governance/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auditLogId: undoTarget.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: 'Action undone', description: data.message });
+        fetchAuditLogs();
+        fetchStats();
+      } else {
+        toast({ title: 'Undo failed', description: data.error || 'Unknown error', variant: 'destructive' });
+      }
+    } finally {
+      setUndoing(false);
+      setUndoTarget(null);
+      setShowUndoDialog(false);
     }
   };
 
@@ -548,7 +608,7 @@ export default function GovernancePage() {
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={() => { setSourceTypeFilter('user'); setActiveTab('audit'); }}
+                  onClick={() => setActiveTab('audit')}
                 >
                   View User Actions
                 </Button>
@@ -567,7 +627,7 @@ export default function GovernancePage() {
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={() => { setSourceTypeFilter('system'); setActiveTab('audit'); }}
+                  onClick={() => { setSourceTypeFilter('system'); setActiveTab('audit'); setAuditPage(0); }}
                 >
                   View System Events
                 </Button>
@@ -782,7 +842,7 @@ export default function GovernancePage() {
                         <TableHead>User</TableHead>
                         <TableHead>Time</TableHead>
                         <TableHead>Reason</TableHead>
-                        <TableHead className="w-[50px]" />
+                        <TableHead className="text-right pr-4">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -818,13 +878,50 @@ export default function GovernancePage() {
                               {log.reason || '—'}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedLog(log)}
-                              >
-                                <Eye className="size-4" />
-                              </Button>
+                              <div className="flex items-center justify-end gap-1">
+                                {/* Undo CREATE — single entity */}
+                                {log.action === 'CREATE' && log.entityId !== 'BATCH' && SOFT_DELETE_ENTITIES.includes(log.entityType) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs h-7 px-2"
+                                    onClick={() => { setUndoTarget(log); setShowUndoDialog(true); }}
+                                  >
+                                    <Undo2 className="size-3 mr-1" />Undo
+                                  </Button>
+                                )}
+                                {/* Undo BATCH CREATE */}
+                                {log.action === 'CREATE' && log.entityId === 'BATCH' && SOFT_DELETE_ENTITIES.includes(log.entityType) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs h-7 px-2"
+                                    onClick={() => { setUndoTarget(log); setShowUndoDialog(true); }}
+                                  >
+                                    <Undo2 className="size-3 mr-1" />
+                                    Undo {log.metadata?.batchSize ? `(${log.metadata.batchSize})` : 'Batch'}
+                                  </Button>
+                                )}
+                                {/* Restore DELETE */}
+                                {log.action === 'DELETE' && SOFT_DELETE_ENTITIES.includes(log.entityType) && log.entityId !== 'BATCH' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-green-700 hover:text-green-800 hover:bg-green-50 text-xs h-7 px-2"
+                                    onClick={() => { setUndoTarget(log); setShowUndoDialog(true); }}
+                                  >
+                                    <RotateCcw className="size-3 mr-1" />Restore
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => setSelectedLog(log)}
+                                >
+                                  <Eye className="size-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -882,9 +979,9 @@ export default function GovernancePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 items-start">
                 <Select value={versionEntityType} onValueChange={setVersionEntityType}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[160px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -893,17 +990,61 @@ export default function GovernancePage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="flex-1 min-w-[240px] flex gap-2">
-                  <Input
-                    placeholder={`Enter ${versionEntityType} ID (UUID)…`}
-                    value={versionEntityId}
-                    onChange={(e) => setVersionEntityId(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && fetchVersions()}
-                  />
-                  <Button onClick={fetchVersions} disabled={!versionEntityId.trim() || loadingVersions}>
-                    {loadingVersions ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-                  </Button>
-                </div>
+
+                {/* Entity search — name-based lookup */}
+                {!versionEntityId ? (
+                  <div className="relative flex-1 min-w-[240px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      placeholder={`Search ${versionEntityType} by name or number…`}
+                      value={entitySearchQuery}
+                      onChange={(e) => {
+                        setEntitySearchQuery(e.target.value);
+                        fetchEntityLookup(e.target.value);
+                      }}
+                      className="pl-9"
+                    />
+                    {(entitySearchResults.length > 0 || loadingEntitySearch) && (
+                      <div className="absolute z-20 w-full bg-background border rounded-lg shadow-lg mt-1 max-h-[200px] overflow-auto">
+                        {loadingEntitySearch && (
+                          <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                            <Loader2 className="size-3.5 animate-spin" /> Searching…
+                          </div>
+                        )}
+                        {entitySearchResults.map((r) => (
+                          <button
+                            key={r.id}
+                            className="w-full text-left px-3 py-2.5 hover:bg-muted flex flex-col border-b last:border-0"
+                            onClick={() => {
+                              setVersionEntityId(r.id);
+                              setSelectedEntityLabel(r.label);
+                              setEntitySearchQuery('');
+                              setEntitySearchResults([]);
+                            }}
+                          >
+                            <span className="font-medium text-sm">{r.label}</span>
+                            {r.sub && <span className="text-xs text-muted-foreground">{r.sub}</span>}
+                          </button>
+                        ))}
+                        {!loadingEntitySearch && entitySearchResults.length === 0 && entitySearchQuery && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No results found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Selected entity chip */
+                  <div className="flex items-center gap-2 flex-1 min-w-[240px] px-3 py-2 rounded-lg border bg-muted/50">
+                    <GitBranch className="size-4 text-primary shrink-0" />
+                    <span className="font-medium text-sm flex-1 truncate">{selectedEntityLabel || versionEntityId}</span>
+                    <button
+                      className="text-muted-foreground hover:text-foreground ml-1"
+                      onClick={() => { setVersionEntityId(''); setSelectedEntityLabel(''); setVersions([]); }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Compare mode hint */}
@@ -1313,6 +1454,43 @@ export default function GovernancePage() {
             </Button>
             <Button variant="outline" onClick={() => setShowVersionDialog(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Undo Action Dialog ──────────────────────────────────────────── */}
+      <Dialog open={showUndoDialog} onOpenChange={setShowUndoDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <Undo2 className="size-5" />
+              {undoTarget?.action === 'DELETE' ? 'Restore Deleted Item' : 'Undo This Action'}
+            </DialogTitle>
+            <DialogDescription>
+              {undoTarget?.action === 'DELETE'
+                ? `This will restore the deleted ${undoTarget.entityType} back to active state.`
+                : undoTarget?.entityId === 'BATCH'
+                  ? `This will soft-delete all ${undoTarget?.metadata?.batchSize ?? '?'} ${undoTarget?.entityType} records created in this batch operation. They can be recovered from the Deleted tab.`
+                  : `This will soft-delete the ${undoTarget?.entityType} created by this action. It can be recovered from the Deleted tab.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
+            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            <span>Only Admins and Managers can undo actions. This is logged in the audit trail.</span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowUndoDialog(false); setUndoTarget(null); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={undoing}
+              onClick={handleUndo}
+            >
+              {undoing ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Undo2 className="size-4 mr-1.5" />}
+              {undoing ? 'Processing…' : undoTarget?.action === 'DELETE' ? 'Restore' : 'Confirm Undo'}
             </Button>
           </DialogFooter>
         </DialogContent>
