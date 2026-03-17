@@ -23,10 +23,36 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.25.0',
+    date: 'March 17, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Task Activity Classification',
+    highlights: [
+      'Tasks can now be classified by Main Activity and Sub-Activity (Design, Detailing, Procurement, Production, Coating, Delivery & Logistics, Erection)',
+      'Finish-to-start dependency warnings when a predecessor sub-activity is not yet completed',
+      'Project Management View now groups tasks by Main Activity → Sub-Activity hierarchy',
+    ],
+    changes: {
+      added: [
+        '7 main activities with their sub-activities defined for steel fabrication workflows',
+        'Finish-to-start dependency map between sub-activities with inline amber warning banner in task form',
+        'mainActivity and subActivity fields on Task model with DB migration',
+        'Cascading Main Activity → Sub-Activity dropdowns in task creation and edit forms',
+        'Activity card in task detail sidebar showing main and sub activity labels',
+        'Main Activity and Sub-Activity columns in table view with inline edit support',
+      ],
+      fixed: [],
+      changed: [
+        'Project Management View hierarchy changed from Project > Building > Department to Project > Building > Main Activity > Sub-Activity',
+      ],
+    },
+  },
+  {
     version: '15.23.0',
     date: 'March 15, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Simple Tasks View',
     highlights: [
       'New Simple Tasks View toggle on the Tasks page, placed next to the Project Management View button',
