@@ -618,13 +618,19 @@ class PTSSyncService {
     
     parts.forEach(p => {
       if (p.partDesignation) {
-        partCache.set(p.partDesignation, { 
-          id: p.id, 
-          projectId: p.projectId, 
+        // Normalize: collapse spaces around hyphens (e.g. "270-GH1- C1" → "270-GH1-C1")
+        const normalized = p.partDesignation.replace(/\s*-\s*/g, '-').trim();
+        const entry = {
+          id: p.id,
+          projectId: p.projectId,
           quantity: p.quantity,
           projectNumber: p.project.projectNumber,
           buildingName: p.building?.name || null,
-        });
+        };
+        partCache.set(normalized, entry);
+        if (normalized !== p.partDesignation) {
+          partCache.set(p.partDesignation, entry);
+        }
       }
     });
 
@@ -651,18 +657,21 @@ class PTSSyncService {
 
           if (!partNumber || !process) continue;
 
-          // Find assembly part - ONLY sync logs that have matching assembly parts
-          const part = partCache.get(partNumber);
+          // Find assembly part - normalize spaces around hyphens before lookup
+          const normalizedPartNumber = partNumber.replace(/\s*-\s*/g, '-');
+          const part = partCache.get(normalizedPartNumber) ?? partCache.get(partNumber);
           if (!part) {
-            // Part not found in OTS - add to skipped items list
+            // Part not found in OTS - only add to skipped if project is selected
             const partProjectNumber = partNumber.split('-')[0] || 'Unknown';
-            skippedItems.push({
-              rowNumber: rowNum,
-              partDesignation: partNumber,
-              projectNumber: partProjectNumber,
-              reason: 'No matching assembly part found in OTS',
-              type: 'log',
-            });
+            if (!selectedProjects || selectedProjects.length === 0 || selectedProjects.includes(partProjectNumber)) {
+              skippedItems.push({
+                rowNumber: rowNum,
+                partDesignation: partNumber,
+                projectNumber: partProjectNumber,
+                reason: 'No matching assembly part found in OTS',
+                type: 'log',
+              });
+            }
             continue;
           }
 
