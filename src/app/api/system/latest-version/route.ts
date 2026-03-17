@@ -7,26 +7,55 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'Mobile App & Push Notifications (PWA)',
+  mainTitle: 'Parts Upload Enhancements & Bug Fixes',
   highlights: [
-    'Progressive Web App — installable on mobile devices via browser',
-    'Web Push Notifications — real-time alerts even when the app is closed',
-    'Per-type notification preferences — toggle push and in-app per notification type',
-    'Service Worker with auto-update and smart install prompt',
+    'CSV file support for parts upload — no need to convert to Excel first',
+    'Header Row selector — choose which row contains column names (handles non-standard files)',
+    'Rollback Upload button — soft-delete an entire upload batch, recoverable from Governance',
+    'Part Mark is now optional when uploading assembly parts',
+    'Tasks "New Features" tips dismissed state now persists across all devices and sessions',
   ],
   changes: {
     added: [
-      'PWA Support — installable Progressive Web App with service worker, manifest, and app icons',
-      'Web Push Notifications — VAPID-based push delivery to mobile and desktop browsers',
-      'Push Subscription Management — subscribe/unsubscribe devices via /api/push-subscription',
-      'Notification Preferences UI — per-type toggles for push and in-app notifications in Settings',
-      'Service Worker Provider — auto-registration, update detection, and install prompt',
-      'VAPID Key Generation Script — scripts/generate-vapid-keys.mjs',
+      {
+        title: 'Parts Upload — CSV Support',
+        items: [
+          'Upload page now accepts .csv files in addition to .xls and .xlsx',
+          'CSV is parsed via the XLSX library (reads as text); Excel continues as ArrayBuffer',
+        ],
+      },
+      {
+        title: 'Parts Upload — Header Row Selector',
+        items: [
+          'New numeric input (default: 1) lets you specify which row contains column names',
+          'Column mapping and preview update live whenever the header row is changed',
+          'Handles files where the header row is not the first row',
+        ],
+      },
+      {
+        title: 'Parts Upload — Rollback Upload',
+        items: [
+          'After a successful bulk upload, a Rollback Upload button appears in the result card',
+          'Clicking it soft-deletes all uploaded parts (sets deletedAt); parts remain recoverable from the Governance page',
+          'Rollback action is logged as a system event for full traceability',
+          'Requires the production.delete_parts permission',
+        ],
+      },
     ],
-    fixed: [],
+    fixed: [
+      {
+        title: 'Parts Upload — 403 Forbidden Error',
+        items: [
+          'Upload API was checking for production.upload_parts which does not exist',
+          'Fixed to use the correct permission key: production.create_parts',
+        ],
+      },
+      'Parts Upload — Part Mark is now optional; uploads no longer fail when the column is absent',
+      'Tasks Tips Banner — "New Features" tips dismissed state is now saved server-side so it no longer reappears after clearing browser storage, switching devices, or opening a new session',
+    ],
     changed: [
-      'Notification service now sends push notifications alongside in-app notifications',
-      'Middleware updated to allow PWA static assets and public push endpoints',
+      'Bulk upload now logs entityType and full partIds array in system events for traceability',
+      'Bulk upload now also writes to the Governance audit trail (logActivity) in addition to system events',
     ],
   },
 };

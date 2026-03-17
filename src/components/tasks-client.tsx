@@ -108,9 +108,10 @@ type TasksClientProps = {
   filterMyTasks?: boolean;
   filterRequesterTasks?: boolean;
   initialProjectFilter?: string;
+  tipsDismissed?: boolean;
 };
 
-export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, filterRequesterTasks = false, initialProjectFilter }: TasksClientProps) {
+export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, filterRequesterTasks = false, initialProjectFilter, tipsDismissed = false }: TasksClientProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
@@ -127,7 +128,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedBuildings, setExpandedBuildings] = useState<Set<string>>(new Set());
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
+  // Server-side state is the source of truth; fall back to localStorage for the same session
   const [showTips, setShowTips] = useState(() => {
+    if (tipsDismissed) return false;
     if (typeof window !== 'undefined') {
       return localStorage.getItem('tasks-tips-dismissed') !== 'true';
     }
@@ -1444,6 +1447,11 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   onClick={() => {
                     setShowTips(false);
                     localStorage.setItem('tasks-tips-dismissed', 'true');
+                    fetch('/api/user/tips-dismissed', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ key: 'tasks-new-features' }),
+                    }).catch(() => {/* non-critical */});
                   }}
                 >
                   Dismiss

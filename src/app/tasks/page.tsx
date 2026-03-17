@@ -70,9 +70,17 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     orderBy: { name: 'asc' },
   });
 
+  // Read server-side tips dismissed state so dismissal persists across devices
+  const userPrefs = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { customPermissions: true },
+  });
+  const perms = (userPrefs?.customPermissions as Record<string, unknown>) ?? {};
+  const tipsDismissed = perms['tipsDismissed_tasks-new-features'] === true;
+
   return (
-    <TasksClient 
-      initialTasks={tasks} 
+    <TasksClient
+      initialTasks={tasks}
       userId={session.sub}
       allUsers={users}
       allProjects={projects}
@@ -82,6 +90,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       filterMyTasks={filterMyTasks}
       filterRequesterTasks={filterRequesterTasks}
       initialProjectFilter={projectId}
+      tipsDismissed={tipsDismissed}
     />
   );
 }
