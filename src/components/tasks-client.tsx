@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAlert } from '@/hooks/useAlert';
+import { MAIN_ACTIVITIES, SUB_ACTIVITIES, getMainActivityLabel, getSubActivityLabel } from '@/lib/activity-constants';
 
 type Task = {
   id: string;
@@ -43,6 +44,8 @@ type Task = {
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; designation: string; name: string } | null;
   department: { id: string; name: string } | null;
+  mainActivity: string | null;
+  subActivity: string | null;
   completedAt: string | null;
   completedBy: { id: string; name: string; email: string; position: string | null } | null;
   approvedAt: string | null;
@@ -128,6 +131,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedBuildings, setExpandedBuildings] = useState<Set<string>>(new Set());
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
+  const [expandedSubActivities, setExpandedSubActivities] = useState<Set<string>>(new Set());
   // Server-side state is the source of truth; fall back to localStorage for the same session
   const [showTips, setShowTips] = useState(() => {
     if (tipsDismissed) return false;
@@ -144,6 +148,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     projectId: '',
     buildingId: '',
     departmentId: '',
+    mainActivity: '',
+    subActivity: '',
     priority: 'Medium',
     status: 'In Progress',
     taskInputDate: new Date().toISOString().split('T')[0],
@@ -167,6 +173,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     projectId: string;
     buildingId: string;
     departmentId: string;
+    mainActivity: string;
+    subActivity: string;
     priority: string;
     status: string;
     taskInputDate: string;
@@ -183,6 +191,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     projectId: '',
     buildingId: '',
     departmentId: '',
+    mainActivity: '',
+    subActivity: '',
     priority: 'Medium',
     status: 'Pending',
     taskInputDate: '',
@@ -353,26 +363,31 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     const projectIds = new Set<string>();
     const buildingKeys = new Set<string>();
     const activityKeys = new Set<string>();
-    
+    const subActivityKeys = new Set<string>();
+
     filteredTasks.forEach(task => {
       if (!task.project) return;
       const pKey = task.project.id;
       projectIds.add(pKey);
       const bKey = task.building?.id || '__no_building__';
       buildingKeys.add(`${pKey}-${bKey}`);
-      const actKey = task.department?.id || '__no_dept__';
+      const actKey = task.mainActivity || '__no_activity__';
       activityKeys.add(`${pKey}-${bKey}-${actKey}`);
+      const subKey = task.subActivity || '__no_sub__';
+      subActivityKeys.add(`${pKey}-${bKey}-${actKey}-${subKey}`);
     });
-    
+
     setExpandedProjects(projectIds);
     setExpandedBuildings(buildingKeys);
     setExpandedActivities(activityKeys);
+    setExpandedSubActivities(subActivityKeys);
   }, [filteredTasks]);
 
   const collapseAll = useCallback(() => {
     setExpandedProjects(new Set());
     setExpandedBuildings(new Set());
     setExpandedActivities(new Set());
+    setExpandedSubActivities(new Set());
   }, []);
 
   // Auto-expand all when switching to project view
@@ -726,6 +741,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
           projectId: quickAddData.projectId || null,
           buildingId: quickAddData.buildingId || null,
           departmentId: quickAddData.departmentId || null,
+          mainActivity: quickAddData.mainActivity || null,
+          subActivity: quickAddData.subActivity || null,
           priority: quickAddData.priority,
           taskInputDate: quickAddData.taskInputDate || null,
           dueDate: quickAddData.dueDate,
@@ -744,15 +761,17 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
 
       const newTask = await response.json();
       setTasks([newTask, ...tasks]);
-      setQuickAddData({ 
-        title: '', 
+      setQuickAddData({
+        title: '',
         assignedToId: '',
         requesterId: '',
-        projectId: '', 
+        projectId: '',
         buildingId: '',
-        departmentId: '', 
+        departmentId: '',
+        mainActivity: '',
+        subActivity: '',
         priority: 'Medium',
-        status: 'In Progress', 
+        status: 'In Progress',
         taskInputDate: new Date().toISOString().split('T')[0],
         dueDate: '',
         releaseDate: '',
@@ -791,6 +810,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       projectId: task.project?.id || '',
       buildingId: task.building?.id || '',
       departmentId: task.department?.id || '',
+      mainActivity: task.mainActivity || '',
+      subActivity: task.subActivity || '',
       priority: task.priority,
       status: task.status,
       taskInputDate: formatDateForInput(task.taskInputDate),
@@ -804,16 +825,18 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
 
   const handleCancelEdit = () => {
     setEditingTaskId(null);
-    setEditData({ 
-      title: '', 
+    setEditData({
+      title: '',
       description: '',
       assignedToId: '',
       requesterId: '',
-      projectId: '', 
+      projectId: '',
       buildingId: '',
-      departmentId: '', 
+      departmentId: '',
+      mainActivity: '',
+      subActivity: '',
       priority: 'Medium',
-      status: 'Pending', 
+      status: 'Pending',
       taskInputDate: '',
       dueDate: '',
       releaseDate: '',
@@ -846,6 +869,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
         projectId: editData.projectId || null,
         buildingId: editData.buildingId || null,
         departmentId: editData.departmentId || null,
+        mainActivity: editData.mainActivity || null,
+        subActivity: editData.subActivity || null,
         taskInputDate: editData.taskInputDate || null,
         releaseDate: editData.releaseDate || null,
         remark: editData.remark || null,
@@ -1505,6 +1530,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('building')}>
                       <div className="flex items-center">Building {getSortIcon('building')}</div>
                     </TableHead>
+                    <TableHead>Main Activity</TableHead>
+                    <TableHead>Sub-Activity</TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('priority')}>
                       <div className="flex items-center">Priority {getSortIcon('priority')}</div>
                     </TableHead>
@@ -1626,6 +1653,32 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                             .map((building) => (
                               <option key={building.id} value={building.id}>{building.name} ({building.designation})</option>
                             ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.mainActivity}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, mainActivity: e.target.value, subActivity: '' })}
+                          className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating}
+                        >
+                          <option value="">No Activity</option>
+                          {MAIN_ACTIVITIES.map((act) => (
+                            <option key={act.key} value={act.key}>{act.label}</option>
+                          ))}
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={quickAddData.subActivity}
+                          onChange={(e) => setQuickAddData({ ...quickAddData, subActivity: e.target.value })}
+                          className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                          disabled={creating || !quickAddData.mainActivity}
+                        >
+                          <option value="">{quickAddData.mainActivity ? 'No Sub-Activity' : 'Select Activity First'}</option>
+                          {(SUB_ACTIVITIES[quickAddData.mainActivity] ?? []).map((sub) => (
+                            <option key={sub.key} value={sub.key}>{sub.label}</option>
+                          ))}
                         </select>
                       </TableCell>
                       <TableCell>
@@ -1936,6 +1989,48 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>
+                          )
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <select
+                            value={editData.mainActivity}
+                            onChange={(e) => setEditData({ ...editData, mainActivity: e.target.value, subActivity: '' })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating}
+                          >
+                            <option value="">No Activity</option>
+                            {MAIN_ACTIVITIES.map((act) => (
+                              <option key={act.key} value={act.key}>{act.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          task.mainActivity ? (
+                            <span className="text-sm">{getMainActivityLabel(task.mainActivity)}</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <select
+                            value={editData.subActivity}
+                            onChange={(e) => setEditData({ ...editData, subActivity: e.target.value })}
+                            className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+                            disabled={updating || !editData.mainActivity}
+                          >
+                            <option value="">{editData.mainActivity ? 'No Sub-Activity' : 'Select Activity First'}</option>
+                            {(SUB_ACTIVITIES[editData.mainActivity] ?? []).map((sub) => (
+                              <option key={sub.key} value={sub.key}>{sub.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          (task.mainActivity && task.subActivity) ? (
+                            <span className="text-sm">{getSubActivityLabel(task.mainActivity, task.subActivity)}</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
                           )
                         )}
                       </TableCell>
@@ -3177,26 +3272,41 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                   </TableRow>
 
                                   {isBuildingExpanded && (() => {
-                                    const activityGroups = new Map<string, { name: string; tasks: Task[] }>();
+                                    // Group by mainActivity
+                                    const mainActivityGroups = new Map<string, { label: string; tasks: Task[] }>();
                                     bTasks.forEach(task => {
-                                      const actKey = task.department?.id || '__no_dept__';
-                                      const actName = task.department?.name || 'General';
-                                      if (!activityGroups.has(actKey)) {
-                                        activityGroups.set(actKey, { name: actName, tasks: [] });
+                                      const actKey = task.mainActivity || '__no_activity__';
+                                      const actLabel = task.mainActivity ? getMainActivityLabel(task.mainActivity) : 'General';
+                                      if (!mainActivityGroups.has(actKey)) {
+                                        mainActivityGroups.set(actKey, { label: actLabel, tasks: [] });
                                       }
-                                      activityGroups.get(actKey)!.tasks.push(task);
+                                      mainActivityGroups.get(actKey)!.tasks.push(task);
                                     });
 
-                                    return Array.from(activityGroups.entries()).map(([actKey, { name: actName, tasks: actTasks }]) => {
-                                      const isActivityExpanded = expandedActivities.has(`${projectId}-${buildingId}-${actKey}`);
+                                    return Array.from(mainActivityGroups.entries()).map(([actKey, { label: actLabel, tasks: actTasks }]) => {
+                                      const actExpandKey = `${projectId}-${buildingId}-${actKey}`;
+                                      const isActivityExpanded = expandedActivities.has(actExpandKey);
                                       const toggleActivity = () => {
                                         setExpandedActivities(prev => {
                                           const next = new Set(prev);
-                                          const key = `${projectId}-${buildingId}-${actKey}`;
-                                          next.has(key) ? next.delete(key) : next.add(key);
+                                          next.has(actExpandKey) ? next.delete(actExpandKey) : next.add(actExpandKey);
                                           return next;
                                         });
                                       };
+                                      const actCompleted = actTasks.filter(t => t.status === 'Completed').length;
+
+                                      // Group by subActivity within mainActivity
+                                      const subActivityGroups = new Map<string, { label: string; tasks: Task[] }>();
+                                      actTasks.forEach(task => {
+                                        const subKey = task.subActivity || '__no_sub__';
+                                        const subLabel = (task.mainActivity && task.subActivity)
+                                          ? getSubActivityLabel(task.mainActivity, task.subActivity)
+                                          : 'General';
+                                        if (!subActivityGroups.has(subKey)) {
+                                          subActivityGroups.set(subKey, { label: subLabel, tasks: [] });
+                                        }
+                                        subActivityGroups.get(subKey)!.tasks.push(task);
+                                      });
 
                                       return (
                                         <React.Fragment key={actKey}>
@@ -3207,9 +3317,16 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                             <TableCell className="py-1.5" style={{ paddingLeft: '60px' }}>
                                               <div className="flex items-center gap-1.5 font-medium text-sm">
                                                 {isActivityExpanded ? <ChevronDown className="size-3 text-purple-500" /> : <ChevronRight className="size-3 text-purple-500" />}
-                                                <span className="text-purple-700">{actName}</span>
+                                                <span className="text-purple-700">{actLabel}</span>
                                                 <span className="text-xs font-normal text-purple-500/70">({actTasks.length})</span>
                                               </div>
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{actTasks.length} tasks</TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell></TableCell>
+                                            <TableCell>
+                                              <span className="text-xs text-muted-foreground">{actCompleted}/{actTasks.length}</span>
                                             </TableCell>
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
@@ -3218,10 +3335,52 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
-                                            <TableCell></TableCell>
-                                            <TableCell></TableCell>
                                           </TableRow>
-                                          {isActivityExpanded && actTasks.map(task => renderTaskRow(task, 4))}
+
+                                          {isActivityExpanded && Array.from(subActivityGroups.entries()).map(([subKey, { label: subLabel, tasks: subTasks }]) => {
+                                            const subExpandKey = `${projectId}-${buildingId}-${actKey}-${subKey}`;
+                                            const isSubExpanded = expandedSubActivities.has(subExpandKey);
+                                            const toggleSub = () => {
+                                              setExpandedSubActivities(prev => {
+                                                const next = new Set(prev);
+                                                next.has(subExpandKey) ? next.delete(subExpandKey) : next.add(subExpandKey);
+                                                return next;
+                                              });
+                                            };
+                                            const subCompleted = subTasks.filter(t => t.status === 'Completed').length;
+
+                                            return (
+                                              <React.Fragment key={subKey}>
+                                                <TableRow
+                                                  className="bg-emerald-50 hover:bg-emerald-100 cursor-pointer border-l-4 border-l-emerald-400"
+                                                  onClick={toggleSub}
+                                                >
+                                                  <TableCell className="py-1" style={{ paddingLeft: '84px' }}>
+                                                    <div className="flex items-center gap-1.5 text-sm">
+                                                      {isSubExpanded ? <ChevronDown className="size-3 text-emerald-500" /> : <ChevronRight className="size-3 text-emerald-500" />}
+                                                      <span className="text-emerald-700">{subLabel}</span>
+                                                      <span className="text-xs font-normal text-emerald-500/70">({subTasks.length})</span>
+                                                    </div>
+                                                  </TableCell>
+                                                  <TableCell className="text-xs text-muted-foreground">{subTasks.length} tasks</TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell>
+                                                    <span className="text-xs text-muted-foreground">{subCompleted}/{subTasks.length}</span>
+                                                  </TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                  <TableCell></TableCell>
+                                                </TableRow>
+                                                {isSubExpanded && subTasks.map(task => renderTaskRow(task, 5))}
+                                              </React.Fragment>
+                                            );
+                                          })}
                                         </React.Fragment>
                                       );
                                     });

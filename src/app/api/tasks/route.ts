@@ -17,6 +17,8 @@ const createSchema = z.object({
   buildingId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   backlogItemId: z.string().uuid().optional().nullable(),
+  mainActivity: z.string().optional().nullable(),
+  subActivity: z.string().optional().nullable(),
   taskInputDate: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
   releaseDate: z.string().optional().nullable(),
@@ -226,6 +228,8 @@ export async function POST(req: Request) {
     if (parsed.data.buildingId) taskData.buildingId = parsed.data.buildingId;
     if (parsed.data.departmentId) taskData.departmentId = parsed.data.departmentId;
     if (parsed.data.backlogItemId) taskData.backlogItemId = parsed.data.backlogItemId;
+    if (parsed.data.mainActivity) taskData.mainActivity = parsed.data.mainActivity;
+    if (parsed.data.subActivity) taskData.subActivity = parsed.data.subActivity;
     if (parsed.data.taskInputDate) taskData.taskInputDate = new Date(parsed.data.taskInputDate);
     if (parsed.data.dueDate) taskData.dueDate = new Date(parsed.data.dueDate);
     if (parsed.data.releaseDate) taskData.releaseDate = new Date(parsed.data.releaseDate);
