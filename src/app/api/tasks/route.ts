@@ -128,6 +128,9 @@ export async function GET(req: Request) {
       department: {
         select: { id: true, name: true },
       },
+      _count: {
+        select: { attachments: true },
+      },
     },
   });
 

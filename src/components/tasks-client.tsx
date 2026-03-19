@@ -21,7 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2 } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip } from 'lucide-react';
+import { uploadPendingAttachments, type PendingFile } from '@/components/task-attachment-uploader';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -57,6 +58,7 @@ type Task = {
   revision: string | null;
   createdAt: string;
   updatedAt: string;
+  _count?: { attachments: number };
 };
 
 const statusColors = {
@@ -117,6 +119,7 @@ type TasksClientProps = {
 export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, filterRequesterTasks = false, initialProjectFilter, tipsDismissed = false }: TasksClientProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
+  const quickAddFileInputRef = React.useRef<HTMLInputElement>(null);
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string[]>(['In Progress']);
@@ -141,6 +144,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     return true;
   });
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddPendingFiles, setQuickAddPendingFiles] = useState<PendingFile[]>([]);
   const [quickAddData, setQuickAddData] = useState({
     title: '',
     assignedToId: '',
@@ -760,6 +764,13 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       }
 
       const newTask = await response.json();
+
+      // Upload any pending attachments (non-blocking, best-effort)
+      if (quickAddPendingFiles.length > 0) {
+        await uploadPendingAttachments(newTask.id, quickAddPendingFiles);
+        setQuickAddPendingFiles([]);
+      }
+
       setTasks([newTask, ...tasks]);
       setQuickAddData({
         title: '',
@@ -1769,11 +1780,44 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                         />
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex gap-1 justify-end">
+                        <div className="flex gap-1 justify-end items-center">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="relative"
+                            title="Attach files"
+                            onClick={() => quickAddFileInputRef.current?.click()}
+                            disabled={creating}
+                          >
+                            <Paperclip className="h-4 w-4" />
+                            {quickAddPendingFiles.length > 0 && (
+                              <span className="absolute -top-1 -right-1 text-[10px] bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                                {quickAddPendingFiles.length}
+                              </span>
+                            )}
+                          </Button>
+                          <input
+                            ref={quickAddFileInputRef}
+                            type="file"
+                            multiple
+                            accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv"
+                            className="hidden"
+                            disabled={creating}
+                            onChange={(e) => {
+                              if (!e.target.files) return;
+                              const newFiles: PendingFile[] = Array.from(e.target.files)
+                                .slice(0, 10 - quickAddPendingFiles.length)
+                                .filter(f => f.size <= 10 * 1024 * 1024)
+                                .map(f => ({ file: f }));
+                              setQuickAddPendingFiles(prev => [...prev, ...newFiles]);
+                              e.target.value = '';
+                            }}
+                          />
                           <Button size="sm" onClick={handleQuickAdd} disabled={creating}>
                             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setShowQuickAdd(false)} disabled={creating}>
+                          <Button size="sm" variant="ghost" onClick={() => { setShowQuickAdd(false); setQuickAddPendingFiles([]); }} disabled={creating}>
                             Cancel
                           </Button>
                         </div>
@@ -2454,6 +2498,12 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                           {formatDate(task.dueDate)}
                         </p>
                       </div>
+                    </div>
+                  )}
+                  {(task._count?.attachments ?? 0) > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Paperclip className="size-3.5" />
+                      <span>{task._count!.attachments} attachment{task._count!.attachments !== 1 ? 's' : ''}</span>
                     </div>
                   )}
                 </CardContent>
