@@ -94,6 +94,12 @@ export async function GET(
       department: {
         select: { id: true, name: true },
       },
+      attachments: {
+        include: {
+          uploadedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { uploadedAt: 'asc' },
+      },
     },
   });
 

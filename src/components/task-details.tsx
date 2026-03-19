@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2 } from 'lucide-react';
 import { getMainActivityLabel, getSubActivityLabel } from '@/lib/activity-constants';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+
+type TaskAttachment = {
+  id: string;
+  fileName: string;
+  filePath: string;
+  fileType: string | null;
+  fileSize: number | null;
+  uploadedBy: { id: string; name: string };
+  uploadedAt: string;
+};
 
 type Task = {
   id: string;
@@ -48,6 +58,7 @@ type Task = {
   revision: string | null;
   createdAt: string;
   updatedAt: string;
+  attachments?: TaskAttachment[];
 };
 
 type AuditLog = {
@@ -89,6 +100,8 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [canUndo, setCanUndo] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [attachments, setAttachments] = useState<TaskAttachment[]>(task.attachments || []);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
 
   // Check permissions - use permission-based check if available, fallback to role-based
   const canEdit = userPermissions.includes('tasks.edit');
@@ -278,6 +291,30 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     }
   };
 
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    setDeletingAttachmentId(attachmentId);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/attachments/${attachmentId}`, { method: 'DELETE' });
+      if (res.ok) setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
+  function formatBytes(bytes: number | null) {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function AttachmentIcon({ mimeType }: { mimeType: string | null }) {
+    if (!mimeType) return <File className="size-4 text-muted-foreground" />;
+    if (mimeType.startsWith('image/')) return <Image className="size-4 text-blue-500" />;
+    if (mimeType === 'application/pdf') return <FileText className="size-4 text-red-500" />;
+    return <FileText className="size-4 text-muted-foreground" />;
+  }
+
   // Stage approval circles component
   const StageApprovalCircles = () => {
     // Check if task is overdue (due date passed and not completed)
@@ -443,6 +480,59 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                     <p className="text-xs text-red-500 mt-1">
                       by {task.rejectedBy?.name} on {formatDate(task.rejectedAt)}
                     </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Attachments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="size-5" />
+                  Attachments
+                  {attachments.length > 0 && (
+                    <span className="text-sm font-normal text-muted-foreground">({attachments.length})</span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {attachments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">No attachments</p>
+                ) : (
+                  <div className="space-y-2">
+                    {attachments.map((att) => (
+                      <div key={att.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30 text-sm">
+                        <AttachmentIcon mimeType={att.fileType} />
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate font-medium">{att.fileName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatBytes(att.fileSize)} · {att.uploadedBy.name}
+                          </p>
+                        </div>
+                        <a href={att.filePath} download={att.fileName} target="_blank" rel="noreferrer">
+                          <Button type="button" variant="ghost" size="icon" className="size-7">
+                            <Download className="size-3.5" />
+                          </Button>
+                        </a>
+                        {canEdit && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteAttachment(att.id)}
+                            disabled={deletingAttachmentId === att.id}
+                          >
+                            {deletingAttachmentId === att.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <XCircle className="size-3.5" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>

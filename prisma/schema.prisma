@@ -136,6 +136,7 @@ model User {
   // EGS - Enterprise Governance Spine relations
   auditLogs          AuditLog[] @relation("AuditLogPerformedBy")
   taskAuditLogs      TaskAuditLog[] @relation("TaskAuditLogs")
+  taskAttachments    TaskAttachment[] @relation("TaskAttachmentUploader")
   entityVersions     EntityVersion[] @relation("EntityVersionCreatedBy")
   deletedProjects    Project[] @relation("ProjectDeletedBy")
   deletedBuildings   Building[] @relation("BuildingDeletedBy")
@@ -473,6 +474,25 @@ model Task {
   
   // Audit trail
   auditLogs     TaskAuditLog[]
+  attachments   TaskAttachment[]
+}
+
+model TaskAttachment {
+  id           String   @id @default(uuid()) @db.Char(36)
+  taskId       String   @db.Char(36)
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  fileName     String
+  filePath     String
+  fileType     String?
+  fileSize     Int?
+
+  uploadedById String   @db.Char(36)
+  uploadedBy   User     @relation("TaskAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedAt   DateTime @default(now())
+
+  @@index([taskId])
+  @@map("task_attachments")
 }
 
 // Task Audit Log - tracks all changes to tasks
