@@ -37,12 +37,12 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-type BackupFile = {
-  filename: string;
+type BackupEntry = {
+  dirname: string;      // "20260313" or legacy "db_backup_*.sql"
+  sqlFile: string;      // SQL filename inside the dir
   size: number;
   sizeFormatted: string;
   createdAt: string;
-  path: string;
 };
 
 type DiskInfo = {
@@ -55,7 +55,7 @@ type DiskInfo = {
 };
 
 type BackupsResponse = {
-  backups: BackupFile[];
+  backups: BackupEntry[];
   backupDir: string;
   diskInfo: DiskInfo | null;
   totalBackups: number;
@@ -63,7 +63,7 @@ type BackupsResponse = {
   totalSizeFormatted: string;
 };
 
-function formatDate(iso: string): string {
+function formatDisplayDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('en-GB', {
     day: '2-digit',
@@ -71,7 +71,6 @@ function formatDate(iso: string): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
     hour12: false,
   });
 }
@@ -87,13 +86,21 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
+function formatDirname(dirname: string): string {
+  // Convert "20260313" → "2026-03-13"
+  if (/^\d{8}$/.test(dirname)) {
+    return `${dirname.slice(0, 4)}-${dirname.slice(4, 6)}-${dirname.slice(6, 8)}`;
+  }
+  return dirname;
+}
+
 export default function BackupsPageClient() {
   const [data, setData] = useState<BackupsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [deletingFile, setDeletingFile] = useState<string | null>(null);
-  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<BackupEntry | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -106,8 +113,7 @@ export default function BackupsPageClient() {
     try {
       const res = await fetch('/api/backups');
       if (!res.ok) throw new Error('Failed to fetch backups');
-      const json = await res.json();
-      setData(json);
+      setData(await res.json());
     } catch {
       showToast('error', 'Failed to load backup list');
     } finally {
@@ -137,29 +143,29 @@ export default function BackupsPageClient() {
     }
   };
 
-  const handleDelete = async (filename: string) => {
-    setDeletingFile(filename);
+  const handleDelete = async (backup: BackupEntry) => {
+    setDeletingId(backup.dirname);
     try {
-      const res = await fetch(`/api/backups/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/backups/${encodeURIComponent(backup.dirname)}`, { method: 'DELETE' });
       if (!res.ok) {
         const err = await res.json();
         showToast('error', err.error || 'Failed to delete backup');
         return;
       }
-      showToast('success', `Backup ${filename} deleted`);
+      showToast('success', `Backup ${formatDirname(backup.dirname)} deleted`);
       await fetchBackups();
     } catch {
       showToast('error', 'Failed to delete backup');
     } finally {
-      setDeletingFile(null);
+      setDeletingId(null);
       setConfirmDelete(null);
     }
   };
 
-  const handleDownload = async (filename: string) => {
-    setDownloadingFile(filename);
+  const handleDownload = async (backup: BackupEntry) => {
+    setDownloadingId(backup.dirname);
     try {
-      const res = await fetch(`/api/backups/${encodeURIComponent(filename)}/download`);
+      const res = await fetch(`/api/backups/${encodeURIComponent(backup.dirname)}/download`);
       if (!res.ok) {
         showToast('error', 'Failed to download backup');
         return;
@@ -168,7 +174,10 @@ export default function BackupsPageClient() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      // Use a meaningful download filename
+      a.download = /^\d{8}$/.test(backup.dirname)
+        ? `backup_${backup.dirname}_${backup.sqlFile}`
+        : backup.sqlFile;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -176,7 +185,7 @@ export default function BackupsPageClient() {
     } catch {
       showToast('error', 'Failed to download backup');
     } finally {
-      setDownloadingFile(null);
+      setDownloadingId(null);
     }
   };
 
@@ -187,13 +196,11 @@ export default function BackupsPageClient() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 lg:ml-64">
       <div className="container mx-auto p-6 lg:p-8 max-w-7xl max-lg:pt-20">
-        {/* Toast notification */}
+        {/* Toast */}
         {toast && (
           <div
             className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
-              toast.type === 'success'
-                ? 'bg-green-600 text-white'
-                : 'bg-red-600 text-white'
+              toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
             }`}
           >
             {toast.type === 'success' ? (
@@ -232,7 +239,7 @@ export default function BackupsPageClient() {
           </div>
         </div>
 
-        {/* Stats Row */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="p-4 flex items-center gap-4">
@@ -269,14 +276,16 @@ export default function BackupsPageClient() {
                   {data?.diskInfo ? data.diskInfo.freeFormatted : '—'}
                 </p>
                 {diskUsagePercent !== null && (
-                  <p className="text-xs text-muted-foreground">{diskUsagePercent}% used of {data?.diskInfo?.totalFormatted}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {diskUsagePercent}% used of {data?.diskInfo?.totalFormatted}
+                  </p>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Backup Directory Info */}
+        {/* Directory info */}
         {data?.backupDir && (
           <Card className="mb-6">
             <CardContent className="p-4 flex items-center gap-3">
@@ -292,12 +301,12 @@ export default function BackupsPageClient() {
           </Card>
         )}
 
-        {/* Backups Table */}
+        {/* Table */}
         <Card>
           <CardHeader>
             <CardTitle>Backup Files</CardTitle>
             <CardDescription>
-              All database backups sorted by date, newest first. Backups older than the 7 most recent are automatically removed.
+              All database backups sorted by date, newest first. Backups older than the 7 most recent are automatically removed on create.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -309,14 +318,14 @@ export default function BackupsPageClient() {
               <div className="text-center py-16 text-muted-foreground">
                 <Database className="h-12 w-12 mx-auto mb-3 opacity-30" />
                 <p className="font-medium">No backups found</p>
-                <p className="text-sm mt-1">Click "Create Backup" to create your first database backup.</p>
+                <p className="text-sm mt-1">Click &quot;Create Backup&quot; to create your first database backup.</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Filename</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>Backup Date</TableHead>
+                    <TableHead>File</TableHead>
                     <TableHead>Age</TableHead>
                     <TableHead className="text-right">Size</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -324,21 +333,24 @@ export default function BackupsPageClient() {
                 </TableHeader>
                 <TableBody>
                   {data.backups.map((backup, index) => (
-                    <TableRow key={backup.filename}>
+                    <TableRow key={backup.dirname}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <FileArchive className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <span className="font-mono text-sm">{backup.filename}</span>
-                          {index === 0 && (
-                            <Badge variant="secondary" className="text-xs">Latest</Badge>
-                          )}
+                          <div>
+                            <span className="font-medium">{formatDirname(backup.dirname)}</span>
+                            {index === 0 && (
+                              <Badge variant="secondary" className="ml-2 text-xs">Latest</Badge>
+                            )}
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Clock className="h-3 w-3" />
+                              {formatDisplayDate(backup.createdAt)}
+                            </p>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                          {formatDate(backup.createdAt)}
-                        </div>
+                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{backup.sqlFile}</code>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
@@ -353,11 +365,11 @@ export default function BackupsPageClient() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDownload(backup.filename)}
-                            disabled={downloadingFile === backup.filename}
+                            onClick={() => handleDownload(backup)}
+                            disabled={downloadingId === backup.dirname}
                             title="Download backup"
                           >
-                            {downloadingFile === backup.filename ? (
+                            {downloadingId === backup.dirname ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Download className="h-4 w-4" />
@@ -366,12 +378,12 @@ export default function BackupsPageClient() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setConfirmDelete(backup.filename)}
-                            disabled={deletingFile === backup.filename}
+                            onClick={() => setConfirmDelete(backup)}
+                            disabled={deletingId === backup.dirname}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             title="Delete backup"
                           >
-                            {deletingFile === backup.filename ? (
+                            {deletingId === backup.dirname ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Trash2 className="h-4 w-4" />
@@ -388,14 +400,14 @@ export default function BackupsPageClient() {
         </Card>
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <AlertDialog open={!!confirmDelete} onOpenChange={() => setConfirmDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Backup</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to permanently delete{' '}
-              <span className="font-mono font-medium">{confirmDelete}</span>?{' '}
+              Are you sure you want to permanently delete the backup for{' '}
+              <span className="font-semibold">{confirmDelete ? formatDirname(confirmDelete.dirname) : ''}</span>?{' '}
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
