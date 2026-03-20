@@ -94,14 +94,27 @@ export async function GET(
       department: {
         select: { id: true, name: true },
       },
-      attachments: {
-        include: {
-          uploadedBy: { select: { id: true, name: true } },
-        },
-        orderBy: { uploadedAt: 'asc' },
-      },
     },
   });
+
+  // Try to add attachments (requires task_attachments table)
+  try {
+    const taskWithAttachments = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        attachments: {
+          include: { uploadedBy: { select: { id: true, name: true } } },
+          orderBy: { uploadedAt: 'asc' },
+        },
+      },
+    });
+    if (taskWithAttachments && task) {
+      (task as any).attachments = taskWithAttachments.attachments;
+    }
+  } catch {
+    // task_attachments table not yet migrated
+    if (task) (task as any).attachments = [];
+  }
 
   // Try to fetch completedBy and approvedBy if the fields exist in the database
   try {

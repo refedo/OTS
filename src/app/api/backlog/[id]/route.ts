@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
+import NotificationService from '@/lib/services/notification.service';
 
 export async function GET(
   request: NextRequest,
@@ -84,6 +85,16 @@ export async function PATCH(
       }
     }
 
+    // Fetch the current item to compare status later
+    const existingItem = await prisma.productBacklogItem.findUnique({
+      where: { id: params.id },
+      select: { id: true, title: true, status: true, createdById: true },
+    });
+
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Backlog item not found' }, { status: 404 });
+    }
+
     const updateData: any = {};
 
     if (body.title !== undefined) updateData.title = body.title;
@@ -141,6 +152,32 @@ export async function PATCH(
         tasks: true,
       },
     });
+
+    // Notify the creator when status changes (fire-and-forget)
+    if (body.status && body.status !== existingItem.status && existingItem.createdById !== session.sub) {
+      const STATUS_LABELS: Record<string, string> = {
+        SUBMITTED: 'Submitted',
+        UNDER_REVIEW: 'Under Review',
+        APPROVED: 'Approved',
+        PLANNED: 'Planned',
+        IN_PROGRESS: 'In Progress',
+        COMPLETED: 'Completed',
+        DROPPED: 'Dropped',
+        ON_HOLD: 'On Hold',
+      };
+      const newLabel = STATUS_LABELS[body.status] ?? body.status;
+      NotificationService.createNotification({
+        userId: existingItem.createdById,
+        type: 'SYSTEM_ALERT',
+        title: 'Backlog Item Status Updated',
+        message: `Your backlog item "${existingItem.title}" has been moved to ${newLabel} by ${user.name}`,
+        relatedEntityType: 'backlog',
+        relatedEntityId: existingItem.id,
+        metadata: { newStatus: body.status, oldStatus: existingItem.status, updatedBy: user.name },
+      }).catch((err) => {
+        logger.error({ err, itemId: existingItem.id }, 'Failed to send backlog status notification');
+      });
+    }
 
     return NextResponse.json(item);
   } catch (error) {

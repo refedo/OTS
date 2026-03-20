@@ -23,10 +23,39 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.26.0',
+    date: 'March 20, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Task Attachments & Backlog Notifications',
+    highlights: [
+      'Upload images and documents to tasks in both full and quick-add modes (up to 10 files, 10 MB each)',
+      'Raster image attachments are automatically compressed with Sharp (WebP / PNG palettised) before storage',
+      'Backlog item creators now receive an in-app and mobile push notification whenever the status of their item changes',
+    ],
+    changes: {
+      added: [
+        'TaskAttachment model — new task_attachments DB table with cascade-delete and index',
+        'GET/POST /api/tasks/[id]/attachments — list and upload attachments for a task',
+        'DELETE /api/tasks/[id]/attachments/[attachmentId] — delete an attachment (uploader or admin only; removes file from disk)',
+        'Attachment uploader in task create/edit form with drag-and-drop support and inline preview',
+        'Paperclip button with file count badge in quick-add table row for attaching files during fast task creation',
+        'Attachment count indicator on task grid cards',
+        'Attachments card in task detail view with download links and delete buttons',
+        'Image compression using Sharp — JPEG/PNG/WebP → WebP at 82% quality; PNG uses palette mode at compression level 9',
+        'Backlog status change push notification — item creator receives mobile + in-app alert with the new status and who changed it',
+      ],
+      fixed: [
+        'Tasks not appearing when task_attachments table is not yet created — queries now degrade gracefully',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '15.25.0',
     date: 'March 17, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Task Activity Classification',
     highlights: [
       'Tasks can now be classified by Main Activity and Sub-Activity (Design, Detailing, Procurement, Production, Coating, Delivery & Logistics, Erection)',
