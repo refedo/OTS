@@ -153,7 +153,7 @@ export async function PATCH(
       },
     });
 
-    // Notify the creator when status changes (fire-and-forget)
+    // Notify the creator when status changes
     if (body.status && body.status !== existingItem.status && existingItem.createdById !== session.sub) {
       const STATUS_LABELS: Record<string, string> = {
         SUBMITTED: 'Submitted',
@@ -166,17 +166,23 @@ export async function PATCH(
         ON_HOLD: 'On Hold',
       };
       const newLabel = STATUS_LABELS[body.status] ?? body.status;
-      NotificationService.createNotification({
-        userId: existingItem.createdById,
-        type: 'SYSTEM',
-        title: 'Backlog Item Status Updated',
-        message: `Your backlog item "${existingItem.title}" has been moved to ${newLabel} by ${user.name}`,
-        relatedEntityType: 'backlog',
-        relatedEntityId: existingItem.id,
-        metadata: { newStatus: body.status, oldStatus: existingItem.status, updatedBy: user.name },
-      }).catch((err) => {
+      logger.info({ itemId: existingItem.id, notifyUserId: existingItem.createdById, updatedBy: session.sub, oldStatus: existingItem.status, newStatus: body.status }, 'Sending backlog status notification');
+      try {
+        await NotificationService.createNotification({
+          userId: existingItem.createdById,
+          type: 'SYSTEM',
+          title: 'Backlog Item Status Updated',
+          message: `Your backlog item "${existingItem.title}" has been moved to ${newLabel} by ${user.name}`,
+          relatedEntityType: 'backlog',
+          relatedEntityId: existingItem.id,
+          metadata: { newStatus: body.status, oldStatus: existingItem.status, updatedBy: user.name },
+        });
+        logger.info({ itemId: existingItem.id, notifyUserId: existingItem.createdById }, 'Backlog status notification created successfully');
+      } catch (err) {
         logger.error({ err, itemId: existingItem.id }, 'Failed to send backlog status notification');
-      });
+      }
+    } else if (body.status) {
+      logger.info({ itemId: existingItem.id, createdById: existingItem.createdById, sessionSub: session.sub, sameUser: existingItem.createdById === session.sub, statusChanged: body.status !== existingItem.status }, 'Backlog status notification skipped');
     }
 
     return NextResponse.json(item);
