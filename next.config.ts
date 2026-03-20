@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { version: packageVersion } = require('./package.json') as { version: string };
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: packageVersion,
+  },
   // Base path for subdirectory deployment (hexasteel.sa/ots)
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH || '',
