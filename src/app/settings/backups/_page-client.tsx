@@ -35,6 +35,8 @@ import {
   Loader2,
   CheckCircle,
   AlertTriangle,
+  User,
+  Bot,
 } from 'lucide-react';
 
 type BackupEntry = {
@@ -43,6 +45,7 @@ type BackupEntry = {
   size: number;
   sizeFormatted: string;
   createdAt: string;
+  source: 'manual' | 'auto';
 };
 
 type DiskInfo = {
@@ -331,6 +334,7 @@ export default function BackupsPageClient() {
                   <TableRow>
                     <TableHead>Backup Date</TableHead>
                     <TableHead>File</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead>Age</TableHead>
                     <TableHead className="text-right">Size</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -356,6 +360,19 @@ export default function BackupsPageClient() {
                       </TableCell>
                       <TableCell>
                         <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{backup.sqlFile}</code>
+                      </TableCell>
+                      <TableCell>
+                        {backup.source === 'manual' ? (
+                          <Badge variant="secondary" className="gap-1 text-xs">
+                            <User className="h-3 w-3" />
+                            Manual
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-1 text-xs">
+                            <Bot className="h-3 w-3" />
+                            Automatic
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">

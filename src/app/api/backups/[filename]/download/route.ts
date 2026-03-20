@@ -44,8 +44,8 @@ export const GET = withApiContext(async (req: NextRequest, session, context) => 
     let downloadName: string;
 
     if (stat.isDirectory()) {
-      // Date dir — find the SQL file inside (pick largest)
-      const sqlFiles = fs.readdirSync(targetPath).filter(f => f.endsWith('.sql'));
+      // Date dir — find the SQL file inside (pick largest, .sql or .sql.gz)
+      const sqlFiles = fs.readdirSync(targetPath).filter(f => f.endsWith('.sql') || f.endsWith('.sql.gz'));
       if (sqlFiles.length === 0) {
         return NextResponse.json({ error: 'No SQL file found in backup directory' }, { status: 404 });
       }
