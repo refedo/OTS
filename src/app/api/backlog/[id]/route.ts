@@ -168,7 +168,7 @@ export async function PATCH(
       const newLabel = STATUS_LABELS[body.status] ?? body.status;
       NotificationService.createNotification({
         userId: existingItem.createdById,
-        type: 'SYSTEM_ALERT',
+        type: 'SYSTEM',
         title: 'Backlog Item Status Updated',
         message: `Your backlog item "${existingItem.title}" has been moved to ${newLabel} by ${user.name}`,
         relatedEntityType: 'backlog',
