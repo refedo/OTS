@@ -510,7 +510,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                             {formatBytes(att.fileSize)} · {att.uploadedBy.name}
                           </p>
                         </div>
-                        <a href={att.filePath} download={att.fileName} target="_blank" rel="noreferrer">
+                        <a href={`/api/files?path=${att.filePath}`} download={att.fileName} target="_blank" rel="noreferrer">
                           <Button type="button" variant="ghost" size="icon" className="size-7">
                             <Download className="size-3.5" />
                           </Button>
