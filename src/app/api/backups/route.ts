@@ -160,8 +160,11 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       return NextResponse.json({ error: 'Invalid database configuration' }, { status: 500 });
     }
 
-    const [, dbUser, dbPass, dbHost, dbPort, dbName] = urlMatch;
-    const cmd = `mysqldump -h "${dbHost}" -P "${dbPort}" -u "${dbUser}" -p"${dbPass}" "${dbName}" > "${filePath}"`;
+    const [, parsedUser, parsedPass, dbHost, dbPort, dbName] = urlMatch;
+    const dbUser = process.env.BACKUP_DB_USER ?? parsedUser;
+    const dbPass = process.env.BACKUP_DB_PASSWORD ?? parsedPass;
+    const passArg = dbPass ? `-p"${dbPass}"` : '';
+    const cmd = `mysqldump -h "${dbHost}" -P "${dbPort}" -u "${dbUser}" ${passArg} "${dbName}" > "${filePath}"`;
     await execAsync(cmd);
 
     const stat = fs.statSync(filePath);
