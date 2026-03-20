@@ -7,8 +7,12 @@ import path from 'path';
 
 const BACKUP_DIR = process.env.BACKUP_DIR || '/root/backups';
 
+// Accepts date dir names (YYYYMMDD or YYYYMMDD_HHMMSS) or any SQL filename
 function isValidIdentifier(name: string): boolean {
-  return /^\d{8}$/.test(name) || /^db_backup_\d{8}_\d{6}\.sql$/.test(name);
+  if (name.includes('..') || name.includes('/')) return false;
+  if (/^\d{8}([_-]\d{6})?$/.test(name)) return true;
+  if (/\.(sql|sql\.gz)$/.test(name)) return true;
+  return false;
 }
 
 export const GET = withApiContext(async (req: NextRequest, session, context) => {
@@ -61,9 +65,10 @@ export const GET = withApiContext(async (req: NextRequest, session, context) => 
     const fileBuffer = fs.readFileSync(filePath);
     logger.info({ filename, downloadName, userId: session!.userId }, 'Backup downloaded');
 
+    const contentType = filePath.endsWith('.sql.gz') ? 'application/gzip' : 'application/octet-stream';
     return new NextResponse(fileBuffer, {
       headers: {
-        'Content-Type': 'application/octet-stream',
+        'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${downloadName}"`,
         'Content-Length': String(fileBuffer.length),
       },
