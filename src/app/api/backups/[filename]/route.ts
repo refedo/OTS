@@ -5,10 +5,11 @@ import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
 
-const BACKUP_DIR = process.env.BACKUP_DIR || '/var/backups/hexa-steel-ots';
+const BACKUP_DIR = process.env.BACKUP_DIR || '/root/backups';
 
-function isValidFilename(filename: string): boolean {
-  return /^db_backup_\d{8}_\d{6}\.sql$/.test(filename);
+// Accepts YYYYMMDD dir name OR legacy db_backup_YYYYMMDD_HHMMSS.sql
+function isValidIdentifier(name: string): boolean {
+  return /^\d{8}$/.test(name) || /^db_backup_\d{8}_\d{6}\.sql$/.test(name);
 }
 
 export const DELETE = withApiContext(async (req: NextRequest, session, context) => {
@@ -19,24 +20,29 @@ export const DELETE = withApiContext(async (req: NextRequest, session, context) 
 
   const filename = context?.params?.filename ?? '';
 
-  if (!isValidFilename(filename)) {
-    return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
+  if (!isValidIdentifier(filename)) {
+    return NextResponse.json({ error: 'Invalid backup identifier' }, { status: 400 });
   }
 
-  const filePath = path.join(BACKUP_DIR, filename);
+  const targetPath = path.join(BACKUP_DIR, filename);
 
   // Prevent path traversal
-  if (!filePath.startsWith(BACKUP_DIR + path.sep) && filePath !== path.join(BACKUP_DIR, filename)) {
+  if (!path.resolve(targetPath).startsWith(path.resolve(BACKUP_DIR))) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
   }
 
-  if (!fs.existsSync(filePath)) {
+  if (!fs.existsSync(targetPath)) {
     return NextResponse.json({ error: 'Backup not found' }, { status: 404 });
   }
 
   try {
-    fs.unlinkSync(filePath);
-    logger.info({ filename, userId: session!.userId }, 'Backup file deleted');
+    const stat = fs.statSync(targetPath);
+    if (stat.isDirectory()) {
+      fs.rmSync(targetPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(targetPath);
+    }
+    logger.info({ filename, userId: session!.userId }, 'Backup deleted');
     return NextResponse.json({ message: 'Backup deleted successfully' });
   } catch (error) {
     logger.error({ error, filename }, 'Failed to delete backup');

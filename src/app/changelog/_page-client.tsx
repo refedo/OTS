@@ -23,6 +23,37 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.27.0',
+    date: 'March 20, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Backup Management UI',
+    highlights: [
+      'New Backup Management page under Settings — list, create, download, and delete DB backup files directly from the UI',
+      'Reads /root/backups/YYYYMMDD/ directory structure matching the actual server layout',
+      'Full RBAC/PBAC integration: new backups.* permissions and backup_management module restriction',
+    ],
+    changes: {
+      added: [
+        'Backup Management page at /settings/backups with stats cards (total backups, total size, disk free space)',
+        'Create Backup button — triggers mysqldump server-side into /root/backups/YYYYMMDD/; auto-prunes to keep the last 7 date directories',
+        'Download button per backup — picks largest .sql inside the date directory and streams it to the browser',
+        'Delete button per backup — removes the entire YYYYMMDD directory with AlertDialog confirmation',
+        'Backup directory info bar showing server path and Max 7 backups retained badge',
+        'GET /api/backups — scans YYYYMMDD subdirs and flat .sql files; returns list + disk info',
+        'POST /api/backups — creates /root/backups/YYYYMMDD/db_backup_HHMMSS.sql via mysqldump',
+        'DELETE /api/backups/[dirname] — removes the date directory (or flat file); path-traversal protected',
+        'GET /api/backups/[dirname]/download — serves the largest .sql from the date dir',
+        'backups permission category: backups.view, backups.create, backups.delete, backups.download (Admin-only by default)',
+        'backup_management PBAC module (administrative category) for per-role/user restriction',
+        '/settings/backups route registered in navigation-permissions',
+        'Backup Management entry added to Settings section in the sidebar',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '15.26.0',
     date: 'March 20, 2026',
     type: 'minor',

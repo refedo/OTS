@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [15.26.0] - 2026-03-20
+## [15.27.0] - 2026-03-20
 
 ### Task Attachments, Backlog Notifications & Compression
 
@@ -25,6 +25,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Infrastructure
 - SQL migration `20260319000000_add_task_attachments` — `CREATE TABLE task_attachments` with FK constraints and index; apply manually with `npx prisma generate` + the SQL below on existing servers
+
+---
+
+## [15.26.0] - 2026-03-20
+
+### Task Attachments, Backlog Notifications & Compression
+
+#### Added
+- **Task Attachments** — Upload images and documents to any task in both full create/edit form and the quick-add table row (up to 10 files, 10 MB each); attachments are displayed in the task detail page with download and permission-gated delete
+- **`TaskAttachment` model** — New `task_attachments` DB table with cascade-delete, stored under `/uploads/task-attachments/`
+- **`GET/POST /api/tasks/[id]/attachments`** — List and upload attachments for a task
+- **`DELETE /api/tasks/[id]/attachments/[attachmentId]`** — Delete an attachment (uploader or admin only; removes file from disk)
+- **Attachment count in grid view** — Task cards in grid mode show a paperclip icon with the count of attached files
+- **Image compression** — Raster image attachments (JPEG, PNG, WebP) are automatically compressed server-side using Sharp before storage; JPEG/WebP converted to WebP at 82% quality, PNG palettised with level-9 compression
+- **Backlog status push notification** — When any backlog item status changes (e.g. SUBMITTED → UNDER_REVIEW → APPROVED), the item creator receives an in-app and mobile push notification
+
+#### Fixed
+- **Tasks not appearing after migration** — Attachment count and detail queries now degrade gracefully when the `task_attachments` table is not yet created
 
 ---
 
