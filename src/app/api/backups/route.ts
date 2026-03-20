@@ -11,6 +11,8 @@ const execAsync = promisify(exec);
 
 const BACKUP_DIR = process.env.BACKUP_DIR || '/root/backups';
 
+const MANUAL_MARKER = '.ots-manual';
+
 type BackupEntry = {
   dirname: string;        // e.g. "20260313"
   sqlFile: string;        // SQL filename inside the dir
@@ -18,6 +20,7 @@ type BackupEntry = {
   sizeFormatted: string;
   createdAt: string;      // ISO date derived from dirname
   dirPath: string;        // absolute path to the date dir
+  source: 'manual' | 'auto';
 };
 
 function formatBytes(bytes: number): string {
@@ -76,6 +79,7 @@ export function listBackups(): BackupEntry[] {
         }
       }
 
+      const isManual = fs.existsSync(path.join(fullPath, MANUAL_MARKER));
       entries.push({
         dirname: item,
         sqlFile: bestFile,
@@ -83,6 +87,7 @@ export function listBackups(): BackupEntry[] {
         sizeFormatted: formatBytes(bestSize),
         createdAt: dateFromDirname(item),
         dirPath: fullPath,
+        source: isManual ? 'manual' : 'auto',
       });
     } else if (stat.isFile() && isSqlFile(item)) {
       // Flat SQL file at root of BACKUP_DIR (any naming convention)
@@ -93,6 +98,7 @@ export function listBackups(): BackupEntry[] {
         sizeFormatted: formatBytes(stat.size),
         createdAt: stat.mtime.toISOString(),
         dirPath: BACKUP_DIR,
+        source: 'auto',
       });
     }
   }
@@ -162,6 +168,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
 
     const dirPath = path.join(BACKUP_DIR, datePart);
     fs.mkdirSync(dirPath, { recursive: true });
+    fs.writeFileSync(path.join(dirPath, MANUAL_MARKER), '');
 
     const sqlFilename = `db_backup_${timePart}.sql`;
     const filePath = path.join(dirPath, sqlFilename);
