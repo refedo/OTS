@@ -118,7 +118,7 @@ export function TaskAttachmentUploader({
                 </p>
               </div>
               <a
-                href={att.filePath}
+                href={`/api/files?path=${att.filePath}`}
                 download={att.fileName}
                 target="_blank"
                 rel="noreferrer"
