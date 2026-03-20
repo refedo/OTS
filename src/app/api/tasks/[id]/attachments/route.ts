@@ -6,9 +6,12 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
+import sharp from 'sharp';
 
+const COMPRESSIBLE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const ALLOWED_TYPES = [
-  'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp',
+  ...COMPRESSIBLE_IMAGE_TYPES,
+  'image/gif', 'image/svg+xml', 'image/bmp',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -21,6 +24,24 @@ const ALLOWED_TYPES = [
 ];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_ATTACHMENTS = 10;
+
+/** Compress image buffer using sharp; returns compressed buffer and new MIME type. */
+async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string }> {
+  const instance = sharp(buffer).rotate(); // auto-rotate from EXIF
+
+  if (mimeType === 'image/png') {
+    const compressed = await instance
+      .png({ compressionLevel: 9, palette: true })
+      .toBuffer();
+    return { buffer: compressed, mimeType: 'image/png' };
+  }
+
+  // JPEG / WEBP / other → output as WebP for best size/quality ratio
+  const compressed = await instance
+    .webp({ quality: 82 })
+    .toBuffer();
+  return { buffer: compressed, mimeType: 'image/webp' };
+}
 
 export async function GET(
   req: Request,
@@ -92,21 +113,37 @@ export async function POST(
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'task-attachments');
     if (!existsSync(uploadsDir)) await mkdir(uploadsDir, { recursive: true });
 
+    const rawBytes = await file.arrayBuffer();
+    let fileBuffer = Buffer.from(rawBytes);
+    let mimeType = file.type;
+
+    // Compress raster images to save disk space
+    if (COMPRESSIBLE_IMAGE_TYPES.includes(mimeType)) {
+      try {
+        const compressed = await compressImage(fileBuffer, mimeType);
+        fileBuffer = compressed.buffer;
+        mimeType = compressed.mimeType;
+        logger.debug({ taskId, originalSize: file.size, compressedSize: fileBuffer.length }, 'Image compressed');
+      } catch (compressErr) {
+        logger.warn({ compressErr, taskId }, 'Image compression failed, storing original');
+      }
+    }
+
     const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filename = `${timestamp}-${safeName}`;
+    const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-]/g, '_');
+    const ext = mimeType === 'image/webp' ? 'webp' : mimeType === 'image/png' ? 'png' : path.extname(file.name).slice(1) || 'bin';
+    const filename = `${timestamp}-${baseName}.${ext}`;
     const filePath = path.join(uploadsDir, filename);
 
-    const bytes = await file.arrayBuffer();
-    await writeFile(filePath, Buffer.from(bytes));
+    await writeFile(filePath, fileBuffer);
 
     const attachment = await prisma.taskAttachment.create({
       data: {
         taskId,
         fileName: file.name,
         filePath: `/uploads/task-attachments/${filename}`,
-        fileType: file.type,
-        fileSize: file.size,
+        fileType: mimeType,
+        fileSize: fileBuffer.length,
         uploadedById: session.sub,
       },
       include: {
@@ -114,7 +151,7 @@ export async function POST(
       },
     });
 
-    logger.info({ taskId, attachmentId: attachment.id, fileName: file.name }, 'Task attachment uploaded');
+    logger.info({ taskId, attachmentId: attachment.id, fileName: file.name, savedSize: fileBuffer.length }, 'Task attachment uploaded');
     return NextResponse.json(attachment, { status: 201 });
   } catch (error) {
     logger.error({ error, taskId }, 'Failed to upload task attachment');
