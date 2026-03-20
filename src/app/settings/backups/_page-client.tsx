@@ -87,9 +87,14 @@ function relativeTime(iso: string): string {
 }
 
 function formatDirname(dirname: string): string {
-  // Convert "20260313" → "2026-03-13"
-  if (/^\d{8}$/.test(dirname)) {
-    return `${dirname.slice(0, 4)}-${dirname.slice(4, 6)}-${dirname.slice(6, 8)}`;
+  // Convert "20260313" → "2026-03-13", "20260313_120000" → "2026-03-13 12:00:00"
+  if (/^\d{8}([_-]\d{6})?$/.test(dirname)) {
+    const date = `${dirname.slice(0, 4)}-${dirname.slice(4, 6)}-${dirname.slice(6, 8)}`;
+    if (dirname.length > 8) {
+      const t = dirname.slice(9);
+      return `${date} ${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`;
+    }
+    return date;
   }
   return dirname;
 }

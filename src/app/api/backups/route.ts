@@ -28,11 +28,23 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
+// Accept: YYYYMMDD or YYYYMMDD_HHMMSS / YYYYMMDD-HHMMSS
+function isDateDir(name: string): boolean {
+  return /^\d{8}([_-]\d{6})?$/.test(name);
+}
+
+function isSqlFile(name: string): boolean {
+  return name.endsWith('.sql') || name.endsWith('.sql.gz');
+}
+
 function dateFromDirname(dirname: string): string {
-  // dirname format: YYYYMMDD
   const y = dirname.slice(0, 4);
   const m = dirname.slice(4, 6);
   const d = dirname.slice(6, 8);
+  if (dirname.length > 8) {
+    const t = dirname.slice(9); // after _ or -
+    return new Date(`${y}-${m}-${d}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`).toISOString();
+  }
   return new Date(`${y}-${m}-${d}T00:00:00`).toISOString();
 }
 
@@ -48,12 +60,12 @@ export function listBackups(): BackupEntry[] {
     const fullPath = path.join(BACKUP_DIR, item);
     const stat = fs.statSync(fullPath);
 
-    if (stat.isDirectory() && /^\d{8}$/.test(item)) {
-      // Date subdirectory — find SQL files inside
-      const sqlFiles = fs.readdirSync(fullPath).filter(f => f.endsWith('.sql'));
+    if (stat.isDirectory() && isDateDir(item)) {
+      // Date subdirectory — find SQL files inside (.sql or .sql.gz)
+      const sqlFiles = fs.readdirSync(fullPath).filter(isSqlFile);
       if (sqlFiles.length === 0) continue;
 
-      // Pick the largest SQL file in the dir (most complete dump)
+      // Pick the largest file in the dir (most complete dump)
       let bestFile = sqlFiles[0];
       let bestSize = 0;
       for (const sf of sqlFiles) {
@@ -72,8 +84,8 @@ export function listBackups(): BackupEntry[] {
         createdAt: dateFromDirname(item),
         dirPath: fullPath,
       });
-    } else if (stat.isFile() && item.endsWith('.sql')) {
-      // Flat SQL file at root of BACKUP_DIR (legacy format support)
+    } else if (stat.isFile() && isSqlFile(item)) {
+      // Flat SQL file at root of BACKUP_DIR (any naming convention)
       entries.push({
         dirname: item,
         sqlFile: item,
