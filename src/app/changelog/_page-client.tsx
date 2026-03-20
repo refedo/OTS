@@ -26,7 +26,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     version: '15.26.0',
     date: 'March 20, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Task Attachments & Backlog Notifications',
     highlights: [
       'Upload images and documents to tasks in both full and quick-add modes (up to 10 files, 10 MB each)',

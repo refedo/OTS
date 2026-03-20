@@ -113,6 +113,12 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Activity Tracking**: Full user action audit trail
 - **Password Management**: Self-service password reset and change
 
+### System Administration & Backup
+- **Backup Management UI**: View, create, download, and delete database backup files from `/settings/backups` — no server console access needed
+- **Backup Stats**: Real-time stats for total backup count, total backup size, and server disk free space
+- **Automated Retention**: Automatically prunes to the most recent 7 backups on each create
+- **RBAC/PBAC Protected**: Dedicated `backups.*` permissions (view/create/delete/download) and a `backup_management` PBAC module for granular access control per role/user
+
 ---
 
 ## Tech Stack
@@ -204,6 +210,9 @@ DOLIBARR_API_RETRIES="3"
 # Background Jobs (optional)
 CRON_SECRET="your-cron-secret"
 ENABLE_RISK_SCHEDULER="false"        # true in production to enable automated risk detection
+
+# Backup Management (optional)
+BACKUP_DIR="/var/backups/hexa-steel-ots"  # Override default backup directory path
 
 # Push Notifications (optional — required for mobile push)
 VAPID_PUBLIC_KEY=""                  # Generate with: node scripts/generate-vapid-keys.mjs
