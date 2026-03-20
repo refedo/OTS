@@ -252,6 +252,18 @@ export const MODULE_RESTRICTIONS: ModuleRestriction[] = [
       'settings.edit',
     ],
   },
+  {
+    id: 'backup_management',
+    name: 'Backup Management',
+    description: 'Database backup creation, management, and download',
+    category: 'administrative',
+    permissions: [
+      'backups.view',
+      'backups.create',
+      'backups.delete',
+      'backups.download',
+    ],
+  },
 ];
 
 // Get all permissions that are considered financial/sensitive

@@ -262,6 +262,7 @@ const navigationSections: NavigationSection[] = [
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Backup Management', href: '/settings/backups', icon: Database },
       { name: 'About OTS™', href: '/settings/about', icon: Info },
       { name: 'Version Management', href: '/settings/version', icon: GitBranch },
       { name: 'Changelog', href: '/changelog', icon: FileCode },
