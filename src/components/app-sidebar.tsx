@@ -1,7 +1,7 @@
 'use client';
 // Force recompile - v15.0.0
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -271,6 +271,7 @@ const navigationSections: NavigationSection[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { collapsed, setCollapsed } = useSidebar();
   const [isMounted, setIsMounted] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
@@ -279,13 +280,26 @@ export function AppSidebar() {
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
   const { version } = useVersion();
   
+  // Check if a nav item is active, respecting query-param-based hrefs
+  const isNavItemActive = (href: string): boolean => {
+    if (href.includes('?')) {
+      const [hrefPath, hrefQuery] = href.split('?');
+      if (pathname !== hrefPath) return false;
+      const hrefParams = new URLSearchParams(hrefQuery);
+      for (const [key, value] of hrefParams.entries()) {
+        if (searchParams.get(key) !== value) return false;
+      }
+      return true;
+    }
+    if (href === '/qc' || href === '/production') return pathname === href;
+    return pathname === href || pathname.startsWith(href + '/');
+  };
+
   // Find which section contains the active route
   const getActiveSections = () => {
     const activeSections: string[] = [];
     navigationSections.forEach(section => {
-      const hasActiveItem = section.items.some(
-        item => pathname === item.href || pathname.startsWith(item.href + '/')
-      );
+      const hasActiveItem = section.items.some(item => isNavItemActive(item.href));
       if (hasActiveItem) {
         activeSections.push(section.name);
       }
@@ -471,9 +485,7 @@ export function AppSidebar() {
             ).map((section) => {
               const SectionIcon = section.icon;
               const isExpanded = expandedSections.includes(section.name);
-              const hasActiveItem = section.items.some(
-                item => pathname === item.href || pathname.startsWith(item.href.split('?')[0] + '/')
-              );
+              const hasActiveItem = section.items.some(item => isNavItemActive(item.href));
               const isNotificationSection = section.name === 'Notifications';
 
               // When collapsed, show only section icons as links to first item
@@ -541,10 +553,7 @@ export function AppSidebar() {
                           : hasAccessToRoute(userPermissions, item.href)
                       ).map((item) => {
                         const ItemIcon = item.icon;
-                        // Special handling for dashboards - only exact match
-                        const isActive = (item.href === '/qc' || item.href === '/production')
-                          ? pathname === item.href
-                          : pathname === item.href || pathname.startsWith(item.href.split('?')[0] + '/');
+                        const isActive = isNavItemActive(item.href);
 
                         // Determine badge count for notification sub-items
                         let badgeCount = 0;

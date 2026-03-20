@@ -1889,12 +1889,15 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                   <Lock className="size-3.5 text-amber-600" />
                                 </span>
                               )}
-                              <Link 
+                              <Link
                                 href={`/tasks/${task.id}`}
                                 className="font-medium hover:text-primary hover:underline cursor-pointer"
                               >
                                 {task.title}
                               </Link>
+                              {(task._count?.attachments ?? 0) > 0 && (
+                                <Paperclip className="size-3 shrink-0 text-muted-foreground" title={`${task._count!.attachments} attachment(s)`} />
+                              )}
                             </div>
                             {task.description && (
                               <p className="text-sm text-muted-foreground line-clamp-1">
@@ -2391,6 +2394,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                       <Link href={`/tasks/${task.id}`} className="hover:text-primary hover:underline flex items-center gap-1.5">
                         {task.isPrivate && <span title="Private task"><Lock className="size-3.5 text-amber-600" /></span>}
                         {task.title}
+                        {(task._count?.attachments ?? 0) > 0 && (
+                          <Paperclip className="size-3.5 shrink-0 text-muted-foreground" title={`${task._count!.attachments} attachment(s)`} />
+                        )}
                       </Link>
                     </CardTitle>
                     <DropdownMenu>
@@ -2674,6 +2680,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                               <Link href={`/tasks/${task.id}`} className="font-medium hover:text-primary hover:underline">
                                 {task.title}
                               </Link>
+                              {(task._count?.attachments ?? 0) > 0 && (
+                                <Paperclip className="size-3 shrink-0 text-muted-foreground" title={`${task._count!.attachments} attachment(s)`} />
+                              )}
                             </div>
                           )}
                         </TableCell>
@@ -2993,6 +3002,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                             >
                               {task.title}
                             </Link>
+                            {(task._count?.attachments ?? 0) > 0 && (
+                              <Paperclip className="size-3 shrink-0 text-muted-foreground" title={`${task._count!.attachments} attachment(s)`} />
+                            )}
                           </div>
                           {task.description && (
                             <p className="text-xs text-muted-foreground truncate max-w-[300px] ml-7" title={task.description}>
