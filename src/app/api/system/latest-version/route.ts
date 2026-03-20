@@ -7,55 +7,49 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'Parts Upload Enhancements & Bug Fixes',
+  mainTitle: 'Backup Management UI',
   highlights: [
-    'CSV file support for parts upload — no need to convert to Excel first',
-    'Header Row selector — choose which row contains column names (handles non-standard files)',
-    'Rollback Upload button — soft-delete an entire upload batch, recoverable from Governance',
-    'Part Mark is now optional when uploading assembly parts',
-    'Tasks "New Features" tips dismissed state now persists across all devices and sessions',
+    'New Backup Management page under System Settings — view, create, download, and delete database backups',
+    'Automatic pruning keeps at most 7 most recent backups to conserve disk space',
+    'Live disk usage stats show total, used, and free space on the backup partition',
+    'Full RBAC/PBAC integration — granular permissions for view, create, download, and delete',
+    'Backup files are served as direct SQL downloads without exposing the server filesystem',
   ],
   changes: {
     added: [
       {
-        title: 'Parts Upload — CSV Support',
+        title: 'Backup Management — UI Page',
         items: [
-          'Upload page now accepts .csv files in addition to .xls and .xlsx',
-          'CSV is parsed via the XLSX library (reads as text); Excel continues as ArrayBuffer',
+          'New page at /settings/backups with a sortable table of all database backups',
+          'Each row shows backup date, SQL filename, age, and file size',
+          '"Latest" badge highlights the most recent backup',
+          'Stats cards display total backup count, total size, and disk free space',
+          'Backup directory path shown for reference',
         ],
       },
       {
-        title: 'Parts Upload — Header Row Selector',
+        title: 'Backup Management — API Routes',
         items: [
-          'New numeric input (default: 1) lets you specify which row contains column names',
-          'Column mapping and preview update live whenever the header row is changed',
-          'Handles files where the header row is not the first row',
+          'GET /api/backups — lists all backups from YYYYMMDD subdirectory structure',
+          'POST /api/backups — creates a new backup via mysqldump into a date-stamped directory',
+          'DELETE /api/backups/[dirname] — deletes a backup directory (or legacy flat .sql file)',
+          'GET /api/backups/[dirname]/download — streams the SQL file as a download attachment',
+          'Supports both new YYYYMMDD/ subdirectory format and legacy flat .sql files',
         ],
       },
       {
-        title: 'Parts Upload — Rollback Upload',
+        title: 'Backup Management — RBAC/PBAC',
         items: [
-          'After a successful bulk upload, a Rollback Upload button appears in the result card',
-          'Clicking it soft-deletes all uploaded parts (sets deletedAt); parts remain recoverable from the Governance page',
-          'Rollback action is logged as a system event for full traceability',
-          'Requires the production.delete_parts permission',
+          'Added backups permission category with four permissions: view, create, delete, download',
+          'Added backup_management PBAC module under the administrative category',
+          'Navigation permission guard added for /settings/backups route',
+          '"Backup Management" link added to the System Settings sidebar section',
         ],
       },
     ],
-    fixed: [
-      {
-        title: 'Parts Upload — 403 Forbidden Error',
-        items: [
-          'Upload API was checking for production.upload_parts which does not exist',
-          'Fixed to use the correct permission key: production.create_parts',
-        ],
-      },
-      'Parts Upload — Part Mark is now optional; uploads no longer fail when the column is absent',
-      'Tasks Tips Banner — "New Features" tips dismissed state is now saved server-side so it no longer reappears after clearing browser storage, switching devices, or opening a new session',
-    ],
+    fixed: [],
     changed: [
-      'Bulk upload now logs entityType and full partIds array in system events for traceability',
-      'Bulk upload now also writes to the Governance audit trail (logActivity) in addition to system events',
+      'Backup pruning now runs automatically on every new backup creation — oldest beyond 7 are removed',
     ],
   },
 };
