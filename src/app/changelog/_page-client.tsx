@@ -23,10 +23,33 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.27.1',
+    date: 'March 21, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Dashboard Widgets: Product Backlog & Weekly Issues',
+    highlights: [
+      'New Product Backlog dashboard widget — shows active/blocked/pending counts, priority breakdown, and recent active items with direct links',
+      'New Weekly Issues dashboard widget — shows open/in-progress counts, overdue alert, priority breakdown, and recent open issues',
+      'Two new summary API routes power the widgets with aggregated status and priority counts',
+    ],
+    changes: {
+      added: [
+        'Product Backlog widget (BACKLOG type) — status tiles for Active / Blocked / Pending, priority grid (Critical / High / Medium / Low), list of up to 5 recent non-completed items with code and status badge; auto-refreshes every 2 minutes',
+        'Weekly Issues widget (WEEKLY_ISSUES type) — Open / In Progress status tiles, overdue alert banner, priority grid, list of up to 5 recent open issues with issue number and department; auto-refreshes every 2 minutes',
+        'GET /api/dashboard/backlog/summary — groups ProductBacklogItem by status and priority; returns active, blocked, pending totals and 5 recent non-completed items',
+        'GET /api/dashboard/weekly-issues/summary — groups WeeklyIssue by status and priority; returns overdue count and 5 recent open issues',
+        'Both BACKLOG and WEEKLY_ISSUES registered in the WidgetContainer component dictionary and WIDGET_DEFINITIONS list',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '15.27.0',
     date: 'March 20, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Backup Management UI',
     highlights: [
       'New Backup Management page under Settings — list, create, download, and delete DB backup files directly from the UI',

@@ -7,50 +7,45 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'Backup Management UI',
+  mainTitle: 'Dashboard Widgets: Product Backlog & Weekly Issues',
   highlights: [
-    'New Backup Management page under System Settings — view, create, download, and delete database backups',
-    'Automatic pruning keeps at most 7 most recent backups to conserve disk space',
-    'Live disk usage stats show total, used, and free space on the backup partition',
-    'Full RBAC/PBAC integration — granular permissions for view, create, download, and delete',
-    'Backup files are served as direct SQL downloads without exposing the server filesystem',
+    'New Product Backlog dashboard widget — active/blocked/pending counts, priority breakdown, and recent active backlog items',
+    'New Weekly Issues dashboard widget — open/in-progress counts, overdue alert, and recent open issues from weekly meetings',
+    'Two new summary API routes power the widgets with real-time aggregated data',
   ],
   changes: {
     added: [
       {
-        title: 'Backup Management — UI Page',
+        title: 'Product Backlog Widget',
         items: [
-          'New page at /settings/backups with a sortable table of all database backups',
-          'Each row shows backup date, SQL filename, age, and file size',
-          '"Latest" badge highlights the most recent backup',
-          'Stats cards display total backup count, total size, and disk free space',
-          'Backup directory path shown for reference',
+          'BACKLOG widget type available in the Add Widget dialog on the dashboard',
+          'Status tiles: Active (In Progress + Planned + Approved), Blocked, Pending (Idea + Under Review)',
+          'Priority grid showing Critical / High / Medium / Low counts',
+          'List of up to 5 recent non-completed backlog items with code, title, status badge, and link',
+          'Auto-refreshes every 2 minutes; violet left-border accent',
         ],
       },
       {
-        title: 'Backup Management — API Routes',
+        title: 'Weekly Issues Widget',
         items: [
-          'GET /api/backups — lists all backups from YYYYMMDD subdirectory structure',
-          'POST /api/backups — creates a new backup via mysqldump into a date-stamped directory',
-          'DELETE /api/backups/[dirname] — deletes a backup directory (or legacy flat .sql file)',
-          'GET /api/backups/[dirname]/download — streams the SQL file as a download attachment',
-          'Supports both new YYYYMMDD/ subdirectory format and legacy flat .sql files',
+          'WEEKLY_ISSUES widget type available in the Add Widget dialog on the dashboard',
+          'Open and In Progress status tiles with counts',
+          'Overdue alert banner shown when issues have passed their due date',
+          'Priority grid showing Critical / High / Medium / Low counts',
+          'List of up to 5 recent open issues with issue number, status badge, department name, and link',
+          'Auto-refreshes every 2 minutes; rose left-border accent',
         ],
       },
       {
-        title: 'Backup Management — RBAC/PBAC',
+        title: 'New API Routes',
         items: [
-          'Added backups permission category with four permissions: view, create, delete, download',
-          'Added backup_management PBAC module under the administrative category',
-          'Navigation permission guard added for /settings/backups route',
-          '"Backup Management" link added to the System Settings sidebar section',
+          'GET /api/dashboard/backlog/summary — aggregates ProductBacklogItem by status and priority; returns active, blocked, pending totals and 5 recent non-completed items',
+          'GET /api/dashboard/weekly-issues/summary — aggregates WeeklyIssue by status and priority; returns overdue count and 5 recent open issues',
         ],
       },
     ],
     fixed: [],
-    changed: [
-      'Backup pruning now runs automatically on every new backup creation — oldest beyond 7 are removed',
-    ],
+    changed: [],
   },
 };
 
