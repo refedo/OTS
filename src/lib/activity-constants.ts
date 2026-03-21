@@ -1,4 +1,5 @@
 export const MAIN_ACTIVITIES = [
+  { key: 'architecture', label: 'Architecture' },
   { key: 'design', label: 'Design' },
   { key: 'detailing', label: 'Detailing' },
   { key: 'procurement', label: 'Procurement' },
@@ -11,6 +12,9 @@ export const MAIN_ACTIVITIES = [
 export type MainActivityKey = (typeof MAIN_ACTIVITIES)[number]['key'];
 
 export const SUB_ACTIVITIES: Record<string, { key: string; label: string }[]> = {
+  architecture: [
+    { key: 'approved_architectural_drawings', label: 'Approved Architectural Drawings' },
+  ],
   design: [
     { key: 'proposal_coordination', label: 'Proposal & Coordination' },
     { key: 'design_package', label: 'Design Package' },

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.27.2] - 2026-03-21
+
+### Architecture Activity & Task Classification Enhancements
+
+#### Added
+- **Architecture Main Activity** — New "Architecture" activity added to the task classification system, positioned first in the activity workflow
+- **Approved Architectural Drawings sub-activity** — Single sub-activity under Architecture for tracking architectural drawing approval status
+
+---
+
+## [15.25.0] - 2026-03-17
+
+### Task Activity Classification
+
+#### Added
+- **7 Main Activities** — Design, Detailing, Procurement, Production, Coating, Delivery & Logistics, Erection with their sub-activities defined for steel fabrication workflows
+- **Finish-to-Start Dependencies** — Dependency map between sub-activities with inline amber warning banner in task form when predecessor is not yet completed
+- **mainActivity / subActivity fields** — New nullable fields on the Task model with DB migration (`prisma/migrations/add_task_activities.sql`)
+- **Cascading dropdowns** — Main Activity → Sub-Activity dropdowns in task creation and edit forms
+- **Activity card** — Task detail sidebar shows main and sub activity labels
+- **Table view columns** — Main Activity and Sub-Activity columns with inline edit support
+
+#### Changed
+- Project Management View hierarchy changed from Project > Building > Department to Project > Building > Main Activity > Sub-Activity
+
+---
+
 ## [15.24.0] - 2026-03-16
 
 ### Parts Upload Enhancements & Bug Fixes
