@@ -21,7 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip, BarChart3 } from 'lucide-react';
+import { TasksGanttView } from '@/components/tasks-gantt-view';
 import { uploadPendingAttachments, type PendingFile } from '@/components/task-attachment-uploader';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -56,6 +57,7 @@ type Task = {
   rejectionReason: string | null;
   remark: string | null;
   revision: string | null;
+  consultantResponseCode: string | null;
   createdAt: string;
   updatedAt: string;
   _count?: { attachments: number };
@@ -128,7 +130,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   const [projectFilter, setProjectFilter] = useState<string>(initialProjectFilter || '');
   const [buildingFilter, setBuildingFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'project' | 'simple'>('table');
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'project' | 'simple' | 'gantt'>('table');
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -366,8 +368,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   const expandAll = useCallback(() => {
     const projectIds = new Set<string>();
     const buildingKeys = new Set<string>();
-    const activityKeys = new Set<string>();
-    const subActivityKeys = new Set<string>();
+    const deptKeys = new Set<string>();
 
     filteredTasks.forEach(task => {
       if (!task.project) return;
@@ -375,16 +376,14 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       projectIds.add(pKey);
       const bKey = task.building?.id || '__no_building__';
       buildingKeys.add(`${pKey}-${bKey}`);
-      const actKey = task.mainActivity || '__no_activity__';
-      activityKeys.add(`${pKey}-${bKey}-${actKey}`);
-      const subKey = task.subActivity || '__no_sub__';
-      subActivityKeys.add(`${pKey}-${bKey}-${actKey}-${subKey}`);
+      const dKey = task.department?.id || '__no_dept__';
+      deptKeys.add(`${pKey}-${bKey}-${dKey}`);
     });
 
     setExpandedProjects(projectIds);
     setExpandedBuildings(buildingKeys);
-    setExpandedActivities(activityKeys);
-    setExpandedSubActivities(subActivityKeys);
+    setExpandedActivities(deptKeys);
+    setExpandedSubActivities(new Set());
   }, [filteredTasks]);
 
   const collapseAll = useCallback(() => {
@@ -400,6 +399,22 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       expandAll();
     }
   }, [viewMode, expandAll]);
+
+  const handleConsultantCodeChange = async (taskId: string, code: string | null) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consultantResponseCode: code || null }),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, consultantResponseCode: updated.consultantResponseCode } : t));
+      }
+    } catch {
+      showAlert('Failed to update consultant response code', { type: 'error' });
+    }
+  };
 
   const handleDelete = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
@@ -1210,6 +1225,14 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   >
                     <LayoutList className="size-4" />
                   </Button>
+                  <Button
+                    variant={viewMode === 'gantt' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('gantt')}
+                    title="Gantt View (Project > Building > Activity > Sub-Activity)"
+                  >
+                    <BarChart3 className="size-4" />
+                  </Button>
                 </div>
 
                 <div className="h-6 w-px bg-border" />
@@ -1471,7 +1494,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   <ul className="text-blue-800 space-y-0.5 text-xs">
                     <li><strong>Ctrl+Click</strong> on Status or Priority buttons to select multiple filters at once</li>
                     <li><strong>Click column headers</strong> to sort the table ascending/descending</li>
-                    <li><strong>Project Management View</strong> (<FolderTree className="size-3 inline" />) groups tasks by Project &gt; Building &gt; Department</li>
+                    <li><strong>Project Management View</strong> (<FolderTree className="size-3 inline" />) groups tasks by Project &gt; Building &gt; Department &gt; Task</li>
+                  <li><strong>Gantt View</strong> (<BarChart3 className="size-3 inline" />) shows Project &gt; Building &gt; Activity &gt; Sub-Activity timeline with dependency arrows</li>
                     <li><strong>Approval Status</strong> column tracks client approval with timestamp</li>
                     <li><strong>Duplicate Task</strong> option available in the row action menu (&hellip;)</li>
                   </ul>
@@ -1564,6 +1588,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('approvedAt')}>
                       <div className="flex items-center">Approval {getSortIcon('approvedAt')}</div>
                     </TableHead>
+                    <TableHead>Consultant Code</TableHead>
                     <TableHead>Remark</TableHead>
                     <TableHead>Revision</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -1757,6 +1782,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                           />
                           <Lock className="size-3.5 text-amber-600" />
                         </label>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground text-sm">-</span>
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground text-sm">-</span>
@@ -2263,6 +2291,19 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                             </>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <select
+                          value={task.consultantResponseCode || ''}
+                          onChange={(e) => handleConsultantCodeChange(task.id, e.target.value || null)}
+                          className="h-8 px-1.5 rounded border bg-background text-xs min-w-[120px]"
+                          title="Consultant response code"
+                        >
+                          <option value="">— Not set —</option>
+                          <option value="code_a">Approved — Code A</option>
+                          <option value="code_b">Approved with comments — Code B</option>
+                          <option value="code_c">Resubmit — Code C</option>
+                        </select>
                       </TableCell>
                       <TableCell>
                         {isEditing ? (
@@ -2883,14 +2924,32 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
               </Table>
             </CardContent>
           </Card>
+        ) : viewMode === 'gantt' ? (
+          /* Gantt View */
+          <Card>
+            <CardHeader className="pb-2 px-4 pt-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Gantt View — Project &gt; Building &gt; Activity &gt; Sub-Activity
+                </CardTitle>
+                <div className="text-xs text-muted-foreground">
+                  Showing tasks with dates · Dependency arrows show finish-to-start constraints
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 overflow-hidden">
+              <TasksGanttView tasks={filteredTasks} />
+            </CardContent>
+          </Card>
         ) : (
-          /* Project Management View - hierarchical: Project > Building > Activity > Task */
+          /* Project Management View - hierarchical: Project > Building > Department > Task */
           <Card>
             <CardHeader className="pb-2 px-4 pt-4">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <FolderTree className="h-4 w-4" />
-                  Project Management View
+                  Project Management View — Project › Building › Department › Task
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={expandAll}>
@@ -3334,61 +3393,48 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                   </TableRow>
 
                                   {isBuildingExpanded && (() => {
-                                    // Group by mainActivity
-                                    const mainActivityGroups = new Map<string, { label: string; tasks: Task[] }>();
+                                    // Group by department
+                                    const deptGroups = new Map<string, { label: string; tasks: Task[] }>();
                                     bTasks.forEach(task => {
-                                      const actKey = task.mainActivity || '__no_activity__';
-                                      const actLabel = task.mainActivity ? getMainActivityLabel(task.mainActivity) : 'General';
-                                      if (!mainActivityGroups.has(actKey)) {
-                                        mainActivityGroups.set(actKey, { label: actLabel, tasks: [] });
+                                      const dKey = task.department?.id || '__no_dept__';
+                                      const dLabel = task.department?.name || 'No Department';
+                                      if (!deptGroups.has(dKey)) {
+                                        deptGroups.set(dKey, { label: dLabel, tasks: [] });
                                       }
-                                      mainActivityGroups.get(actKey)!.tasks.push(task);
+                                      deptGroups.get(dKey)!.tasks.push(task);
                                     });
 
-                                    return Array.from(mainActivityGroups.entries()).map(([actKey, { label: actLabel, tasks: actTasks }]) => {
-                                      const actExpandKey = `${projectId}-${buildingId}-${actKey}`;
-                                      const isActivityExpanded = expandedActivities.has(actExpandKey);
-                                      const toggleActivity = () => {
+                                    return Array.from(deptGroups.entries()).map(([dKey, { label: dLabel, tasks: dTasks }]) => {
+                                      const deptExpandKey = `${projectId}-${buildingId}-${dKey}`;
+                                      const isDeptExpanded = expandedActivities.has(deptExpandKey);
+                                      const toggleDept = () => {
                                         setExpandedActivities(prev => {
                                           const next = new Set(prev);
-                                          next.has(actExpandKey) ? next.delete(actExpandKey) : next.add(actExpandKey);
+                                          next.has(deptExpandKey) ? next.delete(deptExpandKey) : next.add(deptExpandKey);
                                           return next;
                                         });
                                       };
-                                      const actCompleted = actTasks.filter(t => t.status === 'Completed').length;
-
-                                      // Group by subActivity within mainActivity
-                                      const subActivityGroups = new Map<string, { label: string; tasks: Task[] }>();
-                                      actTasks.forEach(task => {
-                                        const subKey = task.subActivity || '__no_sub__';
-                                        const subLabel = (task.mainActivity && task.subActivity)
-                                          ? getSubActivityLabel(task.mainActivity, task.subActivity)
-                                          : 'General';
-                                        if (!subActivityGroups.has(subKey)) {
-                                          subActivityGroups.set(subKey, { label: subLabel, tasks: [] });
-                                        }
-                                        subActivityGroups.get(subKey)!.tasks.push(task);
-                                      });
+                                      const deptCompleted = dTasks.filter(t => t.status === 'Completed').length;
 
                                       return (
-                                        <React.Fragment key={actKey}>
+                                        <React.Fragment key={dKey}>
                                           <TableRow
                                             className="bg-purple-50 hover:bg-purple-100 cursor-pointer border-l-4 border-l-purple-400"
-                                            onClick={toggleActivity}
+                                            onClick={toggleDept}
                                           >
                                             <TableCell className="py-1.5" style={{ paddingLeft: '60px' }}>
                                               <div className="flex items-center gap-1.5 font-medium text-sm">
-                                                {isActivityExpanded ? <ChevronDown className="size-3 text-purple-500" /> : <ChevronRight className="size-3 text-purple-500" />}
-                                                <span className="text-purple-700">{actLabel}</span>
-                                                <span className="text-xs font-normal text-purple-500/70">({actTasks.length})</span>
+                                                {isDeptExpanded ? <ChevronDown className="size-3 text-purple-500" /> : <ChevronRight className="size-3 text-purple-500" />}
+                                                <span className="text-purple-700">{dLabel}</span>
+                                                <span className="text-xs font-normal text-purple-500/70">({dTasks.length})</span>
                                               </div>
                                             </TableCell>
-                                            <TableCell className="text-xs text-muted-foreground">{actTasks.length} tasks</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{dTasks.length} tasks</TableCell>
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
                                             <TableCell>
-                                              <span className="text-xs text-muted-foreground">{actCompleted}/{actTasks.length}</span>
+                                              <span className="text-xs text-muted-foreground">{deptCompleted}/{dTasks.length}</span>
                                             </TableCell>
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
@@ -3398,51 +3444,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                             <TableCell></TableCell>
                                             <TableCell></TableCell>
                                           </TableRow>
-
-                                          {isActivityExpanded && Array.from(subActivityGroups.entries()).map(([subKey, { label: subLabel, tasks: subTasks }]) => {
-                                            const subExpandKey = `${projectId}-${buildingId}-${actKey}-${subKey}`;
-                                            const isSubExpanded = expandedSubActivities.has(subExpandKey);
-                                            const toggleSub = () => {
-                                              setExpandedSubActivities(prev => {
-                                                const next = new Set(prev);
-                                                next.has(subExpandKey) ? next.delete(subExpandKey) : next.add(subExpandKey);
-                                                return next;
-                                              });
-                                            };
-                                            const subCompleted = subTasks.filter(t => t.status === 'Completed').length;
-
-                                            return (
-                                              <React.Fragment key={subKey}>
-                                                <TableRow
-                                                  className="bg-emerald-50 hover:bg-emerald-100 cursor-pointer border-l-4 border-l-emerald-400"
-                                                  onClick={toggleSub}
-                                                >
-                                                  <TableCell className="py-1" style={{ paddingLeft: '84px' }}>
-                                                    <div className="flex items-center gap-1.5 text-sm">
-                                                      {isSubExpanded ? <ChevronDown className="size-3 text-emerald-500" /> : <ChevronRight className="size-3 text-emerald-500" />}
-                                                      <span className="text-emerald-700">{subLabel}</span>
-                                                      <span className="text-xs font-normal text-emerald-500/70">({subTasks.length})</span>
-                                                    </div>
-                                                  </TableCell>
-                                                  <TableCell className="text-xs text-muted-foreground">{subTasks.length} tasks</TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell>
-                                                    <span className="text-xs text-muted-foreground">{subCompleted}/{subTasks.length}</span>
-                                                  </TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                  <TableCell></TableCell>
-                                                </TableRow>
-                                                {isSubExpanded && subTasks.map(task => renderTaskRow(task, 5))}
-                                              </React.Fragment>
-                                            );
-                                          })}
+                                          {isDeptExpanded && dTasks.map(task => renderTaskRow(task, 3))}
                                         </React.Fragment>
                                       );
                                     });

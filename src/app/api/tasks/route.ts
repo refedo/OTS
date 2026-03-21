@@ -28,6 +28,7 @@ const createSchema = z.object({
   isCeoTask: z.boolean().optional(),
   remark: z.string().optional().nullable(),
   revision: z.string().optional().nullable(),
+  consultantResponseCode: z.enum(['code_a', 'code_b', 'code_c']).optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -284,6 +285,7 @@ export async function POST(req: Request) {
     // Additional fields
     if (parsed.data.remark) taskData.remark = parsed.data.remark;
     if (parsed.data.revision) taskData.revision = parsed.data.revision;
+    if (parsed.data.consultantResponseCode) taskData.consultantResponseCode = parsed.data.consultantResponseCode;
 
     const task = await prisma.task.create({
       data: taskData,

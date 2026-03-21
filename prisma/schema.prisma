@@ -462,6 +462,7 @@ model Task {
   // Additional fields
   remark        String?  @db.Text // Additional remarks/notes
   revision      String?  // Revision number/identifier
+  consultantResponseCode String? // "code_a" = Approved, "code_b" = Approved with comments, "code_c" = Resubmit
   
   // Rejection tracking
   rejectedAt    DateTime? // When the task was rejected
