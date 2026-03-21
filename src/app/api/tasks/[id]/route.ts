@@ -31,6 +31,7 @@ const updateSchema = z.object({
   rejectionReason: z.string().optional().nullable(),
   remark: z.string().optional().nullable(),
   revision: z.string().optional().nullable(),
+  consultantResponseCode: z.enum(['code_a', 'code_b', 'code_c']).optional().nullable(),
 });
 
 // Helper to create audit log entries
