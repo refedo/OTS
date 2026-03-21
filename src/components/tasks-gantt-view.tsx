@@ -2,13 +2,14 @@
 
 import React, { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   SUB_ACTIVITY_DEPENDENCIES,
   SUB_ACTIVITIES,
   getMainActivityLabel,
   getSubActivityLabel,
 } from '@/lib/activity-constants';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type Task = {
   id: string;
@@ -22,19 +23,6 @@ type Task = {
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; designation: string; name: string } | null;
 };
-
-const ROW_HEIGHT = 36;
-const LEFT_WIDTH = 300;
-const DAY_WIDTH = 5;
-const HEADER_HEIGHT = 44;
-
-function findSubActivityLabel(subKey: string): string {
-  for (const subs of Object.values(SUB_ACTIVITIES)) {
-    const found = subs.find((s) => s.key === subKey);
-    if (found) return found.label;
-  }
-  return subKey;
-}
 
 type SubActData = {
   tasks: Task[];
@@ -54,7 +42,6 @@ type GanttRow =
       label: string;
       indent: number;
       subActivityKey: string;
-      mainActivityKey: string;
       buildingKey: string;
       startDate: Date | null;
       endDate: Date | null;
@@ -65,7 +52,46 @@ type GanttRow =
       blockedByLabel: string;
     };
 
+// ─── Layout constants ────────────────────────────────────────────────────────
+
+const ROW_H = 32;
+const MONTH_H = 22;  // top header: month names
+const WEEK_H = 18;   // bottom header: week dates
+const HEADER_H = MONTH_H + WEEK_H;
+
+// Left-panel columns
+const COL_NAME = 220;
+const COL_START = 78;
+const COL_FINISH = 78;
+const COL_DUR = 52;
+const LEFT_W = COL_NAME + COL_START + COL_FINISH + COL_DUR;
+
+// Right-panel
+const DAY_W = 7; // pixels per day
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function findSubActivityLabel(subKey: string): string {
+  for (const subs of Object.values(SUB_ACTIVITIES)) {
+    const found = subs.find((s) => s.key === subKey);
+    if (found) return found.label;
+  }
+  return subKey;
+}
+
+function fmt(d: Date | null | undefined): string {
+  if (!d) return '—';
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+}
+
+function diffDays(a: Date, b: Date): number {
+  return Math.ceil((b.getTime() - a.getTime()) / 86_400_000);
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export function TasksGanttView({ tasks }: { tasks: Task[] }) {
+  // ── 1. Group tasks into hierarchy ──────────────────────────────────────────
   const { rows, globalStart, globalEnd } = useMemo(() => {
     const projectMap = new Map<
       string,
@@ -75,13 +101,7 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
           string,
           {
             building: Task['building'];
-            activities: Map<
-              string,
-              {
-                label: string;
-                subActivities: Map<string, SubActData>;
-              }
-            >;
+            activities: Map<string, { label: string; subActivities: Map<string, SubActData> }>;
           }
         >;
       }
@@ -89,29 +109,26 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
 
     tasks.forEach((task) => {
       if (!task.project) return;
-      if (!task.taskInputDate && !task.dueDate) return; // skip tasks with absolutely no dates
+      if (!task.taskInputDate && !task.dueDate) return;
 
       const pKey = task.project.id;
-      if (!projectMap.has(pKey)) {
+      if (!projectMap.has(pKey))
         projectMap.set(pKey, { project: task.project, buildings: new Map() });
-      }
       const pg = projectMap.get(pKey)!;
 
       const bKey = task.building?.id || '__no_building__';
-      if (!pg.buildings.has(bKey)) {
+      if (!pg.buildings.has(bKey))
         pg.buildings.set(bKey, { building: task.building, activities: new Map() });
-      }
       const bg = pg.buildings.get(bKey)!;
 
       const actKey = task.mainActivity || '__no_activity__';
       const actLabel = task.mainActivity ? getMainActivityLabel(task.mainActivity) : 'General';
-      if (!bg.activities.has(actKey)) {
+      if (!bg.activities.has(actKey))
         bg.activities.set(actKey, { label: actLabel, subActivities: new Map() });
-      }
       const ag = bg.activities.get(actKey)!;
 
       const subKey = task.subActivity || '__no_sub__';
-      if (!ag.subActivities.has(subKey)) {
+      if (!ag.subActivities.has(subKey))
         ag.subActivities.set(subKey, {
           tasks: [],
           startDate: null,
@@ -119,29 +136,25 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
           completedCount: 0,
           approvedCount: 0,
         });
-      }
       const sg = ag.subActivities.get(subKey)!;
       sg.tasks.push(task);
 
-      // Use taskInputDate as start; fall back to dueDate if taskInputDate not set
-      const effectiveStart = task.taskInputDate
+      // Effective start = taskInputDate ?? dueDate
+      const eStart = task.taskInputDate
         ? new Date(task.taskInputDate)
         : task.dueDate
         ? new Date(task.dueDate)
         : null;
-      // Use dueDate as end; fall back to taskInputDate if dueDate not set
-      const effectiveEnd = task.dueDate
+      // Effective end = dueDate ?? taskInputDate
+      const eEnd = task.dueDate
         ? new Date(task.dueDate)
         : task.taskInputDate
         ? new Date(task.taskInputDate)
         : null;
 
-      if (effectiveStart) {
-        if (!sg.startDate || effectiveStart < sg.startDate) sg.startDate = effectiveStart;
-      }
-      if (effectiveEnd) {
-        if (!sg.endDate || effectiveEnd > sg.endDate) sg.endDate = effectiveEnd;
-      }
+      if (eStart && (!sg.startDate || eStart < sg.startDate)) sg.startDate = eStart;
+      if (eEnd && (!sg.endDate || eEnd > sg.endDate)) sg.endDate = eEnd;
+
       if (['Completed', 'Waiting for Approval'].includes(task.status)) sg.completedCount++;
       if (task.approvedAt) sg.approvedCount++;
     });
@@ -152,38 +165,23 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
 
     for (const [, { project, buildings }] of projectMap) {
       const pKey = project!.id;
-      rows.push({
-        type: 'project',
-        key: pKey,
-        label: `Project# ${project?.projectNumber} — ${project?.name}`,
-        indent: 0,
-      });
+      rows.push({ type: 'project', key: pKey, label: `Project# ${project?.projectNumber} — ${project?.name}`, indent: 0 });
 
       for (const [bKey, { building, activities }] of buildings) {
         rows.push({
           type: 'building',
           key: `${pKey}-${bKey}`,
-          label: building
-            ? `${building.name} (${building.designation})`
-            : 'No Building',
+          label: building ? `${building.name} (${building.designation})` : 'No Building',
           indent: 1,
         });
 
-        // Collect all sub-activity data for this building (for blocked checking)
-        const buildingSubActMap = new Map<string, SubActData>();
-        for (const [, { subActivities }] of activities) {
-          for (const [subKey, subData] of subActivities) {
-            buildingSubActMap.set(subKey, subData);
-          }
-        }
+        // Build building-level sub-act map for blocked checking
+        const bSubMap = new Map<string, SubActData>();
+        for (const [, { subActivities }] of activities)
+          for (const [sk, sd] of subActivities) bSubMap.set(sk, sd);
 
         for (const [actKey, { label: actLabel, subActivities }] of activities) {
-          rows.push({
-            type: 'activity',
-            key: `${pKey}-${bKey}-${actKey}`,
-            label: actLabel,
-            indent: 2,
-          });
+          rows.push({ type: 'activity', key: `${pKey}-${bKey}-${actKey}`, label: actLabel, indent: 2 });
 
           for (const [subKey, subData] of subActivities) {
             const subLabel =
@@ -191,24 +189,18 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
                 ? getSubActivityLabel(actKey, subKey)
                 : 'General';
 
-            const predecessorKey = SUB_ACTIVITY_DEPENDENCIES[subKey];
+            const predKey = SUB_ACTIVITY_DEPENDENCIES[subKey];
             let isBlocked = false;
             let blockedByLabel = '';
-
-            if (predecessorKey) {
-              const predData = buildingSubActMap.get(predecessorKey);
-              if (predData && predData.tasks.length > 0) {
-                const allApproved = predData.tasks.every((t) => t.approvedAt);
-                isBlocked = !allApproved;
-                if (isBlocked) {
-                  blockedByLabel = findSubActivityLabel(predecessorKey);
-                }
+            if (predKey) {
+              const predData = bSubMap.get(predKey);
+              if (predData && predData.tasks.length > 0 && !predData.tasks.every((t) => t.approvedAt)) {
+                isBlocked = true;
+                blockedByLabel = findSubActivityLabel(predKey);
               }
             }
 
-            // Track global date range from both startDate and endDate
-            const allDates = [subData.startDate, subData.endDate].filter(Boolean) as Date[];
-            for (const d of allDates) {
+            for (const d of [subData.startDate, subData.endDate].filter(Boolean) as Date[]) {
               if (!globalStart || d < globalStart) globalStart = d;
               if (!globalEnd || d > globalEnd) globalEnd = d;
             }
@@ -219,7 +211,6 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
               label: subLabel,
               indent: 3,
               subActivityKey: subKey,
-              mainActivityKey: actKey,
               buildingKey: `${pKey}-${bKey}`,
               startDate: subData.startDate,
               endDate: subData.endDate,
@@ -237,6 +228,7 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
     return { rows, globalStart, globalEnd };
   }, [tasks]);
 
+  // ── 2. Chart date range ────────────────────────────────────────────────────
   const chartStart = useMemo(() => {
     const anchor = globalStart || globalEnd;
     if (!anchor) return new Date();
@@ -256,304 +248,301 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
   }, [globalEnd, globalStart]);
 
   const totalDays = Math.max(
-    30,
-    Math.ceil((chartEnd.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24))
+    60,
+    Math.ceil((chartEnd.getTime() - chartStart.getTime()) / 86_400_000)
   );
-  const chartWidth = totalDays * DAY_WIDTH;
-  const totalHeight = rows.length * ROW_HEIGHT + HEADER_HEIGHT;
-  const svgWidth = LEFT_WIDTH + chartWidth;
+  const chartW = totalDays * DAY_W;
+  const svgW = LEFT_W + chartW;
+  const svgH = rows.length * ROW_H + HEADER_H;
 
-  const months = useMemo(() => {
-    const result: { label: string; x: number; width: number }[] = [];
+  // ── 3. Month & week headers ────────────────────────────────────────────────
+  const monthHeaders = useMemo(() => {
+    const result: { label: string; x: number; w: number }[] = [];
     const d = new Date(chartStart);
     d.setDate(1);
-
     while (d < chartEnd) {
-      const startX = Math.max(
-        0,
-        Math.ceil((d.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24)) * DAY_WIDTH
-      );
-      const monthEnd = new Date(d);
-      monthEnd.setMonth(monthEnd.getMonth() + 1);
-      const endX = Math.min(
-        chartWidth,
-        Math.ceil((monthEnd.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24)) * DAY_WIDTH
-      );
-
-      result.push({
-        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        x: startX,
-        width: endX - startX,
-      });
+      const x = Math.round(diffDays(chartStart, d) * DAY_W);
+      const next = new Date(d);
+      next.setMonth(next.getMonth() + 1);
+      const w = Math.round(diffDays(chartStart, next) * DAY_W) - x;
+      result.push({ label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), x, w });
       d.setMonth(d.getMonth() + 1);
     }
     return result;
-  }, [chartStart, chartEnd, chartWidth]);
+  }, [chartStart, chartEnd]);
 
-  const getBarParams = (row: GanttRow) => {
-    if (row.type !== 'subactivity' || (!row.startDate && !row.endDate)) return null;
+  const weekHeaders = useMemo(() => {
+    const result: { label: string; x: number; w: number }[] = [];
+    // Start on the nearest Monday at or before chartStart
+    const d = new Date(chartStart);
+    const dow = d.getDay(); // 0=Sun
+    d.setDate(d.getDate() - ((dow + 6) % 7)); // back to Monday
+    while (d < chartEnd) {
+      const x = Math.max(0, Math.round(diffDays(chartStart, d) * DAY_W));
+      const next = new Date(d);
+      next.setDate(next.getDate() + 7);
+      const xNext = Math.round(diffDays(chartStart, next) * DAY_W);
+      result.push({
+        label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        x,
+        w: xNext - x,
+      });
+      d.setDate(d.getDate() + 7);
+    }
+    return result;
+  }, [chartStart, chartEnd]);
 
-    const start = row.startDate || row.endDate!;
-    const end = row.endDate || row.startDate!;
-
-    const startDays = Math.ceil(
-      (start.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const endDays = Math.ceil(
-      (end.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const x = LEFT_WIDTH + startDays * DAY_WIDTH;
-    const width = Math.max(10, (endDays - startDays) * DAY_WIDTH);
-
-    return { x, width, startDays, endDays };
+  // ── 4. Bar position helper ─────────────────────────────────────────────────
+  const barFor = (row: GanttRow) => {
+    if (row.type !== 'subactivity') return null;
+    const s = row.startDate || row.endDate;
+    const e = row.endDate || row.startDate;
+    if (!s || !e) return null;
+    const x = Math.round(diffDays(chartStart, s) * DAY_W);
+    const w = Math.max(DAY_W * 2, Math.round(diffDays(s, e) * DAY_W));
+    return { x: LEFT_W + x, w };
   };
 
+  // ── 5. Today line ──────────────────────────────────────────────────────────
   const today = new Date();
-  const todayX =
-    LEFT_WIDTH +
-    Math.ceil((today.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24)) * DAY_WIDTH;
+  const todayX = LEFT_W + Math.round(diffDays(chartStart, today) * DAY_W);
 
-  // Build dependency arrows
+  // ── 6. Dependency arrows ───────────────────────────────────────────────────
   const arrows = useMemo(() => {
-    const subActIdx = new Map<string, number>();
-    rows.forEach((row, idx) => {
-      if (row.type === 'subactivity') {
-        subActIdx.set(`${row.buildingKey}-${row.subActivityKey}`, idx);
-      }
+    const idx = new Map<string, number>();
+    rows.forEach((r, i) => {
+      if (r.type === 'subactivity') idx.set(`${r.buildingKey}-${r.subActivityKey}`, i);
     });
-
-    const result: {
-      fromIdx: number;
-      toIdx: number;
-      isBlocked: boolean;
-    }[] = [];
-
-    rows.forEach((row, idx) => {
-      if (row.type !== 'subactivity') return;
-      const predKey = SUB_ACTIVITY_DEPENDENCIES[row.subActivityKey];
-      if (!predKey) return;
-      const predIdx = subActIdx.get(`${row.buildingKey}-${predKey}`);
-      if (predIdx === undefined) return;
-      result.push({ fromIdx: predIdx, toIdx: idx, isBlocked: row.isBlocked });
+    return rows.flatMap((r, i) => {
+      if (r.type !== 'subactivity') return [];
+      const predKey = SUB_ACTIVITY_DEPENDENCIES[r.subActivityKey];
+      if (!predKey) return [];
+      const pi = idx.get(`${r.buildingKey}-${predKey}`);
+      if (pi === undefined) return [];
+      return [{ fi: pi, ti: i, blocked: r.isBlocked }];
     });
-
-    return result;
   }, [rows]);
 
+  // ── 7. Row background colours ──────────────────────────────────────────────
+  const rowBg = (t: GanttRow['type']) =>
+    t === 'project'
+      ? '#dbeafe'
+      : t === 'building'
+      ? '#fef3c7'
+      : t === 'activity'
+      ? '#f3e8ff'
+      : '#f0fdf4';
+
+  const rowBgRight = (t: GanttRow['type']) =>
+    t === 'project'
+      ? '#eff6ff'
+      : t === 'building'
+      ? '#fffbeb'
+      : t === 'activity'
+      ? '#faf5ff'
+      : '#f7fef9';
+
+  // ── 8. Bar fill colour ─────────────────────────────────────────────────────
+  const barFill = (r: Extract<GanttRow, { type: 'subactivity' }>) => {
+    if (r.isBlocked) return '#f87171';
+    if (r.approvedCount > 0 && r.approvedCount === r.taskCount) return '#16a34a';
+    if (r.completedCount === r.taskCount && r.taskCount > 0) return '#34d399';
+    if (r.endDate && r.endDate < today && r.completedCount < r.taskCount) return '#f97316';
+    if (r.completedCount > 0) return '#3b82f6';
+    return '#60a5fa';
+  };
+
+  // ── 9. Empty state ─────────────────────────────────────────────────────────
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 gap-2 text-muted-foreground">
+      <div className="flex flex-col items-center justify-center gap-3 h-48 text-muted-foreground">
         <AlertTriangle className="h-8 w-8 text-amber-400" />
-        <p className="text-sm">
-          No tasks with dates found. Assign input dates and due dates to tasks to see them in
-          the Gantt view.
-        </p>
+        <p className="text-sm">No tasks with dates found. Assign input dates and due dates to tasks to see the Gantt.</p>
       </div>
     );
   }
 
-  const rowBgColors: Record<GanttRow['type'], string> = {
-    project: '#dbeafe',
-    building: '#fef3c7',
-    activity: '#f3e8ff',
-    subactivity: '#d1fae5',
-  };
+  // ── 10. Column X positions (left panel) ────────────────────────────────────
+  const xStart  = COL_NAME;
+  const xFinish = COL_NAME + COL_START;
+  const xDur    = COL_NAME + COL_START + COL_FINISH;
 
-  const leftTextColors: Record<GanttRow['type'], string> = {
-    project: '#1d4ed8',
-    building: '#92400e',
-    activity: '#6b21a8',
-    subactivity: '#065f46',
-  };
-
+  // ── 11. Render ─────────────────────────────────────────────────────────────
   return (
     <div>
-      <div className="overflow-auto" style={{ maxHeight: '75vh' }}>
+      <div className="overflow-auto border-t" style={{ maxHeight: '78vh' }}>
         <svg
-          width={svgWidth}
-          height={totalHeight}
-          style={{ display: 'block', fontFamily: 'inherit' }}
+          width={svgW}
+          height={svgH}
+          style={{ display: 'block', fontFamily: "'Inter', 'Segoe UI', sans-serif", fontSize: '11px' }}
         >
-          {/* ── Background ── */}
-          <rect x={0} y={0} width={svgWidth} height={totalHeight} fill="#fff" />
+          <defs>
+            <marker id="arr-n" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0,7 3,0 6" fill="#64748b" />
+            </marker>
+            <marker id="arr-b" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0,7 3,0 6" fill="#ef4444" />
+            </marker>
+          </defs>
 
-          {/* ── Month headers ── */}
-          {months.map((m, i) => (
+          {/* ── BACKGROUND ── */}
+          <rect x={0} y={0} width={svgW} height={svgH} fill="#fff" />
+
+          {/* ── HEADER BACKGROUND ── */}
+          <rect x={0} y={0} width={LEFT_W} height={HEADER_H} fill="#f1f5f9" />
+          <rect x={LEFT_W} y={0} width={chartW} height={HEADER_H} fill="#f8fafc" />
+
+          {/* ── LEFT PANEL HEADER LABELS ── */}
+          {/* column dividers */}
+          {[xStart, xFinish, xDur].map((cx, i) => (
+            <line key={i} x1={cx} y1={0} x2={cx} y2={svgH} stroke="#e2e8f0" strokeWidth="1" />
+          ))}
+          {/* header text */}
+          <text x={8} y={HEADER_H / 2 + 5} fontWeight="700" fill="#374151" fontSize="11">Task / Sub-Activity</text>
+          <text x={xStart + 4} y={HEADER_H / 2 + 5} fontWeight="700" fill="#374151" fontSize="11">Start</text>
+          <text x={xFinish + 4} y={HEADER_H / 2 + 5} fontWeight="700" fill="#374151" fontSize="11">Finish</text>
+          <text x={xDur + 4} y={HEADER_H / 2 + 5} fontWeight="700" fill="#374151" fontSize="11">Dur.</text>
+
+          {/* ── MONTH HEADERS ── */}
+          {monthHeaders.map((m, i) => (
             <g key={i}>
-              <rect
-                x={LEFT_WIDTH + m.x}
-                y={0}
-                width={m.width}
-                height={HEADER_HEIGHT}
-                fill={i % 2 === 0 ? '#f8fafc' : '#f1f5f9'}
-              />
-              <text
-                x={LEFT_WIDTH + m.x + m.width / 2}
-                y={HEADER_HEIGHT / 2 + 5}
-                textAnchor="middle"
-                fontSize="11"
-                fill="#475569"
-                fontWeight="600"
-              >
+              <rect x={LEFT_W + m.x} y={0} width={m.w} height={MONTH_H}
+                fill={i % 2 === 0 ? '#e2e8f0' : '#f1f5f9'} />
+              <text x={LEFT_W + m.x + m.w / 2} y={MONTH_H - 5}
+                textAnchor="middle" fontWeight="700" fill="#1e40af" fontSize="11">
                 {m.label}
               </text>
-              <line
-                x1={LEFT_WIDTH + m.x}
-                y1={0}
-                x2={LEFT_WIDTH + m.x}
-                y2={totalHeight}
-                stroke="#e2e8f0"
-                strokeWidth="1"
-              />
+              <line x1={LEFT_W + m.x} y1={0} x2={LEFT_W + m.x} y2={HEADER_H}
+                stroke="#cbd5e1" strokeWidth="1" />
             </g>
           ))}
 
-          {/* ── Left panel header ── */}
-          <rect x={0} y={0} width={LEFT_WIDTH} height={HEADER_HEIGHT} fill="#f1f5f9" />
-          <text x={12} y={HEADER_HEIGHT / 2 + 5} fontSize="12" fill="#374151" fontWeight="700">
-            Task Hierarchy
-          </text>
+          {/* ── WEEK HEADERS ── */}
+          {weekHeaders.map((w, i) => (
+            <g key={i}>
+              <rect x={LEFT_W + w.x} y={MONTH_H} width={w.w} height={WEEK_H}
+                fill={i % 2 === 0 ? '#f8fafc' : '#f1f5f9'} />
+              <text x={LEFT_W + w.x + 3} y={MONTH_H + WEEK_H - 4}
+                fill="#64748b" fontSize="9">
+                {w.label}
+              </text>
+              <line x1={LEFT_W + w.x} y1={MONTH_H} x2={LEFT_W + w.x} y2={svgH}
+                stroke="#e2e8f0" strokeWidth="0.5" />
+            </g>
+          ))}
 
-          {/* ── Rows ── */}
+          {/* ── ROWS ── */}
           {rows.map((row, idx) => {
-            const y = HEADER_HEIGHT + idx * ROW_HEIGHT;
-            const bg = rowBgColors[row.type];
-            const textColor = leftTextColors[row.type];
-            const paddingLeft = row.indent * 20 + 12;
-            const barParams = getBarParams(row);
+            const y = HEADER_H + idx * ROW_H;
             const isSub = row.type === 'subactivity';
+            const bp = barFor(row);
+            const sub = isSub ? (row as Extract<GanttRow, { type: 'subactivity' }>) : null;
 
-            let barFill = '#93c5fd';
-            if (isSub) {
-              const r = row as Extract<GanttRow, { type: 'subactivity' }>;
-              if (r.isBlocked) barFill = '#f87171';
-              else if (r.approvedCount === r.taskCount && r.taskCount > 0) barFill = '#22c55e';
-              else if (r.completedCount === r.taskCount && r.taskCount > 0) barFill = '#34d399';
-              else if (r.endDate && r.endDate < today && r.completedCount < r.taskCount)
-                barFill = '#fb923c';
-              else if (r.completedCount > 0) barFill = '#60a5fa';
-            }
+            const textClr =
+              row.type === 'project' ? '#1d4ed8'
+              : row.type === 'building' ? '#92400e'
+              : row.type === 'activity' ? '#6b21a8'
+              : '#065f46';
+
+            const fw = row.type === 'project' || row.type === 'building' ? '700' : '500';
+            const pad = row.indent * 14 + 8;
+
+            const dur = sub && sub.startDate && sub.endDate
+              ? `${diffDays(sub.startDate, sub.endDate)}d`
+              : '';
 
             return (
               <g key={row.key}>
-                {/* Left label bg */}
-                <rect x={0} y={y} width={LEFT_WIDTH} height={ROW_HEIGHT} fill={bg} />
-                {/* Right chart bg */}
-                <rect
-                  x={LEFT_WIDTH}
-                  y={y}
-                  width={chartWidth}
-                  height={ROW_HEIGHT}
-                  fill={bg}
-                  opacity={0.5}
-                />
-                {/* Horizontal divider */}
-                <line
-                  x1={0}
-                  y1={y + ROW_HEIGHT}
-                  x2={svgWidth}
-                  y2={y + ROW_HEIGHT}
-                  stroke="#e5e7eb"
-                  strokeWidth="0.5"
-                />
+                {/* Left panel cell */}
+                <rect x={0} y={y} width={LEFT_W} height={ROW_H} fill={rowBg(row.type)} />
 
-                {/* Label text */}
+                {/* Right panel cell */}
+                <rect x={LEFT_W} y={y} width={chartW} height={ROW_H}
+                  fill={rowBgRight(row.type)} />
+
+                {/* Horizontal row divider */}
+                <line x1={0} y1={y + ROW_H} x2={svgW} y2={y + ROW_H}
+                  stroke="#e5e7eb" strokeWidth="0.5" />
+
+                {/* Task name (clipped) */}
+                <clipPath id={`clip-${idx}`}>
+                  <rect x={pad} y={y} width={COL_NAME - pad - 4} height={ROW_H} />
+                </clipPath>
                 <text
-                  x={paddingLeft}
-                  y={y + ROW_HEIGHT / 2 + 4}
-                  fontSize={row.type === 'project' ? 12 : row.type === 'building' ? 11 : 10}
-                  fill={textColor}
-                  fontWeight={row.type === 'project' || row.type === 'building' ? '700' : '500'}
+                  x={pad} y={y + ROW_H / 2 + 4}
+                  fontWeight={fw} fill={textClr}
+                  fontSize={row.type === 'project' ? 12 : 11}
+                  clipPath={`url(#clip-${idx})`}
                 >
-                  {row.label.length > 36 ? row.label.slice(0, 35) + '…' : row.label}
-                  {isSub &&
-                    (() => {
-                      const r = row as Extract<GanttRow, { type: 'subactivity' }>;
-                      return (
-                        <tspan fontSize="9" fill="#94a3b8" dx="4">
-                          {r.completedCount}/{r.taskCount}
-                        </tspan>
-                      );
-                    })()}
+                  {row.label}
                 </text>
 
-                {/* Blocked icon */}
-                {isSub &&
-                  (row as Extract<GanttRow, { type: 'subactivity' }>).isBlocked && (
-                    <text
-                      x={LEFT_WIDTH - 18}
-                      y={y + ROW_HEIGHT / 2 + 4}
-                      fontSize="12"
-                      fill="#ef4444"
-                      title="Blocked"
-                    >
-                      ⚠
-                    </text>
-                  )}
-
-                {/* Gantt bar */}
-                {barParams && isSub && (
-                  <g>
-                    {/* Shadow */}
-                    <rect
-                      x={barParams.x + 1}
-                      y={y + 8}
-                      width={barParams.width}
-                      height={ROW_HEIGHT - 16}
-                      rx="3"
-                      fill="rgba(0,0,0,0.08)"
-                    />
-                    {/* Bar */}
-                    <rect
-                      x={barParams.x}
-                      y={y + 7}
-                      width={barParams.width}
-                      height={ROW_HEIGHT - 14}
-                      rx="3"
-                      fill={barFill}
-                    />
-                    {/* Progress overlay */}
-                    {(() => {
-                      const r = row as Extract<GanttRow, { type: 'subactivity' }>;
-                      if (!r.taskCount || !r.completedCount || r.completedCount >= r.taskCount)
-                        return null;
-                      return (
-                        <rect
-                          x={barParams.x}
-                          y={y + 7}
-                          width={barParams.width * (r.completedCount / r.taskCount)}
-                          height={ROW_HEIGHT - 14}
-                          rx="3"
-                          fill="rgba(255,255,255,0.3)"
-                        />
-                      );
-                    })()}
-                    {/* Bar label */}
-                    {barParams.width > 40 && (
-                      <text
-                        x={barParams.x + 5}
-                        y={y + ROW_HEIGHT / 2 + 4}
-                        fontSize="9"
-                        fill="white"
-                        fontWeight="700"
-                      >
-                        {(row as Extract<GanttRow, { type: 'subactivity' }>).isBlocked
-                          ? 'BLOCKED'
-                          : `${(row as Extract<GanttRow, { type: 'subactivity' }>).approvedCount}/${(row as Extract<GanttRow, { type: 'subactivity' }>).taskCount} approved`}
-                      </text>
-                    )}
-                  </g>
+                {/* Blocked warning */}
+                {isSub && sub?.isBlocked && (
+                  <text x={COL_NAME - 16} y={y + ROW_H / 2 + 4} fontSize="12" fill="#ef4444">⚠</text>
                 )}
 
-                {/* No-bar indicator */}
-                {isSub && !barParams && (
-                  <text
-                    x={LEFT_WIDTH + 8}
-                    y={y + ROW_HEIGHT / 2 + 4}
-                    fontSize="9"
-                    fill="#94a3b8"
-                    fontStyle="italic"
-                  >
+                {/* Start date */}
+                {isSub && sub?.startDate && (
+                  <text x={xStart + 4} y={y + ROW_H / 2 + 4} fill="#374151" fontSize="10">
+                    {fmt(sub.startDate)}
+                  </text>
+                )}
+
+                {/* Finish date */}
+                {isSub && sub?.endDate && (
+                  <text x={xFinish + 4} y={y + ROW_H / 2 + 4} fill="#374151" fontSize="10">
+                    {fmt(sub.endDate)}
+                  </text>
+                )}
+
+                {/* Duration */}
+                {dur && (
+                  <text x={xDur + 4} y={y + ROW_H / 2 + 4} fill="#64748b" fontSize="10">
+                    {dur}
+                  </text>
+                )}
+
+                {/* Gantt bar */}
+                {bp && isSub && sub && (() => {
+                  const barY = y + Math.round(ROW_H * 0.22);
+                  const barH = Math.round(ROW_H * 0.56);
+                  const fill = barFill(sub);
+                  const progress = sub.taskCount > 0 ? sub.completedCount / sub.taskCount : 0;
+
+                  return (
+                    <g>
+                      {/* Bar background (track) */}
+                      <rect x={bp.x} y={barY} width={bp.w} height={barH}
+                        rx="3" fill={fill} opacity={0.25} />
+                      {/* Progress fill */}
+                      <rect x={bp.x} y={barY} width={Math.max(DAY_W, Math.round(bp.w * progress))}
+                        height={barH} rx="3" fill={fill} />
+                      {/* Top stripe for MS-Project look */}
+                      <rect x={bp.x} y={barY} width={bp.w} height={3}
+                        rx="1" fill={fill} opacity={0.6} />
+                      {/* Left cap */}
+                      <rect x={bp.x} y={barY} width={3} height={barH} rx="1" fill={fill} />
+                      {/* Right cap */}
+                      <rect x={bp.x + bp.w - 3} y={barY} width={3} height={barH} rx="1" fill={fill} />
+                      {/* Label inside bar */}
+                      {bp.w > 50 && (
+                        <text x={bp.x + 6} y={barY + barH / 2 + 4}
+                          fontSize="9" fontWeight="700"
+                          fill={sub.isBlocked ? '#7f1d1d' : '#1e3a5f'}>
+                          {sub.isBlocked
+                            ? `⚠ BLOCKED by ${sub.blockedByLabel}`
+                            : `${sub.approvedCount}/${sub.taskCount} approved`}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })()}
+
+                {/* Sub-activity with no dates */}
+                {isSub && !bp && (
+                  <text x={LEFT_W + 8} y={y + ROW_H / 2 + 4}
+                    fontSize="9" fill="#94a3b8" fontStyle="italic">
                     no dates set
                   </text>
                 )}
@@ -561,142 +550,91 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
             );
           })}
 
-          {/* ── Vertical divider between left and right panels ── */}
-          <line
-            x1={LEFT_WIDTH}
-            y1={0}
-            x2={LEFT_WIDTH}
-            y2={totalHeight}
-            stroke="#94a3b8"
-            strokeWidth="1.5"
-          />
+          {/* ── LEFT / RIGHT PANEL DIVIDER ── */}
+          <line x1={LEFT_W} y1={0} x2={LEFT_W} y2={svgH} stroke="#94a3b8" strokeWidth="2" />
 
-          {/* ── Today line ── */}
-          {todayX > LEFT_WIDTH && todayX < svgWidth && (
+          {/* ── HEADER BOTTOM BORDER ── */}
+          <line x1={0} y1={HEADER_H} x2={svgW} y2={HEADER_H} stroke="#94a3b8" strokeWidth="1.5" />
+
+          {/* ── TODAY LINE ── */}
+          {todayX > LEFT_W && todayX < svgW && (
             <g>
-              <line
-                x1={todayX}
-                y1={0}
-                x2={todayX}
-                y2={totalHeight}
-                stroke="#ef4444"
-                strokeWidth="1.5"
-                strokeDasharray="5,3"
-              />
-              <rect x={todayX - 1} y={0} width={26} height={14} fill="#ef4444" rx="2" />
-              <text x={todayX + 2} y={10} fontSize="8" fill="white" fontWeight="700">
-                TODAY
-              </text>
+              <line x1={todayX} y1={0} x2={todayX} y2={svgH}
+                stroke="#ef4444" strokeWidth="1.5" strokeDasharray="5,3" />
+              <rect x={todayX - 1} y={HEADER_H} width={28} height={14}
+                fill="#ef4444" rx="2" />
+              <text x={todayX + 2} y={HEADER_H + 10}
+                fontSize="8" fontWeight="700" fill="white">TODAY</text>
             </g>
           )}
 
-          {/* ── Dependency arrows ── */}
-          {arrows.map((arrow, i) => {
-            const fromRow = rows[arrow.fromIdx];
-            const toRow = rows[arrow.toIdx];
+          {/* ── DEPENDENCY ARROWS ── */}
+          {arrows.map((arr, i) => {
+            const fromRow = rows[arr.fi];
+            const toRow = rows[arr.ti];
             if (fromRow.type !== 'subactivity' || toRow.type !== 'subactivity') return null;
+            const fb = barFor(fromRow);
+            const tb = barFor(toRow);
+            if (!fb || !tb) return null;
 
-            const fromBar = getBarParams(fromRow);
-            const toBar = getBarParams(toRow);
-            if (!fromBar || !toBar) return null;
+            const yMid = (n: number) => HEADER_H + n * ROW_H + ROW_H / 2;
+            const y1 = yMid(arr.fi);
+            const y2 = yMid(arr.ti);
+            const x1 = fb.x + fb.w;       // right edge of predecessor
+            const x2 = tb.x;              // left edge of successor
+            const bendX = Math.max(x1 + 10, x2 - 8);
 
-            const y1 = HEADER_HEIGHT + arrow.fromIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
-            const y2 = HEADER_HEIGHT + arrow.toIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
-            const x1 = fromBar.x + fromBar.width;
-            const x2 = toBar.x;
-
-            const bendX = Math.max(x1 + 12, x2 - 8);
-            const color = arrow.isBlocked ? '#ef4444' : '#64748b';
-            const dash = arrow.isBlocked ? '5,3' : undefined;
+            const color = arr.blocked ? '#ef4444' : '#64748b';
+            const dash  = arr.blocked ? '5,3' : undefined;
+            const mkr   = arr.blocked ? 'url(#arr-b)' : 'url(#arr-n)';
 
             return (
-              <g key={i} opacity={0.85}>
-                <path
-                  d={`M ${x1} ${y1} L ${bendX} ${y1} L ${bendX} ${y2} L ${x2} ${y2}`}
-                  stroke={color}
-                  strokeWidth="1.5"
-                  fill="none"
-                  strokeDasharray={dash}
-                  markerEnd={`url(#arrowhead-${arrow.isBlocked ? 'blocked' : 'normal'})`}
-                />
-              </g>
+              <path
+                key={i}
+                d={`M${x1},${y1} L${bendX},${y1} L${bendX},${y2} L${x2},${y2}`}
+                stroke={color} strokeWidth="1.5" fill="none"
+                strokeDasharray={dash} markerEnd={mkr}
+              />
             );
           })}
-
-          {/* ── Arrow marker defs ── */}
-          <defs>
-            <marker
-              id="arrowhead-normal"
-              markerWidth="8"
-              markerHeight="6"
-              refX="8"
-              refY="3"
-              orient="auto"
-            >
-              <polygon points="0 0, 8 3, 0 6" fill="#64748b" />
-            </marker>
-            <marker
-              id="arrowhead-blocked"
-              markerWidth="8"
-              markerHeight="6"
-              refX="8"
-              refY="3"
-              orient="auto"
-            >
-              <polygon points="0 0, 8 3, 0 6" fill="#ef4444" />
-            </marker>
-          </defs>
         </svg>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 px-4 py-2.5 border-t text-xs text-muted-foreground bg-muted/20">
-        <span className="font-medium text-foreground">Legend:</span>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-3 rounded" style={{ background: '#22c55e' }} />
-          All Approved
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-3 rounded" style={{ background: '#34d399' }} />
-          All Completed
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-3 rounded" style={{ background: '#60a5fa' }} />
-          In Progress
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-3 rounded" style={{ background: '#fb923c' }} />
-          Overdue
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-3 rounded" style={{ background: '#f87171' }} />
-          Blocked
-        </div>
-        <div className="flex items-center gap-1.5 ml-1">
-          <svg width="28" height="12">
-            <line x1="0" y1="6" x2="20" y2="6" stroke="#64748b" strokeWidth="1.5" />
-            <polygon points="20,6 14,3 14,9" fill="#64748b" />
+      {/* ── LEGEND ── */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-2.5 border-t text-xs text-muted-foreground bg-slate-50">
+        <span className="font-semibold text-foreground">Legend:</span>
+        {[
+          { color: '#16a34a', label: 'All Approved' },
+          { color: '#34d399', label: 'All Completed' },
+          { color: '#3b82f6', label: 'In Progress' },
+          { color: '#f97316', label: 'Overdue' },
+          { color: '#f87171', label: 'Blocked' },
+        ].map(({ color, label }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <svg width="28" height="12">
+              <rect x={0} y={2} width={28} height={8} rx="2" fill={color} opacity={0.3} />
+              <rect x={0} y={2} width={14} height={8} rx="2" fill={color} />
+              <rect x={0} y={2} width={3} height={8} rx="1" fill={color} />
+              <rect x={25} y={2} width={3} height={8} rx="1" fill={color} />
+            </svg>
+            {label}
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5 ml-2">
+          <svg width="30" height="12">
+            <line x1="0" y1="6" x2="22" y2="6" stroke="#64748b" strokeWidth="1.5" />
+            <polygon points="22,6 16,3 16,9" fill="#64748b" />
           </svg>
-          Dependency
+          FS Dependency
         </div>
         <div className="flex items-center gap-1.5">
-          <svg width="28" height="12">
-            <line
-              x1="0"
-              y1="6"
-              x2="20"
-              y2="6"
-              stroke="#ef4444"
-              strokeWidth="1.5"
-              strokeDasharray="5,3"
-            />
-            <polygon points="20,6 14,3 14,9" fill="#ef4444" />
+          <svg width="30" height="12">
+            <line x1="0" y1="6" x2="22" y2="6" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="5,3" />
+            <polygon points="22,6 16,3 16,9" fill="#ef4444" />
           </svg>
-          Blocked dependency
+          Blocked link
         </div>
-        <div className="flex items-center gap-1.5 text-red-500">
-          <span>⚠</span> Predecessor not fully approved
-        </div>
+        <div className="flex items-center gap-1.5 text-red-500 font-medium">⚠ predecessor not fully approved</div>
       </div>
     </div>
   );

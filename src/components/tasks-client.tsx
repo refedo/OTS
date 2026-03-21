@@ -189,6 +189,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     isPrivate: boolean;
     remark: string;
     revision: string;
+    consultantResponseCode: string;
   }>({
     title: '',
     description: '',
@@ -207,6 +208,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     isPrivate: false,
     remark: '',
     revision: '',
+    consultantResponseCode: '',
   });
   const [updating, setUpdating] = useState(false);
   const [undoingTaskId, setUndoingTaskId] = useState<string | null>(null);
@@ -400,21 +402,6 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     }
   }, [viewMode, expandAll]);
 
-  const handleConsultantCodeChange = async (taskId: string, code: string | null) => {
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ consultantResponseCode: code || null }),
-      });
-      if (response.ok) {
-        const updated = await response.json();
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, consultantResponseCode: updated.consultantResponseCode } : t));
-      }
-    } catch {
-      showAlert('Failed to update consultant response code', { type: 'error' });
-    }
-  };
 
   const handleDelete = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
@@ -846,6 +833,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       isPrivate: task.isPrivate,
       remark: task.remark || '',
       revision: task.revision || '',
+      consultantResponseCode: task.consultantResponseCode || '',
     });
   };
 
@@ -869,6 +857,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       isPrivate: false,
       remark: '',
       revision: '',
+      consultantResponseCode: '',
     });
   };
 
@@ -901,6 +890,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
         releaseDate: editData.releaseDate || null,
         remark: editData.remark || null,
         revision: editData.revision || null,
+        consultantResponseCode: editData.consultantResponseCode || null,
       };
       const response = await fetch(`/api/tasks/${editingTaskId}`, {
         method: 'PATCH',
@@ -2293,17 +2283,29 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                         </div>
                       </TableCell>
                       <TableCell>
-                        <select
-                          value={task.consultantResponseCode || ''}
-                          onChange={(e) => handleConsultantCodeChange(task.id, e.target.value || null)}
-                          className="h-8 px-1.5 rounded border bg-background text-xs min-w-[120px]"
-                          title="Consultant response code"
-                        >
-                          <option value="">— Not set —</option>
-                          <option value="code_a">Approved — Code A</option>
-                          <option value="code_b">Approved with comments — Code B</option>
-                          <option value="code_c">Resubmit — Code C</option>
-                        </select>
+                        {isEditing ? (
+                          <select
+                            value={editData.consultantResponseCode}
+                            onChange={(e) => setEditData({ ...editData, consultantResponseCode: e.target.value })}
+                            className="h-8 px-1.5 rounded border bg-background text-xs min-w-[130px]"
+                            disabled={updating}
+                          >
+                            <option value="">— Not set —</option>
+                            <option value="code_a">Approved — Code A</option>
+                            <option value="code_b">Approved with comments — Code B</option>
+                            <option value="code_c">Resubmit — Code C</option>
+                          </select>
+                        ) : (() => {
+                          const code = task.consultantResponseCode;
+                          if (!code) return <span className="text-muted-foreground text-xs">-</span>;
+                          const labels: Record<string, { label: string; cls: string }> = {
+                            code_a: { label: 'Code A — Approved', cls: 'bg-green-100 text-green-800 border-green-300' },
+                            code_b: { label: 'Code B — With Comments', cls: 'bg-amber-100 text-amber-800 border-amber-300' },
+                            code_c: { label: 'Code C — Resubmit', cls: 'bg-red-100 text-red-800 border-red-300' },
+                          };
+                          const { label, cls } = labels[code] ?? { label: code, cls: '' };
+                          return <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 whitespace-nowrap', cls)}>{label}</Badge>;
+                        })()}
                       </TableCell>
                       <TableCell>
                         {isEditing ? (
