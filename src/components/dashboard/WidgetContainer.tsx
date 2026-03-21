@@ -8,6 +8,8 @@ import ObjectivesSummaryWidget from './widgets/ObjectivesSummaryWidget';
 import WeeklyProductionWidget from './widgets/WeeklyProductionWidget';
 import WorkOrdersWidget from './widgets/WorkOrdersWidget';
 import DelayedTasksWidget from './widgets/DelayedTasksWidget';
+import BacklogWidget from './widgets/BacklogWidget';
+import WeeklyIssuesWidget from './widgets/WeeklyIssuesWidget';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, X, GripVertical } from 'lucide-react';
 import {
@@ -51,6 +53,8 @@ const WIDGET_COMPONENTS: { [key: string]: React.ComponentType } = {
   WEEKLY_PRODUCTION: WeeklyProductionWidget,
   WORK_ORDERS: WorkOrdersWidget,
   DELAYED_TASKS: DelayedTasksWidget,
+  BACKLOG: BacklogWidget,
+  WEEKLY_ISSUES: WeeklyIssuesWidget,
 };
 
 const WIDGET_DEFINITIONS = [
@@ -61,6 +65,8 @@ const WIDGET_DEFINITIONS = [
   { type: 'WEEKLY_PRODUCTION', name: 'Weekly Production', description: 'Production trends and metrics', size: 'large' },
   { type: 'WORK_ORDERS', name: 'Work Orders', description: 'Ongoing work orders status', size: 'medium' },
   { type: 'DELAYED_TASKS', name: 'Delayed Tasks', description: 'Tasks past their due date requiring attention', size: 'medium' },
+  { type: 'BACKLOG', name: 'Product Backlog', description: 'Backlog items by status and priority', size: 'medium' },
+  { type: 'WEEKLY_ISSUES', name: 'Weekly Issues', description: 'Open issues from weekly meetings', size: 'medium' },
 ];
 
 // Sortable Widget Wrapper
