@@ -23,10 +23,29 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.27.1',
+    version: '15.27.2',
     date: 'March 21, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Architecture Activity',
+    highlights: [
+      'New Architecture main activity added to the task classification system',
+      'Approved Architectural Drawings sub-activity for tracking drawing approval status',
+    ],
+    changes: {
+      added: [
+        'Architecture — new main activity positioned first in the workflow',
+        'Approved Architectural Drawings — sub-activity under Architecture',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '15.27.1',
+    date: 'March 21, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Dashboard Widgets: Product Backlog & Weekly Issues',
     highlights: [
       'New Product Backlog dashboard widget — shows active/blocked/pending counts, priority breakdown, and recent active items with direct links',

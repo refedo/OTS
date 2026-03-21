@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.27.2] - 2026-03-21
+
+### Architecture Activity & Task Classification Enhancements
+
+#### Added
+- **Architecture Main Activity** — New "Architecture" activity added to the task classification system, positioned first in the activity workflow
+- **Approved Architectural Drawings sub-activity** — Single sub-activity under Architecture for tracking architectural drawing approval status
+
+---
+
 ## [15.27.1] - 2026-03-21
 
 ### Dashboard Widgets: Product Backlog & Weekly Issues
