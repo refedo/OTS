@@ -85,6 +85,7 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Strategic Initiatives**: Company-wide initiative management
 - **Milestone Tracking**: Initiative milestones with progress monitoring
 - **Task Management**: Detailed task tracking, assignment, and requester filtering
+- **Task Attachments**: Upload images and documents to tasks in both full and quick-add modes (up to 10 per task, 10 MB each); automatic server-side image compression via Sharp
 - **Requested by Me**: Filter tasks where the current user is the requester
 - **Delayed Tasks Alerts**: Dashboard widget and login notification with clickable task links
 - **Budget Tracking**: Financial monitoring and analysis
@@ -99,7 +100,7 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 
 ### Mobile App & Push Notifications (PWA)
 - **Progressive Web App**: Installable on mobile devices via browser — no app store needed
-- **Web Push Notifications**: Real-time push notifications delivered to mobile/desktop even when the app is closed
+- **Web Push Notifications**: Real-time push notifications delivered to mobile/desktop even when the app is closed; backlog item creators are notified on any status change
 - **Per-Type Notification Preferences**: Users can toggle push and in-app notifications individually for each type (Task Assigned, Approval Required, Deadline Warning, etc.)
 - **Auto Service Worker Registration**: Background push handling, notification click navigation, and auto-cleanup of stale subscriptions
 - **PWA Install Prompt**: Smart install banner for mobile users
@@ -111,6 +112,12 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Authentication**: Secure session-based authentication (JWT cookies)
 - **Activity Tracking**: Full user action audit trail
 - **Password Management**: Self-service password reset and change
+
+### System Administration & Backup
+- **Backup Management UI**: View, create, download, and delete database backup files from `/settings/backups` — no server console access needed
+- **Backup Stats**: Real-time stats for total backup count, total backup size, and server disk free space
+- **Automated Retention**: Automatically prunes to the most recent 7 backups on each create
+- **RBAC/PBAC Protected**: Dedicated `backups.*` permissions (view/create/delete/download) and a `backup_management` PBAC module for granular access control per role/user
 
 ---
 
@@ -203,6 +210,9 @@ DOLIBARR_API_RETRIES="3"
 # Background Jobs (optional)
 CRON_SECRET="your-cron-secret"
 ENABLE_RISK_SCHEDULER="false"        # true in production to enable automated risk detection
+
+# Backup Management (optional)
+BACKUP_DIR="/var/backups/hexa-steel-ots"  # Override default backup directory path
 
 # Push Notifications (optional — required for mobile push)
 VAPID_PUBLIC_KEY=""                  # Generate with: node scripts/generate-vapid-keys.mjs
@@ -439,6 +449,6 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 15.22.0
+**Version**: 15.27.0
 **Last Updated**: March 2026
 **Repository**: https://github.com/refedo/OTS

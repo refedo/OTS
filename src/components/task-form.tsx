@@ -7,9 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Lock, AlertTriangle } from 'lucide-react';
+import { Loader2, Lock, AlertTriangle, Paperclip } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MAIN_ACTIVITIES, SUB_ACTIVITIES, SUB_ACTIVITY_DEPENDENCIES, getSubActivityLabel } from '@/lib/activity-constants';
+import {
+  TaskAttachmentUploader,
+  uploadPendingAttachments,
+  type PendingFile,
+  type ExistingAttachment,
+} from '@/components/task-attachment-uploader';
 
 type User = {
   id: string;
@@ -56,6 +62,7 @@ type Task = {
   isPrivate?: boolean;
   remark?: string | null;
   revision?: string | null;
+  attachments?: ExistingAttachment[];
 };
 
 type TaskFormProps = {
@@ -80,6 +87,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [isPrivate, setIsPrivate] = useState(task?.isPrivate || false);
   const [priority, setPriority] = useState(task?.priority || 'Medium');
   const [status, setStatus] = useState(task?.status || 'In Progress');
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<ExistingAttachment[]>(task?.attachments || []);
 
   const subActivities = selectedMainActivity ? (SUB_ACTIVITIES[selectedMainActivity] ?? []) : [];
 
@@ -127,12 +136,24 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Failed to save task');
 
+      // Upload any pending attachments
+      if (pendingFiles.length > 0) {
+        await uploadPendingAttachments(result.id, pendingFiles);
+      }
+
       router.push('/tasks');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDeleteExistingAttachment(attachmentId: string) {
+    const res = await fetch(`/api/tasks/${task!.id}/attachments/${attachmentId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setExistingAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
     }
   }
 
@@ -446,6 +467,21 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               defaultValue={task?.remark || ''}
               disabled={loading}
               rows={2}
+            />
+          </div>
+
+          {/* Attachments */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Paperclip className="size-4" />
+              Attachments
+            </Label>
+            <TaskAttachmentUploader
+              existingAttachments={existingAttachments}
+              onDeleteExisting={task ? handleDeleteExistingAttachment : undefined}
+              pendingFiles={pendingFiles}
+              onPendingFilesChange={setPendingFiles}
+              disabled={loading}
             />
           </div>
 

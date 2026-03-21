@@ -28,6 +28,7 @@ const createSchema = z.object({
   isCeoTask: z.boolean().optional(),
   remark: z.string().optional().nullable(),
   revision: z.string().optional().nullable(),
+  consultantResponseCode: z.enum(['code_a', 'code_b', 'code_c']).optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -130,6 +131,23 @@ export async function GET(req: Request) {
       },
     },
   });
+
+  // Try to add attachment counts (requires task_attachments table to exist)
+  try {
+    const taskCounts = await prisma.task.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        _count: { select: { attachments: true } },
+      },
+    });
+    tasks = tasks.map(task => {
+      const countData = taskCounts.find(t => t.id === task.id);
+      return { ...task, _count: { attachments: countData?._count?.attachments ?? 0 } };
+    });
+  } catch {
+    // task_attachments table not yet migrated — skip count
+  }
 
   // Try to add completedBy and approvedBy if the fields exist in the database
   try {
@@ -267,6 +285,7 @@ export async function POST(req: Request) {
     // Additional fields
     if (parsed.data.remark) taskData.remark = parsed.data.remark;
     if (parsed.data.revision) taskData.revision = parsed.data.revision;
+    if (parsed.data.consultantResponseCode) taskData.consultantResponseCode = parsed.data.consultantResponseCode;
 
     const task = await prisma.task.create({
       data: taskData,

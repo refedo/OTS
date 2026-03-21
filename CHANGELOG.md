@@ -17,20 +17,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [15.25.0] - 2026-03-17
+## [15.27.1] - 2026-03-21
 
-### Task Activity Classification
+### Dashboard Widgets: Product Backlog & Weekly Issues
 
 #### Added
-- **7 Main Activities** — Design, Detailing, Procurement, Production, Coating, Delivery & Logistics, Erection with their sub-activities defined for steel fabrication workflows
-- **Finish-to-Start Dependencies** — Dependency map between sub-activities with inline amber warning banner in task form when predecessor is not yet completed
-- **mainActivity / subActivity fields** — New nullable fields on the Task model with DB migration (`prisma/migrations/add_task_activities.sql`)
-- **Cascading dropdowns** — Main Activity → Sub-Activity dropdowns in task creation and edit forms
-- **Activity card** — Task detail sidebar shows main and sub activity labels
-- **Table view columns** — Main Activity and Sub-Activity columns with inline edit support
+- **Product Backlog widget** — New dashboard widget showing active/blocked/pending backlog counts, priority breakdown (Critical/High/Medium/Low), and up to 5 recent active items with code and status badges; links to `/backlog`
+- **Weekly Issues widget** — New dashboard widget showing open/in-progress issue counts, overdue alert, priority breakdown, and up to 5 recent open issues with department and issue number; links to `/business-planning/issues`
+- **`GET /api/dashboard/backlog/summary`** — Aggregates `ProductBacklogItem` records by status and priority, returns totals for active/blocked/pending groups and 5 recent non-completed items
+- **`GET /api/dashboard/weekly-issues/summary`** — Aggregates `WeeklyIssue` records by status and priority, returns overdue count and 5 recent open issues
+- Both widgets register as `BACKLOG` and `WEEKLY_ISSUES` types in the dashboard widget registry and are available via the **Add Widget** dialog; auto-refresh every 2 minutes
 
-#### Changed
-- Project Management View hierarchy changed from Project > Building > Department to Project > Building > Main Activity > Sub-Activity
+---
+
+## [15.27.0] - 2026-03-20
+
+### Task Attachments, Backlog Notifications & Compression
+
+#### Added
+- **Task Attachments** — Upload images and documents to any task in both full create/edit form and the quick-add table row (up to 10 files, 10 MB each); attachments are displayed in the task detail page with download and permission-gated delete
+- **`TaskAttachment` model** — New `task_attachments` DB table with cascade-delete, stored under `/uploads/task-attachments/`
+- **`GET/POST /api/tasks/[id]/attachments`** — List and upload attachments for a task
+- **`DELETE /api/tasks/[id]/attachments/[attachmentId]`** — Delete an attachment (uploader or admin only; removes file from disk)
+- **Attachment count in grid view** — Task cards in grid mode show a paperclip icon with the count of attached files
+- **Image compression** — Raster image attachments (JPEG, PNG, WebP) are automatically compressed server-side using Sharp before storage; JPEG/WebP converted to WebP at 82% quality, PNG palettised with level-9 compression
+- **Backlog status push notification** — When any backlog item status changes (e.g. SUBMITTED → UNDER_REVIEW → APPROVED), the item creator receives an in-app and mobile push notification informing them of the change and who made it
+
+#### Fixed
+- **Tasks not appearing after migration** — Attachment count and detail queries now degrade gracefully when the `task_attachments` table is not yet created; tasks still render without attachment data
+
+#### Infrastructure
+- SQL migration `20260319000000_add_task_attachments` — `CREATE TABLE task_attachments` with FK constraints and index; apply manually with `npx prisma generate` + the SQL below on existing servers
+
+---
+
+## [15.26.0] - 2026-03-20
+
+### Task Attachments, Backlog Notifications & Compression
+
+#### Added
+- **Task Attachments** — Upload images and documents to any task in both full create/edit form and the quick-add table row (up to 10 files, 10 MB each); attachments are displayed in the task detail page with download and permission-gated delete
+- **`TaskAttachment` model** — New `task_attachments` DB table with cascade-delete, stored under `/uploads/task-attachments/`
+- **`GET/POST /api/tasks/[id]/attachments`** — List and upload attachments for a task
+- **`DELETE /api/tasks/[id]/attachments/[attachmentId]`** — Delete an attachment (uploader or admin only; removes file from disk)
+- **Attachment count in grid view** — Task cards in grid mode show a paperclip icon with the count of attached files
+- **Image compression** — Raster image attachments (JPEG, PNG, WebP) are automatically compressed server-side using Sharp before storage; JPEG/WebP converted to WebP at 82% quality, PNG palettised with level-9 compression
+- **Backlog status push notification** — When any backlog item status changes (e.g. SUBMITTED → UNDER_REVIEW → APPROVED), the item creator receives an in-app and mobile push notification
+
+#### Fixed
+- **Tasks not appearing after migration** — Attachment count and detail queries now degrade gracefully when the `task_attachments` table is not yet created
 
 ---
 

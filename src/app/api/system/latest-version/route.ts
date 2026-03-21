@@ -7,56 +7,45 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'Parts Upload Enhancements & Bug Fixes',
+  mainTitle: 'Dashboard Widgets: Product Backlog & Weekly Issues',
   highlights: [
-    'CSV file support for parts upload — no need to convert to Excel first',
-    'Header Row selector — choose which row contains column names (handles non-standard files)',
-    'Rollback Upload button — soft-delete an entire upload batch, recoverable from Governance',
-    'Part Mark is now optional when uploading assembly parts',
-    'Tasks "New Features" tips dismissed state now persists across all devices and sessions',
+    'New Product Backlog dashboard widget — active/blocked/pending counts, priority breakdown, and recent active backlog items',
+    'New Weekly Issues dashboard widget — open/in-progress counts, overdue alert, and recent open issues from weekly meetings',
+    'Two new summary API routes power the widgets with real-time aggregated data',
   ],
   changes: {
     added: [
       {
-        title: 'Parts Upload — CSV Support',
+        title: 'Product Backlog Widget',
         items: [
-          'Upload page now accepts .csv files in addition to .xls and .xlsx',
-          'CSV is parsed via the XLSX library (reads as text); Excel continues as ArrayBuffer',
+          'BACKLOG widget type available in the Add Widget dialog on the dashboard',
+          'Status tiles: Active (In Progress + Planned + Approved), Blocked, Pending (Idea + Under Review)',
+          'Priority grid showing Critical / High / Medium / Low counts',
+          'List of up to 5 recent non-completed backlog items with code, title, status badge, and link',
+          'Auto-refreshes every 2 minutes; violet left-border accent',
         ],
       },
       {
-        title: 'Parts Upload — Header Row Selector',
+        title: 'Weekly Issues Widget',
         items: [
-          'New numeric input (default: 1) lets you specify which row contains column names',
-          'Column mapping and preview update live whenever the header row is changed',
-          'Handles files where the header row is not the first row',
+          'WEEKLY_ISSUES widget type available in the Add Widget dialog on the dashboard',
+          'Open and In Progress status tiles with counts',
+          'Overdue alert banner shown when issues have passed their due date',
+          'Priority grid showing Critical / High / Medium / Low counts',
+          'List of up to 5 recent open issues with issue number, status badge, department name, and link',
+          'Auto-refreshes every 2 minutes; rose left-border accent',
         ],
       },
       {
-        title: 'Parts Upload — Rollback Upload',
+        title: 'New API Routes',
         items: [
-          'After a successful bulk upload, a Rollback Upload button appears in the result card',
-          'Clicking it soft-deletes all uploaded parts (sets deletedAt); parts remain recoverable from the Governance page',
-          'Rollback action is logged as a system event for full traceability',
-          'Requires the production.delete_parts permission',
+          'GET /api/dashboard/backlog/summary — aggregates ProductBacklogItem by status and priority; returns active, blocked, pending totals and 5 recent non-completed items',
+          'GET /api/dashboard/weekly-issues/summary — aggregates WeeklyIssue by status and priority; returns overdue count and 5 recent open issues',
         ],
       },
     ],
-    fixed: [
-      {
-        title: 'Parts Upload — 403 Forbidden Error',
-        items: [
-          'Upload API was checking for production.upload_parts which does not exist',
-          'Fixed to use the correct permission key: production.create_parts',
-        ],
-      },
-      'Parts Upload — Part Mark is now optional; uploads no longer fail when the column is absent',
-      'Tasks Tips Banner — "New Features" tips dismissed state is now saved server-side so it no longer reappears after clearing browser storage, switching devices, or opening a new session',
-    ],
-    changed: [
-      'Bulk upload now logs entityType and full partIds array in system events for traceability',
-      'Bulk upload now also writes to the Governance audit trail (logActivity) in addition to system events',
-    ],
+    fixed: [],
+    changed: [],
   },
 };
 

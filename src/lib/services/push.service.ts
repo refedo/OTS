@@ -151,7 +151,7 @@ export class PushService {
     });
 
     if (preference && !preference.pushEnabled) {
-      logger.debug({ userId: params.userId, type: params.type }, 'Push disabled by user preference');
+      logger.info({ userId: params.userId, type: params.type }, 'Push skipped: disabled by user preference');
       return;
     }
 
@@ -159,7 +159,10 @@ export class PushService {
       where: { userId: params.userId },
     });
 
-    if (subscriptions.length === 0) return;
+    if (subscriptions.length === 0) {
+      logger.info({ userId: params.userId, type: params.type }, 'Push skipped: no push subscriptions found for user');
+      return;
+    }
 
     const url = getNotificationUrl(params.type, params.relatedEntityType, params.relatedEntityId);
 

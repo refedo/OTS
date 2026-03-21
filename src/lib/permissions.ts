@@ -281,6 +281,16 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'settings.edit', name: 'Edit Settings', description: 'Modify system settings', category: 'settings' },
     ],
   },
+  {
+    id: 'backups',
+    name: 'Backup Management',
+    permissions: [
+      { id: 'backups.view', name: 'View Backups', description: 'View system backup list and details', category: 'backups' },
+      { id: 'backups.create', name: 'Create Backups', description: 'Trigger new database backups', category: 'backups' },
+      { id: 'backups.delete', name: 'Delete Backups', description: 'Delete existing backup files', category: 'backups' },
+      { id: 'backups.download', name: 'Download Backups', description: 'Download backup files', category: 'backups' },
+    ],
+  },
 ];
 
 // Flatten all permissions for easy lookup

@@ -31,6 +31,7 @@ const updateSchema = z.object({
   rejectionReason: z.string().optional().nullable(),
   remark: z.string().optional().nullable(),
   revision: z.string().optional().nullable(),
+  consultantResponseCode: z.enum(['code_a', 'code_b', 'code_c']).optional().nullable(),
 });
 
 // Helper to create audit log entries
@@ -96,6 +97,25 @@ export async function GET(
       },
     },
   });
+
+  // Try to add attachments (requires task_attachments table)
+  try {
+    const taskWithAttachments = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        attachments: {
+          include: { uploadedBy: { select: { id: true, name: true } } },
+          orderBy: { uploadedAt: 'asc' },
+        },
+      },
+    });
+    if (taskWithAttachments && task) {
+      (task as any).attachments = taskWithAttachments.attachments;
+    }
+  } catch {
+    // task_attachments table not yet migrated
+    if (task) (task as any).attachments = [];
+  }
 
   // Try to fetch completedBy and approvedBy if the fields exist in the database
   try {
