@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.27.1] - 2026-03-21
+
+### Dashboard Widgets: Product Backlog & Weekly Issues
+
+#### Added
+- **Product Backlog widget** — New dashboard widget showing active/blocked/pending backlog counts, priority breakdown (Critical/High/Medium/Low), and up to 5 recent active items with code and status badges; links to `/backlog`
+- **Weekly Issues widget** — New dashboard widget showing open/in-progress issue counts, overdue alert, priority breakdown, and up to 5 recent open issues with department and issue number; links to `/business-planning/issues`
+- **`GET /api/dashboard/backlog/summary`** — Aggregates `ProductBacklogItem` records by status and priority, returns totals for active/blocked/pending groups and 5 recent non-completed items
+- **`GET /api/dashboard/weekly-issues/summary`** — Aggregates `WeeklyIssue` records by status and priority, returns overdue count and 5 recent open issues
+- Both widgets register as `BACKLOG` and `WEEKLY_ISSUES` types in the dashboard widget registry and are available via the **Add Widget** dialog; auto-refresh every 2 minutes
+
+---
+
 ## [15.27.0] - 2026-03-20
 
 ### Task Attachments, Backlog Notifications & Compression
