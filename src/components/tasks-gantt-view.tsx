@@ -89,7 +89,7 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
 
     tasks.forEach((task) => {
       if (!task.project) return;
-      if (!task.taskInputDate && !task.dueDate) return;
+      if (!task.taskInputDate && !task.dueDate) return; // skip tasks with absolutely no dates
 
       const pKey = task.project.id;
       if (!projectMap.has(pKey)) {
@@ -123,13 +123,24 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
       const sg = ag.subActivities.get(subKey)!;
       sg.tasks.push(task);
 
-      if (task.taskInputDate) {
-        const d = new Date(task.taskInputDate);
-        if (!sg.startDate || d < sg.startDate) sg.startDate = d;
+      // Use taskInputDate as start; fall back to dueDate if taskInputDate not set
+      const effectiveStart = task.taskInputDate
+        ? new Date(task.taskInputDate)
+        : task.dueDate
+        ? new Date(task.dueDate)
+        : null;
+      // Use dueDate as end; fall back to taskInputDate if dueDate not set
+      const effectiveEnd = task.dueDate
+        ? new Date(task.dueDate)
+        : task.taskInputDate
+        ? new Date(task.taskInputDate)
+        : null;
+
+      if (effectiveStart) {
+        if (!sg.startDate || effectiveStart < sg.startDate) sg.startDate = effectiveStart;
       }
-      if (task.dueDate) {
-        const d = new Date(task.dueDate);
-        if (!sg.endDate || d > sg.endDate) sg.endDate = d;
+      if (effectiveEnd) {
+        if (!sg.endDate || effectiveEnd > sg.endDate) sg.endDate = effectiveEnd;
       }
       if (['Completed', 'Waiting for Approval'].includes(task.status)) sg.completedCount++;
       if (task.approvedAt) sg.approvedCount++;
@@ -195,13 +206,11 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
               }
             }
 
-            if (subData.startDate) {
-              if (!globalStart || subData.startDate < globalStart)
-                globalStart = subData.startDate;
-            }
-            if (subData.endDate) {
-              if (!globalEnd || subData.endDate > globalEnd)
-                globalEnd = subData.endDate;
+            // Track global date range from both startDate and endDate
+            const allDates = [subData.startDate, subData.endDate].filter(Boolean) as Date[];
+            for (const d of allDates) {
+              if (!globalStart || d < globalStart) globalStart = d;
+              if (!globalEnd || d > globalEnd) globalEnd = d;
             }
 
             rows.push({
@@ -229,20 +238,22 @@ export function TasksGanttView({ tasks }: { tasks: Task[] }) {
   }, [tasks]);
 
   const chartStart = useMemo(() => {
-    if (!globalStart) return new Date();
-    const d = new Date(globalStart);
+    const anchor = globalStart || globalEnd;
+    if (!anchor) return new Date();
+    const d = new Date(anchor);
     d.setDate(1);
     d.setMonth(d.getMonth() - 1);
     return d;
-  }, [globalStart]);
+  }, [globalStart, globalEnd]);
 
   const chartEnd = useMemo(() => {
-    if (!globalEnd) return new Date();
-    const d = new Date(globalEnd);
+    const anchor = globalEnd || globalStart;
+    if (!anchor) return new Date();
+    const d = new Date(anchor);
     d.setDate(1);
     d.setMonth(d.getMonth() + 2);
     return d;
-  }, [globalEnd]);
+  }, [globalEnd, globalStart]);
 
   const totalDays = Math.max(
     30,
