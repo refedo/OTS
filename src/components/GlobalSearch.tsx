@@ -8,7 +8,7 @@ type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: strin
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
@@ -124,8 +124,8 @@ export default function GlobalSearch() {
   }, []);
 
   const handleSelect = (url: string) => {
-    setOpen(false);
     router.push(url);
+    setOpen(false);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -164,6 +164,7 @@ export default function GlobalSearch() {
           showCloseButton={false}
           className="top-[15%] translate-y-0 p-0 gap-0 max-w-2xl overflow-hidden"
         >
+          <DialogTitle className="sr-only">Global Search</DialogTitle>
           {/* Search input row */}
           <div className="flex items-center gap-3 px-4 py-3 border-b">
             {loading ? (
