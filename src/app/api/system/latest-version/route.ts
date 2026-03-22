@@ -7,76 +7,54 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🚀 Supply Chain Management Module — Complete LCR System',
+  mainTitle: '🔧 Supply Chain UX Improvements & Dolibarr Integrations',
   highlights: [
-    'Full-featured Supply Chain module with Google Sheets integration for automated procurement tracking',
-    'LCR (Least Cost Routing) data table with filters, sync status bar, and detail drawer showing LCR1/2/3 comparisons',
-    'Alias management system auto-resolves project/building/supplier names from informal sheet text',
-    '4 analytics reports: Status breakdown, Spend vs Target, Supplier Performance, and Overdue Items',
-    '12 API endpoints including sync, CRUD, alias management, and reports with comprehensive filtering',
+    'New Purchase Orders page at /supply-chain/purchase-orders shows Dolibarr POs with status, supplier, project, and totals',
+    'Supply Chain sidebar now links to Purchase Orders, AP Aging Report (pre-selected), and Statement of Account',
+    'LCR filter bar redesigned into a single row — project and status dropdowns no longer overlap',
+    'Alias management now fetches ALL Dolibarr suppliers via auto-pagination (was capped at 200)',
+    'Aging Report reads ?type=payable URL param to pre-select Accounts Payable automatically',
   ],
   changes: {
     added: [
       {
-        title: 'Database & Models',
+        title: 'Purchase Orders Page',
         items: [
-          '3 new Prisma models: LcrEntry (30+ fields), LcrAliasMap (informal name mapping), LcrSyncLog (sync history)',
-          'Foreign key relations: Project.lcrEntries, Building.lcrEntries, User.lcrAliasMaps',
-          'SQL migrations: add_supply_chain_lcr.sql (tables + indexes) and add_supply_chain_permissions.sql (RBAC)',
+          'New page /supply-chain/purchase-orders — lists Dolibarr purchase orders in OTS',
+          'Status badges (Draft / Validated / Approved / Ordered / Partially Received / Received / Canceled / Refused) with colour coding',
+          'Supplier name, supplier ref, project ref, order date, delivery date, billing status, HT and TTC totals per row',
+          'Client-side status filter + full-text search (ref, supplier, project); configurable page size with prev/next pagination',
+          'Open in Dolibarr button linking to the Dolibarr supplier orders module',
         ],
       },
       {
-        title: 'Sync Engine',
+        title: 'Supply Chain Sidebar',
         items: [
-          'Google Sheets sync service with MD5 hash change detection and intelligent upserts',
-          'Alias resolution system auto-resolves project IDs, product IDs, building IDs, and supplier IDs',
-          'Automated scheduler using node-cron, configurable interval (default 30 min)',
-          'Soft-delete handling for rows removed from sheet',
-          'Date parsing supports YYYY-MM-DD and DD/MM/YYYY formats',
+          'Purchase Orders → /supply-chain/purchase-orders',
+          'AP Aging Report → /financial/reports/aging?type=payable (deep-links to Accounts Payable)',
+          'Statement of Account → /financial/reports/soa',
+          'Navigation permission registered for /supply-chain/purchase-orders (supply_chain.view)',
+        ],
+      },
+      'Aging Report: reads ?type=payable query param on load and auto-initialises type to Accounts Payable',
+    ],
+    fixed: [
+      {
+        title: 'LCR Page Layout',
+        items: [
+          'Merged page title and all filter controls into a single flex-wrap row — eliminates project/status overlap',
+          'Project dropdown widened from w-56 to w-64; Status from w-44 to w-52 with "All Statuses" placeholder',
+          'Sync Now / Reports buttons and row/sync stats moved to far right of the same header row',
         ],
       },
       {
-        title: 'API Routes (12 endpoints)',
+        title: 'Alias Management — complete supplier list',
         items: [
-          'GET /api/supply-chain/lcr — Paginated entries with 6 filter options',
-          'GET /api/supply-chain/lcr/[id] — Single entry detail with relations',
-          'POST /api/supply-chain/lcr/sync — Manual sync trigger (admin only)',
-          'GET/POST/DELETE /api/supply-chain/lcr/aliases — Alias management with auto back-fill',
-          'GET /api/supply-chain/lcr/sync-logs — Last 20 sync runs with metrics',
-          '4 report endpoints: status, spend-vs-target, supplier-performance, overdue',
-          'POST /api/cron/lcr-sync — External cron endpoint with Bearer token auth',
-        ],
-      },
-      {
-        title: 'User Interface (3 pages)',
-        items: [
-          'LCR Main Page: Data table with 10 columns, 5 filters, sync status bar, detail drawer with LCR comparison',
-          'Reports Page: 4 report cards with recharts visualizations (stacked bar chart + tables)',
-          'Alias Management Page: Pending alias resolver + existing mappings table (admin only)',
-          'Overdue highlighting with red text and days overdue badges',
-          'Resolution status icons (green checkmark = resolved, amber warning = pending)',
-        ],
-      },
-      {
-        title: 'Navigation & Permissions',
-        items: [
-          'Sidebar section "Supply Chain" with Package icon and 3 menu items',
-          'RBAC permissions: supply_chain.view, supply_chain.sync, supply_chain.alias',
-          'Navigation permissions added to route-level access control',
-        ],
-      },
-      {
-        title: 'Environment Variables',
-        items: [
-          'GOOGLE_SHEETS_KEY_JSON — Service account JSON for Google Sheets API',
-          'GOOGLE_SHEET_LCR_ID — Google Sheet ID',
-          'GOOGLE_SHEET_LCR_RANGE — Sheet tab and column range (default: Sheet1!A:AJ)',
-          'LCR_SYNC_INTERVAL_MINUTES — Sync interval (default: 30)',
-          'ENABLE_LCR_SCHEDULER — Enable/disable automatic sync',
+          'Alias page was capped at 200 Dolibarr suppliers due to API hard limit',
+          'Now reads pagination.total and fetches remaining pages in parallel so all suppliers appear in the combobox',
         ],
       },
     ],
-    fixed: [],
     changed: [],
   },
 };

@@ -61,16 +61,19 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Dolibarr ERP Integration**: Bi-directional sync with Dolibarr (products, POs, reference data)
 - **Procurement Timeline**: Integration with operations timeline
 
-### Supply Chain Management (v16.0.0)
+### Supply Chain Management (v16.1.0)
 - **LCR (Least Cost Routing)**: Automated procurement tracking with Google Sheets integration
 - **Google Sheets Sync**: Real-time sync with MD5 hash change detection and intelligent upserts
-- **Alias Resolution**: Auto-resolve project/building/supplier names from informal sheet text
+- **Alias Resolution**: Auto-resolve project/building/supplier names from informal sheet text; fetches all Dolibarr suppliers via auto-pagination
 - **Procurement Analytics**: 4 comprehensive reports (Status, Spend vs Target, Supplier Performance, Overdue Items)
-- **Data Table**: 10-column view with filters (project, building, status, resolution, date range)
+- **Data Table**: Compact single-row header with filters (project, status, date range, search) — no overlap on any viewport
 - **LCR Comparison**: Side-by-side comparison of LCR1, LCR2, LCR3 quotes with price/ton analysis
 - **Sync Scheduler**: Automated cron job with configurable intervals (default 30 min)
 - **Alias Management**: Admin interface for mapping informal names to OTS entities with auto back-fill
 - **Overdue Tracking**: Automatic detection and highlighting of items past needed-by date
+- **Purchase Orders**: Dolibarr purchase orders listed in OTS with status, supplier, project, and financial totals
+- **AP Aging Report**: Direct link to Accounts Payable aging, pre-selected via URL param
+- **Statement of Account**: Direct link from Supply Chain sidebar
 - **12 API Endpoints**: Complete REST API for sync, CRUD, alias management, and reporting
 
 ### Planning & Scheduling

@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.1.0] - 2026-03-22
+
+### 🔧 Supply Chain UX Improvements & Dolibarr Integrations
+
+**Minor Release:** LCR layout overhaul, complete supplier fetch in alias management, new Purchase Orders page, and Accounts Payable shortcuts in the Supply Chain sidebar.
+
+#### Added
+
+**Purchase Orders Page**
+- **New page** `/supply-chain/purchase-orders` — full list of Dolibarr purchase orders displayed directly in OTS
+- Status badges (Draft / Validated / Approved / Ordered / Partially Received / Received / Canceled / Refused) with colour coding
+- Supplier name, supplier reference, project reference, order date, delivery date, billing status, and HT/TTC totals per row
+- Client-side status filter and full-text search (ref, supplier, project)
+- Configurable page size (25 / 50 / 100) with previous/next pagination
+- "Open in Dolibarr" button linking directly to the Dolibarr supplier orders module
+
+**Supply Chain Sidebar Additions**
+- **Purchase Orders** link → `/supply-chain/purchase-orders`
+- **AP Aging Report** link → `/financial/reports/aging?type=payable` (pre-selects Accounts Payable on load)
+- **Statement of Account** link → `/financial/reports/soa`
+- Navigation permission registered for `/supply-chain/purchase-orders` (`supply_chain.view`)
+
+**Aging Report — URL-driven type selection**
+- Reads `?type=payable` query parameter on load and automatically initialises the report type to Accounts Payable, enabling deep-linking from the Supply Chain sidebar
+
+#### Fixed
+
+**LCR Page Layout (filter bar overlap)**
+- Merged page title and all filter controls into a single `flex-wrap` row — eliminates the project/status dropdown collision visible on smaller viewports
+- Project dropdown widened from `w-56` → `w-64`; Status dropdown widened from `w-44` → `w-52` with "All Statuses" placeholder
+- Sync Now / Reports buttons and row/sync stats moved to the far right of the same row for a cleaner, denser header
+
+**Alias Management — complete supplier list**
+- Fixed alias page fetching only the first 200 Dolibarr suppliers (hard cap in the API)
+- Now paginates automatically: fetches the first page, reads `pagination.total`, then fires remaining page requests in parallel so all suppliers are available in the combobox regardless of total count
+
+---
+
 ## [16.0.0] - 2026-03-22
 
 ### 🚀 Supply Chain Management Module — Complete LCR System

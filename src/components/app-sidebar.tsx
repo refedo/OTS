@@ -213,6 +213,9 @@ const navigationSections: NavigationSection[] = [
       { name: 'LCR', href: '/supply-chain/lcr', icon: FileSpreadsheet, isNew: true },
       { name: 'Reports', href: '/supply-chain/lcr/reports', icon: BarChart3, isNew: true },
       { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch, isNew: true },
+      { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck, isNew: true },
+      { name: 'AP Aging Report', href: '/financial/reports/aging?type=payable', icon: Clock, isNew: true },
+      { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText, isNew: true },
     ],
   },
   {
