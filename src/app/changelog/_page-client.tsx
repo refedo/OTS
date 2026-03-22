@@ -23,10 +23,66 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '16.1.0',
+    date: 'March 22, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🔧 Supply Chain UX Improvements & Dolibarr Integrations',
+    highlights: [
+      'New Purchase Orders page at /supply-chain/purchase-orders shows Dolibarr POs with status, supplier, project, and totals',
+      'Supply Chain sidebar now links to Purchase Orders, AP Aging Report (pre-selected), and Statement of Account',
+      'LCR filter bar redesigned into a single row — project and status dropdowns no longer overlap',
+      'Alias management now fetches ALL Dolibarr suppliers via auto-pagination (was capped at 200)',
+      'Aging Report reads ?type=payable URL param to pre-select Accounts Payable automatically',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Purchase Orders Page',
+          items: [
+            'New page /supply-chain/purchase-orders — lists Dolibarr purchase orders in OTS',
+            'Status badges (Draft / Validated / Approved / Ordered / Partially Received / Received / Canceled / Refused) with colour coding',
+            'Supplier name, supplier ref, project ref, order date, delivery date, billing status, HT and TTC totals per row',
+            'Client-side status filter + full-text search (ref, supplier, project); configurable page size with prev/next pagination',
+            'Open in Dolibarr button linking to the Dolibarr supplier orders module',
+          ],
+        },
+        {
+          title: 'Supply Chain Sidebar',
+          items: [
+            'Purchase Orders → /supply-chain/purchase-orders',
+            'AP Aging Report → /financial/reports/aging?type=payable (deep-links to Accounts Payable)',
+            'Statement of Account → /financial/reports/soa',
+            'Navigation permission registered for /supply-chain/purchase-orders (supply_chain.view)',
+          ],
+        },
+        'Aging Report: reads ?type=payable query param on load and auto-initialises type to Accounts Payable',
+      ],
+      fixed: [
+        {
+          title: 'LCR Page Layout',
+          items: [
+            'Merged page title and all filter controls into a single flex-wrap row — eliminates project/status overlap',
+            'Project dropdown widened from w-56 to w-64; Status from w-44 to w-52 with "All Statuses" placeholder',
+            'Sync Now / Reports buttons and row/sync stats moved to far right of the same header row',
+          ],
+        },
+        {
+          title: 'Alias Management — complete supplier list',
+          items: [
+            'Alias page was capped at 200 Dolibarr suppliers due to API hard limit',
+            'Now reads pagination.total and fetches remaining pages in parallel so all suppliers appear in the combobox',
+          ],
+        },
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '16.0.0',
     date: 'March 22, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🚀 Supply Chain Management Module — Complete LCR System',
     highlights: [
       'Full-featured Supply Chain module with Google Sheets integration for automated procurement tracking',
