@@ -243,6 +243,42 @@ export default function ExecuteSyncPage() {
     setSelectedBuildings(new Set());
   };
 
+  const toggleBuilding = (key: string) => {
+    setSelectedBuildings(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const selectAllNewBuildings = () => {
+    if (validation) {
+      setSelectedBuildings(prev => {
+        const next = new Set(prev);
+        validation.buildings.unmatched
+          .filter(b => selectedProjects.has(b.projectNumber))
+          .forEach(b => next.add(`${b.projectNumber}-${b.designation}`));
+        return next;
+      });
+    }
+  };
+
+  const deselectAllNewBuildings = () => {
+    if (validation) {
+      setSelectedBuildings(prev => {
+        const next = new Set(prev);
+        validation.buildings.unmatched
+          .filter(b => selectedProjects.has(b.projectNumber))
+          .forEach(b => next.delete(`${b.projectNumber}-${b.designation}`));
+        return next;
+      });
+    }
+  };
+
   const fetchOtsBuildings = async () => {
     setLoadingOtsBuildings(true);
     try {
@@ -628,24 +664,68 @@ export default function ExecuteSyncPage() {
             </Card>
           </div>
 
-          {/* Building Mapping Section */}
-          {validation.buildings.unmatched.length > 0 && (
-            <Card className="border-amber-200 bg-amber-50/50">
+          {/* New Buildings Consent Section */}
+          {validation.buildings.unmatched.filter(b => selectedProjects.has(b.projectNumber)).length > 0 && (
+            <Card className="border-amber-300 bg-amber-50/50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center justify-between">
                   <span className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-amber-600" />
-                    <span className="text-amber-800">Unmatched Buildings ({validation.buildings.unmatched.length})</span>
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <span className="text-amber-800">
+                      New Buildings to be Created ({validation.buildings.unmatched.filter(b => selectedProjects.has(b.projectNumber)).length})
+                    </span>
                   </span>
-                  <Button variant="outline" size="sm" onClick={openBuildingMappingDialog}>
-                    <Building2 className="h-4 w-4 mr-1" />
-                    Map Buildings
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={selectAllNewBuildings}>
+                      <CheckSquare className="h-4 w-4 mr-1" />
+                      All
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={deselectAllNewBuildings}>
+                      <Square className="h-4 w-4 mr-1" />
+                      None
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={openBuildingMappingDialog}>
+                      <Building2 className="h-4 w-4 mr-1" />
+                      Map Instead
+                    </Button>
+                  </div>
                 </CardTitle>
                 <CardDescription className="text-amber-700">
-                  Some PTS buildings don't have matching OTS buildings. Click "Map Buildings" to match them or create new ones.
+                  These buildings don't exist in OTS yet. Select which ones to create, or use "Map Instead" to link them to existing buildings.
                 </CardDescription>
               </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-48 overflow-auto">
+                  {validation.buildings.unmatched
+                    .filter(b => selectedProjects.has(b.projectNumber))
+                    .map((b, i) => {
+                      const key = `${b.projectNumber}-${b.designation}`;
+                      return (
+                        <div key={i} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-amber-100/50 bg-white/60 border border-amber-200">
+                          <Checkbox
+                            id={`new-building-${key}`}
+                            checked={selectedBuildings.has(key)}
+                            onCheckedChange={() => toggleBuilding(key)}
+                          />
+                          <label
+                            htmlFor={`new-building-${key}`}
+                            className="flex items-center gap-2 flex-1 cursor-pointer"
+                          >
+                            <Building2 className="h-3 w-3 text-amber-600 shrink-0" />
+                            <span className="font-medium text-amber-900">{key}</span>
+                            {b.name && <span className="text-muted-foreground text-xs">— {b.name}</span>}
+                          </label>
+                          <Badge variant="outline" className="text-amber-600 border-amber-400 text-xs shrink-0">
+                            Will be created
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                </div>
+                <p className="text-xs text-amber-700 mt-3">
+                  {validation.buildings.unmatched.filter(b => selectedProjects.has(b.projectNumber) && selectedBuildings.has(`${b.projectNumber}-${b.designation}`)).length} of {validation.buildings.unmatched.filter(b => selectedProjects.has(b.projectNumber)).length} new buildings will be created
+                </p>
+              </CardContent>
             </Card>
           )}
 

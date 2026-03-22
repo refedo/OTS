@@ -1243,8 +1243,8 @@ export default function PTSSyncSimplePage() {
 
       {/* Sync History Dialog */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-[95vw] w-full max-h-[85vh] overflow-hidden">
-          <DialogHeader>
+        <DialogContent className="max-w-[98vw] sm:max-w-5xl w-full flex flex-col" style={{ maxHeight: '92vh' }}>
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               PTS Sync History
@@ -1253,84 +1253,93 @@ export default function PTSSyncSimplePage() {
               Recent sync operations with rollback capability
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 overflow-x-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {syncHistory.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No sync history found</p>
               </div>
             ) : (
-              <Table className="min-w-[900px]">
+              <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Projects</TableHead>
-                    <TableHead>Parts</TableHead>
-                    <TableHead>Logs</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Date</TableHead>
+                    <TableHead className="text-xs">Type</TableHead>
+                    <TableHead className="text-xs">Projects</TableHead>
+                    <TableHead className="text-xs">Parts</TableHead>
+                    <TableHead className="text-xs">Logs</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap hidden sm:table-cell">Duration</TableHead>
+                    <TableHead className="text-xs hidden sm:table-cell">User</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {syncHistory.map((batch) => (
                     <TableRow key={batch.id} className={batch.rolledBack ? 'opacity-50' : ''}>
-                      <TableCell className="text-xs">
-                        {new Date(batch.createdAt).toLocaleString()}
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {new Date(batch.createdAt).toLocaleString(undefined, {
+                          month: 'numeric', day: 'numeric', year: '2-digit',
+                          hour: 'numeric', minute: '2-digit',
+                        })}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {batch.syncType}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {Array.isArray(batch.projectNumbers) 
-                          ? batch.projectNumbers.join(', ') 
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        <div className="space-y-1">
-                          {batch.partsCreated > 0 && (
-                            <div className="text-green-600">+{batch.partsCreated}</div>
-                          )}
-                          {batch.partsUpdated > 0 && (
-                            <div className="text-blue-600">~{batch.partsUpdated}</div>
-                          )}
+                      <TableCell className="text-xs max-w-[140px]">
+                        <div className="flex flex-wrap gap-1">
+                          {Array.isArray(batch.projectNumbers)
+                            ? batch.projectNumbers.length > 4
+                              ? <><span>{batch.projectNumbers.slice(0, 4).join(', ')}</span><span className="text-muted-foreground">+{batch.projectNumbers.length - 4} more</span></>
+                              : batch.projectNumbers.join(', ')
+                            : 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell className="text-xs">
-                        <div className="space-y-1">
-                          {batch.logsCreated > 0 && (
-                            <div className="text-green-600">+{batch.logsCreated}</div>
-                          )}
-                          {batch.logsUpdated > 0 && (
-                            <div className="text-blue-600">~{batch.logsUpdated}</div>
-                          )}
-                        </div>
+                        {batch.partsCreated > 0 && (
+                          <div className="text-green-600">+{batch.partsCreated}</div>
+                        )}
+                        {batch.partsUpdated > 0 && (
+                          <div className="text-blue-600">~{batch.partsUpdated}</div>
+                        )}
+                        {batch.partsCreated === 0 && batch.partsUpdated === 0 && (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs">
+                        {batch.logsCreated > 0 && (
+                          <div className="text-green-600">+{batch.logsCreated}</div>
+                        )}
+                        {batch.logsUpdated > 0 && (
+                          <div className="text-blue-600">~{batch.logsUpdated}</div>
+                        )}
+                        {batch.logsCreated === 0 && batch.logsUpdated === 0 && (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs hidden sm:table-cell whitespace-nowrap">
                         {formatDuration(batch.durationMs)}
                       </TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="text-xs hidden sm:table-cell">
                         {batch.user.name}
                       </TableCell>
                       <TableCell>
                         {batch.rolledBack ? (
-                          <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
+                          <Badge variant="outline" className="text-red-600 border-red-300 text-xs whitespace-nowrap">
                             Rolled Back
                           </Badge>
                         ) : batch.status === 'completed' ? (
-                          <Badge variant="outline" className="text-green-600 border-green-300 text-xs">
+                          <Badge variant="outline" className="text-green-600 border-green-300 text-xs whitespace-nowrap">
                             Completed
                           </Badge>
                         ) : batch.status === 'failed' ? (
-                          <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
+                          <Badge variant="outline" className="text-red-600 border-red-300 text-xs whitespace-nowrap">
                             Failed
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                          <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs whitespace-nowrap">
                             Partial
                           </Badge>
                         )}
@@ -1342,14 +1351,14 @@ export default function PTSSyncSimplePage() {
                             size="sm"
                             onClick={() => handleRollbackBatch(batch.id)}
                             disabled={isRollingBack}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 whitespace-nowrap"
                           >
                             <RotateCcw className="h-3 w-3 mr-1" />
                             Rollback
                           </Button>
                         )}
                         {batch.rolledBack && batch.rolledBackBy && (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground whitespace-nowrap">
                             By {batch.rolledBackBy.name}
                           </div>
                         )}
@@ -1360,7 +1369,7 @@ export default function PTSSyncSimplePage() {
               </Table>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => setShowHistoryDialog(false)}>
               Close
             </Button>
