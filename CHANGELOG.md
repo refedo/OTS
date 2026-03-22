@@ -7,6 +7,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.0.0] - 2026-03-22
+
+### 🚀 Supply Chain Management Module — Complete LCR System
+
+**Major Release:** Full-featured Supply Chain module with Google Sheets integration, automated procurement tracking, and comprehensive reporting.
+
+#### Added
+
+**Database & Models**
+- **3 new Prisma models** — `LcrEntry` (procurement line items with 30+ fields including qty, amount, dates, LCR comparisons), `LcrAliasMap` (maps informal sheet names to OTS entities), `LcrSyncLog` (sync run history with metrics)
+- **Foreign key relations** — Project.lcrEntries, Building.lcrEntries, User.lcrAliasMaps for full data integrity
+- **SQL migrations** — `add_supply_chain_lcr.sql` (tables + indexes) and `add_supply_chain_permissions.sql` (RBAC)
+
+**Sync Engine**
+- **Google Sheets sync service** — `src/lib/sync/lcrSync.ts` pulls procurement data from Google Sheets, computes MD5 row hashes for change detection, and performs intelligent upserts via Prisma transactions
+- **Alias resolution system** — Auto-resolves project IDs (via projectNumber), product IDs (via item label), building IDs (via alias map), and supplier IDs (via alias map); tracks unresolved aliases with `resolutionStatus` field (pending/resolved)
+- **Automated scheduler** — `LcrSyncScheduler` registered in `instrumentation.ts` using node-cron, configurable interval via `LCR_SYNC_INTERVAL_MINUTES` env var (default 30 min)
+- **Soft-delete handling** — Rows removed from sheet are marked `isDeleted=true` instead of hard-deleted
+- **Date parsing** — Supports YYYY-MM-DD and DD/MM/YYYY formats with Saudi Arabia locale defaults
+- **Decimal handling** — Comma-separated numbers parsed correctly for SAR amounts
+
+**API Routes (12 endpoints)**
+- **CRUD Operations:**
+  - `GET /api/supply-chain/lcr` — Paginated LCR entries with filters (projectId, buildingId, status, resolutionStatus, dateFrom, dateTo)
+  - `GET /api/supply-chain/lcr/[id]` — Single entry detail with project/building relations
+  - `POST /api/supply-chain/lcr/sync` — Manual sync trigger (admin/CEO only)
+- **Alias Management:**
+  - `GET /api/supply-chain/lcr/aliases` — Returns existing mappings grouped by entityType + pending aliases with affected row counts
+  - `POST /api/supply-chain/lcr/aliases` — Create alias mapping with automatic back-fill of existing LCR rows + re-evaluation of resolutionStatus
+  - `DELETE /api/supply-chain/lcr/aliases?id=` — Remove alias mapping (admin only)
+- **Sync Logs:**
+  - `GET /api/supply-chain/lcr/sync-logs` — Last 20 sync runs with metrics (inserted, updated, unchanged, deleted, pendingAliases, durationMs)
+- **Reports (4 analytics endpoints):**
+  - `GET /api/supply-chain/lcr/reports/status` — Procurement status breakdown by project and status (item count, total amount, total weight)
+  - `GET /api/supply-chain/lcr/reports/spend-vs-target` — LCR1 spend vs target price with variance percentage per project
+  - `GET /api/supply-chain/lcr/reports/supplier-performance` — Items awarded, total SAR, avg price/ton per supplier
+  - `GET /api/supply-chain/lcr/reports/overdue` — Items past needed-by date without receiving date, sorted by days overdue
+- **External Cron:**
+  - `POST /api/cron/lcr-sync` — Protected endpoint with Bearer token auth (`CRON_SECRET`) for external cron triggers
+
+**User Interface (3 pages)**
+- **LCR Main Page** (`/supply-chain/lcr`)
+  - Data table with 10 columns (SN, Project #, Building, Item, Qty, Status, Awarded To, Needed By, Receiving, Resolution)
+  - 5 filter controls (Project dropdown, Status dropdown, Resolution dropdown, Date From, Date To) with reset button
+  - Sync status bar showing last sync time, total rows, pending aliases count, and "Sync Now" button
+  - Overdue highlighting (red text + days overdue badge) for items past needed-by date
+  - Detail drawer with full entry info including LCR comparison table (LCR1★, LCR2, LCR3 with amounts and price/ton)
+  - Pagination controls (50 items per page)
+  - Resolution status icons (green checkmark = resolved, amber warning = pending)
+- **Reports Page** (`/supply-chain/lcr/reports`)
+  - 4 report cards with recharts visualizations:
+    - Procurement Status — Stacked bar chart by project (Requested/Ordered/Received/Cancelled)
+    - Spend vs Target — Table with variance % highlighting (red = over budget, green = under)
+    - Supplier Performance — Table with items awarded, total SAR, avg price/ton
+    - Overdue Items — Scrollable table with days overdue badges
+- **Alias Management Page** (`/supply-chain/lcr/aliases`) — Admin only
+  - Unresolved Aliases section with pending mappings (shows alias text, type badge, affected row count)
+  - Dropdown selectors for buildings (from `/api/buildings`) and suppliers (from `/api/dolibarr/thirdparties?type=supplier`)
+  - Save button triggers back-fill of existing rows + resolution status re-evaluation
+  - Existing Mappings table with delete buttons (shows alias text, type, entity ID, mapped by, date)
+  - Green "All aliases resolved" state when pendingAliases = 0
+
+**Navigation & Permissions**
+- **Sidebar section** — "Supply Chain" with Package icon, 3 menu items (LCR, Reports, Alias Management) with star badges
+- **RBAC permissions** — `supply_chain.view` (CEO, Admin, Manager), `supply_chain.sync` (Admin), `supply_chain.alias` (Admin)
+- **Navigation permissions** — Added to `src/lib/navigation-permissions.ts` for route-level access control
+
+**Type Definitions**
+- `LcrEntryWithRelations` — Full entry type with project/building/supplier relations
+- `LcrSyncResult` — Sync operation result (status, inserted, updated, unchanged, deleted, pendingAliases, durationMs, error?)
+- `LcrAliasWithPending` — Alias mapping with metadata
+- `PendingAlias` — Unresolved alias with affected row count
+
+**Environment Variables**
+- `GOOGLE_SHEETS_KEY_JSON` — Service account JSON (stringified) for Google Sheets API
+- `GOOGLE_SHEET_LCR_ID` — Google Sheet ID
+- `GOOGLE_SHEET_LCR_RANGE` — Sheet tab name and column range (default: `Sheet1!A:AJ`)
+- `LCR_SYNC_INTERVAL_MINUTES` — Sync interval in minutes (default: 30)
+- `ENABLE_LCR_SCHEDULER` — Enable/disable automatic sync (default: false in dev, true in prod)
+
+**Infrastructure**
+- **Skeleton component** — Created `src/components/ui/skeleton.tsx` (shadcn pattern) for loading states
+- **Memory saved** — Supply Chain module architecture and file locations stored for future reference
+
+#### Technical Details
+- **Column mapping** — 31 columns mapped from Google Sheets (SN, Project Number, Item, Qty, Amount, Status, Building Name, Request Date, Needed From/To, Buying Date, Receiving Date, PO Number, DN Number, Awarded To, Weight, Total Weight, LCR1/2/3 totals and prices, Target Price, MRF Number, Ratio, Thickness)
+- **Hash-based diffing** — MD5 hash of concatenated cell values enables efficient change detection (only changed rows trigger updates)
+- **Audit trail** — All sync operations logged to `AuditLog` with action=SYNC, source=GoogleSheets, and full metadata
+- **Error handling** — Sync failures logged to `LcrSyncLog` with error messages; partial syncs marked as status='partial'
+- **Prisma transactions** — All insert/update/delete operations wrapped in `$transaction` for atomicity
+
+---
+
+## [15.28.0] - 2026-03-22
+
+### Supply Chain Module — LCR Backend Foundation (Deprecated — see v16.0.0)
+
+#### Added
+- **LCR Google Sheets Sync** — Automated sync engine that pulls procurement data from Google Sheets, computes row hashes for change detection, and upserts into `lcr_entries` table via Prisma transactions
+- **3 new database models** — `LcrEntry` (procurement line items with 30+ fields), `LcrAliasMap` (maps informal sheet names to OTS entities), `LcrSyncLog` (sync run history)
+- **Alias resolution system** — Auto-resolves project IDs, product IDs, building IDs, and supplier IDs from raw sheet text; tracks unresolved aliases with `resolutionStatus` field
+- **Cron scheduler** — `LcrSyncScheduler` registered in `instrumentation.ts`, configurable interval via `LCR_SYNC_INTERVAL_MINUTES` env var (default 30 min)
+- **External cron endpoint** — `POST /api/cron/lcr-sync` with Bearer token auth for external cron triggers
+- **7 API routes** under `/api/supply-chain/lcr/`:
+  - `GET /` — Paginated LCR entries with project/building/status/date filters
+  - `GET /[id]` — Single entry detail with relations
+  - `POST /sync` — Manual sync trigger (admin only)
+  - `GET /aliases` + `POST /aliases` + `DELETE /aliases` — Alias management with auto back-fill
+  - `GET /sync-logs` — Last 20 sync run logs
+- **4 report endpoints** under `/api/supply-chain/lcr/reports/`:
+  - `status` — Procurement status breakdown by project and status
+  - `spend-vs-target` — LCR1 spend vs target price with variance percentage
+  - `supplier-performance` — Items awarded, total SAR, avg price/ton per supplier
+  - `overdue` — Items past needed-by date without receiving date
+- **Permission model** — `supply_chain.view`, `supply_chain.sync`, `supply_chain.alias` permissions with SQL migration for role assignment
+- **Type definitions** — `LcrEntryWithRelations`, `LcrSyncResult`, `LcrAliasWithPending`, `PendingAlias` in `src/types/supply-chain.ts`
+
+---
+
 ## [15.27.4] - 2026-03-22
 
 ### Global Search Bar

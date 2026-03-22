@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 
 const MAX_PER_CATEGORY = 5;
 
-export const GET = withApiContext(async (req) => {
+export const GET = withApiContext<any>(async (req) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get('q')?.trim() ?? '';
 
@@ -14,7 +14,7 @@ export const GET = withApiContext(async (req) => {
   }
 
   try {
-    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts] =
+    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries] =
       await Promise.all([
         prisma.task.findMany({
           where: {
@@ -125,6 +125,26 @@ export const GET = withApiContext(async (req) => {
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
         }),
+
+        prisma.$queryRaw<Array<{
+          id: string;
+          sn: string | null;
+          itemLabel: string | null;
+          projectNumber: string | null;
+          poNumber: string | null;
+          status: string | null;
+        }>>`
+          SELECT id, sn, itemLabel, projectNumber, poNumber, status
+          FROM lcr_entries
+          WHERE isDeleted = false
+            AND (itemLabel LIKE ${`%${q}%`}
+              OR projectNumber LIKE ${`%${q}%`}
+              OR poNumber LIKE ${`%${q}%`}
+              OR mrfNumber LIKE ${`%${q}%`}
+              OR awardedToRaw LIKE ${`%${q}%`})
+          ORDER BY syncedAt DESC
+          LIMIT ${MAX_PER_CATEGORY}
+        `,
       ]);
 
     return NextResponse.json({
@@ -192,6 +212,14 @@ export const GET = withApiContext(async (req) => {
           badge: a.status,
           url: `/production?project=${a.projectId}`,
           type: 'Assembly',
+        })),
+        lcrEntries: lcrEntries.map((l) => ({
+          id: l.id,
+          title: l.itemLabel ?? `LCR ${l.sn ?? l.id.slice(0, 8)}`,
+          subtitle: `${l.projectNumber ?? 'Unknown'} — ${l.poNumber ? `PO: ${l.poNumber}` : 'No PO'}`,
+          badge: l.status ?? 'Unknown',
+          url: `/supply-chain/lcr`,
+          type: 'LCR',
         })),
       },
     });

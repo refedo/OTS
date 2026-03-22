@@ -207,6 +207,15 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
+    name: 'Supply Chain',
+    icon: Package,
+    items: [
+      { name: 'LCR', href: '/supply-chain/lcr', icon: FileSpreadsheet, isNew: true },
+      { name: 'Reports', href: '/supply-chain/lcr/reports', icon: BarChart3, isNew: true },
+      { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch, isNew: true },
+    ],
+  },
+  {
     name: 'Product Backlog',
     icon: Layers,
     items: [

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type ComponentType, type SVGProps, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench } from 'lucide-react';
+import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package } from 'lucide-react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ interface SearchResults {
   ncrs: SearchResult[];
   rfis: SearchResult[];
   assemblyParts: SearchResult[];
+  lcrEntries: SearchResult[];
 }
 
 const CATEGORY_META: Record<
@@ -44,6 +45,7 @@ const CATEGORY_META: Record<
   ncrs: { label: 'NCRs', icon: FileWarning, color: 'text-red-500' },
   rfis: { label: 'RFIs', icon: FileSearch, color: 'text-sky-500' },
   assemblyParts: { label: 'Assembly Marks', icon: Wrench, color: 'text-teal-500' },
+  lcrEntries: { label: 'LCR Items', icon: Package, color: 'text-indigo-500' },
 };
 
 const EMPTY_RESULTS: SearchResults = {
@@ -55,6 +57,7 @@ const EMPTY_RESULTS: SearchResults = {
   ncrs: [],
   rfis: [],
   assemblyParts: [],
+  lcrEntries: [],
 };
 
 function statusBadgeVariant(badge: string): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -113,7 +116,7 @@ export default function GlobalSearch() {
 
   // Global keyboard shortcut: Ctrl+K / Cmd+K
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const handler = (e: globalThis.KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         setOpen(true);

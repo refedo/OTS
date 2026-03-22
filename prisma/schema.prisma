@@ -128,6 +128,7 @@ model User {
   pushSubscriptions  PushSubscription[] @relation("UserPushSubscriptions")
   notificationPreferences UserNotificationPreference[] @relation("UserNotificationPreferences")
   dashboardWidgets   UserDashboardWidget[] @relation("UserDashboardWidgets")
+  lcrAliasMaps       LcrAliasMap[] @relation("LcrAliasMapCreatedBy")
   workOrdersEngineered WorkOrder[] @relation("WorkOrderEngineer")
   createdWorkOrders  WorkOrder[] @relation("WorkOrderCreatedBy")
   ownedWorkUnits     WorkUnit[] @relation("WorkUnitOwner")
@@ -326,6 +327,7 @@ model Project {
   systemEvents                    SystemEvent[]
   knowledgeEntries                KnowledgeEntry[]
   knowledgeApplications           KnowledgeApplication[]
+  lcrEntries                      LcrEntry[]
   
   createdAt                       DateTime                        @default(now())
   updatedAt                       DateTime                        @updatedAt
@@ -358,6 +360,7 @@ model Building {
   operationEvents OperationEvent[]
   workOrders    WorkOrder[]
   knowledgeEntries KnowledgeEntry[]
+  lcrEntries    LcrEntry[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -3276,4 +3279,114 @@ model PlannerTask {
   @@index([parentId])
   @@index([sortOrder])
   @@index([level])
+}
+
+// ============================================================================
+// SUPPLY CHAIN MODULE — LCR (Least Cost Routing)
+// ============================================================================
+
+model LcrEntry {
+  id               String    @id @default(uuid()) @db.Char(36)
+  sheetRowId       String    @unique @db.VarChar(100)
+  rowHash          String    @db.VarChar(32)
+  syncedAt         DateTime
+  isDeleted        Boolean   @default(false)
+  resolutionStatus String    @default("pending") @db.VarChar(20)
+
+  // Identity
+  sn               String?   @db.VarChar(50)
+  projectNumber    String?   @db.VarChar(50)
+  projectId        String?   @db.Char(36)
+  project          Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  itemLabel        String?   @db.VarChar(500)
+  productId        Int?
+  qty              Decimal?  @db.Decimal(15, 3)
+  amount           Decimal?  @db.Decimal(15, 2)
+  status           String?   @db.VarChar(100)
+  buildingNameRaw  String?   @db.VarChar(255)
+  buildingId       String?   @db.Char(36)
+  building         Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  mrfNumber        String?   @db.VarChar(100)
+
+  // Timeline
+  requestDate      DateTime? @db.Date
+  neededFromDate   DateTime? @db.Date
+  neededToDate     DateTime? @db.Date
+  buyingDate       DateTime? @db.Date
+  receivingDate    DateTime? @db.Date
+
+  // Purchase
+  poNumber         String?   @db.VarChar(100)
+  dnNumber         String?   @db.VarChar(100)
+  awardedToRaw     String?   @db.VarChar(255)
+  supplierId       Int?
+  weight           Decimal?  @db.Decimal(15, 3)
+  totalWeight      Decimal?  @db.Decimal(15, 3)
+  thickness        String?   @db.VarChar(100)
+  targetPrice      Decimal?  @db.Decimal(15, 2)
+
+  // LCR1
+  totalLcr1        Decimal?  @db.Decimal(15, 2)
+  ratio1to2Lcr1    Decimal?  @db.Decimal(10, 4)
+  lcr1Amount       Decimal?  @db.Decimal(15, 2)
+  lcr1PricePerTon  Decimal?  @db.Decimal(15, 2)
+
+  // LCR2
+  totalLcr2        Decimal?  @db.Decimal(15, 2)
+  lcr2             String?   @db.VarChar(255)
+  lcr2Amount       Decimal?  @db.Decimal(15, 2)
+  lcr2PricePerTon  Decimal?  @db.Decimal(15, 2)
+
+  // LCR3
+  lcr3             String?   @db.VarChar(255)
+  lcr3Amount       Decimal?  @db.Decimal(15, 2)
+  lcr3PricePerTon  Decimal?  @db.Decimal(15, 2)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([projectId])
+  @@index([buildingId])
+  @@index([status])
+  @@index([resolutionStatus])
+  @@index([isDeleted])
+  @@index([neededToDate])
+  @@index([receivingDate])
+  @@index([syncedAt])
+  @@map("lcr_entries")
+}
+
+model LcrAliasMap {
+  id           String   @id @default(uuid()) @db.Char(36)
+  aliasText    String   @db.VarChar(255)
+  entityType   String   @db.VarChar(20)
+  entityId     String   @db.VarChar(36)
+  notes        String?  @db.Text
+  createdById  String   @db.Char(36)
+  createdBy    User     @relation("LcrAliasMapCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([aliasText, entityType])
+  @@index([entityType])
+  @@map("lcr_alias_map")
+}
+
+model LcrSyncLog {
+  id              String   @id @default(uuid()) @db.Char(36)
+  status          String   @db.VarChar(20)
+  triggeredBy     String   @db.VarChar(20)
+  totalRows       Int      @default(0)
+  rowsInserted    Int      @default(0)
+  rowsUpdated     Int      @default(0)
+  rowsUnchanged   Int      @default(0)
+  rowsDeleted     Int      @default(0)
+  pendingAliases  Int      @default(0)
+  durationMs      Int      @default(0)
+  errorMessage    String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("lcr_sync_logs")
 }

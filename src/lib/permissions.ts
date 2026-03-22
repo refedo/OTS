@@ -274,6 +274,15 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'supply_chain',
+    name: 'Supply Chain Management',
+    permissions: [
+      { id: 'supply_chain.view', name: 'View Supply Chain', description: 'Access LCR data, reports, and procurement tracking', category: 'supply_chain' },
+      { id: 'supply_chain.sync', name: 'Run LCR Sync', description: 'Trigger manual Google Sheets sync for LCR data', category: 'supply_chain' },
+      { id: 'supply_chain.alias', name: 'Manage Aliases', description: 'Create and manage supplier/building alias mappings with auto back-fill', category: 'supply_chain' },
+    ],
+  },
+  {
     id: 'settings',
     name: 'System Settings',
     permissions: [
@@ -445,6 +454,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Dolibarr
     'dolibarr.view',
     'dolibarr.sync',
+    // Supply Chain
+    'supply_chain.view',
+    'supply_chain.sync',
+    'supply_chain.alias',
   ],
   Engineer: [
     // Basic Access

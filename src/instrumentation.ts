@@ -12,8 +12,12 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // Dynamically import to avoid client-side bundling
     const { EarlyWarningScheduler } = await import('@/lib/scheduler/early-warning.scheduler');
+    const { LcrSyncScheduler } = await import('@/lib/scheduler/lcr-sync.scheduler');
     
     // Initialize the Early Warning Engine scheduler
     EarlyWarningScheduler.initialize();
+    
+    // Initialize the LCR Sync scheduler (Supply Chain module)
+    LcrSyncScheduler.initialize();
   }
 }

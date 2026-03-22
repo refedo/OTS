@@ -125,6 +125,11 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/journal-entries': ['financial.view'],
   '/financial/settings': ['financial.manage'],
 
+  // Supply Chain
+  '/supply-chain/lcr': ['supply_chain.view'],
+  '/supply-chain/lcr/reports': ['supply_chain.view'],
+  '/supply-chain/lcr/aliases': ['supply_chain.alias'],
+
   // Detailed Planner
   '/detailed-project-planner': ['planning.view', 'projects.view'],
 
