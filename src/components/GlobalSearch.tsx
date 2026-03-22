@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, type ComponentType, type SVGProps, type KeyboardEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package } from 'lucide-react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
@@ -69,7 +69,6 @@ function statusBadgeVariant(badge: string): 'default' | 'secondary' | 'destructi
 }
 
 export default function GlobalSearch() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
@@ -126,11 +125,6 @@ export default function GlobalSearch() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  const handleSelect = (url: string) => {
-    setOpen(false);
-    router.push(url);
-  };
-
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -141,7 +135,10 @@ export default function GlobalSearch() {
     } else if (e.key === 'Enter' && focusedIndex >= 0) {
       e.preventDefault();
       const item = flatResults[focusedIndex];
-      if (item) handleSelect(item.url);
+      if (item) {
+        setOpen(false);
+        window.location.href = item.url;
+      }
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -167,6 +164,7 @@ export default function GlobalSearch() {
           showCloseButton={false}
           className="top-[15%] translate-y-0 p-0 gap-0 max-w-2xl overflow-hidden"
         >
+          <DialogTitle className="sr-only">Global Search</DialogTitle>
           {/* Search input row */}
           <div className="flex items-center gap-3 px-4 py-3 border-b">
             {loading ? (
@@ -232,9 +230,10 @@ export default function GlobalSearch() {
                         const globalIndex = flatResults.indexOf(item);
                         const isFocused = focusedIndex === globalIndex;
                         return (
-                          <button
+                          <Link
                             key={item.id}
-                            onClick={() => handleSelect(item.url)}
+                            href={item.url}
+                            onClick={() => setOpen(false)}
                             onMouseEnter={() => setFocusedIndex(globalIndex)}
                             className={cn(
                               'w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors',
@@ -256,7 +255,7 @@ export default function GlobalSearch() {
                                 {item.badge}
                               </Badge>
                             )}
-                          </button>
+                          </Link>
                         );
                       })}
                     </div>

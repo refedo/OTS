@@ -100,29 +100,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [15.28.0] - 2026-03-22
+## [15.27.5] - 2026-03-22
 
-### Supply Chain Module — LCR Backend Foundation (Deprecated — see v16.0.0)
+### Backlog Task Management & Activity Trail
 
 #### Added
-- **LCR Google Sheets Sync** — Automated sync engine that pulls procurement data from Google Sheets, computes row hashes for change detection, and upserts into `lcr_entries` table via Prisma transactions
-- **3 new database models** — `LcrEntry` (procurement line items with 30+ fields), `LcrAliasMap` (maps informal sheet names to OTS entities), `LcrSyncLog` (sync run history)
-- **Alias resolution system** — Auto-resolves project IDs, product IDs, building IDs, and supplier IDs from raw sheet text; tracks unresolved aliases with `resolutionStatus` field
-- **Cron scheduler** — `LcrSyncScheduler` registered in `instrumentation.ts`, configurable interval via `LCR_SYNC_INTERVAL_MINUTES` env var (default 30 min)
-- **External cron endpoint** — `POST /api/cron/lcr-sync` with Bearer token auth for external cron triggers
-- **7 API routes** under `/api/supply-chain/lcr/`:
-  - `GET /` — Paginated LCR entries with project/building/status/date filters
-  - `GET /[id]` — Single entry detail with relations
-  - `POST /sync` — Manual sync trigger (admin only)
-  - `GET /aliases` + `POST /aliases` + `DELETE /aliases` — Alias management with auto back-fill
-  - `GET /sync-logs` — Last 20 sync run logs
-- **4 report endpoints** under `/api/supply-chain/lcr/reports/`:
-  - `status` — Procurement status breakdown by project and status
-  - `spend-vs-target` — LCR1 spend vs target price with variance percentage
-  - `supplier-performance` — Items awarded, total SAR, avg price/ton per supplier
-  - `overdue` — Items past needed-by date without receiving date
-- **Permission model** — `supply_chain.view`, `supply_chain.sync`, `supply_chain.alias` permissions with SQL migration for role assignment
-- **Type definitions** — `LcrEntryWithRelations`, `LcrSyncResult`, `LcrAliasWithPending`, `PendingAlias` in `src/types/supply-chain.ts`
+- **Task status management** — Each linked task on the backlog detail page now has a clickable circle toggle and a status dropdown (Pending → In Progress → Completed); completing a task strikes through its title and highlights the row in green
+- **Task delete** — A trash icon button on each task row opens a confirmation dialog before permanently removing the task from the backlog item
+- **`PATCH /api/backlog/[id]/tasks/[taskId]`** — New in-context endpoint to update a task's status, title, description, or priority while scoped to its parent backlog item; handles `completedAt` / `completedById` tracking automatically
+- **`DELETE /api/backlog/[id]/tasks/[taskId]`** — New endpoint to remove a task scoped to its parent backlog item
+- **Live progress percentage** — The Progress sidebar card now shows a `% complete` label that updates in real time as tasks are completed or reopened
+- **Task audit trail on backlog items** — Creating, completing, reopening, or deleting a task now writes an `AuditLog` entry (`entityType: ProductBacklogItem`) with a structured `metadata.event` field (`task_created`, `task_completed`, `task_reopened`, `task_deleted`)
+- **Dynamic Activity Trail** — The backlog item detail page merges status milestones (Submitted → Under Review → Approved → …) with task audit events chronologically; task events display a distinct `ClipboardList` icon and color-coded dot (sky=created, emerald=completed, orange=reopened, red=deleted)
+- **Backlog GET returns `activityLogs`** — `GET /api/backlog/[id]` now fetches and returns all `AuditLog` entries for the item so the activity trail is always up to date without a separate request
 
 ---
 

@@ -154,7 +154,7 @@ export const GET = withApiContext<any>(async (req) => {
           title: t.title,
           subtitle: t.status,
           badge: t.priority,
-          url: `/tasks`,
+          url: `/tasks/${t.id}`,
           type: 'Task',
         })),
         projects: projects.map((p) => ({
@@ -162,7 +162,7 @@ export const GET = withApiContext<any>(async (req) => {
           title: p.name,
           subtitle: p.projectNumber,
           badge: p.status,
-          url: `/projects?id=${p.id}`,
+          url: `/projects/${p.id}`,
           type: 'Project',
         })),
         initiatives: initiatives.map((i) => ({
@@ -178,7 +178,7 @@ export const GET = withApiContext<any>(async (req) => {
           title: w.title,
           subtitle: `#${w.issueNumber}`,
           badge: w.status,
-          url: `/operations-control`,
+          url: `/business-planning/issues`,
           type: 'Weekly Issue',
         })),
         backlogItems: backlogItems.map((b) => ({
@@ -186,7 +186,7 @@ export const GET = withApiContext<any>(async (req) => {
           title: b.title,
           subtitle: b.code,
           badge: String(b.status),
-          url: `/backlog`,
+          url: `/backlog/${b.id}`,
           type: 'Backlog',
         })),
         ncrs: ncrs.map((n) => ({
