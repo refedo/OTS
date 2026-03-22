@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.27.4] - 2026-03-22
+
+### Global Search Bar
+
+#### Added
+- **Global Search Bar** — Persistent search icon (🔍) in the top-right navigation bar, positioned to the left of the notification bell and logout button; visible on every authenticated page
+- **Ctrl+K keyboard shortcut** — Opens the search dialog from anywhere in the system
+- **Cross-entity search** — A single query simultaneously searches Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, and Assembly Marks via 8 parallel Prisma queries
+- **`GET /api/search?q=`** — New search API endpoint; returns up to 5 results per category with `id`, `title`, `subtitle`, `badge` (status), and `url` fields
+- **Categorized result groups** — Results are visually separated by entity type with a distinct color-coded icon per category
+- **Status badges on results** — Each result shows a color-coded status badge (green for active/open, grey for completed/closed, red for overdue/critical)
+- **Keyboard navigation** — Use ↑↓ arrow keys to move between results, Enter to open, Esc to close the dialog
+- **300 ms debounce** — Input changes are debounced before triggering the API to avoid excessive requests
+- **Minimum 2-character threshold** — Search only fires when at least 2 characters are entered
+
+---
+
 ## [15.27.3] - 2026-03-22
 
 ### PTS Sync History Improvements & Project Dashboard Task Fixes

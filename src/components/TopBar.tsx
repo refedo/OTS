@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NotificationBell from '@/components/NotificationBell';
+import GlobalSearch from '@/components/GlobalSearch';
 
 export default function TopBar() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function TopBar() {
 
   return (
     <div className="fixed top-0 right-0 z-50 flex items-center gap-1 p-2 lg:p-3">
+      <GlobalSearch />
       <NotificationBell />
       <Button
         variant="ghost"
