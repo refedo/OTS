@@ -9,17 +9,17 @@ export const GET = withApiContext<any>(async (_req, session) => {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const results: Array<{
-    supplierAlias: string | null;
+  type SupplierRow = {
     supplierName: string | null;
     poCount: bigint;
     totalAwarded: string | null;
     totalWeight: string | null;
     avgPricePerTon: string | null;
-  }> = await prisma.$queryRaw`
-    SELECT 
-      e.awardedToRaw AS supplierAlias,
-      s.name AS supplierName,
+  };
+
+  const results = await prisma.$queryRaw<SupplierRow[]>`
+    SELECT
+      e.awardedToRaw AS supplierName,
       COUNT(DISTINCT e.poNumber) AS poCount,
       SUM(e.amount) AS totalAwarded,
       SUM(e.totalWeight) AS totalWeight,
@@ -29,18 +29,16 @@ export const GET = withApiContext<any>(async (_req, session) => {
         ELSE NULL
       END AS avgPricePerTon
     FROM lcr_entries e
-    LEFT JOIN Supplier s ON e.supplierId = s.id
-    WHERE e.isDeleted = false 
-      AND e.awardedToRaw IS NOT NULL 
+    WHERE e.isDeleted = false
+      AND e.awardedToRaw IS NOT NULL
       AND e.awardedToRaw != ''
       AND e.poNumber IS NOT NULL
       AND e.poNumber != ''
-    GROUP BY e.awardedToRaw, s.name
+    GROUP BY e.awardedToRaw
     ORDER BY totalAwarded DESC
   `;
 
   const data = results.map(r => ({
-    supplierAlias: r.supplierAlias,
     supplierName: r.supplierName,
     poCount: Number(r.poCount),
     totalAwarded: r.totalAwarded ? parseFloat(r.totalAwarded) : 0,

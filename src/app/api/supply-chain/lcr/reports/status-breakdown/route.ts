@@ -24,22 +24,24 @@ export const GET = withApiContext<any>(async (req, session) => {
 
   const { projectId } = parsed.data;
 
-  // Get status breakdown with tonnage
-  const results: Array<{
-    status: string | null;
-    totalWeight: string | null;
-  }> = await prisma.$queryRaw`
-    SELECT 
-      e.status,
-      SUM(e.totalWeight) AS totalWeight
-    FROM lcr_entries e
-    WHERE e.isDeleted = false 
-      AND e.totalWeight IS NOT NULL
-      AND e.totalWeight > 0
-      ${projectId ? prisma.$queryRawUnsafe(`AND e.projectId = ?`, projectId) : prisma.$queryRawUnsafe('')}
-    GROUP BY e.status
-    ORDER BY totalWeight DESC
-  `;
+  type StatusRow = { status: string | null; totalWeight: string | null };
+
+  const results: StatusRow[] = projectId
+    ? await prisma.$queryRaw<StatusRow[]>`
+        SELECT e.status, SUM(e.totalWeight) AS totalWeight
+        FROM lcr_entries e
+        WHERE e.isDeleted = false AND e.totalWeight IS NOT NULL AND e.totalWeight > 0
+          AND e.projectId = ${projectId}
+        GROUP BY e.status
+        ORDER BY totalWeight DESC
+      `
+    : await prisma.$queryRaw<StatusRow[]>`
+        SELECT e.status, SUM(e.totalWeight) AS totalWeight
+        FROM lcr_entries e
+        WHERE e.isDeleted = false AND e.totalWeight IS NOT NULL AND e.totalWeight > 0
+        GROUP BY e.status
+        ORDER BY totalWeight DESC
+      `;
 
   const data = results.map(r => ({
     status: r.status ?? 'Unknown',
