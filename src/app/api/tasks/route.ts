@@ -6,7 +6,7 @@ import { verifySession } from '@/lib/jwt';
 import NotificationService from '@/lib/services/notification.service';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
-import { logActivity } from '@/lib/api-utils';
+import { logActivity, logAuditEvent } from '@/lib/api-utils';
 
 const createSchema = z.object({
   title: z.string().min(2),
@@ -382,12 +382,23 @@ export async function POST(req: Request) {
       entityName: task.title,
       userId: session.sub,
       projectId: task.projectId || undefined,
-      metadata: { 
+      metadata: {
         assignedTo: task.assignedTo?.name,
         priority: task.priority,
         status: task.status,
       },
     });
+
+    // Log task creation on the linked backlog item's audit trail
+    if (task.backlogItemId) {
+      await logAuditEvent({
+        entityType: 'ProductBacklogItem',
+        entityId: task.backlogItemId,
+        action: 'UPDATE',
+        userId: session.sub,
+        metadata: { event: 'task_created', taskId: task.id, taskTitle: task.title },
+      });
+    }
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {

@@ -11,7 +11,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList } from 'lucide-react';
+
+interface ActivityLog {
+  id: string;
+  action: string;
+  performedAt: string;
+  performedBy: { id: string; name: string };
+  metadata: {
+    event?: string;
+    taskTitle?: string;
+    taskId?: string;
+    newStatus?: string;
+  } | null;
+}
 
 interface BacklogItem {
   id: string;
@@ -50,12 +63,15 @@ interface BacklogItem {
     id: string;
     title: string;
     status: string;
+    priority: string;
+    description: string | null;
     assignedTo: {
       id: string;
       name: string;
       email: string;
     } | null;
   }>;
+  activityLogs: ActivityLog[];
 }
 
 export default function BacklogItemDetail() {
@@ -71,6 +87,7 @@ export default function BacklogItemDetail() {
     priority: 'MEDIUM',
   });
   const [creatingTask, setCreatingTask] = useState(false);
+  const [taskActionLoading, setTaskActionLoading] = useState<string | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,7 +139,7 @@ export default function BacklogItemDetail() {
           message: error.error || 'Failed to update status',
         });
       }
-    } catch (error) {
+    } catch {
       showConfirmation({
         type: 'error',
         title: 'Update Failed',
@@ -156,7 +173,7 @@ export default function BacklogItemDetail() {
           message: error.error || 'Failed to update priority',
         });
       }
-    } catch (error) {
+    } catch {
       showConfirmation({
         type: 'error',
         title: 'Update Failed',
@@ -199,7 +216,7 @@ export default function BacklogItemDetail() {
           message: error.error || 'Failed to create task',
         });
       }
-    } catch (error) {
+    } catch {
       showConfirmation({
         type: 'error',
         title: 'Creation Failed',
@@ -207,6 +224,54 @@ export default function BacklogItemDetail() {
       });
     } finally {
       setCreatingTask(false);
+    }
+  };
+
+  const handleTaskStatusChange = async (taskId: string, newStatus: 'Pending' | 'In Progress' | 'Completed') => {
+    if (!item) return;
+    setTaskActionLoading(taskId);
+    try {
+      const response = await fetch(`/api/backlog/${item.id}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (response.ok) {
+        fetchBacklogItem();
+      } else {
+        const error = await response.json();
+        showConfirmation({ type: 'error', title: 'Update Failed', message: error.error || 'Failed to update task' });
+      }
+    } catch {
+      showConfirmation({ type: 'error', title: 'Update Failed', message: 'Failed to update task' });
+    } finally {
+      setTaskActionLoading(null);
+    }
+  };
+
+  const handleTaskDelete = async (taskId: string, taskTitle: string) => {
+    if (!item) return;
+    const confirmed = await showConfirmation({
+      type: 'warning',
+      title: 'Delete Task',
+      message: `Are you sure you want to delete "${taskTitle}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+    });
+    if (!confirmed) return;
+
+    setTaskActionLoading(taskId);
+    try {
+      const response = await fetch(`/api/backlog/${item.id}/tasks/${taskId}`, { method: 'DELETE' });
+      if (response.ok) {
+        fetchBacklogItem();
+      } else {
+        const error = await response.json();
+        showConfirmation({ type: 'error', title: 'Delete Failed', message: error.error || 'Failed to delete task' });
+      }
+    } catch {
+      showConfirmation({ type: 'error', title: 'Delete Failed', message: 'Failed to delete task' });
+    } finally {
+      setTaskActionLoading(null);
     }
   };
 
@@ -314,6 +379,37 @@ export default function BacklogItemDetail() {
     }
   };
 
+  const getTaskStatusColor = (status: string) => {
+    switch (status) {
+      case 'Completed': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      case 'In Progress': return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+    }
+  };
+
+  const completedTasks = item.tasks.filter(t => t.status === 'Completed').length;
+  const progressPct = item.tasks.length > 0 ? (completedTasks / item.tasks.length) * 100 : 0;
+
+  // Build merged activity trail: status milestones + task audit events
+  const taskEventLabels: Record<string, string> = {
+    task_created: 'Task Added',
+    task_completed: 'Task Completed',
+    task_reopened: 'Task Reopened',
+    task_updated: 'Task Updated',
+    task_deleted: 'Task Removed',
+  };
+
+  const taskAuditEntries = (item.activityLogs ?? [])
+    .filter(log => log.metadata?.event && taskEventLabels[log.metadata.event])
+    .map(log => ({
+      key: log.id,
+      type: 'task' as const,
+      label: taskEventLabels[log.metadata!.event!],
+      sub: `${log.metadata?.taskTitle} — by ${log.performedBy.name}`,
+      date: log.performedAt,
+      event: log.metadata?.event,
+    }));
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-20">
@@ -327,7 +423,7 @@ export default function BacklogItemDetail() {
             <ArrowLeft className="size-4" />
             Back to Backlog
           </Button>
-          
+
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3 flex-wrap">
@@ -375,7 +471,6 @@ export default function BacklogItemDetail() {
                 <p className="whitespace-pre-wrap">{item.description}</p>
               </CardContent>
             </Card>
-
 
             {/* Attachments */}
             <Card>
@@ -522,25 +617,65 @@ export default function BacklogItemDetail() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {item.tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-medium">{task.title}</div>
-                          {task.assignedTo && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Assigned to: {task.assignedTo.name}
+                  <div className="space-y-2">
+                    {item.tasks.map((task) => {
+                      const isLoading = taskActionLoading === task.id;
+                      const isCompleted = task.status === 'Completed';
+                      return (
+                        <div
+                          key={task.id}
+                          className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : 'hover:bg-muted/50'}`}
+                        >
+                          {/* Status toggle button */}
+                          <button
+                            onClick={() => handleTaskStatusChange(task.id, isCompleted ? 'Pending' : 'Completed')}
+                            disabled={isLoading}
+                            className={`shrink-0 size-5 rounded-full border-2 flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-emerald-400'}`}
+                            title={isCompleted ? 'Reopen task' : 'Mark as complete'}
+                          >
+                            {isCompleted && <Check className="size-3" />}
+                          </button>
+
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-medium text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                              {task.title}
                             </div>
-                          )}
+                            {task.assignedTo && (
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                Assigned to: {task.assignedTo.name}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Status select */}
+                          <Select
+                            value={task.status}
+                            onValueChange={(val) => handleTaskStatusChange(task.id, val as 'Pending' | 'In Progress' | 'Completed')}
+                            disabled={isLoading}
+                          >
+                            <SelectTrigger className={`h-7 w-32 text-xs border px-2 ${getTaskStatusColor(task.status)}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Pending">Pending</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {/* Delete button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleTaskDelete(task.id, task.title)}
+                            disabled={isLoading}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
                         </div>
-                        <Badge variant={task.status === 'Completed' ? 'default' : 'secondary'}>
-                          {task.status}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -557,9 +692,35 @@ export default function BacklogItemDetail() {
               <CardContent>
                 {(() => {
                   const pastStatuses = ['UNDER_REVIEW', 'APPROVED', 'PLANNED', 'IN_PROGRESS', 'BLOCKED', 'COMPLETED', 'DROPPED'];
-                  const trail = [
+
+                  type StatusStep = {
+                    key: string;
+                    type: 'status';
+                    label: string;
+                    sub: string | null;
+                    date: string | null;
+                    dot: string;
+                    line: string;
+                    active: boolean;
+                  };
+
+                  type TaskStep = {
+                    key: string;
+                    type: 'task';
+                    label: string;
+                    sub: string;
+                    date: string;
+                    event: string | undefined;
+                    dot: string;
+                    line: string;
+                  };
+
+                  type TrailStep = StatusStep | TaskStep;
+
+                  const statusSteps: StatusStep[] = [
                     {
                       key: 'created',
+                      type: 'status',
                       label: 'Submitted',
                       sub: `by ${item.createdBy.name}`,
                       date: item.createdAt,
@@ -569,6 +730,7 @@ export default function BacklogItemDetail() {
                     },
                     {
                       key: 'under_review',
+                      type: 'status',
                       label: 'Under Review',
                       sub: item.reviewedBy ? `by ${item.reviewedBy.name}` : null,
                       date: pastStatuses.includes(item.status) ? item.reviewedAt ?? item.createdAt : null,
@@ -578,6 +740,7 @@ export default function BacklogItemDetail() {
                     },
                     {
                       key: 'approved',
+                      type: 'status',
                       label: 'Approved',
                       sub: item.approvedBy ? `by ${item.approvedBy.name}` : null,
                       date: item.approvedAt,
@@ -587,6 +750,7 @@ export default function BacklogItemDetail() {
                     },
                     {
                       key: 'planned',
+                      type: 'status',
                       label: 'Planned',
                       sub: item.plannedBy ? `by ${item.plannedBy.name}` : null,
                       date: item.plannedAt,
@@ -596,6 +760,7 @@ export default function BacklogItemDetail() {
                     },
                     {
                       key: 'in_progress',
+                      type: 'status',
                       label: 'In Progress',
                       sub: null,
                       date: item.status === 'IN_PROGRESS' || item.status === 'COMPLETED' ? item.plannedAt : null,
@@ -603,51 +768,88 @@ export default function BacklogItemDetail() {
                       line: 'bg-indigo-200',
                       active: ['IN_PROGRESS', 'COMPLETED'].includes(item.status),
                     },
-                    {
+                    ...(!!item.completedAt || item.status === 'DROPPED' ? [{
                       key: 'completed',
+                      type: 'status' as const,
                       label: item.status === 'DROPPED' ? 'Dropped' : 'Completed',
                       sub: item.completedBy ? `by ${item.completedBy.name}` : null,
                       date: item.completedAt,
                       dot: item.status === 'DROPPED' ? 'bg-gray-400' : 'bg-emerald-500',
                       line: item.status === 'DROPPED' ? 'bg-gray-200' : 'bg-emerald-200',
                       active: !!item.completedAt || item.status === 'DROPPED',
-                    },
-                  ].filter(t => {
-                    if (t.key === 'under_review') return true;
-                    if (t.key === 'completed') return !!item.completedAt || item.status === 'DROPPED';
-                    return true;
-                  });
+                    }] : []),
+                  ];
+
+                  // Merge task audit events chronologically among status steps
+                  const taskSteps: TaskStep[] = taskAuditEntries.map(e => ({
+                    key: e.key,
+                    type: 'task' as const,
+                    label: e.label,
+                    sub: e.sub,
+                    date: e.date,
+                    event: e.event,
+                    dot: e.event === 'task_completed' ? 'bg-emerald-400'
+                      : e.event === 'task_deleted' ? 'bg-red-400'
+                      : e.event === 'task_reopened' ? 'bg-orange-400'
+                      : 'bg-sky-400',
+                    line: e.event === 'task_completed' ? 'bg-emerald-200'
+                      : e.event === 'task_deleted' ? 'bg-red-200'
+                      : e.event === 'task_reopened' ? 'bg-orange-200'
+                      : 'bg-sky-200',
+                  }));
+
+                  // Merge and sort by date (status steps without dates stay in order)
+                  const allSteps: TrailStep[] = [...statusSteps];
+                  for (const ts of taskSteps) {
+                    const insertIdx = allSteps.findIndex(
+                      s => s.date && new Date(s.date) > new Date(ts.date)
+                    );
+                    if (insertIdx === -1) {
+                      allSteps.push(ts);
+                    } else {
+                      allSteps.splice(insertIdx, 0, ts);
+                    }
+                  }
 
                   const fmt = (d: string) =>
                     new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
                   return (
                     <div className="space-y-0">
-                      {trail.map((step, idx) => (
-                        <div key={step.key} className="flex gap-4">
-                          {/* Dot + line column */}
-                          <div className="flex flex-col items-center w-6 shrink-0">
-                            <div className={`size-3 rounded-full mt-0.5 shrink-0 ${step.active ? step.dot : 'bg-muted border-2 border-border'}`} />
-                            {idx < trail.length - 1 && (
-                              <div className={`w-0.5 flex-1 min-h-[24px] ${step.active ? step.line : 'bg-border'}`} />
-                            )}
+                      {allSteps.map((step, idx) => {
+                        const active = step.type === 'status' ? step.active : true;
+                        const dot = step.type === 'status' ? step.dot : step.dot;
+                        const line = step.type === 'status' ? step.line : step.line;
+                        return (
+                          <div key={step.key} className="flex gap-4">
+                            <div className="flex flex-col items-center w-6 shrink-0">
+                              {step.type === 'task' ? (
+                                <div className={`size-3 rounded-full mt-0.5 shrink-0 flex items-center justify-center ${dot}`}>
+                                  <ClipboardList className="size-2 text-white" />
+                                </div>
+                              ) : (
+                                <div className={`size-3 rounded-full mt-0.5 shrink-0 ${active ? dot : 'bg-muted border-2 border-border'}`} />
+                              )}
+                              {idx < allSteps.length - 1 && (
+                                <div className={`w-0.5 flex-1 min-h-[24px] ${active ? line : 'bg-border'}`} />
+                              )}
+                            </div>
+                            <div className={`pb-5 ${idx === allSteps.length - 1 ? 'pb-0' : ''}`}>
+                              <p className={`text-sm font-medium leading-none mt-0.5 ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                {step.label}
+                              </p>
+                              {step.sub && (
+                                <p className="text-xs text-muted-foreground mt-0.5">{step.sub}</p>
+                              )}
+                              {active && step.date ? (
+                                <p className="text-xs text-muted-foreground mt-1">{fmt(step.date)}</p>
+                              ) : !active ? (
+                                <p className="text-xs text-muted-foreground/50 mt-1">Pending</p>
+                              ) : null}
+                            </div>
                           </div>
-                          {/* Content */}
-                          <div className={`pb-5 ${idx === trail.length - 1 ? 'pb-0' : ''}`}>
-                            <p className={`text-sm font-medium leading-none mt-0.5 ${step.active ? 'text-foreground' : 'text-muted-foreground'}`}>
-                              {step.label}
-                            </p>
-                            {step.sub && (
-                              <p className="text-xs text-muted-foreground mt-0.5">{step.sub}</p>
-                            )}
-                            {step.active && step.date ? (
-                              <p className="text-xs text-muted-foreground mt-1">{fmt(step.date)}</p>
-                            ) : !step.active ? (
-                              <p className="text-xs text-muted-foreground/50 mt-1">Pending</p>
-                            ) : null}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })()}
@@ -752,19 +954,18 @@ export default function BacklogItemDetail() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tasks Completed</span>
                   <span className="font-medium">
-                    {item.tasks.filter(t => t.status === 'Completed').length} / {item.tasks.length}
+                    {completedTasks} / {item.tasks.length}
                   </span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
-                    style={{
-                      width: item.tasks.length > 0
-                        ? `${(item.tasks.filter(t => t.status === 'Completed').length / item.tasks.length) * 100}%`
-                        : '0%'
-                    }}
-                  ></div>
+                    style={{ width: `${progressPct}%` }}
+                  />
                 </div>
+                {item.tasks.length > 0 && (
+                  <p className="text-xs text-muted-foreground text-right">{Math.round(progressPct)}% complete</p>
+                )}
               </CardContent>
             </Card>
           </div>

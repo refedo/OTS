@@ -18,27 +18,34 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const item = await prisma.productBacklogItem.findUnique({
-      where: { id: params.id },
-      include: {
-        createdBy:   { select: { id: true, name: true } },
-        approvedBy:  { select: { id: true, name: true } },
-        reviewedBy:  { select: { id: true, name: true } },
-        plannedBy:   { select: { id: true, name: true } },
-        completedBy: { select: { id: true, name: true } },
-        tasks: {
-          include: {
-            assignedTo: { select: { id: true, name: true, email: true } },
+    const [item, activityLogs] = await Promise.all([
+      prisma.productBacklogItem.findUnique({
+        where: { id: params.id },
+        include: {
+          createdBy:   { select: { id: true, name: true } },
+          approvedBy:  { select: { id: true, name: true } },
+          reviewedBy:  { select: { id: true, name: true } },
+          plannedBy:   { select: { id: true, name: true } },
+          completedBy: { select: { id: true, name: true } },
+          tasks: {
+            include: {
+              assignedTo: { select: { id: true, name: true, email: true } },
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.auditLog.findMany({
+        where: { entityType: 'ProductBacklogItem', entityId: params.id },
+        include: { performedBy: { select: { id: true, name: true } } },
+        orderBy: { performedAt: 'asc' },
+      }),
+    ]);
 
     if (!item) {
       return NextResponse.json({ error: 'Backlog item not found' }, { status: 404 });
     }
 
-    return NextResponse.json(item);
+    return NextResponse.json({ ...item, activityLogs });
   } catch (error) {
     logger.error({ error }, 'Failed to fetch backlog item');
     return NextResponse.json(
