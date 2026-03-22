@@ -23,10 +23,36 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.27.4',
+    version: '15.27.5',
     date: 'March 22, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Backlog Task Management & Activity Trail',
+    highlights: [
+      'Linked tasks are now fully manageable — change status (Pending → In Progress → Completed), reopen, and delete tasks directly from the backlog detail page',
+      'Live progress percentage updates in real time as tasks are completed or reopened',
+      'Activity Trail now merges status milestones with task events (created, completed, reopened, deleted) in chronological order',
+    ],
+    changes: {
+      added: [
+        'Task status toggle — clickable circle button and dropdown on each linked task row to switch between Pending, In Progress, and Completed; completed tasks show strikethrough title and a green row tint',
+        'Task delete button — trash icon with confirmation dialog to permanently remove a task from the backlog item',
+        'PATCH /api/backlog/[id]/tasks/[taskId] — in-context task update endpoint (status, title, description, priority); handles completedAt/completedById tracking',
+        'DELETE /api/backlog/[id]/tasks/[taskId] — task removal endpoint scoped to its parent backlog item',
+        'Live progress percentage in the Progress sidebar card, updating instantly as tasks change status',
+        'Task audit events on backlog items — creating, completing, reopening, or deleting a task writes an AuditLog entry (entityType: ProductBacklogItem) with structured metadata.event field',
+        'Dynamic Activity Trail — status milestones and task audit events merged chronologically; task entries show a ClipboardList icon with color-coded dots (sky=created, emerald=completed, orange=reopened, red=deleted)',
+        'GET /api/backlog/[id] now returns activityLogs alongside the item so the activity trail is always current',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '15.27.4',
+    date: 'March 22, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Global Search Bar',
     highlights: [
       'New persistent search icon in the top-right bar — search the entire system from any page with a single click or Ctrl+K',

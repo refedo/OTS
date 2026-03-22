@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.27.5] - 2026-03-22
+
+### Backlog Task Management & Activity Trail
+
+#### Added
+- **Task status management** — Each linked task on the backlog detail page now has a clickable circle toggle and a status dropdown (Pending → In Progress → Completed); completing a task strikes through its title and highlights the row in green
+- **Task delete** — A trash icon button on each task row opens a confirmation dialog before permanently removing the task from the backlog item
+- **`PATCH /api/backlog/[id]/tasks/[taskId]`** — New in-context endpoint to update a task's status, title, description, or priority while scoped to its parent backlog item; handles `completedAt` / `completedById` tracking automatically
+- **`DELETE /api/backlog/[id]/tasks/[taskId]`** — New endpoint to remove a task scoped to its parent backlog item
+- **Live progress percentage** — The Progress sidebar card now shows a `% complete` label that updates in real time as tasks are completed or reopened
+- **Task audit trail on backlog items** — Creating, completing, reopening, or deleting a task now writes an `AuditLog` entry (`entityType: ProductBacklogItem`) with a structured `metadata.event` field (`task_created`, `task_completed`, `task_reopened`, `task_deleted`)
+- **Dynamic Activity Trail** — The backlog item detail page merges status milestones (Submitted → Under Review → Approved → …) with task audit events chronologically; task events display a distinct `ClipboardList` icon and color-coded dot (sky=created, emerald=completed, orange=reopened, red=deleted)
+- **Backlog GET returns `activityLogs`** — `GET /api/backlog/[id]` now fetches and returns all `AuditLog` entries for the item so the activity trail is always up to date without a separate request
+
+---
+
 ## [15.27.4] - 2026-03-22
 
 ### Global Search Bar
