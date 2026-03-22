@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, type ComponentType, type SVGProps, type KeyboardEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench } from 'lucide-react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
@@ -66,7 +66,6 @@ function statusBadgeVariant(badge: string): 'default' | 'secondary' | 'destructi
 }
 
 export default function GlobalSearch() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
@@ -123,11 +122,6 @@ export default function GlobalSearch() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  const handleSelect = (url: string) => {
-    router.push(url);
-    setOpen(false);
-  };
-
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -138,7 +132,10 @@ export default function GlobalSearch() {
     } else if (e.key === 'Enter' && focusedIndex >= 0) {
       e.preventDefault();
       const item = flatResults[focusedIndex];
-      if (item) handleSelect(item.url);
+      if (item) {
+        setOpen(false);
+        window.location.href = item.url;
+      }
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -230,9 +227,10 @@ export default function GlobalSearch() {
                         const globalIndex = flatResults.indexOf(item);
                         const isFocused = focusedIndex === globalIndex;
                         return (
-                          <button
+                          <Link
                             key={item.id}
-                            onClick={() => handleSelect(item.url)}
+                            href={item.url}
+                            onClick={() => setOpen(false)}
                             onMouseEnter={() => setFocusedIndex(globalIndex)}
                             className={cn(
                               'w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors',
@@ -254,7 +252,7 @@ export default function GlobalSearch() {
                                 {item.badge}
                               </Badge>
                             )}
-                          </button>
+                          </Link>
                         );
                       })}
                     </div>
