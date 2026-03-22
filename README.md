@@ -456,6 +456,6 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 15.27.4
+**Version**: 15.27.5
 **Last Updated**: March 2026
 **Repository**: https://github.com/refedo/OTS

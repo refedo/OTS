@@ -7,24 +7,25 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'Global Search Bar',
+  mainTitle: 'Backlog Task Management & Activity Trail',
   highlights: [
-    'New persistent search icon in the top-right bar — search the entire system from any page with a single click or Ctrl+K',
-    'Searches Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, and Assembly Marks simultaneously',
-    'Categorized results with color-coded icons, status badges, and full keyboard navigation (↑↓ / Enter / Esc)',
+    'Linked tasks are now fully manageable — change status, reopen, and delete tasks directly from the backlog detail page',
+    'Live progress percentage updates in real time as tasks are completed or reopened',
+    'Activity Trail now merges status milestones with task events chronologically',
   ],
   changes: {
     added: [
       {
-        title: 'Global Search Bar',
+        title: 'Backlog Task Management',
         items: [
-          'Search icon button fixed to the top-right navigation bar, next to the notification bell and logout — visible on every authenticated page',
-          'Ctrl+K keyboard shortcut opens the search dialog from anywhere in the system',
-          'GET /api/search?q= endpoint runs 8 parallel Prisma queries across all major entity types; returns up to 5 results per category',
-          'Results grouped by entity type: Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, Assembly Marks',
-          'Color-coded category icons and status badges on every result row',
-          'Keyboard navigation: ↑↓ to move between results, Enter to open, Esc to close',
-          '300 ms debounce and 2-character minimum prevent unnecessary API calls',
+          'Task status toggle (circle button + dropdown) on each linked task row — Pending, In Progress, Completed',
+          'Task delete button with confirmation dialog',
+          'PATCH /api/backlog/[id]/tasks/[taskId] — in-context task update (status, title, description, priority)',
+          'DELETE /api/backlog/[id]/tasks/[taskId] — task removal scoped to its parent backlog item',
+          'Live progress percentage in the Progress sidebar card',
+          'Task audit events written to AuditLog when tasks are created, completed, reopened, or deleted',
+          'Dynamic Activity Trail merging status milestones and task events chronologically with color-coded icons',
+          'GET /api/backlog/[id] now returns activityLogs for live activity trail',
         ],
       },
     ],
