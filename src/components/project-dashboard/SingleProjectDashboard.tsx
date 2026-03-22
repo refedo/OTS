@@ -40,6 +40,7 @@ export function SingleProjectDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [tasksRefreshKey, setTasksRefreshKey] = useState<number>(0);
 
   // Fetch available projects on mount
   useEffect(() => {
@@ -87,7 +88,7 @@ export function SingleProjectDashboard() {
       };
 
       // Fetch all dashboard data in parallel
-      const [summary, wps, itp, production, qc, buildings, documentation, tasks, workOrders, schedules] = await Promise.all([
+      const [summary, wps, itp, production, qc, buildings, documentation, workOrders, schedules] = await Promise.all([
         fetchEndpoint('summary'),
         fetchEndpoint('wps'),
         fetchEndpoint('itp'),
@@ -95,7 +96,6 @@ export function SingleProjectDashboard() {
         fetchEndpoint('qc'),
         fetchEndpoint('buildings'),
         fetchEndpoint('documents'),
-        fetchEndpoint('tasks'),
         fetchEndpoint('work-orders'),
         fetchEndpoint('schedules'),
       ]);
@@ -108,10 +108,10 @@ export function SingleProjectDashboard() {
         qc,
         buildings,
         documentation,
-        tasks,
         workOrders,
         schedules,
       });
+      setTasksRefreshKey((prev: number) => prev + 1);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
@@ -283,11 +283,10 @@ export function SingleProjectDashboard() {
         />
 
         {/* Tasks Overview */}
-        <TasksOverviewWidget 
-          data={dashboardData.tasks} 
+        <TasksOverviewWidget
           projectId={projectId}
           canCreateTask={true}
-          onRefresh={() => fetchDashboardData(projectId)}
+          refreshKey={tasksRefreshKey}
         />
       </div>
     </div>
