@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [15.27.3] - 2026-03-22
+
+### PTS Sync History Improvements & Project Dashboard Task Fixes
+
+#### Fixed
+- **PTS Sync History dialog horizontal scrolling** — Removed `min-w-[900px]` table constraint and switched the dialog to a flex column layout with vertical-only scroll; the table now fits within the screen on all device sizes without left/right navigation
+- **PTS Sync History dialog size** — Dialog now expands to `max-h-[92vh]` using the full available screen height so more rows are visible without any clipping
+- **Compact date formatting in history table** — Dates now display in a shorter locale format (`M/D/YY, h:mm AM/PM`) saving horizontal space
+- **Long project lists in history** — Project number columns truncate at 4 entries with a `+N more` indicator
+- **Duration and User columns hidden on mobile** — These columns use `hidden sm:table-cell` to only appear on larger screens, freeing space for the essential columns
+- **Tasks in project dashboard** — Fixed task display and classification issues in the project dashboard view; tasks now appear correctly with accurate activity grouping after the main-activity schema corrections
+
+#### Added
+- **New buildings consent prompt in PTS Sync execute** — Before syncing, a dedicated amber "New Buildings to be Created" section now appears for every unmatched building belonging to selected projects; each building has an individual checkbox so users can choose exactly which new buildings to allow OTS to create
+- **Select All / None controls for new buildings** — Two quick-action buttons let users accept or reject all pending new-building creations in one click
+- **"Map Instead" shortcut** — A button inside the consent section opens the building mapping dialog directly, letting users link unmatched PTS buildings to existing OTS buildings rather than creating duplicates
+- **Live count of buildings to be created** — A summary line below the checkboxes shows `X of Y new buildings will be created`, updating in real time as the user checks/unchecks items
+
+---
+
 ## [15.27.2] - 2026-03-21
 
 ### Architecture Activity & Task Classification Enhancements

@@ -23,10 +23,39 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '15.27.3',
+    date: 'March 22, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'PTS Sync History Improvements & Project Dashboard Task Fixes',
+    highlights: [
+      'PTS Sync History dialog is now fully responsive — no more left/right scrolling on mobile; expands to full screen height',
+      'New per-building consent checkboxes before syncing: choose exactly which new buildings OTS should create',
+      'Fixed task display and classification issues in the project dashboard view',
+    ],
+    changes: {
+      added: [
+        'New buildings consent prompt in PTS Sync execute — amber section listing every unmatched building for selected projects, each with its own checkbox',
+        'Select All / None quick-action buttons for accepting or rejecting all pending new-building creations at once',
+        '"Map Instead" shortcut button opens the building mapping dialog directly from the consent section',
+        'Live count line below the building checkboxes: "X of Y new buildings will be created", updates in real time',
+      ],
+      fixed: [
+        'PTS Sync History dialog horizontal scrolling — removed min-w-[900px] table constraint; table now fits the screen without left/right navigation',
+        'PTS Sync History dialog height — dialog now uses max-h-[92vh] with vertical-only scroll, showing more rows without clipping',
+        'Compact date format in history table — shorter locale format (M/D/YY, h:mm AM/PM) saves column space',
+        'Long project lists in history — truncated at 4 entries with "+N more" indicator',
+        'Duration and User columns hidden on small screens (hidden sm:table-cell)',
+        'Tasks in project dashboard — tasks now display correctly with accurate activity grouping after main-activity schema corrections',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '15.27.2',
     date: 'March 21, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Architecture Activity',
     highlights: [
       'New Architecture main activity added to the task classification system',
