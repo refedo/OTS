@@ -281,7 +281,7 @@ export interface ProjectDashboardData {
   qc: QCProgress;
   buildings: BuildingStatus[];
   documentation: DocumentationStatus;
-  tasks: TasksOverviewResponse;
+  tasks?: TasksOverviewResponse;
   workOrders: WorkOrder[];
   schedules: SchedulesResponse;
 }
