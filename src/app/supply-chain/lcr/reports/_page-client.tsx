@@ -50,7 +50,6 @@ interface SpendRow {
 }
 
 interface SupplierRow {
-  supplierAlias: string | null;
   supplierName: string | null;
   poCount: number;
   totalAwarded: number;
@@ -439,7 +438,7 @@ export default function LcrReportsPage() {
                     <tbody>
                       {supplierData.map((row, i) => (
                         <tr key={i} className="border-b">
-                          <td className="px-2 py-1.5">{row.supplierName ?? row.supplierAlias ?? '—'}</td>
+                          <td className="px-2 py-1.5">{row.supplierName ?? '—'}</td>
                           <td className="px-2 py-1.5 text-right">{row.poCount}</td>
                           <td className="px-2 py-1.5 text-right">{row.totalAwarded > 0 ? formatSAR(row.totalAwarded) : '—'}</td>
                           <td className="px-2 py-1.5 text-right">{row.totalWeight > 0 ? formatTon(row.totalWeight) : '—'}</td>
