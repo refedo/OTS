@@ -96,9 +96,10 @@ export default function AliasManagementPage() {
 
   const fetchLookups = useCallback(async () => {
     try {
+      // Fetch buildings and first page of suppliers in parallel
       const [bRes, sRes] = await Promise.all([
         fetch('/api/buildings'),
-        fetch('/api/dolibarr/thirdparties?type=supplier&limit=200'),
+        fetch('/api/dolibarr/thirdparties?type=supplier&limit=200&page=0'),
       ]);
       if (bRes.ok) {
         const bData = await bRes.json();
@@ -106,7 +107,24 @@ export default function AliasManagementPage() {
       }
       if (sRes.ok) {
         const sData = await sRes.json();
-        setSuppliers(sData.thirdparties ?? []);
+        const firstPage: SupplierOption[] = sData.thirdparties ?? [];
+        const total: number = sData.pagination?.total ?? firstPage.length;
+
+        if (total <= 200) {
+          setSuppliers(firstPage);
+        } else {
+          // Fetch remaining pages
+          const totalPages = Math.ceil(total / 200);
+          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) =>
+            fetch(`/api/dolibarr/thirdparties?type=supplier&limit=200&page=${i + 1}`).then(r => r.ok ? r.json() : { thirdparties: [] })
+          );
+          const rest = await Promise.all(pageRequests);
+          const allSuppliers = [
+            ...firstPage,
+            ...rest.flatMap((d: { thirdparties?: SupplierOption[] }) => d.thirdparties ?? []),
+          ];
+          setSuppliers(allSuppliers);
+        }
       }
     } catch {
       // non-critical

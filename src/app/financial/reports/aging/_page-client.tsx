@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,9 @@ function fmt(n: number): string {
 }
 
 export default function AgingReportPage() {
-  const [type, setType] = useState<'ar' | 'ap'>('ar');
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get('type') === 'payable' ? 'ap' : 'ar';
+  const [type, setType] = useState<'ar' | 'ap'>(initialType);
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);

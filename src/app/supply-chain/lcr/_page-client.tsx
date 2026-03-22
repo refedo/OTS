@@ -295,44 +295,17 @@ export default function LcrPage() {
   const pendingCount = lastSync?.pendingAliases ?? 0;
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Package className="size-6" />
-            LCR — Least Cost Routing
-          </h1>
+    <div className="space-y-3 p-4 md:p-6">
+      {/* Page Header + Filter Bar combined */}
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+        {/* Title */}
+        <div className="flex items-center gap-2 mr-2 shrink-0">
+          <Package className="size-5" />
+          <h1 className="text-xl font-bold whitespace-nowrap">LCR — Least Cost Routing</h1>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            <Button onClick={handleSync} disabled={syncing} size="sm" variant="outline">
-              {syncing ? <Loader2 className="size-4 mr-1 animate-spin" /> : <RefreshCw className="size-4 mr-1" />}
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </Button>
-            <Link href="/supply-chain/lcr/reports">
-              <Button variant="outline" size="sm">
-                <FileSpreadsheet className="size-4 mr-1" /> Reports
-              </Button>
-            </Link>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {pagination.total} rows • Last synced: {lastSync ? timeAgo(lastSync.createdAt) : 'Never'}
-            {pendingCount > 0 && (
-              <>
-                {' • '}
-                <Link href="/supply-chain/lcr/aliases" className="text-orange-600 hover:underline">
-                  {pendingCount} pending aliases
-                </Link>
-              </>
-            )}
-          </p>
-        </div>
-      </div>
 
-      {/* Filter Bar */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div className="w-56">
+        {/* Project filter */}
+        <div className="w-64">
           <label className="text-xs text-muted-foreground mb-1 block">Project</label>
           <Select value={projectFilter} onValueChange={(v) => { setProjectFilter(v === 'all' ? '' : v); setPage(1); }}>
             <SelectTrigger className="h-9"><SelectValue placeholder="All Projects" /></SelectTrigger>
@@ -345,12 +318,13 @@ export default function LcrPage() {
           </Select>
         </div>
 
-        <div className="w-44">
+        {/* Status filter */}
+        <div className="w-52">
           <label className="text-xs text-muted-foreground mb-1 block">Status</label>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === 'all' ? '' : v); setPage(1); }}>
-            <SelectTrigger className="h-9"><SelectValue placeholder="All" /></SelectTrigger>
+            <SelectTrigger className="h-9"><SelectValue placeholder="All Statuses" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               {statusOptions.map(status => (
                 <SelectItem key={status} value={status}>{status}</SelectItem>
               ))}
@@ -358,17 +332,19 @@ export default function LcrPage() {
           </Select>
         </div>
 
-        <div className="w-40">
+        {/* Date filters */}
+        <div className="w-36">
           <label className="text-xs text-muted-foreground mb-1 block">Needed By From</label>
           <Input type="date" className="h-9" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
         </div>
 
-        <div className="w-40">
+        <div className="w-36">
           <label className="text-xs text-muted-foreground mb-1 block">Needed By To</label>
           <Input type="date" className="h-9" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
         </div>
 
-        <div className="flex-1 min-w-[280px]">
+        {/* Search */}
+        <div className="flex-1 min-w-[200px]">
           <label className="text-xs text-muted-foreground mb-1 block">Search</label>
           <Input
             type="text"
@@ -379,16 +355,40 @@ export default function LcrPage() {
           />
         </div>
 
+        {/* Reset */}
         {(projectFilter || statusFilter || dateFrom || dateTo || itemSearch) && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-9"
+            className="h-9 self-end"
             onClick={() => { setProjectFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setItemSearch(''); setPage(1); }}
           >
             Reset
           </Button>
         )}
+
+        {/* Spacer + action buttons */}
+        <div className="flex items-end gap-2 ml-auto shrink-0">
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground leading-tight">
+              {pagination.total} rows • Last synced: {lastSync ? timeAgo(lastSync.createdAt) : 'Never'}
+            </p>
+            {pendingCount > 0 && (
+              <Link href="/supply-chain/lcr/aliases" className="text-xs text-orange-600 hover:underline">
+                {pendingCount} pending aliases
+              </Link>
+            )}
+          </div>
+          <Button onClick={handleSync} disabled={syncing} size="sm" variant="outline">
+            {syncing ? <Loader2 className="size-4 mr-1 animate-spin" /> : <RefreshCw className="size-4 mr-1" />}
+            {syncing ? 'Syncing...' : 'Sync Now'}
+          </Button>
+          <Link href="/supply-chain/lcr/reports">
+            <Button variant="outline" size="sm">
+              <FileSpreadsheet className="size-4 mr-1" /> Reports
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Data Table */}
