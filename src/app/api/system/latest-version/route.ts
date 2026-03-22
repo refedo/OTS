@@ -7,44 +7,42 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'Dashboard Widgets: Product Backlog & Weekly Issues',
+  mainTitle: 'PTS Sync History Improvements & Project Dashboard Task Fixes',
   highlights: [
-    'New Product Backlog dashboard widget — active/blocked/pending counts, priority breakdown, and recent active backlog items',
-    'New Weekly Issues dashboard widget — open/in-progress counts, overdue alert, and recent open issues from weekly meetings',
-    'Two new summary API routes power the widgets with real-time aggregated data',
+    'PTS Sync History dialog is now fully responsive — no more left/right scrolling on mobile; expands to full screen height',
+    'New per-building consent checkboxes before syncing: choose exactly which new buildings OTS should create',
+    'Fixed task display and classification issues in the project dashboard view',
   ],
   changes: {
     added: [
       {
-        title: 'Product Backlog Widget',
+        title: 'New Buildings Consent Prompt',
         items: [
-          'BACKLOG widget type available in the Add Widget dialog on the dashboard',
-          'Status tiles: Active (In Progress + Planned + Approved), Blocked, Pending (Idea + Under Review)',
-          'Priority grid showing Critical / High / Medium / Low counts',
-          'List of up to 5 recent non-completed backlog items with code, title, status badge, and link',
-          'Auto-refreshes every 2 minutes; violet left-border accent',
-        ],
-      },
-      {
-        title: 'Weekly Issues Widget',
-        items: [
-          'WEEKLY_ISSUES widget type available in the Add Widget dialog on the dashboard',
-          'Open and In Progress status tiles with counts',
-          'Overdue alert banner shown when issues have passed their due date',
-          'Priority grid showing Critical / High / Medium / Low counts',
-          'List of up to 5 recent open issues with issue number, status badge, department name, and link',
-          'Auto-refreshes every 2 minutes; rose left-border accent',
-        ],
-      },
-      {
-        title: 'New API Routes',
-        items: [
-          'GET /api/dashboard/backlog/summary — aggregates ProductBacklogItem by status and priority; returns active, blocked, pending totals and 5 recent non-completed items',
-          'GET /api/dashboard/weekly-issues/summary — aggregates WeeklyIssue by status and priority; returns overdue count and 5 recent open issues',
+          'Amber consent section in PTS Sync execute lists every unmatched building for selected projects, each with its own checkbox',
+          'Select All / None quick-action buttons accept or reject all pending new-building creations at once',
+          '"Map Instead" shortcut opens the building mapping dialog directly from the consent section',
+          'Live count line: "X of Y new buildings will be created", updates in real time as boxes are checked',
         ],
       },
     ],
-    fixed: [],
+    fixed: [
+      {
+        title: 'PTS Sync History Dialog',
+        items: [
+          'Removed min-w-[900px] table constraint — table now fits the screen without left/right scrolling',
+          'Dialog uses max-h-[92vh] with vertical-only scroll, showing more history rows without clipping',
+          'Shorter date format (M/D/YY, h:mm AM/PM) saves column space',
+          'Project lists truncate at 4 entries with "+N more" indicator',
+          'Duration and User columns hidden on small screens',
+        ],
+      },
+      {
+        title: 'Project Dashboard Tasks',
+        items: [
+          'Tasks now display correctly with accurate activity grouping after main-activity schema corrections',
+        ],
+      },
+    ],
     changed: [],
   },
 };
