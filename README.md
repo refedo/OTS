@@ -113,6 +113,13 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Activity Tracking**: Full user action audit trail
 - **Password Management**: Self-service password reset and change
 
+### Global Search
+- **Global Search Bar**: Persistent search icon (🔍) in the top-right navigation bar, visible on every authenticated page; click or press **Ctrl+K** to open
+- **Cross-entity Search**: A single query simultaneously searches Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, and Assembly Marks via parallel Prisma queries
+- **Categorized Results**: Results grouped by entity type with color-coded icons and status badges (green=active, grey=completed, red=overdue)
+- **Keyboard Navigation**: ↑↓ arrows to move between results, Enter to open, Esc to close
+- **Fast & Debounced**: 300 ms debounce with a 2-character minimum; up to 5 results per category returned instantly
+
 ### System Administration & Backup
 - **Backup Management UI**: View, create, download, and delete database backup files from `/settings/backups` — no server console access needed
 - **Backup Stats**: Real-time stats for total backup count, total backup size, and server disk free space
@@ -449,6 +456,6 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 15.27.0
+**Version**: 15.27.4
 **Last Updated**: March 2026
 **Repository**: https://github.com/refedo/OTS

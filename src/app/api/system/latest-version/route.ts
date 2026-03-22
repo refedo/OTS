@@ -7,42 +7,28 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: 'PTS Sync History Improvements & Project Dashboard Task Fixes',
+  mainTitle: 'Global Search Bar',
   highlights: [
-    'PTS Sync History dialog is now fully responsive — no more left/right scrolling on mobile; expands to full screen height',
-    'New per-building consent checkboxes before syncing: choose exactly which new buildings OTS should create',
-    'Fixed task display and classification issues in the project dashboard view',
+    'New persistent search icon in the top-right bar — search the entire system from any page with a single click or Ctrl+K',
+    'Searches Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, and Assembly Marks simultaneously',
+    'Categorized results with color-coded icons, status badges, and full keyboard navigation (↑↓ / Enter / Esc)',
   ],
   changes: {
     added: [
       {
-        title: 'New Buildings Consent Prompt',
+        title: 'Global Search Bar',
         items: [
-          'Amber consent section in PTS Sync execute lists every unmatched building for selected projects, each with its own checkbox',
-          'Select All / None quick-action buttons accept or reject all pending new-building creations at once',
-          '"Map Instead" shortcut opens the building mapping dialog directly from the consent section',
-          'Live count line: "X of Y new buildings will be created", updates in real time as boxes are checked',
+          'Search icon button fixed to the top-right navigation bar, next to the notification bell and logout — visible on every authenticated page',
+          'Ctrl+K keyboard shortcut opens the search dialog from anywhere in the system',
+          'GET /api/search?q= endpoint runs 8 parallel Prisma queries across all major entity types; returns up to 5 results per category',
+          'Results grouped by entity type: Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, Assembly Marks',
+          'Color-coded category icons and status badges on every result row',
+          'Keyboard navigation: ↑↓ to move between results, Enter to open, Esc to close',
+          '300 ms debounce and 2-character minimum prevent unnecessary API calls',
         ],
       },
     ],
-    fixed: [
-      {
-        title: 'PTS Sync History Dialog',
-        items: [
-          'Removed min-w-[900px] table constraint — table now fits the screen without left/right scrolling',
-          'Dialog uses max-h-[92vh] with vertical-only scroll, showing more history rows without clipping',
-          'Shorter date format (M/D/YY, h:mm AM/PM) saves column space',
-          'Project lists truncate at 4 entries with "+N more" indicator',
-          'Duration and User columns hidden on small screens',
-        ],
-      },
-      {
-        title: 'Project Dashboard Tasks',
-        items: [
-          'Tasks now display correctly with accurate activity grouping after main-activity schema corrections',
-        ],
-      },
-    ],
+    fixed: [],
     changed: [],
   },
 };

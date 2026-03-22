@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '15.27.3',
+    version: '15.27.4',
     date: 'March 22, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Global Search Bar',
+    highlights: [
+      'New persistent search icon in the top-right bar — search the entire system from any page with a single click or Ctrl+K',
+      'Searches Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, and Assembly Marks simultaneously',
+      'Categorized results with color-coded icons, status badges, and full keyboard navigation (↑↓ / Enter / Esc)',
+    ],
+    changes: {
+      added: [
+        'Global Search icon button fixed to the top-right navigation bar (next to notification bell and logout) — visible on every authenticated page',
+        'Ctrl+K keyboard shortcut opens the search dialog from anywhere in the system',
+        'GET /api/search?q= endpoint runs 8 parallel Prisma queries across Tasks, Projects, Initiatives, Weekly Issues, Backlog Items, NCRs, RFIs, and Assembly Marks; returns up to 5 results per category',
+        'Results grouped by entity type with color-coded icons (blue=Tasks, emerald=Projects, amber=Initiatives, orange=Weekly Issues, purple=Backlog, red=NCRs, sky=RFIs, teal=Assembly Marks)',
+        'Status badges per result with semantic colors — green for active/open, grey for completed/closed, red for overdue/critical',
+        'Keyboard navigation: ↑↓ arrows to move between results, Enter to open, Esc to close dialog',
+        '300 ms debounce on input and 2-character minimum to avoid unnecessary API requests',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '15.27.3',
+    date: 'March 22, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'PTS Sync History Improvements & Project Dashboard Task Fixes',
     highlights: [
       'PTS Sync History dialog is now fully responsive — no more left/right scrolling on mobile; expands to full screen height',
