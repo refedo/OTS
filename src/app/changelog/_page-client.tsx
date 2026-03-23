@@ -23,10 +23,61 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '16.1.1',
+    date: 'March 23, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🐛 Production Status Pagination & Process Fix',
+    highlights: [
+      'Pagination added to the Production Status sheet — choose 25 / 50 / 100 rows per page or show all, with first / prev / next / last controls',
+      '"Dispatched to Sandblasting", "Dispatched to Galvanization", and "Dispatched to Customer" columns now correctly reflect logged quantities',
+      'Fixed wrong column keys in the status table (Dispatch to… → Dispatched to…)',
+      'PTS sync service now maps all dispatch process variants to the correct canonical values instead of storing invalid "Dispatch"',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Production Status — Pagination',
+          items: [
+            'Rows-per-page selector with options 25 / 50 / 100 / All',
+            'First / Previous / Next / Last navigation buttons with "Page X of Y" indicator',
+            'Page automatically resets to 1 when search query or sort column changes',
+          ],
+        },
+      ],
+      fixed: [
+        {
+          title: 'Dispatch processes not shown in Production Status',
+          items: [
+            'Status API processTypes array was missing all "Dispatched to …" variants',
+            'Added Dispatched to Sandblasting, Galvanization, Customer, Painting, and Site to the tracked process list',
+            'Columns now correctly show percentages and processed quantities for these processes',
+          ],
+        },
+        {
+          title: 'Wrong process column keys in status client',
+          items: [
+            'PROCESS_COLUMNS used "Dispatch to Sandblasting / Galvanization / Customer" (missing the d)',
+            'Corrected to "Dispatched to …" to match values stored in the database',
+          ],
+        },
+        {
+          title: 'PTS sync storing invalid process type',
+          items: [
+            'The sync service mapped the word "dispatch" to "Dispatch" which is not a valid process type',
+            'Replaced with explicit entries for all dispatch variants (e.g. "dispatched to customer" → "Dispatched to Customer")',
+            'Future PTS syncs will store correct process types and appear properly in the status sheet',
+          ],
+        },
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '16.1.0',
     date: 'March 22, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔧 Supply Chain UX Improvements & Dolibarr Integrations',
     highlights: [
       'New Purchase Orders page at /supply-chain/purchase-orders shows Dolibarr POs with status, supplier, project, and totals',
