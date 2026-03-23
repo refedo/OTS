@@ -87,9 +87,15 @@ export async function GET(request: Request) {
       'Fit-up',
       'Welding',
       'Visualization',
+      'Dispatched to Sandblasting',
+      'Dispatched to Galvanization',
+      'Dispatched to Customer',
+      'Dispatched to Painting',
+      'Dispatched to Site',
       'Sandblasting',
       'Painting',
       'Galvanization',
+      'Erection',
     ];
 
     // Calculate status for each part
