@@ -60,6 +60,8 @@ export default function UploadPartsPage() {
   const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [headerRow, setHeaderRow] = useState(1);
+  const [dbConflicts, setDbConflicts] = useState<string[]>([]);
+  const [pendingUploadData, setPendingUploadData] = useState<Record<string, unknown>[] | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -232,6 +234,62 @@ export default function UploadPartsPage() {
     setStep('mapping');
   };
 
+  const buildUploadData = async (): Promise<Record<string, unknown>[]> => {
+    const parsedData = await parseFile(file!, headerRow - 1);
+    const numericFields = ['quantity', 'lengthMm', 'netAreaPerUnit', 'netAreaTotal', 'singlePartWeight', 'netWeightTotal'];
+
+    return parsedData.map((row) => {
+      const mappedRow: Record<string, unknown> = {
+        projectId: selectedProject,
+        buildingId: selectedBuilding || null,
+      };
+      Object.entries(columnMapping).forEach(([excelCol, dbField]) => {
+        if (dbField && row[excelCol] !== undefined && row[excelCol] !== null && row[excelCol] !== '') {
+          let value: unknown = row[excelCol];
+          if (numericFields.includes(dbField)) {
+            const num = typeof value === 'string'
+              ? parseFloat((value as string).replace(/,/g, ''))
+              : Number(value);
+            value = isNaN(num) ? null : num;
+          }
+          mappedRow[dbField] = value;
+        }
+      });
+      return mappedRow;
+    });
+  };
+
+  const executeUpload = async (dataToUpload: Record<string, unknown>[]) => {
+    setLoading(true);
+    setDbConflicts([]);
+    setPendingUploadData(null);
+    try {
+      const response = await fetch('/api/production/assembly-parts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToUpload),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setUploadResult(result);
+        const ids = result.results.map((p: { id: string }) => p.id);
+        setUploadedPartIds(ids);
+        toast({ title: 'Upload Complete', description: `${result.success} parts uploaded successfully` });
+      } else {
+        const errorBody = await response.json().catch(() => ({}));
+        const description = response.status === 403
+          ? 'You do not have permission to upload parts. Contact your administrator.'
+          : (errorBody as { error?: string }).error || `Upload failed (${response.status})`;
+        toast({ title: 'Upload Failed', description, variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'An error occurred during upload', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!file || !selectedProject) {
       toast({ title: 'Missing Selection', description: 'Please select a project and file', variant: 'destructive' });
@@ -250,62 +308,39 @@ export default function UploadPartsPage() {
     setLoading(true);
     setUploadResult(null);
     setUploadedPartIds([]);
+    setDbConflicts([]);
+    setPendingUploadData(null);
 
     try {
-      const parsedData = await parseFile(file, headerRow - 1);
+      const dataToUpload = await buildUploadData();
 
-      const numericFields = ['quantity', 'lengthMm', 'netAreaPerUnit', 'netAreaTotal', 'singlePartWeight', 'netWeightTotal'];
+      // Check for existing parts in the DB before uploading
+      const uniqueMarks = [...new Set(
+        dataToUpload.map(r => r.assemblyMark as string).filter(Boolean)
+      )];
 
-      const dataToUpload = parsedData.map((row) => {
-        const mappedRow: Record<string, unknown> = {
-          projectId: selectedProject,
-          buildingId: selectedBuilding || null,
-        };
+      const params = new URLSearchParams({ projectId: selectedProject, limit: '9999' });
+      if (selectedBuilding) params.set('buildingId', selectedBuilding);
+      const existingRes = await fetch(`/api/production/assembly-parts?${params}`);
 
-        Object.entries(columnMapping).forEach(([excelCol, dbField]) => {
-          if (dbField && row[excelCol] !== undefined && row[excelCol] !== null && row[excelCol] !== '') {
-            let value: unknown = row[excelCol];
-            if (numericFields.includes(dbField)) {
-              const num = typeof value === 'string'
-                ? parseFloat((value as string).replace(/,/g, ''))
-                : Number(value);
-              value = isNaN(num) ? null : num;
-            }
-            mappedRow[dbField] = value;
-          }
-        });
+      if (existingRes.ok) {
+        const existingData = await existingRes.json();
+        const existingMarks = new Set<string>(
+          (existingData.data as { assemblyMark: string }[]).map(p => p.assemblyMark)
+        );
+        const conflicts = uniqueMarks.filter(m => existingMarks.has(m));
 
-        return mappedRow;
-      });
-
-      const response = await fetch('/api/production/assembly-parts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToUpload),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setUploadResult(result);
-        const ids = result.results.map((p: { id: string }) => p.id);
-        setUploadedPartIds(ids);
-        toast({ title: 'Upload Complete', description: `${result.success} parts uploaded successfully` });
-
-        if (result.failed === 0) {
-          setTimeout(() => {
-            router.push('/production/assembly-parts');
-          }, 2000);
+        if (conflicts.length > 0) {
+          setDbConflicts(conflicts);
+          setPendingUploadData(dataToUpload);
+          setLoading(false);
+          return;
         }
-      } else {
-        const errorBody = await response.json().catch(() => ({}));
-        const description = response.status === 403
-          ? 'You do not have permission to upload parts. Contact your administrator.'
-          : (errorBody as { error?: string }).error || `Upload failed (${response.status})`;
-        toast({ title: 'Upload Failed', description, variant: 'destructive' });
       }
-    } catch (error) {
+
+      await executeUpload(dataToUpload);
+    } catch {
       toast({ title: 'Error', description: 'An error occurred during upload', variant: 'destructive' });
-    } finally {
       setLoading(false);
     }
   };
@@ -507,6 +542,50 @@ export default function UploadPartsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* DB Conflict Warning */}
+          {dbConflicts.length > 0 && pendingUploadData && (
+            <Card className="border-orange-400 dark:border-orange-600">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                  <AlertTriangle className="h-5 w-5" />
+                  Existing Parts Detected
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  The following assembly marks from this file already exist in the database for the selected project. Uploading will create duplicate entries.
+                </p>
+                <div className="rounded-md bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 p-3 max-h-40 overflow-y-auto">
+                  <div className="flex flex-wrap gap-2">
+                    {dbConflicts.map(mark => (
+                      <span key={mark} className="inline-block rounded bg-orange-200 dark:bg-orange-800 px-2 py-0.5 text-xs font-mono font-medium text-orange-900 dark:text-orange-100">
+                        {mark}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setDbConflicts([]); setPendingUploadData(null); }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    onClick={() => executeUpload(pendingUploadData)}
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Upload Anyway
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Upload Result */}
           {uploadResult && (
