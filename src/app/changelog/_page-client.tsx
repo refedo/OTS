@@ -23,10 +23,50 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '16.1.1',
+    version: '16.1.2',
     date: 'March 23, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '🐛 PTS Source Fix & Production Logs Project Filter',
+    highlights: [
+      'PTS-synced logs that showed source "OTS" are now corrected to "PTS" via the Fix Process Labels migration button',
+      'PTS sync update path now always stamps source = "PTS" so re-synced logs are labelled correctly going forward',
+      'Production Logs project dropdown now lists all projects with logs, not just those the logged-in user manages',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        {
+          title: 'PTS logs showing source as "OTS"',
+          items: [
+            'Logs synced from PTS before the source field was introduced defaulted to "OTS"',
+            'Fix Process Labels migration (POST /api/production/fix-process-types) now also sets source = "PTS" on any log with an externalRef starting with "PTS-"',
+          ],
+        },
+        {
+          title: 'PTS sync update path missing source',
+          items: [
+            'When an already-synced log was updated by a subsequent PTS sync run, the source field was not written, leaving it as "OTS"',
+            'Update path now always includes source: "PTS"',
+          ],
+        },
+        {
+          title: 'Production Logs project dropdown showing only assigned projects',
+          items: [
+            'Dropdown called /api/projects which applies the projects.view_all permission gate',
+            'Users without that permission only saw projects they manage, missing others like project 281',
+            'New endpoint /api/production/logs/projects returns all projects with at least one production log, bypassing the management filter',
+          ],
+        },
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '16.1.1',
+    date: 'March 23, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '🐛 Production Status Pagination & Process Fix',
     highlights: [
       'Pagination added to the Production Status sheet — choose 25 / 50 / 100 rows per page or show all, with first / prev / next / last controls',

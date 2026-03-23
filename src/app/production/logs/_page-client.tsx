@@ -138,7 +138,7 @@ export default function ProductionLogsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('/api/projects');
+      const response = await fetch('/api/production/logs/projects');
       if (response.ok) {
         const data = await response.json();
         setProjects(data);

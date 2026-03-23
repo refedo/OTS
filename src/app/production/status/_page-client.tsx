@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Activity, Loader2, Download, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Activity, Loader2, Download, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Wrench } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -82,6 +82,7 @@ export default function ProductionStatusPage() {
   const [partRemarks, setPartRemarks] = useState<{[key: string]: string}>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [fixing, setFixing] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -156,6 +157,35 @@ export default function ProductionStatusPage() {
       setProjectData(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFixProcessTypes = async () => {
+    setFixing(true);
+    try {
+      const response = await fetch('/api/production/fix-process-types', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        toast({ title: 'Fix failed', description: result.error, variant: 'destructive' });
+        return;
+      }
+      const totalFixed = (result.processTypeFixed ?? 0) + (result.sourceFixed ?? 0);
+      toast({
+        title: `Fixed ${totalFixed} record(s)`,
+        description: [
+          result.processTypeFixed ? `${result.processTypeFixed} process type(s) normalised` : '',
+          result.sourceFixed ? `${result.sourceFixed} PTS source label(s) corrected` : '',
+          result.unknown?.length ? `Unknown types left as-is: ${result.unknown.join(', ')}` : '',
+        ].filter(Boolean).join(' · '),
+      });
+      if (totalFixed > 0) fetchStatusReport();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to run process type fix', variant: 'destructive' });
+    } finally {
+      setFixing(false);
     }
   };
 
@@ -529,13 +559,27 @@ export default function ProductionStatusPage() {
               </Button>
               {searchQuery && (
                 <Button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
                   variant="ghost"
                   size="sm"
                 >
                   Clear Search
                 </Button>
               )}
+              <Button
+                onClick={handleFixProcessTypes}
+                disabled={fixing}
+                variant="outline"
+                size="sm"
+                title="Normalise process type labels in existing production logs"
+              >
+                {fixing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Wrench className="mr-2 h-4 w-4" />
+                )}
+                Fix Process Labels
+              </Button>
             </div>
           </CardContent>
       </Card>
