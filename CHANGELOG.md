@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.1.2] - 2026-03-23
+
+### 🐛 PTS Source Fix & Production Logs Project Filter
+
+**Patch Release:** Correct "OTS" source label on previously PTS-synced logs, fix the PTS sync update path, and show all projects with logs in the production logs project filter.
+
+#### Fixed
+
+- **PTS logs showing source as "OTS"** — Logs synced from PTS before the source field was added defaulted to `"OTS"`. The "Fix Process Labels" button in Production Status now also corrects these records by setting `source = "PTS"` on any log whose `externalRef` starts with `"PTS-"`
+- **PTS sync update path missing source** — When an already-synced log was re-synced from PTS, the `source` field was not set in the update, so it remained `"OTS"`; now always writes `source: 'PTS'` on update
+- **Production Logs project dropdown showing only assigned projects** — The dropdown called `/api/projects` which filters by `projects.view_all` permission; users without that permission only saw their own projects. A new dedicated endpoint `/api/production/logs/projects` returns all projects that have at least one log regardless of project-management permissions
+
+---
+
 ## [16.1.1] - 2026-03-23
 
 ### 🐛 Production Status Pagination & Process Fix

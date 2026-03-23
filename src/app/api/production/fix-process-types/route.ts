@@ -4,7 +4,10 @@ import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
 /**
- * One-time data migration: normalise processType values in existing ProductionLog rows.
+ * One-time data migration:
+ *   1. Normalise processType values in existing ProductionLog rows.
+ *   2. Fix source='OTS' on rows whose externalRef starts with 'PTS-'
+ *      (they were synced from PTS but got the default source value).
  *
  * GET  → dry-run: returns what would be changed without writing anything.
  * POST → applies the normalisations and returns a summary.
@@ -53,7 +56,7 @@ const CANONICAL_MAP: Record<string, string> = {
   'erect': 'Erection',
 
   // Dispatched to Sandblasting
-  'dispatch': 'Dispatched to Sandblasting', // ambiguous generic — map to most common
+  'dispatch': 'Dispatched to Sandblasting',
   'dispatched to sandblasting': 'Dispatched to Sandblasting',
   'dispatch to sandblasting': 'Dispatched to Sandblasting',
   'dispatched to sand blasting': 'Dispatched to Sandblasting',
@@ -80,7 +83,6 @@ const CANONICAL_MAP: Record<string, string> = {
   'dispatch to customer': 'Dispatched to Customer',
 };
 
-/** Canonical set — values that are already correct and need no change. */
 const CANONICAL_VALUES = new Set([
   'Preparation',
   'Fit-up',
@@ -98,9 +100,8 @@ const CANONICAL_VALUES = new Set([
 ]);
 
 function normalise(raw: string): string | null {
-  if (CANONICAL_VALUES.has(raw)) return null; // already correct
-  const mapped = CANONICAL_MAP[raw.toLowerCase().trim()];
-  return mapped ?? null; // null means unknown — leave as-is
+  if (CANONICAL_VALUES.has(raw)) return null;
+  return CANONICAL_MAP[raw.toLowerCase().trim()] ?? null;
 }
 
 // GET — dry run
@@ -111,32 +112,37 @@ export const GET = withApiContext(async (_req, session) => {
 
   try {
     const logs = await prisma.productionLog.findMany({
-      select: { id: true, processType: true },
+      select: { id: true, processType: true, source: true, externalRef: true },
     });
 
-    const preview: Array<{ id: string; from: string; to: string }> = [];
+    const processTypeFixes: Array<{ id: string; from: string; to: string }> = [];
+    const sourceFixes: Array<{ id: string; externalRef: string }> = [];
     const unknown: string[] = [];
 
     for (const log of logs) {
       const to = normalise(log.processType);
       if (to === null && !CANONICAL_VALUES.has(log.processType)) {
         if (!unknown.includes(log.processType)) unknown.push(log.processType);
-        continue;
+      } else if (to !== null) {
+        processTypeFixes.push({ id: log.id, from: log.processType, to });
       }
-      if (to !== null) {
-        preview.push({ id: log.id, from: log.processType, to });
+
+      if (log.source !== 'PTS' && log.externalRef?.startsWith('PTS-')) {
+        sourceFixes.push({ id: log.id, externalRef: log.externalRef });
       }
     }
 
     return NextResponse.json({
       dryRun: true,
-      toFix: preview.length,
+      processTypesToFix: processTypeFixes.length,
+      sourcesToFix: sourceFixes.length,
       unknown,
-      preview,
+      processTypeFixes,
+      sourceFixes,
     });
   } catch (error) {
-    logger.error({ error }, 'fix-process-types dry-run failed');
-    return NextResponse.json({ error: 'Failed to analyse process types' }, { status: 500 });
+    logger.error({ error }, 'fix-production-logs dry-run failed');
+    return NextResponse.json({ error: 'Failed to analyse production logs' }, { status: 500 });
   }
 });
 
@@ -148,43 +154,53 @@ export const POST = withApiContext(async (_req, session) => {
 
   try {
     const logs = await prisma.productionLog.findMany({
-      select: { id: true, processType: true },
+      select: { id: true, processType: true, source: true, externalRef: true },
     });
 
-    const updates: Array<{ id: string; from: string; to: string }> = [];
+    const processTypeUpdates: Array<{ id: string; from: string; to: string }> = [];
+    const sourceUpdates: Array<{ id: string }> = [];
     const unknown: string[] = [];
 
     for (const log of logs) {
       const to = normalise(log.processType);
       if (to === null && !CANONICAL_VALUES.has(log.processType)) {
         if (!unknown.includes(log.processType)) unknown.push(log.processType);
-        continue;
+      } else if (to !== null) {
+        processTypeUpdates.push({ id: log.id, from: log.processType, to });
       }
-      if (to !== null) {
-        updates.push({ id: log.id, from: log.processType, to });
+
+      if (log.source !== 'PTS' && log.externalRef?.startsWith('PTS-')) {
+        sourceUpdates.push({ id: log.id });
       }
     }
 
-    // Apply updates in a single transaction
-    await prisma.$transaction(
-      updates.map(({ id, to }) =>
+    await prisma.$transaction([
+      ...processTypeUpdates.map(({ id, to }) =>
         prisma.productionLog.update({ where: { id }, data: { processType: to } })
-      )
-    );
+      ),
+      ...sourceUpdates.map(({ id }) =>
+        prisma.productionLog.update({ where: { id }, data: { source: 'PTS' } })
+      ),
+    ]);
 
     logger.info(
-      { updatedCount: updates.length, unknownTypes: unknown },
-      'fix-process-types migration applied'
+      {
+        processTypeFixed: processTypeUpdates.length,
+        sourceFixed: sourceUpdates.length,
+        unknownTypes: unknown,
+      },
+      'fix-production-logs migration applied'
     );
 
     return NextResponse.json({
       dryRun: false,
-      fixed: updates.length,
+      processTypeFixed: processTypeUpdates.length,
+      sourceFixed: sourceUpdates.length,
       unknown,
-      changes: updates,
+      processTypeChanges: processTypeUpdates,
     });
   } catch (error) {
-    logger.error({ error }, 'fix-process-types migration failed');
+    logger.error({ error }, 'fix-production-logs migration failed');
     return NextResponse.json({ error: 'Migration failed' }, { status: 500 });
   }
 });

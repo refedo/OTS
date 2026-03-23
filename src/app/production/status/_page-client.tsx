@@ -172,13 +172,16 @@ export default function ProductionStatusPage() {
         toast({ title: 'Fix failed', description: result.error, variant: 'destructive' });
         return;
       }
+      const totalFixed = (result.processTypeFixed ?? 0) + (result.sourceFixed ?? 0);
       toast({
-        title: `Fixed ${result.fixed} log(s)`,
-        description: result.unknown.length > 0
-          ? `${result.fixed} records updated. Unknown types left as-is: ${result.unknown.join(', ')}`
-          : `${result.fixed} records updated successfully.`,
+        title: `Fixed ${totalFixed} record(s)`,
+        description: [
+          result.processTypeFixed ? `${result.processTypeFixed} process type(s) normalised` : '',
+          result.sourceFixed ? `${result.sourceFixed} PTS source label(s) corrected` : '',
+          result.unknown?.length ? `Unknown types left as-is: ${result.unknown.join(', ')}` : '',
+        ].filter(Boolean).join(' · '),
       });
-      if (result.fixed > 0) fetchStatusReport();
+      if (totalFixed > 0) fetchStatusReport();
     } catch {
       toast({ title: 'Error', description: 'Failed to run process type fix', variant: 'destructive' });
     } finally {

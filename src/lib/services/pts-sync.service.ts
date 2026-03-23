@@ -731,6 +731,7 @@ class PTSSyncService {
                 processingLocation: processLocation,
                 processingTeam: processedBy,
                 reportNumber: reportNo,
+                source: 'PTS',
               },
             });
             updated++;
