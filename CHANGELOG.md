@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.1.1] - 2026-03-23
+
+### 🐛 Production Status Pagination & Process Fix
+
+**Patch Release:** Pagination for the production status sheet, and correct display of dispatch processes synced from PTS or logged in OTS.
+
+#### Added
+
+- **Pagination on Production Status page** — rows-per-page selector (25 / 50 / 100 / All) with first / previous / next / last navigation controls; page resets automatically when filters or sort column change
+
+#### Fixed
+
+- **Dispatch processes not reflected in Production Status** — "Dispatched to Sandblasting", "Dispatched to Galvanization", "Dispatched to Customer", "Dispatched to Painting", and "Dispatched to Site" were missing from the status API's process-type list; the columns now correctly show processed quantities and percentages
+- **Wrong process column keys in status client** — column keys used `"Dispatch to …"` (without the "d") which never matched database values; corrected to `"Dispatched to …"` for all dispatch columns
+- **PTS sync storing invalid `"Dispatch"` process type** — the sync service mapped the generic word `"dispatch"` to `"Dispatch"` (not a valid enum value); replaced with explicit mappings for all dispatch variants so future syncs store the correct canonical process type
+
+---
+
 ## [16.1.0] - 2026-03-22
 
 ### 🔧 Supply Chain UX Improvements & Dolibarr Integrations

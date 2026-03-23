@@ -61,7 +61,7 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Dolibarr ERP Integration**: Bi-directional sync with Dolibarr (products, POs, reference data)
 - **Procurement Timeline**: Integration with operations timeline
 
-### Supply Chain Management (v16.1.0)
+### Supply Chain Management (v16.1.1)
 - **LCR (Least Cost Routing)**: Automated procurement tracking with Google Sheets integration
 - **Google Sheets Sync**: Real-time sync with MD5 hash change detection and intelligent upserts
 - **Alias Resolution**: Auto-resolve project/building/supplier names from informal sheet text; fetches all Dolibarr suppliers via auto-pagination
@@ -471,6 +471,6 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 15.27.5
+**Version**: 16.1.1
 **Last Updated**: March 2026
 **Repository**: https://github.com/refedo/OTS
