@@ -245,29 +245,53 @@ export async function POST(req: Request) {
       const results = [];
       const errors = [];
 
+      // Consolidate duplicate assembly marks within the batch by summing quantities
+      type ConsolidatedItem = z.infer<typeof assemblyPartSchema> & { _rowCount?: number };
+      const consolidatedMap = new Map<string, ConsolidatedItem>();
+      const validationErrors: { item: unknown; error: unknown }[] = [];
+      let hasDuplicates = false;
+
       for (const item of body) {
         const parsed = assemblyPartSchema.safeParse(item);
-        
         if (!parsed.success) {
-          errors.push({
-            item,
-            error: parsed.error.format(),
-          });
+          validationErrors.push({ item, error: parsed.error.format() });
           continue;
         }
 
+        const key = `${parsed.data.projectId}||${parsed.data.buildingId ?? ''}||${parsed.data.assemblyMark}`;
+        const existing = consolidatedMap.get(key);
+
+        if (existing) {
+          hasDuplicates = true;
+          existing.quantity += parsed.data.quantity;
+          // Sum total fields if present
+          if (parsed.data.netWeightTotal != null) {
+            existing.netWeightTotal = (existing.netWeightTotal ?? 0) + parsed.data.netWeightTotal;
+          }
+          if (parsed.data.netAreaTotal != null) {
+            existing.netAreaTotal = (existing.netAreaTotal ?? 0) + parsed.data.netAreaTotal;
+          }
+          existing._rowCount = (existing._rowCount ?? 1) + 1;
+        } else {
+          consolidatedMap.set(key, { ...parsed.data, _rowCount: 1 });
+        }
+      }
+
+      errors.push(...validationErrors);
+
+      for (const consolidated of consolidatedMap.values()) {
+        const { _rowCount: _, ...itemData } = consolidated;
         try {
-          // Generate part designation using assembly mark (e.g. 270-GH1-B1)
           const partDesignation = await generatePartDesignation(
-            parsed.data.projectId,
-            parsed.data.buildingId || null,
-            parsed.data.assemblyMark
+            itemData.projectId,
+            itemData.buildingId || null,
+            itemData.assemblyMark
           );
 
           const assemblyPart = await prisma.assemblyPart.create({
             data: {
-              ...parsed.data,
-              partMark: parsed.data.partMark ?? '',
+              ...itemData,
+              partMark: itemData.partMark ?? '',
               partDesignation,
               createdById: session.sub,
             },
@@ -275,7 +299,7 @@ export async function POST(req: Request) {
           results.push(assemblyPart);
         } catch (err) {
           errors.push({
-            item,
+            item: itemData,
             error: err instanceof Error ? err.message : 'Unknown error',
           });
         }
@@ -288,13 +312,14 @@ export async function POST(req: Request) {
           eventType: 'imported',
           category: 'production',
           title: `Bulk imported ${results.length} assembly parts`,
-          description: `Successfully imported ${results.length} assembly parts${errors.length > 0 ? `, ${errors.length} failed` : ''}`,
+          description: `Successfully imported ${results.length} assembly parts${errors.length > 0 ? `, ${errors.length} failed` : ''}${hasDuplicates ? ' (duplicate part numbers were consolidated)' : ''}`,
           entityType: 'AssemblyPart',
           userId: session.sub,
           projectId: results[0]?.projectId,
           metadata: {
             successCount: results.length,
             failedCount: errors.length,
+            hasDuplicates,
             partIds: uploadedIds,
             partDesignations: results.slice(0, 10).map((p: { partDesignation: string }) => p.partDesignation),
           },
@@ -311,6 +336,7 @@ export async function POST(req: Request) {
             bulkImport: true,
             successCount: results.length,
             failedCount: errors.length,
+            hasDuplicates,
             partIds: uploadedIds,
           },
         });
@@ -319,6 +345,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: results.length,
         failed: errors.length,
+        hasDuplicates,
         results,
         errors,
       }, { status: 201 });
