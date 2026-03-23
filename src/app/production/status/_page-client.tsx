@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Activity, Loader2, Download, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, ArrowRight } from 'lucide-react';
+import { Activity, Loader2, Download, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -52,9 +52,9 @@ const PROCESS_COLUMNS = [
   { key: 'Fit-up', label: 'Fit-Up', color: 'bg-yellow-400', textColor: 'text-black' },
   { key: 'Welding', label: 'Welding', color: 'bg-red-600', textColor: 'text-white' },
   { key: 'Visualization', label: 'Visualization', color: 'bg-green-600', textColor: 'text-white' },
-  { key: 'Dispatch to Sandblasting', label: 'Dispatched to sandblasting', color: 'bg-cyan-500', textColor: 'text-white' },
-  { key: 'Dispatch to Galvanization', label: 'Dispatched to galvanization', color: 'bg-gray-500', textColor: 'text-white' },
-  { key: 'Dispatch to Customer', label: 'Dispatched to customer', color: 'bg-purple-600', textColor: 'text-white' },
+  { key: 'Dispatched to Sandblasting', label: 'Dispatched to sandblasting', color: 'bg-cyan-500', textColor: 'text-white' },
+  { key: 'Dispatched to Galvanization', label: 'Dispatched to galvanization', color: 'bg-gray-500', textColor: 'text-white' },
+  { key: 'Dispatched to Customer', label: 'Dispatched to customer', color: 'bg-purple-600', textColor: 'text-white' },
   { key: 'Painting', label: 'Painting', color: 'bg-orange-500', textColor: 'text-white' },
 ];
 
@@ -80,6 +80,8 @@ export default function ProductionStatusPage() {
   });
   const [partQuantities, setPartQuantities] = useState<{[key: string]: number}>({});
   const [partRemarks, setPartRemarks] = useState<{[key: string]: string}>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -324,13 +326,12 @@ export default function ProductionStatusPage() {
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
-      // Toggle direction if same column
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // New column, default to ascending
       setSortColumn(column);
       setSortDirection('asc');
     }
+    setCurrentPage(1);
   };
 
   const getSortIcon = (column: string) => {
@@ -430,6 +431,9 @@ export default function ProductionStatusPage() {
     }
   });
 
+  const totalPages = pageSize === 0 ? 1 : Math.ceil(sortedData.length / pageSize);
+  const paginatedData = pageSize === 0 ? sortedData : sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const totalQuantity = filteredData.reduce((sum, part) => sum + part.quantity, 0);
   const totalWeight = filteredData.reduce((sum, part) => sum + (part.weight || 0), 0);
 
@@ -498,7 +502,7 @@ export default function ProductionStatusPage() {
                     type="text"
                     placeholder="Search by part designation, mark, name, or profile... (use commas for multiple parts)"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                     className="pl-10"
                   />
                 </div>
@@ -669,7 +673,7 @@ export default function ProductionStatusPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedData.map((part, index) => (
+                      {paginatedData.map((part, index) => (
                         <tr
                           key={part.id}
                           className={`border-b hover:bg-muted/30 ${
@@ -724,6 +728,47 @@ export default function ProductionStatusPage() {
                 </div>
               </CardContent>
           </Card>
+
+          {/* Pagination */}
+          {sortedData.length > 0 && (
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Rows per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="h-8 px-2 rounded-md border bg-background text-sm"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={0}>All</option>
+                </select>
+                <span>
+                  {pageSize === 0
+                    ? `${sortedData.length} items`
+                    : `${Math.min((currentPage - 1) * pageSize + 1, sortedData.length)}–${Math.min(currentPage * pageSize, sortedData.length)} of ${sortedData.length}`}
+                </span>
+              </div>
+              {pageSize > 0 && totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm px-2">Page {currentPage} of {totalPages}</span>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
