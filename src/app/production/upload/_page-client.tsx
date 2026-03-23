@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, Download, RotateCcw } from 'lucide-react';
+import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, AlertTriangle, Download, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type Project = {
@@ -50,6 +50,7 @@ export default function UploadPartsPage() {
   const [uploadResult, setUploadResult] = useState<{
     success: number;
     failed: number;
+    hasDuplicates?: boolean;
     results: { id: string; projectId: string }[];
     errors: { item: unknown; error: unknown }[];
   } | null>(null);
@@ -528,6 +529,18 @@ export default function UploadPartsPage() {
                       )}
                     </div>
                   </div>
+
+                  {uploadResult.hasDuplicates && (
+                    <div className="flex items-start gap-3 rounded-lg border border-yellow-400 bg-yellow-50 p-4 dark:border-yellow-600 dark:bg-yellow-950/30">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
+                      <div>
+                        <p className="font-medium text-yellow-800 dark:text-yellow-300">Duplicate part numbers detected</p>
+                        <p className="mt-0.5 text-sm text-yellow-700 dark:text-yellow-400">
+                          This file contained duplicate assembly part numbers. Their quantities have been summed and uploaded as a single entry per part number.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {uploadedPartIds.length > 0 && (
                     <div className="border rounded-lg p-4 bg-muted/50 space-y-2">
