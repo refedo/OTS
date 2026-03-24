@@ -23,10 +23,76 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '16.2.0',
+    date: 'March 24, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🏷️ Cost Classification Mapping — Product Categories & Supplier Classification',
+    highlights: [
+      'New Product Categories system: define named categories that carry a cost classification and an optional Chart-of-Accounts account code',
+      'Product Category Mapping: map each Dolibarr product reference to a category so every invoice line is classified accurately',
+      'Supplier Classification: assign a default cost category to each supplier as a fallback when no account or product mapping exists',
+      '4-level classification hierarchy in all financial reports: Account Mapping → Product Category → Supplier Classification → Other/Unclassified',
+      'Monthly trend query now uses the structured mapping tables instead of keyword pattern matching',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Product Categories (fin_product_categories)',
+          items: [
+            'New table storing named categories with cost_classification and optional coa_account_code',
+            'Bilingual support: English name + optional Arabic name',
+            'GET /api/financial/product-categories — list all with mapped product count and COA name',
+            'POST /api/financial/product-categories — create category',
+            'PUT /api/financial/product-categories/[id] — update name, classification, COA code, active flag',
+            'DELETE /api/financial/product-categories/[id] — delete (blocked if product mappings exist)',
+            'New page /financial/product-categories — tabbed UI: manage categories + assign product refs',
+          ],
+        },
+        {
+          title: 'Product Category Mapping (fin_product_category_mapping)',
+          items: [
+            'New table mapping Dolibarr product_ref to a fin_product_categories row',
+            'GET /api/financial/product-category-mapping — existing mappings + unmapped product refs sorted by spend',
+            'POST /api/financial/product-category-mapping — create mapping',
+            'PUT /api/financial/product-category-mapping/[id] — change category',
+            'DELETE /api/financial/product-category-mapping/[id] — remove mapping',
+            'Unmapped products tab shows all invoice product refs without a mapping',
+          ],
+        },
+        {
+          title: 'Supplier Classification (fin_supplier_classification)',
+          items: [
+            'New table assigning a default cost category (and optional COA code) to a Dolibarr supplier',
+            'GET /api/financial/supplier-classification — classified + unclassified suppliers sorted by spend',
+            'POST /api/financial/supplier-classification — classify a supplier',
+            'PUT /api/financial/supplier-classification/[id] — update category or COA code',
+            'DELETE /api/financial/supplier-classification/[id] — remove classification',
+            'New page /financial/supplier-classification — inline priority explanation, one-click classify, edit/delete table',
+          ],
+        },
+        'DB migration: prisma/migrations/add_cost_classification_mapping.sql creates all 3 tables with indexes, FK constraints, and audit columns',
+      ],
+      changed: [
+        {
+          title: '4-Level Classification Hierarchy in Financial Reports',
+          items: [
+            'Cost Structure report: COALESCE now checks account mapping → product category → supplier classification → Other/Unclassified',
+            'Monthly trend query replaced keyword LIKE pattern-matching with the same 4-level COALESCE using the new tables',
+            'Expenses Analysis report: supplier expenses breakdown uses the 4-level hierarchy',
+            'All affected queries LEFT JOIN fin_product_category_mapping, fin_product_categories, fin_supplier_classification',
+          ],
+        },
+        'Sidebar: Added "Product Categories" and "Supplier Classification" entries under Financial',
+      ],
+      fixed: [],
+    },
+  },
+  {
     version: '16.1.2',
     date: 'March 23, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🐛 PTS Source Fix & Production Logs Project Filter',
     highlights: [
       'PTS-synced logs that showed source "OTS" are now corrected to "PTS" via the Fix Process Labels migration button',

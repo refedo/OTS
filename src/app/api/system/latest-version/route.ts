@@ -7,55 +7,75 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🔧 Supply Chain UX Improvements & Dolibarr Integrations',
+  mainTitle: '🏷️ Cost Classification Mapping — Product Categories & Supplier Classification',
   highlights: [
-    'New Purchase Orders page at /supply-chain/purchase-orders shows Dolibarr POs with status, supplier, project, and totals',
-    'Supply Chain sidebar now links to Purchase Orders, AP Aging Report (pre-selected), and Statement of Account',
-    'LCR filter bar redesigned into a single row — project and status dropdowns no longer overlap',
-    'Alias management now fetches ALL Dolibarr suppliers via auto-pagination (was capped at 200)',
-    'Aging Report reads ?type=payable URL param to pre-select Accounts Payable automatically',
+    'New Product Categories system: define named categories that carry a cost classification and an optional Chart-of-Accounts account code',
+    'Product Category Mapping: map each Dolibarr product reference to a category so every invoice line is classified accurately',
+    'Supplier Classification: assign a default cost category to each supplier, used as a fallback when no account or product mapping exists',
+    '4-level classification hierarchy in all financial reports: Account Mapping → Product Category → Supplier Classification → Other/Unclassified',
+    'New sidebar entries: Product Categories and Supplier Classification under Financial',
   ],
   changes: {
     added: [
       {
-        title: 'Purchase Orders Page',
+        title: 'Product Categories',
         items: [
-          'New page /supply-chain/purchase-orders — lists Dolibarr purchase orders in OTS',
-          'Status badges (Draft / Validated / Approved / Ordered / Partially Received / Received / Canceled / Refused) with colour coding',
-          'Supplier name, supplier ref, project ref, order date, delivery date, billing status, HT and TTC totals per row',
-          'Client-side status filter + full-text search (ref, supplier, project); configurable page size with prev/next pagination',
-          'Open in Dolibarr button linking to the Dolibarr supplier orders module',
+          'New table fin_product_categories — stores named categories (English + Arabic) with cost_classification and optional coa_account_code',
+          'GET /api/financial/product-categories — list all categories with mapped product count and COA account name',
+          'POST /api/financial/product-categories — create a new category',
+          'PUT /api/financial/product-categories/[id] — update name, classification, COA code, or active status',
+          'DELETE /api/financial/product-categories/[id] — delete a category (blocked if product mappings exist)',
+          'New page /financial/product-categories — manage categories and map product refs on a single tabbed page',
         ],
       },
       {
-        title: 'Supply Chain Sidebar',
+        title: 'Product Category Mapping',
         items: [
-          'Purchase Orders → /supply-chain/purchase-orders',
-          'AP Aging Report → /financial/reports/aging?type=payable (deep-links to Accounts Payable)',
-          'Statement of Account → /financial/reports/soa',
-          'Navigation permission registered for /supply-chain/purchase-orders (supply_chain.view)',
+          'New table fin_product_category_mapping — maps Dolibarr product_ref to a fin_product_categories row',
+          'GET /api/financial/product-category-mapping — returns existing mappings + list of unmapped product refs from invoices',
+          'POST /api/financial/product-category-mapping — create a new product→category mapping',
+          'PUT /api/financial/product-category-mapping/[id] — change the category for an existing mapping',
+          'DELETE /api/financial/product-category-mapping/[id] — remove a mapping',
+          'Unmapped products tab shows all product refs appearing in invoices with no mapping, sorted by spend',
         ],
       },
-      'Aging Report: reads ?type=payable query param on load and auto-initialises type to Accounts Payable',
+      {
+        title: 'Supplier Classification',
+        items: [
+          'New table fin_supplier_classification — maps supplier (Dolibarr socid) to a default cost category and optional COA code',
+          'GET /api/financial/supplier-classification — returns classified suppliers + unclassified suppliers sorted by spend',
+          'POST /api/financial/supplier-classification — classify a supplier',
+          'PUT /api/financial/supplier-classification/[id] — update category or COA code',
+          'DELETE /api/financial/supplier-classification/[id] — remove classification',
+          'New page /financial/supplier-classification — shows classification priority explanation, unclassified suppliers, and classified table',
+        ],
+      },
+      {
+        title: 'DB Migration',
+        items: [
+          'prisma/migrations/add_cost_classification_mapping.sql — creates all 3 new tables with proper indexes, FK constraints, and audit columns',
+        ],
+      },
     ],
-    fixed: [
+    changed: [
       {
-        title: 'LCR Page Layout',
+        title: '4-Level Classification Hierarchy in Reports',
         items: [
-          'Merged page title and all filter controls into a single flex-wrap row — eliminates project/status overlap',
-          'Project dropdown widened from w-56 to w-64; Status from w-44 to w-52 with "All Statuses" placeholder',
-          'Sync Now / Reports buttons and row/sync stats moved to far right of the same header row',
+          'Cost Structure report (getProjectCostStructure): COALESCE now checks account mapping → product category → supplier classification → Other/Unclassified',
+          'Monthly trend query updated from keyword pattern matching to the same 4-level hierarchy',
+          'Expenses Analysis report (getExpensesAnalysis): supplier expenses breakdown uses the same 4-level COALESCE',
+          'All SQL queries now LEFT JOIN fin_product_category_mapping, fin_product_categories, and fin_supplier_classification',
         ],
       },
       {
-        title: 'Alias Management — complete supplier list',
+        title: 'Sidebar Navigation',
         items: [
-          'Alias page was capped at 200 Dolibarr suppliers due to API hard limit',
-          'Now reads pagination.total and fetches remaining pages in parallel so all suppliers appear in the combobox',
+          'Added "Product Categories" → /financial/product-categories under Financial',
+          'Added "Supplier Classification" → /financial/supplier-classification under Financial',
         ],
       },
     ],
-    changed: [],
+    fixed: [],
   },
 };
 
