@@ -13,6 +13,7 @@ export interface GitHubIssuePayload {
   affectedModules: string[];
   riskLevel: string;
   complianceFlag: boolean;
+  tasks?: Array<{ title: string; status: string; description?: string | null }>;
 }
 
 export interface GitHubIssueResult {
@@ -71,7 +72,7 @@ ${item.expectedValue ? `\n### Expected Value\n${item.expectedValue}` : ''}
 | **Affected Modules** | ${modules} |
 
 ---
-*This issue was automatically created from OTS Backlog item \`${item.code}\`. Do not edit the header section — it will be overwritten on re-sync.*`;
+${item.tasks && item.tasks.length > 0 ? `### Tasks\n${item.tasks.map(t => `- [${t.status === 'Completed' ? 'x' : ' '}] ${t.title}`).join('\n')}\n\n---\n` : ''}*This issue was automatically created from OTS Backlog item \`${item.code}\`. Do not edit the header section — it will be overwritten on re-sync.*`;
 }
 
 function getLabelsForItem(item: GitHubIssuePayload): string[] {
