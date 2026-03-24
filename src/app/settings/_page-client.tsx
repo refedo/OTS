@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Smartphone } from 'lucide-react';
+import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Smartphone, Github, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { NotificationPreferences } from '@/components/notifications/NotificationPreferences';
 
@@ -41,9 +41,22 @@ export default function SettingsPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loginLogoPreview, setLoginLogoPreview] = useState<string | null>(null);
 
+  // GitHub integration state
+  const [githubToken, setGithubToken] = useState('');
+  const [githubRepo, setGithubRepo] = useState('');
+  const [githubShowToken, setGithubShowToken] = useState(false);
+  const [githubSaving, setGithubSaving] = useState(false);
+  const [githubDisconnecting, setGithubDisconnecting] = useState(false);
+  const [githubStatus, setGithubStatus] = useState<{
+    configured: boolean;
+    githubDefaultRepo: string | null;
+    githubTokenHint: string | null;
+  } | null>(null);
+
   useEffect(() => {
     fetchSettings();
     fetchLoginLogo();
+    fetchGithubStatus();
   }, []);
 
   const fetchSettings = async () => {
@@ -70,6 +83,63 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error fetching login logo:', error);
+    }
+  };
+
+  const fetchGithubStatus = async () => {
+    try {
+      const res = await fetch('/api/settings/github');
+      if (res.ok) {
+        const data = await res.json();
+        setGithubStatus(data);
+        if (data.githubDefaultRepo) setGithubRepo(data.githubDefaultRepo);
+      }
+    } catch {
+      // non-critical
+    }
+  };
+
+  const handleGithubSave = async () => {
+    if (!githubToken.trim() || !githubRepo.trim()) return;
+    setGithubSaving(true);
+    try {
+      const res = await fetch('/api/settings/github', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ githubToken: githubToken.trim(), githubDefaultRepo: githubRepo.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`GitHub connected! Authenticated as @${data.login} — repo: ${data.repoFullName}`);
+        setGithubToken('');
+        fetchGithubStatus();
+      } else {
+        alert(data.error || 'Failed to connect to GitHub');
+      }
+    } catch {
+      alert('Failed to connect to GitHub');
+    } finally {
+      setGithubSaving(false);
+    }
+  };
+
+  const handleGithubDisconnect = async () => {
+    if (!confirm('Remove GitHub integration? Existing linked issues will not be deleted on GitHub.')) return;
+    setGithubDisconnecting(true);
+    try {
+      const res = await fetch('/api/settings/github', { method: 'DELETE' });
+      if (res.ok) {
+        setGithubStatus(null);
+        setGithubRepo('');
+        alert('GitHub integration disconnected.');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to disconnect');
+      }
+    } catch {
+      alert('Failed to disconnect GitHub');
+    } finally {
+      setGithubDisconnecting(false);
     }
   };
 
@@ -256,6 +326,10 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications">
               <Bell className="mr-2 h-4 w-4" />
               Notifications
+            </TabsTrigger>
+            <TabsTrigger value="github">
+              <Github className="mr-2 h-4 w-4" />
+              GitHub
             </TabsTrigger>
             <TabsTrigger value="version">
               <GitBranch className="mr-2 h-4 w-4" />
@@ -575,6 +649,128 @@ export default function SettingsPage() {
             </Card>
 
             <NotificationPreferences />
+          </TabsContent>
+
+          {/* GitHub Integration */}
+          <TabsContent value="github" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Github className="h-5 w-5" />
+                  GitHub Integration
+                </CardTitle>
+                <CardDescription>
+                  Connect OTS Backlog to GitHub so approved items can be pushed as issues for your team to track and resolve.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+
+                {/* Connection status banner */}
+                {githubStatus?.configured ? (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-emerald-800">Connected</p>
+                        <p className="text-xs text-emerald-700">
+                          Repo: <span className="font-mono">{githubStatus.githubDefaultRepo}</span>
+                          {githubStatus.githubTokenHint && (
+                            <> · Token: <span className="font-mono">{githubStatus.githubTokenHint}</span></>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                      onClick={handleGithubDisconnect}
+                      disabled={githubDisconnecting}
+                    >
+                      {githubDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5 mr-1.5" />}
+                      Disconnect
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted border">
+                    <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <p className="text-sm text-muted-foreground">Not connected</p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {/* Step 1 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="githubToken">
+                      1. Personal Access Token (PAT)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Go to <strong>GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)</strong>.
+                      Generate a new token with the <code className="bg-muted px-1 rounded">repo</code> scope checked. Paste it here.
+                    </p>
+                    <div className="relative">
+                      <Input
+                        id="githubToken"
+                        type={githubShowToken ? 'text' : 'password'}
+                        value={githubToken}
+                        onChange={e => setGithubToken(e.target.value)}
+                        placeholder={githubStatus?.configured ? 'Enter new token to replace existing' : 'ghp_xxxxxxxxxxxxxxxxxxxx'}
+                        className="pr-10 font-mono text-sm"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setGithubShowToken(v => !v)}
+                      >
+                        {githubShowToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="githubRepo">
+                      2. Default Repository
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      The GitHub repo where backlog items will be created as issues. Format: <code className="bg-muted px-1 rounded">owner/repo</code> — e.g. <code className="bg-muted px-1 rounded">refedo/ots-issues</code>
+                    </p>
+                    <Input
+                      id="githubRepo"
+                      value={githubRepo}
+                      onChange={e => setGithubRepo(e.target.value)}
+                      placeholder="your-org/your-repo"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleGithubSave}
+                    disabled={githubSaving || !githubToken.trim() || !githubRepo.trim()}
+                    className="w-full gap-2"
+                  >
+                    {githubSaving ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Testing connection & saving...</>
+                    ) : (
+                      <><Github className="h-4 w-4" /> {githubStatus?.configured ? 'Update Connection' : 'Connect GitHub'}</>
+                    )}
+                  </Button>
+                </div>
+
+                {/* How it works */}
+                <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">How it works</p>
+                  <ul className="text-xs text-muted-foreground space-y-1.5 list-disc list-inside">
+                    <li>Your team submits backlog items in OTS as usual.</li>
+                    <li>Open any backlog item → click <strong>Push to GitHub</strong> in the sidebar.</li>
+                    <li>OTS creates a GitHub issue with the full context (business reason, type, priority, affected modules).</li>
+                    <li>OTS auto-creates labels like <code className="bg-muted px-1 rounded">ots-backlog</code>, <code className="bg-muted px-1 rounded">priority:high</code>, <code className="bg-muted px-1 rounded">type:feature</code> in the repo.</li>
+                    <li>Use <strong>Re-sync</strong> to update the issue after edits. When status is Completed or Dropped, the GitHub issue is closed automatically.</li>
+                  </ul>
+                </div>
+
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Version Management */}
