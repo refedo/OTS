@@ -110,46 +110,46 @@ export default function BacklogBoard() {
     }
   };
 
-  const handleBulkGitHubSync = async () => {
+  const handleBulkGitHubSync = () => {
     const unsynced = sorted.filter(i => !i.githubIssueNumber);
     if (unsynced.length === 0) {
       showConfirmation({ type: 'success', title: 'All synced', message: 'All visible items are already linked to GitHub issues.' });
       return;
     }
-    const confirmed = await showConfirmation({
+    showConfirmation({
       type: 'warning',
       title: 'Push to GitHub',
       message: `This will create GitHub issues for ${unsynced.length} item${unsynced.length !== 1 ? 's' : ''} that are not yet synced. Continue?`,
-      confirmLabel: 'Push All',
+      confirmText: 'Push All',
+      onConfirm: async () => {
+        setBulkSyncing(true);
+        setBulkProgress({ done: 0, total: unsynced.length, failed: 0 });
+        try {
+          const res = await fetch('/api/backlog/github/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: unsynced.map(i => i.id) }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setBulkProgress({ done: data.succeeded, total: data.total, failed: data.failed });
+            showConfirmation({
+              type: data.failed > 0 ? 'warning' : 'success',
+              title: 'Bulk Sync Complete',
+              message: `${data.succeeded} issue${data.succeeded !== 1 ? 's' : ''} created on GitHub.${data.failed > 0 ? ` ${data.failed} failed — check your GitHub token and repo settings.` : ''}`,
+            });
+            fetchBacklogItems();
+          } else {
+            showConfirmation({ type: 'error', title: 'Sync Failed', message: data.error || 'Failed to push to GitHub' });
+          }
+        } catch {
+          showConfirmation({ type: 'error', title: 'Sync Failed', message: 'Failed to connect to GitHub' });
+        } finally {
+          setBulkSyncing(false);
+          setBulkProgress(null);
+        }
+      },
     });
-    if (!confirmed) return;
-
-    setBulkSyncing(true);
-    setBulkProgress({ done: 0, total: unsynced.length, failed: 0 });
-    try {
-      const res = await fetch('/api/backlog/github/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: unsynced.map(i => i.id) }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setBulkProgress({ done: data.succeeded, total: data.total, failed: data.failed });
-        showConfirmation({
-          type: data.failed > 0 ? 'warning' : 'success',
-          title: 'Bulk Sync Complete',
-          message: `${data.succeeded} issue${data.succeeded !== 1 ? 's' : ''} created on GitHub.${data.failed > 0 ? ` ${data.failed} failed — check your GitHub token and repo settings.` : ''}`,
-        });
-        fetchBacklogItems();
-      } else {
-        showConfirmation({ type: 'error', title: 'Sync Failed', message: data.error || 'Failed to push to GitHub' });
-      }
-    } catch {
-      showConfirmation({ type: 'error', title: 'Sync Failed', message: 'Failed to connect to GitHub' });
-    } finally {
-      setBulkSyncing(false);
-      setBulkProgress(null);
-    }
   };
 
   const getPriorityStyle = (p: string) => {
