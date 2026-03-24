@@ -1,0 +1,67 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import prisma from '@/lib/db';
+import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
+import { logger } from '@/lib/logger';
+
+export const dynamic = 'force-dynamic';
+
+const updateSchema = z.object({
+  cost_category: z.string().min(1).max(100).optional(),
+  coa_account_code: z.string().max(20).optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireFinancialPermission('financial.manage');
+  if ('error' in auth) return auth.error;
+
+  const { id } = await params;
+  const numId = parseInt(id, 10);
+  if (isNaN(numId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  const body = await req.json();
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const { cost_category, coa_account_code, notes } = parsed.data;
+
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE fin_supplier_classification SET
+        cost_category = COALESCE(?, cost_category),
+        coa_account_code = ?,
+        notes = ?,
+        updated_by = ?,
+        updated_at = NOW()
+       WHERE id = ?`,
+      cost_category ?? null, coa_account_code ?? null, notes ?? null, auth.userId ?? null, numId,
+    );
+
+    logger.info({ id: numId }, 'Supplier classification updated');
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to update supplier classification');
+    return NextResponse.json({ error: 'Failed to update supplier classification' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireFinancialPermission('financial.manage');
+  if ('error' in auth) return auth.error;
+
+  const { id } = await params;
+  const numId = parseInt(id, 10);
+  if (isNaN(numId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  try {
+    await prisma.$executeRawUnsafe(`DELETE FROM fin_supplier_classification WHERE id = ?`, numId);
+    logger.info({ id: numId }, 'Supplier classification deleted');
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to delete supplier classification');
+    return NextResponse.json({ error: 'Failed to delete supplier classification' }, { status: 500 });
+  }
+}

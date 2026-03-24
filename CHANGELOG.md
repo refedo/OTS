@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.2.0] - 2026-03-24
+
+### 🏷️ Cost Classification Mapping — Product Categories & Supplier Classification
+
+**Minor Release:** Introduces a complete 3-table cost classification system so every supplier invoice line is accurately categorised in all financial reports. The old single-fallback approach (account mapping only, then "Other/Unclassified") is replaced by a 4-level hierarchy.
+
+#### Added
+
+**Product Categories** (`fin_product_categories`)
+- New table that stores named categories with a cost classification (e.g. Raw Materials) and an optional Chart-of-Accounts account code
+- Bilingual support (English name + optional Arabic name)
+- `GET /api/financial/product-categories` — list all categories with mapped product count and COA account name
+- `POST /api/financial/product-categories` — create a category
+- `PUT /api/financial/product-categories/[id]` — update name, classification, COA code, or active flag
+- `DELETE /api/financial/product-categories/[id]` — delete (blocked if product mappings exist)
+- New page `/financial/product-categories` — tabbed UI: manage categories + assign product refs to categories
+
+**Product Category Mapping** (`fin_product_category_mapping`)
+- New table that maps a Dolibarr `product_ref` to a `fin_product_categories` row
+- `GET /api/financial/product-category-mapping` — existing mappings + list of unmapped product refs (sorted by spend)
+- `POST /api/financial/product-category-mapping` — create mapping
+- `PUT /api/financial/product-category-mapping/[id]` — change category
+- `DELETE /api/financial/product-category-mapping/[id]` — remove mapping
+- Unmapped products tab shows all invoice product refs without a mapping so nothing is missed
+
+**Supplier Classification** (`fin_supplier_classification`)
+- New table that assigns a default cost category (and optional COA code) to a Dolibarr supplier
+- Serves as the third-level fallback after account mapping and product category mapping
+- `GET /api/financial/supplier-classification` — classified suppliers + unclassified suppliers sorted by total spend
+- `POST /api/financial/supplier-classification` — classify a supplier
+- `PUT /api/financial/supplier-classification/[id]` — update category or COA code
+- `DELETE /api/financial/supplier-classification/[id]` — remove classification
+- New page `/financial/supplier-classification` — inline explanation of priority order, unclassified suppliers with one-click assign, classified table with edit/delete
+
+**DB Migration**
+- `prisma/migrations/add_cost_classification_mapping.sql` — creates all 3 tables with proper indexes, FK constraints, and audit columns (`created_by`, `updated_by`)
+
+#### Changed
+
+**4-Level Classification Hierarchy in All Financial Reports**
+- SQL queries in `getProjectCostStructure()` and `getExpensesAnalysis()` now use:
+  ```
+  COALESCE(
+    account_mapping.ots_cost_category,      -- 1. Dolibarr account code mapping
+    product_category.cost_classification,    -- 2. Product ref → category mapping
+    supplier_classification.cost_category,   -- 3. Supplier default category
+    'Other / Unclassified'                   -- 4. Fallback
+  )
+  ```
+- Monthly trend query replaced: removed the old keyword pattern-matching CASE (`LIKE '%raw%'`, `LIKE '%transport%'`, etc.) with the same 4-level COALESCE using the new tables
+- All affected queries now LEFT JOIN `fin_product_category_mapping`, `fin_product_categories`, and `fin_supplier_classification`
+
+**Sidebar Navigation (Financial)**
+- Added **Product Categories** → `/financial/product-categories`
+- Added **Supplier Classification** → `/financial/supplier-classification`
+
+---
+
 ## [16.1.2] - 2026-03-23
 
 ### 🐛 PTS Source Fix & Production Logs Project Filter

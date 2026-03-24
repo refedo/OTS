@@ -52,7 +52,11 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Bank Account Management**: Multi-account tracking and reconciliation
 - **Financial Reports**: Balance Sheet, Income Statement, Cash Flow Statement
 - **Invoice Management**: Client invoicing and payment tracking
-- **Account Mapping**: Automated account classification
+- **Account Mapping**: Map Dolibarr accounting account codes to OTS cost categories
+- **Product Categories**: Define named product categories that carry a cost classification and an optional Chart-of-Accounts account code (bilingual EN/AR support)
+- **Product Category Mapping**: Map each Dolibarr `product_ref` to a category so every invoice line is classified accurately; unmapped products surfaced for quick resolution
+- **Supplier Classification**: Assign a default cost category to each supplier — used as a fallback when no account or product mapping exists
+- **4-Level Classification Hierarchy**: Account Mapping → Product Category → Supplier Classification → Other/Unclassified, applied across all cost structure and expenses reports
 
 ### Procurement
 - **Purchase Orders**: Complete PO lifecycle management
@@ -61,7 +65,7 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Dolibarr ERP Integration**: Bi-directional sync with Dolibarr (products, POs, reference data)
 - **Procurement Timeline**: Integration with operations timeline
 
-### Supply Chain Management (v16.1.2)
+### Supply Chain Management (v16.2.0)
 - **LCR (Least Cost Routing)**: Automated procurement tracking with Google Sheets integration
 - **Google Sheets Sync**: Real-time sync with MD5 hash change detection and intelligent upserts
 - **Alias Resolution**: Auto-resolve project/building/supplier names from informal sheet text; fetches all Dolibarr suppliers via auto-pagination
@@ -471,6 +475,6 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 16.1.2
+**Version**: 16.2.0
 **Last Updated**: March 2026
 **Repository**: https://github.com/refedo/OTS
