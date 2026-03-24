@@ -58,22 +58,10 @@ const CURRENT_VERSION = {
       },
     ],
     changed: [
-      {
-        title: '4-Level Classification Hierarchy in Reports',
-        items: [
-          'Cost Structure report (getProjectCostStructure): COALESCE now checks account mapping → product category → supplier classification → Other/Unclassified',
-          'Monthly trend query updated from keyword pattern matching to the same 4-level hierarchy',
-          'Expenses Analysis report (getExpensesAnalysis): supplier expenses breakdown uses the same 4-level COALESCE',
-          'All SQL queries now LEFT JOIN fin_product_category_mapping, fin_product_categories, and fin_supplier_classification',
-        ],
-      },
-      {
-        title: 'Sidebar Navigation',
-        items: [
-          'Added "Product Categories" → /financial/product-categories under Financial',
-          'Added "Supplier Classification" → /financial/supplier-classification under Financial',
-        ],
-      },
+      '4-Level Classification: Cost Structure & Expenses Analysis reports now resolve categories via COALESCE(account_mapping, product_category, supplier_classification, "Other / Unclassified")',
+      'Monthly cost trend query replaced keyword LIKE pattern-matching with the same 4-level structured hierarchy',
+      'All affected SQL queries LEFT JOIN fin_product_category_mapping, fin_product_categories, fin_supplier_classification',
+      'Sidebar: added "Product Categories" and "Supplier Classification" entries under Financial',
     ],
     fixed: [],
   },
