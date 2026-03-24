@@ -19,6 +19,7 @@ import {
   Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown,
   MoreHorizontal, Eye, CheckCircle, XCircle, Layers,
   AlertTriangle, TrendingUp, ShieldCheck, ListTodo,
+  Github, Loader2,
 } from 'lucide-react';
 
 interface BacklogItem {
@@ -33,6 +34,7 @@ interface BacklogItem {
   createdAt: string;
   createdBy: { id: string; name: string };
   tasks: Array<{ id: string; title: string; status: string }>;
+  githubIssueNumber?: number | null;
 }
 
 type SortKey = 'code' | 'title' | 'type' | 'priority' | 'status' | 'createdBy';
@@ -55,6 +57,8 @@ export default function BacklogBoard() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ type: '', category: '', status: '', priority: '', search: '' });
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'code', dir: 'asc' });
+  const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
 
   const fetchBacklogItems = useCallback(async () => {
     try {
@@ -103,6 +107,48 @@ export default function BacklogBoard() {
     } else {
       const err = await res.json();
       showConfirmation({ type: 'error', title: 'Failed', message: err.error || 'Could not update status.' });
+    }
+  };
+
+  const handleBulkGitHubSync = async () => {
+    const unsynced = sorted.filter(i => !i.githubIssueNumber);
+    if (unsynced.length === 0) {
+      showConfirmation({ type: 'success', title: 'All synced', message: 'All visible items are already linked to GitHub issues.' });
+      return;
+    }
+    const confirmed = await showConfirmation({
+      type: 'warning',
+      title: 'Push to GitHub',
+      message: `This will create GitHub issues for ${unsynced.length} item${unsynced.length !== 1 ? 's' : ''} that are not yet synced. Continue?`,
+      confirmLabel: 'Push All',
+    });
+    if (!confirmed) return;
+
+    setBulkSyncing(true);
+    setBulkProgress({ done: 0, total: unsynced.length, failed: 0 });
+    try {
+      const res = await fetch('/api/backlog/github/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: unsynced.map(i => i.id) }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBulkProgress({ done: data.succeeded, total: data.total, failed: data.failed });
+        showConfirmation({
+          type: data.failed > 0 ? 'warning' : 'success',
+          title: 'Bulk Sync Complete',
+          message: `${data.succeeded} issue${data.succeeded !== 1 ? 's' : ''} created on GitHub.${data.failed > 0 ? ` ${data.failed} failed — check your GitHub token and repo settings.` : ''}`,
+        });
+        fetchBacklogItems();
+      } else {
+        showConfirmation({ type: 'error', title: 'Sync Failed', message: data.error || 'Failed to push to GitHub' });
+      }
+    } catch {
+      showConfirmation({ type: 'error', title: 'Sync Failed', message: 'Failed to connect to GitHub' });
+    } finally {
+      setBulkSyncing(false);
+      setBulkProgress(null);
     }
   };
 
@@ -213,10 +259,24 @@ export default function BacklogBoard() {
               Single source of truth for features, bugs, tech debt, and system improvements
             </p>
           </div>
-          <Button className="shrink-0" onClick={() => router.push('/backlog/new')}>
-            <Plus className="size-4 mr-2" />
-            New Backlog Item
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              onClick={handleBulkGitHubSync}
+              disabled={bulkSyncing || loading}
+            >
+              {bulkSyncing ? (
+                <><Loader2 className="size-4 mr-2 animate-spin" />
+                  {bulkProgress ? `${bulkProgress.done}/${bulkProgress.total}` : 'Pushing...'}</>
+              ) : (
+                <><Github className="size-4 mr-2" />Push All to GitHub</>
+              )}
+            </Button>
+            <Button className="shrink-0" onClick={() => router.push('/backlog/new')}>
+              <Plus className="size-4 mr-2" />
+              New Backlog Item
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -336,6 +396,11 @@ export default function BacklogBoard() {
                           {item.complianceFlag && (
                             <Badge variant="outline" className="text-xs px-1.5 py-0 border-purple-300 text-purple-700 bg-purple-50 shrink-0">
                               C
+                            </Badge>
+                          )}
+                          {item.githubIssueNumber && (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0 border-gray-300 text-gray-500 bg-gray-50 shrink-0 gap-0.5 hidden lg:inline-flex">
+                              <Github className="size-2.5" />#{item.githubIssueNumber}
                             </Badge>
                           )}
                         </div>

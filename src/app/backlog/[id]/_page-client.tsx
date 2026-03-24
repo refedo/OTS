@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
 
 interface ActivityLog {
   id: string;
@@ -95,6 +95,21 @@ export default function BacklogItemDetail() {
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [githubSyncing, setGithubSyncing] = useState(false);
+  const [navIds, setNavIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/backlog?_nav=1')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Array<{ id: string; code: string }>) => {
+        // sort by code number ascending (matches default list view)
+        const sorted = [...data].sort((a, b) => {
+          const n = (s: string) => parseInt(s.match(/\d+$/)?.[0] ?? '0');
+          return n(a.code) - n(b.code);
+        });
+        setNavIds(sorted.map(i => i.id));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (params.id) {
@@ -469,14 +484,48 @@ export default function BacklogItemDetail() {
       <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-20">
         {/* Header */}
         <div className="space-y-4">
-          <Button
-            variant="ghost"
-            onClick={() => router.push('/backlog')}
-            className="gap-2"
-          >
-            <ArrowLeft className="size-4" />
-            Back to Backlog
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/backlog')}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" />
+              Back to Backlog
+            </Button>
+            {navIds.length > 0 && (() => {
+              const currentIndex = navIds.indexOf(item.id);
+              const prevId = currentIndex > 0 ? navIds[currentIndex - 1] : null;
+              const nextId = currentIndex < navIds.length - 1 ? navIds[currentIndex + 1] : null;
+              return (
+                <div className="flex items-center gap-1 ml-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8"
+                    disabled={!prevId}
+                    onClick={() => prevId && router.push(`/backlog/${prevId}`)}
+                    title="Previous backlog item"
+                  >
+                    <ArrowLeft className="size-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-1 tabular-nums">
+                    {currentIndex + 1} / {navIds.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8"
+                    disabled={!nextId}
+                    onClick={() => nextId && router.push(`/backlog/${nextId}`)}
+                    title="Next backlog item"
+                  >
+                    <ArrowRight className="size-4" />
+                  </Button>
+                </div>
+              );
+            })()}
+          </div>
 
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">

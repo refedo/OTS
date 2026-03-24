@@ -47,6 +47,7 @@ export async function POST(
         complianceFlag: true,
         githubIssueNumber: true,
         githubRepo: true,
+        tasks: { select: { title: true, status: true, description: true } },
       },
     });
 
@@ -68,6 +69,7 @@ export async function POST(
       affectedModules: item.affectedModules as string[],
       riskLevel: item.riskLevel,
       complianceFlag: item.complianceFlag,
+      tasks: item.tasks,
     };
 
     let issueNumber = item.githubIssueNumber;
