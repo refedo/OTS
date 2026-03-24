@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
 
 interface ActivityLog {
   id: string;
@@ -72,6 +72,10 @@ interface BacklogItem {
     } | null;
   }>;
   activityLogs: ActivityLog[];
+  githubIssueNumber: number | null;
+  githubIssueUrl: string | null;
+  githubRepo: string | null;
+  githubSyncedAt: string | null;
 }
 
 export default function BacklogItemDetail() {
@@ -90,6 +94,7 @@ export default function BacklogItemDetail() {
   const [taskActionLoading, setTaskActionLoading] = useState<string | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const [githubSyncing, setGithubSyncing] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -272,6 +277,55 @@ export default function BacklogItemDetail() {
       showConfirmation({ type: 'error', title: 'Delete Failed', message: 'Failed to delete task' });
     } finally {
       setTaskActionLoading(null);
+    }
+  };
+
+  const handleGitHubSync = async () => {
+    if (!item) return;
+    setGithubSyncing(true);
+    try {
+      const response = await fetch(`/api/backlog/${item.id}/github`, { method: 'POST' });
+      const data = await response.json();
+      if (response.ok) {
+        showConfirmation({
+          type: 'success',
+          title: item.githubIssueNumber ? 'GitHub Issue Updated' : 'GitHub Issue Created',
+          message: item.githubIssueNumber
+            ? `Issue #${item.githubIssueNumber} has been updated on GitHub.`
+            : `Issue #${data.githubIssueNumber} has been created on GitHub.`,
+        });
+        fetchBacklogItem();
+      } else {
+        showConfirmation({ type: 'error', title: 'Sync Failed', message: data.error || 'Failed to sync to GitHub' });
+      }
+    } catch {
+      showConfirmation({ type: 'error', title: 'Sync Failed', message: 'Failed to sync to GitHub' });
+    } finally {
+      setGithubSyncing(false);
+    }
+  };
+
+  const handleGitHubUnlink = async () => {
+    if (!item) return;
+    const confirmed = await showConfirmation({
+      type: 'warning',
+      title: 'Remove GitHub Link',
+      message: `This will unlink OTS from GitHub issue #${item.githubIssueNumber}. The issue on GitHub will not be deleted. Continue?`,
+      confirmLabel: 'Unlink',
+    });
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/backlog/${item.id}/github`, { method: 'DELETE' });
+      if (response.ok) {
+        showConfirmation({ type: 'success', title: 'Unlinked', message: 'GitHub link removed.' });
+        fetchBacklogItem();
+      } else {
+        const data = await response.json();
+        showConfirmation({ type: 'error', title: 'Unlink Failed', message: data.error || 'Failed to unlink' });
+      }
+    } catch {
+      showConfirmation({ type: 'error', title: 'Unlink Failed', message: 'Failed to unlink from GitHub' });
     }
   };
 
@@ -965,6 +1019,80 @@ export default function BacklogItemDetail() {
                 </div>
                 {item.tasks.length > 0 && (
                   <p className="text-xs text-muted-foreground text-right">{Math.round(progressPct)}% complete</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* GitHub Integration */}
+            <Card className="border-2 border-gray-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Github className="size-5" />
+                  GitHub
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {item.githubIssueNumber ? (
+                  <>
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                      <div className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="text-sm font-medium text-emerald-800">
+                        Linked to Issue #{item.githubIssueNumber}
+                      </span>
+                    </div>
+                    {item.githubRepo && (
+                      <p className="text-xs text-muted-foreground">{item.githubRepo}</p>
+                    )}
+                    {item.githubSyncedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last synced: {new Date(item.githubSyncedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    )}
+                    <div className="flex flex-col gap-2 pt-1">
+                      {item.githubIssueUrl && (
+                        <a href={item.githubIssueUrl} target="_blank" rel="noopener noreferrer">
+                          <Button variant="outline" size="sm" className="w-full gap-2">
+                            <ExternalLink className="size-3.5" />
+                            View on GitHub
+                          </Button>
+                        </a>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={handleGitHubSync}
+                        disabled={githubSyncing}
+                      >
+                        <RefreshCw className={`size-3.5 ${githubSyncing ? 'animate-spin' : ''}`} />
+                        {githubSyncing ? 'Syncing...' : 'Re-sync Issue'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full gap-2 text-muted-foreground hover:text-destructive"
+                        onClick={handleGitHubUnlink}
+                        disabled={githubSyncing}
+                      >
+                        <Unlink className="size-3.5" />
+                        Unlink
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Push this item to GitHub as an issue so your team can track and resolve it there.
+                    </p>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleGitHubSync}
+                      disabled={githubSyncing}
+                    >
+                      <Github className={`size-4 ${githubSyncing ? 'animate-pulse' : ''}`} />
+                      {githubSyncing ? 'Creating Issue...' : 'Push to GitHub'}
+                    </Button>
+                  </>
                 )}
               </CardContent>
             </Card>

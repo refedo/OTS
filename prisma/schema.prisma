@@ -2225,10 +2225,14 @@ model SystemSettings {
   // Notification Settings
   emailNotifications Boolean @default(true)
   smsNotifications   Boolean @default(false)
-  
+
+  // GitHub Integration Settings
+  githubToken        String?  @db.Text // Personal Access Token (stored encrypted-at-rest)
+  githubDefaultRepo  String?           // default owner/repo, e.g. "acme/ots-issues"
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
+
   @@map("system_settings")
 }
 
@@ -3044,6 +3048,12 @@ model ProductBacklogItem {
   plannedAt         DateTime?
   completedById     String?           @db.Char(36)
   completedAt       DateTime?
+
+  // GitHub Integration
+  githubIssueNumber Int?
+  githubIssueUrl    String?
+  githubRepo        String?           // owner/repo format
+  githubSyncedAt    DateTime?
 
   tasks             Task[]            @relation("BacklogItemTasks")
   createdBy         User              @relation("BacklogItemCreatedBy", fields: [createdById], references: [id])
