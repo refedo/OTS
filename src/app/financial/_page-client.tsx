@@ -510,12 +510,48 @@ export default function FinancialDashboardPage() {
             </CardContent>
           </Card>
         </Link>
+        <Link href="/financial/account-mapping">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <CardContent className="pt-6 flex items-center gap-3">
+              <ArrowUpDown className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="font-semibold">Account Mapping</h3>
+                <p className="text-xs text-muted-foreground">Map Dolibarr account codes to cost categories</p>
+              </div>
+              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/financial/product-categories">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <CardContent className="pt-6 flex items-center gap-3">
+              <Package className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="font-semibold">Product Categories</h3>
+                <p className="text-xs text-muted-foreground">Define categories and map invoice products</p>
+              </div>
+              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/financial/supplier-classification">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <CardContent className="pt-6 flex items-center gap-3">
+              <Building2 className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="font-semibold">Supplier Classification</h3>
+                <p className="text-xs text-muted-foreground">Assign default cost categories to suppliers</p>
+              </div>
+              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
         <Link href="/financial/settings">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer">
             <CardContent className="pt-6 flex items-center gap-3">
               <CheckCircle className="h-5 w-5 text-muted-foreground" />
               <div>
-                <h3 className="font-semibold">Account Mapping & Settings</h3>
+                <h3 className="font-semibold">Financial Settings</h3>
                 <p className="text-xs text-muted-foreground">Configure default accounts and bank mappings</p>
               </div>
               <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />

@@ -15,11 +15,47 @@ const createSchema = z.object({
   color: z.string().max(20).optional().nullable(),
 });
 
+async function ensureTables() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS fin_product_categories (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      name_ar VARCHAR(100) NULL,
+      cost_classification VARCHAR(100) NOT NULL,
+      coa_account_code VARCHAR(20) NULL,
+      description TEXT NULL,
+      color VARCHAR(20) NULL,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      created_by INT NULL,
+      updated_by INT NULL,
+      UNIQUE KEY uk_product_category_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS fin_product_category_mapping (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      product_ref VARCHAR(100) NOT NULL,
+      product_label_hint VARCHAR(255) NULL,
+      category_id INT NOT NULL,
+      notes TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      created_by INT NULL,
+      updated_by INT NULL,
+      UNIQUE KEY uk_product_ref (product_ref),
+      CONSTRAINT fk_pcm_category FOREIGN KEY (category_id) REFERENCES fin_product_categories (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
 export async function GET() {
   const auth = await requireFinancialPermission('financial.view');
   if ('error' in auth) return auth.error;
 
   try {
+    await ensureTables();
     const categories: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         pc.*,
