@@ -320,28 +320,28 @@ export default function BacklogItemDetail() {
     }
   };
 
-  const handleGitHubUnlink = async () => {
+  const handleGitHubUnlink = () => {
     if (!item) return;
-    const confirmed = await showConfirmation({
+    showConfirmation({
       type: 'warning',
       title: 'Remove GitHub Link',
       message: `This will unlink OTS from GitHub issue #${item.githubIssueNumber}. The issue on GitHub will not be deleted. Continue?`,
-      confirmLabel: 'Unlink',
+      confirmText: 'Unlink',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/backlog/${item.id}/github`, { method: 'DELETE' });
+          if (response.ok) {
+            showConfirmation({ type: 'success', title: 'Unlinked', message: 'GitHub link removed.' });
+            fetchBacklogItem();
+          } else {
+            const data = await response.json();
+            showConfirmation({ type: 'error', title: 'Unlink Failed', message: data.error || 'Failed to unlink' });
+          }
+        } catch {
+          showConfirmation({ type: 'error', title: 'Unlink Failed', message: 'Failed to unlink from GitHub' });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      const response = await fetch(`/api/backlog/${item.id}/github`, { method: 'DELETE' });
-      if (response.ok) {
-        showConfirmation({ type: 'success', title: 'Unlinked', message: 'GitHub link removed.' });
-        fetchBacklogItem();
-      } else {
-        const data = await response.json();
-        showConfirmation({ type: 'error', title: 'Unlink Failed', message: data.error || 'Failed to unlink' });
-      }
-    } catch {
-      showConfirmation({ type: 'error', title: 'Unlink Failed', message: 'Failed to unlink from GitHub' });
-    }
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
