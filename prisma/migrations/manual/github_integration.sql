@@ -1,9 +1,8 @@
 -- GitHub Integration Migration
 -- Apply this on the server via: mysql -u <user> -p <database> < github_integration.sql
--- Or run: ./node_modules/.bin/prisma db push
 
--- Add GitHub fields to product_backlog_items
-ALTER TABLE `product_backlog_items`
+-- Add GitHub fields to ProductBacklogItem
+ALTER TABLE `ProductBacklogItem`
   ADD COLUMN `githubIssueNumber` INT NULL AFTER `completedAt`,
   ADD COLUMN `githubIssueUrl` VARCHAR(255) NULL AFTER `githubIssueNumber`,
   ADD COLUMN `githubRepo` VARCHAR(255) NULL AFTER `githubIssueUrl`,
