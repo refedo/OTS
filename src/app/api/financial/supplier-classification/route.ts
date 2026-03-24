@@ -14,11 +14,30 @@ const createSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
+async function ensureTables() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS fin_supplier_classification (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      supplier_id INT NOT NULL,
+      supplier_name VARCHAR(255) NULL,
+      cost_category VARCHAR(100) NOT NULL,
+      coa_account_code VARCHAR(20) NULL,
+      notes TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      created_by INT NULL,
+      updated_by INT NULL,
+      UNIQUE KEY uk_supplier_id (supplier_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
 export async function GET() {
   const auth = await requireFinancialPermission('financial.view');
   if ('error' in auth) return auth.error;
 
   try {
+    await ensureTables();
     const classifications: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         sc.*,
