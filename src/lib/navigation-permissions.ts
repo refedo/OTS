@@ -126,6 +126,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/account-mapping': ['financial.manage', 'financial.view'],
   '/financial/product-categories': ['financial.manage', 'financial.view'],
   '/financial/supplier-classification': ['financial.manage', 'financial.view'],
+  '/financial/product-coa-mapping': ['financial.manage', 'financial.view'],
   '/financial/settings': ['financial.manage'],
 
   // Supply Chain

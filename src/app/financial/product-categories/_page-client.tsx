@@ -328,6 +328,15 @@ export default function ProductCategoriesPage() {
 
   return (
     <div className="p-4 space-y-4 max-w-7xl mx-auto">
+      {/* Deprecation notice */}
+      <div className="flex items-start gap-3 p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+        <span>
+          <strong>Legacy page.</strong> Product-to-category mappings are superseded by{' '}
+          <Link href="/financial/product-coa-mapping" className="underline font-medium">Cost Classification Mapping</Link>{' '}
+          which maps products directly to COA expense accounts. New reports use the new system.
+        </span>
+      </div>
       <div className="flex items-center gap-3">
         <Link href="/financial">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
