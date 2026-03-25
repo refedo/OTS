@@ -11,7 +11,7 @@ import {
   RefreshCw, TrendingUp, TrendingDown, DollarSign, Landmark, Receipt,
   FileText, BarChart3, Clock, Loader2,
   ArrowRight, CheckCircle, Building2, CreditCard, ChevronDown, ChevronUp,
-  Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package, BookOpen, FileSpreadsheet,
+  Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package, BookOpen, FileSpreadsheet, Layers,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -498,6 +498,18 @@ export default function FinancialDashboardPage() {
 
       {/* Management Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link href="/financial/product-coa-mapping">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer border-green-200 dark:border-green-900/50">
+            <CardContent className="pt-6 flex items-center gap-3">
+              <Layers className="h-5 w-5 text-green-600" />
+              <div>
+                <h3 className="font-semibold">Cost Classification Mapping</h3>
+                <p className="text-xs text-muted-foreground">Map products &amp; suppliers to COA expense accounts</p>
+              </div>
+              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
         <Link href="/financial/chart-of-accounts">
           <Card className="hover:border-primary/50 transition-colors cursor-pointer">
             <CardContent className="pt-6 flex items-center gap-3">

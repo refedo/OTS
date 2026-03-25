@@ -1374,12 +1374,11 @@ export class FinancialReportService {
         sil.product_ref,
         sil.accounting_code,
         COALESCE(
-          dam.ots_cost_category,
-          pc.cost_classification,
-          sc.cost_category,
+          pcoa.account_category,
+          scoa.account_category,
           'Other / Unclassified'
         ) as cost_category,
-        COALESCE(dam.dolibarr_account_label, sil.product_label, 'Unknown') as account_name,
+        COALESCE(pcoa.account_name, scoa.account_name, sil.product_label, 'Unknown') as account_name,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_tva) as total_vat,
         SUM(sil.total_ttc) as total_ttc,
@@ -1388,15 +1387,15 @@ export class FinancialReportService {
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
-      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
-      LEFT JOIN fin_product_category_mapping pcm ON pcm.product_ref = sil.product_ref
-      LEFT JOIN fin_product_categories pc ON pc.id = pcm.category_id AND pc.is_active = 1
-      LEFT JOIN fin_supplier_classification sc ON sc.supplier_id = si.socid
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
       WHERE si.is_active = 1 AND si.status >= 1
         AND si.date_invoice BETWEEN ? AND ?
       GROUP BY si.socid, dt.name, sil.product_label, sil.product_ref, sil.accounting_code,
-               dam.ots_cost_category, dam.dolibarr_account_label,
-               pc.cost_classification, sc.cost_category
+               pcoa.account_category, pcoa.account_name,
+               scoa.account_category, scoa.account_name
       ORDER BY dt.name, total_ttc DESC
     `, fromDate, toDate);
 
@@ -1404,9 +1403,8 @@ export class FinancialReportService {
     const costByCategory: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         COALESCE(
-          dam.ots_cost_category,
-          pc.cost_classification,
-          sc.cost_category,
+          pcoa.account_category,
+          scoa.account_category,
           'Other / Unclassified'
         ) as cost_category,
         SUM(sil.total_ht) as total_ht,
@@ -1416,10 +1414,10 @@ export class FinancialReportService {
         COUNT(*) as line_count
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
-      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
-      LEFT JOIN fin_product_category_mapping pcm ON pcm.product_ref = sil.product_ref
-      LEFT JOIN fin_product_categories pc ON pc.id = pcm.category_id AND pc.is_active = 1
-      LEFT JOIN fin_supplier_classification sc ON sc.supplier_id = si.socid
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
       WHERE si.is_active = 1 AND si.status >= 1
         AND si.date_invoice BETWEEN ? AND ?
       GROUP BY cost_category
@@ -1443,24 +1441,23 @@ export class FinancialReportService {
       ORDER BY total_ttc DESC
     `, fromDate, toDate);
 
-    // 4. Monthly cost trend (uses same 4-level classification hierarchy)
+    // 4. Monthly cost trend (2-tier classification: product COA → supplier COA default)
     const monthlyTrend: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         DATE_FORMAT(si.date_invoice, '%Y-%m') as month,
         COALESCE(
-          dam.ots_cost_category,
-          pc.cost_classification,
-          sc.cost_category,
+          pcoa.account_category,
+          scoa.account_category,
           'Other / Unclassified'
         ) as cost_category,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_ttc) as total_ttc
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
-      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
-      LEFT JOIN fin_product_category_mapping pcm ON pcm.product_ref = sil.product_ref
-      LEFT JOIN fin_product_categories pc ON pc.id = pcm.category_id AND pc.is_active = 1
-      LEFT JOIN fin_supplier_classification sc ON sc.supplier_id = si.socid
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
       WHERE si.is_active = 1 AND si.status >= 1
         AND si.date_invoice BETWEEN ? AND ?
       GROUP BY month, cost_category
@@ -1562,9 +1559,8 @@ export class FinancialReportService {
         si.socid as supplier_id,
         dt.name as supplier_name,
         COALESCE(
-          dam.ots_cost_category,
-          pc.cost_classification,
-          sc.cost_category,
+          pcoa.account_category,
+          scoa.account_category,
           'Other / Unclassified'
         ) as expense_category,
         SUM(sil.total_ht) as total_ht,
@@ -1574,10 +1570,10 @@ export class FinancialReportService {
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
-      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
-      LEFT JOIN fin_product_category_mapping pcm ON pcm.product_ref = sil.product_ref
-      LEFT JOIN fin_product_categories pc ON pc.id = pcm.category_id AND pc.is_active = 1
-      LEFT JOIN fin_supplier_classification sc ON sc.supplier_id = si.socid
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
       WHERE si.is_active = 1 AND si.status >= 1
         AND si.date_invoice BETWEEN ? AND ?
       GROUP BY si.socid, dt.name, expense_category
@@ -1856,16 +1852,19 @@ export class FinancialReportService {
     const suppPmtMap = new Map<number, any>();
     for (const sp of suppPmtByProject) suppPmtMap.set(Number(sp.project_id), sp);
 
-    // 6. Cost breakdown by category per project (using Dolibarr account mapping table)
+    // 6. Cost breakdown by category per project (2-tier: product COA → supplier COA default)
     const costCatByProject: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         si.fk_projet as project_id,
-        COALESCE(dam.ots_cost_category, 'Other / Unclassified') as cost_category,
+        COALESCE(pcoa.account_category, scoa.account_category, 'Other / Unclassified') as cost_category,
         SUM(sil.total_ht) as total_ht,
         SUM(sil.total_ttc) as total_ttc
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
-      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
       WHERE si.is_active = 1 AND si.status >= 1 AND si.fk_projet IS NOT NULL AND si.fk_projet > 0
         ${dateFilterSup}
       GROUP BY si.fk_projet, cost_category

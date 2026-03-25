@@ -251,6 +251,15 @@ export default function AccountMappingPage() {
 
   return (
     <div className="space-y-6">
+      {/* Deprecation notice */}
+      <div className="flex items-start gap-3 p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+        <Eye className="h-4 w-4 mt-0.5 shrink-0" />
+        <span>
+          <strong>Legacy page.</strong> This mapping table is superseded by{' '}
+          <Link href="/financial/product-coa-mapping" className="underline font-medium">Cost Classification Mapping</Link>{' '}
+          which maps products and suppliers directly to COA expense accounts. New reports use the new system.
+        </span>
+      </div>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
