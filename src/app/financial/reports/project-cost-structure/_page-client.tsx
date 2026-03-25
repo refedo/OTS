@@ -58,6 +58,17 @@ const BAR_COLORS = [
   'bg-indigo-500', 'bg-slate-500', 'bg-lime-500', 'bg-rose-500',
 ];
 
+interface CategoryDetail {
+  accountCode: string;
+  accountName: string;
+  totalHT: number;
+  totalVAT: number;
+  totalTTC: number;
+  invoiceCount: number;
+  lineCount: number;
+  percentOfCategory: number;
+}
+
 export default function ProjectCostStructurePage() {
   const currentYear = new Date().getFullYear();
   const [fromDate, setFromDate] = useState(`${currentYear}-01-01`);
@@ -66,14 +77,44 @@ export default function ProjectCostStructurePage() {
   const [loading, setLoading] = useState(false);
   const [expandedSuppliers, setExpandedSuppliers] = useState(false);
   const [expandedTrend, setExpandedTrend] = useState(true);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [categoryDetails, setCategoryDetails] = useState<Record<string, CategoryDetail[]>>({});
+  const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
 
   const generate = async () => {
     setLoading(true);
+    setExpandedCategories(new Set());
+    setCategoryDetails({});
     try {
       const res = await fetch(`/api/financial/reports/project-cost-structure?from=${fromDate}&to=${toDate}`);
       if (res.ok) setReport(await res.json());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const toggleCategoryExpand = async (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+      setExpandedCategories(newExpanded);
+      return;
+    }
+    
+    newExpanded.add(category);
+    setExpandedCategories(newExpanded);
+    
+    // Fetch details if not already loaded
+    if (!categoryDetails[category]) {
+      setLoadingCategory(category);
+      try {
+        const res = await fetch(`/api/financial/reports/project-cost-structure/category-details?from=${fromDate}&to=${toDate}&category=${encodeURIComponent(category)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCategoryDetails(prev => ({ ...prev, [category]: data.accounts }));
+        }
+      } catch (e) { console.error(e); }
+      finally { setLoadingCategory(null); }
+    }
   };
 
   const s = report?.summary || {};
@@ -224,6 +265,7 @@ export default function ProjectCostStructurePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
+                      <th className="text-left p-3 font-medium w-8"></th>
                       <th className="text-left p-3 font-medium">Category</th>
                       <th className="text-right p-3 font-medium">Amount (HT)</th>
                       <th className="text-right p-3 font-medium">VAT</th>
@@ -235,21 +277,74 @@ export default function ProjectCostStructurePage() {
                   </thead>
                   <tbody>
                     {report.categories.map((cat: any) => (
-                      <tr key={cat.category} className="border-b hover:bg-muted/30">
-                        <td className="p-3">
-                          <Badge className={CATEGORY_COLORS[cat.category] || CATEGORY_COLORS['Other Costs']}>
-                            {cat.category}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-right font-mono">{formatSAR(cat.totalHT)}</td>
-                        <td className="p-3 text-right font-mono text-muted-foreground">{formatSAR(cat.totalVAT)}</td>
-                        <td className="p-3 text-right font-mono">{formatSAR(cat.totalTTC)}</td>
-                        <td className="p-3 text-right">{cat.invoiceCount}</td>
-                        <td className="p-3 text-right font-semibold">{formatPct(cat.percentOfTotal)}</td>
-                        <td className="p-3 text-right text-muted-foreground">{formatPct(cat.percentOfRevenue)}</td>
-                      </tr>
+                      <>
+                        <tr 
+                          key={cat.category} 
+                          className="border-b hover:bg-muted/30 cursor-pointer"
+                          onClick={() => toggleCategoryExpand(cat.category)}
+                        >
+                          <td className="p-3">
+                            {loadingCategory === cat.category ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : expandedCategories.has(cat.category) ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <Badge className={CATEGORY_COLORS[cat.category] || CATEGORY_COLORS['Other Costs']}>
+                              {cat.category}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-right font-mono">{formatSAR(cat.totalHT)}</td>
+                          <td className="p-3 text-right font-mono text-muted-foreground">{formatSAR(cat.totalVAT)}</td>
+                          <td className="p-3 text-right font-mono">{formatSAR(cat.totalTTC)}</td>
+                          <td className="p-3 text-right">{cat.invoiceCount}</td>
+                          <td className="p-3 text-right font-semibold">{formatPct(cat.percentOfTotal)}</td>
+                          <td className="p-3 text-right text-muted-foreground">{formatPct(cat.percentOfRevenue)}</td>
+                        </tr>
+                        {expandedCategories.has(cat.category) && categoryDetails[cat.category] && (
+                          <tr key={`${cat.category}-details`}>
+                            <td colSpan={8} className="p-0">
+                              <div className="bg-muted/20 border-l-4 border-blue-500 ml-4 mr-2 my-1 rounded">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="bg-muted/30">
+                                      <th className="text-left p-2 font-medium">Account Code</th>
+                                      <th className="text-left p-2 font-medium">Account Name</th>
+                                      <th className="text-right p-2 font-medium">Amount (HT)</th>
+                                      <th className="text-right p-2 font-medium">Lines</th>
+                                      <th className="text-right p-2 font-medium">% of Category</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {categoryDetails[cat.category].map((acc, idx) => (
+                                      <tr key={`${acc.accountCode}-${idx}`} className="border-b border-muted/30 hover:bg-muted/20">
+                                        <td className="p-2 font-mono text-muted-foreground">{acc.accountCode}</td>
+                                        <td className="p-2">{acc.accountName}</td>
+                                        <td className="p-2 text-right font-mono">{formatSAR(acc.totalHT)}</td>
+                                        <td className="p-2 text-right">{acc.lineCount}</td>
+                                        <td className="p-2 text-right">
+                                          <div className="flex items-center justify-end gap-1">
+                                            <div className="w-12 bg-muted rounded-full h-1.5 overflow-hidden">
+                                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${acc.percentOfCategory}%` }} />
+                                            </div>
+                                            <span className="w-12 text-right">{formatPct(acc.percentOfCategory)}</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     ))}
                     <tr className="border-t-2 font-bold bg-muted/50">
+                      <td className="p-3"></td>
                       <td className="p-3">Total</td>
                       <td className="p-3 text-right font-mono">{formatSAR(s.totalCostHT)}</td>
                       <td className="p-3 text-right font-mono">{formatSAR(s.totalVAT)}</td>
@@ -261,6 +356,10 @@ export default function ProjectCostStructurePage() {
                   </tbody>
                 </table>
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                <FileText className="h-3 w-3 inline mr-1" />
+                Click on a category row to see detailed breakdown by account
+              </p>
             </CardContent>
           </Card>
 

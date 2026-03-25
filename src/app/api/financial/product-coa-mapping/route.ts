@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   try {
     await ensureTable();
 
-    const searchFilter = search ? `AND (p.product_ref LIKE ? OR p.product_label LIKE ?)` : '';
+    const searchFilter = search ? `AND (p.ref LIKE ? OR p.label LIKE ?)` : '';
     const mappedFilter =
       mapped === 'yes' ? 'AND pm.id IS NOT NULL' :
       mapped === 'no'  ? 'AND pm.id IS NULL' : '';
@@ -46,8 +46,8 @@ export async function GET(req: NextRequest) {
     const productsRaw: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         p.fk_product AS dolibarr_id,
-        p.product_ref AS ref,
-        p.product_label AS label,
+        p.ref,
+        p.label,
         pm.id AS mapping_id,
         pm.coa_account_code,
         pm.notes AS mapping_notes,
@@ -60,8 +60,8 @@ export async function GET(req: NextRequest) {
       FROM (
         SELECT
           sil.fk_product,
-          sil.product_ref,
-          MAX(sil.product_label) AS product_label,
+          sil.product_ref AS ref,
+          MAX(sil.product_label) AS label,
           COUNT(*) AS line_count,
           SUM(sil.total_ht) AS total_ht
         FROM fin_supplier_invoice_lines sil
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.fk_product
       LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = pm.coa_account_code
       WHERE 1=1 ${searchFilter} ${mappedFilter}
-      ORDER BY p.total_ht DESC, p.product_ref ASC
+      ORDER BY p.total_ht DESC, p.ref ASC
       LIMIT ? OFFSET ?
     `, ...searchArgs, limit, offset);
 
@@ -88,7 +88,10 @@ export async function GET(req: NextRequest) {
     const countRows: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) AS cnt
       FROM (
-        SELECT sil.fk_product, sil.product_ref
+        SELECT
+          sil.fk_product,
+          sil.product_ref AS ref,
+          MAX(sil.product_label) AS label
         FROM fin_supplier_invoice_lines sil
         INNER JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id AND si.is_active = 1
         WHERE sil.fk_product IS NOT NULL AND sil.fk_product > 0

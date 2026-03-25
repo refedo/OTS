@@ -444,6 +444,7 @@ export class FinancialReportService {
 
   async getVatReport(fromDate: string, toDate: string): Promise<VatReport> {
     // Output VAT (from customer invoices)
+    // Status: 0=Draft, 1=Validated, 2=Paid, 3=Abandoned - exclude abandoned (status=3)
     const outputRows: any[] = await prisma.$queryRawUnsafe(`
       SELECT cil.vat_rate,
              SUM(cil.total_ht) as taxable_base,
@@ -452,12 +453,13 @@ export class FinancialReportService {
       FROM fin_customer_invoice_lines cil
       JOIN fin_customer_invoices ci ON ci.dolibarr_id = cil.invoice_dolibarr_id
       WHERE ci.date_invoice BETWEEN ? AND ?
-        AND ci.status >= 1 AND ci.is_active = 1
+        AND ci.status IN (1, 2) AND ci.is_active = 1
       GROUP BY cil.vat_rate
       ORDER BY cil.vat_rate DESC
     `, fromDate, toDate);
 
     // Input VAT (from supplier invoices)
+    // Status: 0=Draft, 1=Validated, 2=Paid, 3=Abandoned - exclude abandoned (status=3)
     const inputRows: any[] = await prisma.$queryRawUnsafe(`
       SELECT sil.vat_rate,
              SUM(sil.total_ht) as taxable_base,
@@ -466,7 +468,7 @@ export class FinancialReportService {
       FROM fin_supplier_invoice_lines sil
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
       WHERE si.date_invoice BETWEEN ? AND ?
-        AND si.status >= 1 AND si.is_active = 1
+        AND si.status IN (1, 2) AND si.is_active = 1
       GROUP BY sil.vat_rate
       ORDER BY sil.vat_rate DESC
     `, fromDate, toDate);
@@ -682,26 +684,26 @@ export class FinancialReportService {
       totalEquity = Number(eqRows[0]?.total || 0);
     } catch { /* */ }
 
-    // VAT Output (collected on sales)
+    // VAT Output (collected on sales) - exclude abandoned invoices (status=3)
     try {
       const vatOutRows: any[] = await prisma.$queryRawUnsafe(`
         SELECT COALESCE(SUM(cil.total_tva), 0) as total
         FROM fin_customer_invoice_lines cil
         JOIN fin_customer_invoices ci ON ci.dolibarr_id = cil.invoice_dolibarr_id
         WHERE ci.date_invoice BETWEEN ? AND ?
-          AND ci.status >= 1 AND ci.is_active = 1
+          AND ci.status IN (1, 2) AND ci.is_active = 1
       `, fromDate, toDate);
       vatOutputTotal = Number(vatOutRows[0]?.total || 0);
     } catch { /* */ }
 
-    // VAT Input (paid on purchases)
+    // VAT Input (paid on purchases) - exclude abandoned invoices (status=3)
     try {
       const vatInRows: any[] = await prisma.$queryRawUnsafe(`
         SELECT COALESCE(SUM(sil.total_tva), 0) as total
         FROM fin_supplier_invoice_lines sil
         JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
         WHERE si.date_invoice BETWEEN ? AND ?
-          AND si.status >= 1 AND si.is_active = 1
+          AND si.status IN (1, 2) AND si.is_active = 1
       `, fromDate, toDate);
       vatInputTotal = Number(vatInRows[0]?.total || 0);
     } catch { /* */ }

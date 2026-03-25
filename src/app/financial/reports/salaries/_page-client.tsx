@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, ArrowLeft, Users } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, Download } from 'lucide-react';
 import Link from 'next/link';
 
 function formatSAR(amount: number): string {
@@ -53,6 +53,43 @@ export default function SalariesReportPage() {
   const paidTotal = salaries.filter(s => s.isPaid).reduce((s, r) => s + r.amount, 0);
   const unpaidTotal = salaries.filter(s => !s.isPaid).reduce((s, r) => s + r.amount, 0);
 
+  const exportToExcel = () => {
+    if (salaries.length === 0) return;
+    
+    // Build CSV content
+    const headers = ['Reference', 'Label', 'Period Start', 'Period End', 'Status', 'Amount (SAR)'];
+    const rows = salaries.map(s => [
+      s.ref,
+      s.label || '',
+      s.dateStart || '',
+      s.dateEnd || '',
+      s.isPaid ? 'Paid' : 'Unpaid',
+      s.amount.toFixed(2),
+    ]);
+    
+    // Add summary rows
+    rows.push([]);
+    rows.push(['', '', '', '', 'Total:', totalAmount.toFixed(2)]);
+    rows.push(['', '', '', '', 'Paid Total:', paidTotal.toFixed(2)]);
+    rows.push(['', '', '', '', 'Unpaid Total:', unpaidTotal.toFixed(2)]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    
+    // Create and download file
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `salaries_${fromDate}_to_${toDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Group by month
   const byMonth: Record<string, SalaryRow[]> = {};
   salaries.forEach(s => {
@@ -87,6 +124,10 @@ export default function SalariesReportPage() {
             <Button onClick={fetchSalaries} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Users className="h-4 w-4 mr-2" />}
               Generate
+            </Button>
+            <Button variant="outline" onClick={exportToExcel} disabled={loading || salaries.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export to Excel
             </Button>
           </div>
         </CardContent>
