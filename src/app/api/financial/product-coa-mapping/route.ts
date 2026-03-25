@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const searchArgs = search ? [`%${search}%`, `%${search}%`] : [];
 
     // Derive distinct products from invoice lines (source of truth for what exists in invoices)
-    const products: unknown[] = await prisma.$queryRawUnsafe(`
+    const productsRaw: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         p.fk_product AS dolibarr_id,
         p.product_ref AS ref,
@@ -75,6 +75,15 @@ export async function GET(req: NextRequest) {
       ORDER BY p.total_ht DESC, p.product_ref ASC
       LIMIT ? OFFSET ?
     `, ...searchArgs, limit, offset);
+
+    const products = productsRaw.map((row: any) => ({
+      ...row,
+      dolibarr_id: Number(row.dolibarr_id),
+      mapping_id: row.mapping_id ? Number(row.mapping_id) : null,
+      is_mapped: Number(row.is_mapped),
+      invoice_line_count: Number(row.invoice_line_count),
+      total_spend_ht: Number(row.total_spend_ht),
+    }));
 
     const countRows: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) AS cnt
@@ -158,7 +167,7 @@ export async function POST(req: NextRequest) {
         coa_account_code = VALUES(coa_account_code),
         notes = VALUES(notes),
         updated_at = NOW()
-    `, dolibarr_product_id, coa_account_code, notes ?? null, auth.userId ?? null);
+    `, dolibarr_product_id, coa_account_code, notes ?? null, auth.session.sub ?? null);
 
     logger.info({ dolibarr_product_id, coa_account_code }, 'Product COA mapping upserted');
     return NextResponse.json({ success: true }, { status: 200 });

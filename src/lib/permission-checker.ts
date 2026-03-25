@@ -20,7 +20,7 @@ export async function checkPermission(requiredPermission: string): Promise<boole
   const permissions = await resolveUserPermissions(session.sub);
   const hasAccess = hasPermission(permissions, requiredPermission);
   
-  logger.info({ 
+  logger.debug({ 
     userId: session.sub, 
     userName: session.name,
     requiredPermission, 

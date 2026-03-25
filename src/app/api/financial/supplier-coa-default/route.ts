@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const searchArgs = search ? [`%${search}%`] : [];
 
     // Derive suppliers from invoice data (source of truth for who has actually billed)
-    const suppliers: unknown[] = await prisma.$queryRawUnsafe(`
+    const suppliersRaw: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         s.socid AS dolibarr_id,
         COALESCE(dt.name, CONCAT('Supplier #', s.socid)) AS name,
@@ -78,6 +78,16 @@ export async function GET(req: NextRequest) {
       ORDER BY s.total_ht DESC
       LIMIT ? OFFSET ?
     `, ...searchArgs, limit, offset);
+
+    const suppliers = suppliersRaw.map((row: any) => ({
+      ...row,
+      dolibarr_id: Number(row.dolibarr_id),
+      mapping_id: row.mapping_id ? Number(row.mapping_id) : null,
+      is_mapped: Number(row.is_mapped),
+      invoice_count: Number(row.invoice_count),
+      total_spend_ht: Number(row.total_spend_ht),
+      unmapped_product_count: Number(row.unmapped_product_count),
+    }));
 
     const countRows: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) AS cnt
@@ -155,7 +165,7 @@ export async function POST(req: NextRequest) {
         coa_account_code = VALUES(coa_account_code),
         notes = VALUES(notes),
         updated_at = NOW()
-    `, supplier_dolibarr_id, coa_account_code, notes ?? null, auth.userId ?? null);
+    `, supplier_dolibarr_id, coa_account_code, notes ?? null, auth.session.sub ?? null);
 
     logger.info({ supplier_dolibarr_id, coa_account_code }, 'Supplier COA default upserted');
     return NextResponse.json({ success: true });
