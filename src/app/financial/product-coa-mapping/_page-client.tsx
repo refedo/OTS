@@ -33,7 +33,7 @@ import { Label } from '@/components/ui/label';
 import {
   Loader2, ArrowLeft, Save, Trash2, Search, Package, Building2,
   CheckCircle2, AlertCircle, TrendingUp, RefreshCw, ChevronLeft,
-  ChevronRight, CheckSquare, Square, Layers,
+  ChevronRight, CheckSquare, Square, Layers, ArrowUpDown, SaveAll,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -107,7 +107,7 @@ function CoaCombobox({ accounts, grouped, value, onChange, placeholder = 'Select
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[280px] rounded-md border bg-popover shadow-lg">
+        <div className="absolute z-50 mt-1 w-full min-w-[400px] rounded-md border bg-popover shadow-lg">
           <div className="p-2 border-b">
             <Input
               autoFocus
@@ -117,7 +117,7 @@ function CoaCombobox({ accounts, grouped, value, onChange, placeholder = 'Select
               className="h-8 text-sm"
             />
           </div>
-          <div className="max-h-64 overflow-y-auto py-1">
+          <div className="max-h-72 overflow-y-auto py-1">
             {query ? (
               filtered.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-muted-foreground">No results</div>
@@ -126,11 +126,11 @@ function CoaCombobox({ accounts, grouped, value, onChange, placeholder = 'Select
                   key={a.account_code}
                   type="button"
                   onClick={() => { onChange(a.account_code); setOpen(false); setQuery(''); }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent text-left"
                 >
                   <span className="font-mono text-xs text-muted-foreground w-16 shrink-0">{a.account_code}</span>
-                  <span className="truncate">{a.account_name}</span>
-                  {a.account_category && <span className="ml-auto text-xs text-muted-foreground shrink-0">{a.account_category}</span>}
+                  <span className="flex-1">{a.account_name}</span>
+                  {a.account_category && <span className="text-xs text-muted-foreground shrink-0">{a.account_category}</span>}
                 </button>
               ))
             ) : (
@@ -142,10 +142,10 @@ function CoaCombobox({ accounts, grouped, value, onChange, placeholder = 'Select
                       key={a.account_code}
                       type="button"
                       onClick={() => { onChange(a.account_code); setOpen(false); setQuery(''); }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent text-left"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent text-left"
                     >
                       <span className="font-mono text-xs text-muted-foreground w-16 shrink-0">{a.account_code}</span>
-                      <span className="truncate">{a.account_name}</span>
+                      <span className="flex-1">{a.account_name}</span>
                     </button>
                   ))}
                 </div>
@@ -236,12 +236,15 @@ export default function ProductCoaMappingPage() {
   // Product inline edits
   const [productEdits, setProductEdits] = useState<Record<number, string>>({});
 
-  // Bulk selection
+  // Bulk selection for products
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkCode, setBulkCode] = useState('');
   const [bulkNotes, setBulkNotes] = useState('');
   const [savingBulk, setSavingBulk] = useState(false);
+
+  // Sorting for products
+  const [productSort, setProductSort] = useState<{ field: 'ref' | 'label' | 'spend' | 'lines'; dir: 'asc' | 'desc' }>({ field: 'spend', dir: 'desc' });
 
   // Suppliers tab
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
@@ -253,6 +256,19 @@ export default function ProductCoaMappingPage() {
   const [savingSupplier, setSavingSupplier] = useState<number | null>(null);
   const [deletingSupplier, setDeletingSupplier] = useState<number | null>(null);
   const [supplierEdits, setSupplierEdits] = useState<Record<number, string>>({});
+
+  // Bulk selection for suppliers
+  const [selectedSuppliers, setSelectedSuppliers] = useState<Set<number>>(new Set());
+  const [supplierBulkDialogOpen, setSupplierBulkDialogOpen] = useState(false);
+  const [supplierBulkCode, setSupplierBulkCode] = useState('');
+  const [supplierBulkNotes, setSupplierBulkNotes] = useState('');
+  const [savingSupplierBulk, setSavingSupplierBulk] = useState(false);
+
+  // Sorting for suppliers
+  const [supplierSort, setSupplierSort] = useState<{ field: 'name' | 'spend' | 'invoices' | 'unmapped'; dir: 'asc' | 'desc' }>({ field: 'spend', dir: 'desc' });
+
+  // Save all state
+  const [savingAll, setSavingAll] = useState(false);
 
   // Notes dialog
   const [notesDialog, setNotesDialog] = useState<{ type: 'product' | 'supplier'; id: number; code: string; notes: string } | null>(null);
@@ -375,7 +391,7 @@ export default function ProductCoaMappingPage() {
     }
   }
 
-  // ── Bulk save ───────────────────────────────────────────────────────────────
+  // ── Bulk save for products ──────────────────────────────────────────────────
 
   async function saveBulk() {
     if (!bulkCode || selectedProducts.size === 0) return;
@@ -403,6 +419,83 @@ export default function ProductCoaMappingPage() {
     }
   }
 
+  // ── Bulk save for suppliers ────────────────────────────────────────────────
+
+  async function saveSupplierBulk() {
+    if (!supplierBulkCode || selectedSuppliers.size === 0) return;
+    setSavingSupplierBulk(true);
+    let successCount = 0;
+    for (const supplierId of selectedSuppliers) {
+      const res = await fetch('/api/financial/supplier-coa-default', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplier_dolibarr_id: supplierId, coa_account_code: supplierBulkCode, notes: supplierBulkNotes || null }),
+      });
+      if (res.ok) successCount++;
+    }
+    setSavingSupplierBulk(false);
+    if (successCount > 0) {
+      toast({ title: 'Bulk saved', description: `${successCount} suppliers mapped.` });
+      setSelectedSuppliers(new Set());
+      setSupplierBulkDialogOpen(false);
+      setSupplierBulkCode('');
+      setSupplierBulkNotes('');
+      await Promise.all([fetchSuppliers(supplierPagination.page), fetchCoverage()]);
+    } else {
+      toast({ title: 'Error', description: 'Bulk save failed.', variant: 'destructive' });
+    }
+  }
+
+  // ── Save all dirty edits ───────────────────────────────────────────────────
+
+  async function saveAllProductEdits() {
+    const dirtyProducts = Object.entries(productEdits).filter(([id, code]) => {
+      const p = products.find(pr => pr.dolibarr_id === Number(id));
+      return code && code !== (p?.coa_account_code || '');
+    });
+    if (dirtyProducts.length === 0) return;
+    setSavingAll(true);
+    let successCount = 0;
+    for (const [id, code] of dirtyProducts) {
+      const res = await fetch('/api/financial/product-coa-mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dolibarr_product_id: Number(id), coa_account_code: code, notes: null }),
+      });
+      if (res.ok) successCount++;
+    }
+    setSavingAll(false);
+    if (successCount > 0) {
+      toast({ title: 'Saved', description: `${successCount} product mappings saved.` });
+      setProductEdits({});
+      await Promise.all([fetchProducts(productPagination.page), fetchCoverage()]);
+    }
+  }
+
+  async function saveAllSupplierEdits() {
+    const dirtySuppliers = Object.entries(supplierEdits).filter(([id, code]) => {
+      const s = suppliers.find(su => su.dolibarr_id === Number(id));
+      return code && code !== (s?.coa_account_code || '');
+    });
+    if (dirtySuppliers.length === 0) return;
+    setSavingAll(true);
+    let successCount = 0;
+    for (const [id, code] of dirtySuppliers) {
+      const res = await fetch('/api/financial/supplier-coa-default', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplier_dolibarr_id: Number(id), coa_account_code: code, notes: null }),
+      });
+      if (res.ok) successCount++;
+    }
+    setSavingAll(false);
+    if (successCount > 0) {
+      toast({ title: 'Saved', description: `${successCount} supplier mappings saved.` });
+      setSupplierEdits({});
+      await Promise.all([fetchSuppliers(supplierPagination.page), fetchCoverage()]);
+    }
+  }
+
   // ── Notes dialog save ────────────────────────────────────────────────────────
 
   async function saveNotes() {
@@ -416,15 +509,70 @@ export default function ProductCoaMappingPage() {
   }
 
   const allProductIds = products.map(p => p.dolibarr_id);
-  const allSelected = allProductIds.length > 0 && allProductIds.every(id => selectedProducts.has(id));
+  const allProductsSelected = allProductIds.length > 0 && allProductIds.every(id => selectedProducts.has(id));
 
-  function toggleAll() {
-    if (allSelected) {
+  function toggleAllProducts() {
+    if (allProductsSelected) {
       setSelectedProducts(prev => { const n = new Set(prev); allProductIds.forEach(id => n.delete(id)); return n; });
     } else {
       setSelectedProducts(prev => { const n = new Set(prev); allProductIds.forEach(id => n.add(id)); return n; });
     }
   }
+
+  const allSupplierIds = suppliers.map(s => s.dolibarr_id);
+  const allSuppliersSelected = allSupplierIds.length > 0 && allSupplierIds.every(id => selectedSuppliers.has(id));
+
+  function toggleAllSuppliers() {
+    if (allSuppliersSelected) {
+      setSelectedSuppliers(prev => { const n = new Set(prev); allSupplierIds.forEach(id => n.delete(id)); return n; });
+    } else {
+      setSelectedSuppliers(prev => { const n = new Set(prev); allSupplierIds.forEach(id => n.add(id)); return n; });
+    }
+  }
+
+  // Sorting helpers
+  function toggleProductSort(field: typeof productSort.field) {
+    setProductSort(prev => prev.field === field ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'desc' });
+  }
+
+  function toggleSupplierSort(field: typeof supplierSort.field) {
+    setSupplierSort(prev => prev.field === field ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'desc' });
+  }
+
+  // Sorted products
+  const sortedProducts = [...products].sort((a, b) => {
+    const dir = productSort.dir === 'asc' ? 1 : -1;
+    switch (productSort.field) {
+      case 'ref': return dir * a.ref.localeCompare(b.ref);
+      case 'label': return dir * a.label.localeCompare(b.label);
+      case 'spend': return dir * (a.total_spend_ht - b.total_spend_ht);
+      case 'lines': return dir * (a.invoice_line_count - b.invoice_line_count);
+      default: return 0;
+    }
+  });
+
+  // Sorted suppliers
+  const sortedSuppliers = [...suppliers].sort((a, b) => {
+    const dir = supplierSort.dir === 'asc' ? 1 : -1;
+    switch (supplierSort.field) {
+      case 'name': return dir * a.name.localeCompare(b.name);
+      case 'spend': return dir * (a.total_spend_ht - b.total_spend_ht);
+      case 'invoices': return dir * (a.invoice_count - b.invoice_count);
+      case 'unmapped': return dir * (a.unmapped_product_count - b.unmapped_product_count);
+      default: return 0;
+    }
+  });
+
+  // Count dirty edits
+  const dirtyProductCount = Object.entries(productEdits).filter(([id, code]) => {
+    const p = products.find(pr => pr.dolibarr_id === Number(id));
+    return code && code !== (p?.coa_account_code || '');
+  }).length;
+
+  const dirtySupplierCount = Object.entries(supplierEdits).filter(([id, code]) => {
+    const s = suppliers.find(su => su.dolibarr_id === Number(id));
+    return code && code !== (s?.coa_account_code || '');
+  }).length;
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -536,6 +684,12 @@ export default function ProductCoaMappingPage() {
                 Bulk assign ({selectedProducts.size})
               </Button>
             )}
+            {dirtyProductCount > 0 && (
+              <Button size="sm" variant="default" onClick={saveAllProductEdits} disabled={savingAll} className="gap-2">
+                {savingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <SaveAll className="h-3.5 w-3.5" />}
+                Save All ({dirtyProductCount})
+              </Button>
+            )}
           </div>
 
           {productStats && (
@@ -552,13 +706,25 @@ export default function ProductCoaMappingPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8">
-                    <button onClick={toggleAll} className="flex items-center">
-                      {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4 text-muted-foreground" />}
+                    <button onClick={toggleAllProducts} className="flex items-center">
+                      {allProductsSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                     </button>
                   </TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Spend (HT)</TableHead>
-                  <TableHead className="text-right">Lines</TableHead>
+                  <TableHead>
+                    <button onClick={() => toggleProductSort('ref')} className="flex items-center gap-1 hover:text-foreground">
+                      Product <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => toggleProductSort('spend')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                      Spend (HT) <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => toggleProductSort('lines')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                      Lines <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
                   <TableHead>COA Account</TableHead>
                   <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
@@ -570,11 +736,11 @@ export default function ProductCoaMappingPage() {
                       <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
-                ) : products.length === 0 ? (
+                ) : sortedProducts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No products found</TableCell>
                   </TableRow>
-                ) : products.map(p => {
+                ) : sortedProducts.map(p => {
                   const currentCode = productEdits[p.dolibarr_id] !== undefined
                     ? productEdits[p.dolibarr_id]
                     : (p.coa_account_code || '');
@@ -701,6 +867,18 @@ export default function ProductCoaMappingPage() {
             <Button variant="outline" size="sm" onClick={() => fetchSuppliers(0)}>
               <Search className="h-3.5 w-3.5 mr-1" /> Search
             </Button>
+            {selectedSuppliers.size > 0 && (
+              <Button size="sm" onClick={() => setSupplierBulkDialogOpen(true)} className="gap-2">
+                <Layers className="h-3.5 w-3.5" />
+                Bulk assign ({selectedSuppliers.size})
+              </Button>
+            )}
+            {dirtySupplierCount > 0 && (
+              <Button size="sm" variant="default" onClick={saveAllSupplierEdits} disabled={savingAll} className="gap-2">
+                {savingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <SaveAll className="h-3.5 w-3.5" />}
+                Save All ({dirtySupplierCount})
+              </Button>
+            )}
           </div>
 
           {supplierStats && (
@@ -716,10 +894,31 @@ export default function ProductCoaMappingPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead className="text-right">Total Spend (HT)</TableHead>
-                  <TableHead className="text-right">Invoices</TableHead>
-                  <TableHead className="text-right">Unmapped Products</TableHead>
+                  <TableHead className="w-8">
+                    <button onClick={toggleAllSuppliers} className="flex items-center">
+                      {allSuppliersSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button onClick={() => toggleSupplierSort('name')} className="flex items-center gap-1 hover:text-foreground">
+                      Supplier <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => toggleSupplierSort('spend')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                      Total Spend (HT) <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => toggleSupplierSort('invoices')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                      Invoices <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button onClick={() => toggleSupplierSort('unmapped')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                      Unmapped <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </TableHead>
                   <TableHead>Default COA Account</TableHead>
                   <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
@@ -727,15 +926,15 @@ export default function ProductCoaMappingPage() {
               <TableBody>
                 {loadingSuppliers ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
-                ) : suppliers.length === 0 ? (
+                ) : sortedSuppliers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No suppliers found</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No suppliers found</TableCell>
                   </TableRow>
-                ) : suppliers.map(s => {
+                ) : sortedSuppliers.map(s => {
                   const currentCode = supplierEdits[s.dolibarr_id] !== undefined
                     ? supplierEdits[s.dolibarr_id]
                     : (s.coa_account_code || '');
@@ -745,7 +944,18 @@ export default function ProductCoaMappingPage() {
                   const isDeleting = deletingSupplier === s.dolibarr_id;
 
                   return (
-                    <TableRow key={s.dolibarr_id}>
+                    <TableRow key={s.dolibarr_id} className={selectedSuppliers.has(s.dolibarr_id) ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''}>
+                      <TableCell>
+                        <button onClick={() => setSelectedSuppliers(prev => {
+                          const n = new Set(prev);
+                          if (n.has(s.dolibarr_id)) n.delete(s.dolibarr_id); else n.add(s.dolibarr_id);
+                          return n;
+                        })}>
+                          {selectedSuppliers.has(s.dolibarr_id)
+                            ? <CheckSquare className="h-4 w-4 text-primary" />
+                            : <Square className="h-4 w-4 text-muted-foreground" />}
+                        </button>
+                      </TableCell>
                       <TableCell>
                         <div className="text-sm font-medium">{s.name}</div>
                         {s.coa_account_category && (
@@ -869,6 +1079,49 @@ export default function ProductCoaMappingPage() {
               <Button onClick={saveBulk} disabled={!bulkCode || savingBulk}>
                 {savingBulk ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Assign {selectedProducts.size} products
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supplier Bulk Assign Dialog */}
+      <Dialog open={supplierBulkDialogOpen} onOpenChange={setSupplierBulkDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Assign COA Account to Suppliers</DialogTitle>
+            <DialogDescription>
+              Assign one COA account to {selectedSuppliers.size} selected supplier{selectedSuppliers.size > 1 ? 's' : ''}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <Label>COA Account</Label>
+              <div className="mt-1.5">
+                <CoaCombobox
+                  accounts={coaAccounts}
+                  grouped={coaGrouped}
+                  value={supplierBulkCode}
+                  onChange={setSupplierBulkCode}
+                  placeholder="Select account to assign…"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={supplierBulkNotes}
+                onChange={e => setSupplierBulkNotes(e.target.value)}
+                placeholder="e.g. Bulk assigned — service provider"
+                rows={2}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSupplierBulkDialogOpen(false)}>Cancel</Button>
+              <Button onClick={saveSupplierBulk} disabled={!supplierBulkCode || savingSupplierBulk}>
+                {savingSupplierBulk ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Assign {selectedSuppliers.size} suppliers
               </Button>
             </div>
           </div>
