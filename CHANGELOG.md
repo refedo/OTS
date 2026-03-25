@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.3.0] - 2026-03-25
+
+### 🏆 Points & Rewards Incentive System
+
+**Minor Release:** Introduces a gamification system that awards points to employees for completing tasks, with bonuses for on-time completion, high-priority tasks, and maintaining streaks. Points are displayed on each user's dashboard with a leaderboard.
+
+#### Added
+
+**Database Schema** (`prisma/migrations/add_points_incentive_system.sql`)
+- `user_points` — Stores each user's total points, lifetime points, current streak, and longest streak
+- `point_transactions` — Detailed log of all point changes (earn, spend, bonus, adjustment, redemption)
+- `point_rules` — Configurable rules for point earning (base points, multipliers, conditions)
+- `point_rewards` — Redeemable rewards catalog (badges, certificates, gifts, time off)
+- `user_badges` — Tracks badges/achievements earned by users
+- `v_points_leaderboard` — View for efficient leaderboard queries
+
+**Points Service** (`src/lib/services/points-service.ts`)
+- `awardPointsForTaskCompletion()` — Calculates and awards points when tasks are completed
+- Base points: 10 points per task completion
+- On-time bonus: +5 points for completing before/on due date
+- Early bird bonus: +10 points for completing 2+ days early
+- High priority multiplier: 1.5x for high-priority tasks
+- Streak bonuses: +15 (3-day), +50 (7-day), +200 (30-day)
+- Automatic badge awarding for milestones (first task, 10/50/100/500 tasks, streaks)
+
+**API Routes**
+- `GET /api/points` — Get current user's points stats, badges, and recent transactions
+- `POST /api/points` — Manual point adjustment (Admin/CEO only)
+- `GET /api/points/leaderboard` — Company-wide or department leaderboard
+- `GET /api/points/user/[userId]` — View specific user's points (self or managers)
+- `GET /api/points/rules` — List all point rules
+- `POST /api/points/rules` — Create new rule (Admin only)
+- `PUT /api/points/rules` — Update rule (Admin only)
+
+**Dashboard Widget** (`src/components/dashboard/widgets/PointsWidget.tsx`)
+- Overview tab: Total points, rank, current streak, this week/month earnings, badges
+- Leaderboard tab: Top 5 users with rank indicators (gold/silver/bronze)
+- History tab: Recent point transactions with timestamps
+- Gradient styling with amber/orange theme for gamification feel
+
+#### Changed
+
+**Task Completion Flow** (`src/app/api/tasks/[id]/route.ts`)
+- Automatically awards points when a task status changes to "Completed"
+- Points calculation considers priority, due date, and completion timing
+- Streak tracking updates on each task completion
+
+---
+
 ## [16.2.0] - 2026-03-24
 
 ### 🏷️ Cost Classification Mapping — Product Categories & Supplier Classification

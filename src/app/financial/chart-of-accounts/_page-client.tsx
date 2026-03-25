@@ -15,9 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Plus, Search, Loader2, Pencil, Trash2, FileText, ChevronRight, ChevronDown, ArrowLeft,
-  Upload, AlertTriangle, CheckSquare, Square, RefreshCw,
+  Upload, AlertTriangle, CheckSquare, Square, RefreshCw, RotateCcw, Download,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 
 const ACCOUNT_TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
@@ -141,6 +142,10 @@ export default function ChartOfAccountsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [forceReplace, setForceReplace] = useState(false);
+  const [backup, setBackup] = useState<Account[] | null>(null);
+  const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -249,21 +254,41 @@ export default function ChartOfAccountsPage() {
     fetchAccounts();
   };
 
-  // Upload CSV file
+  // Parse file (CSV or XLSX)
+  const parseFile = async (file: File): Promise<string[][]> => {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    
+    if (ext === 'xlsx' || ext === 'xls') {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+      return data.filter(row => row.some(cell => cell !== undefined && cell !== ''));
+    } else {
+      const text = await file.text();
+      return text.split('\n').filter(l => l.trim()).map(line => 
+        line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+      );
+    }
+  };
+
+  // Upload CSV/XLSX file
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setUploading(true);
     try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length < 2) {
-        toast({ title: 'Error', description: 'CSV file must have header and at least one data row.', variant: 'destructive' });
+      const rows = await parseFile(file);
+      if (rows.length < 2) {
+        toast({ title: 'Error', description: 'File must have header and at least one data row.', variant: 'destructive' });
+        setUploading(false);
         return;
       }
       
-      const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+      const header = rows[0].map(h => String(h || '').trim().toLowerCase());
       const codeIdx = header.findIndex(h => h.includes('code'));
       const nameIdx = header.findIndex(h => h.includes('name') && !h.includes('arabic') && !h.includes('ar'));
       const nameArIdx = header.findIndex(h => h.includes('arabic') || h.includes('name_ar'));
@@ -272,13 +297,36 @@ export default function ChartOfAccountsPage() {
       const parentIdx = header.findIndex(h => h.includes('parent'));
       
       if (codeIdx === -1 || nameIdx === -1) {
-        toast({ title: 'Error', description: 'CSV must have "code" and "name" columns.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'File must have "code" and "name" columns.', variant: 'destructive' });
+        setUploading(false);
         return;
+      }
+
+      // Create backup before any changes
+      setBackup([...accounts]);
+      
+      // If force replace, delete all existing accounts first
+      if (forceReplace) {
+        try {
+          const res = await fetch('/api/financial/chart-of-accounts/clear-all', { method: 'DELETE' });
+          if (!res.ok) {
+            toast({ title: 'Error', description: 'Failed to clear existing accounts.', variant: 'destructive' });
+            setUploading(false);
+            return;
+          }
+        } catch {
+          toast({ title: 'Error', description: 'Failed to clear existing accounts.', variant: 'destructive' });
+          setUploading(false);
+          return;
+        }
       }
       
       let created = 0, updated = 0, errors = 0;
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      // Refresh accounts list after potential clear
+      const currentAccounts = forceReplace ? [] : accounts;
+      
+      for (let i = 1; i < rows.length; i++) {
+        const cols = rows[i].map(c => String(c || '').trim());
         const code = cols[codeIdx];
         const name = cols[nameIdx];
         if (!code || !name) continue;
@@ -295,7 +343,7 @@ export default function ChartOfAccountsPage() {
         };
         
         // Check if account exists
-        const existing = accounts.find(a => a.account_code === code);
+        const existing = currentAccounts.find(a => a.account_code === code);
         try {
           if (existing) {
             const res = await fetch(`/api/financial/chart-of-accounts/${existing.id}`, {
@@ -313,15 +361,82 @@ export default function ChartOfAccountsPage() {
         } catch { errors++; }
       }
       
-      toast({ title: 'Upload Complete', description: `Created: ${created}, Updated: ${updated}, Errors: ${errors}` });
+      toast({ 
+        title: 'Upload Complete', 
+        description: `Created: ${created}, Updated: ${updated}, Errors: ${errors}. Rollback available.` 
+      });
       setUploadDialogOpen(false);
+      setForceReplace(false);
       fetchAccounts();
     } catch (err) {
-      toast({ title: 'Error', description: 'Failed to parse CSV file.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to parse file.', variant: 'destructive' });
     } finally {
       setUploading(false);
       e.target.value = '';
     }
+  };
+
+  // Rollback to previous state
+  const handleRollback = async () => {
+    if (!backup) return;
+    setRollingBack(true);
+    try {
+      // Clear all current accounts
+      await fetch('/api/financial/chart-of-accounts/clear-all', { method: 'DELETE' });
+      
+      // Restore backup accounts
+      let restored = 0;
+      for (const acc of backup) {
+        try {
+          const res = await fetch('/api/financial/chart-of-accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              account_code: acc.account_code,
+              account_name: acc.account_name,
+              account_name_ar: acc.account_name_ar || '',
+              account_type: acc.account_type,
+              account_category: acc.account_category || '',
+              parent_code: acc.parent_code || '',
+              display_order: acc.display_order,
+              notes: acc.notes || '',
+            }),
+          });
+          if (res.ok) restored++;
+        } catch { /* continue */ }
+      }
+      
+      toast({ title: 'Rollback Complete', description: `Restored ${restored} accounts.` });
+      setBackup(null);
+      setRollbackDialogOpen(false);
+      fetchAccounts();
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to rollback.', variant: 'destructive' });
+    } finally {
+      setRollingBack(false);
+    }
+  };
+
+  // Export current accounts to CSV for backup
+  const exportToCSV = () => {
+    const headers = ['code', 'name', 'name_ar', 'type', 'category', 'parent'];
+    const rows = accounts.map(a => [
+      a.account_code,
+      a.account_name,
+      a.account_name_ar || '',
+      a.account_type,
+      a.account_category || '',
+      a.parent_code || '',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chart_of_accounts_backup_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exported', description: 'Chart of accounts exported to CSV.' });
   };
 
   // Toggle selection
@@ -383,12 +498,20 @@ export default function ChartOfAccountsPage() {
               <Trash2 className="h-4 w-4 mr-2" /> Delete ({selectedIds.size})
             </Button>
           )}
+          {backup && (
+            <Button variant="outline" size="sm" onClick={() => setRollbackDialogOpen(true)} className="text-orange-600 border-orange-300">
+              <RotateCcw className="h-4 w-4 mr-2" /> Rollback
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Download className="h-4 w-4 mr-2" /> Export
+          </Button>
           <Button variant="outline" onClick={syncFromDolibarr} disabled={syncing}>
             {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             Sync from Dolibarr
           </Button>
           <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" /> Upload CSV
+            <Upload className="h-4 w-4 mr-2" /> Upload
           </Button>
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" /> Add Account
@@ -591,7 +714,7 @@ export default function ChartOfAccountsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Upload CSV Dialog */}
+      {/* Upload CSV/XLSX Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -599,7 +722,7 @@ export default function ChartOfAccountsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Upload a CSV file with your chart of accounts. The file should have columns for:
+              Upload a CSV or Excel file with your chart of accounts. The file should have columns for:
             </p>
             <ul className="text-sm text-muted-foreground list-disc ml-4 space-y-1">
               <li><strong>code</strong> (required) - Account code</li>
@@ -609,21 +732,38 @@ export default function ChartOfAccountsPage() {
               <li><strong>category</strong> - Account category</li>
               <li><strong>parent</strong> - Parent account code</li>
             </ul>
+            
+            <div className="flex items-center space-x-2 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
+              <Checkbox 
+                id="force-replace" 
+                checked={forceReplace} 
+                onCheckedChange={(checked) => setForceReplace(checked === true)}
+              />
+              <div className="flex-1">
+                <label htmlFor="force-replace" className="text-sm font-medium cursor-pointer">
+                  Force Replace (Delete All First)
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Delete all existing accounts before importing. A backup will be created for rollback.
+                </p>
+              </div>
+            </div>
+
             <div className="border-2 border-dashed rounded-lg p-6 text-center">
               <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleUpload}
                 className="hidden"
-                id="csv-upload"
+                id="file-upload"
                 disabled={uploading}
               />
-              <label htmlFor="csv-upload" className="cursor-pointer">
+              <label htmlFor="file-upload" className="cursor-pointer">
                 <span className="text-primary hover:underline">Click to upload</span>
                 <span className="text-muted-foreground"> or drag and drop</span>
               </label>
-              <p className="text-xs text-muted-foreground mt-1">CSV files only</p>
+              <p className="text-xs text-muted-foreground mt-1">CSV or Excel (.xlsx) files</p>
             </div>
             {uploading && (
               <div className="flex items-center justify-center gap-2 text-sm">
@@ -633,7 +773,35 @@ export default function ChartOfAccountsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => { setUploadDialogOpen(false); setForceReplace(false); }}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rollback Confirmation Dialog */}
+      <Dialog open={rollbackDialogOpen} onOpenChange={setRollbackDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <RotateCcw className="h-5 w-5" />
+              Confirm Rollback
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm">
+              Are you sure you want to rollback to the previous chart of accounts?
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This will restore <strong>{backup?.length || 0}</strong> accounts from before the last upload.
+              Current accounts will be replaced.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRollbackDialogOpen(false)}>Cancel</Button>
+            <Button variant="default" className="bg-orange-600 hover:bg-orange-700" onClick={handleRollback} disabled={rollingBack}>
+              {rollingBack ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+              Rollback
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

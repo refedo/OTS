@@ -6,6 +6,8 @@ import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 import { SUB_ACTIVITY_DEPENDENCIES } from '@/lib/activity-constants';
+import { pointsService } from '@/lib/services/points-service';
+import { logger } from '@/lib/logger';
 
 import NotificationService from '@/lib/services/notification.service';
 
@@ -376,7 +378,29 @@ export async function PATCH(
         });
       }
     } catch (notifError) {
-      console.error('Failed to send task completion notification:', notifError);
+      logger.error({ error: notifError }, 'Failed to send task completion notification');
+    }
+
+    // Award points for task completion
+    try {
+      const pointsResult = await pointsService.awardPointsForTaskCompletion({
+        id: updatedTask.id,
+        title: updatedTask.title,
+        priority: updatedTask.priority,
+        dueDate: updatedTask.dueDate,
+        completedAt: updateData.completedAt,
+        assignedToId: updatedTask.assignedToId,
+      });
+      if (pointsResult) {
+        logger.info({ 
+          taskId: updatedTask.id, 
+          userId: updatedTask.assignedToId,
+          points: pointsResult.totalPoints,
+          breakdown: pointsResult.breakdown 
+        }, 'Points awarded for task completion');
+      }
+    } catch (pointsError) {
+      logger.error({ error: pointsError, taskId: updatedTask.id }, 'Failed to award points for task completion');
     }
   }
 
