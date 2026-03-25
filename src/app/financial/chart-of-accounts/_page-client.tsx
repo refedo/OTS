@@ -15,7 +15,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Plus, Search, Loader2, Pencil, Trash2, FileText, ChevronRight, ChevronDown, ArrowLeft,
+  Upload, AlertTriangle, CheckSquare, Square, RefreshCw,
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 const ACCOUNT_TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
@@ -121,6 +123,7 @@ function flattenVisible(
 }
 
 export default function ChartOfAccountsPage() {
+  const { toast } = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -130,6 +133,14 @@ export default function ChartOfAccountsPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  
+  // Mass selection and operations
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -220,6 +231,138 @@ export default function ChartOfAccountsPage() {
     fetchAccounts();
   };
 
+  // Mass delete selected accounts
+  const handleMassDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setDeleting(true);
+    let successCount = 0;
+    for (const id of selectedIds) {
+      try {
+        const res = await fetch(`/api/financial/chart-of-accounts/${id}`, { method: 'DELETE' });
+        if (res.ok) successCount++;
+      } catch { /* continue */ }
+    }
+    setDeleting(false);
+    setDeleteConfirmOpen(false);
+    setSelectedIds(new Set());
+    toast({ title: 'Deleted', description: `${successCount} accounts deactivated.` });
+    fetchAccounts();
+  };
+
+  // Upload CSV file
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) {
+        toast({ title: 'Error', description: 'CSV file must have header and at least one data row.', variant: 'destructive' });
+        return;
+      }
+      
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+      const codeIdx = header.findIndex(h => h.includes('code'));
+      const nameIdx = header.findIndex(h => h.includes('name') && !h.includes('arabic') && !h.includes('ar'));
+      const nameArIdx = header.findIndex(h => h.includes('arabic') || h.includes('name_ar'));
+      const typeIdx = header.findIndex(h => h.includes('type'));
+      const categoryIdx = header.findIndex(h => h.includes('category'));
+      const parentIdx = header.findIndex(h => h.includes('parent'));
+      
+      if (codeIdx === -1 || nameIdx === -1) {
+        toast({ title: 'Error', description: 'CSV must have "code" and "name" columns.', variant: 'destructive' });
+        return;
+      }
+      
+      let created = 0, updated = 0, errors = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        const code = cols[codeIdx];
+        const name = cols[nameIdx];
+        if (!code || !name) continue;
+        
+        const payload = {
+          account_code: code,
+          account_name: name,
+          account_name_ar: nameArIdx >= 0 ? cols[nameArIdx] || '' : '',
+          account_type: typeIdx >= 0 ? (cols[typeIdx] || 'expense').toLowerCase() : 'expense',
+          account_category: categoryIdx >= 0 ? cols[categoryIdx] || '' : '',
+          parent_code: parentIdx >= 0 ? cols[parentIdx] || '' : '',
+          display_order: 0,
+          notes: '',
+        };
+        
+        // Check if account exists
+        const existing = accounts.find(a => a.account_code === code);
+        try {
+          if (existing) {
+            const res = await fetch(`/api/financial/chart-of-accounts/${existing.id}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (res.ok) updated++; else errors++;
+          } else {
+            const res = await fetch('/api/financial/chart-of-accounts', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (res.ok) created++; else errors++;
+          }
+        } catch { errors++; }
+      }
+      
+      toast({ title: 'Upload Complete', description: `Created: ${created}, Updated: ${updated}, Errors: ${errors}` });
+      setUploadDialogOpen(false);
+      fetchAccounts();
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to parse CSV file.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  // Toggle selection
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === visible.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visible.map(a => a.id)));
+    }
+  };
+
+  // Sync accounts from Dolibarr
+  const syncFromDolibarr = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/financial/chart-of-accounts/sync-dolibarr', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ 
+          title: 'Sync Complete', 
+          description: `Created: ${data.created}, Updated: ${data.updated}, Skipped: ${data.skipped}` 
+        });
+        fetchAccounts();
+      } else {
+        toast({ title: 'Sync Failed', description: data.error || 'Unknown error', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to sync from Dolibarr', variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const categories = CATEGORIES_BY_TYPE[form.account_type] || [];
 
   return (
@@ -234,9 +377,23 @@ export default function ChartOfAccountsPage() {
             <p className="text-muted-foreground mt-1">Manage your accounting chart of accounts ({accounts.length} accounts)</p>
           </div>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" /> Add Account
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <Button variant="destructive" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" /> Delete ({selectedIds.size})
+            </Button>
+          )}
+          <Button variant="outline" onClick={syncFromDolibarr} disabled={syncing}>
+            {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Sync from Dolibarr
+          </Button>
+          <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" /> Upload CSV
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-2" /> Add Account
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -273,6 +430,13 @@ export default function ChartOfAccountsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
+                    <th className="p-3 w-8">
+                      <button onClick={toggleSelectAll} className="flex items-center">
+                        {selectedIds.size === visible.length && visible.length > 0
+                          ? <CheckSquare className="h-4 w-4" />
+                          : <Square className="h-4 w-4 text-muted-foreground" />}
+                      </button>
+                    </th>
                     <th className="text-left p-3 font-medium w-[200px]">Code</th>
                     <th className="text-left p-3 font-medium">Name (English)</th>
                     <th className="text-right p-3 font-medium">Name (Arabic)</th>
@@ -287,6 +451,13 @@ export default function ChartOfAccountsPage() {
                     const isCollapsed = collapsed.has(acct.account_code);
                     return (
                       <tr key={acct.id} className={`border-b hover:bg-muted/30 ${hasChildren ? 'bg-muted/20' : ''}`}>
+                        <td className="p-2">
+                          <button onClick={() => toggleSelect(acct.id)}>
+                            {selectedIds.has(acct.id)
+                              ? <CheckSquare className="h-4 w-4 text-primary" />
+                              : <Square className="h-4 w-4 text-muted-foreground" />}
+                          </button>
+                        </td>
                         <td className="p-2 font-mono text-xs" style={{ paddingLeft: `${acct.level * 20 + 8}px` }}>
                           {hasChildren ? (
                             <button onClick={() => toggleCollapse(acct.account_code)} className="inline-flex items-center gap-1 hover:text-primary">
@@ -328,7 +499,7 @@ export default function ChartOfAccountsPage() {
                     );
                   })}
                   {visible.length === 0 && (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No accounts found</td></tr>
+                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No accounts found</td></tr>
                   )}
                 </tbody>
               </table>
@@ -415,6 +586,80 @@ export default function ChartOfAccountsPage() {
             <Button onClick={handleSave} disabled={saving || !form.account_code || !form.account_name}>
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingId ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload CSV Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Chart of Accounts</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload a CSV file with your chart of accounts. The file should have columns for:
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc ml-4 space-y-1">
+              <li><strong>code</strong> (required) - Account code</li>
+              <li><strong>name</strong> (required) - Account name in English</li>
+              <li><strong>name_ar</strong> or <strong>arabic</strong> - Account name in Arabic</li>
+              <li><strong>type</strong> - asset, liability, equity, revenue, expense</li>
+              <li><strong>category</strong> - Account category</li>
+              <li><strong>parent</strong> - Parent account code</li>
+            </ul>
+            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleUpload}
+                className="hidden"
+                id="csv-upload"
+                disabled={uploading}
+              />
+              <label htmlFor="csv-upload" className="cursor-pointer">
+                <span className="text-primary hover:underline">Click to upload</span>
+                <span className="text-muted-foreground"> or drag and drop</span>
+              </label>
+              <p className="text-xs text-muted-foreground mt-1">CSV files only</p>
+            </div>
+            {uploading && (
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing...
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Mass Delete
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm">
+              Are you sure you want to deactivate <strong>{selectedIds.size}</strong> selected accounts?
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This action will mark the accounts as inactive. They can be reactivated later if needed.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleMassDelete} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete {selectedIds.size} Accounts
             </Button>
           </DialogFooter>
         </DialogContent>

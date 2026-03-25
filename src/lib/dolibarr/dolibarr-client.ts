@@ -223,6 +223,19 @@ export interface DolibarrBankAccount {
   [key: string]: any;
 }
 
+export interface DolibarrAccountingAccount {
+  id: number | string;
+  rowid: number | string;
+  account_number: string;
+  label: string;
+  labelshort: string | null;
+  account_parent: string | null;
+  pcg_type: string | null; // asset, liability, equity, income, expense
+  pcg_subtype: string | null;
+  active: string | number;
+  [key: string]: any;
+}
+
 export interface DolibarrPurchaseOrderLine {
   rowid?: number | string;
   fk_commande?: number | string; // purchase order id
@@ -718,6 +731,23 @@ export class DolibarrClient {
       sortorder: 'ASC',
     });
     return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Fetch all accounting accounts from Dolibarr chart of accounts
+   */
+  async getAccountingAccounts(): Promise<DolibarrAccountingAccount[]> {
+    try {
+      const result = await this.request<DolibarrAccountingAccount[]>('accountancy/chartofaccounts', {
+        limit: 5000,
+        sortfield: 't.account_number',
+        sortorder: 'ASC',
+      });
+      return Array.isArray(result) ? result : [];
+    } catch (error: any) {
+      console.error('[Dolibarr] Failed to fetch accounting accounts:', error.message);
+      return [];
+    }
   }
 
   /**
