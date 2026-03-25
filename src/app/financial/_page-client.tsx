@@ -467,6 +467,7 @@ export default function FinancialDashboardPage() {
                         <th className="text-left p-2">Time</th>
                         <th className="text-left p-2">Entity</th>
                         <th className="text-left p-2">Status</th>
+                        <th className="text-left p-2">Synced By</th>
                         <th className="text-right p-2">Created</th>
                         <th className="text-right p-2">Updated</th>
                         <th className="text-right p-2">Total</th>
@@ -481,6 +482,7 @@ export default function FinancialDashboardPage() {
                           <td className="p-2">
                             <Badge variant={log.status === 'success' ? 'default' : 'destructive'} className="text-xs">{log.status}</Badge>
                           </td>
+                          <td className="p-2">{log.triggered_by || '—'}</td>
                           <td className="p-2 text-right">{log.records_created}</td>
                           <td className="p-2 text-right">{log.records_updated}</td>
                           <td className="p-2 text-right">{log.records_total}</td>

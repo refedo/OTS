@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Download, ArrowLeft, Search, FileDown, Sheet } from 'lucide-react';
+import { Loader2, FileText, Download, ArrowLeft, Search, FileDown, Sheet, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 
 function formatSAR(amount: number): string {
@@ -115,8 +115,8 @@ async function exportToPDF(report: any, type: 'ar' | 'ap', fromDate: string, toD
 
   // ---- TRANSACTION TABLE ----
   const tableHeaders = type === 'ap' 
-    ? ['#', 'Date', 'Reference', 'Supplier Ref', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)']
-    : ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)'];
+    ? ['#', 'Date', 'Reference', 'Supplier Ref', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Remain to Pay', 'Balance (SAR)']
+    : ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Remain to Pay', 'Balance (SAR)'];
   const tableRows = report.lines.map((line: any, i: number) => {
     const baseRow = [
       String(i + 1),
@@ -126,10 +126,14 @@ async function exportToPDF(report: any, type: 'ar' | 'ap', fromDate: string, toD
     if (type === 'ap') {
       baseRow.push(line.refSupplier || '');
     }
+    const remainStr = line.remainToPay !== null && line.remainToPay > 0 
+      ? fmtNum(line.remainToPay) 
+      : (line.type === 'Invoice' || line.type === 'Credit Note') ? 'Paid' : '';
     baseRow.push(
       line.type || '',
       line.debit > 0 ? fmtNum(line.debit) : '',
       line.credit > 0 ? fmtNum(line.credit) : '',
+      remainStr,
       fmtNum(line.balance)
     );
     return baseRow;
@@ -238,17 +242,21 @@ async function exportToExcel(report: any, type: 'ar' | 'ap', fromDate: string, t
 
   // Table header
   const tableHeader = type === 'ap'
-    ? ['#', 'Date', 'Reference', 'Supplier Ref', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)']
-    : ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Balance (SAR)'];
+    ? ['#', 'Date', 'Reference', 'Supplier Ref', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Remain to Pay', 'Balance (SAR)']
+    : ['#', 'Date', 'Reference', 'Type', 'Debit (SAR)', 'Credit (SAR)', 'Remain to Pay', 'Balance (SAR)'];
   const tableRows = report.lines.map((line: any, i: number) => {
     const baseRow: any[] = [i + 1, line.date || '', line.ref || ''];
     if (type === 'ap') {
       baseRow.push(line.refSupplier || '');
     }
+    const remainVal = line.remainToPay !== null && line.remainToPay > 0 
+      ? line.remainToPay 
+      : (line.type === 'Invoice' || line.type === 'Credit Note') ? 'Paid' : '';
     baseRow.push(
       line.type || '',
       line.debit > 0 ? line.debit : '',
       line.credit > 0 ? line.credit : '',
+      remainVal,
       line.balance
     );
     return baseRow;
@@ -286,6 +294,9 @@ async function exportToExcel(report: any, type: 'ar' | 'ap', fromDate: string, t
 // ============================================
 // PAGE COMPONENT
 // ============================================
+type SortField = 'date' | 'ref' | 'type' | 'debit' | 'credit' | 'balance' | 'remainToPay';
+type SortDir = 'asc' | 'desc';
+
 export default function SOAReportPage() {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -297,6 +308,65 @@ export default function SOAReportPage() {
   const [tpLoading, setTpLoading] = useState(false);
   const [tpSearch, setTpSearch] = useState('');
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    return sortDir === 'asc' 
+      ? <ArrowUp className="h-3 w-3 ml-1" /> 
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const sortedLines = report?.lines ? [...report.lines].sort((a: any, b: any) => {
+    let aVal: any, bVal: any;
+    switch (sortField) {
+      case 'date':
+        aVal = a.sortDate || new Date(a.date).getTime() || 0;
+        bVal = b.sortDate || new Date(b.date).getTime() || 0;
+        break;
+      case 'ref':
+        aVal = a.ref || '';
+        bVal = b.ref || '';
+        break;
+      case 'type':
+        aVal = a.type || '';
+        bVal = b.type || '';
+        break;
+      case 'debit':
+        aVal = a.debit || 0;
+        bVal = b.debit || 0;
+        break;
+      case 'credit':
+        aVal = a.credit || 0;
+        bVal = b.credit || 0;
+        break;
+      case 'balance':
+        aVal = a.balance || 0;
+        bVal = b.balance || 0;
+        break;
+      case 'remainToPay':
+        aVal = a.remainToPay ?? -1;
+        bVal = b.remainToPay ?? -1;
+        break;
+      default:
+        aVal = 0;
+        bVal = 0;
+    }
+    if (typeof aVal === 'string') {
+      return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+    return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+  }) : [];
 
   useEffect(() => {
     async function loadThirdparties() {
@@ -453,17 +523,32 @@ export default function SOAReportPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left p-3">Date</th>
-                      <th className="text-left p-3">Reference</th>
+                      <th className="text-left p-3 cursor-pointer hover:bg-muted/70" onClick={() => handleSort('date')}>
+                        <div className="flex items-center">Date {getSortIcon('date')}</div>
+                      </th>
+                      <th className="text-left p-3 cursor-pointer hover:bg-muted/70" onClick={() => handleSort('ref')}>
+                        <div className="flex items-center">Reference {getSortIcon('ref')}</div>
+                      </th>
                       {type === 'ap' && <th className="text-left p-3">Supplier Ref</th>}
-                      <th className="text-left p-3">Type</th>
-                      <th className="text-right p-3">Debit</th>
-                      <th className="text-right p-3">Credit</th>
-                      <th className="text-right p-3">Balance</th>
+                      <th className="text-left p-3 cursor-pointer hover:bg-muted/70" onClick={() => handleSort('type')}>
+                        <div className="flex items-center">Type {getSortIcon('type')}</div>
+                      </th>
+                      <th className="text-right p-3 cursor-pointer hover:bg-muted/70" onClick={() => handleSort('debit')}>
+                        <div className="flex items-center justify-end">Debit {getSortIcon('debit')}</div>
+                      </th>
+                      <th className="text-right p-3 cursor-pointer hover:bg-muted/70" onClick={() => handleSort('credit')}>
+                        <div className="flex items-center justify-end">Credit {getSortIcon('credit')}</div>
+                      </th>
+                      <th className="text-right p-3 cursor-pointer hover:bg-muted/70" onClick={() => handleSort('remainToPay')}>
+                        <div className="flex items-center justify-end">Remain to Pay {getSortIcon('remainToPay')}</div>
+                      </th>
+                      <th className="text-right p-3 cursor-pointer hover:bg-muted/70" onClick={() => handleSort('balance')}>
+                        <div className="flex items-center justify-end">Balance {getSortIcon('balance')}</div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {report.lines.map((line: any, i: number) => (
+                    {sortedLines.map((line: any, i: number) => (
                       <tr key={i} className={`border-b ${line.type === 'Payment' ? 'bg-green-50 dark:bg-green-950/20' : ''}`}>
                         <td className="p-3">{line.date}</td>
                         <td className="p-3 font-mono text-xs">{line.ref}</td>
@@ -477,6 +562,13 @@ export default function SOAReportPage() {
                         </td>
                         <td className="p-3 text-right">{line.debit > 0 ? formatSAR(line.debit) : ''}</td>
                         <td className="p-3 text-right text-green-600">{line.credit > 0 ? formatSAR(line.credit) : ''}</td>
+                        <td className="p-3 text-right">
+                          {line.remainToPay !== null && line.remainToPay > 0 ? (
+                            <span className="text-orange-600 font-medium">{formatSAR(line.remainToPay)}</span>
+                          ) : line.type === 'Invoice' || line.type === 'Credit Note' ? (
+                            <span className="text-green-600 text-xs">Paid</span>
+                          ) : ''}
+                        </td>
                         <td className="p-3 text-right font-semibold">{formatSAR(line.balance)}</td>
                       </tr>
                     ))}

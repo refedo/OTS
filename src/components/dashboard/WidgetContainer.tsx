@@ -10,6 +10,7 @@ import WorkOrdersWidget from './widgets/WorkOrdersWidget';
 import DelayedTasksWidget from './widgets/DelayedTasksWidget';
 import BacklogWidget from './widgets/BacklogWidget';
 import WeeklyIssuesWidget from './widgets/WeeklyIssuesWidget';
+import PointsWidget from './widgets/PointsWidget';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, X, GripVertical } from 'lucide-react';
 import {
@@ -55,6 +56,7 @@ const WIDGET_COMPONENTS: { [key: string]: React.ComponentType } = {
   DELAYED_TASKS: DelayedTasksWidget,
   BACKLOG: BacklogWidget,
   WEEKLY_ISSUES: WeeklyIssuesWidget,
+  POINTS_REWARDS: PointsWidget,
 };
 
 const WIDGET_DEFINITIONS = [
@@ -67,6 +69,7 @@ const WIDGET_DEFINITIONS = [
   { type: 'DELAYED_TASKS', name: 'Delayed Tasks', description: 'Tasks past their due date requiring attention', size: 'medium' },
   { type: 'BACKLOG', name: 'Product Backlog', description: 'Backlog items by status and priority', size: 'medium' },
   { type: 'WEEKLY_ISSUES', name: 'Weekly Issues', description: 'Open issues from weekly meetings', size: 'medium' },
+  { type: 'POINTS_REWARDS', name: 'Points & Rewards', description: 'Your points, badges, and leaderboard ranking', size: 'medium' },
 ];
 
 // Sortable Widget Wrapper

@@ -857,38 +857,66 @@ export class FinancialReportService {
       });
     }
 
-    let runningBalance = 0;
-    const lines: any[] = [];
+    // Build all lines (invoices + payments) with dates for sorting
+    const allLines: any[] = [];
     const thirdpartyName = invoices[0]?.thirdparty_name || `Third Party #${thirdpartyId}`;
+
+    // Track remaining amount per invoice
+    const invoiceRemaining = new Map<number, number>();
 
     for (const inv of invoices) {
       const totalTtc = Number(inv.total_ttc);
       const invPayments = paymentsByInvoice.get(Number(inv.dolibarr_id)) || [];
-      const totalPaid = invPayments.reduce((s: number, p: any) => s + p.amount, 0);
+      const totalPaidForInv = invPayments.reduce((s: number, p: any) => s + p.amount, 0);
+      const remainToPay = totalTtc - totalPaidForInv;
+      invoiceRemaining.set(Number(inv.dolibarr_id), remainToPay);
 
-      runningBalance += totalTtc;
-      lines.push({
+      allLines.push({
         date: inv.date_invoice ? new Date(inv.date_invoice).toISOString().slice(0, 10) : '',
+        sortDate: inv.date_invoice ? new Date(inv.date_invoice).getTime() : 0,
         ref: inv.ref,
         refSupplier: type === 'ap' ? (inv.ref_supplier || null) : null,
         type: inv.type === 2 ? 'Credit Note' : 'Invoice',
         debit: type === 'ar' ? totalTtc : 0,
         credit: type === 'ar' ? 0 : totalTtc,
-        balance: runningBalance,
+        amount: totalTtc,
+        remainToPay: remainToPay > 0.01 ? remainToPay : 0,
+        invoiceId: Number(inv.dolibarr_id),
       });
 
       for (const p of invPayments) {
-        runningBalance -= p.amount;
-        lines.push({
+        allLines.push({
           date: p.date,
+          sortDate: p.date ? new Date(p.date).getTime() : 0,
           ref: p.ref || `Payment for ${inv.ref}`,
+          refSupplier: null,
           type: 'Payment',
           debit: type === 'ar' ? 0 : p.amount,
           credit: type === 'ar' ? p.amount : 0,
-          balance: runningBalance,
+          amount: p.amount,
+          remainToPay: null,
+          invoiceId: Number(inv.dolibarr_id),
+          invoiceRef: inv.ref,
         });
       }
     }
+
+    // Sort all lines by date ascending (chronological order)
+    allLines.sort((a, b) => a.sortDate - b.sortDate);
+
+    // Calculate running balance
+    let runningBalance = 0;
+    const lines = allLines.map(line => {
+      if (line.type === 'Invoice' || line.type === 'Credit Note') {
+        runningBalance += line.amount;
+      } else {
+        runningBalance -= line.amount;
+      }
+      return {
+        ...line,
+        balance: runningBalance,
+      };
+    });
 
     const totalInvoiced = invoices.reduce((s, inv) => s + Number(inv.total_ttc), 0);
     const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);

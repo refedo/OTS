@@ -20,6 +20,7 @@ import {
   DolibarrProject,
   createDolibarrClient,
 } from './dolibarr-client';
+import { systemEventService } from '@/services/system-events.service';
 
 // ============================================
 // TYPES
@@ -167,6 +168,32 @@ export class FinancialSyncService {
         result.created, result.updated, result.unchanged, result.total,
         result.durationMs, result.error || null, triggeredBy
       );
+
+      // Log to system events for visibility in /events page
+      const eventType = result.status === 'success' ? 'FIN_SYNC_COMPLETED' : 
+                        result.status === 'error' ? 'FIN_SYNC_FAILED' : 'FIN_SYNC_PARTIAL';
+      const severity = result.status === 'error' ? 'ERROR' : 'INFO';
+      
+      await systemEventService.log({
+        eventType: eventType as any,
+        eventCategory: 'FINANCIAL',
+        severity: severity as any,
+        userName: triggeredBy,
+        entityType: 'financial_sync',
+        entityName: result.entityType,
+        summary: `Financial sync ${result.status}: ${result.entityType}`,
+        details: {
+          entityType: result.entityType,
+          status: result.status,
+          created: result.created,
+          updated: result.updated,
+          unchanged: result.unchanged,
+          total: result.total,
+          durationMs: result.durationMs,
+          error: result.error,
+        },
+        duration: result.durationMs,
+      });
     } catch (e: any) {
       console.error('[FinSync] Failed to log sync result:', e.message);
     }
