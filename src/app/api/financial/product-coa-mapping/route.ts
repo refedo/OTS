@@ -161,13 +161,13 @@ export async function POST(req: NextRequest) {
   try {
     await ensureTable();
     await prisma.$executeRawUnsafe(`
-      INSERT INTO fin_product_coa_mapping (dolibarr_product_id, coa_account_code, notes, created_by)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO fin_product_coa_mapping (dolibarr_product_id, coa_account_code, notes)
+      VALUES (?, ?, ?)
       ON DUPLICATE KEY UPDATE
         coa_account_code = VALUES(coa_account_code),
         notes = VALUES(notes),
         updated_at = NOW()
-    `, dolibarr_product_id, coa_account_code, notes ?? null, auth.session.sub ?? null);
+    `, dolibarr_product_id, coa_account_code, notes ?? null);
 
     logger.info({ dolibarr_product_id, coa_account_code }, 'Product COA mapping upserted');
     return NextResponse.json({ success: true }, { status: 200 });
