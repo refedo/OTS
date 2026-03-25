@@ -36,17 +36,17 @@ export async function GET(req: NextRequest) {
   try {
     await ensureTable();
 
-    const searchFilter = search ? `AND t.name LIKE ?` : '';
+    const searchFilter = search ? `AND dt.name LIKE ?` : '';
     const mappedFilter =
       mapped === 'yes' ? 'AND sd.id IS NOT NULL' :
       mapped === 'no'  ? 'AND sd.id IS NULL' : '';
     const searchArgs = search ? [`%${search}%`] : [];
 
+    // Derive suppliers from invoice data (source of truth for who has actually billed)
     const suppliers: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
-        t.dolibarr_id,
-        t.name,
-        t.supplier_type,
+        s.socid AS dolibarr_id,
+        COALESCE(dt.name, CONCAT('Supplier #', s.socid)) AS name,
         sd.id AS mapping_id,
         sd.coa_account_code,
         sd.notes AS mapping_notes,
@@ -54,18 +54,18 @@ export async function GET(req: NextRequest) {
         coa.account_name_ar AS coa_account_name_ar,
         coa.account_category AS coa_account_category,
         CASE WHEN sd.id IS NOT NULL THEN 1 ELSE 0 END AS is_mapped,
-        COALESCE(stats.invoice_count, 0) AS invoice_count,
-        COALESCE(stats.total_ht, 0) AS total_spend_ht,
+        s.invoice_count,
+        s.total_ht AS total_spend_ht,
         COALESCE(unmapped.cnt, 0) AS unmapped_product_count
-      FROM dolibarr_thirdparties t
-      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = t.dolibarr_id
-      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = sd.coa_account_code
-      LEFT JOIN (
+      FROM (
         SELECT socid, COUNT(DISTINCT dolibarr_id) AS invoice_count, SUM(total_ht) AS total_ht
         FROM fin_supplier_invoices
-        WHERE is_active = 1 AND status > 0
+        WHERE is_active = 1 AND status >= 1
         GROUP BY socid
-      ) stats ON stats.socid = t.dolibarr_id
+      ) s
+      LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = s.socid
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = s.socid
+      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = sd.coa_account_code
       LEFT JOIN (
         SELECT si.socid, COUNT(DISTINCT sil.fk_product) AS cnt
         FROM fin_supplier_invoice_lines sil
@@ -73,32 +73,33 @@ export async function GET(req: NextRequest) {
         WHERE sil.fk_product IS NOT NULL AND sil.fk_product > 0
           AND sil.fk_product NOT IN (SELECT dolibarr_product_id FROM fin_product_coa_mapping)
         GROUP BY si.socid
-      ) unmapped ON unmapped.socid = t.dolibarr_id
-      WHERE t.supplier_type = 1 AND t.is_active = 1 ${searchFilter} ${mappedFilter}
-      ORDER BY COALESCE(stats.total_ht, 0) DESC
+      ) unmapped ON unmapped.socid = s.socid
+      WHERE 1=1 ${searchFilter} ${mappedFilter}
+      ORDER BY s.total_ht DESC
       LIMIT ? OFFSET ?
     `, ...searchArgs, limit, offset);
 
     const countRows: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) AS cnt
-      FROM dolibarr_thirdparties t
-      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = t.dolibarr_id
-      WHERE t.supplier_type = 1 AND t.is_active = 1 ${searchFilter} ${mappedFilter}
+      FROM (
+        SELECT socid FROM fin_supplier_invoices WHERE is_active = 1 AND status >= 1 GROUP BY socid
+      ) s
+      LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = s.socid
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = s.socid
+      WHERE 1=1 ${searchFilter} ${mappedFilter}
     `, ...searchArgs);
 
     const statsRows: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         COUNT(*) AS total_suppliers,
         SUM(CASE WHEN sd.id IS NOT NULL THEN 1 ELSE 0 END) AS mapped_suppliers,
-        SUM(CASE WHEN sd.id IS NOT NULL THEN COALESCE(stats.total_ht, 0) ELSE 0 END) AS mapped_spend_ht,
-        SUM(CASE WHEN sd.id IS NULL THEN COALESCE(stats.total_ht, 0) ELSE 0 END) AS unmapped_spend_ht
-      FROM dolibarr_thirdparties t
-      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = t.dolibarr_id
-      LEFT JOIN (
+        SUM(CASE WHEN sd.id IS NOT NULL THEN s.total_ht ELSE 0 END) AS mapped_spend_ht,
+        SUM(CASE WHEN sd.id IS NULL THEN s.total_ht ELSE 0 END) AS unmapped_spend_ht
+      FROM (
         SELECT socid, SUM(total_ht) AS total_ht
-        FROM fin_supplier_invoices WHERE is_active = 1 AND status > 0 GROUP BY socid
-      ) stats ON stats.socid = t.dolibarr_id
-      WHERE t.supplier_type = 1 AND t.is_active = 1
+        FROM fin_supplier_invoices WHERE is_active = 1 AND status >= 1 GROUP BY socid
+      ) s
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = s.socid
     `);
 
     const sv = (statsRows as Record<string, unknown>[])[0];

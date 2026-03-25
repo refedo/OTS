@@ -41,21 +41,23 @@ export async function GET() {
     const unmappedHT = Number(r.unmapped_ht ?? 0);
     const classifiedHT = productMappedHT + supplierMappedHT;
 
-    // Product mapping counts
+    // Product mapping counts (from invoice lines, not dolibarr_products)
     const productCounts: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
-        COUNT(*) AS total_active,
+        COUNT(DISTINCT sil.fk_product) AS total_active,
         (SELECT COUNT(*) FROM fin_product_coa_mapping) AS mapped_count
-      FROM dolibarr_products WHERE is_active = 1
+      FROM fin_supplier_invoice_lines sil
+      INNER JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id AND si.is_active = 1
+      WHERE sil.fk_product IS NOT NULL AND sil.fk_product > 0
     `);
     const pc = (productCounts as Record<string, unknown>[])[0] ?? {};
 
-    // Supplier mapping counts
+    // Supplier mapping counts (from invoice data, not dolibarr_thirdparties)
     const supplierCounts: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
-        COUNT(*) AS total_active,
+        COUNT(DISTINCT socid) AS total_active,
         (SELECT COUNT(*) FROM fin_supplier_coa_default) AS mapped_count
-      FROM dolibarr_thirdparties WHERE supplier_type = 1 AND is_active = 1
+      FROM fin_supplier_invoices WHERE is_active = 1 AND status >= 1
     `);
     const sc = (supplierCounts as Record<string, unknown>[])[0] ?? {};
 

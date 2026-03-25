@@ -36,19 +36,18 @@ export async function GET(req: NextRequest) {
   try {
     await ensureTable();
 
-    const searchFilter = search ? `AND (p.ref LIKE ? OR p.label LIKE ?)` : '';
+    const searchFilter = search ? `AND (p.product_ref LIKE ? OR p.product_label LIKE ?)` : '';
     const mappedFilter =
       mapped === 'yes' ? 'AND pm.id IS NOT NULL' :
       mapped === 'no'  ? 'AND pm.id IS NULL' : '';
     const searchArgs = search ? [`%${search}%`, `%${search}%`] : [];
 
+    // Derive distinct products from invoice lines (source of truth for what exists in invoices)
     const products: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
-        p.dolibarr_id,
-        p.ref,
-        p.label,
-        p.product_type,
-        p.pmp,
+        p.fk_product AS dolibarr_id,
+        p.product_ref AS ref,
+        p.product_label AS label,
         pm.id AS mapping_id,
         pm.coa_account_code,
         pm.notes AS mapping_notes,
@@ -56,46 +55,54 @@ export async function GET(req: NextRequest) {
         coa.account_name_ar AS coa_account_name_ar,
         coa.account_category AS coa_account_category,
         CASE WHEN pm.id IS NOT NULL THEN 1 ELSE 0 END AS is_mapped,
-        COALESCE(stats.line_count, 0) AS invoice_line_count,
-        COALESCE(stats.total_ht, 0) AS total_spend_ht
-      FROM dolibarr_products p
-      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.dolibarr_id
-      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = pm.coa_account_code
-      LEFT JOIN (
-        SELECT sil.fk_product, COUNT(*) AS line_count, SUM(sil.total_ht) AS total_ht
+        p.line_count AS invoice_line_count,
+        p.total_ht AS total_spend_ht
+      FROM (
+        SELECT
+          sil.fk_product,
+          sil.product_ref,
+          MAX(sil.product_label) AS product_label,
+          COUNT(*) AS line_count,
+          SUM(sil.total_ht) AS total_ht
         FROM fin_supplier_invoice_lines sil
         INNER JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id AND si.is_active = 1
         WHERE sil.fk_product IS NOT NULL AND sil.fk_product > 0
-        GROUP BY sil.fk_product
-      ) stats ON stats.fk_product = p.dolibarr_id
-      WHERE p.is_active = 1 ${searchFilter} ${mappedFilter}
-      ORDER BY COALESCE(stats.total_ht, 0) DESC, p.ref ASC
+        GROUP BY sil.fk_product, sil.product_ref
+      ) p
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.fk_product
+      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = pm.coa_account_code
+      WHERE 1=1 ${searchFilter} ${mappedFilter}
+      ORDER BY p.total_ht DESC, p.product_ref ASC
       LIMIT ? OFFSET ?
     `, ...searchArgs, limit, offset);
 
     const countRows: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) AS cnt
-      FROM dolibarr_products p
-      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.dolibarr_id
-      WHERE p.is_active = 1 ${searchFilter} ${mappedFilter}
+      FROM (
+        SELECT sil.fk_product, sil.product_ref
+        FROM fin_supplier_invoice_lines sil
+        INNER JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id AND si.is_active = 1
+        WHERE sil.fk_product IS NOT NULL AND sil.fk_product > 0
+        GROUP BY sil.fk_product, sil.product_ref
+      ) p
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.fk_product
+      WHERE 1=1 ${searchFilter} ${mappedFilter}
     `, ...searchArgs);
 
     const statsRows: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         COUNT(*) AS total_products,
         SUM(CASE WHEN pm.id IS NOT NULL THEN 1 ELSE 0 END) AS mapped_products,
-        SUM(CASE WHEN pm.id IS NOT NULL THEN COALESCE(stats.total_ht, 0) ELSE 0 END) AS mapped_spend_ht,
-        SUM(CASE WHEN pm.id IS NULL THEN COALESCE(stats.total_ht, 0) ELSE 0 END) AS unmapped_spend_ht
-      FROM dolibarr_products p
-      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.dolibarr_id
-      LEFT JOIN (
-        SELECT fk_product, SUM(total_ht) AS total_ht
+        SUM(CASE WHEN pm.id IS NOT NULL THEN p.total_ht ELSE 0 END) AS mapped_spend_ht,
+        SUM(CASE WHEN pm.id IS NULL THEN p.total_ht ELSE 0 END) AS unmapped_spend_ht
+      FROM (
+        SELECT sil.fk_product, sil.product_ref, SUM(sil.total_ht) AS total_ht
         FROM fin_supplier_invoice_lines sil
         INNER JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id AND si.is_active = 1
-        WHERE fk_product IS NOT NULL AND fk_product > 0
-        GROUP BY fk_product
-      ) stats ON stats.fk_product = p.dolibarr_id
-      WHERE p.is_active = 1
+        WHERE sil.fk_product IS NOT NULL AND sil.fk_product > 0
+        GROUP BY sil.fk_product, sil.product_ref
+      ) p
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.fk_product
     `);
 
     const s = (statsRows as Record<string, unknown>[])[0];
