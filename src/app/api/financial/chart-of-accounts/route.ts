@@ -39,8 +39,8 @@ export async function POST(req: Request) {
     }
 
     await prisma.$executeRawUnsafe(
-      `INSERT INTO fin_chart_of_accounts (account_code, account_name, account_name_ar, account_type, account_category, parent_code, display_order, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO fin_chart_of_accounts (account_code, account_name, account_name_ar, account_type, account_category, parent_code, display_order, notes, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       account_code, account_name, account_name_ar || null, account_type,
       account_category || null, parent_code || null, display_order || 0, notes || null
     );

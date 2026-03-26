@@ -11,10 +11,20 @@ export async function GET() {
 
   try {
     const accounts: unknown[] = await prisma.$queryRawUnsafe(`
-      SELECT account_code, account_name, account_name_ar, account_category, parent_code
+      SELECT account_code, account_name, account_name_ar, account_category, parent_code, account_type
       FROM fin_chart_of_accounts
-      WHERE account_type = 'expense' AND is_active = 1
-      ORDER BY display_order, account_code
+      WHERE is_active = 1
+      ORDER BY 
+        CASE account_type 
+          WHEN 'expense' THEN 1 
+          WHEN 'asset' THEN 2 
+          WHEN 'liability' THEN 3 
+          WHEN 'equity' THEN 4 
+          WHEN 'revenue' THEN 5 
+          ELSE 6 
+        END,
+        display_order, 
+        account_code
     `);
 
     // Group by account_category for dropdown use
