@@ -62,6 +62,7 @@ export default function ProjectAnalysisPage() {
   const [aggregateCostDetail, setAggregateCostDetail] = useState<string | null>(null);
   const [aggregateCostData, setAggregateCostData] = useState<any>(null);
   const [aggregateCostLoading, setAggregateCostLoading] = useState(false);
+  const [showCoaBreakdown, setShowCoaBreakdown] = useState(true);
 
   const loadCostDetail = async (projectId: number, category?: string) => {
     setCostDetailProject(projectId);
@@ -746,6 +747,79 @@ export default function ProjectAnalysisPage() {
                   </div>
                 </div>
               </CardContent>
+            </Card>
+          )}
+
+          {/* COA Account-Level Cost Breakdown */}
+          {report.aggregateCoaBreakdown && report.aggregateCoaBreakdown.length > 0 && (
+            <Card>
+              <CardHeader className="cursor-pointer select-none" onClick={() => setShowCoaBreakdown(!showCoaBreakdown)}>
+                <CardTitle className="flex items-center justify-between text-base">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Cost Structure by Account Number
+                    <span className="text-xs font-normal text-muted-foreground">(chart of accounts — all linked projects)</span>
+                  </div>
+                  {showCoaBreakdown ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </CardTitle>
+              </CardHeader>
+              {showCoaBreakdown && (
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50 text-xs">
+                          <th className="text-left py-2 px-2 font-medium">Account</th>
+                          <th className="text-left py-2 px-2 font-medium">Category</th>
+                          <th className="text-right py-2 px-2 font-medium">Invoices</th>
+                          <th className="text-right py-2 px-2 font-medium">Lines</th>
+                          <th className="text-right py-2 px-2 font-medium w-28">% of Cost</th>
+                          <th className="text-right py-2 px-2 font-medium">Amount (HT)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.aggregateCoaBreakdown.map((row: any, idx: number) => (
+                          <tr key={row.accountCode} className="border-b hover:bg-muted/30">
+                            <td className="py-1.5 px-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs text-muted-foreground w-16 shrink-0">{row.accountCode}</span>
+                                <div>
+                                  <div className="font-medium text-xs">{row.accountName}</div>
+                                  {row.accountNameAr && <div className="text-[10px] text-muted-foreground" dir="rtl">{row.accountNameAr}</div>}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-1.5 px-2">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${CAT_COLORS[idx % CAT_COLORS.length].replace('bg-', 'bg-').replace('-500', '-100')} text-${CAT_COLORS[idx % CAT_COLORS.length].replace('bg-', '').replace('-500', '-700')}`}>
+                                {row.accountCategory}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-2 text-right text-xs text-muted-foreground">{row.invoiceCount}</td>
+                            <td className="py-1.5 px-2 text-right text-xs text-muted-foreground">{row.lineCount}</td>
+                            <td className="py-1.5 px-2">
+                              <div className="flex items-center gap-2 justify-end">
+                                <div className="w-20 bg-muted rounded-full h-1.5 overflow-hidden">
+                                  <div className={`h-full rounded-full ${CAT_COLORS[idx % CAT_COLORS.length]}`} style={{ width: `${Math.max(row.percentOfTotal, 0.5)}%` }} />
+                                </div>
+                                <span className="text-xs text-muted-foreground w-10 text-right">{pct(row.percentOfTotal)}</span>
+                              </div>
+                            </td>
+                            <td className="py-1.5 px-2 text-right font-mono font-semibold text-sm">{fmt(row.totalHT)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 bg-muted/50 font-bold text-xs">
+                          <td className="py-2 px-2" colSpan={5}>Total (linked projects)</td>
+                          <td className="py-2 px-2 text-right font-mono text-sm">
+                            {fmt(report.aggregateCoaBreakdown.reduce((s: number, r: any) => s + r.totalHT, 0))}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </CardContent>
+              )}
             </Card>
           )}
 

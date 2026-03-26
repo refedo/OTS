@@ -2170,6 +2170,42 @@ export class FinancialReportService {
       };
     }
 
+    // Aggregate cost breakdown by COA account code (granular view from chart of accounts)
+    const coaAccountRows: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        COALESCE(pcoa.account_code, scoa.account_code, 'UNCLASSIFIED') as account_code,
+        COALESCE(pcoa.account_name, scoa.account_name, 'Other / Unclassified') as account_name,
+        COALESCE(pcoa.account_name_ar, scoa.account_name_ar) as account_name_ar,
+        COALESCE(pcoa.account_category, scoa.account_category, 'Other / Unclassified') as account_category,
+        COUNT(DISTINCT si.dolibarr_id) as invoice_count,
+        COUNT(*) as line_count,
+        ROUND(SUM(sil.total_ht), 2) as total_ht,
+        ROUND(SUM(sil.total_ttc), 2) as total_ttc
+      FROM fin_supplier_invoice_lines sil
+      JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
+      WHERE si.is_active = 1 AND si.status >= 1
+        AND si.fk_projet IS NOT NULL AND si.fk_projet > 0
+        ${dateFilterSup}
+      GROUP BY account_code, account_name, account_name_ar, account_category
+      ORDER BY total_ht DESC
+    `);
+    const totalCoaHT = coaAccountRows.reduce((s: number, r: any) => s + Number(r.total_ht || 0), 0);
+    const aggregateCoaBreakdown = coaAccountRows.map((r: any) => ({
+      accountCode: r.account_code,
+      accountName: r.account_name,
+      accountNameAr: r.account_name_ar || null,
+      accountCategory: r.account_category,
+      invoiceCount: Number(r.invoice_count),
+      lineCount: Number(r.line_count),
+      totalHT: Number(r.total_ht),
+      totalTTC: Number(r.total_ttc),
+      percentOfTotal: totalCoaHT > 0 ? (Number(r.total_ht) / totalCoaHT) * 100 : 0,
+    }));
+
     // Get total supplier costs (including unlinked) for comparison
     const totalSuppCosts: any[] = await prisma.$queryRawUnsafe(`
       SELECT 
@@ -2211,6 +2247,7 @@ export class FinancialReportService {
       },
       projects: projectList,
       aggregateCostCategories,
+      aggregateCoaBreakdown,
       aggregateMonthlyTrend,
     };
   }

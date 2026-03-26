@@ -112,7 +112,7 @@ function CoaCombobox({ accounts, grouped, value, onChange, placeholder = 'Select
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[400px] rounded-md border bg-popover shadow-lg">
+        <div className="absolute z-50 mt-1 w-full min-w-[400px] rounded-md border bg-popover shadow-lg" onPointerDown={(e) => e.stopPropagation()}>
           <div className="p-2 border-b">
             <Input
               autoFocus
@@ -285,8 +285,8 @@ export default function ProductCoaMappingPage() {
     const res = await fetch('/api/financial/coa-expense-accounts');
     if (!res.ok) return;
     const data = await res.json();
-    setCoaAccounts(data.accounts || []);
-    setCoaGrouped(data.grouped || {});
+    setCoaAccounts(data.accounts ?? []);
+    setCoaGrouped(data.grouped ?? {});
   }, []);
 
   const fetchCoverage = useCallback(async () => {

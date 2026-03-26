@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.4.1] - 2026-03-26
+
+### 🔧 Financial Report Fixes & COA Account Breakdown
+
+**Patch Release:** Fixes project analysis report accuracy and adds a granular cost-by-account-number view driven by the chart of accounts.
+
+#### Added
+
+- **Cost Structure by Account Number** — New collapsible table in the Project Analysis report showing total spend broken down by individual COA account code (e.g. Raw Materials 61100, Painting 61200, Sub-contracting 61300). Displays account code, name, Arabic name, category, invoice count, line count, and % of total cost.
+- **`aggregateCoaBreakdown`** added to report service — queries `fin_supplier_invoice_lines` joined with `fin_product_coa_mapping` + `fin_chart_of_accounts` to aggregate spend by account code for all project-linked invoices.
+
+#### Fixed
+
+- **Aggregate Cost Breakdown now filters with project search** — The breakdown card recomputes client-side from the filtered project list, so searching for a single project shows only that project's cost categories.
+- **Category drill-down (Cost of Sales, Fixed Assets, Operating Expenses) now returns results** — The `cost-details` API was using `fin_dolibarr_account_mapping.ots_cost_category` but the report categorises via `fin_chart_of_accounts.account_category`. Both now use the same 2-tier COA logic (`fin_product_coa_mapping → fin_chart_of_accounts`, fallback to `fin_supplier_coa_default`).
+- **Drill-down respects searched project** — When a search filter is active, the invoice detail drill-down now passes the filtered project IDs so only relevant lines are shown.
+- **Bulk assign in product-coa-mapping** — CoaCombobox dropdown now stops pointer-event propagation so Radix Dialog does not intercept clicks on dropdown options, enabling account selection in the bulk-assign dialog.
+
+---
+
 ## [16.4.0] - 2026-03-26
 
 ### 🔄 Backup Restore System & Financial Module Enhancements
