@@ -173,6 +173,38 @@ export default function ProjectAnalysisPage() {
       }));
   }, [filteredProjects]);
 
+  const filteredCoaBreakdown = useMemo(() => {
+    if (!filteredProjects.length) return [];
+    const accMap = new Map<string, { accountName: string; accountNameAr: string | null; accountCategory: string; invoiceCount: number; lineCount: number; totalHT: number }>();
+    for (const proj of filteredProjects) {
+      for (const row of (proj.coaBreakdown || [])) {
+        const existing = accMap.get(row.accountCode);
+        if (existing) {
+          existing.invoiceCount += row.invoiceCount;
+          existing.lineCount += row.lineCount;
+          existing.totalHT += row.totalHT;
+        } else {
+          accMap.set(row.accountCode, {
+            accountName: row.accountName,
+            accountNameAr: row.accountNameAr,
+            accountCategory: row.accountCategory,
+            invoiceCount: row.invoiceCount,
+            lineCount: row.lineCount,
+            totalHT: row.totalHT,
+          });
+        }
+      }
+    }
+    const totalHT = Array.from(accMap.values()).reduce((s, r) => s + r.totalHT, 0);
+    return Array.from(accMap.entries())
+      .sort((a, b) => b[1].totalHT - a[1].totalHT)
+      .map(([accountCode, data]) => ({
+        accountCode,
+        ...data,
+        percentOfTotal: totalHT > 0 ? (data.totalHT / totalHT) * 100 : 0,
+      }));
+  }, [filteredProjects]);
+
   const toggleSort = (field: string) => {
     if (sortField === field) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
     else { setSortField(field); setSortDir('desc'); }
@@ -751,14 +783,14 @@ export default function ProjectAnalysisPage() {
           )}
 
           {/* COA Account-Level Cost Breakdown */}
-          {report.aggregateCoaBreakdown && report.aggregateCoaBreakdown.length > 0 && (
+          {filteredCoaBreakdown.length > 0 && (
             <Card>
               <CardHeader className="cursor-pointer select-none" onClick={() => setShowCoaBreakdown(!showCoaBreakdown)}>
                 <CardTitle className="flex items-center justify-between text-base">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Cost Structure by Account Number
-                    <span className="text-xs font-normal text-muted-foreground">(chart of accounts — all linked projects)</span>
+                    {searchQuery.trim() && <span className="text-xs font-normal text-muted-foreground">(filtered by search)</span>}
                   </div>
                   {showCoaBreakdown ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </CardTitle>
@@ -778,7 +810,7 @@ export default function ProjectAnalysisPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {report.aggregateCoaBreakdown.map((row: any, idx: number) => (
+                        {filteredCoaBreakdown.map((row: any, idx: number) => (
                           <tr key={row.accountCode} className="border-b hover:bg-muted/30">
                             <td className="py-1.5 px-2">
                               <div className="flex items-center gap-2">
@@ -810,9 +842,9 @@ export default function ProjectAnalysisPage() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t-2 bg-muted/50 font-bold text-xs">
-                          <td className="py-2 px-2" colSpan={5}>Total (linked projects)</td>
+                          <td className="py-2 px-2" colSpan={5}>Total</td>
                           <td className="py-2 px-2 text-right font-mono text-sm">
-                            {fmt(report.aggregateCoaBreakdown.reduce((s: number, r: any) => s + r.totalHT, 0))}
+                            {fmt(filteredCoaBreakdown.reduce((s: number, r: any) => s + r.totalHT, 0))}
                           </td>
                         </tr>
                       </tfoot>
