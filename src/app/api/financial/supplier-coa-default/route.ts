@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
         coa.account_name_ar AS coa_account_name_ar,
         coa.account_category AS coa_account_category,
         CASE WHEN sd.id IS NOT NULL THEN 1 ELSE 0 END AS is_mapped,
+        CASE WHEN sd.id IS NOT NULL AND coa.account_code IS NOT NULL THEN 1 ELSE 0 END AS coa_exists,
         s.invoice_count,
         s.total_ht AS total_spend_ht,
         COALESCE(unmapped.cnt, 0) AS unmapped_product_count
@@ -84,6 +85,7 @@ export async function GET(req: NextRequest) {
       dolibarr_id: Number(row.dolibarr_id),
       mapping_id: row.mapping_id ? Number(row.mapping_id) : null,
       is_mapped: Number(row.is_mapped),
+      coa_exists: Number(row.coa_exists),
       invoice_count: Number(row.invoice_count),
       total_spend_ht: Number(row.total_spend_ht),
       unmapped_product_count: Number(row.unmapped_product_count),
