@@ -23,10 +23,85 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '16.3.0',
+    version: '16.4.0',
     date: 'March 26, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: '🔄 Backup Restore System & Financial Module Enhancements',
+    highlights: [
+      'Restore the database from any backup directly in the UI — full or partial restore by module, no server access needed',
+      'Impact preview shows Current / Backup / ±Change row counts per module before confirming',
+      '14 backup modules covering all 96+ tables, including the new Financial & Accounts module',
+      'Chart of Accounts: CSV/XLSX import, mass delete, rollback, and force-replace Dolibarr sync',
+      'SOA "Remain to Pay" column, VAT report excludes abandoned invoices, salaries Excel export, cost structure drill-down',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Backup Restore System',
+          items: [
+            'Restore database from any backup at /settings/backups — no SSH required',
+            'Partial restore by module: select any of 14 modules instead of restoring everything',
+            'Impact preview: parses backup SQL (supports .sql.gz) and compares with live row counts from information_schema',
+            'Restore dialog: module checklist with Select All, colour-coded diff table (±), amber warning banner',
+            'SQL streaming filter uses -- Table structure anchors as state machine; SET FOREIGN_KEY_CHECKS=0 for safe partial restores',
+            'New backups.restore permission in Backup Management category, granted to Admin by default',
+            'src/lib/backup-modules.ts — central module→tables config shared between API and UI',
+          ],
+        },
+        {
+          title: 'Financial & Accounts Backup Module',
+          items: [
+            'All 16 fin_* tables now restorable as a dedicated "Financial & Accounts" module',
+            'Includes fin_chart_of_accounts, fin_journal_entries, fin_customer/supplier_invoices, fin_payments, fin_salaries, fin_supplier_classification, fin_product_coa_mapping, fin_config',
+          ],
+        },
+        {
+          title: 'Chart of Accounts Management',
+          items: [
+            'CSV upload: import accounts from a CSV file with live validation and error reporting',
+            'XLSX upload: Excel spreadsheet import with column detection and preview',
+            'Mass delete: select and permanently remove multiple accounts at once',
+            'COA rollback: restore a previous state of the chart of accounts from a snapshot',
+            'Force replace: overwrite existing accounts during Dolibarr sync instead of skipping conflicts',
+          ],
+        },
+        {
+          title: 'Dolibarr Sync & COA Improvements',
+          items: [
+            'Synced By column in COA sync history table',
+            'System events logged for each financial sync run',
+            'COA accounts now appear in product/supplier mapping dropdowns (is_active=1 set on creation)',
+          ],
+        },
+        {
+          title: 'Financial Reporting',
+          items: [
+            'SOA: sortable columns and new "Remain to Pay" column',
+            'VAT report: abandoned invoices excluded from all totals',
+            'Salaries: Excel export button',
+            'Cost structure: drill-down view showing line-item detail behind each category',
+            'Expenses Analysis: sortable headers across all supplier columns',
+          ],
+        },
+        'Supplier Classification: bulk selection and "Save All" for batch classification commits',
+      ],
+      fixed: [
+        'BigInt serialization error in fin_* COA mapping APIs — returned as string instead of crashing',
+        'created_by column type mismatch on fin_* tables — INT column holding UUID removed and retyped to VARCHAR',
+        'Dolibarr sync: product search returning stale/incorrect results',
+        'Supplier classification dropdown truncation on narrow viewports',
+        'RBAC audit log: excessive per-check logging reduced to warnings-only',
+        'package-lock.json missing uuid@11.1.0 — caused npm ci failure in CI pipeline',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '16.3.0',
+    date: 'March 26, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: '🏆 Points & Rewards Incentive System',
     highlights: [
       'Gamification system that awards points for completing tasks with bonuses for on-time completion and high-priority tasks',

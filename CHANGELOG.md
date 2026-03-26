@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.4.0] - 2026-03-26
+
+### 🔄 Backup Restore System & Financial Module Enhancements
+
+**Minor Release:** Adds a full database-restore capability directly from the Backup Management page — no server console access required. Supports full or partial restore scoped to individual application modules with a live impact preview. Also ships a round of Chart of Accounts improvements: CSV/XLSX import, mass delete, Dolibarr sync enhancements, rollback support, and a range of financial reporting fixes.
+
+#### Added
+
+**Backup Restore System** (`src/app/settings/backups`, `src/app/api/backups/[filename]/restore`)
+- Restore the database from any backup listed at `/settings/backups` — one click, no SSH required
+- **Partial restore by module** — select any combination of 14 modules (Users & Roles, Projects & Buildings, Tasks, Production, Quality Control, Documents, Business Planning, Operations Control, AI & Knowledge Center, Supply Chain, Product Backlog, Notifications, Financial & Accounts, System & Audit Logs) instead of always restoring everything
+- **Impact preview** — before confirming, the dialog parses the backup SQL file (streaming, supports `.sql.gz`) and queries `information_schema` to show Current / Backup / ±Change row counts per module
+- Restore dialog: module checklist with Select All toggle, colour-coded diff table (green = gain, red = loss), amber warning banner, dynamic confirm button label ("Restore Full Database" vs "Restore N Modules")
+- SQL filter state machine uses `-- Table structure for table` dump comments as anchors; `SET FOREIGN_KEY_CHECKS=0` wraps partial restores for safe FK ordering
+- New `backups.restore` permission added to `Backup Management` category; included in `backup_management` PBAC module and granted to Admin by default
+- `src/lib/backup-modules.ts` — central config mapping all 14 modules to their 96+ DB tables, shared between API and UI
+
+**Financial & Accounts module in backup system**
+- All 16 `fin_*` tables (chart of accounts, journal entries, invoices, payments, salaries, supplier/product classification, config) are now restorable as the "Financial & Accounts" module
+
+**Chart of Accounts Management**
+- CSV upload: import accounts from a CSV file with live validation and error reporting
+- XLSX upload: Excel spreadsheet import with column detection and preview
+- Mass delete: select and permanently remove multiple accounts at once
+- COA rollback: restore a previous state of the chart of accounts from a snapshot
+- Force replace: overwrite existing accounts during Dolibarr sync instead of skipping conflicts
+
+**Dolibarr Sync Improvements**
+- Synced By column added to the COA sync history table
+- System events logged for each financial sync run
+- Fixed: COA accounts not appearing in product/supplier mapping — `is_active=1` now set on account creation; all active accounts shown in mapping dropdowns
+
+**Financial Reporting**
+- SOA (Statement of Account) columns now sortable; "Remain to Pay" column added
+- VAT report: abandoned invoices excluded from totals
+- Salaries: Excel export button
+- Cost structure: drill-down view to see line-item detail behind each cost category
+- Expenses Analysis: sortable headers across all supplier columns
+
+**Supplier Classification UI**
+- Bulk supplier selection for batch classification
+- "Save All" button to commit multiple changes in one action
+- Dropdown truncation fixed on narrow viewports
+
+#### Fixed
+
+- `fin_chart_of_accounts`: BigInt serialization error in COA mapping APIs resolved (returned as string instead of crashing)
+- `created_by` column type mismatch on `fin_*` tables — INT column holding a UUID value removed; column retyped to VARCHAR
+- Dolibarr sync: product search returning stale results fixed
+- RBAC audit log: excessive logging on every permission check reduced to warnings-only
+- `package-lock.json` missing `uuid@11.1.0` entry — caused `npm ci` failure in CI
+
+---
+
 ## [16.3.0] - 2026-03-26
 
 ### 🏆 Points & Rewards Incentive System
