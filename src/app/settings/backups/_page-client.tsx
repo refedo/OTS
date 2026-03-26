@@ -37,6 +37,7 @@ import {
   AlertTriangle,
   User,
   Bot,
+  RotateCcw,
 } from 'lucide-react';
 
 type BackupEntry = {
@@ -108,7 +109,9 @@ export default function BackupsPageClient() {
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BackupEntry | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState<BackupEntry | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -167,6 +170,24 @@ export default function BackupsPageClient() {
     } finally {
       setDeletingId(null);
       setConfirmDelete(null);
+    }
+  };
+
+  const handleRestore = async (backup: BackupEntry) => {
+    setRestoringId(backup.dirname);
+    try {
+      const res = await fetch(`/api/backups/${encodeURIComponent(backup.dirname)}/restore`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        showToast('error', err.error || 'Failed to restore from backup');
+        return;
+      }
+      showToast('success', `Database restored from backup ${formatDirname(backup.dirname)}`);
+    } catch {
+      showToast('error', 'Failed to restore from backup');
+    } finally {
+      setRestoringId(null);
+      setConfirmRestore(null);
     }
   };
 
@@ -400,6 +421,20 @@ export default function BackupsPageClient() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => setConfirmRestore(backup)}
+                            disabled={restoringId === backup.dirname}
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                            title="Restore database from this backup"
+                          >
+                            {restoringId === backup.dirname ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setConfirmDelete(backup)}
                             disabled={deletingId === backup.dirname}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -440,6 +475,39 @@ export default function BackupsPageClient() {
               onClick={() => confirmDelete && handleDelete(confirmDelete)}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restore Confirmation */}
+      <AlertDialog open={!!confirmRestore} onOpenChange={() => setConfirmRestore(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Restore Database
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  You are about to restore the database from the backup dated{' '}
+                  <span className="font-semibold">{confirmRestore ? formatDirname(confirmRestore.dirname) : ''}</span>.
+                </p>
+                <p className="font-semibold text-destructive">
+                  This will overwrite all current data with the backup snapshot. Any changes made after this backup was created will be permanently lost.
+                </p>
+                <p>Are you sure you want to proceed?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 text-white hover:bg-amber-700"
+              onClick={() => confirmRestore && handleRestore(confirmRestore)}
+            >
+              Yes, Restore Database
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -298,6 +298,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'backups.create', name: 'Create Backups', description: 'Trigger new database backups', category: 'backups' },
       { id: 'backups.delete', name: 'Delete Backups', description: 'Delete existing backup files', category: 'backups' },
       { id: 'backups.download', name: 'Download Backups', description: 'Download backup files', category: 'backups' },
+      { id: 'backups.restore', name: 'Restore from Backup', description: 'Restore the database from a backup file', category: 'backups' },
     ],
   },
 ];

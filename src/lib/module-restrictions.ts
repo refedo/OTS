@@ -262,6 +262,7 @@ export const MODULE_RESTRICTIONS: ModuleRestriction[] = [
       'backups.create',
       'backups.delete',
       'backups.download',
+      'backups.restore',
     ],
   },
 ];
