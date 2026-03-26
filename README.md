@@ -1,6 +1,6 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 16.3.0 | **Release Date:** March 26, 2026
+**Version:** 16.4.0 | **Release Date:** March 26, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
@@ -49,16 +49,19 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Operations Intelligence**: Advanced analytics and trend analysis
 
 ### Financial Management
-- **Chart of Accounts**: Full double-entry bookkeeping support
+- **Chart of Accounts**: Full double-entry bookkeeping support with CSV/XLSX import, mass delete, rollback, and force-replace Dolibarr sync
 - **Journal Entries**: Manual and automated journal entry recording
 - **Bank Account Management**: Multi-account tracking and reconciliation
-- **Financial Reports**: Balance Sheet, Income Statement, Cash Flow Statement
+- **Financial Reports**: Balance Sheet, Income Statement, Cash Flow Statement, VAT Report (excludes abandoned invoices)
 - **Invoice Management**: Client invoicing and payment tracking
+- **Statement of Account**: Sortable columns with "Remain to Pay" column
+- **Salaries**: Salary management with Excel export
 - **Account Mapping**: Map Dolibarr accounting account codes to OTS cost categories
 - **Product Categories**: Define named product categories that carry a cost classification and an optional Chart-of-Accounts account code (bilingual EN/AR support)
 - **Product Category Mapping**: Map each Dolibarr `product_ref` to a category so every invoice line is classified accurately; unmapped products surfaced for quick resolution
-- **Supplier Classification**: Assign a default cost category to each supplier — used as a fallback when no account or product mapping exists
+- **Supplier Classification**: Assign a default cost category to each supplier — bulk selection with Save All; used as fallback when no account or product mapping exists
 - **4-Level Classification Hierarchy**: Account Mapping → Product Category → Supplier Classification → Other/Unclassified, applied across all cost structure and expenses reports
+- **Cost Structure Drill-down**: Expand each cost category to view the individual line items driving the total
 
 ### Procurement
 - **Purchase Orders**: Complete PO lifecycle management
@@ -142,10 +145,13 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Fast & Debounced**: 300 ms debounce with a 2-character minimum; up to 5 results per category returned instantly
 
 ### System Administration & Backup
-- **Backup Management UI**: View, create, download, and delete database backup files from `/settings/backups` — no server console access needed
+- **Backup Management UI**: View, create, download, delete, and restore database backup files from `/settings/backups` — no server console access needed
+- **Backup Restore**: Restore the database from any backup directly in the UI — full restore or partial restore scoped to individual application modules
+- **Impact Preview**: Before restoring, see Current / Backup / ±Change row counts per module so you know exactly what will change
+- **14 Backup Modules**: Restore any combination of Users & Roles, Projects & Buildings, Tasks, Production, Quality Control, Documents, Business Planning, Operations Control, AI & Knowledge, Supply Chain, Product Backlog, Notifications, Financial & Accounts, System & Audit Logs
 - **Backup Stats**: Real-time stats for total backup count, total backup size, and server disk free space
 - **Automated Retention**: Automatically prunes to the most recent 7 backups on each create
-- **RBAC/PBAC Protected**: Dedicated `backups.*` permissions (view/create/delete/download) and a `backup_management` PBAC module for granular access control per role/user
+- **RBAC/PBAC Protected**: Dedicated `backups.*` permissions (view/create/delete/download/restore) and a `backup_management` PBAC module for granular access control per role/user
 
 ---
 
