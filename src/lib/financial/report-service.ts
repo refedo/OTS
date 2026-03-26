@@ -1911,6 +1911,43 @@ export class FinancialReportService {
       });
     }
 
+    // 6b. COA account-code breakdown per project (granular, for client-side filtering)
+    const coaByProjectRows: any[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        si.fk_projet as project_id,
+        COALESCE(pcoa.account_code, scoa.account_code, 'UNCLASSIFIED') as account_code,
+        COALESCE(pcoa.account_name, scoa.account_name, 'Other / Unclassified') as account_name,
+        COALESCE(pcoa.account_name_ar, scoa.account_name_ar) as account_name_ar,
+        COALESCE(pcoa.account_category, scoa.account_category, 'Other / Unclassified') as account_category,
+        COUNT(DISTINCT si.dolibarr_id) as invoice_count,
+        COUNT(*) as line_count,
+        ROUND(SUM(sil.total_ht), 2) as total_ht
+      FROM fin_supplier_invoice_lines sil
+      JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
+      WHERE si.is_active = 1 AND si.status >= 1 AND si.fk_projet IS NOT NULL AND si.fk_projet > 0
+        ${dateFilterSup}
+      GROUP BY si.fk_projet, account_code, account_name, account_name_ar, account_category
+      ORDER BY si.fk_projet, total_ht DESC
+    `);
+    const coaByProjectMap = new Map<number, any[]>();
+    for (const row of coaByProjectRows) {
+      const pid = Number(row.project_id);
+      if (!coaByProjectMap.has(pid)) coaByProjectMap.set(pid, []);
+      coaByProjectMap.get(pid)!.push({
+        accountCode: row.account_code,
+        accountName: row.account_name,
+        accountNameAr: row.account_name_ar || null,
+        accountCategory: row.account_category,
+        invoiceCount: Number(row.invoice_count),
+        lineCount: Number(row.line_count),
+        totalHT: Number(row.total_ht),
+      });
+    }
+
     // 7. Monthly trend per project
     const monthlyRevByProject: any[] = await prisma.$queryRawUnsafe(`
       SELECT
@@ -2047,6 +2084,7 @@ export class FinancialReportService {
         marginPct,
         costCategories,
         monthlyTrend,
+        coaBreakdown: coaByProjectMap.get(pid) || [],
       };
     });
 
