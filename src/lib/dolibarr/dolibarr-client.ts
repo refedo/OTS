@@ -737,17 +737,30 @@ export class DolibarrClient {
    * Fetch all accounting accounts from Dolibarr chart of accounts
    */
   async getAccountingAccounts(): Promise<DolibarrAccountingAccount[]> {
-    try {
-      const result = await this.request<DolibarrAccountingAccount[]>('accountancy/chartofaccounts', {
-        limit: 5000,
-        sortfield: 't.account_number',
-        sortorder: 'ASC',
-      });
-      return Array.isArray(result) ? result : [];
-    } catch (error: any) {
-      console.error('[Dolibarr] Failed to fetch accounting accounts:', error.message);
-      return [];
+    // Try multiple endpoint variations as Dolibarr API can vary by version
+    const endpoints = [
+      'accountancy/chartofaccounts',
+      'accounting/chartofaccounts', 
+      'accountancy/accounts',
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const result = await this.request<DolibarrAccountingAccount[]>(endpoint, {
+          limit: 5000,
+          sortfield: 't.account_number',
+          sortorder: 'ASC',
+        });
+        if (Array.isArray(result) && result.length > 0) {
+          return result;
+        }
+      } catch {
+        // Try next endpoint
+      }
     }
+    
+    // Return empty array if all endpoints fail
+    return [];
   }
 
   /**

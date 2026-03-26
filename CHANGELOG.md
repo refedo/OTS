@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [16.3.0] - 2026-03-25
+## [16.3.0] - 2026-03-26
 
 ### 🏆 Points & Rewards Incentive System
 
@@ -47,12 +47,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - History tab: Recent point transactions with timestamps
 - Gradient styling with amber/orange theme for gamification feel
 
+**PWA Install Prompt**
+- "Don't show again" button added — persists permanently via localStorage
+- Users can now permanently dismiss the install prompt
+
 #### Changed
 
 **Task Completion Flow** (`src/app/api/tasks/[id]/route.ts`)
 - Automatically awards points when a task status changes to "Completed"
 - Points calculation considers priority, due date, and completion timing
 - Streak tracking updates on each task completion
+
+**Delayed Tasks Popup**
+- Now shows once daily instead of once per session
+- Uses localStorage with date check to prevent repeated popups throughout the day
+
+#### Fixed
+
+**Chart of Accounts Sync from Dolibarr**
+- Now tries multiple API endpoints (`accountancy/chartofaccounts`, `accounting/chartofaccounts`, `accountancy/accounts`) for compatibility with different Dolibarr versions
+- Improved error message when no accounts are found, with suggestions for Dolibarr configuration
 
 ---
 

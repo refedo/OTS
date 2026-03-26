@@ -73,9 +73,13 @@ export function DelayedTasksNotificationDialog() {
 
   const checkDelayedTasks = async () => {
     try {
-      const sessionKey = 'delayed_tasks_prompt_shown';
-      if (sessionStorage.getItem(sessionKey)) {
-        return;
+      // Check if already shown today (localStorage persists across sessions)
+      const lastShownKey = 'delayed_tasks_last_shown';
+      const lastShown = localStorage.getItem(lastShownKey);
+      const today = new Date().toDateString();
+      
+      if (lastShown === today) {
+        return; // Already shown today
       }
 
       // Check if user can view all tasks (tasks.view_all PBAC permission)
@@ -93,7 +97,7 @@ export function DelayedTasksNotificationDialog() {
       if (result.total > 0) {
         setData(result);
         setOpen(true);
-        sessionStorage.setItem(sessionKey, 'true');
+        localStorage.setItem(lastShownKey, today);
       }
     } catch {
       // Silently fail

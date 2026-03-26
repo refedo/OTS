@@ -23,10 +23,73 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '16.3.0',
+    date: 'March 26, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🏆 Points & Rewards Incentive System',
+    highlights: [
+      'Gamification system that awards points for completing tasks with bonuses for on-time completion and high-priority tasks',
+      'Dashboard widget showing total points, rank, current streak, badges, and leaderboard',
+      'Streak tracking with bonuses at 3-day, 7-day, and 30-day milestones',
+      'PWA install prompt now has "Don\'t show again" button',
+      'Delayed tasks popup now shows once daily instead of every page load',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Points & Rewards System',
+          items: [
+            'user_points table — stores total points, lifetime points, current streak, longest streak per user',
+            'point_transactions table — detailed log of all point changes (earn, spend, bonus, adjustment)',
+            'point_rules table — configurable rules for point earning with multipliers',
+            'user_badges table — tracks badges/achievements earned by users',
+            'Points service with automatic awarding on task completion',
+          ],
+        },
+        {
+          title: 'Point Rules',
+          items: [
+            'Base: 10 points per task completion',
+            'On-time bonus: +5 points for completing before/on due date',
+            'Early bird bonus: +10 points for completing 2+ days early',
+            'High priority multiplier: 1.5x for high-priority tasks',
+            'Streak bonuses: +15 (3-day), +50 (7-day), +200 (30-day)',
+          ],
+        },
+        {
+          title: 'Dashboard Widget',
+          items: [
+            'Overview tab: Total points, rank, current streak, this week/month earnings, badges',
+            'Leaderboard tab: Top 5 users with rank indicators (gold/silver/bronze)',
+            'History tab: Recent point transactions with timestamps',
+          ],
+        },
+        {
+          title: 'API Routes',
+          items: [
+            'GET /api/points — current user\'s points stats, badges, and transactions',
+            'POST /api/points — manual point adjustment (Admin/CEO only)',
+            'GET /api/points/leaderboard — company-wide or department leaderboard',
+            'GET/POST/PUT /api/points/rules — manage point rules',
+          ],
+        },
+      ],
+      changed: [
+        'Task completion now automatically awards points based on priority, due date, and timing',
+        'PWA install prompt has "Don\'t show again" button that persists permanently',
+        'Delayed tasks popup shows once daily instead of once per session',
+      ],
+      fixed: [
+        'Chart of accounts sync from Dolibarr now tries multiple API endpoints for compatibility',
+      ],
+    },
+  },
+  {
     version: '16.2.0',
     date: 'March 24, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🏷️ Cost Classification Mapping — Product Categories & Supplier Classification',
     highlights: [
       'New Product Categories system: define named categories that carry a cost classification and an optional Chart-of-Accounts account code',

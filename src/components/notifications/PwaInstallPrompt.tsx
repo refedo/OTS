@@ -86,6 +86,12 @@ function ManualInstallGuide({ browser, onDismiss }: { browser: BrowserType; onDi
             <Button size="sm" variant="ghost" onClick={onDismiss}>
               Got it
             </Button>
+            <Button size="sm" variant="link" className="text-xs text-muted-foreground" onClick={() => {
+              localStorage.setItem('pwa-install-dismissed-permanently', 'true');
+              onDismiss();
+            }}>
+              Don't show again
+            </Button>
           </div>
         </div>
         <button
@@ -112,6 +118,14 @@ export function PwaInstallPrompt() {
       return;
     }
 
+    // Check localStorage for permanent dismissal (Don't show again)
+    const permanentlyDismissed = localStorage.getItem('pwa-install-dismissed-permanently');
+    if (permanentlyDismissed) {
+      setDismissed(true);
+      return;
+    }
+
+    // Check sessionStorage for session dismissal
     const wasDismissed = sessionStorage.getItem('pwa-install-dismissed');
     if (wasDismissed) {
       setDismissed(true);
@@ -159,6 +173,12 @@ export function PwaInstallPrompt() {
     sessionStorage.setItem('pwa-install-dismissed', 'true');
   };
 
+  const handleDismissPermanently = () => {
+    setDismissed(true);
+    setShowManualGuide(false);
+    localStorage.setItem('pwa-install-dismissed-permanently', 'true');
+  };
+
   if (isStandalone || dismissed) return null;
 
   // Show manual guide for browsers that don't support beforeinstallprompt
@@ -180,12 +200,15 @@ export function PwaInstallPrompt() {
             <p className="text-xs text-muted-foreground mt-1">
               Install Hexa Steel OTS on your device for quick access and push notifications.
             </p>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-3">
               <Button size="sm" onClick={handleInstall}>
                 Install
               </Button>
               <Button size="sm" variant="ghost" onClick={handleDismiss}>
                 Not now
+              </Button>
+              <Button size="sm" variant="link" className="text-xs text-muted-foreground" onClick={handleDismissPermanently}>
+                Don't show again
               </Button>
             </div>
           </div>

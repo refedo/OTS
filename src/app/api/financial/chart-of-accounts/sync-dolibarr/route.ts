@@ -27,8 +27,10 @@ export async function POST(req: Request) {
     const dolibarrAccounts = await client.getAccountingAccounts();
 
     if (dolibarrAccounts.length === 0) {
+      logger.warn({}, 'No accounting accounts returned from Dolibarr API');
       return NextResponse.json({ 
-        error: 'No accounting accounts found in Dolibarr. Make sure the API endpoint is accessible.' 
+        error: 'No accounting accounts found in Dolibarr. This could mean: (1) The Dolibarr accountancy module is not enabled, (2) No chart of accounts has been configured in Dolibarr, or (3) The API endpoint is not accessible. Please check Dolibarr configuration.',
+        suggestion: 'Go to Dolibarr > Setup > Modules > Accountancy and ensure it is enabled with a chart of accounts configured.'
       }, { status: 400 });
     }
 
