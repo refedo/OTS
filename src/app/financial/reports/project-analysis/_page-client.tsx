@@ -82,13 +82,14 @@ export default function ProjectAnalysisPage() {
     setCostDetailData(null);
   };
 
-  const loadAggregateCostDetail = async (category: string) => {
+  const loadAggregateCostDetail = async (category: string, projectIds?: number[]) => {
     setAggregateCostDetail(category);
     setAggregateCostLoading(true);
     try {
       let url = `/api/financial/reports/project-analysis/cost-details?category=${encodeURIComponent(category)}`;
       if (fromDate) url += `&from=${fromDate}`;
       if (toDate) url += `&to=${toDate}`;
+      if (projectIds && projectIds.length > 0) url += `&projectIds=${projectIds.join(',')}`;
       const res = await fetch(url);
       if (res.ok) setAggregateCostData(await res.json());
     } catch (e) { console.error(e); }
@@ -152,6 +153,24 @@ export default function ProjectAnalysisPage() {
       return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
     });
   }, [filteredProjects, sortField, sortDir]);
+
+  const filteredAggregateCostCategories = useMemo(() => {
+    if (!filteredProjects.length) return [];
+    const catMap = new Map<string, number>();
+    for (const proj of filteredProjects) {
+      for (const cat of (proj.costCategories || [])) {
+        catMap.set(cat.category, (catMap.get(cat.category) || 0) + cat.totalHT);
+      }
+    }
+    const totalCosts = filteredProjects.reduce((s: number, p: any) => s + p.costHT, 0);
+    return Array.from(catMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, totalHT]) => ({
+        category,
+        totalHT,
+        percentOfCost: totalCosts > 0 ? (totalHT / totalCosts) * 100 : 0,
+      }));
+  }, [filteredProjects]);
 
   const toggleSort = (field: string) => {
     if (sortField === field) setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
@@ -536,7 +555,7 @@ export default function ProjectAnalysisPage() {
                 <Input
                   placeholder="Search by project number, name, or client..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => { setSearchQuery(e.target.value); closeAggregateCostDetail(); }}
                   className="pl-10"
                 />
               </div>
@@ -628,19 +647,24 @@ export default function ProjectAnalysisPage() {
           </div>
 
           {/* Aggregate Cost Breakdown */}
-          {report.aggregateCostCategories && report.aggregateCostCategories.length > 0 && (
+          {filteredAggregateCostCategories.length > 0 && (
             <Card>
               <CardHeader className="cursor-pointer select-none" onClick={() => setShowCostBreakdown(!showCostBreakdown)}>
                 <CardTitle className="flex items-center justify-between text-base">
-                  <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Aggregate Cost Breakdown <span className="text-xs font-normal text-muted-foreground">(click category to drill down)</span></div>
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Aggregate Cost Breakdown
+                    {searchQuery && <span className="text-xs font-normal text-amber-600">filtered: {sortedProjects.length} projects</span>}
+                    <span className="text-xs font-normal text-muted-foreground">(click category to drill down)</span>
+                  </div>
                   {showCostBreakdown ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </CardTitle>
               </CardHeader>
               {showCostBreakdown && (
                 <CardContent>
                   <div className="space-y-2">
-                    {report.aggregateCostCategories.map((cat: any, idx: number) => (
-                      <div key={cat.category} className="cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors" onClick={(e) => { e.stopPropagation(); loadAggregateCostDetail(cat.category); }}>
+                    {filteredAggregateCostCategories.map((cat: any, idx: number) => (
+                      <div key={cat.category} className="cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors" onClick={(e) => { e.stopPropagation(); loadAggregateCostDetail(cat.category, filteredProjects.map((p: any) => p.projectId)); }}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm hover:underline">{cat.category}</span>
                           <div className="flex items-center gap-3">

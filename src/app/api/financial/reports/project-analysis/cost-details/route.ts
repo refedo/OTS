@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,53 +11,61 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get('projectId');
+  const projectIdsParam = searchParams.get('projectIds');
   const category = searchParams.get('category');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
-  // Allow aggregate queries without projectId
-  if (!projectId && !category) {
-    return NextResponse.json({ error: 'Either projectId or category is required' }, { status: 400 });
+  if (!projectId && !projectIdsParam && !category) {
+    return NextResponse.json({ error: 'Either projectId, projectIds, or category is required' }, { status: 400 });
   }
 
   try {
-    let where = 'si.is_active = 1 AND si.status >= 1';
-    const params: any[] = [];
+    const params: unknown[] = [];
+    const conditions: string[] = ['si.is_active = 1', 'si.status >= 1'];
 
-    // Add project filter if specified
     if (projectId) {
-      where += ' AND si.fk_projet = ?';
-      params.push(parseInt(projectId));
+      conditions.push('si.fk_projet = ?');
+      params.push(parseInt(projectId, 10));
+    } else if (projectIdsParam) {
+      const ids = projectIdsParam
+        .split(',')
+        .map((id) => parseInt(id.trim(), 10))
+        .filter((id) => !isNaN(id));
+      if (ids.length > 0) {
+        conditions.push(`si.fk_projet IN (${ids.map(() => '?').join(',')})`);
+        params.push(...ids);
+      }
     }
 
-    // Add date filters if specified
     if (from) {
-      where += ' AND si.date_invoice >= ?';
+      conditions.push('si.date_invoice >= ?');
       params.push(from);
     }
     if (to) {
-      where += ' AND si.date_invoice <= ?';
+      conditions.push('si.date_invoice <= ?');
       params.push(to);
     }
 
-    // If category is specified, filter by it
-    let categoryFilter = '';
+    // Category filter using chart of accounts (same logic as report-service.ts)
+    let categoryCondition = '';
     if (category) {
-      if (category === 'Other / Unclassified' || category === 'Unmapped') {
-        categoryFilter = `AND (dam.ots_cost_category IS NULL OR dam.ots_cost_category = ?)`;
-        params.push(category);
+      if (category === 'Other / Unclassified') {
+        categoryCondition = 'AND (pcoa.account_category IS NULL AND scoa.account_category IS NULL)';
       } else {
-        categoryFilter = `AND dam.ots_cost_category = ?`;
+        categoryCondition = 'AND COALESCE(pcoa.account_category, scoa.account_category) = ?';
         params.push(category);
       }
     }
 
-    const lines: any[] = await prisma.$queryRawUnsafe(`
+    const where = conditions.join(' AND ');
+
+    const lines: unknown[] = await prisma.$queryRawUnsafe(`
       SELECT
         sil.product_ref,
         sil.product_label,
         sil.accounting_code,
-        COALESCE(dam.ots_cost_category, 'Other / Unclassified') as cost_category,
+        COALESCE(pcoa.account_category, scoa.account_category, 'Other / Unclassified') as cost_category,
         si.ref as invoice_ref,
         si.date_invoice,
         dt.name as supplier_name,
@@ -71,32 +80,55 @@ export async function GET(req: Request) {
       JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
       LEFT JOIN dolibarr_projects dp ON dp.dolibarr_id = si.fk_projet
-      LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
-      WHERE ${where} ${categoryFilter}
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
+      WHERE ${where} ${categoryCondition}
       ORDER BY sil.total_ht DESC
       LIMIT 500
     `, ...params);
 
-    // Get category summary (only if projectId is specified)
-    let categorySummary: any[] = [];
-    if (projectId) {
+    // Category summary when scoped to project(s)
+    let categorySummary: unknown[] = [];
+    if (projectId || projectIdsParam) {
+      const summaryParams: unknown[] = [];
+      const summaryConditions: string[] = ['si.is_active = 1', 'si.status >= 1'];
+
+      if (projectId) {
+        summaryConditions.push('si.fk_projet = ?');
+        summaryParams.push(parseInt(projectId, 10));
+      } else if (projectIdsParam) {
+        const ids = projectIdsParam
+          .split(',')
+          .map((id) => parseInt(id.trim(), 10))
+          .filter((id) => !isNaN(id));
+        if (ids.length > 0) {
+          summaryConditions.push(`si.fk_projet IN (${ids.map(() => '?').join(',')})`);
+          summaryParams.push(...ids);
+        }
+      }
+
       categorySummary = await prisma.$queryRawUnsafe(`
         SELECT
-          COALESCE(dam.ots_cost_category, 'Other / Unclassified') as category,
+          COALESCE(pcoa.account_category, scoa.account_category, 'Other / Unclassified') as category,
           COUNT(*) as line_count,
           ROUND(SUM(sil.total_ht), 2) as total_ht,
           ROUND(SUM(sil.total_ttc), 2) as total_ttc
         FROM fin_supplier_invoice_lines sil
         JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
-        LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
-        WHERE si.is_active = 1 AND si.status >= 1 AND si.fk_projet = ?
+        LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+        LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+        LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+        LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
+        WHERE ${summaryConditions.join(' AND ')}
         GROUP BY category
         ORDER BY total_ht DESC
-      `, parseInt(projectId));
+      `, ...summaryParams);
     }
 
     return NextResponse.json({
-      lines: lines.map((l: any) => ({
+      lines: (lines as Record<string, unknown>[]).map((l) => ({
         productRef: l.product_ref,
         productLabel: l.product_label,
         accountingCode: l.accounting_code,
@@ -105,21 +137,23 @@ export async function GET(req: Request) {
         dateInvoice: l.date_invoice,
         supplierName: l.supplier_name,
         projectRef: l.project_ref,
-        qty: Number(l.qty || 0),
-        unitPrice: Number(l.unit_price_ht || 0),
-        totalHT: Number(l.total_ht || 0),
-        totalVAT: Number(l.total_tva || 0),
-        totalTTC: Number(l.total_ttc || 0),
-        vatRate: Number(l.vat_rate || 0),
+        qty: Number(l.qty ?? 0),
+        unitPrice: Number(l.unit_price_ht ?? 0),
+        totalHT: Number(l.total_ht ?? 0),
+        totalVAT: Number(l.total_tva ?? 0),
+        totalTTC: Number(l.total_ttc ?? 0),
+        vatRate: Number(l.vat_rate ?? 0),
       })),
-      categorySummary: categorySummary.map((c: any) => ({
+      categorySummary: (categorySummary as Record<string, unknown>[]).map((c) => ({
         category: c.category,
         lineCount: Number(c.line_count),
         totalHT: Number(c.total_ht),
         totalTTC: Number(c.total_ttc),
       })),
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to fetch cost details');
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
