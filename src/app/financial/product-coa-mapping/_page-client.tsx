@@ -100,6 +100,11 @@ function CoaCombobox({ accounts, grouped, value, onChange, placeholder = 'Select
             <span className="font-mono text-xs text-muted-foreground mr-1">{selected.account_code}</span>
             {selected.account_name}
           </span>
+        ) : value ? (
+          <span className="truncate text-amber-600 dark:text-amber-400">
+            <span className="font-mono text-xs mr-1">{value}</span>
+            <span className="text-xs">(not in COA)</span>
+          </span>
         ) : (
           <span className="text-muted-foreground">{placeholder}</span>
         )}
@@ -191,6 +196,7 @@ interface ProductRow {
   coa_account_name_ar: string | null;
   coa_account_category: string | null;
   is_mapped: number;
+  coa_exists: number;
   invoice_line_count: number;
   total_spend_ht: number;
 }
@@ -205,6 +211,7 @@ interface SupplierRow {
   coa_account_name_ar: string | null;
   coa_account_category: string | null;
   is_mapped: number;
+  coa_exists: number;
   invoice_count: number;
   total_spend_ht: number;
   unmapped_product_count: number;
@@ -804,8 +811,11 @@ export default function ProductCoaMappingPage() {
                               {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                             </Button>
                           )}
-                          {p.is_mapped === 1 && !isDirty && (
+                          {p.is_mapped === 1 && p.coa_exists === 1 && !isDirty && (
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          )}
+                          {p.is_mapped === 1 && p.coa_exists === 0 && !isDirty && (
+                            <AlertCircle className="h-4 w-4 text-amber-500" title="Mapped account no longer exists in COA — please re-select" />
                           )}
                           {p.is_mapped === 0 && !isDirty && (
                             <AlertCircle className="h-4 w-4 text-muted-foreground opacity-40" />
@@ -1004,8 +1014,11 @@ export default function ProductCoaMappingPage() {
                               {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                             </Button>
                           )}
-                          {s.is_mapped === 1 && !isDirty && (
+                          {s.is_mapped === 1 && s.coa_exists === 1 && !isDirty && (
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          )}
+                          {s.is_mapped === 1 && s.coa_exists === 0 && !isDirty && (
+                            <AlertCircle className="h-4 w-4 text-amber-500" title="Mapped account no longer exists in COA — please re-select" />
                           )}
                           {s.is_mapped === 0 && !isDirty && (
                             <AlertCircle className="h-4 w-4 text-muted-foreground opacity-40" />
