@@ -196,6 +196,8 @@ export default function NotificationsPage() {
   const [delayedShowAll, setDelayedShowAll] = useState(false);
   const [sendingPush, setSendingPush] = useState<Set<string>>(new Set());
   const [pushedTasks, setPushedTasks] = useState<Set<string>>(new Set());
+  const [sendingNotifyAll, setSendingNotifyAll] = useState(false);
+  const [notifyAllDone, setNotifyAllDone] = useState(false);
 
   // Handle tab and severity parameters from URL
   useEffect(() => {
@@ -250,6 +252,25 @@ export default function NotificationsPage() {
         next.delete(taskId);
         return next;
       });
+    }
+  };
+
+  const handleNotifyAll = async () => {
+    if (sendingNotifyAll || notifyAllDone || delayedTasks.length === 0) return;
+    setSendingNotifyAll(true);
+    try {
+      const res = await fetch('/api/notifications/notify-all-delayed', { method: 'POST' });
+      if (res.ok) {
+        setNotifyAllDone(true);
+        // Mark all visible tasks as pushed
+        setPushedTasks((prev) => {
+          const next = new Set(prev);
+          delayedTasks.forEach((t) => next.add(t.id));
+          return next;
+        });
+      }
+    } finally {
+      setSendingNotifyAll(false);
     }
   };
 
@@ -687,41 +708,55 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <>
-          {/* Scope Toggle - My Tasks / All Tasks (visible to users with tasks.view_all permission) */}
-          {canViewAllTasks && (
-            <div className="flex items-center gap-2 mb-4">
+          {/* Scope Toggle & Notify All */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {canViewAllTasks && (
+              <>
+                <Button
+                  variant={!delayedShowAll ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    if (delayedShowAll) {
+                      setDelayedShowAll(false);
+                      fetchDelayedTasks(true);
+                    }
+                  }}
+                  disabled={loadingDelayedTasks}
+                >
+                  <User className="size-3.5" />
+                  My Tasks
+                </Button>
+                <Button
+                  variant={delayedShowAll ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    if (!delayedShowAll) {
+                      setDelayedShowAll(true);
+                      fetchDelayedTasks(false);
+                    }
+                  }}
+                  disabled={loadingDelayedTasks}
+                >
+                  <Users className="size-3.5" />
+                  All Tasks
+                </Button>
+              </>
+            )}
+            {delayedTasks.length > 0 && (
               <Button
-                variant={!delayedShowAll ? 'default' : 'outline'}
+                variant={notifyAllDone ? 'default' : 'outline'}
                 size="sm"
-                className="gap-1.5"
-                onClick={() => {
-                  if (delayedShowAll) {
-                    setDelayedShowAll(false);
-                    fetchDelayedTasks(true);
-                  }
-                }}
-                disabled={loadingDelayedTasks}
+                className={`gap-1.5 ml-auto ${notifyAllDone ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+                onClick={handleNotifyAll}
+                disabled={sendingNotifyAll || notifyAllDone}
               >
-                <User className="size-3.5" />
-                My Tasks
+                <Bell className="size-3.5" />
+                {sendingNotifyAll ? 'Sending…' : notifyAllDone ? 'All Notified' : 'Notify All'}
               </Button>
-              <Button
-                variant={delayedShowAll ? 'default' : 'outline'}
-                size="sm"
-                className="gap-1.5"
-                onClick={() => {
-                  if (!delayedShowAll) {
-                    setDelayedShowAll(true);
-                    fetchDelayedTasks(false);
-                  }
-                }}
-                disabled={loadingDelayedTasks}
-              >
-                <Users className="size-3.5" />
-                All Tasks
-              </Button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Stats Cards - Clickable to filter */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

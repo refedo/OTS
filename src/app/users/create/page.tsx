@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { checkPermission } from '@/lib/permission-checker';
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Create User',
@@ -21,6 +22,11 @@ export default async function CreateUserPage() {
 
   if (!session) {
     redirect('/login');
+  }
+
+  const canCreate = await checkPermission('users.create');
+  if (!canCreate) {
+    redirect('/unauthorized?from=/users/create');
   }
 
   // Fetch roles, departments, and potential managers for the form

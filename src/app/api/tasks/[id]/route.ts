@@ -222,6 +222,16 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden: No permission to edit tasks' }, { status: 403 });
   }
 
+  // Changing the assignee requires tasks.assign (unless admin or edit_all)
+  if (
+    parsed.data.assignedToId !== undefined &&
+    parsed.data.assignedToId !== task.assignedToId &&
+    !canEditAll && !isAdmin &&
+    !permissions.includes('tasks.assign')
+  ) {
+    return NextResponse.json({ error: 'Forbidden: tasks.assign permission required to reassign tasks' }, { status: 403 });
+  }
+
   // Admins and users with edit_all can update everything
   // Assigned users, creators, and requesters can also update their tasks
   // Others are restricted to status updates only
@@ -357,25 +367,31 @@ export async function PATCH(
     },
   });
 
-  // Send approval request to requester when task is completed
+  // Send approval request to requester + creator when task is completed
   if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
     try {
-      const requesterId = (updatedTask as any).requesterId || task.createdById;
-      // Don't notify if the person completing is also the requester
-      if (requesterId && requesterId !== session.sub) {
-        await NotificationService.createNotification({
-          userId: requesterId,
-          type: 'APPROVAL_REQUIRED',
-          title: 'Task Awaiting Your Approval',
-          message: `${session.name} completed the task: "${updatedTask.title}" — please approve or reject`,
-          relatedEntityType: 'task',
-          relatedEntityId: updatedTask.id,
-          metadata: {
-            taskTitle: updatedTask.title,
-            completedBy: session.name,
-            projectName: updatedTask.project?.name,
-          },
-        });
+      const completionNote = parsed.data.remark || null;
+      const noteText = completionNote ? ` — Note: "${completionNote}"` : '';
+      const notifyIds = new Set<string>();
+      if (task.requesterId) notifyIds.add(task.requesterId);
+      notifyIds.add(task.createdById);
+      for (const recipientId of notifyIds) {
+        if (recipientId !== session.sub) {
+          await NotificationService.createNotification({
+            userId: recipientId,
+            type: 'APPROVAL_REQUIRED',
+            title: 'Task Awaiting Your Approval',
+            message: `${session.name} completed the task: "${updatedTask.title}"${noteText} — please approve or reject`,
+            relatedEntityType: 'task',
+            relatedEntityId: updatedTask.id,
+            metadata: {
+              taskTitle: updatedTask.title,
+              completedBy: session.name,
+              completionNote,
+              projectName: updatedTask.project?.name,
+            },
+          });
+        }
       }
     } catch (notifError) {
       logger.error({ error: notifError }, 'Failed to send task completion notification');

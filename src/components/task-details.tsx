@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 import { getMainActivityLabel, getSubActivityLabel } from '@/lib/activity-constants';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -100,6 +107,13 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [canUndo, setCanUndo] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completeNote, setCompleteNote] = useState('');
+  const [showClarificationDialog, setShowClarificationDialog] = useState(false);
+  const [clarificationMessage, setClarificationMessage] = useState('');
+  const [showExtensionDialog, setShowExtensionDialog] = useState(false);
+  const [extensionMessage, setExtensionMessage] = useState('');
+  const [sendingRequest, setSendingRequest] = useState(false);
   const [attachments, setAttachments] = useState<TaskAttachment[]>(task.attachments || []);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
 
@@ -194,13 +208,15 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     return new Date(dueDate) < new Date();
   };
 
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleStatusUpdate = async (newStatus: string, remark?: string) => {
     setUpdating(true);
     try {
+      const body: Record<string, unknown> = { status: newStatus };
+      if (remark) body.remark = remark;
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) throw new Error('Failed to update status');
@@ -210,6 +226,35 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
       alert('Failed to update task status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleConfirmComplete = async () => {
+    await handleStatusUpdate('Completed', completeNote.trim() || undefined);
+    setShowCompleteDialog(false);
+    setCompleteNote('');
+  };
+
+  const handleSendRequest = async (type: 'clarification' | 'time_extension', message: string) => {
+    setSendingRequest(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, message }),
+      });
+      if (!response.ok) throw new Error('Failed to send request');
+      if (type === 'clarification') {
+        setShowClarificationDialog(false);
+        setClarificationMessage('');
+      } else {
+        setShowExtensionDialog(false);
+        setExtensionMessage('');
+      }
+    } catch {
+      alert('Failed to send request');
+    } finally {
+      setSendingRequest(false);
     }
   };
 
@@ -408,6 +453,23 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                 Delete
               </Button>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowClarificationDialog(true)}>
+                  <MessageCircleQuestion className="size-4 mr-2" />
+                  Ask for Clarification
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowExtensionDialog(true)}>
+                  <Clock className="size-4 mr-2" />
+                  Request Time Extension
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -559,7 +621,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                       )}
                       {task.status === 'In Progress' && (
                         <Button
-                          onClick={() => handleStatusUpdate('Completed')}
+                          onClick={() => setShowCompleteDialog(true)}
                           disabled={updating}
                           className="flex-1 bg-green-600 hover:bg-green-700"
                         >
@@ -872,6 +934,122 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
           </CardContent>
         </Card>
       </div>
+
+      {/* Completion Dialog */}
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <CheckCircle2 className="size-5" />
+              Mark Task as Completed
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Describe how you completed this task. The requester and creator will be notified.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="complete-note">Completion note <span className="text-muted-foreground">(optional)</span></Label>
+              <Textarea
+                id="complete-note"
+                placeholder="How did you complete this task?"
+                value={completeNote}
+                onChange={(e) => setCompleteNote(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCompleteDialog(false); setCompleteNote(''); }} disabled={updating}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmComplete}
+              disabled={updating}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <CheckCircle2 className="size-4 mr-2" />
+              {updating ? 'Saving…' : 'Confirm Completion'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clarification Dialog */}
+      <Dialog open={showClarificationDialog} onOpenChange={setShowClarificationDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircleQuestion className="size-5" />
+              Ask for Clarification
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Your message will be sent to the task creator as a push notification.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="clarification-msg">Message</Label>
+              <Textarea
+                id="clarification-msg"
+                placeholder="What do you need clarification on?"
+                value={clarificationMessage}
+                onChange={(e) => setClarificationMessage(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowClarificationDialog(false); setClarificationMessage(''); }} disabled={sendingRequest}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleSendRequest('clarification', clarificationMessage)}
+              disabled={sendingRequest || !clarificationMessage.trim()}
+            >
+              {sendingRequest ? 'Sending…' : 'Send Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Time Extension Dialog */}
+      <Dialog open={showExtensionDialog} onOpenChange={setShowExtensionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="size-5" />
+              Request Time Extension
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Your request will be sent to the task creator as a push notification.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="extension-msg">Message</Label>
+              <Textarea
+                id="extension-msg"
+                placeholder="Why do you need more time? What extension are you requesting?"
+                value={extensionMessage}
+                onChange={(e) => setExtensionMessage(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowExtensionDialog(false); setExtensionMessage(''); }} disabled={sendingRequest}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => handleSendRequest('time_extension', extensionMessage)}
+              disabled={sendingRequest || !extensionMessage.trim()}
+            >
+              {sendingRequest ? 'Sending…' : 'Send Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rejection Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>

@@ -30,8 +30,11 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search') || '';
   const mapped = searchParams.get('mapped') || 'all';
   const page = Math.max(0, parseInt(searchParams.get('page') || '0', 10));
-  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
-  const offset = page * limit;
+  const limitRaw = parseInt(searchParams.get('limit') || '50', 10);
+  const showAll = limitRaw === 0;
+  const limit = showAll ? 0 : Math.min(500, Math.max(1, limitRaw));
+  const effectiveLimit = showAll ? 99999 : limit;
+  const offset = showAll ? 0 : page * limit;
 
   try {
     await ensureTable();
@@ -78,7 +81,7 @@ export async function GET(req: NextRequest) {
       WHERE 1=1 ${searchFilter} ${mappedFilter}
       ORDER BY s.total_ht DESC
       LIMIT ? OFFSET ?
-    `, ...searchArgs, limit, offset);
+    `, ...searchArgs, effectiveLimit, offset);
 
     const suppliers = suppliersRaw.map((row: any) => ({
       ...row,
@@ -124,7 +127,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       suppliers,
-      pagination: { page, limit, total },
+      pagination: { page: showAll ? 0 : page, limit, total },
       stats: {
         totalSuppliers: totalS,
         mappedSuppliers: mappedS,

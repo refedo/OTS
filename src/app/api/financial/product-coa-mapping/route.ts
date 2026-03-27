@@ -30,17 +30,20 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search') || '';
   const mapped = searchParams.get('mapped') || 'all'; // 'yes' | 'no' | 'all'
   const page = Math.max(0, parseInt(searchParams.get('page') || '0', 10));
-  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
-  const offset = page * limit;
+  const limitRaw = parseInt(searchParams.get('limit') || '50', 10);
+  const showAll = limitRaw === 0;
+  const limit = showAll ? 0 : Math.min(500, Math.max(1, limitRaw));
+  const effectiveLimit = showAll ? 99999 : limit;
+  const offset = showAll ? 0 : page * limit;
 
   try {
     await ensureTable();
 
-    const searchFilter = search ? `AND (p.ref LIKE ? OR p.label LIKE ?)` : '';
+    const searchFilter = search ? `AND (p.ref LIKE ? OR p.label LIKE ? OR pm.coa_account_code LIKE ? OR coa.account_name LIKE ?)` : '';
     const mappedFilter =
       mapped === 'yes' ? 'AND pm.id IS NOT NULL' :
       mapped === 'no'  ? 'AND pm.id IS NULL' : '';
-    const searchArgs = search ? [`%${search}%`, `%${search}%`] : [];
+    const searchArgs = search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : [];
 
     // Derive distinct products from invoice lines (source of truth for what exists in invoices)
     const productsRaw: unknown[] = await prisma.$queryRawUnsafe(`
@@ -75,7 +78,7 @@ export async function GET(req: NextRequest) {
       WHERE 1=1 ${searchFilter} ${mappedFilter}
       ORDER BY p.total_ht DESC, p.ref ASC
       LIMIT ? OFFSET ?
-    `, ...searchArgs, limit, offset);
+    `, ...searchArgs, effectiveLimit, offset);
 
     const products = productsRaw.map((row: any) => ({
       ...row,
@@ -100,6 +103,7 @@ export async function GET(req: NextRequest) {
         GROUP BY sil.fk_product, sil.product_ref
       ) p
       LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.fk_product
+      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = pm.coa_account_code
       WHERE 1=1 ${searchFilter} ${mappedFilter}
     `, ...searchArgs);
 
@@ -129,7 +133,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       products,
-      pagination: { page, limit, total },
+      pagination: { page: showAll ? 0 : page, limit, total },
       stats: {
         totalProducts: totalP,
         mappedProducts: mappedP,

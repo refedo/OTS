@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.6.1] - 2026-03-27
+
+### 🔧 LCR Alias Display Fix
+
+**Patch Release:** Fixes the LCR Alias Management page (`/supply-chain/lcr/aliases`) where the "Maps To" column showed raw UUIDs / numeric Dolibarr IDs instead of the actual supplier name or building name.
+
+#### Fixed
+
+- **Supplier Mappings table** — "Maps To" column now shows `{SupplierName} ({SupplierCode})` resolved from the already-loaded supplier list instead of the raw numeric Dolibarr ID.
+- **Building Mappings table** — "Maps To" column now shows `{ProjectNumber} — {Designation} · {BuildingName}` resolved from the already-loaded buildings list instead of the raw UUID.
+- Column header renamed from "Maps To (Entity ID)" → "Maps To" in both tables.
+
+---
+
+## [16.6.0] - 2026-03-27
+
+### ✅ Task UX & Access Control Enhancements
+
+**Minor Release:** Adds a completion dialogue requiring assignees to describe how they completed a task (notifying both the requester and creator), a 3-dots menu on task details for in-task clarification and time-extension requests, a dedicated unauthorized page with push-notification access requests to admins, and a bulk "Notify All" button in the Notification Center's Delayed Tasks tab.
+
+#### Added
+
+- **Task completion dialogue** — Clicking "Mark as Completed" now opens a dialog asking the assignee to describe how they completed the task. The optional note is stored in the `remark` field and included in the completion notification sent to the requester and task creator.
+- **Task 3-dots menu** — A `MoreVertical` dropdown button on the task detail page provides two actions: "Ask for Clarification" and "Request Time Extension". Each opens a dialog with a message textarea and sends a push notification to the task creator (and requester if set).
+- **`POST /api/tasks/[id]/request`** — New endpoint handling `clarification` and `time_extension` request types; sends in-app/push notifications to the task's creator and requester.
+- **Unauthorized page (`/unauthorized`)** — When users are denied access to a permission-guarded page they are redirected to `/unauthorized?from=<path>` instead of silently back to the dashboard. The page shows which path was blocked and allows the user to send an access request with an optional note.
+- **`POST /api/system/request-access`** — Sends a push notification to all admin users (`isAdmin = true`) on behalf of the requesting user.
+- **Bulk Notify All in Delayed Tasks** — The Notification Center's Delayed Tasks tab now has a "Notify All" button that sends a single overdue push notification to every assignee with a delayed task in one click instead of pressing Push per task.
+- **`POST /api/notifications/notify-all-delayed`** — Fetches all non-completed overdue tasks with an assignee and fires `DEADLINE_WARNING` notifications in parallel.
+
+#### Changed
+
+- All RBAC-guarded page redirects (`/roles`, `/roles/create`, `/roles/[id]/permissions`, `/users`, `/users/create`, `/users/[id]/edit`) now redirect to `/unauthorized?from=<path>` instead of back to `/dashboard` or the parent list page.
+- Completion notification now notifies **both** the requester and the creator (previously only the requester), deduplicated via a `Set`.
+
+---
+
+## [16.5.0] - 2026-03-27
+
+### 🔒 PBAC Enforcement & Cost Classification Pagination
+
+**Minor Release:** Enforces permission-based access control on all user and role management pages (previously bypassed), and adds a configurable page-size selector (50 / 100 / 200 / 500 / All) to the Cost Classification Mapping screen.
+
+#### Added
+
+- **Pagination page-size selector** — Cost Classification Mapping (Products and Suppliers tabs) now has a page-size dropdown (50 / 100 / 200 / 500 / All) in each tab's toolbar. Selecting "All" fetches every row in one request with no pagination controls shown.
+- **API support for larger page sizes** — `GET /api/financial/product-coa-mapping` and `GET /api/financial/supplier-coa-default` now accept `limit` values up to 500. Passing `limit=0` returns all records (previously capped at 200).
+
+#### Fixed
+
+- **PBAC (Permission-Based Access Control) enforcement on Role pages** — `/roles`, `/roles/create`, and `/roles/[id]/permissions` now enforce `roles.view`, `roles.create`, and `roles.manage_permissions` checks respectively. These checks were previously commented out (marked "temporarily disabled for initial setup") allowing any authenticated user, including Operator, to view and manage roles.
+- **PBAC enforcement on User pages** — `/users`, `/users/create`, and `/users/[id]/edit` now enforce `users.view`, `users.create`, and `users.edit` permission checks. These pages had no access control beyond session verification, so any authenticated user could reach them.
+
+#### Changed
+
+- Operators and other restricted roles are now properly redirected to `/dashboard` when they attempt to access user or role management pages without the required permissions.
+
+---
+
 ## [16.4.1] - 2026-03-26
 
 ### 🔧 Financial Report Fixes & COA Account Breakdown

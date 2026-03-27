@@ -70,6 +70,20 @@ export default function AliasManagementPage() {
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const [autoMapping, setAutoMapping] = useState(false);
 
+  const resolveSupplierName = useCallback((entityId: string): string => {
+    const id = parseInt(entityId, 10);
+    const s = suppliers.find((sup) => sup.dolibarr_id === id);
+    if (!s) return entityId;
+    return s.code_supplier ? `${s.name} (${s.code_supplier})` : s.name;
+  }, [suppliers]);
+
+  const resolveBuildingName = useCallback((entityId: string): string => {
+    const b = buildings.find((bld) => bld.id === entityId);
+    if (!b) return entityId;
+    const proj = b.project?.projectNumber ? `${b.project.projectNumber} — ` : '';
+    return `${proj}${b.designation} · ${b.name}`;
+  }, [buildings]);
+
   // Helper function for fuzzy matching (any word in any order)
   const fuzzyMatch = useCallback((text: string, search: string): boolean => {
     if (!search) return true;
@@ -502,7 +516,7 @@ export default function AliasManagementPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left px-3 py-2 font-medium">Alias Text</th>
-                    <th className="text-left px-3 py-2 font-medium">Maps To (Entity ID)</th>
+                    <th className="text-left px-3 py-2 font-medium">Maps To</th>
                     <th className="text-left px-3 py-2 font-medium">Mapped By</th>
                     <th className="text-left px-3 py-2 font-medium">Date</th>
                     <th className="px-3 py-2 w-16"></th>
@@ -514,7 +528,7 @@ export default function AliasManagementPage() {
                     return (
                       <tr key={alias.id} className="border-b">
                         <td className="px-3 py-2.5 font-medium">{alias.aliasText}</td>
-                        <td className="px-3 py-2.5 font-mono text-xs">{alias.entityId}</td>
+                        <td className="px-3 py-2.5">{resolveSupplierName(alias.entityId)}</td>
                         <td className="px-3 py-2.5">{alias.createdBy?.name ?? '—'}</td>
                         <td className="px-3 py-2.5 text-muted-foreground">
                           {new Date(alias.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -572,7 +586,7 @@ export default function AliasManagementPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left px-3 py-2 font-medium">Alias Text</th>
-                    <th className="text-left px-3 py-2 font-medium">Maps To (Entity ID)</th>
+                    <th className="text-left px-3 py-2 font-medium">Maps To</th>
                     <th className="text-left px-3 py-2 font-medium">Mapped By</th>
                     <th className="text-left px-3 py-2 font-medium">Date</th>
                     <th className="px-3 py-2 w-16"></th>
@@ -584,7 +598,7 @@ export default function AliasManagementPage() {
                     return (
                       <tr key={alias.id} className="border-b">
                         <td className="px-3 py-2.5 font-medium">{alias.aliasText}</td>
-                        <td className="px-3 py-2.5 font-mono text-xs">{alias.entityId}</td>
+                        <td className="px-3 py-2.5">{resolveBuildingName(alias.entityId)}</td>
                         <td className="px-3 py-2.5">{alias.createdBy?.name ?? '—'}</td>
                         <td className="px-3 py-2.5 text-muted-foreground">
                           {new Date(alias.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}

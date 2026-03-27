@@ -23,10 +23,119 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '16.6.1',
+    date: 'March 27, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🔧 LCR Alias Display Fix',
+    highlights: [
+      'Supplier Mappings table now shows supplier name and code instead of raw numeric Dolibarr ID',
+      'Building Mappings table now shows project number, designation and building name instead of raw UUID',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'LCR Aliases: "Maps To" column in Supplier Mappings table showed raw Dolibarr IDs — now resolved to supplier name (code)',
+        'LCR Aliases: "Maps To" column in Building Mappings table showed raw UUIDs — now resolved to project number + designation + name',
+      ],
+      changed: [
+        'Column header "Maps To (Entity ID)" renamed to "Maps To" in both supplier and building alias tables',
+      ],
+    },
+  },
+  {
+    version: '16.6.0',
+    date: 'March 27, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '✅ Task UX & Access Control Enhancements',
+    highlights: [
+      'Completion dialogue prompts the assignee to describe how they finished the task; note is stored and sent to the requester and creator',
+      '3-dots menu on task details for "Ask for Clarification" and "Request Time Extension" — each sends a push notification to the task creator',
+      'Unauthorized page with one-click access request: sends a push notification to all admin users instead of a silent redirect',
+      'Bulk "Notify All" button in Notification Center Delayed Tasks tab — pushes overdue reminders to all assignees in one click',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Task Completion Dialogue',
+          items: [
+            '"Mark as Completed" now opens a dialog asking how the task was completed',
+            'Completion note is stored in the remark field and included in the approval-request notification',
+            'Both the requester and the task creator are notified (deduplicated)',
+          ],
+        },
+        {
+          title: 'Task 3-Dots Menu',
+          items: [
+            'MoreVertical dropdown on task detail page',
+            '"Ask for Clarification" — opens a dialog and sends push notification to creator/requester',
+            '"Request Time Extension" — opens a dialog and sends push notification to creator/requester',
+            'New POST /api/tasks/[id]/request endpoint handling clarification and time_extension types',
+          ],
+        },
+        {
+          title: 'Unauthorized Page',
+          items: [
+            'New /unauthorized page with the blocked path displayed',
+            'Optional message textarea for the user to explain why they need access',
+            '"Send Access Request" button POSTs to /api/system/request-access',
+            'New POST /api/system/request-access sends push notifications to all admin users',
+          ],
+        },
+        {
+          title: 'Bulk Notify All — Delayed Tasks',
+          items: [
+            '"Notify All" button in Notification Center Delayed Tasks tab header',
+            'Sends DEADLINE_WARNING notifications to every assignee with an overdue task',
+            'New POST /api/notifications/notify-all-delayed endpoint',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [
+        'All RBAC-guarded page redirects now point to /unauthorized?from=<path> instead of silently redirecting to /dashboard or the parent list',
+        'Task completion notification now notifies both requester and creator (previously only the requester)',
+      ],
+    },
+  },
+  {
+    version: '16.5.0',
+    date: 'March 27, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '🔒 PBAC Enforcement & Cost Classification Pagination',
+    highlights: [
+      'Permission checks now enforced on all role and user management pages — Operator and other restricted roles can no longer access /users or /roles',
+      'Cost Classification Mapping: page-size selector (50 / 100 / 200 / 500 / All) added to Products and Suppliers tabs',
+      'Selecting "All" loads every row in a single request with no pagination controls',
+      'API limit cap raised from 200 to 500; limit=0 returns all records',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Pagination Page-Size Selector',
+          items: [
+            'Dropdown in Products tab toolbar: 50, 100, 200, 500, All',
+            'Dropdown in Suppliers tab toolbar: 50, 100, 200, 500, All',
+            'Selecting "All" fetches all rows (limit=0) and hides prev/next controls',
+            'API endpoints accept limit up to 500; limit=0 returns full dataset',
+          ],
+        },
+      ],
+      fixed: [
+        'PBAC: /roles, /roles/create, /roles/[id]/permissions now enforce roles.view / roles.create / roles.manage_permissions — previously all checks were commented out',
+        'PBAC: /users, /users/create, /users/[id]/edit now enforce users.view / users.create / users.edit — previously no access control beyond session',
+        'Operator and other restricted roles are redirected to /dashboard when accessing user or role management pages without the required permissions',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '16.4.1',
     date: 'March 26, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔧 Financial Report Fixes & COA Account Breakdown',
     highlights: [
       'New "Cost Structure by Account Number" table in Project Analysis — see spend by individual COA account code (raw material, paint, sub-contracting, etc.)',

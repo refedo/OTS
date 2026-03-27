@@ -223,7 +223,6 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    console.log('Received task data:', body);
     
     const parsed = createSchema.safeParse(body);
     
@@ -240,6 +239,14 @@ export async function POST(req: Request) {
     };
 
     if (parsed.data.description) taskData.description = parsed.data.description;
+
+    // Assigning to someone else requires tasks.assign (self-assignment is always allowed)
+    if (parsed.data.assignedToId && parsed.data.assignedToId !== session.sub) {
+      const isAdmin = await prisma.user.findUnique({ where: { id: session.sub }, select: { isAdmin: true } });
+      if (!isAdmin?.isAdmin && !userPermissions.includes('tasks.assign') && !userPermissions.includes('tasks.manage') && !userPermissions.includes('tasks.edit_all')) {
+        return NextResponse.json({ error: 'Forbidden - tasks.assign permission required to assign tasks to others' }, { status: 403 });
+      }
+    }
     if (parsed.data.assignedToId) taskData.assignedToId = parsed.data.assignedToId;
     if (parsed.data.requesterId) taskData.requesterId = parsed.data.requesterId;
     if (parsed.data.projectId) taskData.projectId = parsed.data.projectId;
