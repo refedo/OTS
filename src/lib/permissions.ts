@@ -288,6 +288,8 @@ export const PERMISSIONS: PermissionCategory[] = [
     permissions: [
       { id: 'settings.view', name: 'View Settings', description: 'View system settings', category: 'settings' },
       { id: 'settings.edit', name: 'Edit Settings', description: 'Modify system settings', category: 'settings' },
+      { id: 'settings.view_cron', name: 'View Cron Jobs', description: 'View scheduled cron job definitions and status', category: 'settings' },
+      { id: 'settings.manage_cron', name: 'Manage Cron Jobs', description: 'Manually trigger cron jobs from the settings UI', category: 'settings' },
     ],
   },
   {
@@ -616,5 +618,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'timeline.events',
     // Settings
     'settings.view',
+    'settings.view_cron',
   ],
 };

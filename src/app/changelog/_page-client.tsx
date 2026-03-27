@@ -23,10 +23,61 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '16.6.1',
+    version: '16.6.2',
     date: 'March 27, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '⚙️ Cron Jobs Management UI',
+    highlights: [
+      'New /settings/cron-jobs page lists all 5 registered background tasks with schedule, status, and env var details',
+      'Admin-triggered "Run Now" button executes any HTTP-accessible cron job server-side via CRON_SECRET',
+      'Two new PBAC permissions: settings.view_cron (Manager+) and settings.manage_cron (Admin)',
+      'Central cron-registry.ts defines all job definitions used by both the API and the UI',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Cron Jobs Settings Page',
+          items: [
+            '/settings/cron-jobs shows LCR Sync, Dolibarr Sync, Financial Sync, Deadline Reminders, Early Warning Engine',
+            'Category badge (Sync / Notifications / Analysis), schedule expression and human-readable description',
+            'Enabled/Disabled badge driven by environment variables read at page load',
+            'Environment variable names and current values displayed per job',
+            '"Run Now" button triggers the HTTP endpoint server-side and shows HTTP status + elapsed ms',
+            'Summary stats: Total / Enabled / Disabled / No Endpoint',
+          ],
+        },
+        {
+          title: 'New API Routes',
+          items: [
+            'GET /api/system/cron-jobs — returns enriched job list (requires settings.view_cron)',
+            'POST /api/system/cron-jobs/trigger — fires any HTTP cron endpoint via CRON_SECRET (requires settings.manage_cron)',
+          ],
+        },
+        {
+          title: 'New Permissions',
+          items: [
+            'settings.view_cron — grants view access; assigned to Admin and Manager',
+            'settings.manage_cron — grants Run Now trigger; Admin only',
+            '/settings/cron-jobs added to navigation-permissions.ts and sidebar (hidden without settings.view_cron)',
+          ],
+        },
+        {
+          title: 'Cron Registry',
+          items: [
+            'src/lib/cron-registry.ts: central CronJobDef[] with isCronEnabled() reading env vars',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '16.6.1',
+    date: 'March 27, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '🔧 LCR Alias Display Fix',
     highlights: [
       'Supplier Mappings table now shows supplier name and code instead of raw numeric Dolibarr ID',
