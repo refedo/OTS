@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.6.2] - 2026-03-27
+
+### ⚙️ Cron Jobs Management UI
+
+**Patch Release:** Adds a new Settings page (`/settings/cron-jobs`) that lists all registered background cron jobs with their schedule, enabled status, environment variable configuration, and a "Run Now" button for admin-triggered manual execution.
+
+#### Added
+
+- **`/settings/cron-jobs` page** — Shows all 5 registered cron jobs (LCR Sync, Dolibarr Sync, Financial Sync, Deadline Reminders, Early Warning Engine) with category badge, schedule expression, enabled/disabled status, environment variable info, and last-run result.
+- **`src/lib/cron-registry.ts`** — Central registry of `CronJobDef` objects, with `isCronEnabled()` helper reading env vars at runtime.
+- **`GET /api/system/cron-jobs`** — Returns enriched job list (requires `settings.view_cron`).
+- **`POST /api/system/cron-jobs/trigger`** — Triggers any HTTP-accessible cron job server-side using `CRON_SECRET` (requires `settings.manage_cron`); returns HTTP status, elapsed ms, and job result.
+- **`settings.view_cron`** permission — Grants access to view the cron jobs page; assigned to Admin and Manager roles.
+- **`settings.manage_cron`** permission — Grants the "Run Now" trigger capability; Admin only.
+- **Sidebar entry** — "Cron Jobs" added to the Settings navigation group (hidden from roles without `settings.view_cron`).
+- **Navigation permission** — `/settings/cron-jobs` requires `settings.view_cron`.
+- **Page PBAC guard** — Server-side `checkPermission('settings.view_cron')` redirects to `/unauthorized?from=/settings/cron-jobs` if not permitted.
+
+---
+
 ## [16.6.1] - 2026-03-27
 
 ### 🔧 LCR Alias Display Fix

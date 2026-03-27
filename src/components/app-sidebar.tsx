@@ -278,6 +278,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
       { name: 'Backup Management', href: '/settings/backups', icon: Database },
+      { name: 'Cron Jobs', href: '/settings/cron-jobs', icon: Clock },
       { name: 'About OTS™', href: '/settings/about', icon: Info },
       { name: 'Version Management', href: '/settings/version', icon: GitBranch },
       { name: 'Changelog', href: '/changelog', icon: FileCode },
