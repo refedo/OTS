@@ -85,44 +85,54 @@ npx prisma migrate status
 
 Based on the error, here's what I recommend:
 
-### Step 1: Check Migration Status
+### Step 1: Mark the failed migration as rolled back
+
+On the production server, run:
+
 ```bash
 cd /var/www/hexasteel.sa/ots
-npx prisma migrate status
+npx prisma migrate resolve --rolled-back 20260327000000_enhance_system_events
 ```
 
-This will show you which migrations have been applied and which are pending.
+### Step 2: Apply the compatibility fix
 
-### Step 2: Use DB Push (Safest for now)
+Run the MySQL 5.7+ compatible version of the migration:
+
 ```bash
-# This will sync your database with the schema without using migrations
-npx prisma db push
-
-# If it asks about data loss, review the changes carefully
-# If you're sure, use:
-npx prisma db push --accept-data-loss
+mysql -u root -p ots_db < prisma/migrations/manual/fix_failed_enhance_system_events.sql
 ```
 
-### Step 3: Regenerate Client
+Or if you don't have root access:
+
 ```bash
-npx prisma generate
+mysql -u ots_user -p ots_db < prisma/migrations/manual/fix_failed_enhance_system_events.sql
 ```
 
-### Step 4: Rebuild and Restart
+This script uses prepared statements to check for existing columns/indexes before adding them, making it compatible with MySQL 5.7+.
+
+### Step 3: Mark the migration as applied
+
 ```bash
+npx prisma migrate resolve --applied 20260327000000_enhance_system_events
+```
+
+### Step 4: Continue with deployment
+
+```bash
+npx prisma migrate deploy
 npm run build
-pm2 restart all
+pm2 restart ots
 ```
 
-## Alternative: Fresh Migration State
+## Alternative: One-liner fix
 
-If the database is relatively new or you can afford to reset migration history:
+If you have the fix script on the server:
 
 ```bash
-# 1. Baseline the current state
-npx prisma migrate resolve --applied 20251125193805_add_business_planning_module
-
-# 2. Apply any remaining migrations
+cd /var/www/hexasteel.sa/ots && \
+npx prisma migrate resolve --rolled-back 20260327000000_enhance_system_events && \
+mysql -u root -p ots_db < prisma/migrations/manual/fix_failed_enhance_system_events.sql && \
+npx prisma migrate resolve --applied 20260327000000_enhance_system_events && \
 npx prisma migrate deploy
 ```
 
