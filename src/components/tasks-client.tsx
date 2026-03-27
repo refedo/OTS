@@ -19,9 +19,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip, BarChart3 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip, BarChart3, MessageCircleQuestion, Clock } from 'lucide-react';
 import { TasksGanttView } from '@/components/tasks-gantt-view';
 import { uploadPendingAttachments, type PendingFile } from '@/components/task-attachment-uploader';
 import Link from 'next/link';
@@ -219,6 +227,35 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     task: Task | null;
     reason: string;
   }>({ open: false, taskId: null, task: null, reason: '' });
+
+  const [taskRequestDialog, setTaskRequestDialog] = useState<{
+    open: boolean;
+    type: 'clarification' | 'time_extension';
+    taskId: string;
+    taskTitle: string;
+    message: string;
+    sending: boolean;
+  }>({ open: false, type: 'clarification', taskId: '', taskTitle: '', message: '', sending: false });
+
+  const handleOpenTaskRequest = (task: Task, type: 'clarification' | 'time_extension') => {
+    setTaskRequestDialog({ open: true, type, taskId: task.id, taskTitle: task.title, message: '', sending: false });
+  };
+
+  const handleSendTaskRequest = async () => {
+    if (!taskRequestDialog.message.trim()) return;
+    setTaskRequestDialog((prev) => ({ ...prev, sending: true }));
+    try {
+      const res = await fetch(`/api/tasks/${taskRequestDialog.taskId}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: taskRequestDialog.type, message: taskRequestDialog.message }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setTaskRequestDialog((prev) => ({ ...prev, open: false, message: '', sending: false }));
+    } catch {
+      setTaskRequestDialog((prev) => ({ ...prev, sending: false }));
+    }
+  };
 
   const canCreateTask = userPermissions.includes('tasks.create');
   const canEditTask = userPermissions.includes('tasks.edit') || userPermissions.includes('tasks.create');
@@ -2415,6 +2452,15 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                     Delete
                                   </DropdownMenuItem>
                                 )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'clarification')}>
+                                  <MessageCircleQuestion className="size-4" />
+                                  Ask for Clarification
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'time_extension')}>
+                                  <Clock className="size-4" />
+                                  Request Time Extension
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -2484,6 +2530,15 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                             Delete
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'clarification')}>
+                          <MessageCircleQuestion className="size-4" />
+                          Ask for Clarification
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'time_extension')}>
+                          <Clock className="size-4" />
+                          Request Time Extension
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -2907,6 +2962,15 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                     Delete
                                   </DropdownMenuItem>
                                 )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'clarification')}>
+                                  <MessageCircleQuestion className="size-4" />
+                                  Ask for Clarification
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'time_extension')}>
+                                  <Clock className="size-4" />
+                                  Request Time Extension
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           )}
@@ -3304,6 +3368,15 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                                 Delete
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'clarification')}>
+                              <MessageCircleQuestion className="mr-2 h-4 w-4" />
+                              Ask for Clarification
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenTaskRequest(task, 'time_extension')}>
+                              <Clock className="mr-2 h-4 w-4" />
+                              Request Time Extension
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -3498,7 +3571,58 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
         )}
       </div>
       <AlertDialog />
-      
+
+      {/* Task Request Dialog (Clarification / Time Extension) */}
+      <Dialog
+        open={taskRequestDialog.open}
+        onOpenChange={(open) => !taskRequestDialog.sending && setTaskRequestDialog((prev) => ({ ...prev, open }))}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {taskRequestDialog.type === 'clarification' ? (
+                <><MessageCircleQuestion className="size-5" />Ask for Clarification</>
+              ) : (
+                <><Clock className="size-5" />Request Time Extension</>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {taskRequestDialog.type === 'clarification'
+                ? 'Your message will be sent to the task creator and requester as a push notification.'
+                : 'Your request will be sent to the task creator and requester as a push notification.'}
+            </p>
+            <p className="text-sm font-medium truncate">{taskRequestDialog.taskTitle}</p>
+            <Textarea
+              placeholder={
+                taskRequestDialog.type === 'clarification'
+                  ? 'What do you need clarification on?'
+                  : 'Why do you need more time? What extension are you requesting?'
+              }
+              value={taskRequestDialog.message}
+              onChange={(e) => setTaskRequestDialog((prev) => ({ ...prev, message: e.target.value }))}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setTaskRequestDialog((prev) => ({ ...prev, open: false }))}
+              disabled={taskRequestDialog.sending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendTaskRequest}
+              disabled={taskRequestDialog.sending || !taskRequestDialog.message.trim()}
+            >
+              {taskRequestDialog.sending ? <><Loader2 className="size-4 mr-2 animate-spin" />Sending…</> : 'Send Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Rejection Dialog */}
       {rejectionDialog.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
