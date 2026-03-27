@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
+import { systemEventService } from '@/services/system-events.service';
 
 // Process types in order of production flow
 const PROCESS_ORDER = [
@@ -247,6 +248,17 @@ export async function PATCH(
     if (body.status) {
       WorkUnitSyncService.syncWorkOrderStatusUpdate(id, body.status).catch((err) => {
         console.error('WorkUnit status sync failed:', err);
+      });
+      systemEventService.logProduction('WORK_ORDER_STATUS_CHANGED', id, session.sub, {
+        entityType: 'WorkOrder',
+        entityName: workOrder.workOrderNumber,
+        projectId: workOrder.projectId,
+      });
+    } else {
+      systemEventService.logProduction('WORK_ORDER_UPDATED', id, session.sub, {
+        entityType: 'WorkOrder',
+        entityName: workOrder.workOrderNumber,
+        projectId: workOrder.projectId,
       });
     }
 

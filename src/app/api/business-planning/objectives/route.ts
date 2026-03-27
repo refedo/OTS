@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/jwt';
+import { systemEventService } from '@/services/system-events.service';
 
 // Helper function to calculate progress from status
 function getProgressFromStatus(status: string): number {
@@ -183,6 +186,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+
+    systemEventService.logBusiness('BIZ_OBJECTIVE_CREATED', objective.id, {
+      entityType: 'CompanyObjective',
+      entityName: objective.title,
+      userId: session?.sub,
+    });
+
     return NextResponse.json(objective);
   } catch (error) {
     console.error('Error creating objective:', error);
@@ -260,6 +273,16 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+
+    systemEventService.logBusiness('BIZ_OBJECTIVE_UPDATED', objective.id, {
+      entityType: 'CompanyObjective',
+      entityName: objective.title,
+      userId: session?.sub,
+    });
+
     return NextResponse.json(objective);
   } catch (error) {
     console.error('Error updating objective:', error);
@@ -283,8 +306,23 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const objectiveToDelete = await prisma.companyObjective.findUnique({
+      where: { id },
+      select: { title: true },
+    });
+
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+
     await prisma.companyObjective.delete({
       where: { id },
+    });
+
+    systemEventService.logBusiness('BIZ_OBJECTIVE_DELETED', id, {
+      entityType: 'CompanyObjective',
+      entityName: objectiveToDelete?.title,
+      userId: session?.sub,
     });
 
     return NextResponse.json({ success: true });

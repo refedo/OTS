@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { logSystemEvent } from '@/lib/api-utils';
+import { systemEventService } from '@/services/system-events.service';
 
 const massLogSchema = z.object({
   logs: z.array(z.object({
@@ -221,6 +222,11 @@ export async function POST(req: Request) {
           failedCount: results.failedCount,
           processTypes,
         },
+      });
+
+      systemEventService.logProduction('PRODUCTION_MASS_LOG', session.sub, session.sub, {
+        count: results.successCount,
+        processType: processTypes.join(', '),
       });
     }
 

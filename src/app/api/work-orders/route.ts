@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 import { WorkTrackingValidatorService } from '@/lib/services/work-tracking-validator.service';
+import { systemEventService } from '@/services/system-events.service';
 
 // Generate work order number
 async function generateWorkOrderNumber(): Promise<string> {
@@ -338,6 +339,12 @@ export async function POST(req: Request) {
       totalWeight: workOrder.totalWeight ? Number(workOrder.totalWeight) : null,
     }).catch((err) => {
       console.error('WorkUnit sync failed:', err);
+    });
+
+    systemEventService.logProduction('WORK_ORDER_CREATED', workOrder.id, session.sub, {
+      entityType: 'WorkOrder',
+      entityName: workOrder.workOrderNumber,
+      projectId,
     });
 
     // Return work order with any non-critical warnings

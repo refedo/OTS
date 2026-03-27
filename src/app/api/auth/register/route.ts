@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/db';
 import { hashPassword } from '@/lib/password';
+import { systemEventService } from '@/services/system-events.service';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -29,6 +30,10 @@ export async function POST(req: Request) {
         departmentId: parsed.data.departmentId ?? null,
         status: 'active'
       }
+    });
+
+    systemEventService.logUser('USER_CREATED', user.id, user.id, {
+      targetUserName: user.name,
     });
 
     return NextResponse.json({ id: user.id, email: user.email }, { status: 201 });

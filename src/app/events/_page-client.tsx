@@ -1,176 +1,240 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Activity,
-  FileUp,
-  RefreshCw,
-  Database,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  Edit,
-  Plus,
-  Search,
-  Filter,
-  Clock,
-  User,
-  FolderOpen,
+  AlertCircle,
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  Download,
+  Eye,
+  Filter,
+  FolderOpen,
+  HeartPulse,
+  Info,
+  Loader2,
+  RefreshCw,
+  Search,
+  Timer,
+  User,
+  XCircle,
 } from 'lucide-react';
+import {
+  SEVERITY_COLORS,
+  CATEGORY_COLORS,
+} from '@/types/system-events';
+import type { EventCategory, EventSeverity } from '@/types/system-events';
+import { EventDetailDrawer, type SystemEventDetail } from '@/components/events/EventDetailDrawer';
+import { SystemHealthDashboard } from '@/components/events/SystemHealthDashboard';
 
-interface SystemEvent {
-  id: string;
-  eventType: string;
-  category: string;
-  title: string;
-  description: string | null;
-  metadata: Record<string, unknown> | null;
-  entityType: string | null;
-  entityId: string | null;
-  projectId: string | null;
-  createdAt: string;
-  user: { id: string; name: string };
-  project: { id: string; projectNumber: string; name: string } | null;
-}
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface EventStats {
   todayCount: number;
   totalCount: number;
-  byCategory: { category: string; count: number }[];
-  byType: { eventType: string; count: number }[];
+  bySeverity: { severity: EventSeverity; count: number }[];
+  byCategory: { category: EventCategory; count: number }[];
 }
 
-const EVENT_TYPE_ICONS: Record<string, React.ReactNode> = {
-  created: <Plus className="h-4 w-4 text-green-600" />,
-  updated: <Edit className="h-4 w-4 text-blue-600" />,
-  deleted: <Trash2 className="h-4 w-4 text-red-600" />,
-  uploaded: <FileUp className="h-4 w-4 text-purple-600" />,
-  synced: <RefreshCw className="h-4 w-4 text-cyan-600" />,
-  approved: <CheckCircle className="h-4 w-4 text-green-600" />,
-  rejected: <XCircle className="h-4 w-4 text-red-600" />,
-  imported: <Database className="h-4 w-4 text-orange-600" />,
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface UserOption {
+  id: string;
+  name: string;
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const ALL_CATEGORIES: EventCategory[] = [
+  'AUTH', 'PROJECT', 'TASK', 'PRODUCTION', 'QC', 'ENGINEERING',
+  'FINANCIAL', 'DOLIBARR', 'PTS', 'BUSINESS', 'NOTIFICATION',
+  'USER', 'SYSTEM', 'RISK', 'KNOWLEDGE', 'EXPORT',
+];
+
+const ALL_SEVERITIES: EventSeverity[] = ['INFO', 'WARNING', 'ERROR', 'CRITICAL'];
+
+const SEVERITY_ICONS: Record<EventSeverity, React.ReactNode> = {
+  INFO: <Info className="size-3.5" />,
+  WARNING: <AlertTriangle className="size-3.5" />,
+  ERROR: <XCircle className="size-3.5" />,
+  CRITICAL: <AlertCircle className="size-3.5" />,
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  file: 'bg-purple-100 text-purple-700 border-purple-200',
-  record: 'bg-blue-100 text-blue-700 border-blue-200',
-  sync: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-  production: 'bg-orange-100 text-orange-700 border-orange-200',
-  qc: 'bg-green-100 text-green-700 border-green-200',
-  project: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  auth: 'bg-gray-100 text-gray-700 border-gray-200',
-  system: 'bg-red-100 text-red-700 border-red-200',
-};
+const PAGE_SIZE = 50;
 
-export default function EventsPage() {
-  const [events, setEvents] = useState<SystemEvent[]>([]);
-  const [stats, setStats] = useState<EventStats | null>(null);
-  const [loading, setLoading] = useState(true);
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDateTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function EventsDashboard() {
+  // Table state
+  const [events, setEvents] = useState<SystemEventDetail[]>([]);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
-  const [userFilter, setUserFilter] = useState<string>('all');
-  const [users, setUsers] = useState<{id: string; name: string}[]>([]);
-  const limit = 20;
 
+  // Stats
+  const [stats, setStats] = useState<EventStats | null>(null);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [correlationFilter, setCorrelationFilter] = useState('');
+  const [userFilter, setUserFilter] = useState('');
+
+  // User list for filter dropdown
+  const [users, setUsers] = useState<UserOption[]>([]);
+
+  // Auto-refresh
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Export
+  const [exporting, setExporting] = useState(false);
+
+  // Drawer
+  const [selected, setSelected] = useState<SystemEventDetail | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Fetch users for filter dropdown
   useEffect(() => {
-    fetchUsers();
+    fetch('/api/users?forAssignment=true')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: UserOption[]) => setUsers(data))
+      .catch(() => {});
   }, []);
 
+  // Auto-refresh setup
   useEffect(() => {
-    fetchEvents();
-    fetchStats();
-  }, [page, categoryFilter, eventTypeFilter, userFilter]);
+    if (autoRefresh) {
+      autoRefreshRef.current = setInterval(() => fetchEvents(page), 30_000);
+    } else if (autoRefreshRef.current) {
+      clearInterval(autoRefreshRef.current);
+      autoRefreshRef.current = null;
+    }
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, page]);
 
-  const fetchEvents = async () => {
+  // Build export URL with current filters
+  function buildExportParams() {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (categoryFilter !== 'all') params.set('eventCategory', categoryFilter);
+    if (severityFilter !== 'all') params.set('severity', severityFilter);
+    if (userFilter) params.set('userId', userFilter);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      params.set('endDate', end.toISOString());
+    }
+    if (correlationFilter) params.set('correlationId', correlationFilter);
+    return params.toString();
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/system-events/export?${buildExportParams()}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `system-events-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // Fetch events
+  const fetchEvents = useCallback(async (currentPage: number) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set('limit', limit.toString());
-      params.set('offset', ((page - 1) * limit).toString());
-      if (categoryFilter !== 'all') params.set('category', categoryFilter);
-      if (eventTypeFilter !== 'all') params.set('eventType', eventTypeFilter);
-      if (userFilter !== 'all') params.set('userId', userFilter);
-
-      const response = await fetch(`/api/events?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data.events || []);
-        setTotal(data.total || 0);
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((currentPage - 1) * PAGE_SIZE),
+        stats: 'true',
+      });
+      if (search) params.set('search', search);
+      if (categoryFilter !== 'all') params.set('eventCategory', categoryFilter);
+      if (severityFilter !== 'all') params.set('severity', severityFilter);
+      if (userFilter) params.set('userId', userFilter);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        params.set('endDate', end.toISOString());
       }
-    } catch (error) {
-      console.error('Error fetching events:', error);
+      if (correlationFilter) params.set('correlationId', correlationFilter);
+
+      const res = await fetch(`/api/system-events?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEvents(data.events ?? []);
+        setTotal(data.total ?? 0);
+        if (data.stats) setStats(data.stats);
+      }
     } finally {
       setLoading(false);
     }
+  }, [search, categoryFilter, severityFilter, userFilter, startDate, endDate, correlationFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, severityFilter, userFilter, startDate, endDate, correlationFilter]);
+
+  useEffect(() => {
+    fetchEvents(page);
+  }, [fetchEvents, page]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const handleFilterCorrelation = (id: string) => {
+    setCorrelationFilter(id);
   };
 
-  const fetchStats = async () => {
-    try {
-      const response = await fetch('/api/events/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
+  const clearCorrelationFilter = () => {
+    setCorrelationFilter('');
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('/api/users?forAssignment=true');
-      if (response.ok) {
-        const data = await response.json();
-        // API returns array directly when forAssignment=true
-        const userList = Array.isArray(data) ? data : (data.users || []);
-        setUsers(userList.map((u: any) => ({ id: u.id, name: u.name })));
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
-
-  const totalPages = Math.ceil(total / limit);
+  // Stats helpers
+  const errorCount =
+    stats?.bySeverity.find(s => s.severity === 'ERROR')?.count ?? 0;
+  const criticalCount =
+    stats?.bySeverity.find(s => s.severity === 'CRITICAL')?.count ?? 0;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -178,237 +242,468 @@ export default function EventsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Activity className="h-8 w-8 text-blue-600" />
+            <Activity className="size-8 text-blue-600" />
             System Events
           </h1>
           <p className="text-muted-foreground mt-1">
-            Track all system activities and changes
+            Audit trail, operational intelligence, and system health
           </p>
         </div>
-        <Button onClick={() => { fetchEvents(); fetchStats(); }}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={autoRefresh ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setAutoRefresh(v => !v)}
+            title="Toggle 30s auto-refresh"
+          >
+            <Timer className="size-4 mr-1.5" />
+            {autoRefresh ? 'Live' : 'Auto'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport()}
+            disabled={exporting}
+          >
+            <Download className={`size-4 mr-1.5 ${exporting ? 'animate-pulse' : ''}`} />
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchEvents(page)}
+            disabled={loading}
+          >
+            <RefreshCw className={`size-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold text-blue-600">{stats.todayCount}</div>
-              <p className="text-sm text-muted-foreground">Events Today</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold">{stats.totalCount}</div>
-              <p className="text-sm text-muted-foreground">Total Events</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold text-green-600">
-                {stats.byType.find(t => t.eventType === 'created')?.count || 0}
-              </div>
-              <p className="text-sm text-muted-foreground">Records Created</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-3xl font-bold text-purple-600">
-                {stats.byCategory.find(c => c.category === 'file')?.count || 0}
-              </div>
-              <p className="text-sm text-muted-foreground">Files Uploaded</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <Tabs defaultValue="events">
+        <TabsList>
+          <TabsTrigger value="events" className="gap-1.5">
+            <Activity className="size-4" />
+            Event Log
+          </TabsTrigger>
+          <TabsTrigger value="health" className="gap-1.5">
+            <HeartPulse className="size-4" />
+            System Health
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filters:</span>
-            </div>
-            <select
-              value={categoryFilter}
-              onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-              className="h-9 px-3 rounded-md border bg-background text-sm"
-            >
-              <option value="all">All Categories</option>
-              <option value="file">Files</option>
-              <option value="record">Records</option>
-              <option value="sync">Sync</option>
-              <option value="production">Production</option>
-              <option value="qc">QC</option>
-              <option value="project">Project</option>
-              <option value="auth">Auth</option>
-            </select>
-            <select
-              value={eventTypeFilter}
-              onChange={(e) => { setEventTypeFilter(e.target.value); setPage(1); }}
-              className="h-9 px-3 rounded-md border bg-background text-sm"
-            >
-              <option value="all">All Types</option>
-              <option value="created">Created</option>
-              <option value="updated">Updated</option>
-              <option value="deleted">Deleted</option>
-              <option value="uploaded">Uploaded</option>
-              <option value="synced">Synced</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select
-              value={userFilter}
-              onChange={(e) => { setUserFilter(e.target.value); setPage(1); }}
-              className="h-9 px-3 rounded-md border bg-background text-sm"
-            >
-              <option value="all">All Users</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>{user.name}</option>
-              ))}
-            </select>
+        {/* ── EVENT LOG TAB ─────────────────────────────────────────────── */}
+        <TabsContent value="events" className="space-y-4 mt-4">
+          {/* Stats cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-5">
+                <div className="text-3xl font-bold text-blue-600">
+                  {stats?.todayCount ?? 0}
+                </div>
+                <p className="text-sm text-muted-foreground">Events Today</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5">
+                <div className="text-3xl font-bold">{stats?.totalCount ?? 0}</div>
+                <p className="text-sm text-muted-foreground">Total Events</p>
+              </CardContent>
+            </Card>
+            <Card className="border-red-200 dark:border-red-900">
+              <CardContent className="pt-5">
+                <div className="text-3xl font-bold text-red-600">
+                  {errorCount + criticalCount}
+                </div>
+                <p className="text-sm text-muted-foreground">Errors & Critical</p>
+              </CardContent>
+            </Card>
+            <Card className="border-yellow-200 dark:border-yellow-900">
+              <CardContent className="pt-5">
+                <div className="text-3xl font-bold text-yellow-600">
+                  {stats?.bySeverity.find(s => s.severity === 'WARNING')?.count ?? 0}
+                </div>
+                <p className="text-sm text-muted-foreground">Warnings</p>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Events List - Dolibarr Style Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Event Log</CardTitle>
-          <CardDescription>
-            Showing {events.length} of {total} events
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading events...</div>
-          ) : events.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No events found</p>
+          {/* Correlation filter banner */}
+          {correlationFilter && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
+              <Info className="size-4 text-blue-500 shrink-0" />
+              <span className="flex-1">
+                Filtering by correlation group:{' '}
+                <code className="font-mono text-xs">{correlationFilter}</code>
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={clearCorrelationFilter}
+              >
+                Clear
+              </Button>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b">
-                  <tr>
-                    <th className="text-left p-3 font-medium">Ref</th>
-                    <th className="text-left p-3 font-medium">Owner</th>
-                    <th className="text-left p-3 font-medium">Type</th>
-                    <th className="text-left p-3 font-medium">Title</th>
-                    <th className="text-left p-3 font-medium">Date</th>
-                    <th className="text-left p-3 font-medium">Time</th>
-                    <th className="text-left p-3 font-medium">Project</th>
-                    <th className="text-left p-3 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((event, index) => (
-                    <tr 
-                      key={event.id}
-                      className="border-b hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          {EVENT_TYPE_ICONS[event.eventType] || <Activity className="h-4 w-4" />}
-                          <span className="text-xs text-muted-foreground">
-                            #{((page - 1) * limit) + index + 1}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{event.user.name}</span>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs ${CATEGORY_COLORS[event.category] || ''}`}
-                        >
-                          {event.category}
-                        </Badge>
-                      </td>
-                      <td className="p-3 max-w-md">
-                        <div>
-                          <p className="font-medium">{event.title}</p>
-                          {event.description && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {event.description}
-                            </p>
-                          )}
-                          {event.entityType && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Entity: {event.entityType}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3 whitespace-nowrap">
-                        <span className="text-sm">{formatDate(event.createdAt)}</span>
-                      </td>
-                      <td className="p-3 whitespace-nowrap">
-                        <span className="text-sm text-muted-foreground">
-                          {formatTime(event.createdAt)}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        {event.project ? (
-                          <div className="flex items-center gap-1">
-                            <FolderOpen className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs">{event.project.projectNumber}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {event.eventType}
-                        </Badge>
-                      </td>
-                    </tr>
+          )}
+
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-wrap gap-3 items-center">
+                <Filter className="size-4 text-muted-foreground shrink-0" />
+
+                {/* Search */}
+                <div className="relative min-w-[180px] flex-1 max-w-xs">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="h-9 pl-8 text-sm"
+                  />
+                </div>
+
+                {/* Category */}
+                <select
+                  value={categoryFilter}
+                  onChange={e => setCategoryFilter(e.target.value)}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                >
+                  <option value="all">All Categories</option>
+                  {ALL_CATEGORIES.map(c => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                </select>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 border-t bg-muted/20">
-              <p className="text-sm text-muted-foreground">
-                Page {page} of {totalPages} • Total: {total} events
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                {/* Severity */}
+                <select
+                  value={severityFilter}
+                  onChange={e => setSeverityFilter(e.target.value)}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
+                  <option value="all">All Severities</option>
+                  {ALL_SEVERITIES.map(s => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+
+                {/* User filter */}
+                {users.length > 0 && (
+                  <select
+                    value={userFilter}
+                    onChange={e => setUserFilter(e.target.value)}
+                    className="h-9 px-3 rounded-md border bg-background text-sm"
+                  >
+                    <option value="">All Users</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Date presets */}
+                <div className="flex items-center gap-1">
+                  {[
+                    { label: 'Today', days: 0 },
+                    { label: '7d', days: 7 },
+                    { label: '30d', days: 30 },
+                  ].map(({ label, days }) => (
+                    <Button
+                      key={label}
+                      variant="outline"
+                      size="sm"
+                      className="h-9 px-2.5 text-xs"
+                      onClick={() => {
+                        const from = new Date();
+                        from.setDate(from.getDate() - days);
+                        setStartDate(from.toISOString().split('T')[0]);
+                        setEndDate('');
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Date range */}
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                />
+
+                {/* Clear filters */}
+                {(search ||
+                  categoryFilter !== 'all' ||
+                  severityFilter !== 'all' ||
+                  userFilter ||
+                  startDate ||
+                  endDate) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      setSearch('');
+                      setCategoryFilter('all');
+                      setSeverityFilter('all');
+                      setUserFilter('');
+                      setStartDate('');
+                      setEndDate('');
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Events table */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Event Log</CardTitle>
+              <CardDescription>
+                Showing{' '}
+                {total === 0
+                  ? '0'
+                  : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)}`}{' '}
+                of {total.toLocaleString()} events
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex items-center justify-center py-14">
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : events.length === 0 ? (
+                <div className="text-center py-14 text-muted-foreground">
+                  <Activity className="size-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No events found</p>
+                  <p className="text-sm mt-1">
+                    Try adjusting the filters or date range
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b">
+                        <tr>
+                          <th className="text-left p-3 font-medium text-muted-foreground w-28">
+                            Severity
+                          </th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">
+                            Category
+                          </th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">
+                            Event
+                          </th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">
+                            Summary
+                          </th>
+                          <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">
+                            Actor
+                          </th>
+                          <th className="text-left p-3 font-medium text-muted-foreground hidden xl:table-cell">
+                            Project
+                          </th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">
+                            Time
+                          </th>
+                          <th className="w-10 p-3" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {events.map(event => {
+                          const displayCat = event.eventCategory ?? event.category;
+                          return (
+                            <tr
+                              key={event.id}
+                              className="border-b hover:bg-muted/30 transition-colors cursor-pointer"
+                              onClick={() => {
+                                setSelected(event);
+                                setDrawerOpen(true);
+                              }}
+                            >
+                              {/* Severity */}
+                              <td className="p-3">
+                                <Badge
+                                  className={
+                                    SEVERITY_COLORS[event.severity] ??
+                                    'bg-gray-100 text-gray-700'
+                                  }
+                                >
+                                  <span className="flex items-center gap-1">
+                                    {SEVERITY_ICONS[event.severity]}
+                                    {event.severity}
+                                  </span>
+                                </Badge>
+                              </td>
+
+                              {/* Category */}
+                              <td className="p-3">
+                                {displayCat && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-xs ${
+                                      CATEGORY_COLORS[
+                                        displayCat as EventCategory
+                                      ] ?? ''
+                                    }`}
+                                  >
+                                    {displayCat}
+                                  </Badge>
+                                )}
+                              </td>
+
+                              {/* Event type */}
+                              <td className="p-3">
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                                  {event.eventType}
+                                </code>
+                              </td>
+
+                              {/* Summary */}
+                              <td className="p-3 max-w-xs">
+                                <p className="truncate font-medium">
+                                  {event.title}
+                                </p>
+                                {event.entityName && (
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {event.entityType && `${event.entityType} · `}
+                                    {event.entityName}
+                                  </p>
+                                )}
+                              </td>
+
+                              {/* Actor */}
+                              <td className="p-3 hidden lg:table-cell">
+                                {(event.user?.name ?? event.userName) ? (
+                                  <div className="flex items-center gap-1.5 text-xs">
+                                    <User className="size-3 text-muted-foreground" />
+                                    <span>
+                                      {event.user?.name ?? event.userName}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    system
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Project */}
+                              <td className="p-3 hidden xl:table-cell">
+                                {event.project || event.projectNumber ? (
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <FolderOpen className="size-3 text-muted-foreground" />
+                                    <span>
+                                      {event.project?.projectNumber ??
+                                        event.projectNumber}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    —
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Time */}
+                              <td className="p-3 whitespace-nowrap">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Clock className="size-3" />
+                                  {formatDateTime(event.createdAt)}
+                                </div>
+                              </td>
+
+                              {/* View button */}
+                              <td className="p-3">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-7"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setSelected(event);
+                                    setDrawerOpen(true);
+                                  }}
+                                >
+                                  <Eye className="size-3.5" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
+                      <p className="text-sm text-muted-foreground">
+                        Page {page} of {totalPages} · {total.toLocaleString()}{' '}
+                        total
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage(p => Math.max(1, p - 1))}
+                          disabled={page === 1}
+                        >
+                          <ChevronLeft className="size-4 mr-1" />
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setPage(p => Math.min(totalPages, p + 1))
+                          }
+                          disabled={page === totalPages}
+                        >
+                          Next
+                          <ChevronRight className="size-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── SYSTEM HEALTH TAB ─────────────────────────────────────────── */}
+        <TabsContent value="health" className="mt-4">
+          <SystemHealthDashboard />
+        </TabsContent>
+      </Tabs>
+
+      {/* Event detail drawer */}
+      <EventDetailDrawer
+        event={selected}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onFilterCorrelation={handleFilterCorrelation}
+      />
     </div>
   );
 }

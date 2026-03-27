@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { comparePassword } from '@/lib/password';
 import { signSession } from '@/lib/jwt';
-import { logSystemEvent } from '@/lib/api-utils';
+import { systemEventService } from '@/services/system-events.service';
 
 const schema = z.object({
   email: z.string().email(),
@@ -58,6 +58,14 @@ export async function POST(req: Request) {
     }
 
     if (!user || user.status !== 'active') {
+      const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
+      const userAgent = req.headers.get('user-agent') ?? undefined;
+      systemEventService.logAuth('AUTH_LOGIN_FAILED', user?.id ?? 'unknown', {
+        userName: parsed.data.email,
+        ipAddress,
+        userAgent,
+        reason: !user ? 'user_not_found' : 'account_disabled',
+      });
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -70,6 +78,14 @@ export async function POST(req: Request) {
     }
 
     if (!valid) {
+      const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
+      const userAgent = req.headers.get('user-agent') ?? undefined;
+      systemEventService.logAuth('AUTH_LOGIN_FAILED', user.id, {
+        userName: user.name,
+        ipAddress,
+        userAgent,
+        reason: 'wrong_password',
+      });
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -90,19 +106,13 @@ export async function POST(req: Request) {
     const maxAge = parsed.data.remember ? 60*60*24*30 : 60*60*24;
 
     // Log login event
-    try {
-      await logSystemEvent({
-        eventType: 'login',
-        category: 'auth',
-        title: `User logged in: ${user.name}`,
-        description: `${user.email} logged in successfully`,
-        userId: user.id,
-        metadata: { email: user.email, role: user.role.name },
-      });
-    } catch (error) {
-      console.error('Failed to log login event:', error);
-      // Continue with login even if logging fails
-    }
+    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
+    const userAgent = req.headers.get('user-agent') ?? undefined;
+    systemEventService.logAuth('AUTH_LOGIN_SUCCESS', user.id, {
+      userName: user.name,
+      ipAddress,
+      userAgent,
+    });
 
     // For JSON requests, return success with cookie
     if (contentType.includes('application/json')) {

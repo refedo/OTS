@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession } from '@/lib/jwt';
 import { googleSheetsSyncService } from '@/lib/services/google-sheets-sync.service';
+import { systemEventService } from '@/services/system-events.service';
 
 // POST - Execute sync for a configuration
 export async function POST(
@@ -37,6 +38,9 @@ export async function POST(
     }
 
     // Execute sync
+    const syncStartTime = Date.now();
+    systemEventService.logIntegration('PTS_SYNC_STARTED', { userId: session.sub });
+
     const result = await googleSheetsSyncService.syncToOTS(
       {
         id: config.id,
@@ -67,6 +71,11 @@ export async function POST(
       },
       session.sub
     );
+
+    systemEventService.logIntegration('PTS_SYNC_COMPLETED', {
+      userId: session.sub,
+      duration: Date.now() - syncStartTime,
+    });
 
     return NextResponse.json(result);
   } catch (error) {

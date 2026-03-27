@@ -8,6 +8,7 @@ import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 import { SUB_ACTIVITY_DEPENDENCIES } from '@/lib/activity-constants';
 import { pointsService } from '@/lib/services/points-service';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 import NotificationService from '@/lib/services/notification.service';
 
@@ -642,6 +643,33 @@ export async function PATCH(
   // Execute all audit logs (non-blocking)
   Promise.all(auditPromises).catch(err => console.error('Audit logging failed:', err));
 
+  // Enterprise system event — determine the most significant change
+  const taskEventDetails = {
+    taskTitle: updatedTask.title,
+    projectId: updatedTask.projectId ?? undefined,
+    projectNumber: updatedTask.project?.projectNumber,
+    assigneeName: updatedTask.assignedTo?.name,
+    oldStatus: task.status,
+    newStatus: updatedTask.status,
+    oldPriority: task.priority,
+    newPriority: updatedTask.priority,
+  };
+  if (parsed.data.approved === true && !(task as any).approvedAt) {
+    systemEventService.logTask('TASK_APPROVED', id, session.sub, taskEventDetails);
+  } else if (parsed.data.rejected === true && !(task as any).rejectedAt) {
+    systemEventService.logTask('TASK_REJECTED', id, session.sub, taskEventDetails);
+  } else if (parsed.data.status === 'Completed' && task.status !== 'Completed') {
+    systemEventService.logTask('TASK_COMPLETED', id, session.sub, taskEventDetails);
+  } else if (parsed.data.status && parsed.data.status !== task.status) {
+    systemEventService.logTask('TASK_STATUS_CHANGED', id, session.sub, taskEventDetails);
+  } else if (parsed.data.assignedToId && parsed.data.assignedToId !== task.assignedToId) {
+    systemEventService.logTask('TASK_REASSIGNED', id, session.sub, taskEventDetails);
+  } else if (parsed.data.priority && parsed.data.priority !== task.priority) {
+    systemEventService.logTask('TASK_PRIORITY_CHANGED', id, session.sub, taskEventDetails);
+  } else {
+    systemEventService.logTask('TASK_UPDATED', id, session.sub, taskEventDetails);
+  }
+
   return NextResponse.json({ ...updatedTask, ...(dependencyWarning ? { dependencyWarning } : {}) });
 }
 
@@ -685,6 +713,11 @@ export async function DELETE(
 
   await prisma.task.delete({
     where: { id: taskId },
+  });
+
+  systemEventService.logTask('TASK_DELETED', taskId, session.sub, {
+    taskTitle: task.title,
+    projectId: task.projectId ?? undefined,
   });
 
   return NextResponse.json({ success: true });

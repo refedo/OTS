@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { DolibarrSyncService } from '@/lib/dolibarr/sync-service';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,11 +22,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const startTime = Date.now();
   try {
     const syncService = new DolibarrSyncService();
     const result = await syncService.runFullSync('cron');
+
+    systemEventService.logSystem('SYS_CRON_EXECUTED', {
+      cronJob: 'dolibarr-sync',
+      duration: Date.now() - startTime,
+    });
+
     return NextResponse.json(result);
   } catch (error: any) {
+    systemEventService.logSystem('SYS_CRON_FAILED', {
+      cronJob: 'dolibarr-sync',
+      error: error.message || 'Cron sync failed',
+      duration: Date.now() - startTime,
+    });
     return NextResponse.json({ error: error.message || 'Cron sync failed' }, { status: 500 });
   }
 }

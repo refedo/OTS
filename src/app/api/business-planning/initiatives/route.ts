@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/jwt';
+import { systemEventService } from '@/services/system-events.service';
 
 // GET - Fetch Initiatives
 export async function GET(request: NextRequest) {
@@ -99,6 +102,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+
+    systemEventService.logBusiness('BIZ_INITIATIVE_CREATED', initiative.id, {
+      entityType: 'AnnualInitiative',
+      entityName: name,
+      userId: session?.sub,
+    });
+
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('Error creating initiative:', error);
@@ -177,6 +190,16 @@ export async function PUT(request: NextRequest) {
           },
         },
       },
+    });
+
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+
+    systemEventService.logBusiness('BIZ_INITIATIVE_UPDATED', id, {
+      entityType: 'AnnualInitiative',
+      entityName: name,
+      userId: session?.sub,
     });
 
     return NextResponse.json(result);

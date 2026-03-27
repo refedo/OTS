@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowLeft, 
-  Edit, 
-  Building2, 
-  Calendar, 
-  DollarSign, 
-  FileText, 
-  Settings, 
+import { EntityTimeline } from '@/components/events/EntityTimeline';
+import {
+  ArrowLeft,
+  Edit,
+  Building2,
+  Calendar,
+  DollarSign,
+  FileText,
+  Settings,
   ChevronDown,
   ChevronRight,
   Plus,
@@ -715,6 +716,13 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
           )}
         </div>
       </div>
+
+      {/* System Events Timeline */}
+      <EntityTimeline
+        entityType="Project"
+        entityId={project.id}
+        className="mt-6"
+      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog

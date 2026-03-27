@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock } from 'lucide-react';
+import { EntityTimeline } from '@/components/events/EntityTimeline';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -889,6 +890,14 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
             )}
           </div>
         </div>
+
+        {/* System Events Timeline */}
+        <EntityTimeline
+          entityType="Task"
+          entityId={task.id}
+          projectId={task.project?.id}
+          className="mt-6"
+        />
 
         {/* Activity Trail / Audit Log */}
         <Card className="mt-6">

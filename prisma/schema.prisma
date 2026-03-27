@@ -2888,41 +2888,63 @@ model EntityVersion {
   @@index([createdAt])
 }
 
-// System Events - tracks all system activities
+// System Events - tracks all system activities (enterprise-grade event log)
 model SystemEvent {
   id                    String                @id @default(uuid()) @db.Char(36)
-  
+
   // Event classification
-  eventType             String                // created, updated, deleted, uploaded, synced, exported, etc.
-  category              String                // file, record, sync, export, auth, etc.
+  eventType             String                @db.VarChar(60)   // e.g., "PROJECT_STATUS_CHANGED", "AUTH_LOGIN_SUCCESS"
+  eventCategory         String?               @db.VarChar(30)   // New: "PROJECT", "AUTH", "SYSTEM", etc.
+  category              String                @db.VarChar(50)   // Legacy: "file", "record", "sync", etc.
   severity              AuditSeverity         @default(INFO)
-  
-  // Event details
-  title                 String                @db.VarChar(255)
-  requestId             String?               @db.VarChar(64)  // For request tracing
-  description           String?               @db.Text
-  metadata              Json?                 // Additional event-specific data
-  
-  // Entity reference (optional)
-  entityType            String?               // AssemblyPart, ProductionLog, Project, etc.
-  entityId              String?               @db.Char(36)
-  
-  // Project context (optional)
+
+  // Who triggered the event
+  userId                String?               @db.Char(36)      // Nullable for system-generated events
+  user                  User?                 @relation("SystemEventUser", fields: [userId], references: [id])
+  userName              String?               @db.VarChar(100)  // Denormalized for performance
+  userRole              String?               @db.VarChar(50)   // Role at time of event
+  ipAddress             String?               @db.VarChar(45)   // IPv4 or IPv6
+  userAgent             String?               @db.VarChar(500)  // Browser/device info
+
+  // What was affected
+  entityType            String?               @db.VarChar(50)   // "Project", "Task", "ProductionLog", etc.
+  entityId              String?               @db.VarChar(50)   // ID of affected entity
+  entityName            String?               @db.VarChar(200)  // Human-readable name
+
+  // Project context
   projectId             String?               @db.Char(36)
   project               Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  
-  // User who triggered the event
-  userId                String                @db.Char(36)
-  user                  User                  @relation("SystemEventUser", fields: [userId], references: [id])
-  
+  projectNumber         String?               @db.VarChar(20)   // Denormalized for quick filtering
+  buildingId            String?               @db.Char(36)      // Building context if applicable
+
+  // Event details
+  title                 String                @db.VarChar(255)  // Legacy: short title
+  summary               String?               @db.VarChar(500)  // Human-readable event summary
+  requestId             String?               @db.VarChar(64)   // For request tracing
+  description           String?               @db.Text          // Legacy: longer details
+  details               Json?                 // Full event data (field changes, before/after, etc.)
+  metadata              Json?                 // Additional context
+  changedFields         Json?                 // { field: { old: x, new: y } }
+
+  // Timing
   createdAt             DateTime              @default(now())
-  
+  duration              Int?                  // Duration in ms (for sync, import operations)
+
+  // Correlation
+  correlationId         String?               @db.VarChar(50)   // Groups related events
+  parentEventId         String?               @db.Char(36)      // Parent event for hierarchical events
+  sessionId             String?               @db.VarChar(100)  // Links events to user session
+
   @@index([eventType])
+  @@index([eventCategory])
   @@index([category])
-  @@index([entityType])
-  @@index([projectId])
   @@index([userId])
+  @@index([entityType, entityId])
+  @@index([projectId])
   @@index([createdAt])
+  @@index([severity])
+  @@index([correlationId])
+  @@map("system_events")
 }
 
 // PTS Sync History - tracks all PTS sync operations
@@ -3399,4 +3421,20 @@ model LcrSyncLog {
   @@index([status])
   @@index([createdAt])
   @@map("lcr_sync_logs")
+}
+
+// Daily aggregates for system events — written by event-cleanup cron after archiving
+model SystemEventSummary {
+  id            Int      @id @default(autoincrement())
+  summaryDate   DateTime @db.Date
+  eventCategory String?  @db.VarChar(30)
+  eventType     String?  @db.VarChar(60)
+  severity      String   @db.VarChar(20)
+  count         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([summaryDate, eventCategory, eventType, severity])
+  @@index([summaryDate])
+  @@map("system_event_summaries")
 }

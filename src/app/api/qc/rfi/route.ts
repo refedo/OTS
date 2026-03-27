@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
+import { systemEventService } from '@/services/system-events.service';
 
 // Get process-to-inspection type mapping
 function getInspectionType(processType: string): string {
@@ -261,6 +262,14 @@ export async function POST(request: Request) {
         status: rfi.status,
       }).catch((err) => {
         console.error('WorkUnit sync failed:', err);
+      });
+    }
+
+    for (const rfi of rfis) {
+      systemEventService.logQC('QC_RFI_CREATED', rfi.id, session.sub, {
+        entityType: 'RFIRequest',
+        entityName: rfi.rfiNumber ?? rfi.id,
+        projectId: rfi.projectId,
       });
     }
 

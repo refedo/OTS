@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
+import { systemEventService } from '@/services/system-events.service';
 
 const updateSchema = z.object({
   projectNumber: z.string().min(1).optional().nullable(),
@@ -279,6 +280,20 @@ export async function PATCH(
       } : undefined,
     });
 
+    if (oldProject?.status !== project.status) {
+      systemEventService.logProject('PROJECT_STATUS_CHANGED', project.id, session.sub, {
+        projectNumber: project.projectNumber,
+        projectName: project.name,
+        oldStatus: oldProject?.status,
+        newStatus: project.status,
+      });
+    } else {
+      systemEventService.logProject('PROJECT_UPDATED', project.id, session.sub, {
+        projectNumber: project.projectNumber,
+        projectName: project.name,
+      });
+    }
+
     return NextResponse.json(project);
   } catch (error) {
     console.error('Server error in PATCH:', error);
@@ -407,9 +422,14 @@ export async function DELETE(
       reason: 'Project deleted by admin',
     });
 
-    return NextResponse.json({ 
+    systemEventService.logProject('PROJECT_DELETED', id, session.sub, {
+      projectNumber: project.projectNumber,
+      projectName: project.name,
+    });
+
+    return NextResponse.json({
       success: true,
-      message: 'Project deleted successfully' 
+      message: 'Project deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting project:', error);

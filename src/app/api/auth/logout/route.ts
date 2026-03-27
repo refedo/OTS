@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/jwt';
-import { logSystemEvent } from '@/lib/api-utils';
+import { systemEventService } from '@/services/system-events.service';
 
 export async function POST(request: NextRequest) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -29,19 +29,13 @@ export async function POST(request: NextRequest) {
   
   // Log logout event if we have a session
   if (session) {
-    try {
-      await logSystemEvent({
-        eventType: 'logout',
-        category: 'auth',
-        title: `User logged out: ${session.name}`,
-        description: `${session.name} logged out`,
-        userId: session.sub,
-        metadata: { role: session.role },
-      });
-    } catch (error) {
-      console.error('Failed to log logout event:', error);
-      // Continue with logout even if logging fails
-    }
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
+    const userAgent = request.headers.get('user-agent') ?? undefined;
+    systemEventService.logAuth('AUTH_LOGOUT', session.sub, {
+      userName: session.name,
+      ipAddress,
+      userAgent,
+    });
   }
   
   const requestUrl = new URL(request.url);
