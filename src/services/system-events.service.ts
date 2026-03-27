@@ -1,19 +1,19 @@
 /**
  * System Event Service
- * 
+ *
  * Enterprise-grade event logging for OTS.
  * Captures all significant events across the platform for audit, debugging, compliance, and operational intelligence.
  */
 
 import { prisma } from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/lib/logger';
 import {
   EventType,
   EventCategory,
   EventSeverity,
   SystemEventParams,
   FieldChange,
-  EVENT_TYPE_TO_CATEGORY,
 } from '@/types/system-events';
 
 // ============================================================================
@@ -22,8 +22,8 @@ import {
 
 class SystemEventService {
   /**
-   * Core logging method - logs a system event
-   * Uses fire-and-forget for INFO events, awaits for ERROR/CRITICAL
+   * Core logging method.
+   * Fire-and-forget for INFO/WARNING; awaited for ERROR/CRITICAL.
    */
   async log(params: SystemEventParams): Promise<void> {
     const {
@@ -51,101 +51,102 @@ class SystemEventService {
       sessionId,
     } = params;
 
-    try {
-      // For INFO events, fire-and-forget (don't await)
-      // For WARNING/ERROR/CRITICAL, await to ensure logging
-      const logPromise = prisma.systemEvent.create({
+    const logPromise = prisma.systemEvent
+      .create({
         data: {
           eventType,
-          category: eventCategory,
+          eventCategory: eventCategory ?? null,
+          // Legacy category field: derive a coarse category from eventCategory for backward compat
+          category: this._legacyCategory(eventCategory),
           severity,
-          title: summary,
-          description: details ? JSON.stringify(details) : null,
-          metadata: {
-            ...(metadata || {}),
-            userName,
-            userRole,
-            ipAddress,
-            userAgent,
-            entityName,
-            projectNumber,
-            buildingId,
-            changedFields,
-            duration,
-            correlationId,
-            parentEventId,
-            sessionId,
-          },
-          entityType,
-          entityId: entityId?.toString(),
-          projectId: projectId || null,
-          userId: userId || 'SYSTEM',
+          // Who
+          userId: userId ?? null,
+          userName: userName ?? null,
+          userRole: userRole ?? null,
+          ipAddress: ipAddress ?? null,
+          userAgent: userAgent ?? null,
+          // What
+          entityType: entityType ?? null,
+          entityId: entityId != null ? String(entityId) : null,
+          entityName: entityName ?? null,
+          // Context
+          projectId: projectId ?? null,
+          projectNumber: projectNumber ?? null,
+          buildingId: buildingId ?? null,
+          // Details
+          title: summary.slice(0, 255),
+          summary: summary ?? null,
+          details: details ?? null,
+          metadata: metadata ?? null,
+          changedFields: changedFields ?? null,
+          // Timing
+          duration: duration ?? null,
+          // Correlation
+          correlationId: correlationId ?? null,
+          parentEventId: parentEventId ?? null,
+          sessionId: sessionId ?? null,
         },
+      })
+      .catch((error: unknown) => {
+        logger.error({ error, eventType }, '[SystemEventService] Failed to log event');
       });
 
-      if (severity === 'ERROR' || severity === 'CRITICAL') {
-        await logPromise;
-      } else {
-        // Fire and forget for INFO/WARNING
-        logPromise.catch((error) => {
-          console.error('[SystemEventService] Failed to log event:', error);
-        });
-      }
-    } catch (error) {
-      console.error('[SystemEventService] Failed to log event:', error);
-      // Don't throw - event logging should not break main functionality
+    if (severity === 'ERROR' || severity === 'CRITICAL') {
+      await logPromise;
     }
+    // INFO/WARNING: fire-and-forget
   }
 
   /**
-   * Log multiple events in a batch (for bulk operations)
+   * Log multiple events in a single batch insert (for bulk operations).
    */
   async logBatch(events: SystemEventParams[]): Promise<void> {
     if (events.length === 0) return;
 
     try {
-      const data = events.map((params) => ({
-        eventType: params.eventType,
-        category: params.eventCategory,
-        severity: params.severity || 'INFO',
-        title: params.summary,
-        description: params.details ? JSON.stringify(params.details) : null,
-        metadata: {
-          ...(params.metadata || {}),
-          userName: params.userName,
-          userRole: params.userRole,
-          ipAddress: params.ipAddress,
-          userAgent: params.userAgent,
-          entityName: params.entityName,
-          projectNumber: params.projectNumber,
-          buildingId: params.buildingId,
-          changedFields: params.changedFields,
-          duration: params.duration,
-          correlationId: params.correlationId,
-          parentEventId: params.parentEventId,
-          sessionId: params.sessionId,
-        },
-        entityType: params.entityType,
-        entityId: params.entityId?.toString(),
-        projectId: params.projectId || null,
-        userId: params.userId || 'SYSTEM',
+      const data = events.map((p) => ({
+        eventType: p.eventType,
+        eventCategory: p.eventCategory ?? null,
+        category: this._legacyCategory(p.eventCategory),
+        severity: p.severity ?? 'INFO',
+        userId: p.userId ?? null,
+        userName: p.userName ?? null,
+        userRole: p.userRole ?? null,
+        ipAddress: p.ipAddress ?? null,
+        userAgent: p.userAgent ?? null,
+        entityType: p.entityType ?? null,
+        entityId: p.entityId != null ? String(p.entityId) : null,
+        entityName: p.entityName ?? null,
+        projectId: p.projectId ?? null,
+        projectNumber: p.projectNumber ?? null,
+        buildingId: p.buildingId ?? null,
+        title: p.summary.slice(0, 255),
+        summary: p.summary ?? null,
+        details: p.details ?? null,
+        metadata: p.metadata ?? null,
+        changedFields: p.changedFields ?? null,
+        duration: p.duration ?? null,
+        correlationId: p.correlationId ?? null,
+        parentEventId: p.parentEventId ?? null,
+        sessionId: p.sessionId ?? null,
       }));
 
       await prisma.systemEvent.createMany({ data });
     } catch (error) {
-      console.error('[SystemEventService] Failed to log batch events:', error);
+      logger.error({ error }, '[SystemEventService] Failed to log batch events');
     }
   }
 
   /**
-   * Generate a correlation ID for grouping related events
+   * Generate a correlation ID for grouping related events (e.g., all events in a sync).
    */
   generateCorrelationId(): string {
     return `corr_${uuidv4().slice(0, 12)}`;
   }
 
   /**
-   * Detect changes between old and new data
+   * Compare old and new data objects and return field-level changes.
+   * Returns null when nothing changed.
    */
   detectChanges(
     oldData: Record<string, unknown>,
@@ -153,15 +154,13 @@ class SystemEventService {
     trackedFields?: string[]
   ): Record<string, FieldChange> | null {
     const changes: Record<string, FieldChange> = {};
-    const fieldsToCheck = trackedFields || Object.keys(newData);
+    const fields = trackedFields ?? Object.keys(newData);
 
-    for (const field of fieldsToCheck) {
-      const oldValue = oldData[field];
-      const newValue = newData[field];
-
-      // Deep comparison
-      if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-        changes[field] = { old: oldValue, new: newValue };
+    for (const field of fields) {
+      const oldVal = oldData[field];
+      const newVal = newData[field];
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        changes[field] = { old: oldVal, new: newVal };
       }
     }
 
@@ -172,9 +171,6 @@ class SystemEventService {
   // CONVENIENCE METHODS
   // ============================================================================
 
-  /**
-   * Log authentication events
-   */
   async logAuth(
     type: string,
     userId: string,
@@ -188,40 +184,38 @@ class SystemEventService {
       sessionDuration?: number;
     }
   ): Promise<void> {
-    const summaryMap: Record<string, string> = {
-      AUTH_LOGIN_SUCCESS: `User ${details?.userName || userId} logged in`,
-      AUTH_LOGIN_FAILED: `Failed login attempt for ${details?.userName || 'unknown user'}`,
-      AUTH_LOGOUT: `User ${details?.userName || userId} logged out`,
-      AUTH_SESSION_EXPIRED: `Session expired for ${details?.userName || userId}`,
-      AUTH_PASSWORD_CHANGED: `Password changed for ${details?.userName || userId}`,
-      AUTH_PASSWORD_RESET: `Password reset for ${details?.userName || userId}`,
-      AUTH_ACCOUNT_LOCKED: `Account locked for ${details?.userName || userId}`,
-      AUTH_ACCOUNT_UNLOCKED: `Account unlocked for ${details?.userName || userId}`,
-      AUTH_ROLE_CHANGED: `Role changed for ${details?.userName || userId}: ${details?.oldRole} → ${details?.newRole}`,
-    };
-
     const severityMap: Record<string, EventSeverity> = {
       AUTH_LOGIN_FAILED: 'WARNING',
       AUTH_ACCOUNT_LOCKED: 'WARNING',
-      AUTH_SESSION_EXPIRED: 'INFO',
+      AUTH_SESSION_REVOKED: 'WARNING',
+    };
+
+    const summaryMap: Record<string, string> = {
+      AUTH_LOGIN_SUCCESS: `User ${details?.userName ?? userId} logged in`,
+      AUTH_LOGIN_FAILED: `Failed login attempt for ${details?.userName ?? 'unknown user'}`,
+      AUTH_LOGOUT: `User ${details?.userName ?? userId} logged out`,
+      AUTH_SESSION_EXPIRED: `Session expired for ${details?.userName ?? userId}`,
+      AUTH_SESSION_REVOKED: `Session revoked for ${details?.userName ?? userId}`,
+      AUTH_PASSWORD_CHANGED: `Password changed for ${details?.userName ?? userId}`,
+      AUTH_PASSWORD_RESET: `Password reset for ${details?.userName ?? userId}`,
+      AUTH_ACCOUNT_LOCKED: `Account locked for ${details?.userName ?? userId}`,
+      AUTH_ACCOUNT_UNLOCKED: `Account unlocked for ${details?.userName ?? userId}`,
+      AUTH_ROLE_CHANGED: `Role changed for ${details?.userName ?? userId}: ${details?.oldRole} → ${details?.newRole}`,
     };
 
     await this.log({
       eventType: type as EventType,
       eventCategory: 'AUTH',
-      severity: severityMap[type] || 'INFO',
+      severity: severityMap[type] ?? 'INFO',
       userId,
       userName: details?.userName,
       ipAddress: details?.ipAddress,
       userAgent: details?.userAgent,
-      summary: summaryMap[type] || `Auth event: ${type}`,
+      summary: summaryMap[type] ?? `Auth event: ${type}`,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log project events
-   */
   async logProject(
     type: string,
     projectId: string,
@@ -237,9 +231,10 @@ class SystemEventService {
     }
   ): Promise<void> {
     const summaryMap: Record<string, string> = {
-      PROJECT_CREATED: `Project ${details?.projectNumber || projectId} created`,
-      PROJECT_UPDATED: `Project ${details?.projectNumber || projectId} updated`,
+      PROJECT_CREATED: `Project ${details?.projectNumber ?? projectId} created`,
+      PROJECT_UPDATED: `Project ${details?.projectNumber ?? projectId} updated`,
       PROJECT_STATUS_CHANGED: `Project ${details?.projectNumber} status: ${details?.oldStatus} → ${details?.newStatus}`,
+      PROJECT_PHASE_CHANGED: `Project ${details?.projectNumber} phase changed`,
       PROJECT_ACTIVATED: `Project ${details?.projectNumber} activated`,
       PROJECT_COMPLETED: `Project ${details?.projectNumber} completed`,
       PROJECT_ON_HOLD: `Project ${details?.projectNumber} put on hold`,
@@ -258,15 +253,12 @@ class SystemEventService {
       entityName: details?.projectName,
       projectId,
       projectNumber: details?.projectNumber,
-      summary: summaryMap[type] || `Project event: ${type}`,
+      summary: summaryMap[type] ?? `Project event: ${type}`,
       changedFields: details?.changedFields,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log task events
-   */
   async logTask(
     type: string,
     taskId: string,
@@ -305,15 +297,12 @@ class SystemEventService {
       entityName: details?.taskTitle,
       projectId: details?.projectId,
       projectNumber: details?.projectNumber,
-      summary: summaryMap[type] || `Task event: ${type}`,
+      summary: summaryMap[type] ?? `Task event: ${type}`,
       changedFields: details?.changedFields,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log production events
-   */
   async logProduction(
     type: string,
     entityId: string,
@@ -332,9 +321,9 @@ class SystemEventService {
     const summaryMap: Record<string, string> = {
       PRODUCTION_LOG_CREATED: `Production log created for ${details?.entityName}`,
       PRODUCTION_MASS_LOG: `Mass production logging: ${details?.count} entries`,
-      PRODUCTION_IMPORT_STARTED: `Production import started`,
+      PRODUCTION_IMPORT_STARTED: 'Production import started',
       PRODUCTION_IMPORT_COMPLETED: `Production import completed: ${details?.importStats?.created} created, ${details?.importStats?.updated} updated`,
-      PRODUCTION_IMPORT_FAILED: `Production import failed`,
+      PRODUCTION_IMPORT_FAILED: 'Production import failed',
       ASSEMBLY_PART_CREATED: `Assembly part ${details?.entityName} created`,
       ASSEMBLY_PART_BULK_IMPORT: `Bulk assembly import: ${details?.count} parts`,
     };
@@ -345,19 +334,16 @@ class SystemEventService {
       severity: type.includes('FAILED') ? 'ERROR' : 'INFO',
       userId,
       userName: details?.userName,
-      entityType: details?.entityType || 'ProductionLog',
+      entityType: details?.entityType ?? 'ProductionLog',
       entityId,
       entityName: details?.entityName,
       projectId: details?.projectId,
       projectNumber: details?.projectNumber,
-      summary: summaryMap[type] || `Production event: ${type}`,
+      summary: summaryMap[type] ?? `Production event: ${type}`,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log QC events
-   */
   async logQC(
     type: string,
     entityId: string,
@@ -389,19 +375,16 @@ class SystemEventService {
       eventCategory: 'QC',
       userId,
       userName: details?.userName,
-      entityType: details?.entityType || 'QCInspection',
+      entityType: details?.entityType ?? 'QCInspection',
       entityId,
       entityName: details?.entityName,
       projectId: details?.projectId,
       projectNumber: details?.projectNumber,
-      summary: summaryMap[type] || `QC event: ${type}`,
+      summary: summaryMap[type] ?? `QC event: ${type}`,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log financial events
-   */
   async logFinancial(
     type: string,
     userId: string,
@@ -428,15 +411,12 @@ class SystemEventService {
       severity: type.includes('FAILED') ? 'ERROR' : 'INFO',
       userId,
       userName: details?.userName,
-      summary: summaryMap[type] || `Financial event: ${type}`,
+      summary: summaryMap[type] ?? `Financial event: ${type}`,
       duration: details?.duration,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log system events
-   */
   async logSystem(
     type: string,
     details?: {
@@ -464,10 +444,10 @@ class SystemEventService {
 
     const summaryMap: Record<string, string> = {
       SYS_STARTUP: `System started: v${details?.version} (${details?.environment})`,
-      SYS_SHUTDOWN: `System shutting down`,
+      SYS_SHUTDOWN: 'System shutting down',
       SYS_VERSION_UPDATED: `System updated to v${details?.version}`,
       SYS_CRON_EXECUTED: `Cron job executed: ${details?.cronJob}`,
-      SYS_CRON_FAILED: `Cron job failed: ${details?.cronJob} - ${details?.error}`,
+      SYS_CRON_FAILED: `Cron job failed: ${details?.cronJob} — ${details?.error}`,
       SYS_ERROR_UNHANDLED: `Unhandled error: ${details?.error}`,
       SYS_API_ERROR: `API error on ${details?.route}: ${details?.statusCode}`,
       SYS_MEMORY_WARNING: `Memory usage warning: ${details?.memoryUsage}%`,
@@ -477,17 +457,14 @@ class SystemEventService {
     await this.log({
       eventType: type as EventType,
       eventCategory: 'SYSTEM',
-      severity: severityMap[type] || 'INFO',
-      userId: 'SYSTEM',
-      summary: summaryMap[type] || `System event: ${type}`,
+      severity: severityMap[type] ?? 'INFO',
+      // userId null — system-generated event
+      summary: summaryMap[type] ?? `System event: ${type}`,
       duration: details?.duration,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log integration events (Dolibarr, PTS)
-   */
   async logIntegration(
     type: string,
     details?: {
@@ -500,8 +477,8 @@ class SystemEventService {
       projectNumbers?: string[];
     }
   ): Promise<void> {
-    const category = type.startsWith('DOLIBARR_') ? 'DOLIBARR' : 'PTS';
-    
+    const category: EventCategory = type.startsWith('DOLIBARR_') ? 'DOLIBARR' : 'PTS';
+
     const severityMap: Record<string, EventSeverity> = {
       DOLIBARR_API_ERROR: 'ERROR',
       DOLIBARR_DISCONNECTED: 'WARNING',
@@ -509,11 +486,11 @@ class SystemEventService {
     };
 
     const summaryMap: Record<string, string> = {
-      DOLIBARR_CONNECTED: `Connected to Dolibarr API`,
-      DOLIBARR_DISCONNECTED: `Dolibarr API connection lost`,
+      DOLIBARR_CONNECTED: 'Connected to Dolibarr API',
+      DOLIBARR_DISCONNECTED: 'Dolibarr API connection lost',
       DOLIBARR_PRODUCT_SYNCED: `Dolibarr products synced: ${details?.counts?.created} created, ${details?.counts?.updated} updated`,
       DOLIBARR_API_ERROR: `Dolibarr API error: ${details?.error}`,
-      PTS_SYNC_STARTED: `PTS sync started`,
+      PTS_SYNC_STARTED: 'PTS sync started',
       PTS_SYNC_COMPLETED: `PTS sync completed: ${details?.counts?.created} parts, ${details?.counts?.updated} logs`,
       PTS_SYNC_FAILED: `PTS sync failed: ${details?.error}`,
       PTS_ROLLBACK_EXECUTED: `PTS data rolled back for projects: ${details?.projectNumbers?.join(', ')}`,
@@ -521,19 +498,16 @@ class SystemEventService {
 
     await this.log({
       eventType: type as EventType,
-      eventCategory: category as EventCategory,
-      severity: severityMap[type] || 'INFO',
-      userId: details?.userId || 'SYSTEM',
+      eventCategory: category,
+      severity: severityMap[type] ?? 'INFO',
+      userId: details?.userId,
       userName: details?.userName,
-      summary: summaryMap[type] || `Integration event: ${type}`,
+      summary: summaryMap[type] ?? `Integration event: ${type}`,
       duration: details?.duration,
       details: details as Record<string, unknown>,
     });
   }
 
-  /**
-   * Log user/RBAC events
-   */
   async logUser(
     type: string,
     targetUserId: string,
@@ -566,7 +540,7 @@ class SystemEventService {
       entityType: 'User',
       entityId: targetUserId,
       entityName: details?.targetUserName,
-      summary: summaryMap[type] || `User event: ${type}`,
+      summary: summaryMap[type] ?? `User event: ${type}`,
       changedFields: details?.changedFields,
       details: details as Record<string, unknown>,
     });
@@ -576,12 +550,10 @@ class SystemEventService {
   // QUERY METHODS
   // ============================================================================
 
-  /**
-   * Get events with filtering and pagination
-   */
   async getEvents(
     filter: {
       eventType?: string;
+      eventCategory?: string;
       category?: string;
       severity?: string;
       userId?: string;
@@ -599,6 +571,7 @@ class SystemEventService {
     const where: Record<string, unknown> = {};
 
     if (filter.eventType) where.eventType = filter.eventType;
+    if (filter.eventCategory) where.eventCategory = filter.eventCategory;
     if (filter.category) where.category = filter.category;
     if (filter.severity) where.severity = filter.severity;
     if (filter.userId) where.userId = filter.userId;
@@ -606,16 +579,18 @@ class SystemEventService {
     if (filter.entityId) where.entityId = filter.entityId;
     if (filter.projectId) where.projectId = filter.projectId;
 
-    if (filter.startDate || filter.endDate) {
-      where.createdAt = {};
-      if (filter.startDate) (where.createdAt as Record<string, Date>).gte = filter.startDate;
-      if (filter.endDate) (where.createdAt as Record<string, Date>).lte = filter.endDate;
+    if (filter.startDate ?? filter.endDate) {
+      const range: Record<string, Date> = {};
+      if (filter.startDate) range.gte = filter.startDate;
+      if (filter.endDate) range.lte = filter.endDate;
+      where.createdAt = range;
     }
 
     if (filter.search) {
       where.OR = [
         { title: { contains: filter.search } },
-        { entityType: { contains: filter.search } },
+        { summary: { contains: filter.search } },
+        { entityName: { contains: filter.search } },
         { eventType: { contains: filter.search } },
       ];
     }
@@ -637,53 +612,39 @@ class SystemEventService {
     return { events, total };
   }
 
-  /**
-   * Get event statistics
-   */
   async getStats(projectId?: string) {
     const where = projectId ? { projectId } : {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [todayCount, totalCount, byCategory, byType, bySeverity, recentErrors] = await Promise.all([
-      prisma.systemEvent.count({
-        where: { ...where, createdAt: { gte: today } },
-      }),
-      prisma.systemEvent.count({ where }),
-      prisma.systemEvent.groupBy({
-        by: ['category'],
-        where,
-        _count: true,
-      }),
-      prisma.systemEvent.groupBy({
-        by: ['eventType'],
-        where,
-        _count: true,
-        orderBy: { _count: { eventType: 'desc' } },
-        take: 10,
-      }),
-      prisma.systemEvent.groupBy({
-        by: ['severity'],
-        where,
-        _count: true,
-      }),
-      prisma.systemEvent.findMany({
-        where: { ...where, severity: { in: ['ERROR', 'CRITICAL'] } },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        include: {
-          user: { select: { id: true, name: true } },
-        },
-      }),
-    ]);
+    const [todayCount, totalCount, byCategory, byType, bySeverity, recentErrors] =
+      await Promise.all([
+        prisma.systemEvent.count({ where: { ...where, createdAt: { gte: today } } }),
+        prisma.systemEvent.count({ where }),
+        prisma.systemEvent.groupBy({ by: ['eventCategory'], where, _count: true }),
+        prisma.systemEvent.groupBy({
+          by: ['eventType'],
+          where,
+          _count: true,
+          orderBy: { _count: { eventType: 'desc' } },
+          take: 10,
+        }),
+        prisma.systemEvent.groupBy({ by: ['severity'], where, _count: true }),
+        prisma.systemEvent.findMany({
+          where: { ...where, severity: { in: ['ERROR', 'CRITICAL'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: { user: { select: { id: true, name: true } } },
+        }),
+      ]);
 
-    const errorCount = bySeverity.find((s) => s.severity === 'ERROR')?._count || 0;
-    const criticalCount = bySeverity.find((s) => s.severity === 'CRITICAL')?._count || 0;
+    const errorCount = bySeverity.find((s) => s.severity === 'ERROR')?._count ?? 0;
+    const criticalCount = bySeverity.find((s) => s.severity === 'CRITICAL')?._count ?? 0;
 
     return {
       todayCount,
       totalCount,
-      byCategory: byCategory.map((c) => ({ category: c.category, count: c._count })),
+      byCategory: byCategory.map((c) => ({ category: c.eventCategory, count: c._count })),
       byType: byType.map((t) => ({ eventType: t.eventType, count: t._count })),
       bySeverity: bySeverity.map((s) => ({ severity: s.severity, count: s._count })),
       errorRate: totalCount > 0 ? ((errorCount + criticalCount) / totalCount) * 100 : 0,
@@ -691,36 +652,51 @@ class SystemEventService {
     };
   }
 
-  /**
-   * Get events for a specific entity (for entity timeline)
-   */
   async getEntityEvents(entityType: string, entityId: string, limit = 50) {
     return prisma.systemEvent.findMany({
       where: { entityType, entityId },
-      include: {
-        user: { select: { id: true, name: true } },
-      },
+      include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
   }
 
-  /**
-   * Get events by correlation ID (for grouped operations)
-   */
   async getCorrelatedEvents(correlationId: string) {
     return prisma.systemEvent.findMany({
-      where: {
-        metadata: {
-          path: ['correlationId'],
-          equals: correlationId,
-        },
-      },
-      include: {
-        user: { select: { id: true, name: true } },
-      },
+      where: { correlationId },
+      include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  // ============================================================================
+  // PRIVATE HELPERS
+  // ============================================================================
+
+  /**
+   * Map new enterprise eventCategory to the legacy `category` field value
+   * so existing queries using the old field continue to work.
+   */
+  private _legacyCategory(eventCategory?: EventCategory): string {
+    const map: Record<string, string> = {
+      AUTH: 'auth',
+      PROJECT: 'project',
+      TASK: 'record',
+      PRODUCTION: 'production',
+      QC: 'qc',
+      ENGINEERING: 'record',
+      FINANCIAL: 'sync',
+      DOLIBARR: 'sync',
+      PTS: 'sync',
+      BUSINESS: 'record',
+      NOTIFICATION: 'system',
+      USER: 'record',
+      SYSTEM: 'system',
+      RISK: 'system',
+      KNOWLEDGE: 'record',
+      EXPORT: 'export',
+    };
+    return (eventCategory ? (map[eventCategory] ?? 'system') : 'system');
   }
 }
 
