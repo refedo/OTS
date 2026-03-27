@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 const createSchema = z.object({ 
   name: z.string().min(2), 
@@ -42,5 +43,11 @@ export async function POST(req: Request) {
 
   const role = await prisma.role.create({ data: parsed.data });
   logger.info({ roleName: role.name }, '[Roles API] Role created');
+
+  systemEventService.logUser('ROLE_CREATED', role.id, session.sub, {
+    roleName: role.name,
+    performedByName: session.name,
+  });
+
   return NextResponse.json(role, { status: 201 });
 }

@@ -7,6 +7,7 @@ import NotificationService from '@/lib/services/notification.service';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity, logAuditEvent } from '@/lib/api-utils';
+import { systemEventService } from '@/services/system-events.service';
 
 const createSchema = z.object({
   title: z.string().min(2),
@@ -394,6 +395,13 @@ export async function POST(req: Request) {
         priority: task.priority,
         status: task.status,
       },
+    });
+
+    systemEventService.logTask('TASK_CREATED', task.id, session.sub, {
+      taskTitle: task.title,
+      projectId: task.projectId ?? undefined,
+      projectNumber: task.project?.projectNumber,
+      assigneeName: task.assignedTo?.name,
     });
 
     // Log task creation on the linked backlog item's audit trail

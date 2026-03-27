@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { systemEventService } from '@/services/system-events.service';
 
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -61,11 +62,12 @@ export async function PATCH(
     const role = await prisma.role.update({
       where: { id: params.id },
       data: parsed.data,
-      include: {
-        _count: {
-          select: { users: true },
-        },
-      },
+      include: { _count: { select: { users: true } } },
+    });
+
+    systemEventService.logUser('ROLE_UPDATED', role.id, session.sub, {
+      roleName: role.name,
+      performedByName: session.name,
     });
 
     return NextResponse.json(role);
@@ -112,8 +114,16 @@ export async function DELETE(
       );
     }
 
-    await prisma.role.delete({
+    const roleToDelete = await prisma.role.findUnique({
       where: { id: params.id },
+      select: { name: true },
+    });
+
+    await prisma.role.delete({ where: { id: params.id } });
+
+    systemEventService.logUser('ROLE_DELETED', params.id, session.sub, {
+      roleName: roleToDelete?.name,
+      performedByName: session.name,
     });
 
     return NextResponse.json({ success: true });

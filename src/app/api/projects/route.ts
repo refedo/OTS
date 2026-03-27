@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
+import { systemEventService } from '@/services/system-events.service';
 
 const createSchema = z.object({
   projectNumber: z.string().min(1),
@@ -262,6 +263,11 @@ export async function POST(req: Request) {
       userId: session.sub,
       projectId: project.id,
       metadata: { projectNumber: project.projectNumber, name: project.name },
+    });
+
+    systemEventService.logProject('PROJECT_CREATED', project.id, session.sub, {
+      projectNumber: project.projectNumber,
+      projectName: project.name,
     });
 
     return NextResponse.json(project, { status: 201 });

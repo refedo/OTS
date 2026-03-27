@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/jwt';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { systemEventService } from '@/services/system-events.service';
 
 async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -62,6 +63,11 @@ export async function POST(request: NextRequest) {
     await prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
+    });
+
+    systemEventService.logAuth('AUTH_PASSWORD_CHANGED', userId, {
+      ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined,
+      userAgent: request.headers.get('user-agent') ?? undefined,
     });
 
     return NextResponse.json({ message: 'Password changed successfully' });

@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { hashPassword } from '@/lib/password';
+import { systemEventService } from '@/services/system-events.service';
 
 const createSchema = z.object({
   name: z.string().min(2),
@@ -106,5 +107,10 @@ export async function POST(req: Request) {
       reportsTo: { select: { id: true, name: true } }
     }
   });
+  systemEventService.logUser('USER_CREATED', user.id, session.sub, {
+    targetUserName: user.name,
+    roleName: user.role?.name,
+  });
+
   return NextResponse.json(user, { status: 201 });
 }

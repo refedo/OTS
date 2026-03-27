@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { hashPassword } from '@/lib/password';
+import { systemEventService } from '@/services/system-events.service';
 
 const customPermissionsSchema = z.union([
   z.object({
@@ -101,14 +102,46 @@ export async function PATCH(
   }
 
   try {
+    // Fetch current state for change detection
+    const oldUser = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { status: true, isAdmin: true, roleId: true },
+    });
+
     const user = await prisma.user.update({
       where: { id: params.id },
       data: updateData,
-      include: {
-        role: true,
-        department: true
-      }
+      include: { role: true, department: true },
     });
+
+    // Determine the most significant event type
+    if (parsed.data.status === 'inactive' && oldUser?.status === 'active') {
+      systemEventService.logUser('USER_DEACTIVATED', user.id, session.sub, {
+        targetUserName: user.name,
+        performedByName: session.name,
+      });
+    } else if (parsed.data.status === 'active' && oldUser?.status === 'inactive') {
+      systemEventService.logUser('USER_REACTIVATED', user.id, session.sub, {
+        targetUserName: user.name,
+        performedByName: session.name,
+      });
+    } else if (parsed.data.isAdmin === true && !oldUser?.isAdmin) {
+      systemEventService.logUser('USER_ADMIN_GRANTED', user.id, session.sub, {
+        targetUserName: user.name,
+        performedByName: session.name,
+      });
+    } else if (parsed.data.isAdmin === false && oldUser?.isAdmin) {
+      systemEventService.logUser('USER_ADMIN_REVOKED', user.id, session.sub, {
+        targetUserName: user.name,
+        performedByName: session.name,
+      });
+    } else {
+      systemEventService.logUser('USER_UPDATED', user.id, session.sub, {
+        targetUserName: user.name,
+        performedByName: session.name,
+        roleName: user.role?.name,
+      });
+    }
 
     return NextResponse.json(user);
   } catch (error) {
@@ -137,8 +170,16 @@ export async function DELETE(
   }
 
   try {
-    await prisma.user.delete({
-      where: { id: params.id }
+    const targetUser = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { name: true },
+    });
+
+    await prisma.user.delete({ where: { id: params.id } });
+
+    systemEventService.logUser('USER_DELETED', params.id, session.sub, {
+      targetUserName: targetUser?.name,
+      performedByName: session.name,
     });
 
     return NextResponse.json({ success: true });
