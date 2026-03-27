@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,16 @@ export async function DELETE() {
     );
 
     logger.info({ deletedCount: result, user: auth.session.name }, 'Cleared all chart of accounts');
+
+    systemEventService.log({
+      eventType: 'FIN_CHART_ACCOUNTS_CLEARED',
+      eventCategory: 'FINANCIAL',
+      severity: 'WARNING',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      summary: `All chart of accounts cleared (${result} records deleted)`,
+      details: { deletedCount: result },
+    }).catch((err: unknown) => logger.error({ err }, '[chart-of-accounts/clear-all] Failed to log FIN_CHART_ACCOUNTS_CLEARED'));
 
     return NextResponse.json({
       success: true,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,19 @@ export async function POST(req: NextRequest) {
     }
 
     logger.info({ count: upserted, coa_account_code }, 'Bulk product COA mapping upserted');
+
+    systemEventService.log({
+      eventType: 'FIN_ACCOUNT_MAPPING_CHANGED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      entityType: 'ProductCoaMapping',
+      entityId: coa_account_code,
+      summary: `Bulk product COA mapping: ${upserted} products → ${coa_account_code}`,
+      details: { productCount: upserted, coa_account_code },
+    }).catch((err: unknown) => logger.error({ err }, '[product-coa-mapping/bulk] Failed to log FIN_ACCOUNT_MAPPING_CHANGED'));
+
     return NextResponse.json({ success: true, upserted });
   } catch (error: unknown) {
     logger.error({ error }, 'Failed to bulk upsert product COA mappings');

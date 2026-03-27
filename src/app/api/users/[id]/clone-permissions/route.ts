@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { checkPermission } from '@/lib/permission-checker';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 const cloneSchema = z.object({
   sourceUserId: z.string().uuid(),
@@ -84,6 +85,18 @@ export async function POST(
     },
     '[PBAC] Cloned custom permissions from one user to another'
   );
+
+  systemEventService.log({
+    eventType: 'PERMISSION_CLONED',
+    eventCategory: 'USER',
+    severity: 'INFO',
+    userId: session.sub,
+    entityType: 'User',
+    entityId: targetUserId,
+    entityName: targetUser.name,
+    summary: `Custom permissions cloned from ${sourceUser.name} to ${targetUser.name}`,
+    details: { sourceUserId, sourceUserName: sourceUser.name, targetUserId, targetUserName: targetUser.name },
+  }).catch((err: unknown) => logger.error({ err }, '[clone-permissions] Failed to log PERMISSION_CLONED'));
 
   return NextResponse.json({
     success: true,

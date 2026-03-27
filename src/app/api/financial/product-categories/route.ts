@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +99,20 @@ export async function POST(req: NextRequest) {
     );
 
     logger.info({ name, cost_classification }, 'Product category created');
+
+    systemEventService.log({
+      eventType: 'FIN_PRODUCT_CATEGORY_CREATED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      entityType: 'ProductCategory',
+      entityId: String((rows as Record<string, unknown>[])[0]?.id ?? ''),
+      entityName: name,
+      summary: `Product category created: ${name}`,
+      details: { name, cost_classification },
+    }).catch((err: unknown) => logger.error({ err }, '[product-categories] Failed to log FIN_PRODUCT_CATEGORY_CREATED'));
+
     return NextResponse.json({ category: (rows as Record<string, unknown>[])[0] }, { status: 201 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';

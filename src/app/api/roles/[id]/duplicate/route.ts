@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
+import { systemEventService } from '@/services/system-events.service';
+import { logger } from '@/lib/logger';
 
 export async function POST(
   req: Request,
@@ -45,9 +47,21 @@ export async function POST(
       },
     });
 
+    systemEventService.log({
+      eventType: 'ROLE_DUPLICATED',
+      eventCategory: 'USER',
+      severity: 'INFO',
+      userId: session.sub,
+      entityType: 'Role',
+      entityId: newRole.id,
+      entityName: newRole.name,
+      summary: `Role duplicated: ${originalRole.name} → ${newRole.name}`,
+      details: { sourceRoleId: id, sourceRoleName: originalRole.name },
+    }).catch((err: unknown) => logger.error({ err }, '[duplicate] Failed to log ROLE_DUPLICATED'));
+
     return NextResponse.json(newRole, { status: 201 });
   } catch (error) {
-    console.error('Error duplicating role:', error);
+    logger.error({ error }, 'Error duplicating role');
     return NextResponse.json(
       { error: 'Failed to duplicate role', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

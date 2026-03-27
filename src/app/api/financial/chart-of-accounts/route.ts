@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
+import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +46,19 @@ export async function POST(req: Request) {
       account_code, account_name, account_name_ar || null, account_type,
       account_category || null, parent_code || null, display_order || 0, notes || null
     );
+
+    systemEventService.log({
+      eventType: 'FIN_CHART_ACCOUNT_CREATED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      entityType: 'ChartAccount',
+      entityId: account_code,
+      entityName: account_name,
+      summary: `Chart account created: ${account_code} - ${account_name}`,
+      details: { account_code, account_name, account_type },
+    }).catch((err: unknown) => logger.error({ err }, '[chart-of-accounts] Failed to log FIN_CHART_ACCOUNT_CREATED'));
 
     return NextResponse.json({ success: true, message: 'Account created' }, { status: 201 });
   } catch (error: any) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApiContext } from '@/lib/api-utils';
 import { checkPermission } from '@/lib/permission-checker';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
@@ -201,7 +202,14 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       }
     }
 
-    logger.info({ dirname: datePart, sqlFilename, size: stat.size, userId: session!.userId }, 'Database backup created');
+    logger.info({ dirname: datePart, sqlFilename, size: stat.size, userId: session!.sub }, 'Database backup created');
+
+    systemEventService.logSystem('SYS_BACKUP_CREATED', {
+      dirname: datePart,
+      sqlFilename,
+      size: stat.size,
+      userId: session!.sub,
+    });
 
     return NextResponse.json({
       dirname: datePart,
@@ -212,7 +220,11 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       message: 'Backup created successfully',
     }, { status: 201 });
   } catch (error) {
-    logger.error({ error, userId: session!.userId }, 'Failed to create backup');
+    logger.error({ error, userId: session!.sub }, 'Failed to create backup');
+    systemEventService.logSystem('SYS_BACKUP_FAILED', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId: session!.sub,
+    });
     return NextResponse.json({ error: 'Failed to create backup' }, { status: 500 });
   }
 });

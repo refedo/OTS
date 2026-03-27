@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import db from '@/lib/db';
 import { checkPermission } from '@/lib/permission-checker';
+import { systemEventService } from '@/services/system-events.service';
+import { logger } from '@/lib/logger';
 
 export async function PATCH(
   request: NextRequest,
@@ -43,9 +45,22 @@ export async function PATCH(
       },
     });
 
+    systemEventService.log({
+      eventType: 'PBAC_RESTRICTION_CHANGED',
+      eventCategory: 'USER',
+      severity: 'INFO',
+      userId: session.sub,
+      userName: session.name,
+      entityType: 'Role',
+      entityId: id,
+      entityName: updatedRole.name,
+      summary: `Module restrictions updated for role: ${updatedRole.name}`,
+      details: { restrictedModules },
+    }).catch((err: unknown) => logger.error({ err }, '[restrictions] Failed to log PBAC_RESTRICTION_CHANGED'));
+
     return NextResponse.json(updatedRole);
   } catch (error) {
-    console.error('Error updating module restrictions:', error);
+    logger.error({ error }, 'Error updating module restrictions');
     return NextResponse.json(
       { message: 'Failed to update module restrictions' },
       { status: 500 }
