@@ -2944,7 +2944,7 @@ model SystemEvent {
   @@index([createdAt])
   @@index([severity])
   @@index([correlationId])
-  @@map("system_events")
+  // Using default table name "SystemEvent" where original data exists
 }
 
 // PTS Sync History - tracks all PTS sync operations

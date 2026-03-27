@@ -22,55 +22,6 @@ import {
 
 class SystemEventService {
   /**
-   * One-time lazy init: renames `SystemEvent` → `system_events` if needed,
-   * then adds all required columns that may be missing from older deployments.
-   * Safe to call multiple times — runs only once per process.
-   */
-  private static _initPromise: Promise<void> | null = null;
-
-  private async _ensureTable(): Promise<void> {
-    if (SystemEventService._initPromise) return SystemEventService._initPromise;
-    SystemEventService._initPromise = (async () => {
-      try {
-        // Rename from CamelCase if the table was created by the original migration
-        await prisma.$executeRawUnsafe('RENAME TABLE IF EXISTS `SystemEvent` TO `system_events`');
-        // Make userId nullable
-        await prisma.$executeRawUnsafe('ALTER TABLE `system_events` MODIFY COLUMN `userId` CHAR(36) NULL');
-        // Widen eventType
-        await prisma.$executeRawUnsafe('ALTER TABLE `system_events` MODIFY COLUMN `eventType` VARCHAR(60) NOT NULL');
-        // Add all columns that may be missing (all idempotent)
-        const cols = [
-          'ADD COLUMN IF NOT EXISTS `eventCategory` VARCHAR(30) NULL',
-          'ADD COLUMN IF NOT EXISTS `severity` VARCHAR(20) NOT NULL DEFAULT \'INFO\'',
-          'ADD COLUMN IF NOT EXISTS `summary` VARCHAR(500) NULL',
-          'ADD COLUMN IF NOT EXISTS `details` JSON NULL',
-          'ADD COLUMN IF NOT EXISTS `changedFields` JSON NULL',
-          'ADD COLUMN IF NOT EXISTS `userName` VARCHAR(100) NULL',
-          'ADD COLUMN IF NOT EXISTS `userRole` VARCHAR(50) NULL',
-          'ADD COLUMN IF NOT EXISTS `ipAddress` VARCHAR(45) NULL',
-          'ADD COLUMN IF NOT EXISTS `userAgent` VARCHAR(500) NULL',
-          'ADD COLUMN IF NOT EXISTS `entityName` VARCHAR(200) NULL',
-          'ADD COLUMN IF NOT EXISTS `entityId` VARCHAR(50) NULL',
-          'ADD COLUMN IF NOT EXISTS `projectNumber` VARCHAR(20) NULL',
-          'ADD COLUMN IF NOT EXISTS `buildingId` CHAR(36) NULL',
-          'ADD COLUMN IF NOT EXISTS `correlationId` VARCHAR(50) NULL',
-          'ADD COLUMN IF NOT EXISTS `parentEventId` CHAR(36) NULL',
-          'ADD COLUMN IF NOT EXISTS `sessionId` VARCHAR(100) NULL',
-          'ADD COLUMN IF NOT EXISTS `duration` INT NULL',
-          'ADD COLUMN IF NOT EXISTS `requestId` VARCHAR(64) NULL',
-        ];
-        for (const col of cols) {
-          await prisma.$executeRawUnsafe(`ALTER TABLE \`system_events\` ${col}`).catch(() => {});
-        }
-        logger.info('[SystemEventService] Table verified/repaired');
-      } catch (err) {
-        logger.warn({ err }, '[SystemEventService] Table repair skipped (may already be correct)');
-      }
-    })();
-    return SystemEventService._initPromise;
-  }
-
-  /**
    * Core logging method.
    * Fire-and-forget for INFO/WARNING; awaited for ERROR/CRITICAL.
    */
@@ -99,9 +50,6 @@ class SystemEventService {
       parentEventId,
       sessionId,
     } = params;
-
-    // Ensure table exists with correct name and schema (no-op after first call)
-    await this._ensureTable().catch(() => {});
 
     const logPromise = prisma.systemEvent
       .create({
@@ -768,10 +716,10 @@ class SystemEventService {
     since.setHours(0, 0, 0, 0);
 
     const rows = await prisma.$queryRaw<{ date: string; count: bigint }[]>`
-      SELECT DATE(created_at) as date, COUNT(*) as count
-      FROM system_events
-      WHERE created_at >= ${since}
-      GROUP BY DATE(created_at)
+      SELECT DATE(createdAt) as date, COUNT(*) as count
+      FROM SystemEvent
+      WHERE createdAt >= ${since}
+      GROUP BY DATE(createdAt)
       ORDER BY date ASC
     `;
 
