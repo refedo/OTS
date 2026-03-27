@@ -23,10 +23,72 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '16.6.2',
+    version: '16.6.3',
     date: 'March 27, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '📡 System Events Framework',
+    highlights: [
+      'Enterprise audit trail: financial, backup, RBAC, PBAC, project, task, QC, and production actions all logged to system_events',
+      'System Events dashboard (/events) with auto-refresh, date presets, user filter, CSV export, and live event log',
+      'System Health tab with 7-day event volume chart, top event types, and cron job registry',
+      'Auto-repair: system_events table self-heals on first use — fixes CamelCase/snake_case mismatch on Linux',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'System Events Dashboard',
+          items: [
+            '/events page: live event log, auto-refresh (30s), date presets (Today/7d/30d), user filter, severity & category dropdowns',
+            'CSV export (GET /api/system-events/export) — Admin/Manager only, up to 10,000 rows, 17 columns',
+            'System Health tab: 7-day event volume BarChart, top 8 event types, cron job registry with event-cleanup',
+            'EntityTimeline embedded in Project and Task detail pages',
+          ],
+        },
+        {
+          title: 'Financial Event Coverage (12 routes)',
+          items: [
+            'FIN_CONFIG_CHANGED on financial config PUT',
+            'FIN_ACCOUNT_MAPPING_CHANGED on account mapping create/update and bulk product COA mapping',
+            'FIN_CHART_ACCOUNT_CREATED, FIN_CHART_ACCOUNT_UPDATED, FIN_CHART_ACCOUNT_DELETED on chart-of-accounts',
+            'FIN_CHART_ACCOUNTS_CLEARED (WARNING severity) on clear-all',
+            'FIN_CHART_SYNCED on Dolibarr sync',
+            'FIN_PRODUCT_CATEGORY_CREATED, FIN_PRODUCT_MAPPING_CHANGED (create/update/delete), FIN_SUPPLIER_CLASSIFIED',
+          ],
+        },
+        {
+          title: 'Backup & RBAC/PBAC Event Coverage',
+          items: [
+            'SYS_BACKUP_CREATED, SYS_BACKUP_FAILED on backup create',
+            'SYS_BACKUP_DELETED on backup delete',
+            'SYS_RESTORE_COMPLETED, SYS_RESTORE_FAILED (CRITICAL severity) on restore',
+            'ROLE_DUPLICATED on role duplicate',
+            'PBAC_RESTRICTION_CHANGED on module restrictions update',
+            'PERMISSION_CLONED on user clone-permissions',
+          ],
+        },
+        {
+          title: 'Retention & Performance',
+          items: [
+            'GET /api/cron/event-cleanup: archives events >90 days to system_event_summaries, deletes >365 days',
+            'system_event_summaries table for daily aggregates (Prisma model + SQL migration)',
+            'Composite indexes: (event_category, created_at) and (severity, created_at)',
+          ],
+        },
+      ],
+      fixed: [
+        'system_events auto-repair on first use: renames SystemEvent→system_events, adds all missing columns — fixes silent write failures on Linux (case-sensitive MySQL table names)',
+        'Backup routes: session!.userId → session!.sub (userId was undefined, causing anonymous event logging)',
+        'RBAC/PBAC routes: console.error replaced with structured logger.error',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '16.6.2',
+    date: 'March 27, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '⚙️ Cron Jobs Management UI',
     highlights: [
       'New /settings/cron-jobs page lists all 5 registered background tasks with schedule, status, and env var details',

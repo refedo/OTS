@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.6.3] - 2026-03-27
+
+### 📡 System Events Framework
+
+**Patch Release:** Implements a complete enterprise-grade audit trail and operational intelligence framework. Every significant action across financial, backup, RBAC, PBAC, project, task, QC, and production modules is now logged to a unified `system_events` table, with a full-featured dashboard, CSV export, retention cron, and auto-repair for legacy deployments.
+
+#### Added
+
+- **`/events` page** — Live event log with auto-refresh (30s toggle), date presets (Today / 7d / 30d), user filter, severity/category dropdowns, full-text search, and paginated results.
+- **CSV export** — `GET /api/system-events/export` streams up to 10,000 events as a 17-column CSV; Admin/Manager only.
+- **System Health tab** — 7-day event volume BarChart (recharts), top 8 event types horizontal bar, and a cron job registry listing all background jobs including the new `event-cleanup` entry.
+- **EntityTimeline component** — Embedded into both Project and Task detail pages showing the event history for that specific entity.
+- **Financial event coverage (12 routes):** `FIN_CONFIG_CHANGED`, `FIN_ACCOUNT_MAPPING_CHANGED` (create + update), `FIN_CHART_ACCOUNT_CREATED`, `FIN_CHART_ACCOUNT_UPDATED`, `FIN_CHART_ACCOUNT_DELETED`, `FIN_CHART_ACCOUNTS_CLEARED` (WARNING), `FIN_CHART_SYNCED`, `FIN_PRODUCT_CATEGORY_CREATED`, `FIN_PRODUCT_MAPPING_CHANGED` (create + update + delete), `FIN_SUPPLIER_CLASSIFIED`, bulk `FIN_ACCOUNT_MAPPING_CHANGED`.
+- **Backup/restore event coverage:** `SYS_BACKUP_CREATED`, `SYS_BACKUP_FAILED`, `SYS_BACKUP_DELETED`, `SYS_RESTORE_COMPLETED` (CRITICAL), `SYS_RESTORE_FAILED` (CRITICAL).
+- **RBAC/PBAC event coverage:** `ROLE_DUPLICATED`, `PBAC_RESTRICTION_CHANGED`, `PERMISSION_CLONED`.
+- **New event types** in `src/types/system-events.ts`: all of the above plus `SYS_BACKUP_DELETED`, `SYS_RESTORE_COMPLETED`, `SYS_RESTORE_FAILED`.
+- **`GET /api/cron/event-cleanup`** — Archives events >90 days to `system_event_summaries` table (INSERT … ON DUPLICATE KEY UPDATE), hard-deletes events >365 days, logs `SYS_CRON_EXECUTED` or `SYS_CRON_FAILED`.
+- **`system_event_summaries` table** — Daily aggregate model for archived events; Prisma schema + manual SQL migration added.
+- **Composite DB indexes** — `(event_category, created_at)` and `(severity, created_at)` on `system_events` for efficient retention queries and dashboard error-rate charts.
+- **`/api/system-events` enhancements** — Now accepts `daily=true&days=N` to include `getDailyStats()` in response; supports `userId` filter.
+
+#### Fixed
+
+- **Auto-repair on first use** — `SystemEventService._ensureTable()` runs once per process: renames `SystemEvent` → `system_events` if needed, adds all missing columns (`severity`, `eventCategory`, `summary`, `details`, `changedFields`, `userName`, `userRole`, `ipAddress`, `userAgent`, `entityName`, `projectNumber`, `buildingId`, `correlationId`, `parentEventId`, `sessionId`, `duration`, `requestId`). This fixes silent event write failures on Linux where MySQL table names are case-sensitive.
+- **Backup routes: `session!.userId` → `session!.sub`** — The `withApiContext` session uses `.sub` for the user ID; `.userId` was undefined, causing all backup events to log with `null` userId.
+- **RBAC/PBAC routes** — Replaced `console.error` with `logger.error` throughout.
+
+---
+
 ## [16.6.2] - 2026-03-27
 
 ### ⚙️ Cron Jobs Management UI
