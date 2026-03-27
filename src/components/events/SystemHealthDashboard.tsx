@@ -72,6 +72,7 @@ const CRON_JOBS = [
   'dolibarr-sync',
   'lcr-sync',
   'deadline-reminders',
+  'event-cleanup',
 ] as const;
 
 const INTEGRATION_PREFIXES: Record<string, string[]> = {
