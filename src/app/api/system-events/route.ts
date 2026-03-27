@@ -60,9 +60,11 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
 
     // ── Include stats? ────────────────────────────────────────────────────────
     const includeStats = searchParams.get('stats') === 'true';
+    const includeDaily = searchParams.get('daily') === 'true';
+    const dailyDays = Math.min(parseInt(searchParams.get('days') ?? '7', 10) || 7, 30);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
-    const [{ events, total }, stats] = await Promise.all([
+    const [{ events, total }, stats, dailyStats] = await Promise.all([
       systemEventService.getEvents(
         {
           eventType,
@@ -82,6 +84,7 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
         offset
       ),
       includeStats ? systemEventService.getStats(projectId) : Promise.resolve(null),
+      includeDaily ? systemEventService.getDailyStats(dailyDays) : Promise.resolve(null),
     ]);
 
     return NextResponse.json({
@@ -91,6 +94,7 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
       offset,
       hasMore: offset + limit < total,
       ...(stats ? { stats } : {}),
+      ...(dailyStats ? { dailyStats } : {}),
     });
   } catch (error) {
     logger.error({ error }, '[system-events] Failed to fetch system events');

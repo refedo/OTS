@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertCircle,
   AlertTriangle,
+  BarChart2,
   CheckCircle2,
   Clock,
   RefreshCw,
@@ -21,6 +22,15 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import type { EventSeverity } from '@/types/system-events';
 import { EventDetailDrawer, type SystemEventDetail } from './EventDetailDrawer';
 
@@ -45,6 +55,16 @@ interface HealthStats {
   criticalCount: number;
   warningCount: number;
   errorRate: number;
+}
+
+interface DailyStat {
+  date: string;
+  count: number;
+}
+
+interface TopEventType {
+  eventType: string;
+  count: number;
 }
 
 const CRON_JOBS = [
@@ -109,6 +129,8 @@ function StatCard({
 
 export function SystemHealthDashboard() {
   const [stats, setStats] = useState<HealthStats | null>(null);
+  const [dailyStats, setDailyStats] = useState<DailyStat[]>([]);
+  const [topTypes, setTopTypes] = useState<TopEventType[]>([]);
   const [cronJobs, setCronJobs] = useState<CronJobStatus[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationStatus[]>([]);
   const [recentErrors, setRecentErrors] = useState<SystemEventDetail[]>([]);
@@ -128,23 +150,35 @@ export function SystemHealthDashboard() {
 
   async function fetchStats() {
     try {
-      const res = await fetch('/api/system-events?stats=true&limit=1');
+      const res = await fetch('/api/system-events?stats=true&daily=true&days=7&limit=1');
       if (!res.ok) return;
       const data = await res.json();
       const s = data.stats;
-      if (!s) return;
-      const bySev = (s.bySeverity ?? []) as { severity: EventSeverity; count: number }[];
-      const errCount = bySev.find(x => x.severity === 'ERROR')?.count ?? 0;
-      const critCount = bySev.find(x => x.severity === 'CRITICAL')?.count ?? 0;
-      const warnCount = bySev.find(x => x.severity === 'WARNING')?.count ?? 0;
-      setStats({
-        todayCount: s.todayCount ?? 0,
-        totalCount: s.totalCount ?? 0,
-        errorCount: errCount,
-        criticalCount: critCount,
-        warningCount: warnCount,
-        errorRate: s.errorRate ?? 0,
-      });
+      if (s) {
+        const bySev = (s.bySeverity ?? []) as { severity: EventSeverity; count: number }[];
+        const errCount = bySev.find(x => x.severity === 'ERROR')?.count ?? 0;
+        const critCount = bySev.find(x => x.severity === 'CRITICAL')?.count ?? 0;
+        const warnCount = bySev.find(x => x.severity === 'WARNING')?.count ?? 0;
+        setStats({
+          todayCount: s.todayCount ?? 0,
+          totalCount: s.totalCount ?? 0,
+          errorCount: errCount,
+          criticalCount: critCount,
+          warningCount: warnCount,
+          errorRate: s.errorRate ?? 0,
+        });
+        // Top event types from stats
+        const byType = (s.byType ?? []) as { eventType: string; count: number }[];
+        setTopTypes(byType.slice(0, 8));
+      }
+      if (data.dailyStats) {
+        setDailyStats(
+          (data.dailyStats as DailyStat[]).map(d => ({
+            date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            count: d.count,
+          }))
+        );
+      }
     } catch {
       // ignore
     }
@@ -285,6 +319,84 @@ export function SystemHealthDashboard() {
           />
         </div>
       )}
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 7-day event volume */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart2 className="size-4" />
+              Event Volume — Last 7 Days
+            </CardTitle>
+            <CardDescription>Total events logged per day</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : dailyStats.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                No data yet
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={dailyStats} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12 }}
+                    formatter={(v: number) => [v, 'Events']}
+                  />
+                  <Bar dataKey="count" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top event types */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart2 className="size-4" />
+              Top Event Types — Last 7 Days
+            </CardTitle>
+            <CardDescription>Most frequent event types</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : topTypes.length === 0 ? (
+              <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+                No data yet
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart
+                  data={topTypes}
+                  layout="vertical"
+                  margin={{ top: 0, right: 16, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="eventType"
+                    tick={{ fontSize: 9 }}
+                    width={130}
+                  />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12 }}
+                    formatter={(v: number) => [v, 'Count']}
+                  />
+                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cron Jobs */}

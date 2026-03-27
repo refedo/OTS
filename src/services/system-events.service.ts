@@ -710,6 +710,46 @@ class SystemEventService {
     });
   }
 
+  async getDailyStats(days = 7): Promise<{ date: string; count: number }[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - days + 1);
+    since.setHours(0, 0, 0, 0);
+
+    const rows = await prisma.$queryRaw<{ date: string; count: bigint }[]>`
+      SELECT DATE(created_at) as date, COUNT(*) as count
+      FROM system_events
+      WHERE created_at >= ${since}
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `;
+
+    const result: { date: string; count: number }[] = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(since);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const found = rows.find(r => {
+        const rowDate = r.date instanceof Date ? r.date.toISOString() : String(r.date);
+        return rowDate.startsWith(dateStr);
+      });
+      result.push({ date: dateStr, count: found ? Number(found.count) : 0 });
+    }
+    return result;
+  }
+
+  async getTopEventTypes(limit = 8, days = 7): Promise<{ eventType: string; count: number }[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const rows = await prisma.systemEvent.groupBy({
+      by: ['eventType'],
+      where: { createdAt: { gte: since } },
+      _count: true,
+      orderBy: { _count: { eventType: 'desc' } },
+      take: limit,
+    });
+    return rows.map(r => ({ eventType: r.eventType, count: r._count }));
+  }
+
   // ============================================================================
   // PRIVATE HELPERS
   // ============================================================================

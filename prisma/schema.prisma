@@ -3422,3 +3422,19 @@ model LcrSyncLog {
   @@index([createdAt])
   @@map("lcr_sync_logs")
 }
+
+// Daily aggregates for system events — written by event-cleanup cron after archiving
+model SystemEventSummary {
+  id            Int      @id @default(autoincrement())
+  summaryDate   DateTime @db.Date
+  eventCategory String?  @db.VarChar(30)
+  eventType     String?  @db.VarChar(60)
+  severity      String   @db.VarChar(20)
+  count         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([summaryDate, eventCategory, eventType, severity])
+  @@index([summaryDate])
+  @@map("system_event_summaries")
+}

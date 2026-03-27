@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Download,
   Eye,
   Filter,
   FolderOpen,
@@ -27,6 +28,7 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  Timer,
   User,
   XCircle,
 } from 'lucide-react';
@@ -45,6 +47,13 @@ interface EventStats {
   totalCount: number;
   bySeverity: { severity: EventSeverity; count: number }[];
   byCategory: { category: EventCategory; count: number }[];
+}
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface UserOption {
+  id: string;
+  name: string;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -98,10 +107,77 @@ export default function EventsDashboard() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [correlationFilter, setCorrelationFilter] = useState('');
+  const [userFilter, setUserFilter] = useState('');
+
+  // User list for filter dropdown
+  const [users, setUsers] = useState<UserOption[]>([]);
+
+  // Auto-refresh
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Export
+  const [exporting, setExporting] = useState(false);
 
   // Drawer
   const [selected, setSelected] = useState<SystemEventDetail | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Fetch users for filter dropdown
+  useEffect(() => {
+    fetch('/api/users?forAssignment=true')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: UserOption[]) => setUsers(data))
+      .catch(() => {});
+  }, []);
+
+  // Auto-refresh setup
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshRef.current = setInterval(() => fetchEvents(page), 30_000);
+    } else if (autoRefreshRef.current) {
+      clearInterval(autoRefreshRef.current);
+      autoRefreshRef.current = null;
+    }
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, page]);
+
+  // Build export URL with current filters
+  function buildExportParams() {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (categoryFilter !== 'all') params.set('eventCategory', categoryFilter);
+    if (severityFilter !== 'all') params.set('severity', severityFilter);
+    if (userFilter) params.set('userId', userFilter);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      params.set('endDate', end.toISOString());
+    }
+    if (correlationFilter) params.set('correlationId', correlationFilter);
+    return params.toString();
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/system-events/export?${buildExportParams()}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `system-events-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Fetch events
   const fetchEvents = useCallback(async (currentPage: number) => {
@@ -115,9 +191,9 @@ export default function EventsDashboard() {
       if (search) params.set('search', search);
       if (categoryFilter !== 'all') params.set('eventCategory', categoryFilter);
       if (severityFilter !== 'all') params.set('severity', severityFilter);
+      if (userFilter) params.set('userId', userFilter);
       if (startDate) params.set('startDate', startDate);
       if (endDate) {
-        // include the whole end day
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
         params.set('endDate', end.toISOString());
@@ -134,11 +210,11 @@ export default function EventsDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter, severityFilter, startDate, endDate, correlationFilter]);
+  }, [search, categoryFilter, severityFilter, userFilter, startDate, endDate, correlationFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, severityFilter, startDate, endDate, correlationFilter]);
+  }, [search, categoryFilter, severityFilter, userFilter, startDate, endDate, correlationFilter]);
 
   useEffect(() => {
     fetchEvents(page);
@@ -173,14 +249,35 @@ export default function EventsDashboard() {
             Audit trail, operational intelligence, and system health
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => fetchEvents(page)}
-          disabled={loading}
-        >
-          <RefreshCw className={`size-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={autoRefresh ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setAutoRefresh(v => !v)}
+            title="Toggle 30s auto-refresh"
+          >
+            <Timer className="size-4 mr-1.5" />
+            {autoRefresh ? 'Live' : 'Auto'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport()}
+            disabled={exporting}
+          >
+            <Download className={`size-4 mr-1.5 ${exporting ? 'animate-pulse' : ''}`} />
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchEvents(page)}
+            disabled={loading}
+          >
+            <RefreshCw className={`size-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="events">
@@ -295,26 +392,65 @@ export default function EventsDashboard() {
                   ))}
                 </select>
 
+                {/* User filter */}
+                {users.length > 0 && (
+                  <select
+                    value={userFilter}
+                    onChange={e => setUserFilter(e.target.value)}
+                    className="h-9 px-3 rounded-md border bg-background text-sm"
+                  >
+                    <option value="">All Users</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Date presets */}
+                <div className="flex items-center gap-1">
+                  {[
+                    { label: 'Today', days: 0 },
+                    { label: '7d', days: 7 },
+                    { label: '30d', days: 30 },
+                  ].map(({ label, days }) => (
+                    <Button
+                      key={label}
+                      variant="outline"
+                      size="sm"
+                      className="h-9 px-2.5 text-xs"
+                      onClick={() => {
+                        const from = new Date();
+                        from.setDate(from.getDate() - days);
+                        setStartDate(from.toISOString().split('T')[0]);
+                        setEndDate('');
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+
                 {/* Date range */}
                 <input
                   type="date"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
                   className="h-9 px-3 rounded-md border bg-background text-sm"
-                  placeholder="From"
                 />
                 <input
                   type="date"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
                   className="h-9 px-3 rounded-md border bg-background text-sm"
-                  placeholder="To"
                 />
 
                 {/* Clear filters */}
                 {(search ||
                   categoryFilter !== 'all' ||
                   severityFilter !== 'all' ||
+                  userFilter ||
                   startDate ||
                   endDate) && (
                   <Button
@@ -325,6 +461,7 @@ export default function EventsDashboard() {
                       setSearch('');
                       setCategoryFilter('all');
                       setSeverityFilter('all');
+                      setUserFilter('');
                       setStartDate('');
                       setEndDate('');
                     }}
