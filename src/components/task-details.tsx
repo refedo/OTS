@@ -671,12 +671,39 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                   {/* Status info */}
                   {task.status === 'Completed' && (
                     <p className="text-xs text-muted-foreground text-center">
-                      {task.approvedAt 
+                      {task.approvedAt
                         ? `Approved by ${task.approvedBy?.name || 'Unknown'} on ${formatDate(task.approvedAt)}`
                         : 'Task completed, awaiting approval'
                       }
                     </p>
                   )}
+
+                  {/* Clarification / Time Extension */}
+                  <div className="border-t pt-3 mt-1">
+                    <p className="text-xs text-muted-foreground mb-2">Need something from the creator?</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => setShowClarificationDialog(true)}
+                        disabled={sendingRequest}
+                      >
+                        <MessageCircleQuestion className="size-4" />
+                        Ask for Clarification
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => setShowExtensionDialog(true)}
+                        disabled={sendingRequest}
+                      >
+                        <Clock className="size-4" />
+                        Request Time Extension
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
