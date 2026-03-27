@@ -236,6 +236,7 @@ export default function ProductCoaMappingPage() {
   const [productPagination, setProductPagination] = useState({ page: 0, limit: 50, total: 0 });
   const [productSearch, setProductSearch] = useState('');
   const [productFilter, setProductFilter] = useState<'all' | 'yes' | 'no'>('all');
+  const [productPageSize, setProductPageSize] = useState(50);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [savingProduct, setSavingProduct] = useState<number | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<number | null>(null);
@@ -259,6 +260,7 @@ export default function ProductCoaMappingPage() {
   const [supplierPagination, setSupplierPagination] = useState({ page: 0, limit: 50, total: 0 });
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierFilter, setSupplierFilter] = useState<'all' | 'yes' | 'no'>('all');
+  const [supplierPageSize, setSupplierPageSize] = useState(50);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [savingSupplier, setSavingSupplier] = useState<number | null>(null);
   const [deletingSupplier, setDeletingSupplier] = useState<number | null>(null);
@@ -296,11 +298,12 @@ export default function ProductCoaMappingPage() {
     setLoadingCoverage(false);
   }, []);
 
-  const fetchProducts = useCallback(async (page = 0) => {
+  const fetchProducts = useCallback(async (page = 0, pageSize?: number) => {
     setLoadingProducts(true);
+    const effectivePageSize = pageSize !== undefined ? pageSize : productPageSize;
     const params = new URLSearchParams({
       page: String(page),
-      limit: '50',
+      limit: String(effectivePageSize),
       search: productSearch,
       mapped: productFilter,
     });
@@ -312,13 +315,14 @@ export default function ProductCoaMappingPage() {
       setProductPagination(data.pagination);
     }
     setLoadingProducts(false);
-  }, [productSearch, productFilter]);
+  }, [productSearch, productFilter, productPageSize]);
 
-  const fetchSuppliers = useCallback(async (page = 0) => {
+  const fetchSuppliers = useCallback(async (page = 0, pageSize?: number) => {
     setLoadingSuppliers(true);
+    const effectivePageSize = pageSize !== undefined ? pageSize : supplierPageSize;
     const params = new URLSearchParams({
       page: String(page),
-      limit: '50',
+      limit: String(effectivePageSize),
       search: supplierSearch,
       mapped: supplierFilter,
     });
@@ -330,7 +334,7 @@ export default function ProductCoaMappingPage() {
       setSupplierPagination(data.pagination);
     }
     setLoadingSuppliers(false);
-  }, [supplierSearch, supplierFilter]);
+  }, [supplierSearch, supplierFilter, supplierPageSize]);
 
   useEffect(() => { fetchCoa(); fetchCoverage(); }, [fetchCoa, fetchCoverage]);
   useEffect(() => { fetchProducts(0); }, [fetchProducts]);
@@ -682,6 +686,18 @@ export default function ProductCoaMappingPage() {
                 <SelectItem value="no">Unmapped only</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={String(productPageSize)} onValueChange={v => { const s = Number(v); setProductPageSize(s); fetchProducts(0, s); }}>
+              <SelectTrigger className="w-[110px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50 / page</SelectItem>
+                <SelectItem value="100">100 / page</SelectItem>
+                <SelectItem value="200">200 / page</SelectItem>
+                <SelectItem value="500">500 / page</SelectItem>
+                <SelectItem value="0">All</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" onClick={() => fetchProducts(0)}>
               <Search className="h-3.5 w-3.5 mr-1" /> Search
             </Button>
@@ -832,22 +848,28 @@ export default function ProductCoaMappingPage() {
           {/* Product Pagination */}
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              {productPagination.total === 0 ? 'No results' : `${productPagination.page * productPagination.limit + 1}–${Math.min((productPagination.page + 1) * productPagination.limit, productPagination.total)} of ${productPagination.total}`}
+              {productPagination.total === 0
+                ? 'No results'
+                : productPagination.limit === 0
+                  ? `${productPagination.total} total (all)`
+                  : `${productPagination.page * productPagination.limit + 1}–${Math.min((productPagination.page + 1) * productPagination.limit, productPagination.total)} of ${productPagination.total}`}
             </span>
-            <div className="flex gap-2">
-              <Button size="icon" variant="outline" className="h-7 w-7"
-                disabled={productPagination.page === 0}
-                onClick={() => fetchProducts(productPagination.page - 1)}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <Button size="icon" variant="outline" className="h-7 w-7"
-                disabled={(productPagination.page + 1) * productPagination.limit >= productPagination.total}
-                onClick={() => fetchProducts(productPagination.page + 1)}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            {productPagination.limit > 0 && (
+              <div className="flex gap-2">
+                <Button size="icon" variant="outline" className="h-7 w-7"
+                  disabled={productPagination.page === 0}
+                  onClick={() => fetchProducts(productPagination.page - 1)}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="icon" variant="outline" className="h-7 w-7"
+                  disabled={(productPagination.page + 1) * productPagination.limit >= productPagination.total}
+                  onClick={() => fetchProducts(productPagination.page + 1)}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -872,6 +894,18 @@ export default function ProductCoaMappingPage() {
                 <SelectItem value="all">All suppliers</SelectItem>
                 <SelectItem value="yes">Mapped only</SelectItem>
                 <SelectItem value="no">Unmapped only</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={String(supplierPageSize)} onValueChange={v => { const s = Number(v); setSupplierPageSize(s); fetchSuppliers(0, s); }}>
+              <SelectTrigger className="w-[110px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50 / page</SelectItem>
+                <SelectItem value="100">100 / page</SelectItem>
+                <SelectItem value="200">200 / page</SelectItem>
+                <SelectItem value="500">500 / page</SelectItem>
+                <SelectItem value="0">All</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => fetchSuppliers(0)}>
@@ -1035,8 +1069,13 @@ export default function ProductCoaMappingPage() {
           {/* Supplier Pagination */}
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              {supplierPagination.total === 0 ? 'No results' : `${supplierPagination.page * supplierPagination.limit + 1}–${Math.min((supplierPagination.page + 1) * supplierPagination.limit, supplierPagination.total)} of ${supplierPagination.total}`}
+              {supplierPagination.total === 0
+                ? 'No results'
+                : supplierPagination.limit === 0
+                  ? `${supplierPagination.total} total (all)`
+                  : `${supplierPagination.page * supplierPagination.limit + 1}–${Math.min((supplierPagination.page + 1) * supplierPagination.limit, supplierPagination.total)} of ${supplierPagination.total}`}
             </span>
+            {supplierPagination.limit > 0 && (
             <div className="flex gap-2">
               <Button size="icon" variant="outline" className="h-7 w-7"
                 disabled={supplierPagination.page === 0}
@@ -1051,6 +1090,7 @@ export default function ProductCoaMappingPage() {
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

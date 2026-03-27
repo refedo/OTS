@@ -27,12 +27,10 @@ export default async function RolePermissionsPage({ params }: { params: Promise<
     redirect('/login');
   }
 
-  // Check if user has permission to manage permissions
-  // Temporarily disabled to allow initial setup
-  // const canManage = await checkPermission('roles.manage_permissions');
-  // if (!canManage) {
-  //   redirect('/roles');
-  // }
+  const canManage = await checkPermission('roles.manage_permissions');
+  if (!canManage) {
+    redirect('/roles');
+  }
 
   // Fetch the role
   const role = await db.role.findUnique({

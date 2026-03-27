@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '16.5.0',
+    date: 'March 27, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '🔒 PBAC Enforcement & Cost Classification Pagination',
+    highlights: [
+      'Permission checks now enforced on all role and user management pages — Operator and other restricted roles can no longer access /users or /roles',
+      'Cost Classification Mapping: page-size selector (50 / 100 / 200 / 500 / All) added to Products and Suppliers tabs',
+      'Selecting "All" loads every row in a single request with no pagination controls',
+      'API limit cap raised from 200 to 500; limit=0 returns all records',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Pagination Page-Size Selector',
+          items: [
+            'Dropdown in Products tab toolbar: 50, 100, 200, 500, All',
+            'Dropdown in Suppliers tab toolbar: 50, 100, 200, 500, All',
+            'Selecting "All" fetches all rows (limit=0) and hides prev/next controls',
+            'API endpoints accept limit up to 500; limit=0 returns full dataset',
+          ],
+        },
+      ],
+      fixed: [
+        'PBAC: /roles, /roles/create, /roles/[id]/permissions now enforce roles.view / roles.create / roles.manage_permissions — previously all checks were commented out',
+        'PBAC: /users, /users/create, /users/[id]/edit now enforce users.view / users.create / users.edit — previously no access control beyond session',
+        'Operator and other restricted roles are redirected to /dashboard when accessing user or role management pages without the required permissions',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '16.4.1',
     date: 'March 26, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔧 Financial Report Fixes & COA Account Breakdown',
     highlights: [
       'New "Cost Structure by Account Number" table in Project Analysis — see spend by individual COA account code (raw material, paint, sub-contracting, etc.)',

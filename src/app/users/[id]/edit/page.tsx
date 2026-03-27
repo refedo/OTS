@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { checkPermission } from '@/lib/permission-checker';
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Edit User',
@@ -21,6 +22,11 @@ export default async function EditUserPage({ params }: { params: { id: string } 
 
   if (!session) {
     redirect('/login');
+  }
+
+  const canEdit = await checkPermission('users.edit');
+  if (!canEdit) {
+    redirect('/users');
   }
 
   // Fetch the user to edit

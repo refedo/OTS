@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.5.0] - 2026-03-27
+
+### 🔒 PBAC Enforcement & Cost Classification Pagination
+
+**Minor Release:** Enforces permission-based access control on all user and role management pages (previously bypassed), and adds a configurable page-size selector (50 / 100 / 200 / 500 / All) to the Cost Classification Mapping screen.
+
+#### Added
+
+- **Pagination page-size selector** — Cost Classification Mapping (Products and Suppliers tabs) now has a page-size dropdown (50 / 100 / 200 / 500 / All) in each tab's toolbar. Selecting "All" fetches every row in one request with no pagination controls shown.
+- **API support for larger page sizes** — `GET /api/financial/product-coa-mapping` and `GET /api/financial/supplier-coa-default` now accept `limit` values up to 500. Passing `limit=0` returns all records (previously capped at 200).
+
+#### Fixed
+
+- **PBAC (Permission-Based Access Control) enforcement on Role pages** — `/roles`, `/roles/create`, and `/roles/[id]/permissions` now enforce `roles.view`, `roles.create`, and `roles.manage_permissions` checks respectively. These checks were previously commented out (marked "temporarily disabled for initial setup") allowing any authenticated user, including Operator, to view and manage roles.
+- **PBAC enforcement on User pages** — `/users`, `/users/create`, and `/users/[id]/edit` now enforce `users.view`, `users.create`, and `users.edit` permission checks. These pages had no access control beyond session verification, so any authenticated user could reach them.
+
+#### Changed
+
+- Operators and other restricted roles are now properly redirected to `/dashboard` when they attempt to access user or role management pages without the required permissions.
+
+---
+
 ## [16.4.1] - 2026-03-26
 
 ### 🔧 Financial Report Fixes & COA Account Breakdown

@@ -23,12 +23,10 @@ export default async function CreateRolePage() {
     redirect('/login');
   }
 
-  // Check if user has permission to create roles
-  // Temporarily disabled to allow initial setup
-  // const canCreate = await checkPermission('roles.create');
-  // if (!canCreate) {
-  //   redirect('/roles');
-  // }
+  const canCreate = await checkPermission('roles.create');
+  if (!canCreate) {
+    redirect('/roles');
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">

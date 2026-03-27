@@ -20,12 +20,10 @@ export default async function RolesPage() {
     redirect('/login');
   }
 
-  // Check if user has permission to view roles
-  // Temporarily disabled to allow initial setup
-  // const canView = await checkPermission('roles.view');
-  // if (!canView) {
-  //   redirect('/dashboard');
-  // }
+  const canView = await checkPermission('roles.view');
+  if (!canView) {
+    redirect('/dashboard');
+  }
 
   // Fetch roles
   const roles = await db.role.findMany({
