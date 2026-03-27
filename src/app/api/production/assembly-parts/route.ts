@@ -6,6 +6,7 @@ import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { verifySession } from '@/lib/jwt';
 import { logActivity, logSystemEvent } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 const assemblyPartSchema = z.object({
   projectId: z.string().uuid(),
@@ -340,6 +341,12 @@ export async function POST(req: Request) {
             partIds: uploadedIds,
           },
         });
+
+        systemEventService.logProduction('ASSEMBLY_PART_BULK_IMPORT', results[0]?.projectId ?? results[0]?.id, session.sub, {
+          entityType: 'AssemblyPart',
+          projectId: results[0]?.projectId,
+          count: results.length,
+        });
       }
 
       return NextResponse.json({
@@ -394,6 +401,12 @@ export async function POST(req: Request) {
       userId: session.sub,
       projectId: assemblyPart.projectId,
       metadata: { partMark: assemblyPart.partMark, quantity: assemblyPart.quantity },
+    });
+
+    systemEventService.logProduction('ASSEMBLY_PART_CREATED', assemblyPart.id, session.sub, {
+      entityType: 'AssemblyPart',
+      entityName: assemblyPart.partDesignation,
+      projectId: assemblyPart.projectId,
     });
 
     return NextResponse.json(assemblyPart, { status: 201 });

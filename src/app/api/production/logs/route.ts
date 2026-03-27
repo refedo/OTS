@@ -6,6 +6,7 @@ import { verifySession } from '@/lib/jwt';
 import { recalculateProductionKPIs } from '@/lib/kpi/hooks';
 import { WorkTrackingValidatorService } from '@/lib/services/work-tracking-validator.service';
 import { logActivity } from '@/lib/api-utils';
+import { systemEventService } from '@/services/system-events.service';
 
 const productionLogSchema = z.object({
   assemblyPartId: z.string().uuid(),
@@ -347,6 +348,12 @@ export async function POST(req: Request) {
       },
     });
 
+    systemEventService.logProduction('PRODUCTION_LOG_CREATED', productionLog.id, session.sub, {
+      entityName: assemblyPart.partDesignation,
+      projectId: assemblyPart.projectId,
+      processType: logData.processType,
+    });
+
     // Return production log with any warnings
     return NextResponse.json({
       ...productionLog,
@@ -406,6 +413,11 @@ export async function DELETE(req: Request) {
         projectId: logsToDelete[0]?.assemblyPart?.projectId,
         reason: 'Production logs deleted',
         metadata: { deletedCount: result.count, processTypes: logsToDelete.map(l => l.processType) },
+      });
+
+      systemEventService.logProduction('PRODUCTION_LOG_DELETED', ids[0], session.sub, {
+        projectId: logsToDelete[0]?.assemblyPart?.projectId,
+        count: result.count,
       });
     }
 

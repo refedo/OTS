@@ -546,6 +546,47 @@ class SystemEventService {
     });
   }
 
+  async logBusiness(
+    type: string,
+    entityId: string,
+    details?: {
+      entityType?: string;
+      entityName?: string;
+      userId?: string;
+      userName?: string;
+      year?: number;
+      status?: string;
+      oldStatus?: string;
+      newStatus?: string;
+    }
+  ): Promise<void> {
+    const summaryMap: Record<string, string> = {
+      BIZ_OBJECTIVE_CREATED: `Objective "${details?.entityName}" created`,
+      BIZ_OBJECTIVE_UPDATED: `Objective "${details?.entityName}" updated`,
+      BIZ_OBJECTIVE_DELETED: `Objective "${details?.entityName}" deleted`,
+      BIZ_OBJECTIVE_COMPLETED: `Objective "${details?.entityName}" completed`,
+      BIZ_INITIATIVE_CREATED: `Initiative "${details?.entityName}" created`,
+      BIZ_INITIATIVE_UPDATED: `Initiative "${details?.entityName}" updated`,
+      BIZ_INITIATIVE_STATUS: `Initiative "${details?.entityName}" status: ${details?.oldStatus} → ${details?.newStatus}`,
+      BIZ_INITIATIVE_COMPLETED: `Initiative "${details?.entityName}" completed`,
+      BIZ_KPI_CREATED: `KPI "${details?.entityName}" created`,
+      BIZ_KPI_UPDATED: `KPI "${details?.entityName}" updated`,
+      BIZ_SWOT_UPDATED: `SWOT analysis updated`,
+    };
+
+    await this.log({
+      eventType: type as EventType,
+      eventCategory: 'BUSINESS',
+      userId: details?.userId,
+      userName: details?.userName,
+      entityType: details?.entityType ?? 'BusinessEntity',
+      entityId,
+      entityName: details?.entityName,
+      summary: summaryMap[type] ?? `Business event: ${type}`,
+      details: details as Record<string, unknown>,
+    });
+  }
+
   // ============================================================================
   // QUERY METHODS
   // ============================================================================

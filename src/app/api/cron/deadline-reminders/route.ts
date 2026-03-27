@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { NotificationService } from '@/lib/services/notification.service';
+import { systemEventService } from '@/services/system-events.service';
 
 /**
  * Cron job: send push notifications to task assignees whose task is due in ~2 days.
@@ -71,5 +72,10 @@ export async function POST(req: NextRequest) {
   );
 
   logger.info({ sent, failed, windowStart, windowEnd }, 'Deadline reminders cron completed');
+
+  systemEventService.logSystem('SYS_CRON_EXECUTED', {
+    cronJob: 'deadline-reminders',
+  });
+
   return NextResponse.json({ sent, failed });
 }

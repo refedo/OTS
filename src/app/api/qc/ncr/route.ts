@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { recalculateQCKPIs } from '@/lib/kpi/hooks';
+import { systemEventService } from '@/services/system-events.service';
 
 // Generate NCR Number
 async function generateNCRNumber(projectId: string): Promise<string> {
@@ -212,6 +213,13 @@ export async function POST(request: Request) {
     // Trigger KPI recalculation (async, don't wait)
     recalculateQCKPIs(projectId).catch(error => {
       console.error('KPI recalculation failed:', error);
+    });
+
+    systemEventService.logQC('QC_NCR_CREATED', ncr.id, session.sub, {
+      entityType: 'NCRReport',
+      entityName: ncr.ncrNumber,
+      projectId: ncr.projectId,
+      severity,
     });
 
     return NextResponse.json(ncr, { status: 201 });

@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
+import { systemEventService } from '@/services/system-events.service';
 
 export async function PATCH(
   request: Request,
@@ -97,6 +98,15 @@ export async function PATCH(
       // Sync WorkUnit status (non-blocking)
       WorkUnitSyncService.syncRFIStatusUpdate(id, status).catch((err) => {
         console.error('WorkUnit status sync failed:', err);
+      });
+    }
+
+    if (status) {
+      systemEventService.logQC('QC_RFI_STATUS_CHANGED', id, session.sub, {
+        entityType: 'RFIRequest',
+        entityName: updatedRFI.rfiNumber ?? id,
+        projectId: updatedRFI.projectId,
+        status,
       });
     }
 

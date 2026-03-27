@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
+import { systemEventService } from '@/services/system-events.service';
 
 export async function PATCH(
   request: Request,
@@ -89,6 +90,16 @@ export async function PATCH(
       await prisma.productionLog.update({
         where: { id: updatedNCR.productionLogId },
         data: { qcStatus: 'Approved' },
+      });
+    }
+
+    if (status) {
+      const eventType = status === 'Closed' ? 'QC_NCR_CLOSED' : 'QC_NCR_STATUS_CHANGED';
+      systemEventService.logQC(eventType, id, session.sub, {
+        entityType: 'NCRReport',
+        entityName: updatedNCR.ncrNumber,
+        projectId: updatedNCR.projectId,
+        status,
       });
     }
 
