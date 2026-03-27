@@ -28,7 +28,7 @@ import { systemEventService } from '@/services/system-events.service';
 import { logger } from '@/lib/logger';
 
 export const GET = withApiContext(async (req: NextRequest, session) => {
-  if (!session || !['Admin', 'Manager'].includes(session.role)) {
+  if (!session || !['Admin', 'Manager', 'CEO'].includes(session.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
