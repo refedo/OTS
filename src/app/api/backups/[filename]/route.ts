@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApiContext } from '@/lib/api-utils';
 import { checkPermission } from '@/lib/permission-checker';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 import fs from 'fs';
 import path from 'path';
 
@@ -45,7 +46,11 @@ export const DELETE = withApiContext(async (req: NextRequest, session, context) 
     } else {
       fs.unlinkSync(targetPath);
     }
-    logger.info({ filename, userId: session!.userId }, 'Backup deleted');
+    logger.info({ filename, userId: session!.sub }, 'Backup deleted');
+    systemEventService.logSystem('SYS_BACKUP_DELETED', {
+      filename,
+      userId: session!.sub,
+    });
     return NextResponse.json({ message: 'Backup deleted successfully' });
   } catch (error) {
     logger.error({ error, filename }, 'Failed to delete backup');

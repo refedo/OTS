@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { withApiContext } from '@/lib/api-utils';
 import { checkPermission } from '@/lib/permission-checker';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 import prisma from '@/lib/db';
 import { BACKUP_MODULES, getTablesForModules } from '@/lib/backup-modules';
 import fs from 'fs';
@@ -217,9 +218,20 @@ export const POST = withApiContext(async (req: NextRequest, session, context) =>
     await runMysqlRestore(sqlFilePath, creds, selectedTables);
 
     logger.info(
-      { filename, isPartial, modules: moduleIds, tableCount: selectedTables?.size, userId: session!.userId },
+      { filename, isPartial, modules: moduleIds, tableCount: selectedTables?.size, userId: session!.sub },
       'Database restored from backup',
     );
+
+    await systemEventService.log({
+      eventType: 'SYS_RESTORE_COMPLETED',
+      eventCategory: 'SYSTEM',
+      severity: 'CRITICAL',
+      userId: session!.sub,
+      summary: isPartial
+        ? `Partial DB restore from ${filename} — ${selectedTables!.size} tables`
+        : `Full DB restore from ${filename}`,
+      details: { filename, isPartial, modules: moduleIds, tableCount: selectedTables?.size ?? null },
+    });
 
     return NextResponse.json({
       message: isPartial
@@ -227,7 +239,15 @@ export const POST = withApiContext(async (req: NextRequest, session, context) =>
         : 'Full database restore complete',
     });
   } catch (error) {
-    logger.error({ error, filename, userId: session!.userId }, 'Failed to restore database from backup');
+    logger.error({ error, filename, userId: session!.sub }, 'Failed to restore database from backup');
+    await systemEventService.log({
+      eventType: 'SYS_RESTORE_FAILED',
+      eventCategory: 'SYSTEM',
+      severity: 'CRITICAL',
+      userId: session!.sub,
+      summary: `DB restore FAILED from ${filename}`,
+      details: { filename, error: error instanceof Error ? error.message : 'Unknown error' },
+    });
     return NextResponse.json({ error: 'Failed to restore database from backup' }, { status: 500 });
   }
 });

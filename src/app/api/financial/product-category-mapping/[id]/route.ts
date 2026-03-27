@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +42,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     );
 
     logger.info({ id: numId }, 'Product category mapping updated');
+
+    systemEventService.log({
+      eventType: 'FIN_PRODUCT_MAPPING_CHANGED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      entityType: 'ProductCategoryMapping',
+      entityId: id,
+      summary: `Product mapping updated: ID ${numId}`,
+      details: { id: numId, category_id },
+    }).catch((err: unknown) => logger.error({ err }, '[product-category-mapping/id] Failed to log FIN_PRODUCT_MAPPING_CHANGED'));
+
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     logger.error({ error }, 'Failed to update product category mapping');
@@ -59,6 +73,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await prisma.$executeRawUnsafe(`DELETE FROM fin_product_category_mapping WHERE id = ?`, numId);
     logger.info({ id: numId }, 'Product category mapping deleted');
+
+    systemEventService.log({
+      eventType: 'FIN_PRODUCT_MAPPING_CHANGED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      entityType: 'ProductCategoryMapping',
+      entityId: id,
+      summary: `Product mapping deleted: ID ${numId}`,
+      details: { id: numId, action: 'deleted' },
+    }).catch((err: unknown) => logger.error({ err }, '[product-category-mapping/id] Failed to log FIN_PRODUCT_MAPPING_CHANGED'));
+
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     logger.error({ error }, 'Failed to delete product category mapping');

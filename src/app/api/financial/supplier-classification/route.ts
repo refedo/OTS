@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +101,20 @@ export async function POST(req: NextRequest) {
     );
 
     logger.info({ supplier_id, cost_category }, 'Supplier classification created');
+
+    systemEventService.log({
+      eventType: 'FIN_SUPPLIER_CLASSIFIED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      entityType: 'SupplierClassification',
+      entityId: String(supplier_id),
+      entityName: supplier_name ?? String(supplier_id),
+      summary: `Supplier classified: ${supplier_name ?? supplier_id} → ${cost_category}`,
+      details: { supplier_id, supplier_name, cost_category },
+    }).catch((err: unknown) => logger.error({ err }, '[supplier-classification] Failed to log FIN_SUPPLIER_CLASSIFIED'));
+
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';

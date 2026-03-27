@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
+import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,16 @@ export async function PUT(req: Request) {
         key, String(value), String(value)
       );
     }
+
+    systemEventService.log({
+      eventType: 'FIN_CONFIG_CHANGED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      summary: 'Financial configuration updated',
+      details: { updatedKeys: Object.keys(body) },
+    }).catch((err: unknown) => logger.error({ err }, '[financial/config] Failed to log FIN_CONFIG_CHANGED'));
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

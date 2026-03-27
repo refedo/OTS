@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
 import { createDolibarrClient } from '@/lib/dolibarr/dolibarr-client';
 import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,16 @@ export async function POST(req: Request) {
     }
 
     logger.info({ created, updated, skipped, total: dolibarrAccounts.length }, 'Synced Dolibarr accounting accounts');
+
+    systemEventService.log({
+      eventType: 'FIN_CHART_SYNCED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      summary: `Chart of accounts synced from Dolibarr: ${created} created, ${updated} updated`,
+      details: { total: dolibarrAccounts.length, created, updated, skipped },
+    }).catch((err: unknown) => logger.error({ err }, '[sync-dolibarr] Failed to log FIN_CHART_SYNCED'));
 
     return NextResponse.json({
       success: true,

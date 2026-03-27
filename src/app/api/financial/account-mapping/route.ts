@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requireFinancialPermission } from '@/lib/financial/require-financial-permission';
+import { logger } from '@/lib/logger';
+import { systemEventService } from '@/services/system-events.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +51,18 @@ export async function PUT(req: Request) {
       `UPDATE fin_dolibarr_account_mapping SET ots_cost_category = ?, dolibarr_account_label = ?, notes = ?, updated_at = NOW() WHERE id = ?`,
       ots_cost_category, dolibarr_account_label || null, notes || null, id
     );
+
+    systemEventService.log({
+      eventType: 'FIN_ACCOUNT_MAPPING_CHANGED',
+      eventCategory: 'FINANCIAL',
+      severity: 'INFO',
+      userId: auth.session.sub,
+      userName: auth.session.name,
+      entityType: 'AccountMapping',
+      entityId: String(id),
+      summary: `Account mapping updated: ${ots_cost_category}`,
+      details: { id, ots_cost_category },
+    }).catch((err: unknown) => logger.error({ err }, '[account-mapping] Failed to log FIN_ACCOUNT_MAPPING_CHANGED'));
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
