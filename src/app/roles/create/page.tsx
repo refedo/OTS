@@ -25,7 +25,7 @@ export default async function CreateRolePage() {
 
   const canCreate = await checkPermission('roles.create');
   if (!canCreate) {
-    redirect('/roles');
+    redirect('/unauthorized?from=/roles/create');
   }
 
   return (

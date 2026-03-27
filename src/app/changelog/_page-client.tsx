@@ -23,10 +23,66 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '16.5.0',
+    version: '16.6.0',
     date: 'March 27, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: '✅ Task UX & Access Control Enhancements',
+    highlights: [
+      'Completion dialogue prompts the assignee to describe how they finished the task; note is stored and sent to the requester and creator',
+      '3-dots menu on task details for "Ask for Clarification" and "Request Time Extension" — each sends a push notification to the task creator',
+      'Unauthorized page with one-click access request: sends a push notification to all admin users instead of a silent redirect',
+      'Bulk "Notify All" button in Notification Center Delayed Tasks tab — pushes overdue reminders to all assignees in one click',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Task Completion Dialogue',
+          items: [
+            '"Mark as Completed" now opens a dialog asking how the task was completed',
+            'Completion note is stored in the remark field and included in the approval-request notification',
+            'Both the requester and the task creator are notified (deduplicated)',
+          ],
+        },
+        {
+          title: 'Task 3-Dots Menu',
+          items: [
+            'MoreVertical dropdown on task detail page',
+            '"Ask for Clarification" — opens a dialog and sends push notification to creator/requester',
+            '"Request Time Extension" — opens a dialog and sends push notification to creator/requester',
+            'New POST /api/tasks/[id]/request endpoint handling clarification and time_extension types',
+          ],
+        },
+        {
+          title: 'Unauthorized Page',
+          items: [
+            'New /unauthorized page with the blocked path displayed',
+            'Optional message textarea for the user to explain why they need access',
+            '"Send Access Request" button POSTs to /api/system/request-access',
+            'New POST /api/system/request-access sends push notifications to all admin users',
+          ],
+        },
+        {
+          title: 'Bulk Notify All — Delayed Tasks',
+          items: [
+            '"Notify All" button in Notification Center Delayed Tasks tab header',
+            'Sends DEADLINE_WARNING notifications to every assignee with an overdue task',
+            'New POST /api/notifications/notify-all-delayed endpoint',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [
+        'All RBAC-guarded page redirects now point to /unauthorized?from=<path> instead of silently redirecting to /dashboard or the parent list',
+        'Task completion notification now notifies both requester and creator (previously only the requester)',
+      ],
+    },
+  },
+  {
+    version: '16.5.0',
+    date: 'March 27, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: '🔒 PBAC Enforcement & Cost Classification Pagination',
     highlights: [
       'Permission checks now enforced on all role and user management pages — Operator and other restricted roles can no longer access /users or /roles',

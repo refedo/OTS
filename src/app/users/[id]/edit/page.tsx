@@ -26,7 +26,7 @@ export default async function EditUserPage({ params }: { params: { id: string } 
 
   const canEdit = await checkPermission('users.edit');
   if (!canEdit) {
-    redirect('/users');
+    redirect('/unauthorized?from=/users/edit');
   }
 
   // Fetch the user to edit

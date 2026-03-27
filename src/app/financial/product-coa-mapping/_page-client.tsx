@@ -669,7 +669,7 @@ export default function ProductCoaMappingPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by ref or label…"
+                placeholder="Search by ref, label or account…"
                 value={productSearch}
                 onChange={e => setProductSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && fetchProducts(0)}

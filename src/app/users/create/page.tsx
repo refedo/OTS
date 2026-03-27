@@ -26,7 +26,7 @@ export default async function CreateUserPage() {
 
   const canCreate = await checkPermission('users.create');
   if (!canCreate) {
-    redirect('/users');
+    redirect('/unauthorized?from=/users/create');
   }
 
   // Fetch roles, departments, and potential managers for the form

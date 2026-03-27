@@ -22,7 +22,7 @@ export default async function RolesPage() {
 
   const canView = await checkPermission('roles.view');
   if (!canView) {
-    redirect('/dashboard');
+    redirect('/unauthorized?from=/roles');
   }
 
   // Fetch roles

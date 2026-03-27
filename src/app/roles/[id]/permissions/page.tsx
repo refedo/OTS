@@ -29,7 +29,7 @@ export default async function RolePermissionsPage({ params }: { params: Promise<
 
   const canManage = await checkPermission('roles.manage_permissions');
   if (!canManage) {
-    redirect('/roles');
+    redirect('/unauthorized?from=/roles/permissions');
   }
 
   // Fetch the role

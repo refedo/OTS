@@ -39,11 +39,11 @@ export async function GET(req: NextRequest) {
   try {
     await ensureTable();
 
-    const searchFilter = search ? `AND (p.ref LIKE ? OR p.label LIKE ?)` : '';
+    const searchFilter = search ? `AND (p.ref LIKE ? OR p.label LIKE ? OR pm.coa_account_code LIKE ? OR coa.account_name LIKE ?)` : '';
     const mappedFilter =
       mapped === 'yes' ? 'AND pm.id IS NOT NULL' :
       mapped === 'no'  ? 'AND pm.id IS NULL' : '';
-    const searchArgs = search ? [`%${search}%`, `%${search}%`] : [];
+    const searchArgs = search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : [];
 
     // Derive distinct products from invoice lines (source of truth for what exists in invoices)
     const productsRaw: unknown[] = await prisma.$queryRawUnsafe(`
@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
         GROUP BY sil.fk_product, sil.product_ref
       ) p
       LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = p.fk_product
+      LEFT JOIN fin_chart_of_accounts coa ON coa.account_code = pm.coa_account_code
       WHERE 1=1 ${searchFilter} ${mappedFilter}
     `, ...searchArgs);
 

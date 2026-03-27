@@ -22,7 +22,7 @@ export default async function UsersPage() {
 
   const canView = await checkPermission('users.view');
   if (!canView) {
-    redirect('/dashboard');
+    redirect('/unauthorized?from=/users');
   }
 
   // Fetch users with their roles and departments
