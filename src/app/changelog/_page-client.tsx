@@ -23,10 +23,31 @@ type ChangelogVersion = {
 // Version order: Major versions first, then their minor versions
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '16.6.1',
+    date: 'March 27, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🔧 LCR Alias Display Fix',
+    highlights: [
+      'Supplier Mappings table now shows supplier name and code instead of raw numeric Dolibarr ID',
+      'Building Mappings table now shows project number, designation and building name instead of raw UUID',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'LCR Aliases: "Maps To" column in Supplier Mappings table showed raw Dolibarr IDs — now resolved to supplier name (code)',
+        'LCR Aliases: "Maps To" column in Building Mappings table showed raw UUIDs — now resolved to project number + designation + name',
+      ],
+      changed: [
+        'Column header "Maps To (Entity ID)" renamed to "Maps To" in both supplier and building alias tables',
+      ],
+    },
+  },
+  {
     version: '16.6.0',
     date: 'March 27, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '✅ Task UX & Access Control Enhancements',
     highlights: [
       'Completion dialogue prompts the assignee to describe how they finished the task; note is stored and sent to the requester and creator',

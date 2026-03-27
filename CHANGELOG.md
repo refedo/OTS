@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.6.1] - 2026-03-27
+
+### 🔧 LCR Alias Display Fix
+
+**Patch Release:** Fixes the LCR Alias Management page (`/supply-chain/lcr/aliases`) where the "Maps To" column showed raw UUIDs / numeric Dolibarr IDs instead of the actual supplier name or building name.
+
+#### Fixed
+
+- **Supplier Mappings table** — "Maps To" column now shows `{SupplierName} ({SupplierCode})` resolved from the already-loaded supplier list instead of the raw numeric Dolibarr ID.
+- **Building Mappings table** — "Maps To" column now shows `{ProjectNumber} — {Designation} · {BuildingName}` resolved from the already-loaded buildings list instead of the raw UUID.
+- Column header renamed from "Maps To (Entity ID)" → "Maps To" in both tables.
+
+---
+
 ## [16.6.0] - 2026-03-27
 
 ### ✅ Task UX & Access Control Enhancements
