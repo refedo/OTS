@@ -3,19 +3,36 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
-export const GET = withApiContext(async (_req: NextRequest) => {
+export const GET = withApiContext(async (_req: NextRequest, session) => {
   try {
+    const userId = session!.userId;
+    const userRole = session!.role;
+
+    // Non-admin users see only backlogs they created or are involved with
+    const isAdmin = ['Admin', 'CEO'].includes(userRole);
+    const userFilter = isAdmin ? {} : {
+      OR: [
+        { createdById: userId },
+        { approvedById: userId },
+        { reviewedById: userId },
+        { plannedById: userId },
+      ],
+    };
+
     const [byStatus, byPriority, recent] = await Promise.all([
       prisma.productBacklogItem.groupBy({
         by: ['status'],
+        where: userFilter,
         _count: { _all: true },
       }),
       prisma.productBacklogItem.groupBy({
         by: ['priority'],
+        where: userFilter,
         _count: { _all: true },
       }),
       prisma.productBacklogItem.findMany({
         where: {
+          ...userFilter,
           status: { notIn: ['COMPLETED', 'DROPPED'] },
         },
         orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],

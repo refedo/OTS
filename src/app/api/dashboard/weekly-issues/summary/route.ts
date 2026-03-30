@@ -3,22 +3,34 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
-export const GET = withApiContext(async (_req: NextRequest) => {
+export const GET = withApiContext(async (_req: NextRequest, session) => {
   try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const userId = session!.userId;
+    const userRole = session!.role;
+
+    // Non-admin users see only issues assigned to them or raised by them
+    const isAdmin = ['Admin', 'CEO'].includes(userRole);
+    const userFilter = isAdmin ? {} : {
+      OR: [
+        { assignedToId: userId },
+        { raisedById: userId },
+      ],
+    };
 
     const [byStatus, byPriority, recent] = await Promise.all([
       prisma.weeklyIssue.groupBy({
         by: ['status'],
+        where: userFilter,
         _count: { _all: true },
       }),
       prisma.weeklyIssue.groupBy({
         by: ['priority'],
+        where: userFilter,
         _count: { _all: true },
       }),
       prisma.weeklyIssue.findMany({
         where: {
+          ...userFilter,
           status: { notIn: ['Resolved', 'Closed'] },
         },
         orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
@@ -50,6 +62,7 @@ export const GET = withApiContext(async (_req: NextRequest) => {
 
     const overdue = await prisma.weeklyIssue.count({
       where: {
+        ...userFilter,
         status: { notIn: ['Resolved', 'Closed'] },
         dueDate: { lt: new Date() },
       },

@@ -30,28 +30,50 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // If no widgets exist, create default layout
-    if (widgets.length === 0) {
-      const defaultWidgets = [
-        { widgetType: 'PROJECT_SUMMARY', widgetSize: 'medium', position: 0 },
-        { widgetType: 'TASK_SUMMARY', widgetSize: 'medium', position: 1 },
-        { widgetType: 'KPI_SUMMARY', widgetSize: 'large', position: 2 },
-        { widgetType: 'OBJECTIVE_SUMMARY', widgetSize: 'medium', position: 3 },
-        { widgetType: 'WEEKLY_PRODUCTION', widgetSize: 'large', position: 4 },
-      ];
+    const allWidgetTypes = [
+      { widgetType: 'PROJECT_SUMMARY', widgetSize: 'medium' },
+      { widgetType: 'TASK_SUMMARY', widgetSize: 'medium' },
+      { widgetType: 'KPI_SUMMARY', widgetSize: 'large' },
+      { widgetType: 'OBJECTIVE_SUMMARY', widgetSize: 'medium' },
+      { widgetType: 'WEEKLY_PRODUCTION', widgetSize: 'large' },
+      { widgetType: 'WORK_ORDERS', widgetSize: 'medium' },
+      { widgetType: 'DELAYED_TASKS', widgetSize: 'medium' },
+      { widgetType: 'BACKLOG', widgetSize: 'medium' },
+      { widgetType: 'WEEKLY_ISSUES', widgetSize: 'medium' },
+      { widgetType: 'POINTS_REWARDS', widgetSize: 'medium' },
+    ];
 
-      const createdWidgets = await Promise.all(
-        defaultWidgets.map(widget =>
+    // Check all widgets (including hidden) to find missing types
+    const allUserWidgets = await prisma.userDashboardWidget.findMany({
+      where: { userId },
+      select: { widgetType: true },
+    });
+    const existingTypes = new Set(allUserWidgets.map((w) => w.widgetType));
+    const maxPos = widgets.length > 0 ? Math.max(...widgets.map((w) => w.position)) : -1;
+
+    // Create any missing widget types so all widgets are available
+    const missing = allWidgetTypes.filter((w) => !existingTypes.has(w.widgetType));
+    if (missing.length > 0) {
+      await Promise.all(
+        missing.map((w, i) =>
           prisma.userDashboardWidget.create({
             data: {
               userId,
-              ...widget,
+              widgetType: w.widgetType,
+              widgetSize: w.widgetSize,
+              position: maxPos + 1 + i,
+              isVisible: true,
             },
           })
         )
       );
 
-      return NextResponse.json(createdWidgets);
+      // Re-fetch after creating missing widgets
+      const updatedWidgets = await prisma.userDashboardWidget.findMany({
+        where: { userId, isVisible: true },
+        orderBy: { position: 'asc' },
+      });
+      return NextResponse.json(updatedWidgets);
     }
 
     return NextResponse.json(widgets);
