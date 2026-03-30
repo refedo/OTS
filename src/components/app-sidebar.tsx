@@ -65,7 +65,7 @@ type NavigationItem = {
   name: string;
   href: string;
   icon: any;
-  isNew?: boolean;
+  newSince?: string; // ISO date string — star shown for 7 days after this date, until user visits the page
 };
 
 type NavigationSection = {
@@ -132,7 +132,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Operations Timeline', href: '/operations/dashboard', icon: Clock },
       { name: 'Event Management', href: '/operations/events', icon: Calendar },
       { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
-      { name: 'Detailed Planner', href: '/detailed-project-planner', icon: FileSpreadsheet, isNew: true },
+      { name: 'Detailed Planner', href: '/detailed-project-planner', icon: FileSpreadsheet },
     ],
   },
   {
@@ -165,9 +165,9 @@ const navigationSections: NavigationSection[] = [
       { name: 'Dimensional QC', href: '/qc/dimensional', icon: FileCheck },
       { name: 'NDT Inspection', href: '/qc/ndt', icon: FileCheck },
       { name: 'RFI List', href: '/qc/rfi', icon: FileCheck },
-      { name: 'Create New RFI', href: '/qc/rfi/new', icon: Plus, isNew: true },
+      { name: 'Create New RFI', href: '/qc/rfi/new', icon: Plus },
       { name: 'NCR List', href: '/qc/ncr', icon: FileText },
-      { name: 'Create New NCR', href: '/qc/ncr/new', icon: Plus, isNew: true },
+      { name: 'Create New NCR', href: '/qc/ncr/new', icon: Plus },
       { name: 'ITP List', href: '/itp', icon: FileCheck },
       { name: 'Create ITP', href: '/itp/new', icon: Plus },
       { name: 'WPS List', href: '/wps', icon: FileCheck },
@@ -203,29 +203,29 @@ const navigationSections: NavigationSection[] = [
     name: 'Knowledge Center',
     icon: BookOpen,
     items: [
-      { name: 'Knowledge Center', href: '/knowledge-center', icon: BookOpen, isNew: true },
-      { name: 'New Entry', href: '/knowledge-center/new', icon: Plus, isNew: true },
+      { name: 'Knowledge Center', href: '/knowledge-center', icon: BookOpen },
+      { name: 'New Entry', href: '/knowledge-center/new', icon: Plus },
     ],
   },
   {
     name: 'Supply Chain',
     icon: Package,
     items: [
-      { name: 'LCR', href: '/supply-chain/lcr', icon: FileSpreadsheet, isNew: true },
-      { name: 'Reports', href: '/supply-chain/lcr/reports', icon: BarChart3, isNew: true },
-      { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch, isNew: true },
-      { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck, isNew: true },
-      { name: 'AP Aging Report', href: '/financial/reports/aging?type=payable', icon: Clock, isNew: true },
-      { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText, isNew: true },
+      { name: 'LCR', href: '/supply-chain/lcr', icon: FileSpreadsheet },
+      { name: 'Reports', href: '/supply-chain/lcr/reports', icon: BarChart3 },
+      { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch },
+      { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck },
+      { name: 'AP Aging Report', href: '/financial/reports/aging?type=payable', icon: Clock },
+      { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText },
     ],
   },
   {
     name: 'Product Backlog',
     icon: Layers,
     items: [
-      { name: 'Create Backlog', href: '/backlog/new', icon: Plus, isNew: true },
-      { name: 'Backlog Board', href: '/backlog', icon: Layers, isNew: true },
-      { name: 'CEO Control Center', href: '/ceo-control-center', icon: Crown, isNew: true },
+      { name: 'Create Backlog', href: '/backlog/new', icon: Plus },
+      { name: 'Backlog Board', href: '/backlog', icon: Layers },
+      { name: 'CEO Control Center', href: '/ceo-control-center', icon: Crown },
     ],
   },
   {
@@ -234,43 +234,43 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Users', href: '/users', icon: Users },
       { name: 'Roles', href: '/roles', icon: Shield },
-      { name: 'Organization Chart', href: '/organization', icon: Network, isNew: true },
+      { name: 'Organization Chart', href: '/organization', icon: Network },
     ],
   },
   {
     name: 'Financial Reports',
     icon: TrendingUp,
     items: [
-      { name: 'Financial Dashboard', href: '/financial', icon: TrendingUp, isNew: true },
-      { name: 'Chart of Accounts', href: '/financial/chart-of-accounts', icon: FileText, isNew: true },
-      { name: 'Trial Balance', href: '/financial/reports/trial-balance', icon: FileSpreadsheet, isNew: true },
-      { name: 'Income Statement', href: '/financial/reports/income-statement', icon: TrendingUp, isNew: true },
-      { name: 'Balance Sheet', href: '/financial/reports/balance-sheet', icon: Building2, isNew: true },
-      { name: 'VAT Report', href: '/financial/reports/vat', icon: FileText, isNew: true },
-      { name: 'Aging Report', href: '/financial/reports/aging', icon: Clock, isNew: true },
-      { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText, isNew: true },
-      { name: 'Cash In/Out', href: '/financial/reports/cash-flow', icon: TrendingUp, isNew: true },
-      { name: 'Cash Flow Forecast', href: '/financial/reports/cash-flow-forecast', icon: TrendingUp, isNew: true },
-      { name: 'Project Analysis', href: '/financial/reports/project-analysis', icon: FileSpreadsheet, isNew: true },
-      { name: 'WIP Report', href: '/financial/reports/wip', icon: Clock, isNew: true },
-      { name: 'Projects Financial', href: '/financial/reports/projects-dashboard', icon: Building2, isNew: true },
-      { name: 'Cost Structure', href: '/financial/reports/project-cost-structure', icon: Package, isNew: true },
-      { name: 'Expenses Analysis', href: '/financial/reports/expenses-analysis', icon: Truck, isNew: true },
-      { name: 'Expenses by Account', href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet, isNew: true },
-      { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen, isNew: true },
-      { name: 'Journal Entries', href: '/financial/journal-entries', icon: List, isNew: true },
-      { name: 'Cost Classification', href: '/financial/product-coa-mapping', icon: Layers, isNew: true },
-      { name: 'Account Mapping', href: '/financial/account-mapping', icon: GitBranch, isNew: true },
-      { name: 'Product Categories', href: '/financial/product-categories', icon: Package, isNew: true },
-      { name: 'Supplier Classification', href: '/financial/supplier-classification', icon: Building2, isNew: true },
-      { name: 'Settings', href: '/financial/settings', icon: Settings, isNew: true },
+      { name: 'Financial Dashboard', href: '/financial', icon: TrendingUp },
+      { name: 'Chart of Accounts', href: '/financial/chart-of-accounts', icon: FileText },
+      { name: 'Trial Balance', href: '/financial/reports/trial-balance', icon: FileSpreadsheet },
+      { name: 'Income Statement', href: '/financial/reports/income-statement', icon: TrendingUp },
+      { name: 'Balance Sheet', href: '/financial/reports/balance-sheet', icon: Building2 },
+      { name: 'VAT Report', href: '/financial/reports/vat', icon: FileText },
+      { name: 'Aging Report', href: '/financial/reports/aging', icon: Clock },
+      { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText },
+      { name: 'Cash In/Out', href: '/financial/reports/cash-flow', icon: TrendingUp },
+      { name: 'Cash Flow Forecast', href: '/financial/reports/cash-flow-forecast', icon: TrendingUp },
+      { name: 'Project Analysis', href: '/financial/reports/project-analysis', icon: FileSpreadsheet },
+      { name: 'WIP Report', href: '/financial/reports/wip', icon: Clock },
+      { name: 'Projects Financial', href: '/financial/reports/projects-dashboard', icon: Building2 },
+      { name: 'Cost Structure', href: '/financial/reports/project-cost-structure', icon: Package },
+      { name: 'Expenses Analysis', href: '/financial/reports/expenses-analysis', icon: Truck },
+      { name: 'Expenses by Account', href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet },
+      { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen },
+      { name: 'Journal Entries', href: '/financial/journal-entries', icon: List },
+      { name: 'Cost Classification', href: '/financial/product-coa-mapping', icon: Layers },
+      { name: 'Account Mapping', href: '/financial/account-mapping', icon: GitBranch },
+      { name: 'Product Categories', href: '/financial/product-categories', icon: Package },
+      { name: 'Supplier Classification', href: '/financial/supplier-classification', icon: Building2 },
+      { name: 'Settings', href: '/financial/settings', icon: Settings },
     ],
   },
   {
     name: 'Dolibarr ERP',
     icon: Database,
     items: [
-      { name: 'Integration Dashboard', href: '/dolibarr', icon: Database, isNew: true },
+      { name: 'Integration Dashboard', href: '/dolibarr', icon: Database },
     ],
   },
   {
@@ -298,6 +298,8 @@ export function AppSidebar() {
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [riskCount, setRiskCount] = useState(0);
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
   const { version } = useVersion();
   
@@ -351,6 +353,16 @@ export function AppSidebar() {
   // Set mounted state
   useEffect(() => {
     setIsMounted(true);
+    // Load visited pages from localStorage
+    try {
+      const stored = localStorage.getItem('ots_visited_pages');
+      if (stored) setVisitedPages(new Set(JSON.parse(stored)));
+    } catch { /* ignore */ }
+    // Fetch company logo from settings
+    fetch('/api/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.companyLogo) setCompanyLogo(data.companyLogo); })
+      .catch(() => { /* non-critical */ });
   }, []);
 
   // Fetch user permissions + role + sidebar order
@@ -412,6 +424,26 @@ export function AppSidebar() {
     return () => clearInterval(interval);
   }, []);
 
+  // Track page visits to dismiss "new" stars once user visits the page
+  useEffect(() => {
+    if (!pathname) return;
+    setVisitedPages(prev => {
+      if (prev.has(pathname)) return prev;
+      const next = new Set(prev);
+      next.add(pathname);
+      try { localStorage.setItem('ots_visited_pages', JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }, [pathname]);
+
+  const isNewItem = (item: NavigationItem): boolean => {
+    if (!item.newSince) return false;
+    if (visitedPages.has(item.href)) return false;
+    const since = new Date(item.newSince);
+    const expiry = new Date(since.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return new Date() < expiry;
+  };
+
   const toggleSection = (sectionName: string) => {
     setExpandedSections(prev =>
       prev.includes(sectionName)
@@ -446,10 +478,20 @@ export function AppSidebar() {
           <div className="flex h-16 items-center justify-between border-b px-4">
             {!collapsed && (
               <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-sm">HS</span>
-                </div>
-                <span className="font-semibold">Hexa Steel</span>
+                {isMounted && companyLogo ? (
+                  <img
+                    src={companyLogo}
+                    alt="Company Logo"
+                    className="h-8 max-w-[120px] object-contain"
+                  />
+                ) : (
+                  <>
+                    <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
+                      <span className="text-primary-foreground font-bold text-sm">HS</span>
+                    </div>
+                    <span className="font-semibold">Hexa Steel</span>
+                  </>
+                )}
               </div>
             )}
             <Button
@@ -626,7 +668,7 @@ export function AppSidebar() {
                             <div className="flex items-center gap-3">
                               <ItemIcon className="size-4 shrink-0" />
                               <span>{item.name}</span>
-                              {item.isNew && (
+                              {isMounted && isNewItem(item) && (
                                 <Star className="size-3 fill-yellow-400 text-yellow-400 animate-pulse" />
                               )}
                             </div>

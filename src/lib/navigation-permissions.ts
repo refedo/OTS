@@ -155,6 +155,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/settings/version': ['settings.view'],
   '/settings/backups': ['backups.view'],
   '/settings/cron-jobs': ['settings.view_cron'],
+  '/settings/sidebar': ['settings.edit'],
   '/changelog': null, // Public - Everyone can view changelog
 };
 
