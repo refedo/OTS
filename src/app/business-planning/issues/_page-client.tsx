@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertTriangle, Plus, User, Calendar, Table, LayoutGrid, Edit, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { AlertTriangle, Plus, User, Calendar, Table, LayoutGrid, Edit, Trash2, X, ChevronUp, ChevronDown, ChevronsUpDown, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export default function WeeklyIssuesPage() {
   const { toast } = useToast();
@@ -25,7 +26,14 @@ export default function WeeklyIssuesPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  
+
+  // Preview dialog
+  const [previewIssue, setPreviewIssue] = useState<any>(null);
+
+  // Drag and drop
+  const [draggedIssue, setDraggedIssue] = useState<any>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -51,7 +59,7 @@ export default function WeeklyIssuesPage() {
       setIssues(Array.isArray(data) ? data : []);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching issues:', error);
+      logger.error({ error }, 'Error fetching issues');
       setLoading(false);
     }
   };
@@ -62,7 +70,7 @@ export default function WeeklyIssuesPage() {
       const data = await res.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      logger.error({ error }, 'Error fetching users');
     }
   };
 
@@ -72,7 +80,7 @@ export default function WeeklyIssuesPage() {
       const data = await res.json();
       setDepartments(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching departments:', error);
+      logger.error({ error }, 'Error fetching departments');
     }
   };
 
@@ -82,7 +90,7 @@ export default function WeeklyIssuesPage() {
       const data = await res.json();
       setCurrentUser(data.user);
     } catch (error) {
-      console.error('Error fetching current user:', error);
+      logger.error({ error }, 'Error fetching current user');
     }
   };
 
@@ -99,7 +107,6 @@ export default function WeeklyIssuesPage() {
     setSaving(true);
     try {
       if (editingIssue) {
-        // Update existing issue
         const res = await fetch(`/api/business-planning/issues/${editingIssue.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -113,10 +120,7 @@ export default function WeeklyIssuesPage() {
         });
 
         if (res.ok) {
-          toast({
-            title: 'Success',
-            description: 'Issue updated successfully',
-          });
+          toast({ title: 'Success', description: 'Issue updated successfully' });
           setDialogOpen(false);
           setEditingIssue(null);
           resetForm();
@@ -125,9 +129,8 @@ export default function WeeklyIssuesPage() {
           throw new Error('Failed to update issue');
         }
       } else {
-        // Create new issue
         const raisedBy = currentUser?.id || (users.length > 0 ? users[0].id : null);
-        
+
         if (!raisedBy) {
           toast({
             title: 'Error',
@@ -151,10 +154,7 @@ export default function WeeklyIssuesPage() {
         });
 
         if (res.ok) {
-          toast({
-            title: 'Success',
-            description: 'Issue created successfully',
-          });
+          toast({ title: 'Success', description: 'Issue created successfully' });
           setDialogOpen(false);
           resetForm();
           fetchIssues();
@@ -210,20 +210,13 @@ export default function WeeklyIssuesPage() {
       });
 
       if (res.ok) {
-        toast({
-          title: 'Success',
-          description: 'Issue deleted successfully',
-        });
+        toast({ title: 'Success', description: 'Issue deleted successfully' });
         fetchIssues();
       } else {
         throw new Error('Failed to delete issue');
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete issue',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to delete issue', variant: 'destructive' });
     }
   };
 
@@ -233,6 +226,62 @@ export default function WeeklyIssuesPage() {
       setEditingIssue(null);
       resetForm();
     }
+  };
+
+  // Update issue status (used by drag & drop)
+  const handleStatusChange = async (issueId: string, newStatus: string) => {
+    const issue = issues.find((i) => i.id === issueId);
+    if (!issue || issue.status === newStatus) return;
+
+    // Optimistic update
+    setIssues((prev) => prev.map((i) => i.id === issueId ? { ...i, status: newStatus } : i));
+
+    try {
+      const res = await fetch(`/api/business-planning/issues/${issueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      toast({ title: 'Updated', description: `Issue moved to ${newStatus}` });
+    } catch (error) {
+      // Revert on failure
+      setIssues((prev) => prev.map((i) => i.id === issueId ? { ...i, status: issue.status } : i));
+      toast({ title: 'Error', description: 'Failed to move issue', variant: 'destructive' });
+    }
+  };
+
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent, issue: any) => {
+    setDraggedIssue(issue);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIssue(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverColumn(status);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving the column container (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverColumn(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStatus: string) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    if (draggedIssue && draggedIssue.status !== targetStatus) {
+      handleStatusChange(draggedIssue.id, targetStatus);
+    }
+    setDraggedIssue(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -343,9 +392,8 @@ export default function WeeklyIssuesPage() {
                 {editingIssue ? 'Update the issue details below' : 'Log a new issue for tracking and resolution'}
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4 py-4">
-              {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title">Issue Title *</Label>
                 <Input
@@ -356,7 +404,6 @@ export default function WeeklyIssuesPage() {
                 />
               </div>
 
-              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -368,7 +415,6 @@ export default function WeeklyIssuesPage() {
                 />
               </div>
 
-              {/* Priority & Status */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="priority">Priority *</Label>
@@ -407,7 +453,6 @@ export default function WeeklyIssuesPage() {
                 </div>
               </div>
 
-              {/* Department & Assigned To */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="department">Department (Optional)</Label>
@@ -450,7 +495,6 @@ export default function WeeklyIssuesPage() {
                 </div>
               </div>
 
-              {/* Due Date & Meeting Date */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dueDate">Due Date (Optional)</Label>
@@ -545,23 +589,23 @@ export default function WeeklyIssuesPage() {
           </Button>
         </div>
         <div className="flex gap-2">
-        <Button
-          variant={filter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('all')}
-        >
-          All Issues
-        </Button>
-        {statuses.map((status) => (
           <Button
-            key={status}
-            variant={filter === status ? 'default' : 'outline'}
+            variant={filter === 'all' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter(status)}
+            onClick={() => setFilter('all')}
           >
-            {status}
+            All Issues
           </Button>
-        ))}
+          {statuses.map((status) => (
+            <Button
+              key={status}
+              variant={filter === status ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilter(status)}
+            >
+              {status}
+            </Button>
+          ))}
         </div>
       </div>
 
@@ -594,7 +638,11 @@ export default function WeeklyIssuesPage() {
                     </tr>
                   ) : (
                     sortedIssues.map((issue) => (
-                      <tr key={issue.id} className="border-b hover:bg-muted/50">
+                      <tr
+                        key={issue.id}
+                        className="border-b hover:bg-muted/50 cursor-pointer"
+                        onClick={() => setPreviewIssue(issue)}
+                      >
                         <td className="p-3">
                           <span className="font-mono text-sm font-semibold">#{issue.issueNumber}</span>
                         </td>
@@ -634,7 +682,7 @@ export default function WeeklyIssuesPage() {
                           {issue.meetingDate ? new Date(issue.meetingDate).toLocaleDateString() : '-'}
                         </td>
                         <td className="p-3">
-                          <div className="flex gap-2">
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -663,76 +711,193 @@ export default function WeeklyIssuesPage() {
 
       {/* Kanban Board */}
       {viewMode === 'kanban' && (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {statuses.map((status) => {
-          const statusIssues = issues.filter(i => i.status === status);
-          return (
-            <div key={status} className="space-y-2">
-              <div className="font-medium text-sm flex items-center justify-between bg-muted p-2 rounded">
-                <span>{status}</span>
-                <Badge variant="secondary">{statusIssues.length}</Badge>
-              </div>
-              <div className="space-y-2">
-                {statusIssues.map((issue) => (
-                  <Card key={issue.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-semibold text-muted-foreground">#{issue.issueNumber}</span>
-                          <Badge className={getPriorityColor(issue.priority)} variant="outline">
-                            {issue.priority}
-                          </Badge>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {statuses.map((status) => {
+            const statusIssues = issues.filter(i => i.status === status);
+            const isOver = dragOverColumn === status;
+            return (
+              <div
+                key={status}
+                className="space-y-2"
+                onDragOver={(e) => handleDragOver(e, status)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, status)}
+              >
+                <div className={`font-medium text-sm flex items-center justify-between p-2 rounded transition-colors ${
+                  isOver ? 'bg-primary/10 border border-primary/30' : 'bg-muted'
+                }`}>
+                  <span>{status}</span>
+                  <Badge variant="secondary">{statusIssues.length}</Badge>
+                </div>
+                <div className={`space-y-2 min-h-[80px] rounded-lg transition-colors p-1 ${
+                  isOver ? 'bg-primary/5' : ''
+                }`}>
+                  {statusIssues.map((issue) => (
+                    <Card
+                      key={issue.id}
+                      className={`hover:shadow-md transition-all cursor-pointer select-none ${
+                        draggedIssue?.id === issue.id ? 'opacity-40 scale-95' : ''
+                      }`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, issue)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => setPreviewIssue(issue)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-muted-foreground">#{issue.issueNumber}</span>
+                            <Badge className={getPriorityColor(issue.priority)} variant="outline">
+                              {issue.priority}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => handleEdit(issue)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => handleDelete(issue.id)}
+                            >
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handleEdit(issue)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handleDelete(issue.id)}
-                          >
-                            <Trash2 className="h-3 w-3 text-red-500" />
-                          </Button>
-                        </div>
-                      </div>
-                      <CardTitle className="text-sm mt-2">{issue.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {issue.description}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <User className="h-3 w-3" />
-                        <span>{issue.assignedTo?.name || 'Unassigned'}</span>
-                      </div>
-                      {issue.dueDate && (
+                        <CardTitle className="text-sm mt-2">{issue.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {issue.description}
+                        </p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(issue.dueDate).toLocaleDateString()}</span>
+                          <User className="h-3 w-3" />
+                          <span>{issue.assignedTo?.name || 'Unassigned'}</span>
                         </div>
-                      )}
-                      {issue.meetingDate && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>Meeting: {new Date(issue.meetingDate).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                        {issue.dueDate && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>{new Date(issue.dueDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                        {issue.meetingDate && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>Meeting: {new Date(issue.meetingDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {isOver && draggedIssue?.status !== status && (
+                    <div className="border-2 border-dashed border-primary/40 rounded-lg h-16 flex items-center justify-center text-xs text-primary/60">
+                      Drop here
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
+
+      {/* Issue Preview Dialog */}
+      <Dialog open={!!previewIssue} onOpenChange={(open) => !open && setPreviewIssue(null)}>
+        <DialogContent className="max-w-lg">
+          {previewIssue && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono text-sm text-muted-foreground">#{previewIssue.issueNumber}</span>
+                  <Badge className={getPriorityColor(previewIssue.priority)} variant="outline">
+                    {previewIssue.priority}
+                  </Badge>
+                  <Badge className={getStatusColor(previewIssue.status)}>
+                    {previewIssue.status}
+                  </Badge>
+                </div>
+                <DialogTitle className="text-lg leading-tight">{previewIssue.title}</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                {previewIssue.description && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Description</p>
+                    <p className="text-sm whitespace-pre-wrap">{previewIssue.description}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Raised By</p>
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{previewIssue.raisedBy?.name || '-'}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Assigned To</p>
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{previewIssue.assignedTo?.name || 'Unassigned'}</span>
+                    </div>
+                  </div>
+                  {previewIssue.department && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Department</p>
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{previewIssue.department.name}</span>
+                      </div>
+                    </div>
+                  )}
+                  {previewIssue.dueDate && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Due Date</p>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{new Date(previewIssue.dueDate).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  )}
+                  {previewIssue.meetingDate && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Meeting Date</p>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{new Date(previewIssue.meetingDate).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPreviewIssue(null);
+                    handleEdit(previewIssue);
+                  }}
+                >
+                  <Edit className="h-3.5 w-3.5 mr-1.5" />
+                  Edit
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPreviewIssue(null)}>
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Empty State */}
       {issues.length === 0 && (
