@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
 
     // Parse permissions
     const permissions = user.role.permissions as any;
-    const canViewAllObjectives = permissions?.objectives?.viewAll || userRole === 'admin';
+    const isAdminOrCeo = user.isAdmin ||
+      ['admin', 'Admin', 'CEO', 'Manager'].includes(userRole) ||
+      permissions?.objectives?.viewAll === true;
 
     // Get current year
     const currentYear = new Date().getFullYear();
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
       year: currentYear,
     };
 
-    if (!canViewAllObjectives) {
+    if (!isAdminOrCeo) {
       // User can only see objectives they own
       objectiveQuery.ownerId = userId;
     }

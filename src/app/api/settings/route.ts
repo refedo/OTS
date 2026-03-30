@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 const emptyStringToNull = z.string().transform(val => val.trim() === '' ? null : val).nullable();
 
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error('Error fetching settings:', error);
+    logger.error({ error }, 'Error fetching settings');
     return NextResponse.json({ 
       error: 'Failed to fetch settings', 
       message: error instanceof Error ? error.message : 'Unknown error' 
@@ -64,26 +65,22 @@ export async function PATCH(req: Request) {
 
     // Check RBAC permission for managing settings
     const { checkPermission } = await import('@/lib/permission-checker');
-    const canManage = await checkPermission('settings.manage');
+    const canManage = await checkPermission('settings.edit');
     
     if (!canManage) {
       return NextResponse.json({ error: 'Forbidden - You do not have permission to update settings' }, { status: 403 });
     }
 
     const body = await req.json();
-    console.log('Received body:', body);
-    
     const parsed = settingsSchema.safeParse(body);
-    
+
     if (!parsed.success) {
-      console.error('Validation failed:', parsed.error.format());
-      return NextResponse.json({ 
-        error: 'Invalid input', 
-        details: parsed.error.format() 
+      logger.warn({ details: parsed.error.format() }, 'Settings validation failed');
+      return NextResponse.json({
+        error: 'Invalid input',
+        details: parsed.error.format()
       }, { status: 400 });
     }
-    
-    console.log('Parsed data:', parsed.data);
 
     // Get or create settings
     let settings = await prisma.systemSettings.findFirst();
@@ -101,7 +98,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error('Error updating settings:', error);
+    logger.error({ error }, 'Error updating settings');
     return NextResponse.json({ 
       error: 'Failed to update settings', 
       message: error instanceof Error ? error.message : 'Unknown error' 

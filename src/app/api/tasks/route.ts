@@ -24,7 +24,7 @@ const createSchema = z.object({
   dueDate: z.string().optional().nullable(),
   releaseDate: z.string().optional().nullable(),
   priority: z.enum(['Low', 'Medium', 'High', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-  status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed']).optional(),
+  status: z.enum(['Pending', 'In Progress', 'Waiting for Approval', 'Completed', 'Cancelled']).optional(),
   isPrivate: z.boolean().optional(),
   isCeoTask: z.boolean().optional(),
   remark: z.string().optional().nullable(),

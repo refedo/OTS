@@ -121,6 +121,9 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Count active days (days with any production)
+    const activeDays = Object.values(dailyProduction).filter(w => w > 0).length || 1;
+
     return NextResponse.json({
       dailyProduction: periodData,
       totalWeightWeek: Math.round(totalWeight * 100) / 100,
@@ -129,6 +132,7 @@ export async function GET(request: NextRequest) {
       processBreakdown: Object.entries(processBreakdownMap).map(([process, weight]) => ({
         process,
         weight: Math.round(weight * 100) / 100,
+        averageWeight: Math.round((weight / activeDays) * 100) / 100,
       })),
       topTeams,
       qcStatus: {

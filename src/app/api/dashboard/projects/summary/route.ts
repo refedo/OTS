@@ -34,12 +34,14 @@ export async function GET(request: NextRequest) {
 
     // Parse permissions
     const permissions = user.role.permissions as any;
-    const canViewAllProjects = permissions?.projects?.viewAll || userRole === 'admin';
+    const isAdminOrCeo = user.isAdmin ||
+      ['admin', 'Admin', 'CEO', 'Manager'].includes(userRole) ||
+      permissions?.projects?.viewAll === true;
 
     // Build query based on permissions
     let projectQuery: any = {};
-    
-    if (!canViewAllProjects) {
+
+    if (!isAdminOrCeo) {
       // User can only see projects they're assigned to or manage
       projectQuery = {
         OR: [
