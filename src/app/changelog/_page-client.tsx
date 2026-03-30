@@ -20,13 +20,75 @@ type ChangelogVersion = {
   };
 };
 
-// Version order: Major versions first, then their minor versions
+// Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
+  {
+    version: '17.0.0',
+    date: 'March 30, 2026',
+    type: 'major',
+    status: 'current',
+    mainTitle: '🏗️ Project Scope & Status Tracker + UX Improvements',
+    highlights: [
+      'Project Setup Wizard now supports Scope of Work per building (Steel, Sheeting, Deck Panel, Metal Work, Other) with BoQ specifications and configurable contractual activities',
+      'Project Status Tracker Dashboard: real-time visual tracker with dark/light theme, activity progress from Tasks, LCR & Production modules, 60s auto-refresh',
+      'Weekly Issues: click any card to preview full details; drag-and-drop cards between Kanban columns on desktop and mobile to update status instantly',
+      'Task detail timeline circles aligned on a single horizontal baseline — labels row / circles row / dates row',
+      'Project tracker now shows ALL tasks (open, in-progress, completed, released, approved) with score-based progress — no more blank columns',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Scope of Work System',
+          items: [
+            'ScopeOfWork & BuildingActivity Prisma models — multiple scopes per building with configurable activities',
+            'Wizard Step 3 (Scope of Work) and Step 4 (Activities) in the 9-step project setup wizard',
+            'CRUD APIs: /api/scope-of-work and /api/building-activities',
+            'BuildingScopesView component on project detail page',
+            'Scope of Work selector on Production Upload and Assembly Parts pages',
+          ],
+        },
+        {
+          title: 'Project Status Tracker Dashboard (/project-tracker)',
+          items: [
+            'Dark/light theme toggle, real-time progress tracking with 60s auto-refresh',
+            'Progress computed from Tasks, LCR procurement weight, and Production Logs',
+            'Score-based task progress: open (≥10%), overdue/blocked, completed (≥65%), released (≥75%), approved (100%)',
+            'Summary stats cards, filter tabs (All / In Progress / Blocked / Completed), full-text search',
+            'Drill-down popover per cell showing individual task details, procurement weights, and production processes',
+          ],
+        },
+        {
+          title: 'Weekly Issues UX',
+          items: [
+            'Click any Kanban card or table row → read-only preview dialog with full issue details',
+            'Desktop drag-and-drop: drag cards between status columns; status updates immediately via PATCH',
+            'Mobile drag-and-drop: touch events with ghost element following the finger; column highlights on hover',
+          ],
+        },
+        {
+          title: 'Task Detail Improvements',
+          items: [
+            'StageApprovalCircles restructured into 3 rows (labels / circles / dates) — all circles on same horizontal line',
+            'RBAC: project_tracker.view and project_tracker.export permissions added (Admin, Manager, Engineer, DC)',
+          ],
+        },
+      ],
+      fixed: [
+        'Project tracker: removed erroneous deletedAt:null filter on Task query (Task model has no soft-delete) — was zeroing all task-based columns',
+        'Project tracker: open/pending/in-progress tasks now appear in tracker (were invisible under old strict completion-only rules)',
+        'Timeline circles: misaligned when labels or dates had different heights — fixed with 3-row layout',
+      ],
+      changed: [
+        'Project wizard restructured from 7 to 9 steps with dedicated Scope of Work and Activities steps',
+        'Navigation: "Project Status Tracker" link added to sidebar under Project Operations',
+      ],
+    },
+  },
   {
     version: '16.6.3',
     date: 'March 27, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '📡 System Events Framework',
     highlights: [
       'Enterprise audit trail: financial, backup, RBAC, PBAC, project, task, QC, and production actions all logged to system_events',

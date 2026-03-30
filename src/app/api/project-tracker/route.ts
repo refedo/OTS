@@ -249,11 +249,12 @@ async function computeTaskProgress(
 ): Promise<ActivityResult> {
   const mainActivity = ACTIVITY_TO_TASK_MAIN[activityType];
   const now = new Date();
+  const isApprovalLed = APPROVAL_ACTIVITIES.has(activityType);
 
+  // NOTE: Task model has no deletedAt — do not add that filter
   const tasks = await prisma.task.findMany({
     where: {
       projectId,
-      deletedAt: null,
       OR: [{ buildingId }, { buildingId: null }],
       mainActivity,
     },
@@ -278,17 +279,15 @@ async function computeTaskProgress(
     return { percentage: 0, status: 'not_started', details: {} };
   }
 
-  // Group by subActivity, pick latest revision per group
+  // Group by subActivity — keep the most-recently-created per group
   const bySubActivity = new Map<string, (typeof tasks)[number]>();
   for (const t of tasks) {
     const key = t.subActivity || '__none__';
-    if (!bySubActivity.has(key)) {
-      bySubActivity.set(key, t);
-    }
+    if (!bySubActivity.has(key)) bySubActivity.set(key, t);
   }
   const latestTasks = Array.from(bySubActivity.values());
 
-  // Build task details for drill-down
+  // Build drill-down details
   const taskDetails: TaskDetail[] = latestTasks.map((t) => {
     const isOverdue = !!(
       t.dueDate &&
@@ -311,71 +310,63 @@ async function computeTaskProgress(
     };
   });
 
-  // Check for overdue/blocked tasks
   const hasOverdue = taskDetails.some((t) => t.isOverdue);
 
-  // Approval-led: arch_approval, design_approval, detailing_approval
-  if (APPROVAL_ACTIVITIES.has(activityType)) {
-    const approved = latestTasks.filter((t) => t.approvedAt !== null);
-    const submitted = latestTasks.filter((t) => t.completedAt !== null || t.releaseDate !== null);
+  /**
+   * Score each task 0-100 based on its actual state so we always
+   * show meaningful progress — even for open / pending tasks.
+   *
+   * Approval-led columns (arch_approval, design_approval, detailing_approval):
+   *   approved                          → 100
+   *   completed / released (not approved) → 75
+   *   in_progress                       → 40
+   *   pending (open)                    → 15
+   *
+   * Completion-led columns (design, detailing):
+   *   completed + releaseDate           → 100
+   *   completed (no releaseDate)        → 65
+   *   in_progress                       → 40
+   *   pending (open)                    → 15
+   */
+  const scores = latestTasks.map((t) => {
+    if (isApprovalLed) {
+      if (t.approvedAt) return 100;
+      if (t.completedAt || t.releaseDate !== null || t.status === 'Completed') return 75;
+      if (t.status === 'In Progress') return 40;
+      return 15;
+    } else {
+      if (t.completedAt && t.releaseDate) return 100;
+      if (t.completedAt || t.status === 'Completed') return 65;
+      if (t.status === 'In Progress') return 40;
+      return 15;
+    }
+  });
 
-    if (approved.length === latestTasks.length) {
-      return { percentage: 100, status: 'completed', details: { tasks: taskDetails } };
-    }
-    // All submitted/completed but not all approved → pending_approval
-    if (submitted.length === latestTasks.length && approved.length < latestTasks.length) {
-      const pct = Math.round((approved.length / latestTasks.length) * 100);
-      return { percentage: Math.max(pct, 75), status: 'pending_approval', details: { tasks: taskDetails } };
-    }
-    if (hasOverdue) {
-      const pct = Math.round((approved.length / latestTasks.length) * 100);
-      return { percentage: Math.max(pct, 50), status: 'blocked', details: { tasks: taskDetails } };
-    }
-    if (submitted.length > 0 || approved.length > 0) {
-      const pct = Math.round((approved.length / latestTasks.length) * 100);
-      return { percentage: Math.max(pct, 50), status: 'in_progress', details: { tasks: taskDetails } };
-    }
-    return { percentage: 0, status: 'not_started', details: { tasks: taskDetails } };
+  const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+
+  // Overall status
+  const allFullyDone = isApprovalLed
+    ? latestTasks.every((t) => t.approvedAt !== null)
+    : latestTasks.every((t) => t.completedAt !== null && t.releaseDate !== null);
+
+  if (allFullyDone) {
+    return { percentage: 100, status: 'completed', details: { tasks: taskDetails } };
   }
 
-  // Completion-led: design, detailing
-  if (COMPLETION_ACTIVITIES.has(activityType)) {
-    // Fully done: completed/status=Completed AND has a release date
-    const completed = latestTasks.filter(
-      (t) => (t.completedAt !== null || t.status === 'Completed') && t.releaseDate !== null
-    );
-    // Completed/done but still waiting for release date (pending_approval state)
-    const awaitingRelease = latestTasks.filter(
-      (t) => (t.completedAt !== null || t.status === 'Completed') && t.releaseDate === null
-    );
-    const partiallyDone = latestTasks.filter(
-      (t) => t.completedAt !== null || t.releaseDate !== null || t.status === 'Completed'
-    );
-
-    if (completed.length === latestTasks.length) {
-      return { percentage: 100, status: 'completed', details: { tasks: taskDetails } };
-    }
-    // All tasks are done (completed) but none have a release date yet → pending_approval
-    if (awaitingRelease.length === latestTasks.length && completed.length === 0) {
-      return { percentage: 75, status: 'pending_approval', details: { tasks: taskDetails } };
-    }
-    // Mix: some fully done, rest completed without release date
-    if (partiallyDone.length === latestTasks.length && awaitingRelease.length > 0) {
-      const pct = Math.round((completed.length / latestTasks.length) * 100);
-      return { percentage: Math.max(pct, 75), status: 'pending_approval', details: { tasks: taskDetails } };
-    }
-    if (hasOverdue) {
-      const pct = Math.round((completed.length / latestTasks.length) * 100);
-      return { percentage: Math.max(pct, 25), status: 'blocked', details: { tasks: taskDetails } };
-    }
-    if (partiallyDone.length > 0) {
-      const pct = Math.round((completed.length / latestTasks.length) * 100);
-      return { percentage: Math.max(pct, 25), status: 'in_progress', details: { tasks: taskDetails } };
-    }
-    return { percentage: 0, status: 'not_started', details: { tasks: taskDetails } };
+  // All tasks have at least been submitted/completed
+  const allSubmitted = latestTasks.every(
+    (t) => t.completedAt !== null || t.releaseDate !== null || t.status === 'Completed'
+  );
+  if (allSubmitted) {
+    return { percentage: Math.max(avgScore, 60), status: 'pending_approval', details: { tasks: taskDetails } };
   }
 
-  return { percentage: 0, status: 'not_started', details: { tasks: taskDetails } };
+  if (hasOverdue) {
+    return { percentage: Math.max(avgScore, 15), status: 'blocked', details: { tasks: taskDetails } };
+  }
+
+  // Tasks exist (open, in-progress, partially done) — show real score, min 10%
+  return { percentage: Math.max(avgScore, 10), status: 'in_progress', details: { tasks: taskDetails } };
 }
 
 async function computeProcurementProgress(

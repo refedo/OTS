@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,9 +30,12 @@ export default function WeeklyIssuesPage() {
   // Preview dialog
   const [previewIssue, setPreviewIssue] = useState<any>(null);
 
-  // Drag and drop
+  // Drag and drop (mouse / pointer)
   const [draggedIssue, setDraggedIssue] = useState<any>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
+  // Touch drag state (mobile)
+  const touchDragRef = useRef<{ issue: any; ghost: HTMLElement | null } | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -282,6 +285,70 @@ export default function WeeklyIssuesPage() {
       handleStatusChange(draggedIssue.id, targetStatus);
     }
     setDraggedIssue(null);
+  };
+
+  // ── Touch drag handlers for mobile ──────────────────────────────────────
+  const handleTouchStart = (e: React.TouchEvent, issue: any) => {
+    touchDragRef.current = { issue, ghost: null };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchDragRef.current) return;
+    const touch = e.touches[0];
+
+    if (!touchDragRef.current.ghost) {
+      const card = e.currentTarget as HTMLElement;
+      const rect = card.getBoundingClientRect();
+      const ghost = card.cloneNode(true) as HTMLElement;
+      Object.assign(ghost.style, {
+        position: 'fixed',
+        width: rect.width + 'px',
+        left: rect.left + 'px',
+        top: rect.top + 'px',
+        opacity: '0.85',
+        pointerEvents: 'none',
+        zIndex: '9999',
+        transform: 'rotate(2deg) scale(1.05)',
+        boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
+        borderRadius: '8px',
+        transition: 'none',
+      });
+      document.body.appendChild(ghost);
+      touchDragRef.current.ghost = ghost;
+      setDraggedIssue(touchDragRef.current.issue);
+    }
+
+    const ghost = touchDragRef.current.ghost!;
+    const halfW = parseFloat(ghost.style.width) / 2;
+    ghost.style.left = `${touch.clientX - halfW}px`;
+    ghost.style.top = `${touch.clientY - 40}px`;
+
+    // Detect which kanban column is under the finger
+    ghost.style.visibility = 'hidden';
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    ghost.style.visibility = '';
+    const colEl = el?.closest('[data-kanban-col]');
+    setDragOverColumn(colEl?.getAttribute('data-kanban-col') ?? null);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchDragRef.current) return;
+    const { ghost, issue } = touchDragRef.current;
+
+    if (ghost?.parentNode) document.body.removeChild(ghost);
+    touchDragRef.current = null;
+
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const colEl = el?.closest('[data-kanban-col]');
+    const targetStatus = colEl?.getAttribute('data-kanban-col') ?? null;
+
+    if (targetStatus && targetStatus !== issue.status) {
+      handleStatusChange(issue.id, targetStatus);
+    }
+
+    setDraggedIssue(null);
+    setDragOverColumn(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -718,6 +785,7 @@ export default function WeeklyIssuesPage() {
             return (
               <div
                 key={status}
+                data-kanban-col={status}
                 className="space-y-2"
                 onDragOver={(e) => handleDragOver(e, status)}
                 onDragLeave={handleDragLeave}
@@ -741,6 +809,10 @@ export default function WeeklyIssuesPage() {
                       draggable
                       onDragStart={(e) => handleDragStart(e, issue)}
                       onDragEnd={handleDragEnd}
+                      onTouchStart={(e) => handleTouchStart(e, issue)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      style={{ touchAction: 'none' }}
                       onClick={() => setPreviewIssue(issue)}
                     >
                       <CardHeader className="pb-2">
