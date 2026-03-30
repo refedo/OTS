@@ -186,11 +186,9 @@ export default function ExecuteSyncPage() {
   useEffect(() => {
     if (validation) {
       setSelectedProjects(new Set(validation.projects.matched.map(m => m.pts)));
-      const allBuildings = [
-        ...validation.buildings.matched.map(m => `${m.pts.projectNumber}-${m.pts.designation}`),
-        ...validation.buildings.unmatched.map(b => `${b.projectNumber}-${b.designation}`),
-      ];
-      setSelectedBuildings(new Set(allBuildings));
+      // Only auto-select matched (existing) buildings; new buildings default to unchecked
+      const matchedBuildings = validation.buildings.matched.map(m => `${m.pts.projectNumber}-${m.pts.designation}`);
+      setSelectedBuildings(new Set(matchedBuildings));
     }
   }, [validation]);
 
@@ -211,14 +209,12 @@ export default function ExecuteSyncPage() {
       } else {
         next.add(projectNumber);
         if (validation) {
+          // Only auto-select matched buildings; new buildings stay unchecked
           setSelectedBuildings(prevBuildings => {
             const nextBuildings = new Set(prevBuildings);
             validation.buildings.matched
               .filter(m => m.pts.projectNumber === projectNumber)
               .forEach(m => nextBuildings.add(`${m.pts.projectNumber}-${m.pts.designation}`));
-            validation.buildings.unmatched
-              .filter(b => b.projectNumber === projectNumber)
-              .forEach(b => nextBuildings.add(`${b.projectNumber}-${b.designation}`));
             return nextBuildings;
           });
         }

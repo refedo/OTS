@@ -64,7 +64,7 @@ interface ActivityData {
   activityType: string;
   activityLabel: string;
   percentage: number;
-  status: 'not_started' | 'in_progress' | 'completed' | 'blocked';
+  status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'pending_approval';
   details: ActivityDetails;
 }
 
@@ -143,6 +143,7 @@ const CONSULTANT_CODES: Record<string, { label: string; color: string }> = {
 
 function getStatusColor(status: string, percentage: number): string {
   if (status === 'blocked') return 'text-red-400';
+  if (status === 'pending_approval') return 'text-blue-400';
   if (percentage === 100 || status === 'completed') return 'text-emerald-400';
   if (percentage > 0 || status === 'in_progress') return 'text-amber-400';
   return 'text-slate-500';
@@ -150,6 +151,7 @@ function getStatusColor(status: string, percentage: number): string {
 
 function getProgressBarColor(status: string, percentage: number): string {
   if (status === 'blocked') return 'bg-red-500';
+  if (status === 'pending_approval') return 'bg-blue-500';
   if (percentage === 100 || status === 'completed') return 'bg-emerald-500';
   if (percentage > 0 || status === 'in_progress') return 'bg-amber-500';
   return 'bg-slate-600';
@@ -163,6 +165,9 @@ function getStatusIcon(status: string, percentage: number) {
   if (status === 'blocked') {
     return <X className="w-3.5 h-3.5 text-red-400" />;
   }
+  if (status === 'pending_approval') {
+    return <Clock className="w-3.5 h-3.5 text-blue-400" />;
+  }
   if (percentage === 100 || status === 'completed') {
     return <Check className="w-3.5 h-3.5 text-emerald-400" />;
   }
@@ -174,6 +179,7 @@ function getStatusIcon(status: string, percentage: number) {
 
 function getBorderColor(status: string, isDark: boolean): string {
   if (status === 'blocked') return 'border-red-500/60';
+  if (status === 'pending_approval') return isDark ? 'border-blue-500/40' : 'border-blue-300';
   if (status === 'completed') return isDark ? 'border-emerald-500/40' : 'border-emerald-300';
   return isDark ? 'border-slate-700/50' : 'border-slate-200';
 }

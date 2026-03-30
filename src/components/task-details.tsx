@@ -365,46 +365,51 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const StageApprovalCircles = () => {
     // Check if task is overdue (due date passed and not completed)
     const isTaskOverdue = task.dueDate && !task.completedAt && new Date(task.dueDate) < new Date();
-    
+
     const stages = [
-      { label: 'Input Date', completed: !!task.taskInputDate, date: task.taskInputDate, overdue: false },
-      { label: 'Due Date', completed: !!task.dueDate, date: task.dueDate, overdue: isTaskOverdue },
-      { label: 'Release Date', completed: !!task.releaseDate, date: task.releaseDate, overdue: false },
-      { label: 'Completion', completed: task.status === 'Completed' || !!task.completedAt, date: task.completedAt, overdue: isTaskOverdue && task.status !== 'Completed' && !task.completedAt },
-      { label: 'Approval', completed: !!task.approvedAt, date: task.approvedAt, overdue: isTaskOverdue && !task.approvedAt },
+      { label: 'Input Date', completed: !!task.taskInputDate, date: task.taskInputDate, overdue: false, byWhom: null as string | null },
+      { label: 'Due Date', completed: !!task.dueDate, date: task.dueDate, overdue: isTaskOverdue, byWhom: null as string | null },
+      { label: 'Completion', completed: task.status === 'Completed' || !!task.completedAt, date: task.completedAt, overdue: isTaskOverdue && task.status !== 'Completed' && !task.completedAt, byWhom: task.completedBy?.name || null },
+      { label: 'Release Date', completed: !!task.releaseDate, date: task.releaseDate, overdue: false, byWhom: null as string | null },
+      { label: 'Approval', completed: !!task.approvedAt, date: task.approvedAt, overdue: isTaskOverdue && !task.approvedAt, byWhom: task.approvedBy?.name || null },
     ];
 
     return (
       <div className="flex items-center justify-center gap-0 py-6">
         {stages.map((stage, index) => (
           <div key={stage.label} className="flex items-center">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center min-w-[72px]">
               <span className={cn(
-                "text-xs mb-2",
+                "text-xs mb-2 text-center",
                 stage.overdue && !stage.completed ? "text-red-600 font-medium" : "text-muted-foreground"
               )}>{stage.label}</span>
               <div className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center transition-all",
-                stage.completed 
-                  ? "bg-emerald-500 text-white" 
+                "w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0",
+                stage.completed
+                  ? "bg-emerald-500 text-white"
                   : stage.overdue
                     ? "bg-red-500 text-white border-2 border-red-600"
                     : "bg-muted border-2 border-dashed border-muted-foreground/30"
               )}>
-                {stage.completed && <Check className="h-6 w-6" />}
-                {stage.overdue && !stage.completed && <AlertCircle className="h-6 w-6" />}
+                {stage.completed && <Check className="h-5 w-5" />}
+                {stage.overdue && !stage.completed && <AlertCircle className="h-5 w-5" />}
               </div>
               {stage.date && (
                 <span className={cn(
-                  "text-[10px] mt-1",
+                  "text-[10px] mt-1 text-center",
                   stage.overdue && !stage.completed ? "text-red-600" : "text-muted-foreground"
                 )}>{formatDate(stage.date)}</span>
+              )}
+              {stage.byWhom && stage.completed && (
+                <span className="text-[9px] mt-0.5 text-muted-foreground/70 text-center truncate max-w-[72px]">
+                  by {stage.byWhom}
+                </span>
               )}
             </div>
             {index < stages.length - 1 && (
               <div className={cn(
-                "w-12 h-0.5 mx-1 mt-4",
-                stages[index + 1].completed ? "bg-emerald-500" : 
+                "w-8 h-0.5 shrink-0",
+                stages[index + 1].completed ? "bg-emerald-500" :
                 stages[index + 1].overdue ? "bg-red-500" : "bg-muted-foreground/20"
               )} />
             )}
@@ -686,7 +691,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 gap-1.5"
+                        className="flex-1 gap-1.5 border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800"
                         onClick={() => setShowClarificationDialog(true)}
                         disabled={sendingRequest}
                       >
@@ -696,7 +701,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 gap-1.5"
+                        className="flex-1 gap-1.5 border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
                         onClick={() => setShowExtensionDialog(true)}
                         disabled={sendingRequest}
                       >
