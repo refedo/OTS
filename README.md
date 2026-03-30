@@ -1,6 +1,6 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 17.0.0 | **Release Date:** March 29, 2026
+**Version:** 17.0.0 | **Release Date:** March 30, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 

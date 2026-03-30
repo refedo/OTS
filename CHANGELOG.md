@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [17.0.0] - 2026-03-29
+## [17.0.0] - 2026-03-30
+
+### UX & Tracker Improvements (2026-03-30)
+
+#### Added
+
+- **Weekly Issues — Issue Preview** — Clicking any kanban card or table row opens a read-only preview dialog with full issue details (title, priority/status, description, raised by, assigned to, department, dates). An inline Edit button launches the edit form directly.
+- **Weekly Issues — Kanban Drag & Drop (Desktop + Mobile)** — Cards are draggable between status columns (HTML5 drag API for desktop, native touch events with ghost element for mobile). Dropping a card onto a column immediately updates the issue status via optimistic PATCH. Drop target column highlights with a blue tint and a "Drop here" placeholder.
+- **Task Detail — Timeline Circles Alignment** — Restructured `StageApprovalCircles` into three dedicated rows (labels / circles / dates) so all stage circles always sit on the same horizontal line, regardless of label length or whether a date is present.
+
+#### Fixed
+
+- **Project Status Tracker — Task Visibility** — Replaced strict completion/approval filters with a permissive score-based approach. All tasks now appear in the tracker regardless of state: open/pending tasks show at ≥10% in_progress, overdue tasks show as blocked, completed-without-release-date show as pending_approval at ≥60%, completed+released show at ≥75%, fully approved show at 100%. Removed erroneous `deletedAt: null` filter that was causing Prisma query failures (Task model has no soft-delete field) and zeroing out all task-based columns.
+
+---
 
 ### Project Scope & Status Tracker
 
