@@ -23,10 +23,47 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.1.1',
+    date: 'March 30, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🔧 Bug Fixes & Improvements',
+    highlights: [
+      'Sidebar Order settings — Admin/CEO users can drag-and-drop reorder sidebar navigation sections globally at /settings/sidebar',
+      'Project Status Tracker moved to top-level pinned navigation alongside Dashboard, Early Warning, and AI Assistant',
+      'Task "Cancelled" status no longer returns an invalid input error',
+      'Production Trend defaults to monthly view; Top Processes now shows average weight per active day instead of cumulative total',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Sidebar Order Settings (/settings/sidebar)',
+          items: [
+            'Admin and CEO users can drag-and-drop reorder all sidebar navigation sections',
+            'Uses @dnd-kit/core and @dnd-kit/sortable for accessible, keyboard-friendly drag-and-drop',
+            'Order is stored server-side and applies globally to all user accounts',
+            'Non-admin users see an access-denied message',
+            'Sidebar Order link added to the Settings navigation group',
+          ],
+        },
+        'Project Status Tracker link moved from the Projects section to top-level sidebar (pinned alongside Dashboard, Early Warning, AI Assistant)',
+        'Revision and Consultant Code columns in the Tasks table are now sortable (click header to toggle ↑↓)',
+      ],
+      fixed: [
+        'Setting a task status to "Cancelled" was returning a 400 Invalid Input error — Cancelled is now included in the status enum for both task create and update API schemas',
+        'CEO and Admin dashboard was only showing their own assigned projects and objectives — now shows ALL projects and objectives regardless of account assignment',
+        'Production Trend Top Processes section now shows average weight per active day (days with production > 0) instead of cumulative total for the selected period',
+      ],
+      changed: [
+        'Production Trend widget default period changed from Week to Month',
+      ],
+    },
+  },
+  {
     version: '17.1.0',
     date: 'March 30, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '✨ UI Enhancement & Smart Filtering',
     highlights: [
       'Recent Links & Bookmarks panel in the top bar — History icon auto-tracks the last 15 visited pages and lets you pin favourite pages for one-click access',

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.1.1] - 2026-03-30
+
+### Bug Fixes & Improvements (Patch Release)
+
+#### Added
+
+- **Sidebar Order Settings** — Admin and CEO users can now drag-and-drop sidebar navigation sections to reorder them at `/settings/sidebar`. The custom order is stored globally and applies to all user accounts. Non-admin users see an access-denied message. Sidebar Order link added to the Settings navigation group.
+- **Project Status Tracker — Top-Level Navigation** — The Project Status Tracker link has been moved from the Projects section to the top-level sidebar navigation (pinned alongside Dashboard, Early Warning, and AI Assistant).
+- **Tasks — Revision & Consultant Code Sort** — The Revision and Consultant Code columns in the Tasks table are now sortable. Click the column header to toggle ascending/descending alphabetical sort.
+
+#### Fixed
+
+- **Task Cancelled Status** — Setting a task status to "Cancelled" was returning a 400 "Invalid input" error. The `status` enum in the task update and create API schemas now includes `'Cancelled'`.
+- **Dashboard (CEO/Admin) — All Projects & Objectives** — Admin and CEO users now see all projects and objectives on their dashboard, not just the ones assigned to their account. The `isAdminOrCeo` check in the projects summary and objectives summary APIs has been broadened to include capitalized role names ('Admin', 'CEO') and `isAdmin` flag.
+- **Production Trend — Average Per Active Day** — The Top Processes section of the Production Trend widget now shows the average weight per active day (days with recorded production > 0) instead of the cumulative total. Monthly view is now the default period.
+
+---
+
 ## [17.1.0] - 2026-03-30
 
 ### ✨ UI Enhancement & Smart Filtering (Minor Release)
