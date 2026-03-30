@@ -253,6 +253,7 @@ async function computeTaskProgress(
   const tasks = await prisma.task.findMany({
     where: {
       projectId,
+      deletedAt: null,
       OR: [{ buildingId }, { buildingId: null }],
       mainActivity,
     },
@@ -339,8 +340,13 @@ async function computeTaskProgress(
 
   // Completion-led: design, detailing
   if (COMPLETION_ACTIVITIES.has(activityType)) {
+    // Fully done: completed/status=Completed AND has a release date
     const completed = latestTasks.filter(
       (t) => (t.completedAt !== null || t.status === 'Completed') && t.releaseDate !== null
+    );
+    // Completed/done but still waiting for release date (pending_approval state)
+    const awaitingRelease = latestTasks.filter(
+      (t) => (t.completedAt !== null || t.status === 'Completed') && t.releaseDate === null
     );
     const partiallyDone = latestTasks.filter(
       (t) => t.completedAt !== null || t.releaseDate !== null || t.status === 'Completed'
@@ -348,6 +354,15 @@ async function computeTaskProgress(
 
     if (completed.length === latestTasks.length) {
       return { percentage: 100, status: 'completed', details: { tasks: taskDetails } };
+    }
+    // All tasks are done (completed) but none have a release date yet → pending_approval
+    if (awaitingRelease.length === latestTasks.length && completed.length === 0) {
+      return { percentage: 75, status: 'pending_approval', details: { tasks: taskDetails } };
+    }
+    // Mix: some fully done, rest completed without release date
+    if (partiallyDone.length === latestTasks.length && awaitingRelease.length > 0) {
+      const pct = Math.round((completed.length / latestTasks.length) * 100);
+      return { percentage: Math.max(pct, 75), status: 'pending_approval', details: { tasks: taskDetails } };
     }
     if (hasOverdue) {
       const pct = Math.round((completed.length / latestTasks.length) * 100);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -375,46 +375,75 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     ];
 
     return (
-      <div className="flex items-center justify-center gap-0 py-6">
-        {stages.map((stage, index) => (
-          <div key={stage.label} className="flex items-center">
-            <div className="flex flex-col items-center min-w-[72px]">
-              <span className={cn(
-                "text-xs mb-2 text-center",
-                stage.overdue && !stage.completed ? "text-red-600 font-medium" : "text-muted-foreground"
-              )}>{stage.label}</span>
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0",
-                stage.completed
-                  ? "bg-emerald-500 text-white"
-                  : stage.overdue
-                    ? "bg-red-500 text-white border-2 border-red-600"
-                    : "bg-muted border-2 border-dashed border-muted-foreground/30"
-              )}>
-                {stage.completed && <Check className="h-5 w-5" />}
-                {stage.overdue && !stage.completed && <AlertCircle className="h-5 w-5" />}
-              </div>
-              {stage.date && (
+      <div className="py-4 px-2">
+        {/* Row 1: Labels — all same height so circles below stay aligned */}
+        <div className="flex justify-center mb-2">
+          {stages.map((stage, index) => (
+            <Fragment key={stage.label}>
+              <div className="min-w-[72px] flex items-end justify-center h-8">
                 <span className={cn(
-                  "text-[10px] mt-1 text-center",
-                  stage.overdue && !stage.completed ? "text-red-600" : "text-muted-foreground"
-                )}>{formatDate(stage.date)}</span>
-              )}
-              {stage.byWhom && stage.completed && (
-                <span className="text-[9px] mt-0.5 text-muted-foreground/70 text-center truncate max-w-[72px]">
-                  by {stage.byWhom}
+                  "text-xs text-center leading-tight",
+                  stage.overdue && !stage.completed ? "text-red-600 font-medium" : "text-muted-foreground"
+                )}>
+                  {stage.label}
                 </span>
+              </div>
+              {index < stages.length - 1 && <div className="w-8 shrink-0" />}
+            </Fragment>
+          ))}
+        </div>
+
+        {/* Row 2: Circles with connectors — all on the same horizontal line */}
+        <div className="flex items-center justify-center">
+          {stages.map((stage, index) => (
+            <Fragment key={stage.label}>
+              <div className="min-w-[72px] flex justify-center">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0",
+                  stage.completed
+                    ? "bg-emerald-500 text-white"
+                    : stage.overdue
+                      ? "bg-red-500 text-white border-2 border-red-600"
+                      : "bg-muted border-2 border-dashed border-muted-foreground/30"
+                )}>
+                  {stage.completed && <Check className="h-5 w-5" />}
+                  {stage.overdue && !stage.completed && <AlertCircle className="h-5 w-5" />}
+                </div>
+              </div>
+              {index < stages.length - 1 && (
+                <div className={cn(
+                  "w-8 h-0.5 shrink-0",
+                  stages[index + 1].completed ? "bg-emerald-500" :
+                  stages[index + 1].overdue ? "bg-red-500" : "bg-muted-foreground/20"
+                )} />
               )}
-            </div>
-            {index < stages.length - 1 && (
-              <div className={cn(
-                "w-8 h-0.5 shrink-0",
-                stages[index + 1].completed ? "bg-emerald-500" :
-                stages[index + 1].overdue ? "bg-red-500" : "bg-muted-foreground/20"
-              )} />
-            )}
-          </div>
-        ))}
+            </Fragment>
+          ))}
+        </div>
+
+        {/* Row 3: Dates and by-whom — below circles */}
+        <div className="flex justify-center mt-2">
+          {stages.map((stage, index) => (
+            <Fragment key={stage.label}>
+              <div className="min-w-[72px] flex flex-col items-center">
+                {stage.date && (
+                  <span className={cn(
+                    "text-[10px] text-center leading-tight",
+                    stage.overdue && !stage.completed ? "text-red-600" : "text-muted-foreground"
+                  )}>
+                    {formatDate(stage.date)}
+                  </span>
+                )}
+                {stage.byWhom && stage.completed && (
+                  <span className="text-[9px] mt-0.5 text-muted-foreground/70 text-center truncate max-w-[72px]">
+                    by {stage.byWhom}
+                  </span>
+                )}
+              </div>
+              {index < stages.length - 1 && <div className="w-8 shrink-0" />}
+            </Fragment>
+          ))}
+        </div>
       </div>
     );
   };
