@@ -49,7 +49,7 @@ const LCR_ACTIVE_STATUSES = [
 // LCR statuses that count as "bought"
 const LCR_BOUGHT_STATUSES = ['bought', 'ordered', 'po issued'];
 
-type ActivityStatus = 'not_started' | 'in_progress' | 'completed' | 'blocked';
+type ActivityStatus = 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'pending_approval';
 
 interface TaskDetail {
   id: string;
@@ -320,6 +320,11 @@ async function computeTaskProgress(
 
     if (approved.length === latestTasks.length) {
       return { percentage: 100, status: 'completed', details: { tasks: taskDetails } };
+    }
+    // All submitted/completed but not all approved → pending_approval
+    if (submitted.length === latestTasks.length && approved.length < latestTasks.length) {
+      const pct = Math.round((approved.length / latestTasks.length) * 100);
+      return { percentage: Math.max(pct, 75), status: 'pending_approval', details: { tasks: taskDetails } };
     }
     if (hasOverdue) {
       const pct = Math.round((approved.length / latestTasks.length) * 100);
