@@ -175,6 +175,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   });
   const [assignedToFilter, setAssignedToFilter] = useState<string>('');
   const [requesterFilter, setRequesterFilter] = useState<string>('');
+  const [activityFilter, setActivityFilter] = useState<string>('');
+  const [subActivityFilter, setSubActivityFilter] = useState<string>('');
   const [creating, setCreating] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -362,8 +364,10 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
       const matchesApproval = !approvalFilter ||
         (approvalFilter === 'approved' && task.approvedAt) ||
         (approvalFilter === 'not_approved' && !task.approvedAt);
+      const matchesActivity = !activityFilter || task.mainActivity === activityFilter;
+      const matchesSubActivity = !subActivityFilter || task.subActivity === subActivityFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment && matchesAssignedTo && matchesRequester && matchesApproval;
+      return matchesSearch && matchesStatus && matchesPriority && matchesProject && matchesBuilding && matchesDepartment && matchesAssignedTo && matchesRequester && matchesApproval && matchesActivity && matchesSubActivity;
     });
 
     // Apply sorting
@@ -392,6 +396,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
           case 'releaseDate': aVal = a.releaseDate || ''; bVal = b.releaseDate || ''; break;
           case 'completedAt': aVal = a.completedAt || ''; bVal = b.completedAt || ''; break;
           case 'approvedAt': aVal = a.approvedAt || ''; bVal = b.approvedAt || ''; break;
+          case 'mainActivity': aVal = a.mainActivity?.toLowerCase() || ''; bVal = b.mainActivity?.toLowerCase() || ''; break;
+          case 'subActivity': aVal = a.subActivity?.toLowerCase() || ''; bVal = b.subActivity?.toLowerCase() || ''; break;
         }
 
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
@@ -401,7 +407,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     }
 
     return result;
-  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, assignedToFilter, requesterFilter, approvalFilter, filterMyTasks, filterRequesterTasks, userId, sortColumn, sortDirection]);
+  }, [tasks, search, statusFilter, priorityFilter, projectFilter, buildingFilter, departmentFilter, assignedToFilter, requesterFilter, approvalFilter, activityFilter, subActivityFilter, filterMyTasks, filterRequesterTasks, userId, sortColumn, sortDirection]);
 
   // Expand/Collapse All for project management view
   const expandAll = useCallback(() => {
@@ -1193,7 +1199,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                     className="pl-10"
                   />
                 </div>
-                {(statusFilter.length > 0 || priorityFilter.length > 0 || projectFilter || buildingFilter || departmentFilter || assignedToFilter || requesterFilter || approvalFilter || search) && (
+                {(statusFilter.length > 0 || priorityFilter.length > 0 || projectFilter || buildingFilter || departmentFilter || assignedToFilter || requesterFilter || approvalFilter || activityFilter || subActivityFilter || search) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1206,6 +1212,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                       setAssignedToFilter('');
                       setRequesterFilter('');
                       setApprovalFilter('');
+                      setActivityFilter('');
+                      setSubActivityFilter('');
                       setSearch('');
                     }}
                     className="shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -1506,6 +1514,31 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   ))}
                 </select>
 
+                {/* Activity Filter */}
+                <select
+                  value={activityFilter}
+                  onChange={(e) => { setActivityFilter(e.target.value); setSubActivityFilter(''); }}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                >
+                  <option value="">All Activities</option>
+                  {MAIN_ACTIVITIES.map((act) => (
+                    <option key={act.key} value={act.key}>{act.label}</option>
+                  ))}
+                </select>
+
+                {/* Sub-Activity Filter — dependent on activity */}
+                <select
+                  value={subActivityFilter}
+                  onChange={(e) => setSubActivityFilter(e.target.value)}
+                  disabled={!activityFilter}
+                  className="h-9 px-3 rounded-md border bg-background text-sm disabled:opacity-50"
+                >
+                  <option value="">{activityFilter ? 'All Sub-Activities' : 'Select Activity First'}</option>
+                  {(SUB_ACTIVITIES[activityFilter] ?? []).map((sub) => (
+                    <option key={sub.key} value={sub.key}>{sub.label}</option>
+                  ))}
+                </select>
+
               </div>
             </div>
           </CardContent>
@@ -1592,8 +1625,12 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('building')}>
                       <div className="flex items-center">Building {getSortIcon('building')}</div>
                     </TableHead>
-                    <TableHead>Main Activity</TableHead>
-                    <TableHead>Sub-Activity</TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('mainActivity')}>
+                      Main Activity{getSortIcon('mainActivity')}
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('subActivity')}>
+                      Sub-Activity{getSortIcon('subActivity')}
+                    </TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('priority')}>
                       <div className="flex items-center">Priority {getSortIcon('priority')}</div>
                     </TableHead>
