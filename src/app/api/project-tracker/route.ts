@@ -3,10 +3,19 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
-// Activity types resolved from the Tasks module
-const TASK_BASED_ACTIVITIES = [
-  'arch_approval', 'design', 'design_approval', 'detailing', 'detailing_approval',
-];
+// The 10 fixed activity columns displayed in the tracker
+const TRACKER_COLUMNS = [
+  { type: 'arch_approval', label: 'Arch Drawing' },
+  { type: 'design', label: 'Design Stage' },
+  { type: 'design_approval', label: 'Design Approval' },
+  { type: 'detailing', label: 'Shop Drawings' },
+  { type: 'detailing_approval', label: 'SD Approval' },
+  { type: 'procurement', label: 'Procurement' },
+  { type: 'production', label: 'Production' },
+  { type: 'coating', label: 'Coating' },
+  { type: 'dispatch', label: 'Dispatch' },
+  { type: 'erection', label: 'Erection' },
+] as const;
 
 // Map tracker activity types → Task.mainActivity (keys from activity-constants.ts)
 const ACTIVITY_TO_TASK_MAIN: Record<string, string> = {
@@ -18,13 +27,13 @@ const ACTIVITY_TO_TASK_MAIN: Record<string, string> = {
 };
 
 // Activities where we check approvedAt (approval-led)
-const APPROVAL_ACTIVITIES = ['arch_approval', 'design_approval', 'detailing_approval'];
+const APPROVAL_ACTIVITIES = new Set(['arch_approval', 'design_approval', 'detailing_approval']);
 
 // Activities where we check completedAt + releaseDate (completion-led)
-const COMPLETION_ACTIVITIES = ['design', 'detailing'];
+const COMPLETION_ACTIVITIES = new Set(['design', 'detailing']);
 
 // Production log process types
-const PRODUCTION_ACTIVITIES: Record<string, string[]> = {
+const PRODUCTION_PROCESS_TYPES: Record<string, string[]> = {
   production: ['Fit-up', 'Welding', 'Visualization'],
   coating: ['Sandblasting', 'Painting', 'Galvanization'],
   dispatch: ['Dispatch'],
@@ -38,23 +47,21 @@ const LCR_ACTIVE_STATUSES = [
 ];
 
 // LCR statuses that count as "bought"
-const LCR_BOUGHT_STATUSES = [
-  'bought', 'ordered', 'po issued',
-];
+const LCR_BOUGHT_STATUSES = ['bought', 'ordered', 'po issued'];
 
 export const GET = withApiContext(async (req, session) => {
   try {
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
-    const statusFilter = searchParams.get('status'); // all, in_progress, blocked, completed
+    const statusFilter = searchParams.get('status');
 
-    // Fetch all active projects with buildings, scopes, and activities
     const projectWhere: Record<string, unknown> = {
       deletedAt: null,
       status: { not: 'Draft' },
     };
     if (projectId) projectWhere.id = projectId;
 
+    // Simple query: just projects + buildings, no ScopeOfWork dependency
     const projects = await prisma.project.findMany({
       where: projectWhere,
       select: {
@@ -70,24 +77,6 @@ export const GET = withApiContext(async (req, session) => {
             name: true,
             designation: true,
             weight: true,
-            scopeOfWorks: {
-              select: {
-                id: true,
-                scopeType: true,
-                scopeLabel: true,
-                customLabel: true,
-                activities: {
-                  where: { isApplicable: true },
-                  orderBy: { sortOrder: 'asc' },
-                  select: {
-                    id: true,
-                    activityType: true,
-                    activityLabel: true,
-                  },
-                },
-              },
-              orderBy: { createdAt: 'asc' },
-            },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -95,47 +84,34 @@ export const GET = withApiContext(async (req, session) => {
       orderBy: { projectNumber: 'asc' },
     });
 
-    // For each project, compute activity progress
+    // For each project/building, compute all 10 activity columns directly
     const trackerData = await Promise.all(
       projects.map(async (project) => {
         const buildingsData = await Promise.all(
           project.buildings.map(async (building) => {
-            const scopesData = await Promise.all(
-              building.scopeOfWorks.map(async (scope) => {
-                const activitiesData = await Promise.all(
-                  scope.activities.map(async (activity) => {
-                    const progress = await computeActivityProgress(
-                      project.id,
-                      building.id,
-                      scope.id,
-                      scope.scopeType,
-                      activity.activityType
-                    );
-                    return {
-                      ...activity,
-                      ...progress,
-                    };
-                  })
+            // Compute all 10 activities for this building
+            const activities = await Promise.all(
+              TRACKER_COLUMNS.map(async (col) => {
+                const progress = await computeActivityProgress(
+                  project.id,
+                  building.id,
+                  col.type
                 );
-
                 return {
-                  id: scope.id,
-                  scopeType: scope.scopeType,
-                  scopeLabel: scope.customLabel || scope.scopeLabel,
-                  activities: activitiesData,
+                  id: `${building.id}-${col.type}`,
+                  activityType: col.type,
+                  activityLabel: col.label,
+                  ...progress,
                 };
               })
             );
 
-            // Calculate overall building progress
-            const allActivities = scopesData.flatMap((s) => s.activities);
-            const totalProgress =
-              allActivities.length > 0
-                ? Math.round(allActivities.reduce((sum, a) => sum + a.percentage, 0) / allActivities.length)
-                : 0;
+            // Overall = average of all 10 columns
+            const totalProgress = Math.round(
+              activities.reduce((sum, a) => sum + a.percentage, 0) / activities.length
+            );
 
-            // Determine current stage
-            const currentStage = allActivities.find(
+            const currentStage = activities.find(
               (a) => a.percentage > 0 && a.percentage < 100
             );
 
@@ -144,16 +120,20 @@ export const GET = withApiContext(async (req, session) => {
               name: building.name,
               designation: building.designation,
               weight: building.weight,
-              scopes: scopesData,
+              scopes: [{
+                id: `${building.id}-default`,
+                scopeType: 'steel',
+                scopeLabel: 'Steel',
+                activities,
+              }],
               overallProgress: totalProgress,
               currentStage: currentStage
-                ? { label: currentStage.activityLabel, index: allActivities.indexOf(currentStage) + 1 }
+                ? { label: currentStage.activityLabel, index: activities.indexOf(currentStage) + 1 }
                 : null,
             };
           })
         );
 
-        // Calculate project overall progress
         const allBuildingProgress = buildingsData.map((b) => b.overallProgress);
         const projectProgress =
           allBuildingProgress.length > 0
@@ -182,7 +162,6 @@ export const GET = withApiContext(async (req, session) => {
       filtered = trackerData.filter((p) => p.status === 'On Hold');
     }
 
-    // Summary stats
     const stats = {
       activeProjects: trackerData.filter((p) => p.status === 'Active').length,
       totalBuildings: trackerData.reduce((sum, p) => sum + p.buildings.length, 0),
@@ -198,16 +177,16 @@ export const GET = withApiContext(async (req, session) => {
   }
 });
 
+// --- Progress computation ---
+
 async function computeActivityProgress(
   projectId: string,
   buildingId: string,
-  scopeOfWorkId: string,
-  scopeType: string,
   activityType: string
 ): Promise<{ percentage: number; status: 'not_started' | 'in_progress' | 'completed' }> {
   try {
-    // Task-based activities
-    if (TASK_BASED_ACTIVITIES.includes(activityType)) {
+    // Task-based: arch_approval, design, design_approval, detailing, detailing_approval
+    if (ACTIVITY_TO_TASK_MAIN[activityType]) {
       return await computeTaskProgress(projectId, buildingId, activityType);
     }
 
@@ -216,8 +195,8 @@ async function computeActivityProgress(
       return await computeProcurementProgress(projectId, buildingId);
     }
 
-    // Production-based activities
-    if (['production', 'coating', 'dispatch', 'erection'].includes(activityType)) {
+    // Production-based: production, coating, dispatch, erection
+    if (PRODUCTION_PROCESS_TYPES[activityType]) {
       return await computeProductionProgress(projectId, buildingId, activityType);
     }
 
@@ -235,7 +214,6 @@ async function computeTaskProgress(
 ): Promise<{ percentage: number; status: 'not_started' | 'in_progress' | 'completed' }> {
   const mainActivity = ACTIVITY_TO_TASK_MAIN[activityType];
 
-  // Match tasks for this building OR tasks with no building set (project-level)
   const tasks = await prisma.task.findMany({
     where: {
       projectId,
@@ -260,19 +238,18 @@ async function computeTaskProgress(
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Group tasks by subActivity to find the latest revision per sub-activity
-  const bySubActivity = new Map<string, typeof tasks>();
+  // Group by subActivity, pick latest revision (most recent createdAt) per group
+  const bySubActivity = new Map<string, (typeof tasks)[number]>();
   for (const t of tasks) {
     const key = t.subActivity || '__none__';
-    if (!bySubActivity.has(key)) bySubActivity.set(key, []);
-    bySubActivity.get(key)!.push(t);
+    if (!bySubActivity.has(key)) {
+      bySubActivity.set(key, t); // already sorted desc, first = latest
+    }
   }
+  const latestTasks = Array.from(bySubActivity.values());
 
-  // For each sub-activity group, pick the latest task (latest revision = latest createdAt)
-  const latestTasks = Array.from(bySubActivity.values()).map((group) => group[0]);
-
-  // Approval-led activities (arch_approval, design_approval, detailing_approval)
-  if (APPROVAL_ACTIVITIES.includes(activityType)) {
+  // Approval-led: arch_approval, design_approval, detailing_approval
+  if (APPROVAL_ACTIVITIES.has(activityType)) {
     const approved = latestTasks.filter((t) => t.approvedAt !== null);
     const submitted = latestTasks.filter((t) => t.completedAt !== null || t.releaseDate !== null);
 
@@ -286,8 +263,8 @@ async function computeTaskProgress(
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Completion-led activities (design, detailing) — check completedAt + releaseDate
-  if (COMPLETION_ACTIVITIES.includes(activityType)) {
+  // Completion-led: design, detailing — check completedAt + releaseDate on latest revision
+  if (COMPLETION_ACTIVITIES.has(activityType)) {
     const completed = latestTasks.filter(
       (t) => (t.completedAt !== null || t.status === 'Completed') && t.releaseDate !== null
     );
@@ -329,7 +306,6 @@ async function computeProcurementProgress(
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Only count entries with active procurement statuses
   let boughtWeight = 0;
   let totalActiveWeight = 0;
 
@@ -351,7 +327,6 @@ async function computeProcurementProgress(
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Bought weight / total weight of all active LCR items
   const pct = Math.round((boughtWeight / totalActiveWeight) * 100);
 
   if (pct >= 100) return { percentage: 100, status: 'completed' };
@@ -364,15 +339,11 @@ async function computeProductionProgress(
   buildingId: string,
   activityType: string
 ): Promise<{ percentage: number; status: 'not_started' | 'in_progress' | 'completed' }> {
-  const processTypes = PRODUCTION_ACTIVITIES[activityType] || [];
+  const processTypes = PRODUCTION_PROCESS_TYPES[activityType] || [];
 
-  // Get total weight of all assembly parts for this building
+  // Total weight of all assembly parts for this building
   const totalWeightResult = await prisma.assemblyPart.aggregate({
-    where: {
-      projectId,
-      buildingId,
-      deletedAt: null,
-    },
+    where: { projectId, buildingId, deletedAt: null },
     _sum: { netWeightTotal: true },
   });
 
@@ -381,24 +352,17 @@ async function computeProductionProgress(
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Get production logs with their assembly part weights
+  // Production logs with assembly part weight info
   const logs = await prisma.productionLog.findMany({
     where: {
-      assemblyPart: {
-        projectId,
-        buildingId,
-        deletedAt: null,
-      },
+      assemblyPart: { projectId, buildingId, deletedAt: null },
       processType: { in: processTypes },
     },
     select: {
       processType: true,
       processedQty: true,
       assemblyPart: {
-        select: {
-          singlePartWeight: true,
-          quantity: true,
-        },
+        select: { singlePartWeight: true },
       },
     },
   });
@@ -407,7 +371,7 @@ async function computeProductionProgress(
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Calculate processed weight per process type
+  // Sum processed weight per process type
   const weightByProcess = new Map<string, number>();
   for (const pt of processTypes) {
     weightByProcess.set(pt, 0);
