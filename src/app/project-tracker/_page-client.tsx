@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,16 +17,55 @@ import {
   TrendingUp,
   CheckCircle2,
   AlertTriangle,
+  X,
+  Clock,
+  Package,
+  Weight,
+  FileText,
 } from 'lucide-react';
 
 // --- Types ---
+
+interface TaskDetail {
+  id: string;
+  title: string;
+  subActivity: string | null;
+  revision: string | null;
+  status: string;
+  dueDate: string | null;
+  completedAt: string | null;
+  approvedAt: string | null;
+  consultantResponseCode: string | null;
+  assignedTo: string | null;
+  isOverdue: boolean;
+}
+
+interface ProcurementDetail {
+  totalEntries: number;
+  totalWeight: number;
+  boughtWeight: number;
+  underRequestWeight: number;
+  availableWeight: number;
+}
+
+interface ProductionDetail {
+  totalWeight: number;
+  processes: { name: string; processedWeight: number; percentage: number }[];
+}
+
+interface ActivityDetails {
+  tasks?: TaskDetail[];
+  procurement?: ProcurementDetail;
+  production?: ProductionDetail;
+}
 
 interface ActivityData {
   id: string;
   activityType: string;
   activityLabel: string;
   percentage: number;
-  status: 'not_started' | 'in_progress' | 'completed';
+  status: 'not_started' | 'in_progress' | 'completed' | 'blocked';
+  details: ActivityDetails;
 }
 
 interface ScopeData {
@@ -43,6 +82,7 @@ interface BuildingData {
   weight: number | null;
   scopes: ScopeData[];
   overallProgress: number;
+  hasBlocked: boolean;
   currentStage: { label: string; index: number } | null;
 }
 
@@ -93,15 +133,23 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
   { key: 'completed', label: 'Completed' },
 ];
 
+const CONSULTANT_CODES: Record<string, { label: string; color: string }> = {
+  code_a: { label: 'A - Approved', color: 'text-emerald-400' },
+  code_b: { label: 'B - Approved w/ Comments', color: 'text-amber-400' },
+  code_c: { label: 'C - Resubmit', color: 'text-red-400' },
+};
+
 // --- Helper Functions ---
 
 function getStatusColor(status: string, percentage: number): string {
+  if (status === 'blocked') return 'text-red-400';
   if (percentage === 100 || status === 'completed') return 'text-emerald-400';
   if (percentage > 0 || status === 'in_progress') return 'text-amber-400';
   return 'text-slate-500';
 }
 
 function getProgressBarColor(status: string, percentage: number): string {
+  if (status === 'blocked') return 'bg-red-500';
   if (percentage === 100 || status === 'completed') return 'bg-emerald-500';
   if (percentage > 0 || status === 'in_progress') return 'bg-amber-500';
   return 'bg-slate-600';
@@ -112,6 +160,9 @@ function getProgressBarTrack(isDark: boolean): string {
 }
 
 function getStatusIcon(status: string, percentage: number) {
+  if (status === 'blocked') {
+    return <X className="w-3.5 h-3.5 text-red-400" />;
+  }
   if (percentage === 100 || status === 'completed') {
     return <Check className="w-3.5 h-3.5 text-emerald-400" />;
   }
@@ -121,6 +172,12 @@ function getStatusIcon(status: string, percentage: number) {
   return <Minus className="w-3.5 h-3.5 text-slate-500" />;
 }
 
+function getBorderColor(status: string, isDark: boolean): string {
+  if (status === 'blocked') return 'border-red-500/60';
+  if (status === 'completed') return isDark ? 'border-emerald-500/40' : 'border-emerald-300';
+  return isDark ? 'border-slate-700/50' : 'border-slate-200';
+}
+
 function getPrimaryScope(scopes: ScopeData[]): ScopeData | null {
   const steelScope = scopes.find(
     (s) => s.scopeType.toLowerCase().includes('steel') || s.scopeType.toLowerCase() === 'main'
@@ -128,39 +185,227 @@ function getPrimaryScope(scopes: ScopeData[]): ScopeData | null {
   return steelScope || scopes[0] || null;
 }
 
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatWeight(w: number): string {
+  if (w >= 1000) return `${(w / 1000).toFixed(1)} T`;
+  return `${w.toFixed(0)} kg`;
+}
+
 // --- Components ---
+
+function DetailPopover({
+  activity,
+  isDark,
+  onClose,
+}: {
+  activity: ActivityData;
+  isDark: boolean;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [onClose]);
+
+  const bg = isDark ? 'bg-[#1a2332]' : 'bg-white';
+  const border = isDark ? 'border-slate-600' : 'border-slate-300';
+  const muted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const text = isDark ? 'text-white' : 'text-slate-900';
+
+  return (
+    <div
+      ref={ref}
+      className={`absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-72 rounded-lg border shadow-xl ${bg} ${border} ${text} p-3 text-xs`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-semibold text-sm">{activity.activityLabel}</span>
+        <button onClick={onClose} className={`p-0.5 rounded hover:bg-slate-700/50 ${muted}`}>
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Task details */}
+      {activity.details.tasks && activity.details.tasks.length > 0 && (
+        <div className="space-y-2">
+          {activity.details.tasks.map((task) => (
+            <div
+              key={task.id}
+              className={`rounded-md p-2 border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}
+            >
+              <div className="flex items-start justify-between gap-1 mb-1">
+                <span className="font-medium truncate">{task.title}</span>
+                {task.isOverdue && (
+                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400">
+                    OVERDUE
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1.5">
+                <div className={muted}>
+                  <Clock className="w-3 h-3 inline mr-1" />
+                  Due: {formatDate(task.dueDate)}
+                </div>
+                <div className={muted}>
+                  <Check className="w-3 h-3 inline mr-1" />
+                  Done: {formatDate(task.completedAt)}
+                </div>
+                {task.approvedAt && (
+                  <div className={muted}>
+                    <CheckCircle2 className="w-3 h-3 inline mr-1" />
+                    Approved: {formatDate(task.approvedAt)}
+                  </div>
+                )}
+                {task.revision && (
+                  <div className={muted}>
+                    <FileText className="w-3 h-3 inline mr-1" />
+                    Rev: {task.revision}
+                  </div>
+                )}
+                {task.consultantResponseCode && (
+                  <div className={`col-span-2 ${CONSULTANT_CODES[task.consultantResponseCode]?.color || muted}`}>
+                    Code: {CONSULTANT_CODES[task.consultantResponseCode]?.label || task.consultantResponseCode}
+                  </div>
+                )}
+                {task.assignedTo && (
+                  <div className={`col-span-2 ${muted}`}>
+                    Assigned: {task.assignedTo}
+                  </div>
+                )}
+              </div>
+              <div className="mt-1">
+                <span
+                  className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    task.status === 'Completed'
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : task.status === 'In Progress'
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {task.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Procurement details */}
+      {activity.details.procurement && (
+        <div className={`rounded-md p-2 border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+            <div className={muted}>
+              <Package className="w-3 h-3 inline mr-1" />
+              Entries: {activity.details.procurement.totalEntries}
+            </div>
+            <div className={muted}>
+              <Weight className="w-3 h-3 inline mr-1" />
+              Total: {formatWeight(activity.details.procurement.totalWeight)}
+            </div>
+            <div className="text-emerald-400">
+              Bought: {formatWeight(activity.details.procurement.boughtWeight)}
+            </div>
+            <div className="text-amber-400">
+              Under Request: {formatWeight(activity.details.procurement.underRequestWeight)}
+            </div>
+            <div className="text-blue-400 col-span-2">
+              Available: {formatWeight(activity.details.procurement.availableWeight)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Production details */}
+      {activity.details.production && (
+        <div className={`rounded-md p-2 border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}>
+          <div className={`mb-1.5 ${muted}`}>
+            <Weight className="w-3 h-3 inline mr-1" />
+            Total Weight: {formatWeight(activity.details.production.totalWeight)}
+          </div>
+          <div className="space-y-1">
+            {activity.details.production.processes.map((p) => (
+              <div key={p.name} className="flex items-center justify-between">
+                <span className={muted}>{p.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`tabular-nums ${p.percentage > 0 ? 'text-amber-400' : muted}`}>
+                    {formatWeight(p.processedWeight)}
+                  </span>
+                  <span className={`tabular-nums font-medium w-10 text-right ${p.percentage >= 100 ? 'text-emerald-400' : p.percentage > 0 ? 'text-amber-400' : muted}`}>
+                    {p.percentage}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* No data */}
+      {!activity.details.tasks && !activity.details.procurement && !activity.details.production && (
+        <p className={muted}>No data available</p>
+      )}
+    </div>
+  );
+}
 
 function StatusCell({
   activity,
   isDark,
 }: {
-  activity: { percentage: number; status: string } | null;
+  activity: ActivityData | null;
   isDark: boolean;
 }) {
+  const [showDetail, setShowDetail] = useState(false);
   const pct = activity?.percentage ?? 0;
   const status = activity?.status ?? 'not_started';
+  const hasDetails = activity?.details && (
+    activity.details.tasks?.length ||
+    activity.details.procurement ||
+    activity.details.production
+  );
 
   return (
-    <div
-      className={`
-        rounded-lg px-2.5 py-2 min-w-[90px] transition-colors
-        ${isDark ? 'bg-[#1a2332] border border-slate-700/50' : 'bg-white border border-slate-200 shadow-sm'}
-      `}
-    >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        {getStatusIcon(status, pct)}
-        <span
-          className={`text-sm font-semibold tabular-nums ${getStatusColor(status, pct)}`}
-        >
-          {pct}%
-        </span>
+    <div className="relative">
+      <div
+        onClick={() => hasDetails && setShowDetail((v) => !v)}
+        className={`
+          rounded-lg px-2.5 py-2 min-w-[90px] transition-colors
+          ${hasDetails ? 'cursor-pointer' : ''}
+          ${isDark ? 'bg-[#1a2332]' : 'bg-white shadow-sm'}
+          border ${getBorderColor(status, isDark)}
+        `}
+      >
+        <div className="flex items-center gap-1.5 mb-1.5">
+          {getStatusIcon(status, pct)}
+          <span
+            className={`text-sm font-semibold tabular-nums ${getStatusColor(status, pct)}`}
+          >
+            {pct}%
+          </span>
+        </div>
+        <div className={`h-1.5 rounded-full overflow-hidden ${getProgressBarTrack(isDark)}`}>
+          <div
+            className={`h-full rounded-full transition-all duration-500 ease-out ${getProgressBarColor(status, pct)}`}
+            style={{ width: `${Math.max(pct, status === 'blocked' ? 100 : 0)}%` }}
+          />
+        </div>
       </div>
-      <div className={`h-1.5 rounded-full overflow-hidden ${getProgressBarTrack(isDark)}`}>
-        <div
-          className={`h-full rounded-full transition-all duration-500 ease-out ${getProgressBarColor(status, pct)}`}
-          style={{ width: `${pct}%` }}
+      {showDetail && activity && (
+        <DetailPopover
+          activity={activity}
+          isDark={isDark}
+          onClose={() => setShowDetail(false)}
         />
-      </div>
+      )}
     </div>
   );
 }
@@ -168,19 +413,22 @@ function StatusCell({
 function OverallCell({
   progress,
   currentStage,
+  hasBlocked,
   isDark,
 }: {
   progress: number;
   currentStage: { label: string; index: number } | null;
+  hasBlocked: boolean;
   isDark: boolean;
 }) {
-  const status = progress === 100 ? 'completed' : progress > 0 ? 'in_progress' : 'not_started';
+  const status = hasBlocked ? 'blocked' : progress === 100 ? 'completed' : progress > 0 ? 'in_progress' : 'not_started';
 
   return (
     <div
       className={`
         rounded-lg px-3 py-2 min-w-[140px] transition-colors
-        ${isDark ? 'bg-[#1a2332] border border-slate-700/50' : 'bg-white border border-slate-200 shadow-sm'}
+        ${isDark ? 'bg-[#1a2332]' : 'bg-white shadow-sm'}
+        border ${getBorderColor(status, isDark)}
       `}
     >
       <div className="flex items-center gap-1.5 mb-1.5">
@@ -245,10 +493,7 @@ function LoadingSkeleton({ isDark }: { isDark: boolean }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Card
-            key={i}
-            className={`p-5 ${isDark ? 'bg-[#1a2332] border-slate-700/50' : ''}`}
-          >
+          <Card key={i} className={`p-5 ${isDark ? 'bg-[#1a2332] border-slate-700/50' : ''}`}>
             <Skeleton className={`h-4 w-24 mb-3 ${bg}`} />
             <Skeleton className={`h-9 w-16 ${bg}`} />
           </Card>
@@ -290,7 +535,6 @@ export default function ProjectTrackerClient() {
     fetchData();
   }, [fetchData]);
 
-  // Auto-refresh every 60 seconds
   useEffect(() => {
     const interval = setInterval(fetchData, 60_000);
     return () => clearInterval(interval);
@@ -312,7 +556,6 @@ export default function ProjectTrackerClient() {
     );
   }, [data, searchQuery]);
 
-  // Build flat rows grouped by project
   const rows = useMemo(() => {
     const result: {
       projectNumber: string;
@@ -467,7 +710,7 @@ export default function ProjectTrackerClient() {
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                <span className={mutedTextClass}>Blocked</span>
+                <span className={mutedTextClass}>Blocked / Overdue</span>
               </div>
             </div>
 
@@ -542,7 +785,6 @@ export default function ProjectTrackerClient() {
                               ${rowHoverBg}
                             `}
                           >
-                            {/* Project Number */}
                             <td
                               className={`
                                 sticky left-0 z-10 px-4 py-2.5 text-sm font-semibold align-top whitespace-nowrap
@@ -563,7 +805,6 @@ export default function ProjectTrackerClient() {
                               ) : null}
                             </td>
 
-                            {/* Building Name */}
                             <td
                               className={`
                                 sticky left-[100px] z-10 px-4 py-2.5 text-sm align-top whitespace-nowrap
@@ -580,28 +821,20 @@ export default function ProjectTrackerClient() {
                               )}
                             </td>
 
-                            {/* Activity Columns */}
                             {ACTIVITY_COLUMNS.map((col) => {
-                              const act = activityMap.get(col.type);
+                              const act = activityMap.get(col.type) ?? null;
                               return (
                                 <td key={col.type} className="px-1.5 py-2">
-                                  <StatusCell
-                                    activity={
-                                      act
-                                        ? { percentage: act.percentage, status: act.status }
-                                        : null
-                                    }
-                                    isDark={isDark}
-                                  />
+                                  <StatusCell activity={act} isDark={isDark} />
                                 </td>
                               );
                             })}
 
-                            {/* Overall */}
                             <td className="px-1.5 py-2">
                               <OverallCell
                                 progress={row.building.overallProgress}
                                 currentStage={row.building.currentStage}
+                                hasBlocked={row.building.hasBlocked}
                                 isDark={isDark}
                               />
                             </td>
