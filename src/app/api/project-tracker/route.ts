@@ -1,52 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
-// Activity types that come from the tasks module
+// Activity types resolved from the Tasks module
 const TASK_BASED_ACTIVITIES = [
-  'arch_approval', 'material_approval', 'design', 'design_approval',
-  'anchor_bolts', 'surveying_as_built', 'detailing', 'detailing_approval',
+  'arch_approval', 'design', 'design_approval', 'detailing', 'detailing_approval',
 ];
 
-// Map activity types to task mainActivity values (must match keys in activity-constants.ts)
+// Map tracker activity types → Task.mainActivity (keys from activity-constants.ts)
 const ACTIVITY_TO_TASK_MAIN: Record<string, string> = {
   arch_approval: 'architecture',
-  material_approval: 'architecture',
   design: 'design',
   design_approval: 'design',
-  anchor_bolts: 'erection',
-  surveying_as_built: 'erection',
   detailing: 'detailing',
   detailing_approval: 'detailing',
 };
 
-// Sub-activity mapping for filtering by subActivity (null = match any sub-activity)
-const ACTIVITY_TO_SUB: Record<string, string | null> = {
-  arch_approval: null,
-  material_approval: null,
-  design: null,
-  design_approval: null,
-  anchor_bolts: 'erection_anchor_bolts',
-  surveying_as_built: null,
-  detailing: null,
-  detailing_approval: null,
-};
+// Activities where we check approvedAt (approval-led)
+const APPROVAL_ACTIVITIES = ['arch_approval', 'design_approval', 'detailing_approval'];
+
+// Activities where we check completedAt + releaseDate (completion-led)
+const COMPLETION_ACTIVITIES = ['design', 'detailing'];
 
 // Production log process types
 const PRODUCTION_ACTIVITIES: Record<string, string[]> = {
-  production: ['Preparation', 'Fit-up', 'Welding'],
+  production: ['Fit-up', 'Welding', 'Visualization'],
   coating: ['Sandblasting', 'Painting', 'Galvanization'],
   dispatch: ['Dispatch'],
   erection: ['Erection'],
 };
 
-// LCR statuses grouped by procurement stage
-const PROCUREMENT_STATUSES: Record<string, string[]> = {
-  under_request: ['Under Request', 'under request', 'Pending', 'pending'],
-  bought: ['Bought', 'bought', 'Ordered', 'ordered', 'PO Issued', 'po issued'],
-  available: ['Available at Factory', 'available at factory', 'Received', 'received', 'Available', 'available'],
-};
+// LCR statuses that count towards procurement total
+const LCR_ACTIVE_STATUSES = [
+  'bought', 'under request', 'available at factory',
+  'pending', 'ordered', 'po issued', 'received', 'available',
+];
+
+// LCR statuses that count as "bought"
+const LCR_BOUGHT_STATUSES = [
+  'bought', 'ordered', 'po issued',
+];
 
 export const GET = withApiContext(async (req, session) => {
   try {
@@ -240,64 +234,75 @@ async function computeTaskProgress(
   activityType: string
 ): Promise<{ percentage: number; status: 'not_started' | 'in_progress' | 'completed' }> {
   const mainActivity = ACTIVITY_TO_TASK_MAIN[activityType];
-  const subActivity = ACTIVITY_TO_SUB[activityType];
 
   // Match tasks for this building OR tasks with no building set (project-level)
-  const where: Record<string, unknown> = {
-    projectId,
-    OR: [
-      { buildingId },
-      { buildingId: null },
-    ],
-    mainActivity,
-  };
-  if (subActivity) where.subActivity = subActivity;
-
   const tasks = await prisma.task.findMany({
-    where,
+    where: {
+      projectId,
+      OR: [{ buildingId }, { buildingId: null }],
+      mainActivity,
+      deletedAt: null,
+    },
     select: {
+      id: true,
       status: true,
+      revision: true,
       releaseDate: true,
       approvedAt: true,
       completedAt: true,
+      subActivity: true,
+      createdAt: true,
     },
+    orderBy: { createdAt: 'desc' },
   });
 
   if (tasks.length === 0) {
     return { percentage: 0, status: 'not_started' };
   }
 
-  // For approval-type activities, check if task is approved
-  const isApprovalType = activityType.endsWith('_approval') || ['arch_approval', 'material_approval'].includes(activityType);
+  // Group tasks by subActivity to find the latest revision per sub-activity
+  const bySubActivity = new Map<string, typeof tasks>();
+  for (const t of tasks) {
+    const key = t.subActivity || '__none__';
+    if (!bySubActivity.has(key)) bySubActivity.set(key, []);
+    bySubActivity.get(key)!.push(t);
+  }
 
-  if (isApprovalType) {
-    const approved = tasks.filter((t) => t.approvedAt !== null);
-    const submitted = tasks.filter((t) => t.releaseDate !== null || t.completedAt !== null);
+  // For each sub-activity group, pick the latest task (latest revision = latest createdAt)
+  const latestTasks = Array.from(bySubActivity.values()).map((group) => group[0]);
 
-    if (approved.length === tasks.length) {
+  // Approval-led activities (arch_approval, design_approval, detailing_approval)
+  if (APPROVAL_ACTIVITIES.includes(activityType)) {
+    const approved = latestTasks.filter((t) => t.approvedAt !== null);
+    const submitted = latestTasks.filter((t) => t.completedAt !== null || t.releaseDate !== null);
+
+    if (approved.length === latestTasks.length) {
       return { percentage: 100, status: 'completed' };
     }
-    if (submitted.length > 0) {
-      // Submitted but not all approved yet
-      const pct = Math.round((approved.length / tasks.length) * 100);
+    if (submitted.length > 0 || approved.length > 0) {
+      const pct = Math.round((approved.length / latestTasks.length) * 100);
       return { percentage: Math.max(pct, 50), status: 'in_progress' };
     }
     return { percentage: 0, status: 'not_started' };
   }
 
-  // For submission-type activities
-  const completed = tasks.filter(
-    (t) => t.releaseDate !== null || t.completedAt !== null || t.status === 'Completed'
-  );
+  // Completion-led activities (design, detailing) — check completedAt + releaseDate
+  if (COMPLETION_ACTIVITIES.includes(activityType)) {
+    const completed = latestTasks.filter(
+      (t) => (t.completedAt !== null || t.status === 'Completed') && t.releaseDate !== null
+    );
+    const partiallyDone = latestTasks.filter(
+      (t) => t.completedAt !== null || t.releaseDate !== null || t.status === 'Completed'
+    );
 
-  if (completed.length === tasks.length) {
-    return { percentage: 100, status: 'completed' };
-  }
-  if (completed.length > 0) {
-    return {
-      percentage: Math.round((completed.length / tasks.length) * 100),
-      status: 'in_progress',
-    };
+    if (completed.length === latestTasks.length) {
+      return { percentage: 100, status: 'completed' };
+    }
+    if (partiallyDone.length > 0) {
+      const pct = Math.round((completed.length / latestTasks.length) * 100);
+      return { percentage: Math.max(pct, 25), status: 'in_progress' };
+    }
+    return { percentage: 0, status: 'not_started' };
   }
 
   return { percentage: 0, status: 'not_started' };
@@ -324,33 +329,30 @@ async function computeProcurementProgress(
     return { percentage: 0, status: 'not_started' };
   }
 
-  let availableWeight = 0;
+  // Only count entries with active procurement statuses
   let boughtWeight = 0;
-  let underRequestWeight = 0;
-  let totalWeight = 0;
+  let totalActiveWeight = 0;
 
   for (const entry of entries) {
-    const w = Number(entry.totalWeight || entry.weight || 0);
-    totalWeight += w;
+    const status = (entry.status || '').toLowerCase().trim();
+    const isActive = LCR_ACTIVE_STATUSES.some((s) => status.includes(s));
+    if (!isActive) continue;
 
-    const status = (entry.status || '').toLowerCase();
-    if (PROCUREMENT_STATUSES.available.some((s) => status.includes(s.toLowerCase()))) {
-      availableWeight += w;
-    } else if (PROCUREMENT_STATUSES.bought.some((s) => status.includes(s.toLowerCase()))) {
+    const w = Number(entry.totalWeight || entry.weight || 0);
+    totalActiveWeight += w;
+
+    const isBought = LCR_BOUGHT_STATUSES.some((s) => status.includes(s));
+    if (isBought) {
       boughtWeight += w;
-    } else if (PROCUREMENT_STATUSES.under_request.some((s) => status.includes(s.toLowerCase()))) {
-      underRequestWeight += w;
     }
   }
 
-  if (totalWeight === 0) {
+  if (totalActiveWeight === 0) {
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Weight-based: available = 100%, bought = 66%, under request = 33%
-  const weightedProgress =
-    (availableWeight * 100 + boughtWeight * 66 + underRequestWeight * 33) / totalWeight;
-  const pct = Math.round(weightedProgress);
+  // Bought weight / total weight of all active LCR items
+  const pct = Math.round((boughtWeight / totalActiveWeight) * 100);
 
   if (pct >= 100) return { percentage: 100, status: 'completed' };
   if (pct > 0) return { percentage: pct, status: 'in_progress' };
@@ -364,22 +366,22 @@ async function computeProductionProgress(
 ): Promise<{ percentage: number; status: 'not_started' | 'in_progress' | 'completed' }> {
   const processTypes = PRODUCTION_ACTIVITIES[activityType] || [];
 
-  // Get total assembly parts for this project/building
-  const totalParts = await prisma.assemblyPart.aggregate({
+  // Get total weight of all assembly parts for this building
+  const totalWeightResult = await prisma.assemblyPart.aggregate({
     where: {
       projectId,
       buildingId,
       deletedAt: null,
     },
-    _sum: { quantity: true },
+    _sum: { netWeightTotal: true },
   });
 
-  const totalQty = totalParts._sum.quantity || 0;
-  if (totalQty === 0) {
+  const totalWeight = Number(totalWeightResult._sum.netWeightTotal || 0);
+  if (totalWeight === 0) {
     return { percentage: 0, status: 'not_started' };
   }
 
-  // Get production logs for the relevant process types
+  // Get production logs with their assembly part weights
   const logs = await prisma.productionLog.findMany({
     where: {
       assemblyPart: {
@@ -390,14 +392,43 @@ async function computeProductionProgress(
       processType: { in: processTypes },
     },
     select: {
+      processType: true,
       processedQty: true,
+      assemblyPart: {
+        select: {
+          singlePartWeight: true,
+          quantity: true,
+        },
+      },
     },
   });
 
-  const processedQty = logs.reduce((sum, l) => sum + l.processedQty, 0);
-  const pct = Math.round((processedQty / totalQty) * 100);
+  if (logs.length === 0) {
+    return { percentage: 0, status: 'not_started' };
+  }
+
+  // Calculate processed weight per process type
+  const weightByProcess = new Map<string, number>();
+  for (const pt of processTypes) {
+    weightByProcess.set(pt, 0);
+  }
+
+  for (const log of logs) {
+    const partWeight = Number(log.assemblyPart.singlePartWeight || 0);
+    const processedWeight = log.processedQty * partWeight;
+    const current = weightByProcess.get(log.processType) || 0;
+    weightByProcess.set(log.processType, current + processedWeight);
+  }
+
+  // Average percentage across all process types
+  let totalPct = 0;
+  for (const pt of processTypes) {
+    const processedWeight = weightByProcess.get(pt) || 0;
+    totalPct += (processedWeight / totalWeight) * 100;
+  }
+  const pct = Math.round(totalPct / processTypes.length);
 
   if (pct >= 100) return { percentage: 100, status: 'completed' };
-  if (pct > 0) return { percentage: Math.min(pct, 99), status: 'in_progress' };
+  if (pct > 0) return { percentage: pct, status: 'in_progress' };
   return { percentage: 0, status: 'not_started' };
 }
