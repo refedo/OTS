@@ -219,7 +219,6 @@ async function computeTaskProgress(
       projectId,
       OR: [{ buildingId }, { buildingId: null }],
       mainActivity,
-      deletedAt: null,
     },
     select: {
       id: true,
