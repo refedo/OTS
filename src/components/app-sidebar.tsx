@@ -78,6 +78,7 @@ type NavigationSection = {
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: '⚡ Early Warning', href: '/risk-dashboard', icon: Zap },
+  { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
 
@@ -123,7 +124,6 @@ const navigationSections: NavigationSection[] = [
     icon: FolderKanban,
     items: [
       { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
-      { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3, isNew: true },
       { name: 'List Projects', href: '/projects', icon: FolderKanban },
       { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
@@ -278,6 +278,7 @@ const navigationSections: NavigationSection[] = [
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Sidebar Order', href: '/settings/sidebar', icon: Settings },
       { name: 'Backup Management', href: '/settings/backups', icon: Database },
       { name: 'Cron Jobs', href: '/settings/cron-jobs', icon: Clock },
       { name: 'About OTS™', href: '/settings/about', icon: Info },
@@ -293,8 +294,10 @@ export function AppSidebar() {
   const { collapsed, setCollapsed } = useSidebar();
   const [isMounted, setIsMounted] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string>('');
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [riskCount, setRiskCount] = useState(0);
+  const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
   const { version } = useVersion();
   
@@ -350,7 +353,7 @@ export function AppSidebar() {
     setIsMounted(true);
   }, []);
 
-  // Fetch user permissions
+  // Fetch user permissions + role + sidebar order
   useEffect(() => {
     async function fetchPermissions() {
       try {
@@ -358,19 +361,35 @@ export function AppSidebar() {
           credentials: 'include',
           cache: 'no-store'
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setUserPermissions(data.permissions || []);
+          setUserRole(data.role || '');
         }
-      } catch (error) {
-        console.error('Failed to fetch user permissions:', error);
+      } catch {
+        // ignore
       } finally {
         setIsLoadingPermissions(false);
       }
     }
 
+    async function fetchSidebarOrder() {
+      try {
+        const res = await fetch('/api/settings/sidebar-order');
+        if (res.ok) {
+          const { order } = await res.json();
+          if (Array.isArray(order) && order.length > 0) {
+            setSectionOrder(order);
+          }
+        }
+      } catch {
+        // ignore — use default order
+      }
+    }
+
     fetchPermissions();
+    fetchSidebarOrder();
   }, []);
 
   // Fetch risk count from leading indicators (same as risk dashboard)
@@ -496,7 +515,15 @@ export function AppSidebar() {
             })}
 
             {/* Collapsible sections */}
-            {navigationSections.filter(section => 
+            {(sectionOrder.length > 0
+              ? [
+                  ...sectionOrder
+                    .map(name => navigationSections.find(s => s.name === name))
+                    .filter((s): s is typeof navigationSections[number] => s !== undefined),
+                  ...navigationSections.filter(s => !sectionOrder.includes(s.name)),
+                ]
+              : navigationSections
+            ).filter(section =>
               isLoadingPermissions 
                 ? section.name === 'Settings' 
                 : hasAccessToSection(userPermissions, section.items.map(item => item.href))

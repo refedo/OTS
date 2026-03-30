@@ -398,6 +398,8 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
           case 'approvedAt': aVal = a.approvedAt || ''; bVal = b.approvedAt || ''; break;
           case 'mainActivity': aVal = a.mainActivity?.toLowerCase() || ''; bVal = b.mainActivity?.toLowerCase() || ''; break;
           case 'subActivity': aVal = a.subActivity?.toLowerCase() || ''; bVal = b.subActivity?.toLowerCase() || ''; break;
+          case 'revision': aVal = a.revision?.toLowerCase() || ''; bVal = b.revision?.toLowerCase() || ''; break;
+          case 'consultantResponseCode': aVal = a.consultantResponseCode?.toLowerCase() || ''; bVal = b.consultantResponseCode?.toLowerCase() || ''; break;
         }
 
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
@@ -1652,9 +1654,13 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('approvedAt')}>
                       <div className="flex items-center">Approval {getSortIcon('approvedAt')}</div>
                     </TableHead>
-                    <TableHead>Consultant Code</TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('consultantResponseCode')}>
+                      <div className="flex items-center">Consultant Code{getSortIcon('consultantResponseCode')}</div>
+                    </TableHead>
                     <TableHead>Remark</TableHead>
-                    <TableHead>Revision</TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort('revision')}>
+                      <div className="flex items-center">Revision{getSortIcon('revision')}</div>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

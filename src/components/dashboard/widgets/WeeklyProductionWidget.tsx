@@ -24,6 +24,7 @@ interface WeeklyProductionData {
   processBreakdown: Array<{
     process: string;
     weight: number;
+    averageWeight: number;
   }>;
   topTeams: Array<{
     team: string;
@@ -42,7 +43,7 @@ export default function WeeklyProductionWidget() {
   const [data, setData] = useState<WeeklyProductionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<Period>('week');
+  const [period, setPeriod] = useState<Period>('month');
 
   const fetchData = useCallback(async (p: Period) => {
     try {
@@ -159,15 +160,15 @@ export default function WeeklyProductionWidget() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Top Processes */}
+              {/* Top Processes — avg per active day */}
               {data.processBreakdown && data.processBreakdown.length > 0 && (
                 <div className="pt-3 border-t space-y-2">
-                  <p className="text-sm font-medium">Top Processes</p>
+                  <p className="text-sm font-medium">Top Processes <span className="text-xs text-muted-foreground font-normal">(avg / day)</span></p>
                   <div className="space-y-1">
                     {data.processBreakdown.slice(0, 3).map((process, idx) => (
                       <div key={idx} className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{process.process}</span>
-                        <span className="font-semibold">{process.weight.toLocaleString()} kg</span>
+                        <span className="font-semibold">{(process.averageWeight ?? process.weight).toLocaleString()} kg</span>
                       </div>
                     ))}
                   </div>
