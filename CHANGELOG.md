@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.1.0] - 2026-03-30
+
+### ✨ UI Enhancement & Smart Filtering (Minor Release)
+
+**Minor Release:** Introduces a persistent Recent Links & Bookmarks panel in the top navigation bar, renames and upgrades the Production widget with Day/Week/Month trend views, simplifies the LCR Reports page to a focused Status Breakdown with project/building filters, and extends the Tasks module with full-column sorting and activity-based filtering.
+
+#### Added
+
+- **Recent Links & Bookmarks Panel** — New `History` icon in the top bar (between Search and Notifications). Tracks the last 15 visited pages automatically in `localStorage`. Two-tab panel: **Recent** (auto-tracked visits) and **Bookmarks** (user-pinned pages). Bookmark any page from the panel header or hover over a recent entry to pin it. Amber dot indicator on the icon when bookmarks exist. All data is persisted locally per browser.
+- **Production Trend — Day / Week / Month Views** — The dashboard Production widget is renamed from "Weekly Production" to **"Production Trend"** and gains a compact three-button period selector (Day / Week / Month). The API (`/api/dashboard/production/weekly`) now accepts a `?period=` query parameter and returns the appropriate bucket count (7 days, 30 days, or 24 hours). Summary labels update dynamically ("Total Today", "Total This Week", "Total This Month").
+- **Tasks — Main Activity & Sub-Activity Sort** — The Main Activity and Sub-Activity table columns are now sortable. Click the column header to toggle ascending/descending alphabetical sort. Sort state is shown with the standard ↑↓ indicator.
+- **Tasks — Activity & Sub-Activity Filters** — Two new filter dropdowns added to the Tasks filter bar: **Activity** (all 8 main activities) and **Sub-Activity** (dynamic list dependent on selected activity, disabled until an activity is chosen). Both filters are included in the "Reset All" button and the "active filters" visibility check.
+
+#### Changed
+
+- **LCR Reports** — All report cards removed except **Status Breakdown by Tonnage**, which is now the sole report on the page. Added **Project** and **Building** filter dropdowns directly in the card header. The Building dropdown is disabled until a project is selected and its options are dynamically filtered to only show buildings belonging to the selected project. Active filter selection is indicated by small badge pills with a "Clear" button.
+- **`/api/supply-chain/lcr/reports/status-breakdown`** — Now accepts an optional `buildingId` query parameter in addition to `projectId`. When `buildingId` is provided it takes precedence over `projectId`.
+
+---
+
 ## [17.0.0] - 2026-03-30
 
 ### UX & Tracker Improvements (2026-03-30)
