@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.0.0] - 2026-03-29
+
+### Project Scope & Status Tracker
+
+**Major Release:** Introduces a comprehensive Scope of Work system, per-building activity configuration, and the flagship Project Status Tracker Dashboard. The project setup wizard has been restructured from 7 to 9 steps to support scope of work management. Real-time progress tracking aggregates data from Tasks, LCR (procurement), and Production modules into a visually stunning dark/light theme dashboard.
+
+#### Added
+
+- **Scope of Work System** — New `ScopeOfWork` and `BuildingActivity` Prisma models. Each building can have multiple scopes (Steel, Roof Sheeting, Wall Sheeting, Deck Panel, Metal Work, Other) with BoQ specification text. Each scope has configurable contractual activities.
+- **Wizard Step 3 — Scope of Work** — Add scopes per building with pre-defined dropdown, custom "Other" option, specification text areas. "Replicate to all buildings" button for quick setup.
+- **Wizard Step 4 — Activities** — Select applicable activities per scope: Architectural Approval, Material Approval, Design, Detailing, Procurement, Production, Coating, Dispatch & Delivery, Erection. Non-steel scopes auto-dim Production and Coating as N/A.
+- **Project Status Tracker Dashboard** (`/project-tracker`) — Real-time visual tracker with dark/light theme toggle. Activity progress bars computed from Tasks (submissions/approvals), LCR (weight-based procurement: under request/bought/available), and Production Logs (process quantities). Summary stats, filter tabs, search, 60s auto-refresh.
+- **Production Upload** — Scope of Work dependent selector added after building selection on `/production/upload`.
+- **Assembly Parts** — Scope of Work column and filter added to `/production/assembly-parts`. `scopeOfWorkId` field on `AssemblyPart` model.
+- **BuildingScopesView component** — Collapsible building sections on project detail page showing scopes, specifications, and color-coded activity badges.
+- **CRUD APIs** — `GET/POST /api/scope-of-work`, `GET/PUT/DELETE /api/scope-of-work/[id]`, `GET/POST /api/building-activities`, `PUT/DELETE /api/building-activities/[id]`, `GET /api/project-tracker`.
+- **RBAC** — `project_tracker.view` and `project_tracker.export` permissions added. Granted to Admin, Manager, Engineer, Document Controller roles.
+- **Navigation** — "Project Status Tracker" added to sidebar under Project Operations.
+
+#### Changed
+
+- Project setup wizard restructured from 7 to 9 steps: Project Info → Buildings → Scope of Work → Activities → Duration by Stage → Coating System → Payment Terms → Technical Specs → Upload Parts.
+- Scope of Work checkboxes removed from Step 1 (Project Info) — moved to dedicated Step 3.
+- Old "scope" concept renamed to "activities" throughout the system.
+
+#### Migration
+
+- `prisma/migrations/migrate-scope-of-work.ts` — Idempotent migration script: creates default "Steel" scope for all existing buildings, maps old scope selections (Design, Fabrication, etc.) to new BuildingActivity records. Run with `npx tsx prisma/migrations/migrate-scope-of-work.ts`.
+
+---
+
 ## [16.6.3] - 2026-03-27
 
 ### 📡 System Events Framework

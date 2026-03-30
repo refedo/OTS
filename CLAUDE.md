@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `16.6.3` — System Events Framework (Patch Release)
+**Current version:** `17.0.0` — Project Scope & Status Tracker (Major Release)
 
 ---
 

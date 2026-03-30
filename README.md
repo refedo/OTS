@@ -1,6 +1,6 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 16.6.3 | **Release Date:** March 27, 2026
+**Version:** 17.0.0 | **Release Date:** March 29, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
@@ -11,10 +11,11 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 ## Features
 
 ### Project Management
-- **Project Wizard**: Step-by-step project creation with buildings, schedules, coating systems, and payment terms
-- **Project Dashboard**: Real-time project status, progress tracking, and milestone management
-- **Scope of Work**: Configurable project phases (Design, Shop Drawing, Procurement, Fabrication, Coating, Delivery, Erection)
-- **Buildings Management**: Multi-building support with individual tracking
+- **Project Wizard**: 9-step project creation with buildings, scope of work, activities, schedules, coating systems, and payment terms
+- **Project Status Tracker**: Real-time visual dashboard with dark/light theme — tracks progress from Tasks, LCR, and Production modules
+- **Scope of Work**: Per-building scope configuration (Steel, Roof Sheeting, Wall Sheeting, Deck Panel, Metal Work, Other) with BoQ specifications
+- **Building Activities**: Configurable contractual activities per scope (Design, Detailing, Procurement, Production, Coating, Dispatch, Erection)
+- **Buildings Management**: Multi-building support with individual tracking and scope management
 - **Payment Terms**: Flexible payment schedule configuration
 - **Detailed Project Planner**: MS Project-style interactive scheduling with dependency tracking
 

@@ -40,6 +40,7 @@ type AssemblyPart = {
   externalRef: string | null;
   project: { id: string; name: string; projectNumber: string };
   building: { id: string; name: string; designation: string } | null;
+  scopeOfWork: { id: string; scopeType: string; scopeLabel: string } | null;
   createdBy: { id: string; name: string };
   createdAt: string;
   updatedAt: string;
@@ -69,8 +70,10 @@ export default function AssemblyPartsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [buildingFilter, setBuildingFilter] = useState('all');
+  const [scopeOfWorkFilter, setScopeOfWorkFilter] = useState('all');
   const [projects, setProjects] = useState<any[]>([]);
   const [buildings, setBuildings] = useState<any[]>([]);
+  const [scopesOfWork, setScopesOfWork] = useState<any[]>([]);
   const [selectedParts, setSelectedParts] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
@@ -89,6 +92,7 @@ export default function AssemblyPartsPage() {
       if (search) params.set('search', search);
       if (projectFilter !== 'all') params.set('projectId', projectFilter);
       if (buildingFilter !== 'all') params.set('buildingId', buildingFilter);
+      if (scopeOfWorkFilter !== 'all') params.set('scopeOfWorkId', scopeOfWorkFilter);
       if (statusFilter !== 'all') params.set('status', statusFilter);
       params.set('sortBy', sortBy);
       params.set('orderBy', orderBy);
@@ -105,12 +109,12 @@ export default function AssemblyPartsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, projectFilter, buildingFilter, statusFilter, sortBy, orderBy, pageSize]);
+  }, [searchQuery, projectFilter, buildingFilter, scopeOfWorkFilter, statusFilter, sortBy, orderBy, pageSize]);
 
   useEffect(() => {
     fetchParts(1);
     fetchProjects();
-  }, [projectFilter, buildingFilter, statusFilter, sortBy, orderBy, pageSize]);
+  }, [projectFilter, buildingFilter, scopeOfWorkFilter, statusFilter, sortBy, orderBy, pageSize]);
 
   useEffect(() => {
     if (projectFilter && projectFilter !== 'all') {
@@ -119,7 +123,18 @@ export default function AssemblyPartsPage() {
       setBuildings([]);
       setBuildingFilter('all');
     }
+    setScopesOfWork([]);
+    setScopeOfWorkFilter('all');
   }, [projectFilter]);
+
+  useEffect(() => {
+    if (buildingFilter && buildingFilter !== 'all') {
+      fetchScopesOfWork(buildingFilter);
+    } else {
+      setScopesOfWork([]);
+      setScopeOfWorkFilter('all');
+    }
+  }, [buildingFilter]);
 
   const handleSearch = () => {
     setSearchQuery(searchInput);
@@ -173,6 +188,18 @@ export default function AssemblyPartsPage() {
       }
     } catch (error) {
       console.error('Error fetching buildings:', error);
+    }
+  };
+
+  const fetchScopesOfWork = async (buildingId: string) => {
+    try {
+      const response = await fetch(`/api/scope-of-work?buildingId=${buildingId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setScopesOfWork(data);
+      }
+    } catch (error) {
+      console.error('Error fetching scopes of work:', error);
     }
   };
 
@@ -375,7 +402,21 @@ export default function AssemblyPartsPage() {
               </option>
             ))}
           </select>
-          
+
+          <select
+            value={scopeOfWorkFilter}
+            onChange={(e) => setScopeOfWorkFilter(e.target.value)}
+            disabled={buildingFilter === 'all' || scopesOfWork.length === 0}
+            className="h-10 px-3 rounded-md border bg-background min-w-[200px] disabled:opacity-50"
+          >
+            <option value="all">All Scopes</option>
+            {scopesOfWork.map((scope) => (
+              <option key={scope.id} value={scope.id}>
+                {scope.scopeLabel}
+              </option>
+            ))}
+          </select>
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -549,6 +590,9 @@ export default function AssemblyPartsPage() {
                   <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('buildingName')}>
                     Building {getSortIcon('buildingName')}
                   </th>
+                  <th className="p-3 text-left text-sm font-medium">
+                    Scope of Work
+                  </th>
                   <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('quantity')}>
                     Qty {getSortIcon('quantity')}
                   </th>
@@ -585,6 +629,7 @@ export default function AssemblyPartsPage() {
                     <td className="p-3">{getSourceBadge(part.source)}</td>
                     <td className="p-3 text-sm">{part.project.name}</td>
                     <td className="p-3 text-sm">{part.building?.name || 'N/A'}</td>
+                    <td className="p-3 text-sm">{part.scopeOfWork?.scopeLabel || 'N/A'}</td>
                     <td className="p-3 text-sm">{part.quantity}</td>
                     <td className="p-3 text-sm">{part.lengthMm ? Number(part.lengthMm).toLocaleString() : 'N/A'}</td>
                     <td className="p-3 text-sm">{new Date(part.createdAt).toLocaleDateString()}</td>
