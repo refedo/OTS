@@ -279,6 +279,9 @@ export default function ProductCoaMappingPage() {
   // Save all state
   const [savingAll, setSavingAll] = useState(false);
 
+  // Sync labels state
+  const [syncingLabels, setSyncingLabels] = useState(false);
+
   // Notes dialog
   const [notesDialog, setNotesDialog] = useState<{ type: 'product' | 'supplier'; id: number; code: string; notes: string } | null>(null);
   const [editNotes, setEditNotes] = useState('');
@@ -585,6 +588,27 @@ export default function ProductCoaMappingPage() {
     return code && code !== (s?.coa_account_code || '');
   }).length;
 
+  async function handleSyncLabels() {
+    setSyncingLabels(true);
+    try {
+      const res = await fetch('/api/financial/product-coa-mapping/sync-labels', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        toast({
+          title: 'Labels synced',
+          description: data.totalUpdated > 0
+            ? `Updated ${data.totalUpdated} invoice line(s) with current product names and codes.`
+            : 'All product labels were already up to date.',
+        });
+        await Promise.all([fetchProducts(productPagination.page), fetchCoverage()]);
+      } else {
+        toast({ title: 'Sync failed', description: data.error || 'Could not sync labels.', variant: 'destructive' });
+      }
+    } finally {
+      setSyncingLabels(false);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
@@ -600,9 +624,15 @@ export default function ProductCoaMappingPage() {
             Map products and suppliers to Chart of Accounts expense categories for accurate cost reporting
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { fetchCoverage(); fetchProducts(productPagination.page); fetchSuppliers(supplierPagination.page); }} className="ml-auto gap-2">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSyncLabels} disabled={syncingLabels} className="gap-2">
+            {syncingLabels ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Sync Labels
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { fetchCoverage(); fetchProducts(productPagination.page); fetchSuppliers(supplierPagination.page); }} className="gap-2">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Coverage Stats */}
