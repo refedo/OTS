@@ -8,8 +8,8 @@ const resolvedVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0';
 
 export const APP_VERSION = {
   version: resolvedVersion,
-  date: 'March 27, 2026',
-  type: 'patch' as const,
+  date: 'March 29, 2026',
+  type: 'major' as const,
   name: 'Hexa Steel Operation Tracking System',
 };
 

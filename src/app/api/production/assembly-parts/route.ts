@@ -11,6 +11,7 @@ import { systemEventService } from '@/services/system-events.service';
 const assemblyPartSchema = z.object({
   projectId: z.string().uuid(),
   buildingId: z.string().uuid().optional().nullable(),
+  scopeOfWorkId: z.string().uuid().optional().nullable(),
   assemblyMark: z.string().min(1),
   subAssemblyMark: z.string().optional().nullable(),
   partMark: z.string().optional().nullable(),
@@ -90,6 +91,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
     const buildingId = searchParams.get('buildingId');
+    const scopeOfWorkId = searchParams.get('scopeOfWorkId');
     const status = searchParams.get('status');
     const includeLogs = searchParams.get('includeLogs') === 'true';
     const search = searchParams.get('search');
@@ -103,6 +105,7 @@ export async function GET(req: Request) {
     const where: any = {
       ...(projectId && { projectId }),
       ...(buildingId && { buildingId }),
+      ...(scopeOfWorkId && { scopeOfWorkId }),
       ...(status && { status }),
     };
 
@@ -172,6 +175,7 @@ export async function GET(req: Request) {
         externalRef: true,
         projectId: true,
         buildingId: true,
+        scopeOfWorkId: true,
         createdAt: true,
         updatedAt: true,
         project: {
@@ -179,6 +183,9 @@ export async function GET(req: Request) {
         },
         building: {
           select: { id: true, name: true, designation: true },
+        },
+        scopeOfWork: {
+          select: { id: true, scopeType: true, scopeLabel: true },
         },
         createdBy: {
           select: { id: true, name: true },

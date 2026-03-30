@@ -283,6 +283,14 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'project_tracker',
+    name: 'Project Status Tracker',
+    permissions: [
+      { id: 'project_tracker.view', name: 'View Project Tracker', description: 'Access the project status tracker dashboard', category: 'project_tracker' },
+      { id: 'project_tracker.export', name: 'Export Tracker Data', description: 'Export project tracker data to CSV/PDF', category: 'project_tracker' },
+    ],
+  },
+  {
     id: 'settings',
     name: 'System Settings',
     permissions: [
@@ -461,6 +469,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'supply_chain.view',
     'supply_chain.sync',
     'supply_chain.alias',
+    // Project Tracker
+    'project_tracker.view',
+    'project_tracker.export',
   ],
   Engineer: [
     // Basic Access
@@ -529,6 +540,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'timeline.view',
     'timeline.operations',
     'timeline.engineering',
+    // Project Tracker
+    'project_tracker.view',
   ],
   Operator: [
     // Basic Access

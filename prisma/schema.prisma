@@ -307,6 +307,8 @@ model Project {
   salesEngineer                   User?       @relation("SalesEngineer", fields: [salesEngineerId], references: [id])
   buildings                       Building[]
   scopeSchedules                  ScopeSchedule[]
+  scopeOfWorks                    ScopeOfWork[]
+  buildingActivities              BuildingActivity[]
   assignments                     ProjectAssignment[]
   tasks                           Task[]
   itps                            ITP[]
@@ -356,21 +358,23 @@ model Building {
   ndtInspections NDTInspection[]
   tasks         Task[]
   scopeSchedules ScopeSchedule[]
+  scopeOfWorks  ScopeOfWork[]
+  buildingActivities BuildingActivity[]
   documentSubmissions DocumentSubmission[]
   operationEvents OperationEvent[]
   workOrders    WorkOrder[]
   knowledgeEntries KnowledgeEntry[]
   lcrEntries    LcrEntry[]
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // EGS - Soft delete
   deletedAt     DateTime?
   deletedById   String?   @db.Char(36)
   deletedBy     User?     @relation("BuildingDeletedBy", fields: [deletedById], references: [id])
   deleteReason  String?   @db.VarChar(500)
-  
+
   @@index([projectId])
   @@unique([projectId, designation])
 }
@@ -395,6 +399,53 @@ model ScopeSchedule {
   @@index([buildingId])
   @@index([projectId])
   @@unique([buildingId, scopeType])
+}
+
+/// Scope of Work per building (e.g., Steel, Roof Sheeting, Wall Sheeting, Deck Panel, Metal Work, Other)
+model ScopeOfWork {
+  id              String    @id @default(uuid()) @db.Char(36)
+  projectId       String    @db.Char(36)
+  buildingId      String    @db.Char(36)
+  scopeType       String    // steel, roof_sheeting, wall_sheeting, deck_panel, metal_work, other
+  scopeLabel      String    // Display name
+  customLabel     String?   // User-defined label when scopeType is "other"
+  specification   String?   @db.Text // BoQ specification text
+
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building        Building  @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  activities      BuildingActivity[]
+  assemblyParts   AssemblyPart[] @relation("AssemblyPartScope")
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([projectId])
+  @@index([buildingId])
+  @@unique([buildingId, scopeType, customLabel])
+}
+
+/// Activities per scope of work per building
+model BuildingActivity {
+  id              String    @id @default(uuid()) @db.Char(36)
+  projectId       String    @db.Char(36)
+  buildingId      String    @db.Char(36)
+  scopeOfWorkId   String    @db.Char(36)
+  activityType    String    // design, detailing, procurement, production, coating, dispatch, erection, arch_approval, etc.
+  activityLabel   String    // Display name
+  isApplicable    Boolean   @default(true)
+  sortOrder       Int       @default(0)
+
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  building        Building  @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  scopeOfWork     ScopeOfWork @relation(fields: [scopeOfWorkId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([projectId])
+  @@index([buildingId])
+  @@index([scopeOfWorkId])
+  @@unique([scopeOfWorkId, activityType])
 }
 
 model ProjectAssignment {
@@ -753,7 +804,8 @@ model AssemblyPart {
   id                    String                @id @default(uuid()) @db.Char(36)
   projectId             String                @db.Char(36)
   buildingId            String?               @db.Char(36)
-  
+  scopeOfWorkId         String?               @db.Char(36)
+
   // Assembly Information
   partDesignation       String                @unique // e.g., "277-EXT-001"
   assemblyMark          String
@@ -782,9 +834,10 @@ model AssemblyPart {
   // Relations
   project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
   building              Building?             @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  scopeOfWork           ScopeOfWork?          @relation("AssemblyPartScope", fields: [scopeOfWorkId], references: [id], onDelete: SetNull)
   productionLogs        ProductionLog[]
   workOrderParts        WorkOrderPart[]
-  
+
   // Audit fields
   createdById           String                @db.Char(36)
   updatedById           String?               @db.Char(36)

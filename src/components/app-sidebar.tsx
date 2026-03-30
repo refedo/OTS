@@ -123,6 +123,7 @@ const navigationSections: NavigationSection[] = [
     icon: FolderKanban,
     items: [
       { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
+      { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3, isNew: true },
       { name: 'List Projects', href: '/projects', icon: FolderKanban },
       { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },

@@ -21,6 +21,12 @@ type Building = {
   designation: string;
 };
 
+type ScopeOfWork = {
+  id: string;
+  scopeType: string;
+  scopeLabel: string;
+};
+
 const DB_FIELDS = [
   { value: '', label: '-- Do Not Import --' },
   { value: 'assemblyMark', label: 'Assembly Mark *', required: true },
@@ -46,6 +52,8 @@ export default function UploadPartsPage() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedBuilding, setSelectedBuilding] = useState('');
+  const [scopesOfWork, setScopesOfWork] = useState<ScopeOfWork[]>([]);
+  const [selectedScopeOfWork, setSelectedScopeOfWork] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<{
     success: number;
@@ -74,7 +82,18 @@ export default function UploadPartsPage() {
       setBuildings([]);
       setSelectedBuilding('');
     }
+    setScopesOfWork([]);
+    setSelectedScopeOfWork('');
   }, [selectedProject]);
+
+  useEffect(() => {
+    if (selectedBuilding) {
+      fetchScopesOfWork(selectedBuilding);
+    } else {
+      setScopesOfWork([]);
+      setSelectedScopeOfWork('');
+    }
+  }, [selectedBuilding]);
 
   const fetchProjects = async () => {
     try {
@@ -94,6 +113,18 @@ export default function UploadPartsPage() {
       if (response.ok) {
         const data = await response.json();
         setBuildings(data);
+      }
+    } catch (error) {
+      // network error — toast shown elsewhere
+    }
+  };
+
+  const fetchScopesOfWork = async (buildingId: string) => {
+    try {
+      const response = await fetch(`/api/scope-of-work?buildingId=${buildingId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setScopesOfWork(data);
       }
     } catch (error) {
       // network error — toast shown elsewhere
@@ -242,6 +273,7 @@ export default function UploadPartsPage() {
       const mappedRow: Record<string, unknown> = {
         projectId: selectedProject,
         buildingId: selectedBuilding || null,
+        scopeOfWorkId: selectedScopeOfWork || null,
       };
       Object.entries(columnMapping).forEach(([excelCol, dbField]) => {
         if (dbField && row[excelCol] !== undefined && row[excelCol] !== null && row[excelCol] !== '') {
@@ -460,6 +492,24 @@ export default function UploadPartsPage() {
                   {buildings.map((building) => (
                     <option key={building.id} value={building.id}>
                       {building.designation} - {building.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="scopeOfWork">Scope of Work</Label>
+                <select
+                  id="scopeOfWork"
+                  value={selectedScopeOfWork}
+                  onChange={(e) => setSelectedScopeOfWork(e.target.value)}
+                  disabled={loading || !selectedBuilding}
+                  className="w-full h-10 px-3 rounded-md border bg-background"
+                >
+                  <option value="">Select Scope of Work (Optional)</option>
+                  {scopesOfWork.map((scope) => (
+                    <option key={scope.id} value={scope.id}>
+                      {scope.scopeLabel}
                     </option>
                   ))}
                 </select>

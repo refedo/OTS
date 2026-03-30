@@ -7,56 +7,48 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '📡 System Events Framework',
+  mainTitle: 'Project Scope & Status Tracker',
   highlights: [
-    'Enterprise-grade audit trail: every financial, backup, RBAC, PBAC, project, task, QC, and production action is now logged to a unified system events table',
-    'System Events dashboard (/events) with auto-refresh, date presets, user filter, CSV export, and live event log',
-    'System Health tab with 7-day event volume bar chart, top event types, and cron job registry',
-    'Auto-repair: system_events table is now self-healing on first use — fixes the CamelCase/snake_case table name mismatch on Linux deployments',
+    'Project Setup Wizard supports Scope of Work per building (Steel, Sheeting, Deck Panel, Metal Work, Other) with BoQ specifications',
+    'New Activities step: configure contractual activities per scope — Design, Detailing, Procurement, Production, Coating, Dispatch, Erection',
+    'Project Status Tracker Dashboard: real-time visual tracker with dark/light theme, activity progress from Tasks, LCR & Production modules',
+    'Scope of Work integration across Production Upload, Assembly Parts, and Project Details pages',
   ],
   changes: {
     added: [
       {
-        title: 'System Events Dashboard',
+        title: 'Scope of Work System',
         items: [
-          '/events page with live event log, auto-refresh (30s), date presets (Today / 7d / 30d), user filter, severity and category filters',
-          'CSV export endpoint (GET /api/system-events/export) — Admin/Manager only, max 10,000 rows',
-          'System Health tab: 7-day event volume BarChart, top 8 event types, cron job registry with event-cleanup entry',
-          'EntityTimeline component integrated into Project and Task detail pages',
+          'ScopeOfWork model: multiple scopes per building (Steel, Roof Sheeting, Wall Sheeting, Deck Panel, Metal Work, Other)',
+          'BuildingActivity model: configurable activities per scope with applicability rules',
+          'Wizard Step 3 (Scope of Work) and Step 4 (Activities) in the project setup wizard',
+          'CRUD APIs: /api/scope-of-work and /api/building-activities',
         ],
       },
       {
-        title: 'Event Coverage — Financial',
+        title: 'Project Status Tracker Dashboard',
         items: [
-          'FIN_CONFIG_CHANGED, FIN_ACCOUNT_MAPPING_CHANGED, FIN_CHART_ACCOUNT_CREATED/UPDATED/DELETED',
-          'FIN_CHART_ACCOUNTS_CLEARED (WARNING severity), FIN_CHART_SYNCED, FIN_PRODUCT_CATEGORY_CREATED',
-          'FIN_PRODUCT_MAPPING_CHANGED, FIN_SUPPLIER_CLASSIFIED — all 12 financial write endpoints covered',
+          '/project-tracker with dark/light theme toggle and real-time progress tracking',
+          'Progress computed from Tasks, LCR procurement, and Production Logs',
+          'Summary stats, filter tabs, search, and 60s auto-refresh',
         ],
       },
       {
-        title: 'Event Coverage — Backup, RBAC, PBAC',
+        title: 'Production & Project Details',
         items: [
-          'SYS_BACKUP_CREATED, SYS_BACKUP_FAILED, SYS_BACKUP_DELETED on all backup routes',
-          'SYS_RESTORE_COMPLETED, SYS_RESTORE_FAILED as CRITICAL severity on restore route',
-          'ROLE_DUPLICATED, PBAC_RESTRICTION_CHANGED, PERMISSION_CLONED',
-        ],
-      },
-      {
-        title: 'Retention & Performance',
-        items: [
-          'GET /api/cron/event-cleanup — archives events >90 days to system_event_summaries, deletes events >365 days',
-          'GET /api/system-events/export — CSV export with 17 columns',
-          'Composite indexes on (event_category, created_at) and (severity, created_at)',
-          'system_event_summaries table for daily aggregate data',
+          'Scope of Work selector on Production Upload and Assembly Parts pages',
+          'BuildingScopesView component on project detail page',
         ],
       },
     ],
     fixed: [
-      'system_events table auto-repair on first use: RENAME TABLE SystemEvent → system_events + ADD COLUMN IF NOT EXISTS for all missing columns (severity, eventCategory, summary, details, etc.) — fixes silent event write failures on Linux deployments',
-      'Backup routes: session!.userId → session!.sub (userId was undefined, causing all backup events to be anonymous)',
-      'RBAC/PBAC routes: replaced console.error with structured logger calls',
+      'Project wizard supports full 9-step flow with scope of work and activities',
     ],
-    changed: [],
+    changed: [
+      'Wizard restructured from 7 to 9 steps with dedicated Scope of Work and Activities steps',
+      'RBAC: project_tracker.view and project_tracker.export permissions added',
+      'Navigation: Project Status Tracker link in sidebar',
+    ],
   },
 };
 
