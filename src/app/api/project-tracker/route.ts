@@ -201,14 +201,14 @@ export const GET = withApiContext(async (req, session) => {
       );
     }
 
+    // Count buildings, not projects, for in-progress/completed/blocked
+    const allBuildings = trackerData.flatMap((p) => p.buildings);
     const stats = {
       activeProjects: trackerData.filter((p) => p.status === 'Active').length,
-      totalBuildings: trackerData.reduce((sum, p) => sum + p.buildings.length, 0),
-      inProgress: trackerData.filter((p) => p.overallProgress > 0 && p.overallProgress < 100).length,
-      completed: trackerData.filter((p) => p.overallProgress === 100).length,
-      blocked: trackerData.filter(
-        (p) => p.status === 'On Hold' || p.buildings.some((b) => b.hasBlocked)
-      ).length,
+      totalBuildings: allBuildings.length,
+      inProgress: allBuildings.filter((b) => b.overallProgress > 0 && b.overallProgress < 100).length,
+      completed: allBuildings.filter((b) => b.overallProgress === 100).length,
+      blocked: allBuildings.filter((b) => b.hasBlocked).length,
     };
 
     return NextResponse.json({ stats, projects: filtered });

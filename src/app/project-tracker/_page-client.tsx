@@ -242,7 +242,13 @@ function DetailPopover({
               className={`rounded-md p-2 border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}
             >
               <div className="flex items-start justify-between gap-1 mb-1">
-                <span className="font-medium truncate">{task.title}</span>
+                <a
+                  href={`/tasks/${task.id}`}
+                  className="font-medium truncate hover:underline text-blue-400"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {task.title}
+                </a>
                 {task.isOverdue && (
                   <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400">
                     OVERDUE
@@ -812,7 +818,7 @@ export default function ProjectTrackerClient() {
                               `}
                             >
                               <span className="font-medium">
-                                {row.building.designation || row.building.name}
+                                {row.building.name || row.building.designation}
                               </span>
                               {row.building.weight && (
                                 <p className={`text-[10px] ${mutedTextClass}`}>
