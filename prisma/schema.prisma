@@ -159,6 +159,8 @@ model User {
   reviewedBacklogItems ProductBacklogItem[] @relation("BacklogItemReviewedBy")
   plannedBacklogItems  ProductBacklogItem[] @relation("BacklogItemPlannedBy")
   completedBacklogItems ProductBacklogItem[] @relation("BacklogItemCompletedBy")
+  createdPaymentSchedules ProjectPaymentSchedule[] @relation("PPS_CreatedBy")
+  updatedPaymentSchedules ProjectPaymentSchedule[] @relation("PPS_UpdatedBy")
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -330,15 +332,48 @@ model Project {
   knowledgeEntries                KnowledgeEntry[]
   knowledgeApplications           KnowledgeApplication[]
   lcrEntries                      LcrEntry[]
-  
+  paymentSchedules                ProjectPaymentSchedule[]
+
   createdAt                       DateTime                        @default(now())
   updatedAt                       DateTime                        @updatedAt
-  
+
   // EGS - Soft delete
   deletedAt                       DateTime?
   deletedById                     String?                         @db.Char(36)
   deletedBy                       User?                           @relation("ProjectDeletedBy", fields: [deletedById], references: [id])
   deleteReason                    String?                         @db.VarChar(500)
+}
+
+/// Payment schedule enrichment — tracks invoice links, due dates, triggers and actions per payment slot
+model ProjectPaymentSchedule {
+  id                  Int       @id @default(autoincrement())
+  projectId           String    @db.Char(36)
+  /// "downPayment" | "payment2" | "payment3" | "payment4" | "payment5" | "payment6" | "preliminaryRetention" | "hoRetention"
+  paymentSlot         String    @db.VarChar(30)
+  invoiceDolibarrId   Int?
+  invoiceRef          String?   @db.VarChar(100)
+  dueDate             DateTime?
+  /// "date" | "milestone" | "delivery" | "drawing_approval" | "manual"
+  triggerType         String?   @db.VarChar(30)
+  triggerDescription  String?   @db.VarChar(500)
+  /// "issue_invoice" | "collection_call" | "stop_shipping" | "proceed_shipping" | "on_hold" | "no_action"
+  actionRequired      String?   @db.VarChar(30)
+  actionNotes         String?   @db.Text
+  /// "pending" | "triggered" | "invoiced" | "collected" | "overdue"
+  status              String    @default("pending") @db.VarChar(20)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  createdById         String?   @db.Char(36)
+  updatedById         String?   @db.Char(36)
+
+  project             Project   @relation(fields: [projectId], references: [id])
+  createdBy           User?     @relation("PPS_CreatedBy", fields: [createdById], references: [id])
+  updatedBy           User?     @relation("PPS_UpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([projectId, paymentSlot])
+  @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
 }
 
 /// Building model (structures under a project)

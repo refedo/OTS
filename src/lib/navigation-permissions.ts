@@ -114,6 +114,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/reports/soa': ['financial.view'],
   '/financial/reports/cash-flow': ['financial.view'],
   '/financial/reports/cash-flow-forecast': ['financial.view'],
+  '/financial/reports/payment-schedule': ['financial.view'],
   '/financial/reports/project-profitability': ['financial.view'],
   '/financial/reports/wip': ['financial.view'],
   '/financial/reports/projects-dashboard': ['financial.view'],
