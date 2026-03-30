@@ -56,8 +56,8 @@ const modules = [
   {
     name: 'Task Management',
     icon: Clock,
-    description: 'Task creation, assignment, and tracking with deadline management.',
-    features: ['Task creation', 'Assignment & tracking', 'Deadline alerts', 'Progress monitoring'],
+    description: 'Task creation, assignment, and tracking with deadline management and activity-based filtering.',
+    features: ['Task creation', 'Assignment & tracking', 'Deadline alerts', 'Activity & sub-activity filters', 'Full-column sorting'],
     color: 'bg-cyan-500',
   },
   {
@@ -156,9 +156,11 @@ export default function AboutOTSPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            <strong>Hexa Steel® OTS™</strong> is a comprehensive Operations Tracking System designed specifically 
-            for Hexa Steel®. It provides end-to-end project management, production tracking, 
-            quality control, and business intelligence capabilities.
+            <strong>Hexa Steel® OTS™</strong> is a comprehensive Operations Tracking System designed specifically
+            for Hexa Steel®. It provides end-to-end project management, production tracking,
+            quality control, and business intelligence capabilities. Features include smart navigation
+            with Recent Links &amp; Bookmarks, Production Trend analytics with Day/Week/Month views,
+            LCR procurement analytics, and enhanced task filtering across all activity types.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="text-center p-4 bg-muted rounded-lg">
@@ -233,7 +235,7 @@ export default function AboutOTSPage() {
             </div>
             <div className="p-3 border rounded-lg">
               <p className="font-semibold">Database</p>
-              <p className="text-sm text-muted-foreground">PostgreSQL, Prisma ORM</p>
+              <p className="text-sm text-muted-foreground">MySQL 8, Prisma 6 ORM</p>
             </div>
             <div className="p-3 border rounded-lg">
               <p className="font-semibold">Authentication</p>

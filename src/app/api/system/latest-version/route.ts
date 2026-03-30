@@ -7,40 +7,48 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🏗️ Project Scope & Status Tracker + UX Improvements',
+  mainTitle: '✨ UI Enhancement & Smart Filtering',
   highlights: [
-    'Project Status Tracker now shows ALL task states — open, in-progress, completed, released, and approved — with score-based progress bars',
-    'Weekly Issues: click any Kanban card to preview full details; drag-and-drop cards between columns on desktop AND mobile',
-    'Task detail timeline circles aligned on a single horizontal baseline for cleaner readability',
-    'Project Setup Wizard supports Scope of Work per building with configurable contractual activities',
+    'Recent Links & Bookmarks panel in the top bar — auto-tracks visited pages and lets you pin favourite pages for one-click access',
+    'Production widget renamed to "Production Trend" with Day / Week / Month period selector',
+    'LCR Reports simplified to Status Breakdown by Tonnage with Project and Building filter dropdowns',
+    'Tasks: Main Activity and Sub-Activity columns are now sortable, plus new Activity & Sub-Activity filter dropdowns',
   ],
   changes: {
     added: [
       {
-        title: 'Weekly Issues UX',
+        title: 'Recent Links & Bookmarks Panel',
         items: [
-          'Click any Kanban card or table row → read-only preview dialog with full issue details',
-          'Desktop drag-and-drop between status columns with optimistic status update',
-          'Mobile touch drag-and-drop with ghost element that follows the finger',
+          'History icon in the top bar (between Search and Notifications) opens a two-tab panel',
+          'Recent tab: auto-tracks the last 15 visited pages in localStorage',
+          'Bookmarks tab: pin favourite pages from the panel or hover on any recent entry to bookmark it',
+          'Amber dot indicator on the icon when bookmarks exist; all data persisted locally per browser',
         ],
       },
       {
-        title: 'Scope of Work System',
+        title: 'Production Trend — Day / Week / Month Views',
         items: [
-          'ScopeOfWork & BuildingActivity models — multiple scopes per building with configurable activities',
-          'Wizard Step 3 (Scope of Work) and Step 4 (Activities) in the 9-step project wizard',
-          '/project-tracker with dark/light theme, real-time progress, 60s auto-refresh',
+          'Widget renamed from "Weekly Production" to "Production Trend"',
+          'Compact period selector (Day / Week / Month) in the card header',
+          'API extended with ?period= param (day = 24 buckets, week = 7, month = 30)',
+          'Summary labels update dynamically per period ("Total Today / This Week / This Month")',
+        ],
+      },
+      {
+        title: 'Tasks — Activity Sorting & Filtering',
+        items: [
+          'Main Activity and Sub-Activity column headers are now sortable (click to toggle ↑↓)',
+          'Activity filter dropdown (8 main activities) in the Tasks filter bar',
+          'Sub-Activity filter dropdown, dynamically populated based on selected Activity',
+          'Both filters included in "Reset All" and active-filter visibility logic',
         ],
       },
     ],
-    fixed: [
-      'Project tracker: all task-based columns (ARCH DRAWING, DESIGN STAGE, SD APPROVAL, etc.) now show real progress — were showing 0% due to broken query filter',
-      'Open / in-progress / completed tasks all contribute to tracker progress (not just approved/released)',
-      'Task detail timeline: circles now aligned on one horizontal line regardless of label or date length',
-    ],
+    fixed: [],
     changed: [
-      'Wizard restructured from 7 to 9 steps with dedicated Scope of Work and Activities steps',
-      'RBAC: project_tracker.view and project_tracker.export permissions added',
+      'LCR Reports page now shows only Status Breakdown by Tonnage — all other report cards removed',
+      'LCR Status Breakdown card gets Project and Building filter dropdowns (building list dependent on project)',
+      '/api/supply-chain/lcr/reports/status-breakdown now accepts buildingId in addition to projectId',
     ],
   },
 };

@@ -23,10 +23,69 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.1.0',
+    date: 'March 30, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '✨ UI Enhancement & Smart Filtering',
+    highlights: [
+      'Recent Links & Bookmarks panel in the top bar — History icon auto-tracks the last 15 visited pages and lets you pin favourite pages for one-click access',
+      'Production widget renamed to "Production Trend" with Day / Week / Month period selector and dynamic summary labels',
+      'LCR Reports simplified: only Status Breakdown by Tonnage remains, with new Project and Building filter dropdowns (building list dependent on project)',
+      'Tasks: Main Activity and Sub-Activity columns are now sortable; new Activity & Sub-Activity filter dropdowns added to the filter bar',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Recent Links & Bookmarks Panel (TopBar)',
+          items: [
+            'History clock icon added to the top bar between Search and Notifications',
+            'Recent tab: automatically tracks the last 15 page visits in localStorage — no setup required',
+            'Bookmarks tab: pin any page with one click; bookmark from the panel header or hover over a recent entry',
+            'Amber dot indicator on the icon when bookmarks exist',
+            'Remove individual entries or clear bookmarks at any time; data is persisted locally per browser',
+          ],
+        },
+        {
+          title: 'Production Trend — Day / Week / Month Views',
+          items: [
+            'Widget renamed from "Weekly Production" to "Production Trend"',
+            'Compact three-button period selector (Day / Week / Month) embedded in the card header',
+            'Production API (/api/dashboard/production/weekly) extended with ?period= parameter',
+            'Day = 24 daily buckets, Week = 7 days, Month = 30 days',
+            'Summary labels update dynamically: "Total Today", "Total This Week", "Total This Month"',
+          ],
+        },
+        {
+          title: 'Tasks — Sorting for All Columns',
+          items: [
+            'Main Activity and Sub-Activity column headers are now sortable — click to toggle ↑↓',
+            'Sort cases added: mainActivity (alphabetical) and subActivity (alphabetical)',
+          ],
+        },
+        {
+          title: 'Tasks — Activity & Sub-Activity Filters',
+          items: [
+            'Activity filter dropdown (8 main activities: Architecture, Design, Detailing, Procurement, Production, Coating, Delivery & Logistics, Erection)',
+            'Sub-Activity filter dropdown — dynamically populated based on selected Activity; disabled until activity is chosen',
+            'Changing Activity resets Sub-Activity automatically',
+            'Both filters included in "Reset All" button and active-filter visibility condition',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [
+        'LCR Reports page: all report cards removed except "Status Breakdown by Tonnage"',
+        'LCR Status Breakdown card now has Project and Building filter dropdowns in the card header — building list dynamically filtered by selected project',
+        '/api/supply-chain/lcr/reports/status-breakdown: now accepts optional buildingId parameter (takes precedence over projectId when provided)',
+      ],
+    },
+  },
+  {
     version: '17.0.0',
     date: 'March 30, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🏗️ Project Scope & Status Tracker + UX Improvements',
     highlights: [
       'Project Setup Wizard now supports Scope of Work per building (Steel, Sheeting, Deck Panel, Metal Work, Other) with BoQ specifications and configurable contractual activities',
