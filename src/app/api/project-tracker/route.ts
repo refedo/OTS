@@ -9,28 +9,28 @@ const TASK_BASED_ACTIVITIES = [
   'anchor_bolts', 'surveying_as_built', 'detailing', 'detailing_approval',
 ];
 
-// Map activity types to task mainActivity values
+// Map activity types to task mainActivity values (must match keys in activity-constants.ts)
 const ACTIVITY_TO_TASK_MAIN: Record<string, string> = {
-  arch_approval: 'architectural',
-  material_approval: 'material',
+  arch_approval: 'architecture',
+  material_approval: 'architecture',
   design: 'design',
   design_approval: 'design',
-  anchor_bolts: 'anchor_bolts',
-  surveying_as_built: 'surveying',
+  anchor_bolts: 'erection',
+  surveying_as_built: 'erection',
   detailing: 'detailing',
   detailing_approval: 'detailing',
 };
 
-// Sub-activity mapping for submission vs approval
+// Sub-activity mapping for filtering by subActivity (null = match any sub-activity)
 const ACTIVITY_TO_SUB: Record<string, string | null> = {
   arch_approval: null,
   material_approval: null,
-  design: 'submission',
-  design_approval: 'approval',
-  anchor_bolts: null,
+  design: null,
+  design_approval: null,
+  anchor_bolts: 'erection_anchor_bolts',
   surveying_as_built: null,
-  detailing: 'submission',
-  detailing_approval: 'approval',
+  detailing: null,
+  detailing_approval: null,
 };
 
 // Production log process types
@@ -242,9 +242,13 @@ async function computeTaskProgress(
   const mainActivity = ACTIVITY_TO_TASK_MAIN[activityType];
   const subActivity = ACTIVITY_TO_SUB[activityType];
 
+  // Match tasks for this building OR tasks with no building set (project-level)
   const where: Record<string, unknown> = {
     projectId,
-    buildingId,
+    OR: [
+      { buildingId },
+      { buildingId: null },
+    ],
     mainActivity,
   };
   if (subActivity) where.subActivity = subActivity;
