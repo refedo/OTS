@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.3.2] - 2026-03-31
+
+### Settings & Developer Experience (Patch Release)
+
+**Patch Release:** Adds the Conventional Commits Cheat Sheet to the Settings area, wiring the full dark-theme reference page into the System Settings tabs. Fixes an `EJSONPARSE` CI failure caused by a malformed `package.json` on the deployment branch.
+
+#### Added
+
+- **Conventional Commits Cheat Sheet** (`/settings/commits`) — Full dark-theme reference page covering:
+  - **Semantic Versioning cards** — MAJOR / MINOR / PATCH with trigger examples
+  - **Commit prefix guide** — All 12 prefixes (`feat`, `fix`, `refactor`, `schema`, `ui`, `perf`, `chore`, `docs`, `breaking`, `api`, `auth`, `seed`) with color-coded badges and descriptions
+  - **OTS Module scope table** — All 16 module identifiers (01 projects → 15 ai → system) with numeric chips
+  - **Real examples grid** — Planning, Procurement, Breaking/Schema, and Chores/System example blocks with version bump badges
+  - **Breaking change syntax note** — `!` shorthand and `BREAKING CHANGE:` footer explained with examples
+- **Settings "Commits" tab** — New tab in System Settings (`/settings`) with a `GitCommitHorizontal` icon, routing to `/settings/commits` using the same pattern as the Version tab
+
+#### Fixed
+
+- **CI `npm error code EJSONPARSE`** — Resolved a JSON parse failure in `package.json` that was blocking the Deploy to Digital Ocean workflow (`npm ci` step). The malformed JSON was introduced by a prior commit to the deployment branch.
+
+---
+
 ## [17.3.1] - 2026-03-31
 
 ### Payment Schedule Enhancements (Patch Release)
@@ -31,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 13-week forecast weeks are grouped into calendar months with aggregated collections, payments, and net flow.
   - Each month row is expandable and fetches the corresponding payment schedule entries from `/api/financial/payment-schedule-report?dateFrom=…&dateTo=…`.
   - Drill-down is cached per-month so re-expanding does not re-fetch.
+
+---
+
 ## [17.3.0] - 2026-03-31
 
 ### Executive Command Center (Minor Release)
