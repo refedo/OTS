@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { Suspense } from 'react';
 import { verifySession } from '@/lib/jwt';
 import { LoginForm } from '@/components/login-form';
 import type { Metadata } from 'next';
@@ -22,5 +23,9 @@ export default async function LoginPage() {
   if (session) {
     redirect('/dashboard');
   }
-  return <LoginForm />;
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
 }

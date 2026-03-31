@@ -742,8 +742,7 @@ export function AppSidebar() {
                     localStorage.clear();
                     sessionStorage.clear();
                     
-                    // Fire logout API (don't wait)
-                    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
                     
                     const loginUrl = process.env.NODE_ENV === 'production' 
                       ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
