@@ -1,14 +1,14 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 17.1.1 | **Release Date:** March 30, 2026
+**Version:** 17.2.1 | **Release Date:** March 31, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 17.1.1
-- **Sidebar Order Settings** — Admin/CEO users can drag-and-drop reorder sidebar sections globally at `/settings/sidebar`
-- **Project Status Tracker** — Moved to top-level pinned navigation (alongside Dashboard, Early Warning, AI Assistant)
-- **Task Cancelled Status** — Fixed 400 invalid input error when setting a task to Cancelled
-- **Production Trend** — Defaults to monthly view; Top Processes shows average per active day
+### What's New in 17.2.1
+- **Test Infrastructure** — Vitest configured with `@/` alias support; `npm test` and `npm run test:watch` scripts added
+- **Permissions tests** — 27 tests covering all helper functions and role catalogue integrity
+- **PointsService tests** — 10 tests for on-time/early completion bonuses, badge deduplication, and guard clauses
+- **WorkUnitDependencyService tests** — 7 tests validating BFS cycle detection algorithm
 
 
 
