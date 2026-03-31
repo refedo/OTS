@@ -52,7 +52,7 @@ const hardcodedVersions: ChangelogVersion[] = [
             'First request allowed with correct remaining count',
             'Remaining count decrements on each successive request',
             'Request blocked once the configured limit is reached',
-            'Independent tracking per identifier — one user's limit does not affect another',
+            'Independent tracking per identifier — one user\'s limit does not affect another',
             'Window expiry resets the counter (fake timers via vi.useFakeTimers)',
             'reset() immediately clears the entry and allows new requests',
             'resetTime is in the future and remains consistent within a window',
