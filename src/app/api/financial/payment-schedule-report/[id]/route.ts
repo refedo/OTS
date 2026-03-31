@@ -13,7 +13,9 @@ const updateSchema = z.object({
   triggerDescription: z.string().max(500).nullable().optional(),
   actionRequired: z.enum(['issue_invoice', 'collection_call', 'stop_shipping', 'proceed_shipping', 'on_hold', 'no_action']).nullable().optional(),
   actionNotes: z.string().nullable().optional(),
-  status: z.enum(['pending', 'triggered', 'invoiced', 'collected', 'overdue']).optional(),
+  status: z.enum(['pending', 'triggered', 'invoiced', 'partially_received', 'collected', 'overdue']).optional(),
+  receivedAmount: z.number().min(0).nullable().optional(),
+  linkedTaskId: z.string().nullable().optional(),
 });
 
 export const PUT = withApiContext(async (req: NextRequest, session, ctx) => {
@@ -33,7 +35,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx) => {
     return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { dueDate, ...rest } = parsed.data;
+  const { dueDate, receivedAmount, linkedTaskId, ...rest } = parsed.data;
 
   try {
     const record = await prisma.projectPaymentSchedule.update({
@@ -41,6 +43,8 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx) => {
       data: {
         ...rest,
         dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
+        receivedAmount: receivedAmount !== undefined ? (receivedAmount != null ? receivedAmount : null) : undefined,
+        linkedTaskId: linkedTaskId !== undefined ? linkedTaskId : undefined,
         updatedById: session!.userId,
       },
     });
