@@ -10,3 +10,10 @@ export const APP_VERSION = {
   version: resolvedVersion,
   date: 'March 31, 2026',
   type: 'minor' as const,
+  name: 'Hexa Steel Operation Tracking System',
+};
+
+export const CURRENT_VERSION = APP_VERSION.version;
+
+// Export for backward compatibility
+export default APP_VERSION;
