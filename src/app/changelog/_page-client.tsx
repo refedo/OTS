@@ -23,10 +23,65 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.3.1',
+    date: 'March 31, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '📋 Payment Schedule Enhancements',
+    highlights: [
+      'Sortable columns — all table headers in the Payment Schedule Report now sort rows ascending/descending',
+      'Partial payment receipts — record multiple partial receipts per payment term with running balance, progress bar, and percentage',
+      'Task linkage — pin any payment term to a project task; a green checkmark appears when the task is completed & approved (payment claimable)',
+      'Monthly Forecast Card — select any month to see total forecasted collections and an expandable breakdown of contributing payment terms',
+      'Cash Flow Forecast drill-down — monthly rows in the 13-week forecast are now expandable, showing the payment schedule entries behind each month's figures',
+    ],
+    changes: {
+      added: [
+        'Sortable table headers in Payment Schedule Report (project number, client, slot, amount, received, balance, due date, status, action)',
+        {
+          title: 'Partial Payment Receipts',
+          items: [
+            'New ProjectPaymentReceipt Prisma model — stores individual receipts (scheduleId, amount, receivedDate, invoiceRef, notes)',
+            'Edit drawer receipt history list with per-receipt delete; adding a receipt auto-aggregates receivedAmount on the parent schedule',
+            'Status auto-advances to partially_received when any receipt is recorded',
+            'Table column shows received amount, balance remaining, and visual progress bar with percentage',
+            'POST / DELETE /api/financial/payment-schedule-report/[id]/receipts endpoints',
+          ],
+        },
+        {
+          title: 'Task Linkage',
+          items: [
+            'Select any task from the current project in the edit drawer — saved as linkedTaskId on ProjectPaymentSchedule',
+            'Slot cell shows a green checkmark when the linked task is completed & approved (payment claimable)',
+            'Grey link icon shown when the task is still in progress',
+          ],
+        },
+        {
+          title: 'Monthly Forecast Card (Payment Schedule page)',
+          items: [
+            'Month selector covering past 2 months + next 12 months',
+            'Displays total forecasted collections (balance remaining) for the selected month',
+            'Expandable breakdown table listing each contributing payment term with amount, received, balance, due date, and status',
+          ],
+        },
+        {
+          title: 'Cash Flow Forecast — Monthly Drill-Down (/financial/reports/cash-flow-forecast)',
+          items: [
+            '13-week weeks grouped into calendar months with aggregated collections, payments, and net flow',
+            'Each month row is expandable; fetches matching payment schedule entries via dateFrom/dateTo filter',
+            'Drill-down results cached per month — re-expanding does not re-fetch',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '17.2.0',
     date: 'March 30, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '💰 Payment Schedule Report',
     highlights: [
       'Payment Schedule Report — consolidated view of all payment terms and retention amounts across every project in one financial report at /financial/reports/payment-schedule',
