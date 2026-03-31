@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.2.1] - 2026-03-31
+
+### Test Coverage & Infrastructure (Patch Release)
+
+**Patch Release:** Establishes the automated test infrastructure and delivers the first meaningful test coverage across core business logic, utilities, and services. Sets the baseline for ongoing quality assurance.
+
+#### Added
+
+- **Vitest test infrastructure** — Installed Vitest with `vite-tsconfig-paths` for full `@/` alias support. Added `npm test` (single run) and `npm run test:watch` (interactive) scripts. Includes `vitest.config.ts`.
+- **`rate-limiter.ts` — 8 unit tests** — Covers first-request allow, remaining count decrement, rate-limit blocking, independent identifier tracking, window expiry (fake timers), reset behaviour, and `resetTime` consistency within a window.
+- **`permissions.ts` — 27 unit tests** — Covers `hasPermission`, `hasAnyPermission`, `hasAllPermissions`, `getPermissionsByCategory`, `getPermissionById`, catalogue integrity (no duplicate IDs, naming convention, non-empty names/descriptions), and `DEFAULT_ROLE_PERMISSIONS` role assertions (Admin has all permissions, Operator cannot manage projects, all role permissions reference valid IDs).
+- **`WorkUnitDependencyService` — 7 unit tests** — Covers `wouldCreateCycle` BFS algorithm for: isolated nodes, linear chain (no cycle), direct 2-node cycle, indirect 3-node cycle, diamond graph, visited-set guard against infinite loops. Also covers the self-reference guard in `create()`.
+- **`PointsService` — 10 unit tests** — Covers guard clauses (no `assignedToId`, no `completedAt`), base-only task completion, on-time bonus, early completion (≥ 2-day threshold), late completion (no bonus), badge deduplication (`awardBadge` returns false on duplicate), and `manualAdjustment` transaction type selection.
+
+#### Fixed
+
+- **`excel-parser.test.ts` — corrected duplicate-code assertion** — The pre-existing test expected duplicate `project_code` values to produce a validation _error_; the code intentionally treats them as a _warning_ (comment: "user might want to update/merge data"). Test updated to assert `valid: true` with a warning present.
+
+---
+
 ## [17.2.0] - 2026-03-30
 
 ### Payment Schedule Report (Minor Release)

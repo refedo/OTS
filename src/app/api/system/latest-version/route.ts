@@ -7,34 +7,62 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '💰 Payment Schedule Report',
+  mainTitle: '🧪 Test Coverage & Infrastructure',
   highlights: [
-    'Payment Schedule Report — consolidated view of all payment terms and retention amounts across every project in one financial report',
-    'Link each payment term to a synced Dolibarr invoice with amount and paid status',
-    'Assign due dates, event triggers (milestone, delivery, drawing approval) and actions (issue invoice, collection call, stop/proceed shipping) per payment slot',
-    'Monthly cash flow timeline groups pending collections for financial forecasting',
+    'Vitest test infrastructure — npm test and npm run test:watch scripts, vitest.config.ts with full @/ alias support',
+    '27 tests for permissions helpers and role catalogue integrity — verifies Admin has all permissions, Operator restrictions, and every role references valid permission IDs',
+    '10 tests for PointsService — on-time bonus, early completion threshold, badge deduplication, and guard clauses',
+    '7 tests for WorkUnitDependencyService cycle detection — BFS algorithm validated for direct, indirect, and diamond-shaped dependency graphs',
   ],
   changes: {
     added: [
+      'Vitest + vite-tsconfig-paths devDependencies — npm test (single run) and npm run test:watch scripts — vitest.config.ts',
       {
-        title: 'Payment Schedule Report (/financial/reports/payment-schedule)',
+        title: 'permissions.ts — 27 unit tests',
         items: [
-          'Aggregates all 6 payment slots + Preliminary and HO retention amounts from every project into one table',
-          'Summary cards: Total Scheduled, Collected, Pending, Overdue (SAR)',
-          'Filter by project, status, due date range, action required, and trigger type',
-          'Invoice linking: searchable dropdown of synced Dolibarr invoices with ref, amount, and paid status',
-          'Trigger types: Date, Milestone, Delivery, Drawing Approval, Manual',
-          'Action required: Issue Invoice, Collection Call, Stop Shipping, Proceed Shipping, On Hold, No Action — with free-text notes',
-          'Status tracking: Pending → Triggered → Invoiced → Collected; auto-overdue when due date passes',
-          'Cash flow timeline: collapsible monthly grouping of pending rows for inflow forecasting',
-          'Edit drawer per row — enrich any payment term without leaving the report',
-          'Access-controlled: financial.view (read) / financial.manage (edit)',
+          'hasPermission, hasAnyPermission, hasAllPermissions helper functions',
+          'getPermissionsByCategory and getPermissionById lookups',
+          'Catalogue integrity: no duplicate IDs, dot-notation naming convention, non-empty names and descriptions',
+          'DEFAULT_ROLE_PERMISSIONS: Admin has every permission, Operator blocked from project management, all role permissions reference valid IDs',
         ],
       },
-      'ProjectPaymentSchedule Prisma model — non-destructive enrichment overlay on existing project payment fields, keyed by (projectId, paymentSlot)',
-      'GET/POST /api/financial/payment-schedule-report and PUT/DELETE /api/financial/payment-schedule-report/[id]',
+      {
+        title: 'rate-limiter.ts — 8 unit tests',
+        items: [
+          'First request allowed with correct remaining count',
+          'Remaining count decrements on each request',
+          'Request blocked once limit is reached',
+          'Independent tracking per identifier',
+          'Window expiry resets the counter (fake timers)',
+          'reset() immediately clears the entry',
+        ],
+      },
+      {
+        title: 'WorkUnitDependencyService — 7 unit tests',
+        items: [
+          'wouldCreateCycle returns false for isolated nodes and linear chains',
+          'wouldCreateCycle returns true for direct 2-node and indirect 3-node cycles',
+          'wouldCreateCycle returns false for diamond-shaped graphs',
+          'Visited-set guard prevents infinite loops in existing cyclic graphs',
+          'create() throws immediately on self-reference without any DB calls',
+        ],
+      },
+      {
+        title: 'PointsService — 10 unit tests',
+        items: [
+          'Returns null when task has no assignedToId or no completedAt',
+          'Awards 0 points when TASK_COMPLETE rule is missing from DB',
+          'Awards base + on-time + early completion bonus (≥ 2 days early)',
+          'Does not award early completion bonus for 1-day-early completion',
+          'Does not award on-time bonus when completed after due date',
+          'awardBadge returns false without insert when badge already exists',
+          'awardBadge returns true and inserts when badge is new',
+        ],
+      },
     ],
-    fixed: [],
+    fixed: [
+      'excel-parser.test.ts — duplicate project_code was incorrectly expected to produce a validation error; the code intentionally treats duplicates as warnings (user may want to merge data). Test corrected to assert valid: true with a warning.',
+    ],
     changed: [],
   },
 };
