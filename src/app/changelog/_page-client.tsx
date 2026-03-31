@@ -23,10 +23,65 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.3.1',
+    date: 'March 31, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '📋 Payment Schedule Enhancements',
+    highlights: [
+      'Sortable columns — all table headers in the Payment Schedule Report now sort rows ascending/descending',
+      'Partial payment receipts — record multiple partial receipts per payment term with running balance, progress bar, and percentage',
+      'Task linkage — pin any payment term to a project task; a green checkmark appears when the task is completed & approved (payment claimable)',
+      'Monthly Forecast Card — select any month to see total forecasted collections and an expandable breakdown of contributing payment terms',
+      'Cash Flow Forecast drill-down — monthly rows in the 13-week forecast are now expandable, showing the payment schedule entries behind each month's figures',
+    ],
+    changes: {
+      added: [
+        'Sortable table headers in Payment Schedule Report (project number, client, slot, amount, received, balance, due date, status, action)',
+        {
+          title: 'Partial Payment Receipts',
+          items: [
+            'New ProjectPaymentReceipt Prisma model — stores individual receipts (scheduleId, amount, receivedDate, invoiceRef, notes)',
+            'Edit drawer receipt history list with per-receipt delete; adding a receipt auto-aggregates receivedAmount on the parent schedule',
+            'Status auto-advances to partially_received when any receipt is recorded',
+            'Table column shows received amount, balance remaining, and visual progress bar with percentage',
+            'POST / DELETE /api/financial/payment-schedule-report/[id]/receipts endpoints',
+          ],
+        },
+        {
+          title: 'Task Linkage',
+          items: [
+            'Select any task from the current project in the edit drawer — saved as linkedTaskId on ProjectPaymentSchedule',
+            'Slot cell shows a green checkmark when the linked task is completed & approved (payment claimable)',
+            'Grey link icon shown when the task is still in progress',
+          ],
+        },
+        {
+          title: 'Monthly Forecast Card (Payment Schedule page)',
+          items: [
+            'Month selector covering past 2 months + next 12 months',
+            'Displays total forecasted collections (balance remaining) for the selected month',
+            'Expandable breakdown table listing each contributing payment term with amount, received, balance, due date, and status',
+          ],
+        },
+        {
+          title: 'Cash Flow Forecast — Monthly Drill-Down (/financial/reports/cash-flow-forecast)',
+          items: [
+            '13-week weeks grouped into calendar months with aggregated collections, payments, and net flow',
+            'Each month row is expandable; fetches matching payment schedule entries via dateFrom/dateTo filter',
+            'Drill-down results cached per month — re-expanding does not re-fetch',
+          ],
+        },
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '17.3.0',
     date: 'March 31, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '👑 Executive Command Center',
     highlights: [
       'Executive Command Center (/executive) — single-screen real-time operational intelligence dashboard for CEO/CFO with 60-second auto-refresh and dark war-room aesthetic',
@@ -63,74 +118,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
-    version: '17.2.1',
-    date: 'March 31, 2026',
-    type: 'patch',
-    status: 'previous',
-    mainTitle: '🧪 Test Coverage & Infrastructure',
-    highlights: [
-      'Vitest test infrastructure — npm test and npm run test:watch scripts, vitest.config.ts with full @/ alias support',
-      '27 tests for permissions helpers and role catalogue integrity — Admin has all permissions, Operator restrictions enforced, every role references valid IDs',
-      '10 tests for PointsService — on-time bonus, early completion threshold (≥ 2 days), badge deduplication, and guard clauses',
-      '7 tests for WorkUnitDependencyService cycle detection — BFS validated for direct, indirect, and diamond-shaped dependency graphs',
-    ],
-    changes: {
-      added: [
-        'Vitest + vite-tsconfig-paths devDependencies — npm test (single run) and npm run test:watch — vitest.config.ts with @/ path alias support',
-        {
-          title: 'permissions.ts — 27 unit tests',
-          items: [
-            'hasPermission, hasAnyPermission, hasAllPermissions helper functions',
-            'getPermissionsByCategory and getPermissionById lookups',
-            'Catalogue integrity: no duplicate IDs, dot-notation naming convention, non-empty names and descriptions for every permission',
-            'Role assertions: Admin has every permission, Operator cannot manage projects or users, Engineer can view but not delete production parts, all roles reference only valid permission IDs',
-          ],
-        },
-        {
-          title: 'rate-limiter.ts — 8 unit tests',
-          items: [
-            'First request allowed with correct remaining count',
-            'Remaining count decrements on each successive request',
-            'Request blocked once the configured limit is reached',
-            "Independent tracking per identifier — one user's limit does not affect another",
-            'Window expiry resets the counter (fake timers via vi.useFakeTimers)',
-            'reset() immediately clears the entry and allows new requests',
-            'resetTime is in the future and remains consistent within a window',
-          ],
-        },
-        {
-          title: 'WorkUnitDependencyService — 7 unit tests',
-          items: [
-            'wouldCreateCycle returns false for isolated nodes with no edges',
-            'wouldCreateCycle returns false for a linear chain not looping back to the source',
-            'wouldCreateCycle returns true for a direct 2-node cycle (B→A exists, adding A→B)',
-            'wouldCreateCycle returns true for an indirect 3-node cycle (B→C→A)',
-            'wouldCreateCycle returns false for a diamond-shaped graph with no path back to source',
-            'Visited-set guard prevents infinite loops when existing graph has cycles',
-            'create() throws immediately on self-reference with zero DB calls made',
-          ],
-        },
-        {
-          title: 'PointsService — 10 unit tests',
-          items: [
-            'Returns null when task has no assignedToId (no DB calls made)',
-            'Returns null when task has no completedAt (no DB calls made)',
-            'Awards 0 points and empty breakdown when TASK_COMPLETE rule is absent from DB',
-            'Awards base (10) + on-time (5) + early completion (3) bonus when completed ≥ 2 days early',
-            'Does not award early completion bonus when completed only 1 day early',
-            'Does not award on-time bonus when completed after due date',
-            'awardBadge returns false and skips INSERT when user already holds the badge',
-            'awardBadge returns true and calls INSERT when badge is new',
-          ],
-        },
-      ],
-      fixed: [
-        'excel-parser.test.ts — the duplicate project_code test was asserting valid: false and expecting an error; the production code correctly treats duplicates as a warning (user may want to merge). Test corrected to assert valid: true with a warning present.',
-      ],
-      changed: [],
-    },
-  },
-  {
+
     version: '17.2.0',
     date: 'March 30, 2026',
     type: 'minor',

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.3.1] - 2026-03-31
+
+### Payment Schedule Enhancements (Patch Release)
+
+**Patch Release:** Extends the Payment Schedule Report with partial payment tracking, task linkage, monthly cash-flow forecasting, and an interactive drill-down on the Cash Flow Forecast report.
+
+#### Added
+
+- **Sortable Columns** — All table headers in the Payment Schedule Report are now clickable to sort rows ascending or descending (project number, client, slot, amount, received, balance, due date, status, action).
+- **Partial Payment Receipts** — Each payment term now supports recording multiple partial receipts:
+  - New `ProjectPaymentReceipt` Prisma model stores individual receipts `(scheduleId, amount, receivedDate, invoiceRef, notes)`.
+  - Edit drawer shows a receipt history list with per-receipt delete; adding a receipt auto-aggregates `receivedAmount` on the parent schedule and sets status to `partially_received`.
+  - Table shows received amount, balance remaining, and a visual progress bar with percentage.
+  - `POST /DELETE /api/financial/payment-schedule-report/[id]/receipts` endpoints added.
+- **Task Linkage** — Payment terms can be pinned to a project task:
+  - Select any task from the current project in the edit drawer; link is saved as `linkedTaskId` on `ProjectPaymentSchedule`.
+  - Table Slot cell shows a green checkmark (✓) when the linked task is both completed and approved — signals payment is now claimable. Shows a grey link icon when the task is in progress.
+- **Monthly Forecast Card** (Payment Schedule page) — New card between the summary and cash-flow timeline:
+  - Month selector (past 2 months + next 12); shows total forecasted collections for the selected month.
+  - Expandable breakdown table listing each contributing payment term with amount, received, balance, due date, and status.
+- **Cash Flow Forecast — Monthly Drill-Down** (`/financial/reports/cash-flow-forecast`):
+  - 13-week forecast weeks are grouped into calendar months with aggregated collections, payments, and net flow.
+  - Each month row is expandable and fetches the corresponding payment schedule entries from `/api/financial/payment-schedule-report?dateFrom=…&dateTo=…`.
+  - Drill-down is cached per-month so re-expanding does not re-fetch.
 ## [17.3.0] - 2026-03-31
 
 ### Executive Command Center (Minor Release)
