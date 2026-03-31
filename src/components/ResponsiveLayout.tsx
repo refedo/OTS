@@ -2,6 +2,7 @@
 
 import { AppSidebar } from '@/components/app-sidebar';
 import { NotificationProvider } from '@/contexts/NotificationContext';
+import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 import { RouteGuard } from '@/components/RouteGuard';
 import TopBar from '@/components/TopBar';
@@ -24,7 +25,9 @@ export function ResponsiveLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <NotificationProvider>
-        <LayoutContent>{children}</LayoutContent>
+        <PermissionsProvider>
+          <LayoutContent>{children}</LayoutContent>
+        </PermissionsProvider>
       </NotificationProvider>
     </SidebarProvider>
   );

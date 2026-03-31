@@ -57,6 +57,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { usePermissions } from '@/contexts/PermissionsContext';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { UserMenu } from '@/components/user-menu';
 import { hasAccessToRoute, hasAccessToSection, NAVIGATION_PERMISSIONS } from '@/lib/navigation-permissions';
@@ -296,9 +297,7 @@ export function AppSidebar() {
   const searchParams = useSearchParams();
   const { collapsed, setCollapsed } = useSidebar();
   const [isMounted, setIsMounted] = useState(false);
-  const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [userRole, setUserRole] = useState<string>('');
-  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
+  const { permissions: userPermissions, role: userRole, isLoading: isLoadingPermissions } = usePermissions();
   const [riskCount, setRiskCount] = useState(0);
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const [singleOrder, setSingleOrder] = useState<string[]>([]);
@@ -369,27 +368,8 @@ export function AppSidebar() {
       .catch(() => { /* non-critical */ });
   }, []);
 
-  // Fetch user permissions + role + sidebar order
+  // Fetch sidebar order preference
   useEffect(() => {
-    async function fetchPermissions() {
-      try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include',
-          cache: 'no-store'
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setUserPermissions(data.permissions || []);
-          setUserRole(data.role || '');
-        }
-      } catch {
-        // ignore
-      } finally {
-        setIsLoadingPermissions(false);
-      }
-    }
-
     async function fetchSidebarOrder() {
       try {
         const res = await fetch('/api/settings/sidebar-order');
@@ -407,7 +387,6 @@ export function AppSidebar() {
       }
     }
 
-    fetchPermissions();
     fetchSidebarOrder();
   }, []);
 
