@@ -23,10 +23,48 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.2.0',
+    date: 'March 30, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '💰 Payment Schedule Report',
+    highlights: [
+      'Payment Schedule Report — consolidated view of all payment terms and retention amounts across every project in one financial report at /financial/reports/payment-schedule',
+      'Link each payment term to a synced Dolibarr invoice with amount and paid status — real-time invoice lookup',
+      'Assign due dates, event triggers (milestone, delivery, drawing approval) and actions (issue invoice, collection call, stop/proceed shipping) per payment slot',
+      'Monthly cash flow timeline groups pending collections by month for financial forecasting and planning',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Payment Schedule Report (/financial/reports/payment-schedule)',
+          items: [
+            'Aggregates all 6 payment slots (Down Payment + Payments 2–6) and Preliminary and HO retention amounts from every project into one consolidated table',
+            'Summary cards: Total Scheduled, Collected, Pending, Overdue — all in SAR',
+            'Filter bar: project name/number search, status, due date range, action required, and trigger type',
+            'Invoice linking: searchable dropdown of synced Dolibarr invoices — shows ref, total amount, and paid status',
+            'Trigger types: Date, Milestone, Delivery, Drawing Approval, Manual',
+            'Action required: Issue Invoice, Collection Call, Stop Shipping, Proceed Shipping, On Hold, No Action — each with a free-text action notes field',
+            'Status tracking: Pending → Triggered → Invoiced → Collected; auto-surfaces as Overdue when due date is past and not yet collected',
+            'Cash flow timeline: collapsible monthly grouping of pending/triggered rows for projected cash inflow forecasting',
+            'Edit drawer per row — accountants can enrich any payment term without leaving the report',
+            'Access-controlled via financial.view (read) and financial.manage (write) permissions',
+          ],
+        },
+        'ProjectPaymentSchedule Prisma model — non-destructive enrichment overlay on existing project payment fields, keyed by (projectId, paymentSlot) unique constraint',
+        'GET/POST /api/financial/payment-schedule-report — aggregate all projects and upsert enrichment data',
+        'PUT/DELETE /api/financial/payment-schedule-report/[id] — update or remove individual enrichment records',
+        'Navigation entry added to Financial Reports sidebar section',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
     version: '17.1.1',
     date: 'March 30, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔧 Bug Fixes & Improvements',
     highlights: [
       'Sidebar Order settings — Admin/CEO users can drag-and-drop reorder sidebar navigation sections globally at /settings/sidebar',

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.2.0] - 2026-03-30
+
+### Payment Schedule Report (Minor Release)
+
+**Minor Release:** Introduces the Payment Schedule Report under the Financial module — a consolidated view of all payment terms across every project, enriched with invoice links, due dates, event triggers, and collection actions. This report serves as the foundation for future collection automation and financial cash flow forecasting.
+
+#### Added
+
+- **Payment Schedule Report** (`/financial/reports/payment-schedule`) — New financial report aggregating all payment installments and retention amounts from every project into a single actionable table.
+  - Consolidated view of all 6 payment slots (Down Payment + Payments 2–6) and retention amounts (Preliminary Retention & HO Retention) per project — 8 trackable rows per project
+  - Summary cards: Total Scheduled, Collected, Pending, Overdue (SAR amounts)
+  - Filter bar: project name/number search, status, date range (due date), action required, trigger type
+  - **Invoice linking**: link each payment term to a synced Dolibarr invoice — searchable by invoice ref with paid status and amount from `fin_customer_invoices`
+  - **Due date tracking**: assign a due date per payment slot (especially for Payments 2–6 which have no date on the contract)
+  - **Trigger types**: Date, Milestone, Delivery, Drawing Approval, Manual
+  - **Action required**: Issue Invoice, Collection Call, Stop Shipping, Proceed Shipping, On Hold, No Action — each with a free-text action notes field
+  - **Status tracking**: Pending → Triggered → Invoiced → Collected; rows auto-surface as Overdue when due date is past
+  - **Cash flow timeline**: collapsible monthly grouping of pending/triggered rows for cash inflow forecasting
+  - Edit drawer per row — accountants can enrich any payment term without leaving the report
+  - Access-controlled via `financial.view` (read) and `financial.manage` (edit) permissions
+- **`ProjectPaymentSchedule` model** — New Prisma model storing enrichment data keyed by `(projectId, paymentSlot)`. Non-destructive overlay on top of existing project payment fields — no contract data is modified.
+- **API**: `GET/POST /api/financial/payment-schedule-report` (aggregate + upsert) and `PUT/DELETE /api/financial/payment-schedule-report/[id]` (update/remove enrichment).
+
+---
+
 ## [17.1.1] - 2026-03-30
 
 ### Bug Fixes & Improvements (Patch Release)

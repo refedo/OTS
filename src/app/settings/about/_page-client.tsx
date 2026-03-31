@@ -124,6 +124,13 @@ const modules = [
     color: 'bg-amber-500',
   },
   {
+    name: 'Financial Management',
+    icon: Database,
+    description: 'Integrated financial reporting with Dolibarr ERP sync, payment schedule tracking, and cash flow forecasting.',
+    features: ['Payment Schedule Report', 'Invoice linking', 'Cash flow forecast', 'Aging report', 'Trial balance', 'VAT report', 'Project cost analysis'],
+    color: 'bg-green-700',
+  },
+  {
     name: 'Product Backlog',
     icon: Layers,
     description: 'Feature request and bug tracking with CEO control center.',
@@ -160,7 +167,8 @@ export default function AboutOTSPage() {
             for Hexa Steel®. It provides end-to-end project management, production tracking,
             quality control, and business intelligence capabilities. Features include smart navigation
             with Recent Links &amp; Bookmarks, Production Trend analytics with Day/Week/Month views,
-            LCR procurement analytics, and enhanced task filtering across all activity types.
+            LCR procurement analytics, enhanced task filtering across all activity types, and a
+            Payment Schedule Report for consolidated cross-project financial collection tracking and cash flow forecasting.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="text-center p-4 bg-muted rounded-lg">

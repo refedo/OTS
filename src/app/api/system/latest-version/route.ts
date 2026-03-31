@@ -7,35 +7,35 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🔧 Bug Fixes & Improvements',
+  mainTitle: '💰 Payment Schedule Report',
   highlights: [
-    'Sidebar Order settings — Admin/CEO can drag-and-drop reorder sidebar sections globally',
-    'Project Status Tracker moved to top-level sidebar navigation',
-    'Task Cancelled status no longer returns invalid input error',
-    'Production Trend defaults to monthly view and shows average per active day for Top Processes',
+    'Payment Schedule Report — consolidated view of all payment terms and retention amounts across every project in one financial report',
+    'Link each payment term to a synced Dolibarr invoice with amount and paid status',
+    'Assign due dates, event triggers (milestone, delivery, drawing approval) and actions (issue invoice, collection call, stop/proceed shipping) per payment slot',
+    'Monthly cash flow timeline groups pending collections for financial forecasting',
   ],
   changes: {
     added: [
       {
-        title: 'Sidebar Order Settings',
+        title: 'Payment Schedule Report (/financial/reports/payment-schedule)',
         items: [
-          'New page at /settings/sidebar for Admin and CEO users',
-          'Drag-and-drop reordering of all sidebar navigation sections via @dnd-kit',
-          'Order stored globally on the server — applies to all user accounts',
-          'Sidebar Order link added to the Settings navigation group',
+          'Aggregates all 6 payment slots + Preliminary and HO retention amounts from every project into one table',
+          'Summary cards: Total Scheduled, Collected, Pending, Overdue (SAR)',
+          'Filter by project, status, due date range, action required, and trigger type',
+          'Invoice linking: searchable dropdown of synced Dolibarr invoices with ref, amount, and paid status',
+          'Trigger types: Date, Milestone, Delivery, Drawing Approval, Manual',
+          'Action required: Issue Invoice, Collection Call, Stop Shipping, Proceed Shipping, On Hold, No Action — with free-text notes',
+          'Status tracking: Pending → Triggered → Invoiced → Collected; auto-overdue when due date passes',
+          'Cash flow timeline: collapsible monthly grouping of pending rows for inflow forecasting',
+          'Edit drawer per row — enrich any payment term without leaving the report',
+          'Access-controlled: financial.view (read) / financial.manage (edit)',
         ],
       },
-      'Project Status Tracker link moved from Projects section to top-level sidebar (alongside Dashboard, Early Warning, AI Assistant)',
-      'Revision and Consultant Code columns in the Tasks table are now sortable',
+      'ProjectPaymentSchedule Prisma model — non-destructive enrichment overlay on existing project payment fields, keyed by (projectId, paymentSlot)',
+      'GET/POST /api/financial/payment-schedule-report and PUT/DELETE /api/financial/payment-schedule-report/[id]',
     ],
-    fixed: [
-      'Task status "Cancelled" was rejected as invalid input — added Cancelled to the status enum in create and update API schemas',
-      'CEO/Admin dashboard now shows ALL projects and objectives, not just the ones assigned to their account',
-      'Production Trend Top Processes now shows average weight per active day instead of cumulative total',
-    ],
-    changed: [
-      'Production Trend default period changed from Week to Month',
-    ],
+    fixed: [],
+    changed: [],
   },
 };
 
