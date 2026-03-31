@@ -47,7 +47,9 @@ const upsertSchema = z.object({
   triggerDescription: z.string().max(500).nullable().optional(),
   actionRequired: z.enum(['issue_invoice', 'collection_call', 'stop_shipping', 'proceed_shipping', 'on_hold', 'no_action']).nullable().optional(),
   actionNotes: z.string().nullable().optional(),
-  status: z.enum(['pending', 'triggered', 'invoiced', 'collected', 'overdue']).optional(),
+  status: z.enum(['pending', 'triggered', 'invoiced', 'partially_received', 'collected', 'overdue']).optional(),
+  receivedAmount: z.number().min(0).nullable().optional(),
+  linkedTaskId: z.string().nullable().optional(),
 });
 
 export const GET = withApiContext(async (req: NextRequest, session) => {
@@ -58,11 +60,11 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
 
   const { searchParams } = new URL(req.url);
   const filterProjectId = searchParams.get('projectId') || undefined;
-  const filterStatus = searchParams.get('status') || undefined;
-  const filterAction = searchParams.get('action') || undefined;
+  const filterStatus    = searchParams.get('status') || undefined;
+  const filterAction    = searchParams.get('action') || undefined;
   const filterProjectStatus = searchParams.get('projectStatus') || undefined;
-  const filterDateFrom = searchParams.get('dateFrom') || undefined;
-  const filterDateTo = searchParams.get('dateTo') || undefined;
+  const filterDateFrom  = searchParams.get('dateFrom') || undefined;
+  const filterDateTo    = searchParams.get('dateTo') || undefined;
 
   try {
     const projects = await prisma.project.findMany({
@@ -72,40 +74,24 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
         ...(filterProjectStatus ? { status: filterProjectStatus } : {}),
       },
       select: {
-        id: true,
-        projectNumber: true,
-        name: true,
-        status: true,
-        contractValue: true,
-        downPaymentPercentage: true,
-        downPayment: true,
-        downPaymentAck: true,
-        downPaymentMilestone: true,
-        downPaymentDate: true,
-        payment2Percentage: true,
-        payment2: true,
-        payment2Ack: true,
-        payment2Milestone: true,
-        payment3Percentage: true,
-        payment3: true,
-        payment3Ack: true,
-        payment3Milestone: true,
-        payment4Percentage: true,
-        payment4: true,
-        payment4Ack: true,
-        payment4Milestone: true,
-        payment5Percentage: true,
-        payment5: true,
-        payment5Ack: true,
-        payment5Milestone: true,
-        payment6Percentage: true,
-        payment6: true,
-        payment6Ack: true,
-        payment6Milestone: true,
-        preliminaryRetention: true,
-        hoRetention: true,
+        id: true, projectNumber: true, name: true, status: true, contractValue: true,
+        downPaymentPercentage: true, downPayment: true, downPaymentAck: true,
+        downPaymentMilestone: true, downPaymentDate: true,
+        payment2Percentage: true, payment2: true, payment2Ack: true, payment2Milestone: true,
+        payment3Percentage: true, payment3: true, payment3Ack: true, payment3Milestone: true,
+        payment4Percentage: true, payment4: true, payment4Ack: true, payment4Milestone: true,
+        payment5Percentage: true, payment5: true, payment5Ack: true, payment5Milestone: true,
+        payment6Percentage: true, payment6: true, payment6Ack: true, payment6Milestone: true,
+        preliminaryRetention: true, hoRetention: true,
         client: { select: { id: true, name: true } },
-        paymentSchedules: true,
+        paymentSchedules: {
+          include: {
+            receipts: { orderBy: { receivedDate: 'asc' } },
+            linkedTask: {
+              select: { id: true, title: true, status: true, completedAt: true, approvedAt: true },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -124,7 +110,6 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
       // fin_customer_invoices may not exist if financial sync hasn't run
     }
 
-    // Flatten project payment slots into rows
     type EnrichmentRecord = (typeof projects)[number]['paymentSchedules'][number];
 
     const allRows: {
@@ -158,46 +143,20 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
         milestone: string | null;
         baseDate: Date | null;
       }> = [
-        {
-          slot: 'downPayment',
-          label: 'Down Payment',
-          percentage: project.downPaymentPercentage,
-          amount: project.downPayment,
-          ack: project.downPaymentAck,
-          milestone: project.downPaymentMilestone,
-          baseDate: project.downPaymentDate,
-        },
-        { slot: 'payment2', label: 'Payment 2', percentage: project.payment2Percentage, amount: project.payment2, ack: project.payment2Ack, milestone: project.payment2Milestone, baseDate: null },
-        { slot: 'payment3', label: 'Payment 3', percentage: project.payment3Percentage, amount: project.payment3, ack: project.payment3Ack, milestone: project.payment3Milestone, baseDate: null },
-        { slot: 'payment4', label: 'Payment 4', percentage: project.payment4Percentage, amount: project.payment4, ack: project.payment4Ack, milestone: project.payment4Milestone, baseDate: null },
-        { slot: 'payment5', label: 'Payment 5', percentage: project.payment5Percentage, amount: project.payment5, ack: project.payment5Ack, milestone: project.payment5Milestone, baseDate: null },
-        { slot: 'payment6', label: 'Payment 6', percentage: project.payment6Percentage, amount: project.payment6, ack: project.payment6Ack, milestone: project.payment6Milestone, baseDate: null },
-        {
-          slot: 'preliminaryRetention',
-          label: 'Preliminary Retention',
-          percentage: null,
-          amount: project.preliminaryRetention,
-          ack: false,
-          milestone: null,
-          baseDate: null,
-        },
-        {
-          slot: 'hoRetention',
-          label: 'HO Retention',
-          percentage: null,
-          amount: project.hoRetention,
-          ack: false,
-          milestone: null,
-          baseDate: null,
-        },
+        { slot: 'downPayment',          label: 'Down Payment',          percentage: project.downPaymentPercentage, amount: project.downPayment,  ack: project.downPaymentAck, milestone: project.downPaymentMilestone, baseDate: project.downPaymentDate },
+        { slot: 'payment2',             label: 'Payment 2',             percentage: project.payment2Percentage,   amount: project.payment2,      ack: project.payment2Ack,    milestone: project.payment2Milestone,   baseDate: null },
+        { slot: 'payment3',             label: 'Payment 3',             percentage: project.payment3Percentage,   amount: project.payment3,      ack: project.payment3Ack,    milestone: project.payment3Milestone,   baseDate: null },
+        { slot: 'payment4',             label: 'Payment 4',             percentage: project.payment4Percentage,   amount: project.payment4,      ack: project.payment4Ack,    milestone: project.payment4Milestone,   baseDate: null },
+        { slot: 'payment5',             label: 'Payment 5',             percentage: project.payment5Percentage,   amount: project.payment5,      ack: project.payment5Ack,    milestone: project.payment5Milestone,   baseDate: null },
+        { slot: 'payment6',             label: 'Payment 6',             percentage: project.payment6Percentage,   amount: project.payment6,      ack: project.payment6Ack,    milestone: project.payment6Milestone,   baseDate: null },
+        { slot: 'preliminaryRetention', label: 'Preliminary Retention', percentage: null,                         amount: project.preliminaryRetention, ack: false,              milestone: null,                        baseDate: null },
+        { slot: 'hoRetention',          label: 'HO Retention',          percentage: null,                         amount: project.hoRetention,   ack: false,                  milestone: null,                        baseDate: null },
       ];
 
       for (const s of slots) {
         const amount = toNum(s.amount);
         if (amount <= 0) continue;
-
         const enrichment = enrichmentMap.get(s.slot) ?? null;
-
         allRows.push({
           id: `${project.id}::${s.slot}`,
           projectId: project.id,
@@ -217,17 +176,16 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
       }
     }
 
-    // Apply enrichment-based filters
     const now = new Date();
 
     function computeEffectiveStatus(row: typeof allRows[number]): string {
       const e = row.enrichment;
-      // Down payment with a date set is always received (precondition to start the project)
+      // Down payment with a project date is always received (precondition to start project)
       if (row.paymentSlot === 'downPayment' && row.baseDate) {
         if (!e || e.status === 'pending') return 'collected';
       }
       if (!e) return 'pending';
-      if (e.status === 'collected' || e.status === 'invoiced') return e.status;
+      if (e.status === 'collected' || e.status === 'invoiced' || e.status === 'partially_received') return e.status;
       const dueDate = e.dueDate ?? row.baseDate;
       if (dueDate && dueDate < now) return 'overdue';
       return e.status;
@@ -236,23 +194,24 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
     const filteredRows = allRows.filter((row) => {
       const e = row.enrichment;
       const effectiveStatus = computeEffectiveStatus(row);
-
       if (filterStatus && effectiveStatus !== filterStatus) return false;
       if (filterAction && e?.actionRequired !== filterAction) return false;
       if (filterDateFrom && e?.dueDate && e.dueDate < new Date(filterDateFrom)) return false;
       if (filterDateTo && e?.dueDate && e.dueDate > new Date(filterDateTo)) return false;
-
       return true;
     });
 
-    // Summary totals
     const summary = filteredRows.reduce(
       (acc, row) => {
+        const e = row.enrichment;
         const effectiveStatus = computeEffectiveStatus(row);
-
+        const received = toNum(e?.receivedAmount);
         acc.total += row.amount;
         if (effectiveStatus === 'collected') acc.collected += row.amount;
-        else if (effectiveStatus === 'overdue') acc.overdue += row.amount;
+        else if (effectiveStatus === 'partially_received') {
+          acc.collected += received;
+          acc.pending += (row.amount - received);
+        } else if (effectiveStatus === 'overdue') acc.overdue += row.amount;
         else acc.pending += row.amount;
         return acc;
       },
@@ -278,14 +237,16 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
     return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { projectId, paymentSlot, dueDate, ...rest } = parsed.data;
+  const { projectId, paymentSlot, dueDate, receivedAmount, linkedTaskId, ...rest } = parsed.data;
 
   try {
     const record = await prisma.projectPaymentSchedule.upsert({
       where: { projectId_paymentSlot: { projectId, paymentSlot } },
       update: {
         ...rest,
-        dueDate: dueDate ? new Date(dueDate) : null,
+        dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
+        receivedAmount: receivedAmount !== undefined ? (receivedAmount != null ? receivedAmount : null) : undefined,
+        linkedTaskId: linkedTaskId !== undefined ? linkedTaskId : undefined,
         updatedById: session!.userId,
       },
       create: {
@@ -293,6 +254,8 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         paymentSlot,
         ...rest,
         dueDate: dueDate ? new Date(dueDate) : null,
+        receivedAmount: receivedAmount ?? null,
+        linkedTaskId: linkedTaskId ?? null,
         createdById: session!.userId,
         updatedById: session!.userId,
       },

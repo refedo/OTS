@@ -161,6 +161,7 @@ model User {
   completedBacklogItems ProductBacklogItem[] @relation("BacklogItemCompletedBy")
   createdPaymentSchedules ProjectPaymentSchedule[] @relation("PPS_CreatedBy")
   updatedPaymentSchedules ProjectPaymentSchedule[] @relation("PPS_UpdatedBy")
+  createdPaymentReceipts  ProjectPaymentReceipt[]  @relation("PPR_CreatedBy")
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -344,7 +345,7 @@ model Project {
   deleteReason                    String?                         @db.VarChar(500)
 }
 
-/// Payment schedule enrichment — tracks invoice links, due dates, triggers and actions per payment slot
+/// Payment schedule enrichment — tracks invoice links, due dates, triggers, actions, and partial receipts per payment slot
 model ProjectPaymentSchedule {
   id                  Int       @id @default(autoincrement())
   projectId           String    @db.Char(36)
@@ -359,8 +360,10 @@ model ProjectPaymentSchedule {
   /// "issue_invoice" | "collection_call" | "stop_shipping" | "proceed_shipping" | "on_hold" | "no_action"
   actionRequired      String?   @db.VarChar(30)
   actionNotes         String?   @db.Text
-  /// "pending" | "triggered" | "invoiced" | "collected" | "overdue"
-  status              String    @default("pending") @db.VarChar(20)
+  /// "pending" | "triggered" | "invoiced" | "partially_received" | "collected" | "overdue"
+  status              String    @default("pending") @db.VarChar(25)
+  receivedAmount      Decimal?  @db.Decimal(15,2)
+  linkedTaskId        String?   @db.Char(36)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   createdById         String?   @db.Char(36)
@@ -369,11 +372,31 @@ model ProjectPaymentSchedule {
   project             Project   @relation(fields: [projectId], references: [id])
   createdBy           User?     @relation("PPS_CreatedBy", fields: [createdById], references: [id])
   updatedBy           User?     @relation("PPS_UpdatedBy", fields: [updatedById], references: [id])
+  linkedTask          Task?     @relation(fields: [linkedTaskId], references: [id])
+  receipts            ProjectPaymentReceipt[]
 
   @@unique([projectId, paymentSlot])
   @@index([projectId])
   @@index([status])
   @@index([dueDate])
+  @@index([linkedTaskId])
+}
+
+/// Individual partial payment receipt — one record per payment received against a schedule slot
+model ProjectPaymentReceipt {
+  id            Int       @id @default(autoincrement())
+  scheduleId    Int
+  amount        Decimal   @db.Decimal(15,2)
+  receivedDate  DateTime
+  invoiceRef    String?   @db.VarChar(100)
+  notes         String?   @db.Text
+  createdById   String?   @db.Char(36)
+  createdAt     DateTime  @default(now())
+
+  schedule      ProjectPaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  createdBy     User?     @relation("PPR_CreatedBy", fields: [createdById], references: [id])
+
+  @@index([scheduleId])
 }
 
 /// Building model (structures under a project)
@@ -565,6 +588,7 @@ model Task {
   // Audit trail
   auditLogs     TaskAuditLog[]
   attachments   TaskAttachment[]
+  paymentScheduleLinks ProjectPaymentSchedule[]
 }
 
 model TaskAttachment {
