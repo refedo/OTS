@@ -78,6 +78,7 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Executive Command Center', href: '/executive', icon: Crown },
   { name: '⚡ Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
