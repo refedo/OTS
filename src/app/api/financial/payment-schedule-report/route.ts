@@ -219,17 +219,23 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
 
     // Apply enrichment-based filters
     const now = new Date();
+
+    function computeEffectiveStatus(row: typeof allRows[number]): string {
+      const e = row.enrichment;
+      // Down payment with a date set is always received (precondition to start the project)
+      if (row.paymentSlot === 'downPayment' && row.baseDate) {
+        if (!e || e.status === 'pending') return 'collected';
+      }
+      if (!e) return 'pending';
+      if (e.status === 'collected' || e.status === 'invoiced') return e.status;
+      const dueDate = e.dueDate ?? row.baseDate;
+      if (dueDate && dueDate < now) return 'overdue';
+      return e.status;
+    }
+
     const filteredRows = allRows.filter((row) => {
       const e = row.enrichment;
-
-      // Auto-compute overdue: dueDate in past, status not collected/invoiced
-      const effectiveStatus = (() => {
-        if (!e) return 'pending';
-        if (e.status === 'collected' || e.status === 'invoiced') return e.status;
-        const dueDate = e.dueDate ?? row.baseDate;
-        if (dueDate && dueDate < now && e.status !== 'overdue') return 'overdue';
-        return e.status;
-      })();
+      const effectiveStatus = computeEffectiveStatus(row);
 
       if (filterStatus && effectiveStatus !== filterStatus) return false;
       if (filterAction && e?.actionRequired !== filterAction) return false;
@@ -242,14 +248,11 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
     // Summary totals
     const summary = filteredRows.reduce(
       (acc, row) => {
-        const e = row.enrichment;
-        const dueDate = e?.dueDate ?? row.baseDate;
-        const isOverdue = dueDate && dueDate < now && e?.status !== 'collected' && e?.status !== 'invoiced';
-        const status = e?.status ?? 'pending';
+        const effectiveStatus = computeEffectiveStatus(row);
 
         acc.total += row.amount;
-        if (status === 'collected') acc.collected += row.amount;
-        else if (isOverdue) acc.overdue += row.amount;
+        if (effectiveStatus === 'collected') acc.collected += row.amount;
+        else if (effectiveStatus === 'overdue') acc.overdue += row.amount;
         else acc.pending += row.amount;
         return acc;
       },
