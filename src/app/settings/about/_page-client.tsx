@@ -124,6 +124,13 @@ const modules = [
     color: 'bg-amber-500',
   },
   {
+    name: 'Executive Command Center',
+    icon: BarChart3,
+    description: 'Single-screen real-time operational intelligence dashboard for CEO/CFO — five KPI metrics, project health matrix, cash flow snapshot, production pulse, and prioritised decision list.',
+    features: ['Five Command Metrics (RAG)', 'Project Health Matrix', 'Cash Flow Snapshot', 'Production Pulse (30d)', 'Decisions Required list', '60-second auto-refresh'],
+    color: 'bg-slate-700',
+  },
+  {
     name: 'Financial Management',
     icon: Database,
     description: 'Integrated financial reporting with Dolibarr ERP sync, payment schedule tracking, and cash flow forecasting.',
