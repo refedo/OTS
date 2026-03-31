@@ -301,6 +301,13 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'executive',
+    name: 'Executive Command Center',
+    permissions: [
+      { id: 'executive.view', name: 'View Executive Dashboard', description: 'Access the Executive Command Center — real-time CEO/CFO operational intelligence dashboard', category: 'executive' },
+    ],
+  },
+  {
     id: 'backups',
     name: 'Backup Management',
     permissions: [
@@ -472,6 +479,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Project Tracker
     'project_tracker.view',
     'project_tracker.export',
+    // Executive Command Center
+    'executive.view',
   ],
   Engineer: [
     // Basic Access
