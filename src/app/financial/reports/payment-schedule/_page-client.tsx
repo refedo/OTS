@@ -20,6 +20,7 @@ import {
 import {
   ArrowLeft, Printer, Download, Loader2, PenLine, Plus,
   DollarSign, Clock, CheckCircle2, AlertTriangle, CalendarClock,
+  ArrowUpDown, ArrowUp, ArrowDown, Trash2, Link2, Search, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,24 @@ type PaymentSlot =
 
 type TriggerType = 'date' | 'milestone' | 'delivery' | 'drawing_approval' | 'manual';
 type ActionRequired = 'issue_invoice' | 'collection_call' | 'stop_shipping' | 'proceed_shipping' | 'on_hold' | 'no_action';
-type ScheduleStatus = 'pending' | 'triggered' | 'invoiced' | 'collected' | 'overdue';
+type ScheduleStatus = 'pending' | 'triggered' | 'invoiced' | 'partially_received' | 'collected' | 'overdue';
+type SortField = 'projectNumber' | 'clientName' | 'slotLabel' | 'percentage' | 'amount' | 'dueDate' | 'status';
+
+interface Receipt {
+  id: number;
+  amount: number | string;
+  receivedDate: string;
+  invoiceRef: string | null;
+  notes: string | null;
+}
+
+interface LinkedTask {
+  id: string;
+  title: string;
+  status: string;
+  completedAt: string | null;
+  approvedAt: string | null;
+}
 
 interface Enrichment {
   id: number;
@@ -46,6 +64,10 @@ interface Enrichment {
   actionRequired: ActionRequired | null;
   actionNotes: string | null;
   status: ScheduleStatus;
+  receivedAmount: number | string | null;
+  linkedTaskId: string | null;
+  linkedTask: LinkedTask | null;
+  receipts: Receipt[];
 }
 
 interface PaymentRow {
@@ -99,15 +121,18 @@ function fmtDate(d: string | null | undefined): string {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function toNum(v: number | string | null | undefined): number {
+  if (v == null) return 0;
+  return Number(v);
+}
+
 function effectiveStatus(row: PaymentRow): ScheduleStatus {
   const e = row.enrichment;
-  // Down payment with a date set on the project is always received — auto-collected
-  // unless the user has explicitly overridden it to something other than pending
   if (row.paymentSlot === 'downPayment' && row.baseDate) {
     if (!e || e.status === 'pending') return 'collected';
   }
   if (!e) return 'pending';
-  if (e.status === 'collected' || e.status === 'invoiced') return e.status;
+  if (['collected', 'invoiced', 'partially_received'].includes(e.status)) return e.status;
   const dueDate = e.dueDate ?? row.baseDate;
   if (dueDate && new Date(dueDate) < new Date()) return 'overdue';
   return e.status;
@@ -117,6 +142,7 @@ const STATUS_LABELS: Record<ScheduleStatus, string> = {
   pending: 'Pending',
   triggered: 'Triggered',
   invoiced: 'Invoiced',
+  partially_received: 'Partial',
   collected: 'Collected',
   overdue: 'Overdue',
 };
@@ -125,6 +151,7 @@ const STATUS_VARIANT: Record<ScheduleStatus, string> = {
   pending: 'bg-gray-100 text-gray-700',
   triggered: 'bg-blue-100 text-blue-700',
   invoiced: 'bg-purple-100 text-purple-700',
+  partially_received: 'bg-amber-100 text-amber-700',
   collected: 'bg-green-100 text-green-700',
   overdue: 'bg-red-100 text-red-700',
 };
@@ -146,6 +173,41 @@ const ACTION_LABELS: Record<ActionRequired, string> = {
   no_action: 'No Action',
 };
 
+function isTaskClaimable(t: LinkedTask | null | undefined): boolean {
+  return !!(t?.completedAt && t?.approvedAt);
+}
+
+// ── SortableHeader ─────────────────────────────────────────────────────────
+
+interface SortableHeaderProps {
+  label: string;
+  field: SortField;
+  sortField: SortField | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (f: SortField) => void;
+  className?: string;
+}
+
+function SortableHeader({ label, field, sortField, sortDir, onSort, className }: SortableHeaderProps) {
+  const active = sortField === field;
+  return (
+    <TableHead
+      className={cn('cursor-pointer select-none hover:bg-muted/70', className)}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {active
+          ? (sortDir === 'asc'
+            ? <ArrowUp className="h-3 w-3 text-muted-foreground" />
+            : <ArrowDown className="h-3 w-3 text-muted-foreground" />)
+          : <ArrowUpDown className="h-3 w-3 text-muted-foreground opacity-40" />
+        }
+      </div>
+    </TableHead>
+  );
+}
+
 // ── Edit Drawer ────────────────────────────────────────────────────────────
 
 interface EditDrawerProps {
@@ -158,6 +220,7 @@ interface EditDrawerProps {
 function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
   const e = row?.enrichment;
 
+  // Core form state
   const [dueDate, setDueDate] = useState('');
   const [invoiceId, setInvoiceId] = useState<string>('none');
   const [triggerType, setTriggerType] = useState<string>('none');
@@ -167,6 +230,23 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
   const [status, setStatus] = useState<string>('pending');
   const [saving, setSaving] = useState(false);
 
+  // Task linkage state
+  const [linkedTaskId, setLinkedTaskId] = useState<string | null>(null);
+  const [linkedTask, setLinkedTask] = useState<LinkedTask | null>(null);
+  const [showTaskSearch, setShowTaskSearch] = useState(false);
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskOptions, setTaskOptions] = useState<LinkedTask[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
+  // Receipts state (managed locally so drawer stays open on add/delete)
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [showAddReceipt, setShowAddReceipt] = useState(false);
+  const [newAmount, setNewAmount] = useState('');
+  const [newDate, setNewDate] = useState('');
+  const [newRef, setNewRef] = useState('');
+  const [newNotes, setNewNotes] = useState('');
+  const [addingReceipt, setAddingReceipt] = useState(false);
+
   useEffect(() => {
     if (!row) return;
     setDueDate(e?.dueDate ? e.dueDate.slice(0, 10) : (row.baseDate ? row.baseDate.slice(0, 10) : ''));
@@ -175,17 +255,45 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
     setTriggerDescription(e?.triggerDescription ?? '');
     setActionRequired(e?.actionRequired ?? 'none');
     setActionNotes(e?.actionNotes ?? '');
-    // Down payment with a project date is always collected — pre-fill accordingly
     const isAutoCollected = row.paymentSlot === 'downPayment' && !!row.baseDate;
     setStatus(e?.status ?? (isAutoCollected ? 'collected' : 'pending'));
+    setLinkedTaskId(e?.linkedTaskId ?? null);
+    setLinkedTask(e?.linkedTask ?? null);
+    setShowTaskSearch(false);
+    setTaskSearch('');
+    setTaskOptions([]);
+    setReceipts(e?.receipts ?? []);
+    setShowAddReceipt(false);
+    setNewAmount('');
+    setNewDate(new Date().toISOString().slice(0, 10));
+    setNewRef('');
+    setNewNotes('');
   }, [row]);
+
+  // Load tasks for the project when task search is opened
+  useEffect(() => {
+    if (!showTaskSearch || !row) return;
+    setLoadingTasks(true);
+    fetch(`/api/tasks?projectId=${row.projectId}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: LinkedTask[]) => setTaskOptions(Array.isArray(data) ? data : []))
+      .catch(() => setTaskOptions([]))
+      .finally(() => setLoadingTasks(false));
+  }, [showTaskSearch, row]);
+
+  const filteredTasks = useMemo(
+    () => taskOptions.filter(t => !taskSearch || t.title.toLowerCase().includes(taskSearch.toLowerCase())).slice(0, 20),
+    [taskOptions, taskSearch],
+  );
+
+  const totalReceived = receipts.reduce((s, r) => s + toNum(r.amount), 0);
+  const balance = (row?.amount ?? 0) - totalReceived;
+  const receivedPct = row?.amount ? Math.min((totalReceived / row.amount) * 100, 100) : 0;
 
   const handleSave = async () => {
     if (!row) return;
     setSaving(true);
-
     const selectedInvoice = invoiceId !== 'none' ? invoices.find(i => i.id === parseInt(invoiceId)) : null;
-
     const payload = {
       projectId: row.projectId,
       paymentSlot: row.paymentSlot,
@@ -197,8 +305,8 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
       actionRequired: actionRequired !== 'none' ? actionRequired : null,
       actionNotes: actionNotes || null,
       status,
+      linkedTaskId: linkedTaskId || null,
     };
-
     try {
       if (e?.id) {
         await fetch(`/api/financial/payment-schedule-report/${e.id}`, {
@@ -230,6 +338,47 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
     }
   };
 
+  const handleAddReceipt = async () => {
+    if (!e?.id || !newAmount || !newDate) return;
+    setAddingReceipt(true);
+    try {
+      const res = await fetch(`/api/financial/payment-schedule-report/${e.id}/receipts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(newAmount),
+          receivedDate: newDate,
+          invoiceRef: newRef || null,
+          notes: newNotes || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReceipts(prev => [...prev, data.receipt]);
+        if (!['collected', 'invoiced'].includes(status)) setStatus('partially_received');
+        setNewAmount('');
+        setNewRef('');
+        setNewNotes('');
+        setShowAddReceipt(false);
+      }
+    } finally {
+      setAddingReceipt(false);
+    }
+  };
+
+  const handleDeleteReceipt = async (receiptId: number) => {
+    if (!e?.id) return;
+    const res = await fetch(
+      `/api/financial/payment-schedule-report/${e.id}/receipts?receiptId=${receiptId}`,
+      { method: 'DELETE' },
+    );
+    if (res.ok) {
+      const updated = receipts.filter(r => r.id !== receiptId);
+      setReceipts(updated);
+      if (updated.length === 0 && status === 'partially_received') setStatus('pending');
+    }
+  };
+
   return (
     <Sheet open={!!row} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -250,7 +399,7 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
 
           <div className="space-y-2">
             <Label>Due Date</Label>
-            <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            <Input type="date" value={dueDate} onChange={ev => setDueDate(ev.target.value)} />
           </div>
 
           <div className="space-y-2">
@@ -292,7 +441,7 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
               <Label>Trigger Description</Label>
               <Input
                 value={triggerDescription}
-                onChange={e => setTriggerDescription(e.target.value)}
+                onChange={ev => setTriggerDescription(ev.target.value)}
                 placeholder="Describe the trigger condition..."
               />
             </div>
@@ -321,7 +470,7 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
               <Label>Action Notes</Label>
               <Textarea
                 value={actionNotes}
-                onChange={e => setActionNotes(e.target.value)}
+                onChange={ev => setActionNotes(ev.target.value)}
                 placeholder="Instructions for the accountant..."
                 rows={3}
               />
@@ -338,10 +487,242 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="triggered">Triggered</SelectItem>
                 <SelectItem value="invoiced">Invoiced</SelectItem>
+                <SelectItem value="partially_received">Partially Received</SelectItem>
                 <SelectItem value="collected">Collected</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* ── Linked Task ───────────────────────────────────────────── */}
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5" />
+                Linked Task
+              </Label>
+              {!linkedTaskId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setShowTaskSearch(v => !v)}
+                >
+                  {showTaskSearch ? 'Cancel' : '+ Link Task'}
+                </Button>
+              )}
+            </div>
+
+            {linkedTask && (
+              <div className={cn(
+                'flex items-start justify-between rounded-md border px-3 py-2.5 text-sm gap-2',
+                isTaskClaimable(linkedTask) ? 'border-green-200 bg-green-50' : 'border-muted bg-muted/30',
+              )}>
+                <div className="flex items-start gap-2 min-w-0">
+                  {isTaskClaimable(linkedTask)
+                    ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                    : <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  }
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm truncate">{linkedTask.title}</div>
+                    <div className={cn('text-xs mt-0.5', isTaskClaimable(linkedTask) ? 'text-green-600' : 'text-muted-foreground')}>
+                      {isTaskClaimable(linkedTask) ? 'Completed & approved — payment claimable' : `Status: ${linkedTask.status}`}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 shrink-0"
+                  onClick={() => { setLinkedTaskId(null); setLinkedTask(null); }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+
+            {!linkedTaskId && showTaskSearch && (
+              <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={taskSearch}
+                    onChange={ev => setTaskSearch(ev.target.value)}
+                    placeholder="Search tasks in this project…"
+                    className="pl-8 h-8 text-sm"
+                    autoFocus
+                  />
+                </div>
+                {loadingTasks ? (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredTasks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    {taskOptions.length === 0 ? 'No tasks found for this project' : 'No matching tasks'}
+                  </p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-0.5">
+                    {filteredTasks.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-background border border-transparent hover:border-border flex items-center gap-2"
+                        onClick={() => {
+                          setLinkedTaskId(t.id);
+                          setLinkedTask(t);
+                          setShowTaskSearch(false);
+                          setTaskSearch('');
+                        }}
+                      >
+                        {isTaskClaimable(t)
+                          ? <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                          : <div className="h-3 w-3 rounded-full border border-muted-foreground shrink-0" />
+                        }
+                        <span className="flex-1 truncate font-medium">{t.title}</span>
+                        <span className="text-muted-foreground shrink-0">{t.status}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!linkedTaskId && !showTaskSearch && (
+              <p className="text-xs text-muted-foreground">No task linked. Link a task to gate this payment on its completion.</p>
+            )}
+          </div>
+
+          {/* ── Partial Receipts ───────────────────────────────────────── */}
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Payment Receipts</Label>
+              {e?.id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setShowAddReceipt(v => !v)}
+                >
+                  {showAddReceipt ? 'Cancel' : '+ Add Receipt'}
+                </Button>
+              )}
+            </div>
+
+            {!e?.id && (
+              <p className="text-xs text-muted-foreground">Save this record first to enable partial receipt tracking.</p>
+            )}
+
+            {e?.id && receipts.length > 0 && (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total due:</span>
+                  <span className="font-medium">SAR {fmt(row?.amount ?? 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Received:</span>
+                  <span className="font-medium text-green-600">
+                    SAR {fmt(totalReceived)} ({receivedPct.toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Balance:</span>
+                  <span className={cn('font-medium', balance > 0 ? 'text-amber-600' : 'text-green-600')}>
+                    SAR {fmt(Math.max(balance, 0))}
+                  </span>
+                </div>
+                <div className="w-full bg-muted-foreground/20 rounded-full h-1.5 mt-1">
+                  <div
+                    className="bg-green-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${receivedPct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {e?.id && receipts.length > 0 && (
+              <div className="space-y-1">
+                {receipts.map(r => (
+                  <div key={r.id} className="flex items-start justify-between rounded border px-2.5 py-2 text-xs">
+                    <div className="space-y-0.5">
+                      <span className="font-medium text-green-700">SAR {fmt(toNum(r.amount))}</span>
+                      <span className="text-muted-foreground ml-2">{fmtDate(r.receivedDate)}</span>
+                      {r.invoiceRef && (
+                        <span className="text-muted-foreground ml-2 font-mono">{r.invoiceRef}</span>
+                      )}
+                      {r.notes && <div className="text-muted-foreground mt-0.5">{r.notes}</div>}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500 shrink-0"
+                      onClick={() => handleDeleteReceipt(r.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {e?.id && receipts.length === 0 && !showAddReceipt && (
+              <p className="text-xs text-muted-foreground">No receipts yet.</p>
+            )}
+
+            {e?.id && showAddReceipt && (
+              <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Amount (SAR) *</Label>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={newAmount}
+                      onChange={ev => setNewAmount(ev.target.value)}
+                      placeholder="0.00"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Received Date *</Label>
+                    <Input
+                      type="date"
+                      value={newDate}
+                      onChange={ev => setNewDate(ev.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Invoice Ref</Label>
+                  <Input
+                    value={newRef}
+                    onChange={ev => setNewRef(ev.target.value)}
+                    placeholder="e.g. INV-2025-042"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Notes</Label>
+                  <Input
+                    value={newNotes}
+                    onChange={ev => setNewNotes(ev.target.value)}
+                    placeholder="Optional notes…"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  disabled={addingReceipt || !newAmount || !newDate}
+                  onClick={handleAddReceipt}
+                >
+                  {addingReceipt ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Record Receipt
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -361,6 +742,141 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+// ── Monthly Forecast Card ─────────────────────────────────────────────────
+
+function MonthlyForecastCard({ rows }: { rows: PaymentRow[] }) {
+  const today = useMemo(() => new Date(), []);
+  const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const [selectedMonth, setSelectedMonth] = useState(currentKey);
+  const [expanded, setExpanded] = useState(false);
+
+  const months = useMemo(() => {
+    const result: { key: string; label: string }[] = [];
+    for (let i = -2; i <= 12; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      result.push({ key, label });
+    }
+    return result;
+  }, [today]);
+
+  const forecast = useMemo(() => {
+    const items: {
+      projectNumber: string; projectName: string; clientName: string;
+      slotLabel: string; amount: number; received: number; balance: number;
+      dueDate: string | null; status: ScheduleStatus;
+    }[] = [];
+    let total = 0;
+    for (const row of rows) {
+      const st = effectiveStatus(row);
+      if (st === 'collected') continue;
+      const dueDate = row.enrichment?.dueDate ?? row.baseDate;
+      if (!dueDate) continue;
+      const d = new Date(dueDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (key !== selectedMonth) continue;
+      const received = toNum(row.enrichment?.receivedAmount);
+      const balance = Math.max(row.amount - received, 0);
+      const contribution = balance > 0 ? balance : row.amount;
+      items.push({ projectNumber: row.projectNumber, projectName: row.projectName, clientName: row.clientName, slotLabel: row.slotLabel, amount: row.amount, received, balance, dueDate, status: st });
+      total += contribution;
+    }
+    return { total, items };
+  }, [rows, selectedMonth]);
+
+  const selectedLabel = months.find(m => m.key === selectedMonth)?.label ?? selectedMonth;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Monthly Cash Forecast
+          </CardTitle>
+          <Select value={selectedMonth} onValueChange={v => { setSelectedMonth(v); setExpanded(false); }}>
+            <SelectTrigger className="w-48 h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map(m => (
+                <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Forecasted for {selectedLabel}</p>
+            <p className="text-2xl font-bold text-primary">SAR {fmt(forecast.total)}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {forecast.items.length} payment term{forecast.items.length !== 1 ? 's' : ''} due
+            </p>
+          </div>
+          {forecast.items.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setExpanded(v => !v)}>
+              {expanded ? 'Hide' : 'Breakdown'}
+            </Button>
+          )}
+          {forecast.items.length === 0 && (
+            <p className="text-sm text-muted-foreground">No payments due in {selectedLabel}.</p>
+          )}
+        </div>
+
+        {expanded && forecast.items.length > 0 && (
+          <div className="mt-4 border rounded-md overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/50 border-b">
+                  <th className="text-left p-2 font-medium">Project</th>
+                  <th className="text-left p-2 font-medium">Client</th>
+                  <th className="text-left p-2 font-medium">Slot</th>
+                  <th className="text-right p-2 font-medium">Due Amount</th>
+                  <th className="text-right p-2 font-medium">Received</th>
+                  <th className="text-right p-2 font-medium">Balance</th>
+                  <th className="text-left p-2 font-medium">Due Date</th>
+                  <th className="text-left p-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {forecast.items.map((item, i) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="p-2">
+                      <div className="font-medium">{item.projectNumber}</div>
+                      <div className="text-muted-foreground truncate max-w-[120px]">{item.projectName}</div>
+                    </td>
+                    <td className="p-2 text-muted-foreground">{item.clientName}</td>
+                    <td className="p-2">{item.slotLabel}</td>
+                    <td className="p-2 text-right font-mono">{fmt(item.amount)}</td>
+                    <td className="p-2 text-right font-mono text-green-600">{item.received > 0 ? fmt(item.received) : '—'}</td>
+                    <td className="p-2 text-right font-mono font-medium text-amber-600">{fmt(item.balance > 0 ? item.balance : item.amount)}</td>
+                    <td className="p-2 whitespace-nowrap">{fmtDate(item.dueDate)}</td>
+                    <td className="p-2">
+                      <Badge className={cn('text-xs', STATUS_VARIANT[item.status])} variant="secondary">
+                        {STATUS_LABELS[item.status]}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-muted/30 font-semibold">
+                  <td colSpan={5} className="p-2 text-right text-xs">Total Forecasted:</td>
+                  <td className="p-2 text-right font-mono text-xs">SAR {fmt(forecast.total)}</td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -437,6 +953,19 @@ export default function PaymentScheduleReportPage() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
+  // Sort
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  }, [sortField]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -468,10 +997,37 @@ export default function PaymentScheduleReportPage() {
     );
   }, [data, search]);
 
+  const sortedRows = useMemo(() => {
+    if (!sortField) return filteredRows;
+    return [...filteredRows].sort((a, b) => {
+      let va: string | number;
+      let vb: string | number;
+      switch (sortField) {
+        case 'projectNumber': va = a.projectNumber; vb = b.projectNumber; break;
+        case 'clientName':    va = a.clientName;    vb = b.clientName;    break;
+        case 'slotLabel':     va = a.slotLabel;     vb = b.slotLabel;     break;
+        case 'percentage':    va = a.percentage;    vb = b.percentage;    break;
+        case 'amount':        va = a.amount;        vb = b.amount;        break;
+        case 'dueDate':
+          va = a.enrichment?.dueDate ?? a.baseDate ?? '';
+          vb = b.enrichment?.dueDate ?? b.baseDate ?? '';
+          break;
+        case 'status':
+          va = effectiveStatus(a);
+          vb = effectiveStatus(b);
+          break;
+        default: return 0;
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredRows, sortField, sortDir]);
+
   const exportCsv = () => {
-    if (!filteredRows.length) return;
+    if (!sortedRows.length) return;
     const headers = ['Project #', 'Project Name', 'Client', 'Slot', '%', 'Amount (SAR)', 'Milestone', 'Due Date', 'Invoice', 'Trigger', 'Action', 'Status'];
-    const rows = filteredRows.map(r => {
+    const rows = sortedRows.map(r => {
       const e = r.enrichment;
       const st = effectiveStatus(r);
       return [
@@ -572,6 +1128,7 @@ export default function PaymentScheduleReportPage() {
       </div>
 
       {/* Cash Flow Timeline */}
+      {data && <MonthlyForecastCard rows={data.rows} />}
       {data && <CashFlowTimeline rows={data.rows} />}
 
       {/* Filters */}
@@ -595,6 +1152,7 @@ export default function PaymentScheduleReportPage() {
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="triggered">Triggered</SelectItem>
                   <SelectItem value="invoiced">Invoiced</SelectItem>
+                  <SelectItem value="partially_received">Partially Received</SelectItem>
                   <SelectItem value="collected">Collected</SelectItem>
                   <SelectItem value="overdue">Overdue</SelectItem>
                 </SelectContent>
@@ -664,29 +1222,30 @@ export default function PaymentScheduleReportPage() {
             <div className="flex justify-center items-center h-40">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredRows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">No payment terms found.</div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead>Project</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Slot</TableHead>
-                    <TableHead className="text-right">%</TableHead>
-                    <TableHead className="text-right">Amount (SAR)</TableHead>
+                    <SortableHeader label="Project"      field="projectNumber" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Client"       field="clientName"    sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Slot"         field="slotLabel"     sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="%"            field="percentage"    sortField={sortField} sortDir={sortDir} onSort={handleSort} className="text-right" />
+                    <SortableHeader label="Amount (SAR)" field="amount"        sortField={sortField} sortDir={sortDir} onSort={handleSort} className="text-right" />
+                    <TableHead>Received / Balance</TableHead>
                     <TableHead>Milestone / Terms</TableHead>
-                    <TableHead>Due Date</TableHead>
+                    <SortableHeader label="Due Date"     field="dueDate"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     <TableHead>Invoice</TableHead>
                     <TableHead>Trigger</TableHead>
                     <TableHead>Action</TableHead>
-                    <TableHead>Status</TableHead>
+                    <SortableHeader label="Status"       field="status"        sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     <TableHead className="w-10 print:hidden" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map(row => {
+                  {sortedRows.map(row => {
                     const e = row.enrichment;
                     const st = effectiveStatus(row);
                     const dueDate = e?.dueDate ?? row.baseDate;
@@ -706,13 +1265,54 @@ export default function PaymentScheduleReportPage() {
                         </TableCell>
                         <TableCell className="text-sm">{row.clientName}</TableCell>
                         <TableCell>
-                          <span className="font-medium text-sm">{row.slotLabel}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-sm">{row.slotLabel}</span>
+                            {e?.linkedTask && (
+                              <span
+                                className="shrink-0"
+                                title={isTaskClaimable(e.linkedTask)
+                                  ? `Task completed & approved — payment claimable`
+                                  : `Linked: ${e.linkedTask.title} (${e.linkedTask.status})`
+                                }
+                              >
+                                {isTaskClaimable(e.linkedTask)
+                                  ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                  : <Link2 className="h-3 w-3 text-muted-foreground" />
+                                }
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right text-sm">
                           {row.percentage > 0 ? `${row.percentage}%` : '-'}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {fmt(row.amount)}
+                        </TableCell>
+                        <TableCell className="min-w-[150px]">
+                          {(() => {
+                            const received = toNum(e?.receivedAmount);
+                            if (received <= 0) return <span className="text-muted-foreground text-xs">—</span>;
+                            const bal = row.amount - received;
+                            const pct = row.amount > 0 ? Math.min((received / row.amount) * 100, 100) : 0;
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between gap-2 text-xs">
+                                  <span className="text-green-600 font-mono">+{fmt(received)}</span>
+                                  <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
+                                </div>
+                                {bal > 0 && (
+                                  <div className="text-amber-600 font-mono text-xs">−{fmt(bal)} left</div>
+                                )}
+                                <div className="w-full bg-muted-foreground/20 rounded-full h-1.5">
+                                  <div
+                                    className="bg-green-500 h-1.5 rounded-full"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="max-w-[200px]">
                           {row.milestone ? (
@@ -790,8 +1390,8 @@ export default function PaymentScheduleReportPage() {
       </Card>
 
       <div className="text-xs text-muted-foreground print:hidden pb-4">
-        {filteredRows.length} payment term{filteredRows.length !== 1 ? 's' : ''} shown
-        {data && data.rows.length !== filteredRows.length ? ` of ${data.rows.length} total` : ''}
+        {sortedRows.length} payment term{sortedRows.length !== 1 ? 's' : ''} shown
+        {data && data.rows.length !== sortedRows.length ? ` of ${data.rows.length} total` : ''}
       </div>
 
       <EditDrawer
