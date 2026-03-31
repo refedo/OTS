@@ -20,7 +20,7 @@ import {
 import {
   ArrowLeft, Printer, Download, Loader2, PenLine, Plus,
   DollarSign, Clock, CheckCircle2, AlertTriangle, CalendarClock,
-  ArrowUpDown, ArrowUp, ArrowDown, Trash2,
+  ArrowUpDown, ArrowUp, ArrowDown, Trash2, Link2, Search, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,6 +44,14 @@ interface Receipt {
   notes: string | null;
 }
 
+interface LinkedTask {
+  id: string;
+  title: string;
+  status: string;
+  completedAt: string | null;
+  approvedAt: string | null;
+}
+
 interface Enrichment {
   id: number;
   projectId: string;
@@ -57,6 +65,8 @@ interface Enrichment {
   actionNotes: string | null;
   status: ScheduleStatus;
   receivedAmount: number | string | null;
+  linkedTaskId: string | null;
+  linkedTask: LinkedTask | null;
   receipts: Receipt[];
 }
 
@@ -163,6 +173,10 @@ const ACTION_LABELS: Record<ActionRequired, string> = {
   no_action: 'No Action',
 };
 
+function isTaskClaimable(t: LinkedTask | null | undefined): boolean {
+  return !!(t?.completedAt && t?.approvedAt);
+}
+
 // ── SortableHeader ─────────────────────────────────────────────────────────
 
 interface SortableHeaderProps {
@@ -216,6 +230,14 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
   const [status, setStatus] = useState<string>('pending');
   const [saving, setSaving] = useState(false);
 
+  // Task linkage state
+  const [linkedTaskId, setLinkedTaskId] = useState<string | null>(null);
+  const [linkedTask, setLinkedTask] = useState<LinkedTask | null>(null);
+  const [showTaskSearch, setShowTaskSearch] = useState(false);
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskOptions, setTaskOptions] = useState<LinkedTask[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
   // Receipts state (managed locally so drawer stays open on add/delete)
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [showAddReceipt, setShowAddReceipt] = useState(false);
@@ -235,6 +257,11 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
     setActionNotes(e?.actionNotes ?? '');
     const isAutoCollected = row.paymentSlot === 'downPayment' && !!row.baseDate;
     setStatus(e?.status ?? (isAutoCollected ? 'collected' : 'pending'));
+    setLinkedTaskId(e?.linkedTaskId ?? null);
+    setLinkedTask(e?.linkedTask ?? null);
+    setShowTaskSearch(false);
+    setTaskSearch('');
+    setTaskOptions([]);
     setReceipts(e?.receipts ?? []);
     setShowAddReceipt(false);
     setNewAmount('');
@@ -242,6 +269,22 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
     setNewRef('');
     setNewNotes('');
   }, [row]);
+
+  // Load tasks for the project when task search is opened
+  useEffect(() => {
+    if (!showTaskSearch || !row) return;
+    setLoadingTasks(true);
+    fetch(`/api/tasks?projectId=${row.projectId}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: LinkedTask[]) => setTaskOptions(Array.isArray(data) ? data : []))
+      .catch(() => setTaskOptions([]))
+      .finally(() => setLoadingTasks(false));
+  }, [showTaskSearch, row]);
+
+  const filteredTasks = useMemo(
+    () => taskOptions.filter(t => !taskSearch || t.title.toLowerCase().includes(taskSearch.toLowerCase())).slice(0, 20),
+    [taskOptions, taskSearch],
+  );
 
   const totalReceived = receipts.reduce((s, r) => s + toNum(r.amount), 0);
   const balance = (row?.amount ?? 0) - totalReceived;
@@ -262,6 +305,7 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
       actionRequired: actionRequired !== 'none' ? actionRequired : null,
       actionNotes: actionNotes || null,
       status,
+      linkedTaskId: linkedTaskId || null,
     };
     try {
       if (e?.id) {
@@ -450,6 +494,105 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
             </Select>
           </div>
 
+          {/* ── Linked Task ───────────────────────────────────────────── */}
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5" />
+                Linked Task
+              </Label>
+              {!linkedTaskId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setShowTaskSearch(v => !v)}
+                >
+                  {showTaskSearch ? 'Cancel' : '+ Link Task'}
+                </Button>
+              )}
+            </div>
+
+            {linkedTask && (
+              <div className={cn(
+                'flex items-start justify-between rounded-md border px-3 py-2.5 text-sm gap-2',
+                isTaskClaimable(linkedTask) ? 'border-green-200 bg-green-50' : 'border-muted bg-muted/30',
+              )}>
+                <div className="flex items-start gap-2 min-w-0">
+                  {isTaskClaimable(linkedTask)
+                    ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                    : <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  }
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm truncate">{linkedTask.title}</div>
+                    <div className={cn('text-xs mt-0.5', isTaskClaimable(linkedTask) ? 'text-green-600' : 'text-muted-foreground')}>
+                      {isTaskClaimable(linkedTask) ? 'Completed & approved — payment claimable' : `Status: ${linkedTask.status}`}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 shrink-0"
+                  onClick={() => { setLinkedTaskId(null); setLinkedTask(null); }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+
+            {!linkedTaskId && showTaskSearch && (
+              <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={taskSearch}
+                    onChange={ev => setTaskSearch(ev.target.value)}
+                    placeholder="Search tasks in this project…"
+                    className="pl-8 h-8 text-sm"
+                    autoFocus
+                  />
+                </div>
+                {loadingTasks ? (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredTasks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    {taskOptions.length === 0 ? 'No tasks found for this project' : 'No matching tasks'}
+                  </p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-0.5">
+                    {filteredTasks.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-background border border-transparent hover:border-border flex items-center gap-2"
+                        onClick={() => {
+                          setLinkedTaskId(t.id);
+                          setLinkedTask(t);
+                          setShowTaskSearch(false);
+                          setTaskSearch('');
+                        }}
+                      >
+                        {isTaskClaimable(t)
+                          ? <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                          : <div className="h-3 w-3 rounded-full border border-muted-foreground shrink-0" />
+                        }
+                        <span className="flex-1 truncate font-medium">{t.title}</span>
+                        <span className="text-muted-foreground shrink-0">{t.status}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!linkedTaskId && !showTaskSearch && (
+              <p className="text-xs text-muted-foreground">No task linked. Link a task to gate this payment on its completion.</p>
+            )}
+          </div>
+
           {/* ── Partial Receipts ───────────────────────────────────────── */}
           <div className="space-y-3 border-t pt-4">
             <div className="flex items-center justify-between">
@@ -599,6 +742,141 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+// ── Monthly Forecast Card ─────────────────────────────────────────────────
+
+function MonthlyForecastCard({ rows }: { rows: PaymentRow[] }) {
+  const today = useMemo(() => new Date(), []);
+  const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const [selectedMonth, setSelectedMonth] = useState(currentKey);
+  const [expanded, setExpanded] = useState(false);
+
+  const months = useMemo(() => {
+    const result: { key: string; label: string }[] = [];
+    for (let i = -2; i <= 12; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      result.push({ key, label });
+    }
+    return result;
+  }, [today]);
+
+  const forecast = useMemo(() => {
+    const items: {
+      projectNumber: string; projectName: string; clientName: string;
+      slotLabel: string; amount: number; received: number; balance: number;
+      dueDate: string | null; status: ScheduleStatus;
+    }[] = [];
+    let total = 0;
+    for (const row of rows) {
+      const st = effectiveStatus(row);
+      if (st === 'collected') continue;
+      const dueDate = row.enrichment?.dueDate ?? row.baseDate;
+      if (!dueDate) continue;
+      const d = new Date(dueDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (key !== selectedMonth) continue;
+      const received = toNum(row.enrichment?.receivedAmount);
+      const balance = Math.max(row.amount - received, 0);
+      const contribution = balance > 0 ? balance : row.amount;
+      items.push({ projectNumber: row.projectNumber, projectName: row.projectName, clientName: row.clientName, slotLabel: row.slotLabel, amount: row.amount, received, balance, dueDate, status: st });
+      total += contribution;
+    }
+    return { total, items };
+  }, [rows, selectedMonth]);
+
+  const selectedLabel = months.find(m => m.key === selectedMonth)?.label ?? selectedMonth;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Monthly Cash Forecast
+          </CardTitle>
+          <Select value={selectedMonth} onValueChange={v => { setSelectedMonth(v); setExpanded(false); }}>
+            <SelectTrigger className="w-48 h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map(m => (
+                <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Forecasted for {selectedLabel}</p>
+            <p className="text-2xl font-bold text-primary">SAR {fmt(forecast.total)}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {forecast.items.length} payment term{forecast.items.length !== 1 ? 's' : ''} due
+            </p>
+          </div>
+          {forecast.items.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setExpanded(v => !v)}>
+              {expanded ? 'Hide' : 'Breakdown'}
+            </Button>
+          )}
+          {forecast.items.length === 0 && (
+            <p className="text-sm text-muted-foreground">No payments due in {selectedLabel}.</p>
+          )}
+        </div>
+
+        {expanded && forecast.items.length > 0 && (
+          <div className="mt-4 border rounded-md overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/50 border-b">
+                  <th className="text-left p-2 font-medium">Project</th>
+                  <th className="text-left p-2 font-medium">Client</th>
+                  <th className="text-left p-2 font-medium">Slot</th>
+                  <th className="text-right p-2 font-medium">Due Amount</th>
+                  <th className="text-right p-2 font-medium">Received</th>
+                  <th className="text-right p-2 font-medium">Balance</th>
+                  <th className="text-left p-2 font-medium">Due Date</th>
+                  <th className="text-left p-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {forecast.items.map((item, i) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="p-2">
+                      <div className="font-medium">{item.projectNumber}</div>
+                      <div className="text-muted-foreground truncate max-w-[120px]">{item.projectName}</div>
+                    </td>
+                    <td className="p-2 text-muted-foreground">{item.clientName}</td>
+                    <td className="p-2">{item.slotLabel}</td>
+                    <td className="p-2 text-right font-mono">{fmt(item.amount)}</td>
+                    <td className="p-2 text-right font-mono text-green-600">{item.received > 0 ? fmt(item.received) : '—'}</td>
+                    <td className="p-2 text-right font-mono font-medium text-amber-600">{fmt(item.balance > 0 ? item.balance : item.amount)}</td>
+                    <td className="p-2 whitespace-nowrap">{fmtDate(item.dueDate)}</td>
+                    <td className="p-2">
+                      <Badge className={cn('text-xs', STATUS_VARIANT[item.status])} variant="secondary">
+                        {STATUS_LABELS[item.status]}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-muted/30 font-semibold">
+                  <td colSpan={5} className="p-2 text-right text-xs">Total Forecasted:</td>
+                  <td className="p-2 text-right font-mono text-xs">SAR {fmt(forecast.total)}</td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -850,6 +1128,7 @@ export default function PaymentScheduleReportPage() {
       </div>
 
       {/* Cash Flow Timeline */}
+      {data && <MonthlyForecastCard rows={data.rows} />}
       {data && <CashFlowTimeline rows={data.rows} />}
 
       {/* Filters */}
@@ -986,7 +1265,23 @@ export default function PaymentScheduleReportPage() {
                         </TableCell>
                         <TableCell className="text-sm">{row.clientName}</TableCell>
                         <TableCell>
-                          <span className="font-medium text-sm">{row.slotLabel}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-sm">{row.slotLabel}</span>
+                            {e?.linkedTask && (
+                              <span
+                                className="shrink-0"
+                                title={isTaskClaimable(e.linkedTask)
+                                  ? `Task completed & approved — payment claimable`
+                                  : `Linked: ${e.linkedTask.title} (${e.linkedTask.status})`
+                                }
+                              >
+                                {isTaskClaimable(e.linkedTask)
+                                  ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                  : <Link2 className="h-3 w-3 text-muted-foreground" />
+                                }
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right text-sm">
                           {row.percentage > 0 ? `${row.percentage}%` : '-'}
