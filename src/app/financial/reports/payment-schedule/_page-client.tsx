@@ -96,11 +96,16 @@ function fmt(n: number): string {
 
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '-';
-  return new Date(d).toLocaleDateString('en-SA', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function effectiveStatus(row: PaymentRow): ScheduleStatus {
   const e = row.enrichment;
+  // Down payment with a date set on the project is always received — auto-collected
+  // unless the user has explicitly overridden it to something other than pending
+  if (row.paymentSlot === 'downPayment' && row.baseDate) {
+    if (!e || e.status === 'pending') return 'collected';
+  }
   if (!e) return 'pending';
   if (e.status === 'collected' || e.status === 'invoiced') return e.status;
   const dueDate = e.dueDate ?? row.baseDate;
@@ -170,7 +175,9 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
     setTriggerDescription(e?.triggerDescription ?? '');
     setActionRequired(e?.actionRequired ?? 'none');
     setActionNotes(e?.actionNotes ?? '');
-    setStatus(e?.status ?? 'pending');
+    // Down payment with a project date is always collected — pre-fill accordingly
+    const isAutoCollected = row.paymentSlot === 'downPayment' && !!row.baseDate;
+    setStatus(e?.status ?? (isAutoCollected ? 'collected' : 'pending'));
   }, [row]);
 
   const handleSave = async () => {
@@ -393,7 +400,7 @@ function CashFlowTimeline({ rows }: { rows: PaymentRow[] }) {
           {monthlyData.map(([month, amount]) => {
             const pct = maxVal > 0 ? (amount / maxVal) * 100 : 0;
             const [yr, mo] = month.split('-');
-            const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-SA', { month: 'short', year: '2-digit' });
+            const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
             return (
               <div key={month} className="flex flex-col items-center gap-1 min-w-[60px]">
                 <span className="text-xs text-muted-foreground font-medium">
