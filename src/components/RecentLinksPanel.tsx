@@ -120,6 +120,12 @@ export default function RecentLinksPanel() {
   const [bookmarks, setBookmarks] = useState<BookmarkEntry[]>([]);
   const [tab, setTab] = useState<'recent' | 'bookmarks'>('recent');
 
+  // Load bookmarks immediately on mount so the amber dot shows correctly
+  useEffect(() => {
+    setBookmarks(loadBookmarks());
+    setRecent(loadRecent());
+  }, []);
+
   // Track page visits
   useEffect(() => {
     if (!pathname || pathname.startsWith('/api') || pathname === '/login') return;
