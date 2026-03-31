@@ -78,6 +78,47 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '17.3.0',
+    date: 'March 31, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: '👑 Executive Command Center',
+    highlights: [
+      'Executive Command Center (/executive) — single-screen real-time operational intelligence dashboard for CEO/CFO with 60-second auto-refresh and dark war-room aesthetic',
+      'Five Command Metrics: Active Projects, Production Velocity, Collection Rate, Procurement Exposure, Open Risk Flags — each color-coded RAG with 30-day trend badge and drill-down link',
+      'Project Health Matrix — one row per active project across 5 dimensions with server-side computed RAG; click any row for a slide-over full project breakdown',
+      'Decisions Required — up to 20 prioritised action items covering approvals, payment triggers, urgent procurement, critical NCRs, and schedule overruns',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Executive Command Center (/executive)',
+          items: [
+            'Full-width dark-theme (slate-950) dashboard with 60-second auto-refresh and visible SVG countdown ring',
+            'Five Command Metrics: Active Projects (buildings + contracted tonnes), Production Velocity (monthly tonnes vs target, green ≥90% / amber 70-89% / red <70%), Collection Rate (% + SAR pending, green ≥85%), Procurement Exposure (overdue LCR count + estimated SAR value), Open Risk Flags (critical + warnings count)',
+            'Project Health Matrix — compact table: Engineering%, Production%, LCR overdue badge, Collections%, Risk count, server-side RAG (Red/Amber/Green). RAG: red if deadline <30d + prod <70%, OR procurement >3, OR collections <50%',
+            'Slide-over project detail panel (shadcn Sheet) with quick-links to production, procurement, and full project page',
+            'Cash Flow Snapshot — recharts bar chart: this-month cash in vs cash out + next-30-day projected collections (ProjectPaymentSchedule) and payables (LcrEntry) with net position indicator',
+            'Production Pulse — recharts line chart: 30-day production trend by ISO week (tonnes from ProductionLog) + top-3 projects this week ranked by tonnage',
+            'Decisions Required — up to 20 prioritised action items: tasks awaiting approval (>3d overdue), payment triggers (Stop Shipping / Collection Call), LCR without PO needed in <14 days, critical NCRs open >7 days, projects with passed schedule end date and <80% production',
+            'Per-section graceful error handling — each card shows "Data unavailable — last synced X" independently without crashing the dashboard',
+            'Every dashboard load logs a SystemEvent (category: EXECUTIVE_ACCESS, severity: INFO)',
+            'Mobile responsive: 2-col metric grid on mobile, project matrix horizontally scrollable',
+          ],
+        },
+        'GET /api/executive/summary — five command metrics + EXECUTIVE_ACCESS audit log per request',
+        'GET /api/executive/project-health — full project health matrix with server-side RAG computation',
+        'GET /api/executive/decisions-required — prioritised action list, max 20 items, sorted by urgency then days overdue',
+        'GET /api/executive/cashflow-snapshot — this-month actuals + next-30-day projections + 30-day weekly production trend + top-3 projects',
+        'executive.view permission added to NAVIGATION_PERMISSIONS',
+        '"Executive Command Center" added to sidebar top-level single navigation (Crown icon, position #2 after Dashboard)',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+
     version: '17.2.0',
     date: 'March 30, 2026',
     type: 'minor',

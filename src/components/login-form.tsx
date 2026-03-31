@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { CURRENT_VERSION } from '@/lib/version';
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loginLogo, setLoginLogo] = useState<string | null>(null);
@@ -94,7 +95,8 @@ export function LoginForm() {
         }
       }
 
-      router.push('/dashboard');
+      const next = searchParams.get('next');
+      router.push(next && next.startsWith('/') ? next : '/dashboard');
       router.refresh();
     } catch (err: any) {
       console.error('Login error:', err);

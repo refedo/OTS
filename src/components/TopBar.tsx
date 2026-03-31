@@ -21,7 +21,7 @@ export default function TopBar() {
       localStorage.clear();
       sessionStorage.clear();
 
-      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
 
       const loginUrl =
         process.env.NODE_ENV === 'production'

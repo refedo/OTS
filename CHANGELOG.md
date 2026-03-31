@@ -31,6 +31,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 13-week forecast weeks are grouped into calendar months with aggregated collections, payments, and net flow.
   - Each month row is expandable and fetches the corresponding payment schedule entries from `/api/financial/payment-schedule-report?dateFrom=…&dateTo=…`.
   - Drill-down is cached per-month so re-expanding does not re-fetch.
+## [17.3.0] - 2026-03-31
+
+### Executive Command Center (Minor Release)
+
+**Minor Release:** Introduces the Executive Command Center — a single-screen, real-time operational intelligence dashboard at `/executive` designed for CEO/CFO/decision-maker use. Replaces the need to check 6 different pages to understand company health. Within 10 seconds of opening, a decision-maker knows: are we healthy, where is the risk, what needs a decision today.
+
+#### Added
+
+- **Executive Command Center** (`/executive`) — New full-width dark-theme dashboard with 60-second auto-refresh and a visible countdown ring.
+
+- **Five Command Metrics** (top row) — Large KPI cards each with trend indicator vs last 30 days and a drill-down link to the source module:
+  - **Active Projects** — Count of Active projects with sub-label showing building count and contracted tonnes
+  - **Production Velocity** — Total tonnes logged this month; color-coded green ≥90%, amber 70–89%, red <70% of monthly target
+  - **Collection Rate** — (Total collected ÷ Total contracted) × 100 for active projects with SAR pending sub-label; green ≥85%, amber 70–84%, red <70%
+  - **Procurement Exposure** — Count of LCR items overdue (neededToDate past, not yet received) with estimated SAR value; green = 0, amber 1–5, red >5
+  - **Open Risk Flags** — Count of unresolved Early Warning events with critical/warning breakdown; green = 0, amber 1–3 critical, red >3 critical
+
+- **Project Health Matrix** — Compact table with one row per active project showing every project's health across 5 dimensions at a glance:
+  - Columns: Project number, Client, Deadline (days remaining, color-coded), Engineering %, Production %, Procurement overdue (badge), Collections %, Risk count, Overall RAG
+  - **RAG computed server-side**: Red if deadline <30d + production <70%, OR procurement overdue >3, OR collections <50%. Amber if any threshold missed. Green if all thresholds met.
+  - Clicking any row opens a slide-over panel (shadcn Sheet) with full project breakdown and quick-links to production, procurement, and project detail
+
+- **Cash Flow Snapshot** (bottom section) — Recharts bar chart comparing this month's cash in vs cash out alongside next 30-day projections sourced from `ProjectPaymentSchedule` (collections) and `LcrEntry` (payables). Net position card with directional indicator.
+
+- **Production Pulse** (bottom section) — Recharts line chart showing 30-day production trend by ISO week (tonnes from `ProductionLog`). Top-3 active projects by this-week tonnage listed below the chart.
+
+- **Decisions Required** (bottom section) — Prioritised action list (max 20 items, sorted by urgency then days overdue) covering:
+  - Tasks in "Waiting for Approval" status overdue >3 days
+  - Payment schedule entries with `actionRequired` = "Stop Shipping" or "Collection Call" not yet collected
+  - LCR items with no purchase order (`poNumber` null) and delivery needed within 14 days
+  - Critical NCRs (`severity = Critical`) unresolved >7 days
+  - Projects where scope schedule end date has passed with <80% production complete
+
+- **API Routes**:
+  - `GET /api/executive/summary` — Five command metrics in one call; logs `EXECUTIVE_ACCESS` system event on every request
+  - `GET /api/executive/project-health` — Project health matrix rows with server-side RAG computation
+  - `GET /api/executive/decisions-required` — Prioritised action items, max 20, sorted by urgency
+  - `GET /api/executive/cashflow-snapshot` — Monthly actuals + 30-day projections + 30-day weekly production trend
+
+- **Permission**: `executive.view` added to `NAVIGATION_PERMISSIONS`. Page server-side guards redirect to `/unauthorized` if permission is absent.
+- **Navigation**: "Executive Command Center" entry added to sidebar top-level single navigation (Crown icon, position #2 after Dashboard).
+- **Graceful degradation**: Each dashboard section handles its own error state independently — if any data source fails, that card shows "Data unavailable — last synced X" without crashing the rest of the dashboard.
+- **Audit**: Every dashboard load logs a `SystemEvent` with `category: EXECUTIVE_ACCESS`, `severity: INFO`.
+- **Mobile responsive**: Five command metrics stack to 2-column on mobile; project matrix is horizontally scrollable.
+
+---
+
+## [17.2.1] - 2026-03-31
+
+### Test Coverage & Infrastructure (Patch Release)
+
+**Patch Release:** Establishes the automated test infrastructure and delivers the first meaningful test coverage across core business logic, utilities, and services. Sets the baseline for ongoing quality assurance.
+
+#### Added
+
+- **Vitest test infrastructure** — Installed Vitest with `vite-tsconfig-paths` for full `@/` alias support. Added `npm test` (single run) and `npm run test:watch` (interactive) scripts. Includes `vitest.config.ts`.
+- **`rate-limiter.ts` — 8 unit tests** — Covers first-request allow, remaining count decrement, rate-limit blocking, independent identifier tracking, window expiry (fake timers), reset behaviour, and `resetTime` consistency within a window.
+- **`permissions.ts` — 27 unit tests** — Covers `hasPermission`, `hasAnyPermission`, `hasAllPermissions`, `getPermissionsByCategory`, `getPermissionById`, catalogue integrity (no duplicate IDs, naming convention, non-empty names/descriptions), and `DEFAULT_ROLE_PERMISSIONS` role assertions (Admin has all permissions, Operator cannot manage projects, all role permissions reference valid IDs).
+- **`WorkUnitDependencyService` — 7 unit tests** — Covers `wouldCreateCycle` BFS algorithm for: isolated nodes, linear chain (no cycle), direct 2-node cycle, indirect 3-node cycle, diamond graph, visited-set guard against infinite loops. Also covers the self-reference guard in `create()`.
+- **`PointsService` — 10 unit tests** — Covers guard clauses (no `assignedToId`, no `completedAt`), base-only task completion, on-time bonus, early completion (≥ 2-day threshold), late completion (no bonus), badge deduplication (`awardBadge` returns false on duplicate), and `manualAdjustment` transaction type selection.
+
+#### Fixed
+
+- **`excel-parser.test.ts` — corrected duplicate-code assertion** — The pre-existing test expected duplicate `project_code` values to produce a validation _error_; the code intentionally treats them as a _warning_ (comment: "user might want to update/merge data"). Test updated to assert `valid: true` with a warning present.
 
 ---
 

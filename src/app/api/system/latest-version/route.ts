@@ -14,6 +14,7 @@ const CURRENT_VERSION = {
     'Task linkage — pin a payment term to a project task; green checkmark appears when the task is completed & approved',
     'Monthly Forecast Card — select any month to see total forecasted collections and an expandable breakdown',
     'Cash Flow Forecast drill-down — monthly rows now expandable to show which payment schedule entries drive each month's figures',
+
   ],
   changes: {
     added: [
@@ -51,6 +52,7 @@ const CURRENT_VERSION = {
           'Expandable month rows fetch matching payment schedule entries (cached per month)',
         ],
       },
+
     ],
     fixed: [],
     changed: [],

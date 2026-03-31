@@ -24,7 +24,6 @@ import { Badge } from '@/components/ui/badge';
 import { GripVertical, Save, RotateCcw, Loader2, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// The canonical section names in the default order
 const DEFAULT_SECTIONS = [
   'Tasks',
   'Operations Control',
@@ -41,6 +40,13 @@ const DEFAULT_SECTIONS = [
   'Financial Reports',
   'Dolibarr ERP',
   'Settings',
+];
+
+const DEFAULT_SINGLE = [
+  'Dashboard',
+  'Early Warning',
+  'Project Status Tracker',
+  'AI Assistant',
 ];
 
 interface SortableItemProps {
@@ -82,12 +88,17 @@ function SortableItem({ id, index }: SortableItemProps) {
 
 export default function SidebarOrderPage() {
   const [sections, setSections] = useState<string[]>(DEFAULT_SECTIONS);
+  const [singleItems, setSingleItems] = useState<string[]>(DEFAULT_SINGLE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isAdminOrCeo, setIsAdminOrCeo] = useState(false);
 
-  const sensors = useSensors(
+  const sectionSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const singleSensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
@@ -95,25 +106,26 @@ export default function SidebarOrderPage() {
   useEffect(() => {
     async function load() {
       try {
-        // Check current user role
         const meRes = await fetch('/api/auth/me', { credentials: 'include' });
         if (meRes.ok) {
           const me = await meRes.json();
-          const allowed = me.isAdmin || ['Admin', 'CEO', 'admin'].includes(me.role);
-          setIsAdminOrCeo(allowed);
+          setIsAdminOrCeo(me.isAdmin || ['Admin', 'CEO', 'admin'].includes(me.role));
         }
 
-        // Load saved order
         const orderRes = await fetch('/api/settings/sidebar-order');
         if (orderRes.ok) {
-          const { order } = await orderRes.json();
+          const { order, singleOrder } = await orderRes.json();
           if (Array.isArray(order) && order.length > 0) {
-            // Merge: keep saved order, append any new sections not in saved list
-            const merged = [
+            setSections([
               ...order.filter((s: string) => DEFAULT_SECTIONS.includes(s)),
               ...DEFAULT_SECTIONS.filter((s) => !order.includes(s)),
-            ];
-            setSections(merged);
+            ]);
+          }
+          if (Array.isArray(singleOrder) && singleOrder.length > 0) {
+            setSingleItems([
+              ...singleOrder.filter((s: string) => DEFAULT_SINGLE.includes(s)),
+              ...DEFAULT_SINGLE.filter((s) => !singleOrder.includes(s)),
+            ]);
           }
         }
       } catch {
@@ -125,14 +137,18 @@ export default function SidebarOrderPage() {
     load();
   }, []);
 
-  function handleDragEnd(event: DragEndEvent) {
+  function handleSectionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setSections((prev) => {
-        const oldIndex = prev.indexOf(active.id as string);
-        const newIndex = prev.indexOf(over.id as string);
-        return arrayMove(prev, oldIndex, newIndex);
-      });
+      setSections((prev) => arrayMove(prev, prev.indexOf(active.id as string), prev.indexOf(over.id as string)));
+      setSaved(false);
+    }
+  }
+
+  function handleSingleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSingleItems((prev) => arrayMove(prev, prev.indexOf(active.id as string), prev.indexOf(over.id as string)));
       setSaved(false);
     }
   }
@@ -143,7 +159,7 @@ export default function SidebarOrderPage() {
       const res = await fetch('/api/settings/sidebar-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: sections }),
+        body: JSON.stringify({ order: sections, singleOrder: singleItems }),
       });
       if (res.ok) {
         setSaved(true);
@@ -158,6 +174,7 @@ export default function SidebarOrderPage() {
 
   function handleReset() {
     setSections(DEFAULT_SECTIONS);
+    setSingleItems(DEFAULT_SINGLE);
     setSaved(false);
   }
 
@@ -186,21 +203,35 @@ export default function SidebarOrderPage() {
           Sidebar Order
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Drag sections to reorder them. Changes apply globally to all user accounts.
+          Drag items to reorder them. Changes apply globally to all user accounts.
         </p>
       </div>
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Navigation Sections</CardTitle>
-          <CardDescription>Drag &amp; drop to rearrange the sidebar menu groups</CardDescription>
+          <CardTitle className="text-base">Top-Level Pages</CardTitle>
+          <CardDescription>Single pages always shown at the top of the sidebar</CardDescription>
         </CardHeader>
         <CardContent>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
+          <DndContext sensors={singleSensors} collisionDetection={closestCenter} onDragEnd={handleSingleDragEnd}>
+            <SortableContext items={singleItems} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1.5">
+                {singleItems.map((item, index) => (
+                  <SortableItem key={item} id={item} index={index} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Navigation Sections</CardTitle>
+          <CardDescription>Collapsible module groups shown below the top-level pages</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DndContext sensors={sectionSensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
             <SortableContext items={sections} strategy={verticalListSortingStrategy}>
               <div className="space-y-1.5">
                 {sections.map((section, index) => (
@@ -223,14 +254,13 @@ export default function SidebarOrderPage() {
         </Button>
         {saved && (
           <Badge variant="secondary" className="text-green-700 bg-green-50 border-green-200">
-            Saved — reloading sidebar will apply the new order
+            Saved — reload to apply
           </Badge>
         )}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Note: Users will see the updated order on their next page load.
-        The top-level items (Dashboard, Early Warning, Project Status Tracker, AI Assistant) always stay pinned at the top.
+        Users will see the updated order on their next page load.
       </p>
     </div>
   );

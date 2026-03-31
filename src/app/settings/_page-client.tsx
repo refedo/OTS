@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Smartphone, Github, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Smartphone, Github, Eye, EyeOff, CheckCircle2, XCircle, GitCommitHorizontal } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { NotificationPreferences } from '@/components/notifications/NotificationPreferences';
 
@@ -334,6 +334,10 @@ export default function SettingsPage() {
             <TabsTrigger value="version">
               <GitBranch className="mr-2 h-4 w-4" />
               Version
+            </TabsTrigger>
+            <TabsTrigger value="commits">
+              <GitCommitHorizontal className="mr-2 h-4 w-4" />
+              Commits
             </TabsTrigger>
           </TabsList>
 
@@ -789,6 +793,27 @@ export default function SettingsPage() {
                 >
                   <GitBranch className="mr-2 h-4 w-4" />
                   Open Version Management
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Commits Cheat Sheet */}
+          <TabsContent value="commits" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Conventional Commits Cheat Sheet</CardTitle>
+                <CardDescription>
+                  Git commit discipline reference for OTS™ development
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={() => router.push('/settings/commits')}
+                  className="w-full"
+                >
+                  <GitCommitHorizontal className="mr-2 h-4 w-4" />
+                  Open Commits Cheat Sheet
                 </Button>
               </CardContent>
             </Card>

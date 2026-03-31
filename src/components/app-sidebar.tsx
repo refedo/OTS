@@ -78,6 +78,7 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Executive Command Center', href: '/executive', icon: Crown },
   { name: '⚡ Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
@@ -300,6 +301,7 @@ export function AppSidebar() {
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [riskCount, setRiskCount] = useState(0);
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
+  const [singleOrder, setSingleOrder] = useState<string[]>([]);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
@@ -392,9 +394,12 @@ export function AppSidebar() {
       try {
         const res = await fetch('/api/settings/sidebar-order');
         if (res.ok) {
-          const { order } = await res.json();
+          const { order, singleOrder: so } = await res.json();
           if (Array.isArray(order) && order.length > 0) {
             setSectionOrder(order);
+          }
+          if (Array.isArray(so) && so.length > 0) {
+            setSingleOrder(so);
           }
         }
       } catch {
@@ -509,7 +514,15 @@ export function AppSidebar() {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-2 space-y-1">
             {/* Single navigation items */}
-            {singleNavigation.filter(item => 
+            {(singleOrder.length > 0
+              ? [
+                  ...singleOrder
+                    .map(name => singleNavigation.find(s => s.name === name))
+                    .filter((s): s is typeof singleNavigation[number] => s !== undefined),
+                  ...singleNavigation.filter(s => !singleOrder.includes(s.name)),
+                ]
+              : singleNavigation
+            ).filter(item =>
               isLoadingPermissions ? item.href === '/dashboard' : hasAccessToRoute(userPermissions, item.href)
             ).map((item) => {
               const Icon = item.icon;
@@ -730,8 +743,7 @@ export function AppSidebar() {
                     localStorage.clear();
                     sessionStorage.clear();
                     
-                    // Fire logout API (don't wait)
-                    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
                     
                     const loginUrl = process.env.NODE_ENV === 'production' 
                       ? 'https://ots.hexasteel.sa/login?t=' + Date.now()

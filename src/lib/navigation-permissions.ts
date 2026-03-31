@@ -142,6 +142,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Detailed Planner
   '/detailed-project-planner': ['planning.view', 'projects.view'],
 
+  // Executive Command Center
+  '/executive': ['executive.view'],
+
   // Dolibarr Integration
   '/dolibarr': ['dolibarr.view'],
 
