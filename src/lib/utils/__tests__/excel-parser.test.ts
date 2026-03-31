@@ -3,7 +3,7 @@
  * Run with: npm test or npx jest
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { validateExcelData } from '../excel-parser';
 import { ParsedExcelData } from '@/lib/types/project-migration';
 
@@ -43,7 +43,8 @@ describe('Excel Parser - Data Validation', () => {
     expect(result.errors[0].field).toBe('project_code');
   });
 
-  it('should reject duplicate project codes', () => {
+  it('should warn (not error) on duplicate project codes', () => {
+    // Duplicates are intentionally treated as warnings so users can merge/update data.
     const data: ParsedExcelData = {
       projects: [
         {
@@ -59,9 +60,10 @@ describe('Excel Parser - Data Validation', () => {
     };
 
     const result = validateExcelData(data);
-    expect(result.valid).toBe(false);
-    const duplicateError = result.errors.find(e => e.message.includes('Duplicate'));
-    expect(duplicateError).toBeDefined();
+    expect(result.valid).toBe(true);
+    const duplicateWarning = result.warnings.find(w => w.message.includes('Duplicate'));
+    expect(duplicateWarning).toBeDefined();
+    expect(duplicateWarning!.field).toBe('project_code');
   });
 
   it('should reject invalid status enum', () => {
