@@ -22,6 +22,8 @@ import {
   Package,
   Weight,
   FileText,
+  HelpCircle,
+  ChevronDown,
 } from 'lucide-react';
 
 // --- Types ---
@@ -520,6 +522,77 @@ function LoadingSkeleton({ isDark }: { isDark: boolean }) {
   );
 }
 
+// --- Calculation Legend ---
+
+function CalculationLegend({ isDark, mutedTextClass }: { isDark: boolean; mutedTextClass: string }) {
+  const [open, setOpen] = useState(false);
+  const borderClass = isDark ? 'border-slate-700/60' : 'border-slate-200';
+  const bgClass = isDark ? 'bg-slate-800/60' : 'bg-slate-50';
+  const textClass = isDark ? 'text-slate-200' : 'text-slate-700';
+
+  return (
+    <div className={`rounded-lg border text-xs ${borderClass} ${bgClass}`}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`w-full flex items-center gap-2 px-3 py-2 ${mutedTextClass} hover:opacity-80 transition-opacity`}
+      >
+        <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+        <span>How are percentages calculated?</span>
+        <ChevronDown className={`h-3.5 w-3.5 ml-auto transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className={`px-4 pb-4 pt-1 space-y-3 border-t ${borderClass}`}>
+          <div className="space-y-1.5">
+            <p className={`font-semibold text-[11px] uppercase tracking-wide ${mutedTextClass}`}>
+              Approval-led columns
+            </p>
+            <p className={`${textClass} leading-relaxed`}>
+              <strong>Arch Drawing, Design Approval, SD Approval</strong> — progress is driven by consultant approval on tasks.
+            </p>
+            <div className={`grid grid-cols-2 gap-x-4 gap-y-0.5 ${mutedTextClass} pl-2`}>
+              <span>Fully approved by consultant</span><span className="text-emerald-500 font-medium">100%</span>
+              <span>Submitted / completed (awaiting approval)</span><span className="text-amber-500 font-medium">75%</span>
+              <span>In Progress</span><span className="font-medium">40%</span>
+              <span>Open / Pending</span><span className="font-medium">15%</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className={`font-semibold text-[11px] uppercase tracking-wide ${mutedTextClass}`}>
+              Completion-led columns
+            </p>
+            <p className={`${textClass} leading-relaxed`}>
+              <strong>Design Stage, Shop Drawings</strong> — progress is driven by task completion and release.
+            </p>
+            <div className={`grid grid-cols-2 gap-x-4 gap-y-0.5 ${mutedTextClass} pl-2`}>
+              <span>Completed + released</span><span className="text-emerald-500 font-medium">100%</span>
+              <span>Completed (not yet released)</span><span className="text-amber-500 font-medium">65%</span>
+              <span>In Progress</span><span className="font-medium">40%</span>
+              <span>Open / Pending</span><span className="font-medium">15%</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className={`font-semibold text-[11px] uppercase tracking-wide ${mutedTextClass}`}>Other columns</p>
+            <div className={`${mutedTextClass} space-y-0.5 pl-2`}>
+              <p><strong className={textClass}>Procurement</strong> — weight-based: (bought + available) ÷ total LCR weight</p>
+              <p><strong className={textClass}>Production</strong> — actual processed weight ÷ total scope weight</p>
+              <p><strong className={textClass}>Coating, Dispatch, Erection</strong> — task scoring same as completion-led columns</p>
+              <p><strong className={textClass}>Overall</strong> — simple average of all activity percentages for the building</p>
+            </div>
+          </div>
+
+          <p className={`${mutedTextClass} italic`}>
+            When any task is overdue the column is marked Blocked. The displayed percentage is always ≥ 10% once work has started,
+            to avoid showing 0% when tasks exist but are early-stage.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Main Component ---
 
 export default function ProjectTrackerClient() {
@@ -707,23 +780,26 @@ export default function ProjectTrackerClient() {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-5 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                <span className={mutedTextClass}>Completed</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-5 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <span className={mutedTextClass}>Completed</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                  <span className={mutedTextClass}>Active / In Progress</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+                  <span className={mutedTextClass}>Not Started</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <span className={mutedTextClass}>Blocked / Overdue</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span className={mutedTextClass}>Active / In Progress</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
-                <span className={mutedTextClass}>Not Started</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                <span className={mutedTextClass}>Blocked / Overdue</span>
-              </div>
+              <CalculationLegend isDark={isDark} mutedTextClass={mutedTextClass} />
             </div>
 
             {/* Main Table */}

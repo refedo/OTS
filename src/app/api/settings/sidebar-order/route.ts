@@ -8,31 +8,38 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 
 const DATA_FILE = join(process.cwd(), 'data', 'sidebar-order.json');
 
-function readOrder(): string[] | null {
+interface SidebarOrderData {
+  order?: string[];
+  singleOrder?: string[];
+}
+
+function readData(): SidebarOrderData {
   try {
-    if (!existsSync(DATA_FILE)) return null;
+    if (!existsSync(DATA_FILE)) return {};
     const raw = readFileSync(DATA_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed as string[];
-    return null;
+    // Backwards-compat: old format was a plain array
+    if (Array.isArray(parsed)) return { order: parsed };
+    return parsed as SidebarOrderData;
   } catch {
-    return null;
+    return {};
   }
 }
 
-function writeOrder(order: string[]) {
+function writeData(data: SidebarOrderData) {
   const dir = join(process.cwd(), 'data');
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(DATA_FILE, JSON.stringify(order), 'utf-8');
+  writeFileSync(DATA_FILE, JSON.stringify(data), 'utf-8');
 }
 
 const bodySchema = z.object({
-  order: z.array(z.string()).min(1),
+  order: z.array(z.string()).optional(),
+  singleOrder: z.array(z.string()).optional(),
 });
 
 export async function GET() {
-  const order = readOrder();
-  return NextResponse.json({ order });
+  const data = readData();
+  return NextResponse.json({ order: data.order ?? null, singleOrder: data.singleOrder ?? null });
 }
 
 export async function POST(req: NextRequest) {
@@ -41,7 +48,6 @@ export async function POST(req: NextRequest) {
   const session = token ? verifySession(token) : null;
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Only Admin / CEO users can save the global order
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
     select: { isAdmin: true, role: { select: { name: true } } },
@@ -55,6 +61,10 @@ export async function POST(req: NextRequest) {
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
 
-  writeOrder(parsed.data.order);
+  const current = readData();
+  writeData({
+    order: parsed.data.order ?? current.order,
+    singleOrder: parsed.data.singleOrder ?? current.singleOrder,
+  });
   return NextResponse.json({ ok: true });
 }
