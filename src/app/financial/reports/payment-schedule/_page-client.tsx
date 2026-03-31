@@ -20,6 +20,7 @@ import {
 import {
   ArrowLeft, Printer, Download, Loader2, PenLine, Plus,
   DollarSign, Clock, CheckCircle2, AlertTriangle, CalendarClock,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,7 @@ type PaymentSlot =
 type TriggerType = 'date' | 'milestone' | 'delivery' | 'drawing_approval' | 'manual';
 type ActionRequired = 'issue_invoice' | 'collection_call' | 'stop_shipping' | 'proceed_shipping' | 'on_hold' | 'no_action';
 type ScheduleStatus = 'pending' | 'triggered' | 'invoiced' | 'collected' | 'overdue';
+type SortField = 'projectNumber' | 'clientName' | 'slotLabel' | 'percentage' | 'amount' | 'dueDate' | 'status';
 
 interface Enrichment {
   id: number;
@@ -101,8 +103,6 @@ function fmtDate(d: string | null | undefined): string {
 
 function effectiveStatus(row: PaymentRow): ScheduleStatus {
   const e = row.enrichment;
-  // Down payment with a date set on the project is always received — auto-collected
-  // unless the user has explicitly overridden it to something other than pending
   if (row.paymentSlot === 'downPayment' && row.baseDate) {
     if (!e || e.status === 'pending') return 'collected';
   }
@@ -146,6 +146,37 @@ const ACTION_LABELS: Record<ActionRequired, string> = {
   no_action: 'No Action',
 };
 
+// ── SortableHeader ─────────────────────────────────────────────────────────
+
+interface SortableHeaderProps {
+  label: string;
+  field: SortField;
+  sortField: SortField | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (f: SortField) => void;
+  className?: string;
+}
+
+function SortableHeader({ label, field, sortField, sortDir, onSort, className }: SortableHeaderProps) {
+  const active = sortField === field;
+  return (
+    <TableHead
+      className={cn('cursor-pointer select-none hover:bg-muted/70', className)}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {active
+          ? (sortDir === 'asc'
+            ? <ArrowUp className="h-3 w-3 text-muted-foreground" />
+            : <ArrowDown className="h-3 w-3 text-muted-foreground" />)
+          : <ArrowUpDown className="h-3 w-3 text-muted-foreground opacity-40" />
+        }
+      </div>
+    </TableHead>
+  );
+}
+
 // ── Edit Drawer ────────────────────────────────────────────────────────────
 
 interface EditDrawerProps {
@@ -175,7 +206,6 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
     setTriggerDescription(e?.triggerDescription ?? '');
     setActionRequired(e?.actionRequired ?? 'none');
     setActionNotes(e?.actionNotes ?? '');
-    // Down payment with a project date is always collected — pre-fill accordingly
     const isAutoCollected = row.paymentSlot === 'downPayment' && !!row.baseDate;
     setStatus(e?.status ?? (isAutoCollected ? 'collected' : 'pending'));
   }, [row]);
@@ -437,6 +467,19 @@ export default function PaymentScheduleReportPage() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
+  // Sort
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  }, [sortField]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -468,10 +511,37 @@ export default function PaymentScheduleReportPage() {
     );
   }, [data, search]);
 
+  const sortedRows = useMemo(() => {
+    if (!sortField) return filteredRows;
+    return [...filteredRows].sort((a, b) => {
+      let va: string | number;
+      let vb: string | number;
+      switch (sortField) {
+        case 'projectNumber': va = a.projectNumber; vb = b.projectNumber; break;
+        case 'clientName':    va = a.clientName;    vb = b.clientName;    break;
+        case 'slotLabel':     va = a.slotLabel;     vb = b.slotLabel;     break;
+        case 'percentage':    va = a.percentage;    vb = b.percentage;    break;
+        case 'amount':        va = a.amount;        vb = b.amount;        break;
+        case 'dueDate':
+          va = a.enrichment?.dueDate ?? a.baseDate ?? '';
+          vb = b.enrichment?.dueDate ?? b.baseDate ?? '';
+          break;
+        case 'status':
+          va = effectiveStatus(a);
+          vb = effectiveStatus(b);
+          break;
+        default: return 0;
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredRows, sortField, sortDir]);
+
   const exportCsv = () => {
-    if (!filteredRows.length) return;
+    if (!sortedRows.length) return;
     const headers = ['Project #', 'Project Name', 'Client', 'Slot', '%', 'Amount (SAR)', 'Milestone', 'Due Date', 'Invoice', 'Trigger', 'Action', 'Status'];
-    const rows = filteredRows.map(r => {
+    const rows = sortedRows.map(r => {
       const e = r.enrichment;
       const st = effectiveStatus(r);
       return [
@@ -664,29 +734,29 @@ export default function PaymentScheduleReportPage() {
             <div className="flex justify-center items-center h-40">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredRows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">No payment terms found.</div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead>Project</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Slot</TableHead>
-                    <TableHead className="text-right">%</TableHead>
-                    <TableHead className="text-right">Amount (SAR)</TableHead>
+                    <SortableHeader label="Project"      field="projectNumber" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Client"       field="clientName"    sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Slot"         field="slotLabel"     sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="%"            field="percentage"    sortField={sortField} sortDir={sortDir} onSort={handleSort} className="text-right" />
+                    <SortableHeader label="Amount (SAR)" field="amount"        sortField={sortField} sortDir={sortDir} onSort={handleSort} className="text-right" />
                     <TableHead>Milestone / Terms</TableHead>
-                    <TableHead>Due Date</TableHead>
+                    <SortableHeader label="Due Date"     field="dueDate"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     <TableHead>Invoice</TableHead>
                     <TableHead>Trigger</TableHead>
                     <TableHead>Action</TableHead>
-                    <TableHead>Status</TableHead>
+                    <SortableHeader label="Status"       field="status"        sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     <TableHead className="w-10 print:hidden" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map(row => {
+                  {sortedRows.map(row => {
                     const e = row.enrichment;
                     const st = effectiveStatus(row);
                     const dueDate = e?.dueDate ?? row.baseDate;
@@ -790,8 +860,8 @@ export default function PaymentScheduleReportPage() {
       </Card>
 
       <div className="text-xs text-muted-foreground print:hidden pb-4">
-        {filteredRows.length} payment term{filteredRows.length !== 1 ? 's' : ''} shown
-        {data && data.rows.length !== filteredRows.length ? ` of ${data.rows.length} total` : ''}
+        {sortedRows.length} payment term{sortedRows.length !== 1 ? 's' : ''} shown
+        {data && data.rows.length !== sortedRows.length ? ` of ${data.rows.length} total` : ''}
       </div>
 
       <EditDrawer
