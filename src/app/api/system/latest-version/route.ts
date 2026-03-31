@@ -13,7 +13,7 @@ const CURRENT_VERSION = {
     'Partial payment receipts — record multiple partial receipts per payment term with running balance, progress bar, and percentage',
     'Task linkage — pin a payment term to a project task; green checkmark appears when the task is completed & approved',
     'Monthly Forecast Card — select any month to see total forecasted collections and an expandable breakdown',
-    'Cash Flow Forecast drill-down — monthly rows now expandable to show which payment schedule entries drive each month's figures',
+    "Cash Flow Forecast drill-down — monthly rows now expandable to show which payment schedule entries drive each month's figures",
 
   ],
   changes: {

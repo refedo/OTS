@@ -33,7 +33,7 @@ const hardcodedVersions: ChangelogVersion[] = [
       'Partial payment receipts — record multiple partial receipts per payment term with running balance, progress bar, and percentage',
       'Task linkage — pin any payment term to a project task; a green checkmark appears when the task is completed & approved (payment claimable)',
       'Monthly Forecast Card — select any month to see total forecasted collections and an expandable breakdown of contributing payment terms',
-      'Cash Flow Forecast drill-down — monthly rows in the 13-week forecast are now expandable, showing the payment schedule entries behind each month's figures',
+      "Cash Flow Forecast drill-down — monthly rows in the 13-week forecast are now expandable, showing the payment schedule entries behind each month's figures",
     ],
     changes: {
       added: [
