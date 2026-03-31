@@ -1,15 +1,13 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 17.3.1 | **Release Date:** March 31, 2026
+**Version:** 17.3.2 | **Release Date:** March 31, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 17.3.1
-- **Partial Payment Receipts** — Record multiple partial receipts per payment term; table shows received amount, balance, and a progress bar with percentage
-- **Task Linkage** — Pin a payment term to a project task; green checkmark appears when the task is completed & approved (payment claimable)
-- **Monthly Forecast Card** — Select a month on the Payment Schedule page to see total forecasted collections and an expandable breakdown
-- **Cash Flow Forecast Drill-Down** — Monthly rows in the 13-week forecast are now expandable, showing the payment schedule entries behind each month's figures
-- **Sortable Columns** — All table headers in the Payment Schedule Report are now sortable
+### What's New in 17.3.2
+- **Conventional Commits Cheat Sheet** — New `/settings/commits` page with a full dark-theme reference covering semver rules, commit prefixes, OTS module scope identifiers, and real commit examples
+- **Settings Commits Tab** — A dedicated "Commits" tab in System Settings routes to the cheat sheet
+- **CI Fix** — Resolved `npm error code EJSONPARSE` caused by a malformed `package.json` pushed to the deployment branch
 
 
 

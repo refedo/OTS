@@ -23,10 +23,41 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.3.1',
+    version: '17.3.2',
     date: 'March 31, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: '🛠️ Settings & Developer Experience',
+    highlights: [
+      'Conventional Commits Cheat Sheet — new /settings/commits page with a full dark-theme reference covering semver rules, all 12 commit prefixes, OTS module scope identifiers, and real commit examples with bump badges',
+      'Settings Commits tab — dedicated tab in System Settings using the GitCommitHorizontal icon routes to the cheat sheet, following the same pattern as the Version tab',
+      'CI fix — resolved npm error code EJSONPARSE that was blocking the Deploy to Digital Ocean workflow (npm ci step)',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Conventional Commits Cheat Sheet (/settings/commits)',
+          items: [
+            'MAJOR / MINOR / PATCH semver cards with colored top borders and trigger pill examples (schema migration, new module page, bug fix, etc.)',
+            '12 commit prefix cards with color-coded badges: feat (green), fix (red), refactor (blue), schema (purple), ui (orange), perf (teal), chore (dim), docs (dim), breaking (red), api (teal), auth (blue), seed (orange)',
+            '16 OTS module scope identifier chips: 01 projects → 02 planning → … → 15 ai → system',
+            'Real-world example blocks: Planning module (minor), Procurement module (minor), Breaking/Schema (major), Chores/System (no bump) — each with a version bump badge',
+            'Breaking change syntax callout: ! shorthand after type/scope, and BREAKING CHANGE: footer usage explained with a real schema example',
+          ],
+        },
+        'Settings "Commits" tab — new tab in /settings with GitCommitHorizontal icon; routes to /settings/commits following the same pattern as the Version tab',
+      ],
+      fixed: [
+        'CI npm error code EJSONPARSE — malformed package.json on the deployment branch was blocking npm ci in the Deploy to Digital Ocean workflow; package.json corrected and validated',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.3.1',
+    date: 'March 31, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: '📋 Payment Schedule Enhancements',
     highlights: [
       'Sortable columns — all table headers in the Payment Schedule Report now sort rows ascending/descending',
