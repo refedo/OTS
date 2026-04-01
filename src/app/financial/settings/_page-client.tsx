@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, Settings, Landmark } from 'lucide-react';
+import { Loader2, Save, Settings, Landmark, AlertTriangle } from 'lucide-react';
 
 interface Account {
   id: number;
@@ -105,16 +105,27 @@ export default function FinancialSettingsPage() {
               const filteredAccounts = accounts.filter(a =>
                 a.account_type === field.filterType && a.is_active !== 0
               );
+              const storedCode = config[field.key];
+              const storedExists = !storedCode || accounts.some(a => a.account_code === storedCode);
+              const isStale = !!storedCode && !storedExists;
               return (
                 <div key={field.key}>
-                  <Label className="font-medium">{field.label}</Label>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label className="font-medium">{field.label}</Label>
+                    {isStale && (
+                      <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                        <AlertTriangle className="h-3 w-3" />
+                        Stale: <code className="font-mono">{storedCode}</code> not in COA
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mb-2">{field.description}</p>
                   <Select
-                    value={config[field.key] || ''}
+                    value={storedExists ? (storedCode || '') : ''}
                     onValueChange={v => setConfig({ ...config, [field.key]: v })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select account" />
+                    <SelectTrigger className={isStale ? 'border-amber-400' : ''}>
+                      <SelectValue placeholder={isStale ? `⚠ ${storedCode} (update required)` : 'Select account'} />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredAccounts.map(a => (
@@ -124,7 +135,7 @@ export default function FinancialSettingsPage() {
                       ))}
                       {filteredAccounts.length === 0 && (
                         <div className="p-2 text-xs text-muted-foreground">
-                          No {field.filterType} accounts found. Add them in Chart of Accounts.
+                          No {field.filterType} accounts in COA. Add them at Chart of Accounts.
                         </div>
                       )}
                     </SelectContent>
@@ -133,6 +144,18 @@ export default function FinancialSettingsPage() {
               );
             })}
           </div>
+          {CONFIG_FIELDS.some(f => {
+            const code = config[f.key];
+            return !!code && !accounts.some(a => a.account_code === code);
+          }) && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20 p-3 text-sm text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                One or more account codes are stale (no longer in your Chart of Accounts).
+                Update them above, save, then re-run Financial Sync to regenerate journal entries with the new codes.
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 

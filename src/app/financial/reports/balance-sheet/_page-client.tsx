@@ -8,10 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Building2, Printer, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
+
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
 export default function BalanceSheetPage() {
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
@@ -25,6 +31,11 @@ export default function BalanceSheetPage() {
       if (res.ok) setReport(await res.json());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const selectedYear = asOfDate ? new Date(asOfDate).getFullYear() : null;
+  const handleYearSelect = (year: string) => {
+    setAsOfDate(`${year}-12-31`);
   };
 
   const renderSection = (sections: any[], color: string) => (
@@ -65,11 +76,24 @@ export default function BalanceSheetPage() {
       </div>
 
       <Card className="print:hidden">
-        <CardContent className="pt-6">
-          <div className="flex items-end gap-4">
-            <div>
-              <Label>As of Date</Label>
-              <Input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} />
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <Label>Year (Year-End)</Label>
+              <Select value={selectedYear ? String(selectedYear) : ''} onValueChange={handleYearSelect}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEAR_OPTIONS.map(y => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Or Custom Date</Label>
+              <Input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} className="w-[160px]" />
             </div>
             <Button onClick={generate} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Building2 className="h-4 w-4 mr-2" />}
