@@ -35,6 +35,29 @@ interface EnvConfig {
   VAPID_PUBLIC_KEY: string | undefined;
   VAPID_PRIVATE_KEY: string | undefined;
   VAPID_SUBJECT: string | undefined;
+
+  // open-audit — external compliance mirror
+  OPEN_AUDIT_API_URL: string | undefined;
+  OPEN_AUDIT_API_KEY: string | undefined;
+  OPEN_AUDIT_ENABLED: string | undefined;
+
+  // Nextcloud — document & file storage
+  NEXTCLOUD_BASE_URL: string | undefined;
+  NEXTCLOUD_USERNAME: string | undefined;
+  NEXTCLOUD_APP_PASSWORD: string | undefined;
+  NEXTCLOUD_ROOT_PATH: string | undefined;
+  NEXTCLOUD_ENABLED: string | undefined;
+
+  // Libre MES — manufacturing execution & OEE
+  LIBRE_MES_INFLUX_URL: string | undefined;
+  LIBRE_MES_INFLUX_TOKEN: string | undefined;
+  LIBRE_MES_INFLUX_ORG: string | undefined;
+  LIBRE_MES_INFLUX_BUCKET_AVAILABILITY: string | undefined;
+  LIBRE_MES_INFLUX_BUCKET_PERFORMANCE: string | undefined;
+  LIBRE_MES_INFLUX_BUCKET_QUALITY: string | undefined;
+  LIBRE_MES_INFLUX_BUCKET_ORDER_PERF: string | undefined;
+  LIBRE_MES_PG_URL: string | undefined;
+  LIBRE_MES_ENABLED: string | undefined;
 }
 
 const REQUIRED = ['DATABASE_URL', 'JWT_SECRET'] as const;
@@ -77,6 +100,26 @@ function validateEnv(): EnvConfig {
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
     VAPID_SUBJECT: process.env.VAPID_SUBJECT,
+
+    OPEN_AUDIT_API_URL: process.env.OPEN_AUDIT_API_URL,
+    OPEN_AUDIT_API_KEY: process.env.OPEN_AUDIT_API_KEY,
+    OPEN_AUDIT_ENABLED: process.env.OPEN_AUDIT_ENABLED,
+
+    NEXTCLOUD_BASE_URL: process.env.NEXTCLOUD_BASE_URL,
+    NEXTCLOUD_USERNAME: process.env.NEXTCLOUD_USERNAME,
+    NEXTCLOUD_APP_PASSWORD: process.env.NEXTCLOUD_APP_PASSWORD,
+    NEXTCLOUD_ROOT_PATH: process.env.NEXTCLOUD_ROOT_PATH,
+    NEXTCLOUD_ENABLED: process.env.NEXTCLOUD_ENABLED,
+
+    LIBRE_MES_INFLUX_URL: process.env.LIBRE_MES_INFLUX_URL,
+    LIBRE_MES_INFLUX_TOKEN: process.env.LIBRE_MES_INFLUX_TOKEN,
+    LIBRE_MES_INFLUX_ORG: process.env.LIBRE_MES_INFLUX_ORG,
+    LIBRE_MES_INFLUX_BUCKET_AVAILABILITY: process.env.LIBRE_MES_INFLUX_BUCKET_AVAILABILITY,
+    LIBRE_MES_INFLUX_BUCKET_PERFORMANCE: process.env.LIBRE_MES_INFLUX_BUCKET_PERFORMANCE,
+    LIBRE_MES_INFLUX_BUCKET_QUALITY: process.env.LIBRE_MES_INFLUX_BUCKET_QUALITY,
+    LIBRE_MES_INFLUX_BUCKET_ORDER_PERF: process.env.LIBRE_MES_INFLUX_BUCKET_ORDER_PERF,
+    LIBRE_MES_PG_URL: process.env.LIBRE_MES_PG_URL,
+    LIBRE_MES_ENABLED: process.env.LIBRE_MES_ENABLED,
   };
 }
 

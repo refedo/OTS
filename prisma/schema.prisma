@@ -163,6 +163,9 @@ model User {
   updatedPaymentSchedules ProjectPaymentSchedule[] @relation("PPS_UpdatedBy")
   createdPaymentReceipts  ProjectPaymentReceipt[]  @relation("PPR_CreatedBy")
 
+  // Integration back-relations
+  nextcloudFiles     NextcloudFile[] @relation("NextcloudFileUploader")
+
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -2549,7 +2552,8 @@ model WorkOrder {
   building              Building              @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   productionEngineer    User                  @relation("WorkOrderEngineer", fields: [productionEngineerId], references: [id])
   parts                 WorkOrderPart[]
-  
+  libreSync             LibreMesOrderSync?    @relation("WorkOrderLibreSync")
+
   // Audit
   createdById           String                @db.Char(36)
   createdBy             User                  @relation("WorkOrderCreatedBy", fields: [createdById], references: [id])
@@ -3549,4 +3553,160 @@ model SystemEventSummary {
   @@unique([summaryDate, eventCategory, eventType, severity])
   @@index([summaryDate])
   @@map("system_event_summaries")
+}
+
+// ============================================================================
+// OPEN-AUDIT — External Compliance Mirror
+// Tracks every governance event forwarded to the external open-audit store.
+// A failed forward is retried up to 3 times; after that it is marked 'failed'.
+// ============================================================================
+
+model OpenAuditMirrorLog {
+  id            String    @id @default(uuid()) @db.Char(36)
+
+  // Source OTS audit entry reference
+  auditLogId    String    @db.Char(36)
+
+  // open-audit event payload (denormalized for replay/debugging)
+  actorId       String    @db.VarChar(100)
+  action        String    @db.VarChar(60)
+  entity        String    @db.VarChar(100)
+  entityId      String    @db.VarChar(100)
+  metadata      Json?
+
+  // Delivery tracking
+  status        String    @default("pending") @db.VarChar(20) // pending | delivered | failed
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  deliveredAt   DateTime?
+  errorMessage  String?   @db.Text
+
+  createdAt     DateTime  @default(now())
+
+  @@index([status])
+  @@index([auditLogId])
+  @@index([createdAt])
+  @@map("open_audit_mirror_logs")
+}
+
+// ============================================================================
+// NEXTCLOUD — Document & File Management
+// Tracks every file uploaded to Nextcloud so OTS can reference it by
+// the Nextcloud remote path without storing the binary locally.
+// ============================================================================
+
+model NextcloudFile {
+  id             String    @id @default(uuid()) @db.Char(36)
+
+  // Nextcloud remote path, e.g. "/OTS/documents/project-254/drawing.pdf"
+  remotePath     String    @db.VarChar(1000)
+
+  // Mirrored metadata (avoids re-PROPFIND on every request)
+  fileName       String    @db.VarChar(255)
+  fileSize       Int?
+  mimeType       String?   @db.VarChar(100)
+  etag           String?   @db.VarChar(100)
+  lastModified   DateTime?
+
+  // Which OTS entity owns this file
+  entityType     String    @db.VarChar(60)  // Document | DocumentSubmission | WPS | ITP | etc.
+  entityId       String    @db.Char(36)
+
+  // Optional share link
+  shareToken     String?   @db.VarChar(64)
+  shareUrl       String?   @db.VarChar(500)
+  shareExpiresAt DateTime?
+
+  // Audit
+  uploadedById   String    @db.Char(36)
+  uploadedBy     User      @relation("NextcloudFileUploader", fields: [uploadedById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([uploadedById])
+  @@index([remotePath])
+  @@map("nextcloud_files")
+}
+
+// ============================================================================
+// LIBRE MES — Manufacturing Execution & Performance Monitoring
+// ============================================================================
+
+// Tracks each push of a WorkOrder to Libre MES PostgreSQL.
+model LibreMesOrderSync {
+  id           String    @id @default(uuid()) @db.Char(36)
+
+  workOrderId  String    @unique @db.Char(36)
+  workOrder    WorkOrder @relation("WorkOrderLibreSync", fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  libreOrderId String?   @db.VarChar(100)
+  libreStatus  String?   @db.VarChar(50)
+
+  syncStatus   String    @default("pending") @db.VarChar(20) // pending | synced | failed | stale
+  lastSyncAt   DateTime?
+  errorMessage String?   @db.Text
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([syncStatus])
+  @@index([lastSyncAt])
+  @@map("libre_mes_order_syncs")
+}
+
+// Stores OEE / production metrics pulled back from Libre MES InfluxDB.
+model LibreMesMetricSnapshot {
+  id             String   @id @default(uuid()) @db.Char(36)
+
+  workOrderId    String?  @db.Char(36)
+  assemblyPartId String?  @db.Char(36)
+  libreOrderId   String?  @db.VarChar(100)
+
+  // InfluxDB measurement source
+  influxBucket   String   @db.VarChar(60)  // availability | performance | quality | orderPerformance
+  influxMeasure  String   @db.VarChar(60)
+
+  // OEE components (0.0000 – 1.0000)
+  availability   Decimal? @db.Decimal(5, 4)
+  performance    Decimal? @db.Decimal(5, 4)
+  quality        Decimal? @db.Decimal(5, 4)
+  oee            Decimal? @db.Decimal(5, 4)
+
+  // Production counts
+  plannedQty     Int?
+  actualQty      Int?
+  scrapQty       Int?
+
+  // Time window this snapshot covers
+  periodStart    DateTime
+  periodEnd      DateTime
+
+  rawPayload     Json?
+  pulledAt       DateTime @default(now())
+
+  @@index([workOrderId])
+  @@index([influxBucket])
+  @@index([periodStart])
+  @@map("libre_mes_metric_snapshots")
+}
+
+// Audit log for all Libre MES sync operations (push + pull).
+model LibreMesSyncLog {
+  id           String   @id @default(uuid()) @db.Char(36)
+  operation    String   @db.VarChar(20)  // push_orders | pull_metrics | full_sync
+  status       String   @db.VarChar(20)  // success | partial | failed
+  ordersTotal  Int      @default(0)
+  ordersSynced Int      @default(0)
+  metricsTotal Int      @default(0)
+  durationMs   Int      @default(0)
+  errorMessage String?  @db.Text
+  triggeredBy  String   @db.VarChar(20)  // manual | cron
+  userId       String?  @db.Char(36)
+  createdAt    DateTime @default(now())
+
+  @@index([status])
+  @@index([operation])
+  @@index([createdAt])
+  @@map("libre_mes_sync_logs")
 }

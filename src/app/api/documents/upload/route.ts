@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { logger } from '@/lib/logger';
+import { env } from '@/lib/env';
 import path from 'path';
 import { existsSync } from 'fs';
 
@@ -64,9 +65,33 @@ export async function POST(req: Request) {
     const filename = `${timestamp}-${originalName}`;
     const filepath = path.join(uploadsDir, filename);
 
-    // Convert file to buffer and save
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+
+    // Nextcloud storage — when enabled, upload to Nextcloud instead of local disk
+    if (env.NEXTCLOUD_ENABLED === 'true') {
+      const { nextcloudService } = await import('@/lib/services/nextcloud.service');
+      const result = await nextcloudService.upload({
+        buffer,
+        fileName: filename,
+        mimeType: file.type,
+        entityType: 'Document',
+        entityId: 'upload',
+        uploadedById: (session as { userId: string }).userId,
+      });
+
+      return NextResponse.json({
+        filePath: result.remotePath,
+        fileSize: file.size,
+        fileType: file.type,
+        originalName: file.name,
+        storageBackend: 'nextcloud',
+        nextcloudFileId: result.nextcloudFileId,
+      });
+    }
+
+    // Local fallback
     await writeFile(filepath, buffer);
 
     // Return file info
@@ -75,6 +100,7 @@ export async function POST(req: Request) {
       fileSize: file.size,
       fileType: file.type,
       originalName: file.name,
+      storageBackend: 'local',
     };
 
     return NextResponse.json(fileInfo);
