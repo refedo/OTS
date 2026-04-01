@@ -85,7 +85,7 @@ export async function GET(req: Request) {
       params.push(parseInt(supplierId));
     }
     if (category) {
-      where += ` AND COALESCE(dam.ots_cost_category, 'Other / Unclassified') = ?`;
+      where += ` AND COALESCE(pcoa.account_category, dam.ots_cost_category, scoa.account_category, 'Other / Unclassified') = ?`;
       params.push(category);
     }
 
@@ -103,7 +103,10 @@ export async function GET(req: Request) {
     const vatInput5 = config['vat_input_5_account'] || '445662';
     const defaultExpense = config['default_expense_account'] || '5';
 
-    // Get supplier invoice lines with proper categorization
+    // Get supplier invoice lines with 3-tier cost classification:
+    //   1. fin_product_coa_mapping  (by fk_product)  — most specific
+    //   2. fin_dolibarr_account_mapping (by accounting_code) — Dolibarr COA mapping
+    //   3. fin_supplier_coa_default (by socid) — supplier-level fallback
     const invoiceLines: any[] = await prisma.$queryRawUnsafe(`
       SELECT
         si.dolibarr_id as invoice_id,
@@ -119,18 +122,26 @@ export async function GET(req: Request) {
         sil.id as line_id,
         sil.product_label,
         sil.product_ref,
+        sil.fk_product,
         sil.total_ht as line_ht,
         sil.total_tva as line_vat,
         sil.total_ttc as line_ttc,
         sil.accounting_code,
-        COALESCE(dam.ots_cost_category, 'Other / Unclassified') as cost_category,
-        COALESCE(dam.dolibarr_account_label, sil.product_label, 'Expense') as account_name,
-        COALESCE(dam.ots_coa_code, ?) as expense_account_code
+        COALESCE(pcoa.account_category, dam.ots_cost_category, scoa.account_category, 'Other / Unclassified') as cost_category,
+        COALESCE(pcoa.account_name, dam.dolibarr_account_label, scoa.account_name, sil.product_label, 'Expense') as account_name,
+        COALESCE(pm.coa_account_code, dam.ots_coa_code, sd.coa_account_code, ?) as expense_account_code
       FROM fin_supplier_invoices si
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
       LEFT JOIN dolibarr_projects dp ON dp.dolibarr_id = si.fk_projet
       LEFT JOIN fin_supplier_invoice_lines sil ON sil.invoice_dolibarr_id = si.dolibarr_id
+      -- Tier 1: product-level COA mapping
+      LEFT JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+      LEFT JOIN fin_chart_of_accounts pcoa ON pcoa.account_code = pm.coa_account_code
+      -- Tier 2: Dolibarr accounting code mapping
       LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
+      -- Tier 3: supplier-level default
+      LEFT JOIN fin_supplier_coa_default sd ON sd.supplier_dolibarr_id = si.socid
+      LEFT JOIN fin_chart_of_accounts scoa ON scoa.account_code = sd.coa_account_code
       ${where}
       ORDER BY si.date_invoice DESC, si.ref, sil.id
     `, defaultExpense, ...params);
