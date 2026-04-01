@@ -7,30 +7,41 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🛠️ Settings & Developer Experience',
+  mainTitle: '📒 Financial Accuracy & Manual Journal Entries',
   highlights: [
-    'Conventional Commits Cheat Sheet — new /settings/commits page with dark-theme reference covering semver rules, all 12 commit prefixes, OTS module scopes, and real commit examples',
-    'Settings Commits tab — dedicated tab in System Settings routing to the cheat sheet with GitCommitHorizontal icon',
-    'CI fix — resolved npm error code EJSONPARSE blocking the Deploy to Digital Ocean workflow',
+    'Manual Journal Entries — new /financial/manual-journal-entries page for creating locked double-entry journal entries with live balance validation, journal code guide, and COA combobox search',
+    'Financial dashboard fix — Revenue and Gross Profit now use journal entry metadata (source_type/journal_code) instead of COA account_type; resilient to COA configuration changes',
+    'Balance sheet accuracy — bank account codes auto-added to COA during sync; balance sheet P&L lines use source_type queries for correct figures',
+    'Statement of Account UX — mobile combobox search, Current Outstanding stat, AR/AP green/red color distinction',
+    'PWA install prompt — "Don\'t show again" now correctly persists to localStorage',
   ],
   changes: {
     added: [
       {
-        title: 'Conventional Commits Cheat Sheet (/settings/commits)',
+        title: 'Manual Journal Entries (/financial/manual-journal-entries)',
         items: [
-          'MAJOR / MINOR / PATCH semver cards with color-coded top borders and trigger pill examples',
-          '12 commit prefix cards: feat, fix, refactor, schema, ui, perf, chore, docs, breaking, api, auth, seed',
-          '16 OTS module scope identifiers with numeric chips (01 projects → 15 ai → system)',
-          'Real example blocks: Planning, Procurement, Breaking/Schema, and Chores/System — each with version bump badge',
-          'Breaking change syntax note: ! shorthand and BREAKING CHANGE: footer usage',
+          'Multi-line double-entry form with live balance indicator (green = balanced, amber = unbalanced with Δ shown)',
+          'Journal code selector with OD / AN / RAN / BQ / VTE / ACH / SAL definitions and use descriptions',
+          'Collapsible Journal Guide explaining double-entry rules, normal balances per account type, and common transaction patterns',
+          'COA combobox with search, account type badges, and autoFocus on open',
+          'Entries saved as is_locked=1 (survive sync cycles); piece_num starts at 9000001',
+          'DELETE support — remove all lines for a journal entry by piece_num',
+          'Sidebar link under Financial section with BookOpen icon',
         ],
       },
-      'Settings "Commits" tab — GitCommitHorizontal icon tab in /settings routing to /settings/commits',
     ],
     fixed: [
-      'CI npm error code EJSONPARSE — malformed package.json on the deployment branch was blocking npm ci in the Deploy to Digital Ocean workflow',
+      'Financial dashboard Revenue = 0 — decoupled revenue/expense/salary calculations from COA account_type; now uses source_type + journal_code + label prefix filtering on fin_journal_entries',
+      'Balance sheet unbalanced by ~12.3M SAR — bank account codes from fin_bank_accounts now auto-inserted into fin_chart_of_accounts (INSERT IGNORE) during every sync cycle',
+      'Balance sheet P&L lines — revenue, expense, and salary totals now derived from source_type queries matching the dashboard approach',
+      'PWA install prompt "Don\'t show again" — ManualInstallGuide now receives onDismissPermanently prop and correctly writes to localStorage instead of sessionStorage',
+      'Statement of Account mobile search — replaced shadcn Select (no search on mobile) with a custom combobox component matching the Aging report pattern',
     ],
-    changed: [],
+    changed: [
+      'Statement of Account — added Current Outstanding stat card (sum of remainToPay across all report lines) alongside Total Invoiced, Total Paid, and Period Balance',
+      'Statement of Account — AR type shown with green badge, AP type shown with red badge for visual distinction',
+      'Removed deprecated financial pages: /financial/account-mapping, /financial/product-categories, /financial/supplier-classification (replaced by /financial/product-coa-mapping)',
+    ],
   },
 };
 

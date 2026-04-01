@@ -124,6 +124,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/reports/assets': ['financial.view'],
   '/financial/reports/salaries': ['financial.view'],
   '/financial/journal-entries': ['financial.view'],
+  '/financial/manual-journal-entries': ['financial.manage', 'financial.view'],
   '/financial/account-mapping': ['financial.manage', 'financial.view'],
   '/financial/product-categories': ['financial.manage', 'financial.view'],
   '/financial/supplier-classification': ['financial.manage', 'financial.view'],

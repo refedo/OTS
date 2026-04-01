@@ -20,7 +20,7 @@ function detectBrowser(): BrowserType {
   return 'other';
 }
 
-function ManualInstallGuide({ browser, onDismiss }: { browser: BrowserType; onDismiss: () => void }) {
+function ManualInstallGuide({ browser, onDismiss, onDismissPermanently }: { browser: BrowserType; onDismiss: () => void; onDismissPermanently: () => void }) {
   const steps: Record<BrowserType, { icon: React.ReactNode; steps: string[] }> = {
     'chrome-android': {
       icon: <MoreVertical className="h-4 w-4" />,
@@ -86,10 +86,7 @@ function ManualInstallGuide({ browser, onDismiss }: { browser: BrowserType; onDi
             <Button size="sm" variant="ghost" onClick={onDismiss}>
               Got it
             </Button>
-            <Button size="sm" variant="link" className="text-xs text-muted-foreground" onClick={() => {
-              localStorage.setItem('pwa-install-dismissed-permanently', 'true');
-              onDismiss();
-            }}>
+            <Button size="sm" variant="link" className="text-xs text-muted-foreground" onClick={onDismissPermanently}>
               Don't show again
             </Button>
           </div>
@@ -143,13 +140,13 @@ export function PwaInstallPrompt() {
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    // If beforeinstallprompt doesn't fire within 3s, show manual guide
+    // If beforeinstallprompt doesn't fire within 15s, show manual guide
     const timeout = setTimeout(() => {
       if (!promptFired) {
         setPromptChecked(true);
         setShowManualGuide(true);
       }
-    }, 3000);
+    }, 15000);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
@@ -184,7 +181,7 @@ export function PwaInstallPrompt() {
   // Show manual guide for browsers that don't support beforeinstallprompt
   if (showManualGuide && !deferredPrompt) {
     const browser = detectBrowser();
-    return <ManualInstallGuide browser={browser} onDismiss={handleDismiss} />;
+    return <ManualInstallGuide browser={browser} onDismiss={handleDismiss} onDismissPermanently={handleDismissPermanently} />;
   }
 
   // Native install prompt available
