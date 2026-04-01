@@ -423,6 +423,17 @@ export default function ManualJournalEntriesClient() {
         </Button>
       </div>
 
+      {accounts.length > 0 && accounts.filter(a => a.account_type === 'equity').length === 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20 p-3 text-sm">
+          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <span className="text-amber-800 dark:text-amber-300">
+            No equity accounts found in Chart of Accounts.{' '}
+            <a href="/financial/chart-of-accounts" className="underline font-medium">Add equity accounts</a>
+            {' '}(e.g. Capital Account, Retained Earnings) before creating equity journal entries.
+          </span>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Entries ({entries.length})</CardTitle>
