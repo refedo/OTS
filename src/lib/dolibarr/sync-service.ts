@@ -307,6 +307,7 @@ export class DolibarrSyncService {
               address = ?, zip = ?, town = ?, state_code = ?, country_code = ?,
               tva_intra = ?, capital = ?, status = ?,
               note_public = ?, note_private = ?,
+              outstanding_limit = ?,
               dolibarr_created_at = ?, dolibarr_updated_at = ?,
               last_synced_at = NOW(), sync_hash = ?, is_active = 1
             WHERE dolibarr_id = ?
@@ -318,6 +319,7 @@ export class DolibarrSyncService {
             party.address, party.zip, party.town, party.state_code, party.country_code,
             party.tva_intra, parseFloat_(party.capital), parseInt_(party.status) ?? 1,
             party.note_public, party.note_private,
+            parseFloat_((party as any).outstanding_limit) ?? null,
             dolibarrCreated, dolibarrUpdated,
             newHash, dolibarrId
           );
@@ -331,9 +333,10 @@ export class DolibarrSyncService {
               address, zip, town, state_code, country_code,
               tva_intra, capital, status,
               note_public, note_private,
+              outstanding_limit,
               dolibarr_created_at, dolibarr_updated_at,
               first_synced_at, last_synced_at, sync_hash, is_active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)
           `,
             dolibarrId, party.name, party.name_alias,
             parseInt_(party.client) ?? 0, parseInt_(party.fournisseur) ?? 0,
@@ -342,6 +345,7 @@ export class DolibarrSyncService {
             party.address, party.zip, party.town, party.state_code, party.country_code,
             party.tva_intra, parseFloat_(party.capital), parseInt_(party.status) ?? 1,
             party.note_public, party.note_private,
+            parseFloat_((party as any).outstanding_limit) ?? null,
             dolibarrCreated, dolibarrUpdated,
             newHash
           );

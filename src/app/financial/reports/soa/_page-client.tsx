@@ -610,14 +610,19 @@ export default function SOAReportPage() {
             </CardHeader>
             <CardContent>
               {(() => {
+                const today = new Date().toISOString().slice(0, 10);
                 const totalRemaining = (report.lines as any[])
                   .filter((l: any) => l.remainToPay !== null && l.remainToPay > 0)
+                  .reduce((s: number, l: any) => s + Number(l.remainToPay), 0);
+                const overdueBalance = (report.lines as any[])
+                  .filter((l: any) => l.remainToPay > 0 && l.dateDue && l.dateDue < today)
                   .reduce((s: number, l: any) => s + Number(l.remainToPay), 0);
                 const paidPct = report.totalInvoiced > 0
                   ? Math.round((report.totalPaid / report.totalInvoiced) * 100)
                   : 0;
+                const cols = report.creditLimit != null ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4';
                 return (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  <div className={cn('grid gap-3 mb-6', cols)}>
                     <div className="p-3 border rounded-lg text-center">
                       <div className="text-xs text-muted-foreground">Total Invoiced</div>
                       <div className="text-base font-bold">{formatSAR(report.totalInvoiced)}</div>
@@ -628,21 +633,38 @@ export default function SOAReportPage() {
                       <div className="text-xs text-muted-foreground">{paidPct}% collected</div>
                     </div>
                     <div className="p-3 border rounded-lg text-center">
-                      <div className="text-xs text-muted-foreground">Period Balance</div>
-                      <div className={`text-base font-bold ${report.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatSAR(report.balance)}
+                      <div className="text-xs text-muted-foreground">Overdue Balance</div>
+                      <div className={`text-base font-bold ${overdueBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatSAR(overdueBalance)}
                       </div>
+                      <div className="text-xs text-muted-foreground">past due date</div>
                     </div>
                     <div className={cn(
                       'p-3 border-2 rounded-lg text-center',
                       type === 'ar' ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20' : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20',
                     )}>
-                      <div className="text-xs text-muted-foreground">Current Outstanding</div>
+                      <div className="text-xs text-muted-foreground">Total Outstanding</div>
                       <div className={`text-base font-bold ${type === 'ar' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                         {formatSAR(totalRemaining)}
                       </div>
                       <div className="text-xs text-muted-foreground">remaining to pay</div>
                     </div>
+                    {report.creditLimit != null && (
+                      <div className="p-3 border rounded-lg text-center border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
+                        <div className="text-xs text-muted-foreground">Credit Limit</div>
+                        <div className="text-base font-bold text-amber-700 dark:text-amber-400">
+                          {formatSAR(report.creditLimit)}
+                        </div>
+                        <div className={cn(
+                          'text-xs font-medium',
+                          totalRemaining > report.creditLimit ? 'text-red-600' : 'text-green-600',
+                        )}>
+                          {totalRemaining > report.creditLimit
+                            ? `Over by ${formatSAR(totalRemaining - report.creditLimit)}`
+                            : `${formatSAR(report.creditLimit - totalRemaining)} available`}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}

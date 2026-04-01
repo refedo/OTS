@@ -61,8 +61,9 @@ export async function GET(req: NextRequest) {
     const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
     const fileName = path.basename(diskPath);
 
-    // PDFs open inline; everything else triggers a download
-    const disposition = contentType === 'application/pdf'
+    // Images and PDFs open inline in the browser; office documents trigger a download
+    const viewInline = contentType === 'application/pdf' || contentType.startsWith('image/');
+    const disposition = viewInline
       ? `inline; filename="${fileName}"`
       : `attachment; filename="${fileName}"`;
 

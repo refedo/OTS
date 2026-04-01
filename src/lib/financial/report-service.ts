@@ -908,6 +908,7 @@ export class FinancialReportService {
 
       allLines.push({
         date: inv.date_invoice ? new Date(inv.date_invoice).toISOString().slice(0, 10) : '',
+        dateDue: inv.date_due ? new Date(inv.date_due).toISOString().slice(0, 10) : null,
         sortDate: inv.date_invoice ? new Date(inv.date_invoice).getTime() : 0,
         ref: inv.ref,
         refSupplier: type === 'ap' ? (inv.ref_supplier || null) : null,
@@ -956,6 +957,18 @@ export class FinancialReportService {
     const totalInvoiced = invoices.reduce((s, inv) => s + Number(inv.total_ttc), 0);
     const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
 
+    // Credit limit (stored as outstanding_limit in dolibarr_thirdparties if the column exists)
+    let creditLimit: number | null = null;
+    try {
+      const clRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT outstanding_limit FROM dolibarr_thirdparties WHERE dolibarr_id = ? LIMIT 1`,
+        thirdpartyId
+      );
+      if (clRows[0]?.outstanding_limit != null) {
+        creditLimit = Number(clRows[0].outstanding_limit);
+      }
+    } catch { /* column may not exist yet */ }
+
     return {
       thirdpartyId,
       thirdpartyName,
@@ -966,6 +979,7 @@ export class FinancialReportService {
       totalInvoiced,
       totalPaid,
       balance: totalInvoiced - totalPaid,
+      creditLimit,
     };
   }
 

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, Eye, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
 
 interface ActivityLog {
   id: string;
@@ -610,6 +610,9 @@ export default function BacklogItemDetail() {
                 ) : (
                   item.attachments.map((file, index) => {
                     const isImage = file.fileType.startsWith('image/');
+                    const isPdf = file.fileType === 'application/pdf';
+                    const viewable = isImage || isPdf;
+                    const fileUrl = `/api/files?path=${encodeURIComponent(file.filePath)}`;
                     return (
                       <div
                         key={index}
@@ -620,19 +623,25 @@ export default function BacklogItemDetail() {
                         ) : (
                           <FileText className="size-4 text-muted-foreground shrink-0" />
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{file.fileName}</p>
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 min-w-0 group"
+                        >
+                          <p className="text-sm font-medium truncate group-hover:underline">{file.fileName}</p>
                           <p className="text-xs text-muted-foreground">
                             {file.fileSize < 1024 * 1024
                               ? `${(file.fileSize / 1024).toFixed(1)} KB`
                               : `${(file.fileSize / (1024 * 1024)).toFixed(1)} MB`}
                             {' · '}
                             {new Date(file.uploadedAt).toLocaleDateString()}
+                            {viewable && <span className="ml-1 text-blue-500">· click to view</span>}
                           </p>
-                        </div>
-                        <a href={`/api/files?path=${encodeURIComponent(file.filePath)}`} target="_blank" rel="noopener noreferrer">
-                          <Button variant="ghost" size="icon" className="size-7 shrink-0">
-                            <Download className="size-4" />
+                        </a>
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer">
+                          <Button variant="ghost" size="icon" className="size-7 shrink-0" title={viewable ? 'View' : 'Download'}>
+                            {viewable ? <Eye className="size-4" /> : <Download className="size-4" />}
                           </Button>
                         </a>
                       </div>
