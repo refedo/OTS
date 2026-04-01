@@ -53,6 +53,8 @@ import {
   Package,
   Truck,
   CalendarClock,
+  Plug,
+  Cloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -274,6 +276,16 @@ const navigationSections: NavigationSection[] = [
     icon: Database,
     items: [
       { name: 'Integration Dashboard', href: '/dolibarr', icon: Database },
+    ],
+  },
+  {
+    name: 'Integrations',
+    icon: Plug,
+    items: [
+      { name: 'Integration Settings', href: '/settings/integrations', icon: Plug },
+      { name: 'open-audit Events', href: '/api/integrations/open-audit/events', icon: Shield },
+      { name: 'Nextcloud Files', href: '/api/integrations/nextcloud/files', icon: Cloud },
+      { name: 'Libre MES Sync', href: '/api/integrations/libre-mes/sync', icon: Factory },
     ],
   },
   {
