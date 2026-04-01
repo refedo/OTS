@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const lineSchema = z.object({
   account_code: z.string().min(1).max(20),
-  label: z.string().min(1).max(500),
+  label: z.string().max(500).default(''),
   debit: z.number().min(0),
   credit: z.number().min(0),
 });
