@@ -264,9 +264,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen },
       { name: 'Journal Entries', href: '/financial/journal-entries', icon: List },
       { name: 'Cost Classification', href: '/financial/product-coa-mapping', icon: Layers },
-      { name: 'Account Mapping', href: '/financial/account-mapping', icon: GitBranch },
-      { name: 'Product Categories', href: '/financial/product-categories', icon: Package },
-      { name: 'Supplier Classification', href: '/financial/supplier-classification', icon: Building2 },
+
       { name: 'Settings', href: '/financial/settings', icon: Settings },
     ],
   },
