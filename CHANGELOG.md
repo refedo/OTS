@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.4.1] - 2026-04-01
+
+### Financial UX & Deploy Optimizations (Patch Release)
+
+**Patch Release:** Redesigns the Aging Report to match the Statement of Account style. Improves the SOA with separate Overdue Balance and Total Outstanding cards plus a Credit Limit indicator. Adds a year selector to the Balance Sheet. Highlights stale account codes in Financial Settings. Enables inline viewing of image/PDF attachments in the Backlog. Optimizes the GitHub Actions deploy workflow with conditional dependency installs and zero-downtime `pm2 reload`.
+
+#### Added
+
+- **Aging Report redesign** — Matches SOA style with AR/AP toggle buttons (green/red), 6 bucket summary stat cards (Current, 1–30, 31–60, 61–90, 90+, Total), color-coded table columns per aging bucket, mobile-responsive hidden columns for mid-range buckets, and invoice-level expand rows showing overdue days in red/green
+- **Statement of Account — Credit Limit card** — 5th stat card (amber) showing the supplier's `outstanding_limit` from Dolibarr; displays "Over by SAR X" in red or "SAR X available" in green; requires `add_credit_limit_to_thirdparties.sql` migration
+- **Balance Sheet — Year selector** — Quick-select dropdown for 5 years back (sets `as_of_date` to Dec 31 of selected year) alongside the existing custom date input
+- **Financial Settings — Stale code detection** — Each account code field now checks whether the stored code exists in the current COA; shows amber `⚠ Stale: {code} not in COA` badge and amber Select border when stale; summary warning banner at the bottom if any field is stale, guiding the user to update codes and re-run sync
+- **DB migration `add_is_locked_journal_entries.sql`** — Adds `is_locked TINYINT(1) DEFAULT 0` column to `fin_journal_entries` for production databases missing the column; fixes Manual Journal Entries saving on legacy installs
+
+#### Fixed
+
+- **Manual Journal Entries not saving on production** — Root cause: `fin_journal_entries.is_locked` column absent from databases created before the column was added to the schema. Fixed via `prisma/manual_migrations/add_is_locked_journal_entries.sql`
+- **SOA Outstanding showing same number as Overdue** — SOA lines now carry `dateDue`; the client separates "Overdue Balance" (past-due invoices only) from "Total Outstanding" (all unpaid), matching the Aging Report totals
+- **Backlog attachments forced download** — Images and PDFs now served with `Content-Disposition: inline` and opened in a new tab via an `<a target="_blank">` link; Eye icon replaces Download icon for viewable file types
+
+#### Changed
+
+- **Deploy workflow** — Build cache key now keyed only on `package-lock.json` hash (was also hashing all `.ts`/`.tsx` files), enabling incremental webpack module cache reuse across code-only commits (~30–40% faster builds)
+- **Deploy workflow** — `npm ci --omit=dev` now runs conditionally only when `package.json` md5sum changes; `npx prisma generate` runs conditionally only when `prisma/schema.prisma` changes; saves ~1–2 min per deployment
+- **Deploy workflow** — Switched from `pm2 stop + pm2 restart` to `pm2 reload hexa-steel-ots --update-env` for zero-downtime hot reload (workers replaced one at a time, no traffic interruption)
+
+---
+
 ## [17.4.0] - 2026-04-01
 
 ### Financial Accuracy & Manual Journal Entries (Minor Release)
