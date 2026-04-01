@@ -36,7 +36,7 @@ const COMPLETION_ACTIVITIES = new Set(['design', 'detailing']);
 const PRODUCTION_PROCESS_TYPES: Record<string, string[]> = {
   production: ['Fit-up', 'Welding', 'Visualization'],
   coating: ['Sandblasting', 'Painting', 'Galvanization'],
-  dispatch: ['Dispatch'],
+  dispatch: ['Dispatched to Customer'],
   erection: ['Erection'],
 };
 
@@ -75,6 +75,7 @@ interface ProcurementDetail {
 
 interface ProductionDetail {
   totalWeight: number;
+  dispatchedWeight: number;
   processes: { name: string; processedWeight: number; percentage: number }[];
 }
 
@@ -479,8 +480,13 @@ async function computeProductionProgress(
   }
   const pct = Math.round(totalPct / processTypes.length);
 
+  const dispatchedWeight = processTypes.includes('Dispatched to Customer')
+    ? Math.round((weightByProcess.get('Dispatched to Customer') || 0) * 100) / 100
+    : 0;
+
   const detail: ProductionDetail = {
     totalWeight: Math.round(totalWeight * 100) / 100,
+    dispatchedWeight,
     processes,
   };
 
