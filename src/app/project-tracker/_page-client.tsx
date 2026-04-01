@@ -52,6 +52,7 @@ interface ProcurementDetail {
 
 interface ProductionDetail {
   totalWeight: number;
+  dispatchedWeight: number;
   processes: { name: string; processedWeight: number; percentage: number }[];
 }
 
@@ -341,25 +342,58 @@ function DetailPopover({
       {/* Production details */}
       {activity.details.production && (
         <div className={`rounded-md p-2 border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}>
-          <div className={`mb-1.5 ${muted}`}>
-            <Weight className="w-3 h-3 inline mr-1" />
-            Total Weight: {formatWeight(activity.details.production.totalWeight)}
-          </div>
-          <div className="space-y-1">
-            {activity.details.production.processes.map((p) => (
-              <div key={p.name} className="flex items-center justify-between">
-                <span className={muted}>{p.name}</span>
-                <div className="flex items-center gap-2">
-                  <span className={`tabular-nums ${p.percentage > 0 ? 'text-amber-400' : muted}`}>
-                    {formatWeight(p.processedWeight)}
-                  </span>
-                  <span className={`tabular-nums font-medium w-10 text-right ${p.percentage >= 100 ? 'text-emerald-400' : p.percentage > 0 ? 'text-amber-400' : muted}`}>
-                    {p.percentage}%
-                  </span>
-                </div>
+          {activity.activityType === 'dispatch' ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className={muted}>
+                  <Weight className="w-3 h-3 inline mr-1" />
+                  Scope Weight
+                </span>
+                <span className={`tabular-nums font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  {formatWeight(activity.details.production.totalWeight)}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="flex items-center justify-between">
+                <span className={muted}>
+                  <Weight className="w-3 h-3 inline mr-1" />
+                  Dispatched to Customer
+                </span>
+                <span className={`tabular-nums font-semibold ${activity.details.production.dispatchedWeight > 0 ? 'text-emerald-400' : muted}`}>
+                  {formatWeight(activity.details.production.dispatchedWeight)}
+                </span>
+              </div>
+              {activity.details.production.totalWeight > 0 && (
+                <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${Math.min(Math.round((activity.details.production.dispatchedWeight / activity.details.production.totalWeight) * 100), 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className={`mb-1.5 ${muted}`}>
+                <Weight className="w-3 h-3 inline mr-1" />
+                Total Weight: {formatWeight(activity.details.production.totalWeight)}
+              </div>
+              <div className="space-y-1">
+                {activity.details.production.processes.map((p) => (
+                  <div key={p.name} className="flex items-center justify-between">
+                    <span className={muted}>{p.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`tabular-nums ${p.percentage > 0 ? 'text-amber-400' : muted}`}>
+                        {formatWeight(p.processedWeight)}
+                      </span>
+                      <span className={`tabular-nums font-medium w-10 text-right ${p.percentage >= 100 ? 'text-emerald-400' : p.percentage > 0 ? 'text-amber-400' : muted}`}>
+                        {p.percentage}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
