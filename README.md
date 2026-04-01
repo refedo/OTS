@@ -1,13 +1,15 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 17.3.2 | **Release Date:** March 31, 2026
+**Version:** 17.4.0 | **Release Date:** April 1, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 17.3.2
-- **Conventional Commits Cheat Sheet** — New `/settings/commits` page with a full dark-theme reference covering semver rules, commit prefixes, OTS module scope identifiers, and real commit examples
-- **Settings Commits Tab** — A dedicated "Commits" tab in System Settings routes to the cheat sheet
-- **CI Fix** — Resolved `npm error code EJSONPARSE` caused by a malformed `package.json` pushed to the deployment branch
+### What's New in 17.4.0
+- **Manual Journal Entries** — New `/financial/manual-journal-entries` page for creating locked double-entry journal entries with live balance validation, journal code guide, and COA combobox search
+- **Financial Dashboard Fix** — Revenue and Gross Profit now correctly calculated using journal entry metadata (source_type/journal_code) instead of COA account_type; resilient to COA configuration changes
+- **Balance Sheet Accuracy** — Bank account codes are auto-added to COA during sync; balance sheet uses source_type queries for P&L lines
+- **Statement of Account UX** — Mobile-friendly combobox search for customer/supplier, Current Outstanding stat card, AR/AP color distinction (green/red)
+- **PWA Install Prompt** — "Don't show again" now correctly persists to localStorage
 
 
 

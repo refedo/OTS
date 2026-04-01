@@ -23,10 +23,54 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.4.0',
+    date: 'April 1, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '📒 Financial Accuracy & Manual Journal Entries',
+    highlights: [
+      'Manual Journal Entries — new /financial/manual-journal-entries page for creating locked double-entry journal entries with live balance validation, journal code guide (OD/AN/RAN/BQ/VTE/ACH/SAL), and COA combobox search',
+      'Financial dashboard fix — Revenue and Gross Profit now use journal entry metadata (source_type/journal_code) instead of COA account_type; resilient to COA configuration changes',
+      'Balance sheet accuracy — bank account codes auto-added to COA during sync; balance sheet P&L lines use source_type queries',
+      'Statement of Account UX — mobile combobox search, Current Outstanding stat card, AR/AP green/red color distinction',
+      "PWA install prompt — \"Don't show again\" now correctly persists to localStorage",
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Manual Journal Entries (/financial/manual-journal-entries)',
+          items: [
+            'Multi-line double-entry form with live balance indicator (green = balanced, amber = unbalanced with Δ shown)',
+            'Journal code selector with OD / AN / RAN / BQ / VTE / ACH / SAL definitions and use descriptions',
+            'Collapsible Journal Guide explaining double-entry rules, normal balances per account type, and common transaction patterns',
+            'COA combobox with search, account type badges, and autoFocus on open',
+            'Entries saved as is_locked=1 (survive sync cycles); piece_num series starts at 9,000,001',
+            'DELETE support — remove all lines for a journal entry by piece_num',
+            'Sidebar link under Financial section with BookOpen icon; permission: financial.manage or financial.view',
+            'POST /api/financial/manual-journal-entries — validates balance (debits = credits ±0.01), assigns piece_num',
+            'DELETE /api/financial/manual-journal-entries/[id] — deletes all lines for a given piece_num',
+          ],
+        },
+      ],
+      fixed: [
+        'Financial dashboard Revenue = 0 / Gross Profit = 0 — revenue, expense, and salary calculations now use source_type + journal_code + label prefix filtering; resilient to COA configuration changes',
+        'Balance sheet unbalanced (~12.3M SAR) — bank account codes from fin_bank_accounts now auto-inserted into fin_chart_of_accounts (INSERT IGNORE) during every sync cycle',
+        'Balance sheet P&L lines — revenue, expense, and salary totals now use the same source_type queries as the dashboard',
+        "PWA install prompt \"Don't show again\" not persisting — ManualInstallGuide now correctly writes to localStorage via onDismissPermanently prop",
+        'Statement of Account mobile search — replaced shadcn Select with custom ThirdpartyCombobox matching the Aging Report pattern',
+      ],
+      changed: [
+        'Statement of Account — added Current Outstanding stat card (sum of remainToPay across all report lines) in a 4-column responsive grid',
+        'Statement of Account — AR type shown with green styling, AP type with red styling for visual distinction',
+        'Removed deprecated financial pages: /financial/account-mapping, /financial/product-categories, /financial/supplier-classification',
+      ],
+    },
+  },
+  {
     version: '17.3.2',
     date: 'March 31, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🛠️ Settings & Developer Experience',
     highlights: [
       'Conventional Commits Cheat Sheet — new /settings/commits page with a full dark-theme reference covering semver rules, all 12 commit prefixes, OTS module scope identifiers, and real commit examples with bump badges',

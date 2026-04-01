@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.4.0] - 2026-04-01
+
+### Financial Accuracy & Manual Journal Entries (Minor Release)
+
+**Minor Release:** Introduces the Manual Journal Entries page for creating locked double-entry journal entries directly in OTS. Fixes the financial dashboard Revenue/Gross Profit showing zero after COA configuration changes by decoupling calculations from COA `account_type`. Resolves the ~12.3M SAR balance sheet imbalance by auto-inserting bank account codes into the COA during sync. Improves the Statement of Account with mobile-friendly combobox search, a Current Outstanding stat card, and AR/AP color distinction.
+
+#### Added
+
+- **Manual Journal Entries** (`/financial/manual-journal-entries`) — New page for accountants to create locked double-entry journal entries:
+  - Multi-line form with debit/credit columns; live balance indicator (green = balanced, amber = unbalanced with Δ shown)
+  - **Journal Code selector** — OD (Opening/Adjusting), AN (Year-End Closing), RAN (Reversal), BQ (Bank/Treasury), VTE (Sales), ACH (Purchases), SAL (Payroll) — each with color badge and use description
+  - **Collapsible Journal Guide** — double-entry rules, normal balance per account type (Asset/Expense: debit↑; Liability/Equity/Revenue: credit↑), and six common transaction examples
+  - **COA Combobox** — searchable chart-of-accounts selector with account type badges and autoFocus on open
+  - Entries saved as `is_locked=1` in `fin_journal_entries` — survive all sync cycles; piece_num series starts at 9,000,001
+  - DELETE support — removes all lines for a piece_num where `is_locked=1`
+  - Sidebar link under Financial section (BookOpen icon); permission: `financial.manage` or `financial.view`
+  - `POST /api/financial/manual-journal-entries` — validates balance (debits = credits ±0.01), assigns piece_num, inserts locked entries
+  - `DELETE /api/financial/manual-journal-entries/[id]` — deletes all lines for a given piece_num
+
+#### Fixed
+
+- **Financial dashboard Revenue = 0 / Gross Profit = 0** — Revenue, expense, and salary calculations now use journal entry metadata (`source_type`, `journal_code`, `label LIKE`) instead of a COA INNER JOIN filtered by `account_type`. This makes the dashboard resilient to COA configuration changes (e.g., switching from French to Saudi account codes).
+- **Balance sheet unbalanced (~12.3M SAR)** — Bank account codes from `fin_bank_accounts.account_number` are now auto-inserted into `fin_chart_of_accounts` (`INSERT IGNORE`) during every journal generation cycle. Previously these codes were used in payment journal entries but absent from the COA, making all bank assets invisible in the balance sheet.
+- **Balance sheet P&L lines** — Revenue, expense, and salary totals in the balance sheet now use the same `source_type` queries as the dashboard for accurate and consistent figures.
+- **PWA install prompt "Don't show again" not persisting** — `ManualInstallGuide` now receives an `onDismissPermanently` prop that correctly writes to `localStorage`. Previously it called `onDismiss` which only wrote to `sessionStorage`, causing the prompt to reappear on the next session.
+- **Statement of Account mobile search broken** — Replaced the shadcn `Select` (no search capability on mobile) with a custom `ThirdpartyCombobox` component matching the Aging Report pattern — renders a visible text input for filtering, works on all screen sizes.
+
+#### Changed
+
+- **Statement of Account** — Added **Current Outstanding** stat card (sum of `remainToPay` across all report lines, i.e., what is actually owed today), displayed alongside Total Invoiced, Total Paid, and Period Balance in a responsive 4-column grid.
+- **Statement of Account** — AR (Accounts Receivable) type toggle shown with green styling; AP (Accounts Payable) with red styling for clear visual distinction.
+- **Removed deprecated financial pages** — `/financial/account-mapping`, `/financial/product-categories`, and `/financial/supplier-classification` deleted; replaced by the unified `/financial/product-coa-mapping` workflow.
+
+---
+
 ## [17.3.2] - 2026-03-31
 
 ### Settings & Developer Experience (Patch Release)
