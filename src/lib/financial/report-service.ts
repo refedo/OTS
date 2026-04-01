@@ -612,52 +612,56 @@ export class FinancialReportService {
     let costOfSales = 0, salariesExpense = 0;
     let totalAssets = 0, totalEquity = 0;
 
+    // Revenue: customer invoice journal entries (journal_code VTE, label 'Revenue -')
+    // Using source_type directly avoids dependency on fin_chart_of_accounts account_type,
+    // which may not match if the COA was synced from Dolibarr with different account codes.
     try {
       const revRows: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(je.credit) - SUM(je.debit), 0) as total
-        FROM fin_journal_entries je
-        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
-        WHERE coa.account_type = 'revenue' AND je.entry_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(credit) - SUM(debit), 0) as total
+        FROM fin_journal_entries
+        WHERE source_type = 'customer_invoice' AND journal_code = 'VTE'
+          AND label LIKE 'Revenue -%'
+          AND entry_date BETWEEN ? AND ?
       `, fromDate, toDate);
       totalRevenue = Number(revRows[0]?.total || 0);
     } catch { /* */ }
 
+    // Expenses: supplier invoice journal entries (journal_code ACH, label 'Expense -')
     try {
       const expRows: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(je.debit) - SUM(je.credit), 0) as total
-        FROM fin_journal_entries je
-        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
-        WHERE coa.account_type = 'expense' AND je.entry_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(debit) - SUM(credit), 0) as total
+        FROM fin_journal_entries
+        WHERE source_type = 'supplier_invoice' AND journal_code = 'ACH'
+          AND label LIKE 'Expense -%'
+          AND entry_date BETWEEN ? AND ?
       `, fromDate, toDate);
       totalExpenses = Number(expRows[0]?.total || 0);
     } catch { /* */ }
 
-    // Cost of Sales (COGS) for gross margin
+    // Cost of Sales (COGS): use product-coa-mapping to identify COGS lines directly
+    // from supplier invoice lines, independent of journal entry account_type classification.
     try {
       const cogsRows: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(je.debit) - SUM(je.credit), 0) as total
-        FROM fin_journal_entries je
-        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
-        WHERE coa.account_type = 'expense' AND coa.account_category = 'Cost of Sales'
-          AND je.entry_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(sil.total_ht), 0) as total
+        FROM fin_supplier_invoice_lines sil
+        JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
+        JOIN fin_product_coa_mapping pm ON pm.dolibarr_product_id = sil.fk_product
+        JOIN fin_chart_of_accounts coa ON coa.account_code = pm.coa_account_code
+        WHERE coa.account_category = 'Cost of Sales'
+          AND si.is_active = 1 AND si.status >= 1
+          AND si.date_invoice BETWEEN ? AND ?
       `, fromDate, toDate);
       costOfSales = Number(cogsRows[0]?.total || 0);
     } catch { /* */ }
 
-    // Salaries expense - match Dolibarr CoA codes: 4102 (Salaries), 4103 (Allowances), 42001 (Operational Salaries)
+    // Salaries: salary journal entries (journal_code SAL, source_type salary)
     try {
       const salRows: any[] = await prisma.$queryRawUnsafe(`
-        SELECT COALESCE(SUM(je.debit) - SUM(je.credit), 0) as total
-        FROM fin_journal_entries je
-        JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
-        WHERE coa.account_type = 'expense'
-          AND (coa.account_code LIKE '4102%' OR coa.account_code LIKE '4103%' OR coa.account_code LIKE '42001%'
-               OR coa.account_code LIKE '4115%' OR coa.account_code LIKE '4118%'
-               OR coa.account_code LIKE '620%' OR coa.account_code LIKE '631%'
-               OR coa.account_name LIKE '%Salar%' OR coa.account_name LIKE '%Wage%'
-               OR coa.account_name LIKE '%Allowance%' OR coa.account_name LIKE '%Bonus%'
-               OR coa.account_name LIKE '%رواتب%' OR coa.account_name LIKE '%بدل%')
-          AND je.entry_date BETWEEN ? AND ?
+        SELECT COALESCE(SUM(debit) - SUM(credit), 0) as total
+        FROM fin_journal_entries
+        WHERE source_type = 'salary' AND journal_code = 'SAL'
+          AND debit > 0
+          AND entry_date BETWEEN ? AND ?
       `, fromDate, toDate);
       salariesExpense = Number(salRows[0]?.total || 0);
     } catch { /* */ }
@@ -753,11 +757,9 @@ export class FinancialReportService {
       } catch { /* */ }
     }
 
-    // Add salaries to total expenses if not already included via journal entries
-    // Check if salaries are already part of totalExpenses by comparing
-    const expensesIncludingSalaries = totalExpenses + (salariesExpense > 0 && totalExpenses > 0 && salariesExpense > totalExpenses ? 0 : 0);
-    // Always ensure salaries are counted in expenses
-    const totalExpensesWithSalaries = totalExpenses > salariesExpense ? totalExpenses : totalExpenses + salariesExpense;
+    // Supplier invoice expenses and salary expenses are from separate journal sources,
+    // so always add them together.
+    const totalExpensesWithSalaries = totalExpenses + salariesExpense;
 
     // Project count
     let projectCount = 0;
