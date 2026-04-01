@@ -43,7 +43,8 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deploy-package
-          cp -r .next deploy-package/
+          # Copy .next but exclude the webpack module cache (not needed at runtime, ~200-400MB)
+          rsync -a --exclude='cache' .next/ deploy-package/.next/
           cp -r public deploy-package/ || true
           cp -r prisma deploy-package/
           cp package*.json deploy-package/
@@ -74,7 +75,7 @@ jobs:
             cd "$APP_DIR"
 
             # ── 1. Capture what changed before extracting ────────────────────
-            PREV_PKG_HASH=$(md5sum package.json 2>/dev/null | cut -d' ' -f1 || echo "none")
+            PREV_PKG_HASH=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1 || echo "none")
             PREV_SCHEMA_HASH=$(md5sum prisma/schema.prisma 2>/dev/null | cut -d' ' -f1 || echo "none")
 
             # ── 2. Extract pre-built artifacts (built in CI) ─────────────────
@@ -83,12 +84,12 @@ jobs:
             tar -xzf /tmp/deploy.tar.gz -C "$APP_DIR"
             rm -f /tmp/deploy.tar.gz
 
-            NEW_PKG_HASH=$(md5sum package.json 2>/dev/null | cut -d' ' -f1 || echo "none")
+            NEW_PKG_HASH=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1 || echo "none")
             NEW_SCHEMA_HASH=$(md5sum prisma/schema.prisma 2>/dev/null | cut -d' ' -f1 || echo "none")
 
-            # ── 3. Install deps only when package.json changed ───────────────
+            # ── 3. Install deps only when package-lock.json changed ─────────
             if [ "$PREV_PKG_HASH" != "$NEW_PKG_HASH" ]; then
-              echo "package.json changed — installing production dependencies..."
+              echo "package-lock.json changed — installing production dependencies..."
               npm ci --omit=dev
             else
               echo "package.json unchanged — skipping npm ci"

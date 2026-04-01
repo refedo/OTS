@@ -386,10 +386,14 @@ export class FinancialSyncService {
 
           const fkProjet = pi(inv.fk_project || inv.fk_projet);
 
+          const lineProductSig = Array.isArray(inv.lines)
+            ? inv.lines.map((l: any) => `${pi(l.rowid)}:${pi(l.fk_product) ?? 0}`).sort().join(',')
+            : '';
           const hashFields = {
             ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye,
             total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
             date_echeance: inv.date_echeance, fk_project: fkProjet || null,
+            line_products: lineProductSig,
           };
           const newHash = computeHash(hashFields);
 
@@ -560,10 +564,14 @@ export class FinancialSyncService {
 
           const fkProjet = pi(inv.fk_project || inv.fk_projet);
 
+          const lineProductSig = Array.isArray(inv.lines)
+            ? inv.lines.map((l: any) => `${pi(l.rowid)}:${pi(l.fk_product) ?? 0}`).sort().join(',')
+            : '';
           const hashFields = {
             ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye || inv.paid,
             total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
             date_echeance: inv.date_echeance, fk_project: fkProjet || null,
+            line_products: lineProductSig,
           };
           const newHash = computeHash(hashFields);
 
