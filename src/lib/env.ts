@@ -124,7 +124,12 @@ function validateEnv(): EnvConfig {
 }
 
 // Validate once at module load time — crashes early if env is misconfigured.
-// In test environments, skip validation to allow partial env setups.
-export const env: EnvConfig = process.env.NODE_ENV === 'test'
+// Skip validation during `next build` (NEXT_PHASE=phase-production-build) and
+// in test environments to allow partial env setups.
+const skipValidation =
+  process.env.NODE_ENV === 'test' ||
+  process.env.NEXT_PHASE === 'phase-production-build';
+
+export const env: EnvConfig = skipValidation
   ? (process.env as unknown as EnvConfig)
   : validateEnv();
