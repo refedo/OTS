@@ -89,6 +89,20 @@ export async function GET(req: Request) {
       params.push(category);
     }
 
+    // Load all relevant config values in one query
+    const configRows: any[] = await prisma.$queryRawUnsafe(`
+      SELECT config_key, config_value FROM fin_config
+      WHERE config_key IN ('default_ap_account', 'vat_input_15_account', 'vat_input_5_account', 'default_expense_account')
+    `);
+    const config: Record<string, string> = {};
+    for (const row of configRows) {
+      config[row.config_key] = row.config_value;
+    }
+    const apAccount = config['default_ap_account'] || '401000';
+    const vatInput15 = config['vat_input_15_account'] || '445661';
+    const vatInput5 = config['vat_input_5_account'] || '445662';
+    const defaultExpense = config['default_expense_account'] || '5';
+
     // Get supplier invoice lines with proper categorization
     const invoiceLines: any[] = await prisma.$queryRawUnsafe(`
       SELECT
@@ -111,7 +125,7 @@ export async function GET(req: Request) {
         sil.accounting_code,
         COALESCE(dam.ots_cost_category, 'Other / Unclassified') as cost_category,
         COALESCE(dam.dolibarr_account_label, sil.product_label, 'Expense') as account_name,
-        COALESCE(dam.ots_coa_code, '601000') as expense_account_code
+        COALESCE(dam.ots_coa_code, ?) as expense_account_code
       FROM fin_supplier_invoices si
       LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
       LEFT JOIN dolibarr_projects dp ON dp.dolibarr_id = si.fk_projet
@@ -119,20 +133,7 @@ export async function GET(req: Request) {
       LEFT JOIN fin_dolibarr_account_mapping dam ON dam.dolibarr_account_id = sil.accounting_code
       ${where}
       ORDER BY si.date_invoice DESC, si.ref, sil.id
-    `, ...params);
-
-    // Get config for account codes
-    const configRows: any[] = await prisma.$queryRawUnsafe(`
-      SELECT config_key, config_value FROM fin_config 
-      WHERE config_key IN ('default_ap_account', 'vat_input_15_account', 'vat_input_5_account')
-    `);
-    const config: Record<string, string> = {};
-    for (const row of configRows) {
-      config[row.config_key] = row.config_value;
-    }
-    const apAccount = config['default_ap_account'] || '401000';
-    const vatInput15 = config['vat_input_15_account'] || '445661';
-    const vatInput5 = config['vat_input_5_account'] || '445662';
+    `, defaultExpense, ...params);
 
     // Group lines by invoice to create journal entries
     const invoiceMap = new Map<number, any>();

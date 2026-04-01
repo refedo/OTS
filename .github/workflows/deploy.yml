@@ -32,7 +32,7 @@ jobs:
         run: npm ci
 
       - name: Build application
-        run: npx prisma generate && NODE_OPTIONS=--max-old-space-size=4096 npx next build
+        run: npx prisma generate && NODE_OPTIONS=--max-old-space-size=4096 npx next build --turbopack
         env:
           NODE_ENV: production
           # No NEXT_PUBLIC_BASE_PATH - nginx proxies ots.hexasteel.sa directly to localhost:3000
