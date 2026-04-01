@@ -1,15 +1,16 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 17.4.0 | **Release Date:** April 1, 2026
+**Version:** 17.4.1 | **Release Date:** April 1, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 17.4.0
-- **Manual Journal Entries** — New `/financial/manual-journal-entries` page for creating locked double-entry journal entries with live balance validation, journal code guide, and COA combobox search
-- **Financial Dashboard Fix** — Revenue and Gross Profit now correctly calculated using journal entry metadata (source_type/journal_code) instead of COA account_type; resilient to COA configuration changes
-- **Balance Sheet Accuracy** — Bank account codes are auto-added to COA during sync; balance sheet uses source_type queries for P&L lines
-- **Statement of Account UX** — Mobile-friendly combobox search for customer/supplier, Current Outstanding stat card, AR/AP color distinction (green/red)
-- **PWA Install Prompt** — "Don't show again" now correctly persists to localStorage
+### What's New in 17.4.1
+- **Aging Report Redesign** — Matches SOA style with AR/AP toggle buttons, 6 bucket summary cards (Current, 1-30, 31-60, 61-90, 90+, Total), and color-coded table columns
+- **Statement of Account** — Overdue Balance (past-due only) vs Total Outstanding (all unpaid) shown as separate stat cards; Credit Limit card with headroom/over-limit indicator
+- **Balance Sheet Year Selector** — Quick year dropdown (5 years) alongside custom date input for faster period navigation
+- **Financial Settings** — Stale account code detection: amber warnings when stored codes no longer exist in COA, with re-sync guidance
+- **Backlog Attachments** — Click images and PDFs to view inline in the browser (no forced download); Eye icon for viewable files
+- **Deploy Optimizations** — Conditional `npm ci` / `prisma generate` (md5sum check), `pm2 reload` for zero-downtime restarts, build cache keyed on `package-lock.json` only
 
 
 
