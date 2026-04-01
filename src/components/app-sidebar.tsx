@@ -263,6 +263,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Expenses by Account', href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet },
       { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen },
       { name: 'Journal Entries', href: '/financial/journal-entries', icon: List },
+      { name: 'Manual Entries', href: '/financial/manual-journal-entries', icon: BookOpen },
       { name: 'Cost Classification', href: '/financial/product-coa-mapping', icon: Layers },
 
       { name: 'Settings', href: '/financial/settings', icon: Settings },

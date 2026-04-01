@@ -28,6 +28,7 @@ const CONFIG_FIELDS = [
   { key: 'vat_output_5_account', label: 'VAT Output 5%', description: 'VAT collected on sales at 5%', filterType: 'liability' },
   { key: 'vat_input_15_account', label: 'VAT Input 15%', description: 'VAT paid on purchases at 15%', filterType: 'asset' },
   { key: 'vat_input_5_account', label: 'VAT Input 5%', description: 'VAT paid on purchases at 5%', filterType: 'asset' },
+  { key: 'default_salary_account', label: 'Salaries & Wages', description: 'Expense account for salary journal entries', filterType: 'expense' },
 ];
 
 export default function FinancialSettingsPage() {

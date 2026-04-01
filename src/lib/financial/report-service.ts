@@ -365,7 +365,10 @@ export class FinancialReportService {
   // ============================================
 
   async getBalanceSheet(asOfDate: string): Promise<BalanceSheetReport> {
-    // All entries up to asOfDate
+    // Balance sheet assets/liabilities/equity from journal entries via COA join.
+    // Revenue and expenses are computed separately using source_type (same approach as
+    // the dashboard) so the net profit is accurate regardless of whether the configured
+    // account codes exist in fin_chart_of_accounts with the right account_type.
     const rows: any[] = await prisma.$queryRawUnsafe(`
       SELECT je.account_code, coa.account_name, coa.account_type, coa.account_category,
              coa.display_order,
@@ -374,6 +377,7 @@ export class FinancialReportService {
       FROM fin_journal_entries je
       JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
       WHERE je.entry_date <= ?
+        AND coa.account_type IN ('asset', 'liability', 'equity')
       GROUP BY je.account_code, coa.account_name, coa.account_type, coa.account_category, coa.display_order
       ORDER BY coa.display_order, je.account_code
     `, asOfDate);
@@ -381,8 +385,6 @@ export class FinancialReportService {
     const assetsMap = new Map<string, any[]>();
     const liabilitiesMap = new Map<string, any[]>();
     const equityMap = new Map<string, any[]>();
-    let revenueTotal = 0;
-    let expenseTotal = 0;
 
     for (const row of rows) {
       const debit = Number(row.total_debit);
@@ -404,12 +406,43 @@ export class FinancialReportService {
         const arr = equityMap.get(category) || [];
         arr.push({ accountCode: row.account_code, accountName: row.account_name, balance });
         equityMap.set(category, arr);
-      } else if (row.account_type === 'revenue') {
-        revenueTotal += credit - debit;
-      } else if (row.account_type === 'expense') {
-        expenseTotal += debit - credit;
       }
     }
+
+    // Revenue and expenses via source_type — independent of COA account_type classification.
+    // This matches the dashboard calculation so both views are always consistent.
+    let revenueTotal = 0;
+    let expenseTotal = 0;
+    let salaryTotal = 0;
+    try {
+      const revRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(credit) - SUM(debit), 0) as total
+        FROM fin_journal_entries
+        WHERE source_type = 'customer_invoice' AND journal_code = 'VTE'
+          AND label LIKE 'Revenue -%' AND entry_date <= ?
+      `, asOfDate);
+      revenueTotal = Number(revRows[0]?.total || 0);
+    } catch { /* */ }
+
+    try {
+      const expRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(debit) - SUM(credit), 0) as total
+        FROM fin_journal_entries
+        WHERE source_type = 'supplier_invoice' AND journal_code = 'ACH'
+          AND label LIKE 'Expense -%' AND entry_date <= ?
+      `, asOfDate);
+      expenseTotal = Number(expRows[0]?.total || 0);
+    } catch { /* */ }
+
+    try {
+      const salRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(debit) - SUM(credit), 0) as total
+        FROM fin_journal_entries
+        WHERE source_type = 'salary' AND journal_code = 'SAL'
+          AND debit > 0 AND entry_date <= ?
+      `, asOfDate);
+      salaryTotal = Number(salRows[0]?.total || 0);
+    } catch { /* */ }
 
     const buildSections = (map: Map<string, any[]>): BalanceSheetSection[] => {
       return Array.from(map.entries()).map(([category, accounts]) => ({
@@ -425,7 +458,7 @@ export class FinancialReportService {
     const totalLiabilities = liabilities.reduce((s, sec) => s + sec.subtotal, 0);
     const equity = buildSections(equityMap);
     const totalEquity = equity.reduce((s, sec) => s + sec.subtotal, 0);
-    const netProfit = revenueTotal - expenseTotal;
+    const netProfit = revenueTotal - expenseTotal - salaryTotal;
     const totalLiabilitiesAndEquity = totalLiabilities + totalEquity + netProfit;
 
     return {

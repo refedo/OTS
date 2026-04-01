@@ -941,11 +941,24 @@ export class FinancialSyncService {
 
       // Build bank account mapping: dolibarr_id -> accounting code
       const bankRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT dolibarr_id, account_number FROM fin_bank_accounts`
+        `SELECT dolibarr_id, account_number, label FROM fin_bank_accounts`
       );
       const bankAccountMap = new Map<number, string>();
       for (const row of bankRows) {
         if (row.account_number) bankAccountMap.set(row.dolibarr_id, row.account_number);
+      }
+
+      // Ensure every bank account code exists in fin_chart_of_accounts so it surfaces
+      // in the balance sheet. Bank codes come from fin_bank_accounts.account_number and
+      // are only used in payment journal entries — they would otherwise be silently
+      // dropped by the INNER JOIN in the balance sheet query.
+      for (const row of bankRows) {
+        if (!row.account_number) continue;
+        await prisma.$executeRawUnsafe(`
+          INSERT IGNORE INTO fin_chart_of_accounts
+            (account_code, account_name, account_type, account_category, is_active, display_order)
+          VALUES (?, ?, 'asset', 'Bank & Cash', 1, 150)
+        `, row.account_number, row.label || `Bank ${row.account_number}`);
       }
 
       // Collect all entries in memory first, then delete old + insert new
