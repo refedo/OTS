@@ -1,13 +1,97 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, Download, ArrowLeft, Search, FileDown, Sheet, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, FileText, Download, ArrowLeft, Search, FileDown, Sheet, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
+
+// ─── Thirdparty Combobox (mobile-friendly search + select) ───────────────────
+
+function ThirdpartyCombobox({
+  thirdparties, value, onChange, loading, type,
+}: {
+  thirdparties: { id: number; name: string; invoice_count: number }[];
+  value: string;
+  onChange: (id: string) => void;
+  loading: boolean;
+  type: 'ar' | 'ap';
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selected = thirdparties.find(t => String(t.id) === value);
+  const filtered = query.trim()
+    ? thirdparties.filter(t => t.name.toLowerCase().includes(query.toLowerCase()))
+    : thirdparties;
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring text-left"
+      >
+        <span className={cn('truncate', !selected && 'text-muted-foreground')}>
+          {loading ? 'Loading…' : selected ? selected.name : `Select ${type === 'ar' ? 'customer' : 'supplier'}…`}
+        </span>
+        <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-1" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full min-w-[260px] rounded-md border bg-popover shadow-lg max-h-72 overflow-hidden flex flex-col">
+          <div className="flex items-center border-b px-3 py-2 gap-2">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={`Search ${type === 'ar' ? 'customer' : 'supplier'}…`}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {filtered.length === 0 ? (
+              <p className="py-3 text-center text-sm text-muted-foreground">No results</p>
+            ) : (
+              filtered.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => { onChange(String(t.id)); setOpen(false); setQuery(''); }}
+                  className={cn(
+                    'w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center justify-between gap-2',
+                    String(t.id) === value && 'bg-accent font-medium',
+                  )}
+                >
+                  <span className="truncate">{t.name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{t.invoice_count} inv</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function formatSAR(amount: number): string {
   return new Intl.NumberFormat('en-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 2 }).format(amount);
@@ -444,31 +528,42 @@ export default function SOAReportPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-1">
               <label className="text-sm font-medium">Type</label>
-              <Select value={type} onValueChange={(v) => { setType(v as 'ar' | 'ap'); setThirdpartyId(''); }}>
-                <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ar">Accounts Receivable (AR)</SelectItem>
-                  <SelectItem value="ap">Accounts Payable (AP)</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setType('ar'); setThirdpartyId(''); }}
+                  className={cn(
+                    'flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                    type === 'ar'
+                      ? 'bg-green-600 text-white border-green-600'
+                      : 'border-input bg-background hover:bg-green-50 text-green-700 dark:hover:bg-green-950/30',
+                  )}
+                >
+                  AR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setType('ap'); setThirdpartyId(''); }}
+                  className={cn(
+                    'flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                    type === 'ap'
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'border-input bg-background hover:bg-red-50 text-red-700 dark:hover:bg-red-950/30',
+                  )}
+                >
+                  AP
+                </button>
+              </div>
             </div>
             <div className="space-y-1 min-w-[280px]">
               <label className="text-sm font-medium">{type === 'ar' ? 'Customer' : 'Supplier'}</label>
-              <Select value={thirdpartyId} onValueChange={setThirdpartyId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={tpLoading ? 'Loading...' : `Select ${type === 'ar' ? 'customer' : 'supplier'}...`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredTp.map(tp => (
-                    <SelectItem key={tp.id} value={String(tp.id)}>
-                      {tp.name} ({tp.invoice_count} invoices)
-                    </SelectItem>
-                  ))}
-                  {filteredTp.length === 0 && (
-                    <div className="p-2 text-sm text-muted-foreground text-center">No {type === 'ar' ? 'customers' : 'suppliers'} found</div>
-                  )}
-                </SelectContent>
-              </Select>
+              <ThirdpartyCombobox
+                thirdparties={thirdparties}
+                value={thirdpartyId}
+                onChange={setThirdpartyId}
+                loading={tpLoading}
+                type={type}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">From</label>
@@ -493,10 +588,20 @@ export default function SOAReportPage() {
               <CardTitle className="flex items-center justify-between">
                 <div>
                   <span className="text-lg">{report.thirdpartyName}</span>
-                  <Badge variant="outline" className="ml-3">{type === 'ar' ? 'Customer' : 'Supplier'}</Badge>
+                  <Badge
+                    className={cn(
+                      'ml-3',
+                      type === 'ar'
+                        ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300'
+                        : 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300',
+                    )}
+                    variant="outline"
+                  >
+                    {type === 'ar' ? 'AR — Customer' : 'AP — Supplier'}
+                  </Badge>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-muted-foreground">Balance</div>
+                  <div className="text-sm text-muted-foreground">Period Balance</div>
                   <div className={`text-xl font-bold ${report.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {formatSAR(report.balance)}
                   </div>
@@ -504,20 +609,43 @@ export default function SOAReportPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="p-3 border rounded-lg text-center">
-                  <div className="text-sm text-muted-foreground">Total Invoiced</div>
-                  <div className="text-lg font-bold">{formatSAR(report.totalInvoiced)}</div>
-                </div>
-                <div className="p-3 border rounded-lg text-center">
-                  <div className="text-sm text-muted-foreground">Total Paid</div>
-                  <div className="text-lg font-bold text-green-600">{formatSAR(report.totalPaid)}</div>
-                </div>
-                <div className="p-3 border rounded-lg text-center">
-                  <div className="text-sm text-muted-foreground">Outstanding</div>
-                  <div className="text-lg font-bold text-red-600">{formatSAR(report.balance)}</div>
-                </div>
-              </div>
+              {(() => {
+                const totalRemaining = (report.lines as any[])
+                  .filter((l: any) => l.remainToPay !== null && l.remainToPay > 0)
+                  .reduce((s: number, l: any) => s + Number(l.remainToPay), 0);
+                const paidPct = report.totalInvoiced > 0
+                  ? Math.round((report.totalPaid / report.totalInvoiced) * 100)
+                  : 0;
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <div className="p-3 border rounded-lg text-center">
+                      <div className="text-xs text-muted-foreground">Total Invoiced</div>
+                      <div className="text-base font-bold">{formatSAR(report.totalInvoiced)}</div>
+                    </div>
+                    <div className="p-3 border rounded-lg text-center">
+                      <div className="text-xs text-muted-foreground">Total Paid</div>
+                      <div className="text-base font-bold text-green-600">{formatSAR(report.totalPaid)}</div>
+                      <div className="text-xs text-muted-foreground">{paidPct}% collected</div>
+                    </div>
+                    <div className="p-3 border rounded-lg text-center">
+                      <div className="text-xs text-muted-foreground">Period Balance</div>
+                      <div className={`text-base font-bold ${report.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatSAR(report.balance)}
+                      </div>
+                    </div>
+                    <div className={cn(
+                      'p-3 border-2 rounded-lg text-center',
+                      type === 'ar' ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20' : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20',
+                    )}>
+                      <div className="text-xs text-muted-foreground">Current Outstanding</div>
+                      <div className={`text-base font-bold ${type === 'ar' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {formatSAR(totalRemaining)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">remaining to pay</div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
