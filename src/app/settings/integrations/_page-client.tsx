@@ -14,6 +14,7 @@ import {
   Shield,
   Copy,
   Check,
+  Zap,
 } from 'lucide-react';
 
 interface VarStatus {
@@ -30,6 +31,13 @@ interface IntegrationsConfig {
   openAudit: IntegrationStatus;
   nextcloud: IntegrationStatus;
   libreMes: IntegrationStatus;
+}
+
+interface EventBusStatus {
+  active: boolean;
+  totalListeners: number;
+  maxListeners: number;
+  listeners: Record<string, number>;
 }
 
 interface HealthResult {
@@ -88,6 +96,8 @@ export default function IntegrationsSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [health, setHealth] = useState<Record<string, HealthResult | null>>({});
   const [healthLoading, setHealthLoading] = useState<Record<string, boolean>>({});
+  const [eventBus, setEventBus] = useState<EventBusStatus | null>(null);
+  const [eventBusLoading, setEventBusLoading] = useState(false);
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -99,7 +109,17 @@ export default function IntegrationsSettingsPage() {
     }
   };
 
-  useEffect(() => { fetchConfig(); }, []);
+  const fetchEventBus = async () => {
+    setEventBusLoading(true);
+    try {
+      const res = await fetch('/api/integrations/event-bus');
+      if (res.ok) setEventBus(await res.json());
+    } finally {
+      setEventBusLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchConfig(); fetchEventBus(); }, []);
 
   const testHealth = async (integration: 'open-audit' | 'nextcloud' | 'libre-mes') => {
     setHealthLoading(prev => ({ ...prev, [integration]: true }));
@@ -306,6 +326,73 @@ export default function IntegrationsSettingsPage() {
           </div>
           <p className="text-xs text-muted-foreground">
             InfluxDB buckets: availability, performance, quality, orderPerformance — must match your Libre MES configuration.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Event Bus */}
+      <Card id="event-bus">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-violet-100 flex items-center justify-center">
+                <Zap className="size-5 text-violet-600" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Internal Event Bus</CardTitle>
+                <CardDescription>Typed Node.js EventEmitter that decouples core services from integration side-effects</CardDescription>
+              </div>
+            </div>
+            <Badge variant="default" className="bg-green-500 text-white gap-1">
+              <CheckCircle className="size-3" /> Always Active
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Fires events after audit logs, work order creation, and document uploads. Integration listeners (open-audit, Libre MES) attach here at server startup — no env vars required for the bus itself.
+          </p>
+
+          {eventBus && (
+            <div className="border rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium text-muted-foreground">Registered Listeners</p>
+                <span className="text-xs text-muted-foreground">
+                  {eventBus.totalListeners} / {eventBus.maxListeners} max
+                </span>
+              </div>
+              {Object.entries(eventBus.listeners).map(([event, count]) => (
+                <div key={event} className="flex items-center justify-between py-1 text-sm">
+                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{event}</code>
+                  <span className={count > 0 ? 'text-green-600 text-xs font-medium' : 'text-muted-foreground text-xs'}>
+                    {count} {count === 1 ? 'listener' : 'listeners'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={eventBusLoading}
+              onClick={fetchEventBus}
+            >
+              <RefreshCw className={`size-4 ${eventBusLoading ? 'animate-spin' : ''}`} />
+              {eventBusLoading ? 'Checking…' : 'Refresh Listeners'}
+            </Button>
+            {eventBus && (
+              <span className="text-xs text-muted-foreground">
+                {eventBus.totalListeners === 0
+                  ? 'No listeners — integrations disabled or server not yet initialised'
+                  : `${eventBus.totalListeners} listener${eventBus.totalListeners > 1 ? 's' : ''} active`}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Listener count reflects what is registered on the running server process. Zero listeners means all integrations are disabled in <code className="bg-muted px-1 py-0.5 rounded">.env</code>.
           </p>
         </CardContent>
       </Card>
