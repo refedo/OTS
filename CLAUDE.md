@@ -156,4 +156,4 @@ Never access `process.env` directly in components — import from `src/lib/env.t
 - Don't hardcode strings that belong in env vars
 - Don't add comments to code that is self-explanatory
 - Don't add error handling for impossible scenarios
-
+- Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.
