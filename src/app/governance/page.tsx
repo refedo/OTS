@@ -1,5 +1,13 @@
 import type { Metadata } from 'next';
-export const metadata: Metadata = {
-  title: 'Governance',
-};
-export { default } from './_page-client';
+import { Suspense } from 'react';
+import GovernancePage from './_page-client';
+
+export const metadata: Metadata = { title: 'Governance' };
+
+export default function Page() {
+  return (
+    <Suspense>
+      <GovernancePage />
+    </Suspense>
+  );
+}

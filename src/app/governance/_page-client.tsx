@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +62,8 @@ import {
   Info,
   CheckCircle2,
   XCircle,
+  Send,
+  RotateCw,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -129,6 +132,22 @@ interface VersionDiff {
   added: string[];
   removed: string[];
   changed: Record<string, { old: unknown; new: unknown }>;
+}
+
+interface OpenAuditLog {
+  id: string;
+  auditLogId: string;
+  entity: string;
+  entityId: string;
+  action: string;
+  actorId: string;
+  status: 'pending' | 'delivered' | 'failed';
+  attempts: number;
+  errorMessage: string | null;
+  lastAttemptAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+  metadata: Record<string, unknown> | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -208,7 +227,8 @@ function ActionBadge({ action }: { action: string }) {
 
 export default function GovernancePage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') ?? 'overview');
   const [stats, setStats] = useState<GovernanceStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -259,6 +279,17 @@ export default function GovernancePage() {
   const [restoreTarget, setRestoreTarget] = useState<DeletedItem | null>(null);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  // open-audit Mirror Log state
+  const [openAuditLogs, setOpenAuditLogs] = useState<OpenAuditLog[]>([]);
+  const [openAuditTotal, setOpenAuditTotal] = useState(0);
+  const [openAuditLoading, setOpenAuditLoading] = useState(false);
+  const [openAuditStatusFilter, setOpenAuditStatusFilter] = useState('all');
+  const [openAuditEntityFilter, setOpenAuditEntityFilter] = useState('all');
+  const [openAuditPage, setOpenAuditPage] = useState(0);
+  const [retryingFailed, setRetryingFailed] = useState(false);
+  const [selectedOpenAuditLog, setSelectedOpenAuditLog] = useState<OpenAuditLog | null>(null);
+  const openAuditPageSize = 50;
 
   // ── Fetch functions ────────────────────────────────────────────────────────
 
@@ -368,11 +399,48 @@ export default function GovernancePage() {
     }
   }, [deletedEntityType]);
 
+  const fetchOpenAuditLogs = useCallback(async () => {
+    setOpenAuditLoading(true);
+    try {
+      const params = new URLSearchParams({
+        limit: String(openAuditPageSize),
+        offset: String(openAuditPage * openAuditPageSize),
+      });
+      if (openAuditStatusFilter !== 'all') params.set('status', openAuditStatusFilter);
+      if (openAuditEntityFilter !== 'all') params.set('entity', openAuditEntityFilter);
+      const res = await fetch(`/api/integrations/open-audit/events?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOpenAuditLogs(data.rows ?? []);
+        setOpenAuditTotal(data.total ?? 0);
+      }
+    } finally {
+      setOpenAuditLoading(false);
+    }
+  }, [openAuditPage, openAuditStatusFilter, openAuditEntityFilter]);
+
+  const handleRetryFailed = async () => {
+    setRetryingFailed(true);
+    try {
+      const res = await fetch('/api/integrations/open-audit/events', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        toast({ title: `Retry complete — ${data.succeeded} succeeded, ${data.failed} failed` });
+        fetchOpenAuditLogs();
+      } else if (res.status === 403) {
+        toast({ title: 'Insufficient permissions', variant: 'destructive' });
+      }
+    } finally {
+      setRetryingFailed(false);
+    }
+  };
+
   // ── Effects ────────────────────────────────────────────────────────────────
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { if (activeTab === 'audit') fetchAuditLogs(); }, [activeTab, fetchAuditLogs]);
   useEffect(() => { if (activeTab === 'deleted') fetchDeletedItems(); }, [activeTab, fetchDeletedItems]);
+  useEffect(() => { if (activeTab === 'open-audit') fetchOpenAuditLogs(); }, [activeTab, fetchOpenAuditLogs]);
   // Auto-load versions when an entity is selected from search
   useEffect(() => { if (versionEntityId) fetchVersions(); }, [versionEntityId]); // eslint-disable-line react-hooks/exhaustive-deps
   // Clear search results when entity type changes
@@ -516,7 +584,7 @@ export default function GovernancePage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
           <TabsTrigger value="overview" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Activity className="size-3.5" />
             Overview
@@ -532,6 +600,10 @@ export default function GovernancePage() {
           <TabsTrigger value="deleted" className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Trash2 className="size-3.5" />
             Deleted
+          </TabsTrigger>
+          <TabsTrigger value="open-audit" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <Send className="size-3.5" />
+            open-audit
           </TabsTrigger>
         </TabsList>
 
@@ -1244,7 +1316,249 @@ export default function GovernancePage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── open-audit Mirror Log Tab ───────────────────────────────────── */}
+        <TabsContent value="open-audit" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Send className="size-4 text-blue-600" />
+                    open-audit Mirror Log
+                  </CardTitle>
+                  <CardDescription>
+                    Compliance events forwarded to the external open-audit endpoint
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={handleRetryFailed}
+                    disabled={retryingFailed}
+                  >
+                    {retryingFailed ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCw className="size-3.5" />}
+                    Retry Failed
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={fetchOpenAuditLogs}
+                    disabled={openAuditLoading}
+                  >
+                    <RefreshCw className={`size-3.5 ${openAuditLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3">
+                <Select value={openAuditStatusFilter} onValueChange={(v) => { setOpenAuditStatusFilter(v); setOpenAuditPage(0); }}>
+                  <SelectTrigger className="w-36 h-8 text-xs">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="delivered">Delivered</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={openAuditEntityFilter} onValueChange={(v) => { setOpenAuditEntityFilter(v); setOpenAuditPage(0); }}>
+                  <SelectTrigger className="w-40 h-8 text-xs">
+                    <SelectValue placeholder="Entity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All entities</SelectItem>
+                    {['WPS', 'ITP', 'NCRReport', 'RFIRequest', 'Document', 'QCInspection', 'Project', 'WorkOrder'].map(e => (
+                      <SelectItem key={e} value={e}>{e}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground self-center ml-auto">
+                  {openAuditTotal.toLocaleString()} event{openAuditTotal !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* Table */}
+              {openAuditLoading ? (
+                <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Loader2 className="size-4 animate-spin" /> Loading…
+                </div>
+              ) : openAuditLogs.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Send className="size-8 mx-auto mb-2 opacity-30" />
+                  <p className="font-medium">No events found</p>
+                  <p className="text-sm mt-1">Events are forwarded here when open-audit is enabled and compliance entities change</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">Status</TableHead>
+                        <TableHead>Entity</TableHead>
+                        <TableHead className="w-24">Action</TableHead>
+                        <TableHead className="w-28 hidden md:table-cell">Actor</TableHead>
+                        <TableHead className="w-20 hidden sm:table-cell">Tries</TableHead>
+                        <TableHead className="w-36">When</TableHead>
+                        <TableHead className="w-8" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {openAuditLogs.map((log) => (
+                        <TableRow
+                          key={log.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => setSelectedOpenAuditLog(log)}
+                        >
+                          <TableCell>
+                            {log.status === 'delivered' && (
+                              <Badge className="bg-green-100 text-green-800 text-xs gap-1 font-normal">
+                                <CheckCircle2 className="size-3" /> Delivered
+                              </Badge>
+                            )}
+                            {log.status === 'pending' && (
+                              <Badge className="bg-amber-100 text-amber-800 text-xs gap-1 font-normal">
+                                <Clock className="size-3" /> Pending
+                              </Badge>
+                            )}
+                            {log.status === 'failed' && (
+                              <Badge className="bg-red-100 text-red-800 text-xs gap-1 font-normal">
+                                <XCircle className="size-3" /> Failed
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium">{log.entity}</span>
+                              <span className="text-xs text-muted-foreground font-mono truncate max-w-[140px]">{log.entityId}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs font-normal ${ACTION_COLORS[log.action] ?? ''}`}>
+                              {log.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground font-mono hidden md:table-cell truncate max-w-[100px]">
+                            {log.actorId.slice(0, 8)}…
+                          </TableCell>
+                          <TableCell className="text-xs hidden sm:table-cell">
+                            <span className={log.attempts >= 3 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                              {log.attempts} / 3
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                          </TableCell>
+                          <TableCell>
+                            <Eye className="size-3.5 text-muted-foreground" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {openAuditTotal > openAuditPageSize && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    Showing {openAuditPage * openAuditPageSize + 1}–{Math.min((openAuditPage + 1) * openAuditPageSize, openAuditTotal)} of {openAuditTotal}
+                  </span>
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="icon" className="size-7" disabled={openAuditPage === 0} onClick={() => setOpenAuditPage(p => p - 1)}>
+                      <ChevronLeft className="size-3.5" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="size-7" disabled={(openAuditPage + 1) * openAuditPageSize >= openAuditTotal} onClick={() => setOpenAuditPage(p => p + 1)}>
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* ── open-audit Detail Dialog ────────────────────────────────────────── */}
+      <Dialog open={!!selectedOpenAuditLog} onOpenChange={(o) => !o && setSelectedOpenAuditLog(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="size-4 text-blue-600" />
+              Mirror Log Detail
+            </DialogTitle>
+            <DialogDescription>Full record for this forwarded compliance event</DialogDescription>
+          </DialogHeader>
+          {selectedOpenAuditLog && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  {selectedOpenAuditLog.status === 'delivered' && <Badge className="bg-green-100 text-green-800 gap-1"><CheckCircle2 className="size-3" /> Delivered</Badge>}
+                  {selectedOpenAuditLog.status === 'pending' && <Badge className="bg-amber-100 text-amber-800 gap-1"><Clock className="size-3" /> Pending</Badge>}
+                  {selectedOpenAuditLog.status === 'failed' && <Badge className="bg-red-100 text-red-800 gap-1"><XCircle className="size-3" /> Failed</Badge>}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Attempts</p>
+                  <p className={selectedOpenAuditLog.attempts >= 3 ? 'text-red-600 font-medium' : ''}>{selectedOpenAuditLog.attempts} / 3</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Entity</p>
+                  <p className="font-medium">{selectedOpenAuditLog.entity}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Action</p>
+                  <Badge variant="outline" className={`text-xs ${ACTION_COLORS[selectedOpenAuditLog.action] ?? ''}`}>{selectedOpenAuditLog.action}</Badge>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground mb-1">Entity ID</p>
+                  <p className="font-mono text-xs break-all">{selectedOpenAuditLog.entityId}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground mb-1">OTS Audit Log ID</p>
+                  <p className="font-mono text-xs break-all">{selectedOpenAuditLog.auditLogId}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Created</p>
+                  <p className="text-xs">{format(new Date(selectedOpenAuditLog.createdAt), 'PPpp')}</p>
+                </div>
+                {selectedOpenAuditLog.deliveredAt && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Delivered</p>
+                    <p className="text-xs">{format(new Date(selectedOpenAuditLog.deliveredAt), 'PPpp')}</p>
+                  </div>
+                )}
+                {selectedOpenAuditLog.lastAttemptAt && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Last Attempt</p>
+                    <p className="text-xs">{format(new Date(selectedOpenAuditLog.lastAttemptAt), 'PPpp')}</p>
+                  </div>
+                )}
+              </div>
+              {selectedOpenAuditLog.errorMessage && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Error</p>
+                  <p className="text-xs text-red-600 bg-red-50 rounded p-2 font-mono">{selectedOpenAuditLog.errorMessage}</p>
+                </div>
+              )}
+              {selectedOpenAuditLog.metadata && Object.keys(selectedOpenAuditLog.metadata).length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Metadata</p>
+                  <pre className="text-xs bg-muted rounded p-2 overflow-auto max-h-40">{JSON.stringify(selectedOpenAuditLog.metadata, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Audit Detail Dialog ─────────────────────────────────────────── */}
       <Dialog open={!!selectedLog} onOpenChange={(o) => !o && setSelectedLog(null)}>
