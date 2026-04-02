@@ -48,10 +48,20 @@ function getPageLabel(pathname: string): string {
     '/documents': 'Documents',
     '/timeline': 'Timeline',
     '/financial': 'Financial',
+    '/financial/reports/aging': 'Aging Report',
+    '/financial/reports/balance-sheet': 'Balance Sheet',
+    '/financial/reports/cash-flow-forecast': 'Cash Flow Forecast',
+    '/financial/reports/payment-schedule': 'Payment Schedule',
+    '/financial/reports/soa': 'Statement of Account',
+    '/financial/settings': 'Financial Settings',
+    '/financial/manual-journal-entries': 'Manual Journal Entries',
     '/governance': 'Governance',
     '/risk-dashboard': 'Risk Dashboard',
     '/notifications': 'Notifications',
     '/settings': 'Settings',
+    '/settings/integrations': 'Integrations',
+    '/settings/commits': 'Commits',
+    '/settings/about': 'About',
     '/users': 'Users',
     '/roles': 'Roles',
     '/organization': 'Organization',
@@ -65,19 +75,19 @@ function getPageLabel(pathname: string): string {
     '/operations-control': 'Operations Control',
     '/knowledge-center': 'Knowledge Center',
     '/ai-assistant': 'AI Assistant',
+    '/project-tracker': 'Project Tracker',
+    '/changelog': 'Changelog',
   };
   if (map[pathname]) return map[pathname];
-  // Try prefix match
+
+  // Try progressively shorter prefix matches (longest first)
   const segments = pathname.split('/').filter(Boolean);
-  if (segments.length >= 2) {
-    const base = '/' + segments.slice(0, 2).join('/');
-    if (map[base]) return map[base];
+  for (let i = segments.length - 1; i >= 2; i--) {
+    const prefix = '/' + segments.slice(0, i).join('/');
+    if (map[prefix]) return map[prefix];
   }
-  if (segments.length >= 1) {
-    const base = '/' + segments[0];
-    if (map[base]) return map[base];
-  }
-  // Fallback: capitalize segments
+
+  // Fallback: capitalize all segments as breadcrumb
   return segments.map(s => s.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' › ') || 'Home';
 }
 
