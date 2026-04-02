@@ -176,21 +176,23 @@ export default function AgingReportPage() {
                 <img
                   src={companyLogo}
                   alt="Company Logo"
-                  className="h-10 max-w-[140px] object-contain"
+                  className="h-14 max-w-[200px] object-contain"
                 />
               ) : (
                 <div className="flex items-center gap-2">
-                  <div className="size-10 rounded-lg bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-base">HS</span>
+                  <div className="size-14 rounded-lg bg-primary flex items-center justify-center">
+                    <span className="text-primary-foreground font-bold text-xl">HS</span>
                   </div>
-                  <span className="font-semibold text-lg">Hexa Steel</span>
+                  <span className="font-semibold text-xl">Hexa Steel</span>
                 </div>
               )}
             </div>
             <div className="text-right">
-              <h1 className="text-xl font-bold">Aging Report</h1>
+              <h1 className="text-xl font-bold">
+                {type === 'ar' ? 'Accounts Receivable' : 'Accounts Payable'} Aging Report
+              </h1>
               <p className="text-sm text-muted-foreground">
-                {type === 'ar' ? 'Accounts Receivable' : 'Accounts Payable'} — As of {report.asOfDate}
+                As of {report.asOfDate}
               </p>
             </div>
           </div>
