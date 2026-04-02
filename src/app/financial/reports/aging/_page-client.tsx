@@ -69,33 +69,7 @@ export default function AgingReportPage() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* ── Print Header (visible only when printing) ─────────────────────────── */}
-      <div className="hidden print:flex items-center justify-between border-b pb-4 mb-4">
-        <div className="flex items-center gap-3">
-          {companyLogo ? (
-            <img
-              src={companyLogo}
-              alt="Company Logo"
-              className="h-10 max-w-[140px] object-contain"
-            />
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="size-10 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-base">HS</span>
-              </div>
-              <span className="font-semibold text-lg">Hexa Steel</span>
-            </div>
-          )}
-        </div>
-        <div className="text-right">
-          <h1 className="text-xl font-bold">Aging Report</h1>
-          <p className="text-sm text-muted-foreground">
-            {type === 'ar' ? 'Accounts Receivable' : 'Accounts Payable'} &middot; As of {asOfDate}
-          </p>
-        </div>
-      </div>
-
+    <div className="space-y-6 print:space-y-0">
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
@@ -194,8 +168,33 @@ export default function AgingReportPage() {
 
       {/* ── Report Table ──────────────────────────────────────────────────────── */}
       {report && (
-        <Card>
-          <CardHeader>
+        <Card className="print:border-none print:shadow-none">
+          {/* Print-only header with logo */}
+          <div className="hidden print:flex items-center justify-between px-6 pt-4 pb-3 border-b">
+            <div className="flex items-center gap-3">
+              {companyLogo ? (
+                <img
+                  src={companyLogo}
+                  alt="Company Logo"
+                  className="h-10 max-w-[140px] object-contain"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="size-10 rounded-lg bg-primary flex items-center justify-center">
+                    <span className="text-primary-foreground font-bold text-base">HS</span>
+                  </div>
+                  <span className="font-semibold text-lg">Hexa Steel</span>
+                </div>
+              )}
+            </div>
+            <div className="text-right">
+              <h1 className="text-xl font-bold">Aging Report</h1>
+              <p className="text-sm text-muted-foreground">
+                {type === 'ar' ? 'Accounts Receivable' : 'Accounts Payable'} — As of {report.asOfDate}
+              </p>
+            </div>
+          </div>
+          <CardHeader className="print:hidden">
             <CardTitle className="flex items-center justify-between">
               <span>{report.type === 'ar' ? 'Accounts Receivable' : 'Accounts Payable'} Aging</span>
               <Badge

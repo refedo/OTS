@@ -3,12 +3,20 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.4.3` — Event Bus & UI Polish (Patch Release)
+**Current version:** `17.4.4` — Print Layout & Sidebar Fixes (Patch Release)
+
+---
+
+## Versioning
+- **Patch** (17.4.X): Bug fixes, UI tweaks, layout fixes — bump automatically
+- **Minor** (17.X.0): New features, new pages, new API endpoints — bump automatically
+- **Major** (X.0.0): Only bumped when explicitly instructed by the user
+- Update the version in both `CLAUDE.md` and `package.json` on every commit
 
 ---
 
 ## Development Branch
-Push directly to `main`. No feature branches required.
+Push directly to `main`. No feature branches, no PRs — commit and push to `main` directly.
 
 ---
 
