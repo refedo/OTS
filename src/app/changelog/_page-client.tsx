@@ -23,10 +23,53 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.4.3',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '⚡ Event Bus & UI Polish',
+    highlights: [
+      'OTSEventEmitter — typed Node.js EventEmitter singleton decouples core services from integration side-effects; listeners registered once at startup via instrumentation.ts',
+      'Event Bus card on /settings/integrations — shows live listener counts per event (audit:created, work-order:created, work-order:updated, document:uploaded) with Refresh button',
+      'Changelog highlights fix — long highlight strings no longer overflow card borders; replaced single-line badges with a wrapped bullet list',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'OTSEventEmitter (src/lib/events/ots-emitter.ts)',
+          items: [
+            'Strongly-typed emit/on/off over OTSEventMap: audit:created, work-order:created, work-order:updated, document:uploaded',
+            'setMaxListeners(20) prevents Node.js memory-leak warnings',
+            'Zero configuration — no env vars required for the bus itself',
+          ],
+        },
+        {
+          title: 'Integration listeners (src/lib/events/integration-listeners.ts)',
+          items: [
+            'open-audit listener on audit:created — filters OPEN_AUDIT_ENTITIES, fire-and-forget',
+            'Libre MES listener on work-order:created — pushOrders(), fire-and-forget',
+            'Each listener only registered when its *_ENABLED=true env var is set',
+            'Registered once at server startup via instrumentation.ts',
+          ],
+        },
+        'Event Bus card on /settings/integrations#event-bus — violet/Zap, Always Active badge, live listener count per event, Refresh Listeners button',
+        'GET /api/integrations/event-bus — returns listenerCount per event from running otsEmitter',
+        'Event Bus sidebar link under Integrations section (Zap icon)',
+      ],
+      changed: [
+        'audit.service.ts — replaced inline dynamic-import open-audit hook with otsEmitter.emit(\'audit:created\', ...)',
+        'work-orders/route.ts — replaced inline dynamic-import Libre MES hook with otsEmitter.emit(\'work-order:created\', ...)',
+      ],
+      fixed: [
+        'Changelog highlights overflow — highlights rendered as single-line <Badge> overflowed the card border on narrow screens; replaced with wrapped <ul> bullet list',
+      ],
+    },
+  },
+  {
     version: '17.4.2',
     date: 'April 2, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔌 Service Integrations: open-audit, Nextcloud & Libre MES',
     highlights: [
       'open-audit mirror — ISO compliance audit events forwarded automatically to an external open-audit endpoint; configurable via OPEN_AUDIT_* env vars with retry logic and a dedicated event log',
@@ -4815,15 +4858,14 @@ export default function ChangelogPage() {
                 </div>
               </div>
               {version.highlights && (
-                <div className="mt-4">
-                  <div className="flex flex-wrap gap-2">
-                    {version.highlights.map((highlight, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {highlight}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                <ul className="mt-4 space-y-1">
+                  {version.highlights.map((highlight, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="mt-0.5 shrink-0 text-primary">•</span>
+                      <span>{highlight}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </CardHeader>
             <CardContent>

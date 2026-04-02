@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.4.3] - 2026-04-03
+
+### Event Bus & UI Polish (Patch Release)
+
+**Patch Release:** Introduces a typed internal EventEmitter (`OTSEventEmitter`) that decouples core services from integration side-effects. Adds an Event Bus card to the Integrations Settings page showing live listener counts. Fixes a changelog UI bug where long highlight strings rendered as overflowing single-line badges.
+
+#### Added
+
+- **OTSEventEmitter** (`src/lib/events/ots-emitter.ts`) — typed Node.js `EventEmitter` singleton with strongly-typed `emit`, `on`, `off` over `OTSEventMap` (events: `audit:created`, `work-order:created`, `work-order:updated`, `document:uploaded`); `setMaxListeners(20)` prevents Node.js memory-leak warnings
+- **Integration listeners** (`src/lib/events/integration-listeners.ts`) — open-audit and Libre MES listeners registered at server startup; each is fire-and-forget with structured error logging
+- `instrumentation.ts` — calls `registerIntegrationListeners()` alongside existing schedulers on Node.js server startup
+- **Event Bus card** on `/settings/integrations#event-bus` — violet/Zap card showing Always Active badge, live listener count table per event, and Refresh Listeners button
+- `GET /api/integrations/event-bus` — returns live `listenerCount` per event from the running `otsEmitter` instance
+- **Event Bus sidebar link** — Integrations section now includes Event Bus entry (Zap icon)
+
+#### Changed
+
+- `audit.service.ts` — replaced inline dynamic-import open-audit hook with `otsEmitter.emit('audit:created', ...)`; removed `OPEN_AUDIT_ENTITIES` set and dynamic import block
+- `work-orders/route.ts` — replaced inline dynamic-import Libre MES hook with `otsEmitter.emit('work-order:created', ...)`; removed now-unused `env` import
+
+#### Fixed
+
+- **Changelog highlights overflow** — highlights were rendered as `<Badge>` (`inline-flex`, single-line), causing long text to overflow the card border on narrow screens; replaced with a wrapped `<ul>` bullet list
+
+---
+
 ## [17.4.2] - 2026-04-02
 
 ### Service Integrations: open-audit, Nextcloud & Libre MES (Patch Release)
