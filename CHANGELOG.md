@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.4.2] - 2026-04-02
+
+### Service Integrations: open-audit, Nextcloud & Libre MES (Patch Release)
+
+**Patch Release:** Integrates three external services — open-audit (ISO compliance audit mirror), Nextcloud (ISO 9001 §7.5 document management via WebDAV), and Libre MES (bidirectional manufacturing execution sync with OEE metrics). Adds an Integrations Settings page at `/settings/integrations` with live health checks and a new Integrations sidebar section. Fixes a `next build` crash caused by env var validation running at compile time.
+
+#### Added
+
+- **open-audit Integration**
+  - `OpenAuditMirrorLog` Prisma model — tracks forwarded compliance events (status: pending/delivered/failed, up to 3 retries)
+  - `OpenAuditService` singleton — `forward()`, `retryFailed()`, `getLogs()`, `checkHealth()`
+  - Auto-forward hook in `audit.service.ts` — fires for WPS, ITP, NCRReport, RFIRequest, Document, QCInspection, Project, WorkOrder entities (fire-and-forget, never blocks primary operation)
+  - `GET /api/integrations/open-audit/events` — paginated event log with status/entity filters
+  - `POST /api/integrations/open-audit/events` — retry failed events (Admin/Manager only)
+  - `GET /api/integrations/open-audit/health` — live connectivity health check with latency
+  - Env vars: `OPEN_AUDIT_ENABLED`, `OPEN_AUDIT_URL`, `OPEN_AUDIT_API_KEY`
+
+- **Nextcloud Integration**
+  - `NextcloudFile` Prisma model — references uploaded files by remote WebDAV path with optional share link
+  - WebDAV client — `mkdirp`, `put`, `get`, `delete`, `propfind` with path-traversal protection
+  - `NextcloudService` singleton — `upload()`, `download()`, `delete()`, `listForEntity()`, `share()`, `checkHealth()`
+  - Document upload route now routes to Nextcloud when `NEXTCLOUD_ENABLED=true` (`storageBackend: nextcloud | local`)
+  - `GET /api/integrations/nextcloud/files` — list files by `entityType` + `entityId`
+  - `GET|DELETE /api/integrations/nextcloud/files/[...path]` — proxy download and file delete
+  - `POST /api/integrations/nextcloud/share` — OCS share-link creation
+  - `GET /api/integrations/nextcloud/health` — WebDAV PROPFIND health check
+  - Env vars: `NEXTCLOUD_ENABLED`, `NEXTCLOUD_URL`, `NEXTCLOUD_USER`, `NEXTCLOUD_PASSWORD`, `NEXTCLOUD_BASE_PATH`
+
+- **Libre MES Integration**
+  - `LibreMesOrderSync`, `LibreMesMetricSnapshot`, `LibreMesSyncLog` Prisma models
+  - InfluxDB v2 client — Flux query, line-protocol write, ping
+  - node-postgres pool wrapper — generic `query<T>`, `upsertOrder`, ping
+  - `LibreMesService` singleton — `pushOrders()`, `pullMetrics()`, `fullSync()`, `getSyncStatus()`, `checkHealth()`
+  - Auto-push hook on WorkOrder creation when `LIBRE_MES_ENABLED=true` (fire-and-forget)
+  - `POST /api/integrations/libre-mes/push-orders` — manual push with Zod validation
+  - `POST /api/integrations/libre-mes/pull-metrics` — pull OEE metrics (from/to/workOrderIds)
+  - `GET|POST /api/integrations/libre-mes/sync` — status + full sync trigger (Admin/Manager only)
+  - `GET /api/integrations/libre-mes/health` — independent InfluxDB + PostgreSQL health checks
+  - Env vars: `LIBRE_MES_ENABLED`, `LIBRE_MES_PG_*`, `LIBRE_MES_INFLUX_*`
+
+- **Integration Settings UI** (`/settings/integrations`)
+  - Three cards: open-audit (Shield/blue), Nextcloud (Cloud/sky), Libre MES (Factory/orange)
+  - Active/Inactive status badge with configured env var checklist per service
+  - "Test Connection" button — calls health endpoint, shows latency ms or error message
+  - `GET /api/settings/integrations` — returns enabled/configured booleans without exposing secret values
+
+- **Sidebar Integrations section** — quick navigation to Integration Settings, Libre MES Dashboard, Nextcloud Files, open-audit Log
+- `navigation-permissions.ts` entry for `/settings/integrations` (permissions: `settings.view`)
+
+#### Fixed
+
+- **CI build crash** — `next build` on Digital Ocean failed because `validateEnv()` ran at compile time without runtime env vars. Fixed by skipping validation when `NEXT_PHASE === 'phase-production-build'`
+- **Sidebar Integrations invisible** — missing `navigation-permissions.ts` entry caused `hasAccessToRoute()` to filter out the entire Integrations section
+
+---
+
 ## [17.4.1] - 2026-04-01
 
 ### Financial UX & Deploy Optimizations (Patch Release)
