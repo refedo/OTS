@@ -213,16 +213,16 @@ export default function AgingReportPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm print:text-xs">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Third Party</th>
-                    <th className="text-right p-3 font-medium text-green-700">Current</th>
-                    <th className="text-right p-3 font-medium text-yellow-700">1-30 Days</th>
-                    <th className="text-right p-3 font-medium text-orange-600 hidden sm:table-cell">31-60 Days</th>
-                    <th className="text-right p-3 font-medium text-red-500 hidden sm:table-cell">61-90 Days</th>
-                    <th className="text-right p-3 font-medium text-red-700">90+ Days</th>
-                    <th className="text-right p-3 font-medium">Total</th>
+                    <th className="text-left p-3 print:p-2 font-medium">Third Party</th>
+                    <th className="text-right p-3 print:p-2 font-medium text-green-700">Current</th>
+                    <th className="text-right p-3 print:p-2 font-medium text-yellow-700">1-30 Days</th>
+                    <th className="text-right p-3 print:p-2 font-medium text-orange-600 hidden sm:table-cell print:!table-cell">31-60 Days</th>
+                    <th className="text-right p-3 print:p-2 font-medium text-red-500 hidden sm:table-cell print:!table-cell">61-90 Days</th>
+                    <th className="text-right p-3 print:p-2 font-medium text-red-700">90+ Days</th>
+                    <th className="text-right p-3 print:p-2 font-medium">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -247,10 +247,10 @@ export default function AgingReportPage() {
                         <td className="p-3 text-right font-mono text-yellow-700 dark:text-yellow-400">
                           {row.buckets.days1to30 > 0 ? fmt(row.buckets.days1to30) : '—'}
                         </td>
-                        <td className="p-3 text-right font-mono text-orange-600 hidden sm:table-cell">
+                        <td className="p-3 print:p-2 text-right font-mono text-orange-600 hidden sm:table-cell print:!table-cell">
                           {row.buckets.days31to60 > 0 ? fmt(row.buckets.days31to60) : '—'}
                         </td>
-                        <td className="p-3 text-right font-mono text-red-500 hidden sm:table-cell">
+                        <td className="p-3 print:p-2 text-right font-mono text-red-500 hidden sm:table-cell print:!table-cell">
                           {row.buckets.days61to90 > 0 ? fmt(row.buckets.days61to90) : '—'}
                         </td>
                         <td className="p-3 text-right font-mono text-red-700 font-semibold">
@@ -276,8 +276,8 @@ export default function AgingReportPage() {
                             )}
                           </td>
                           <td className="p-2 text-right font-mono">{fmt(inv.totalAmount)}</td>
-                          <td className="p-2 text-right font-mono text-green-600 hidden sm:table-cell">{fmt(inv.amountPaid)}</td>
-                          <td className="p-2 text-right font-mono font-semibold text-orange-700 hidden sm:table-cell">{fmt(inv.remaining)}</td>
+                          <td className="p-2 text-right font-mono text-green-600 hidden sm:table-cell print:!table-cell">{fmt(inv.amountPaid)}</td>
+                          <td className="p-2 text-right font-mono font-semibold text-orange-700 hidden sm:table-cell print:!table-cell">{fmt(inv.remaining)}</td>
                           <td className="p-2 text-center" colSpan={2}>
                             <Badge
                               variant="outline"
@@ -310,8 +310,8 @@ export default function AgingReportPage() {
                     <td className="p-3">TOTALS</td>
                     <td className="p-3 text-right font-mono text-green-700">{fmt(report.totals.current)}</td>
                     <td className="p-3 text-right font-mono text-yellow-700">{fmt(report.totals.days1to30)}</td>
-                    <td className="p-3 text-right font-mono text-orange-600 hidden sm:table-cell">{fmt(report.totals.days31to60)}</td>
-                    <td className="p-3 text-right font-mono text-red-500 hidden sm:table-cell">{fmt(report.totals.days61to90)}</td>
+                    <td className="p-3 print:p-2 text-right font-mono text-orange-600 hidden sm:table-cell print:!table-cell">{fmt(report.totals.days31to60)}</td>
+                    <td className="p-3 print:p-2 text-right font-mono text-red-500 hidden sm:table-cell print:!table-cell">{fmt(report.totals.days61to90)}</td>
                     <td className="p-3 text-right font-mono text-red-700">{fmt(report.totals.days90plus)}</td>
                     <td className="p-3 text-right font-mono">{fmt(report.totals.total)}</td>
                   </tr>
@@ -320,6 +320,13 @@ export default function AgingReportPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ── Print Timestamp Footer ───────────────────────────────────────────── */}
+      {report && (
+        <div className="hidden print:block text-xs text-muted-foreground text-center pt-4 border-t mt-4">
+          Generated on {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+        </div>
       )}
     </div>
   );
