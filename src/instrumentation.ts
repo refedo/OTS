@@ -13,11 +13,15 @@ export async function register() {
     // Dynamically import to avoid client-side bundling
     const { EarlyWarningScheduler } = await import('@/lib/scheduler/early-warning.scheduler');
     const { LcrSyncScheduler } = await import('@/lib/scheduler/lcr-sync.scheduler');
-    
+    const { registerIntegrationListeners } = await import('@/lib/events/integration-listeners');
+
     // Initialize the Early Warning Engine scheduler
     EarlyWarningScheduler.initialize();
-    
+
     // Initialize the LCR Sync scheduler (Supply Chain module)
     LcrSyncScheduler.initialize();
+
+    // Register integration event listeners (open-audit, Libre MES, …)
+    registerIntegrationListeners();
   }
 }

@@ -5,8 +5,8 @@ import { verifySession } from '@/lib/jwt';
 import { WorkUnitSyncService } from '@/lib/services/work-unit-sync.service';
 import { WorkTrackingValidatorService } from '@/lib/services/work-tracking-validator.service';
 import { systemEventService } from '@/services/system-events.service';
-import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { otsEmitter } from '@/lib/events/ots-emitter';
 
 // Generate work order number
 async function generateWorkOrderNumber(): Promise<string> {
@@ -349,14 +349,7 @@ export async function POST(req: Request) {
       projectId,
     });
 
-    // Push to Libre MES (fire-and-forget)
-    if (env.LIBRE_MES_ENABLED === 'true') {
-      void import('@/lib/services/libre-mes.service').then(({ libreMesService }) => {
-        void libreMesService.pushOrders([workOrder.id]).catch((err: unknown) =>
-          logger.error({ err, workOrderId: workOrder.id }, '[LibreMES] Auto-push failed')
-        );
-      }).catch((err: unknown) => logger.error({ err }, '[LibreMES] Import failure'));
-    }
+    otsEmitter.emit('work-order:created', { workOrderId: workOrder.id });
 
     // Return work order with any non-critical warnings
     // Convert Decimal fields to numbers for JSON serialization

@@ -9,12 +9,7 @@ import prisma from '@/lib/db';
 import { AuditAction } from '@prisma/client';
 import { getRequestContext, getRequestId, getCurrentUserId, getRequestSource } from './request-context';
 import { logger } from '@/lib/logger';
-
-// Compliance entities forwarded to the external open-audit mirror
-const OPEN_AUDIT_ENTITIES = new Set([
-  'WPS', 'ITP', 'NCRReport', 'RFIRequest', 'Document',
-  'QCInspection', 'Project', 'WorkOrder',
-]);
+import { otsEmitter } from '@/lib/events/ots-emitter';
 
 // Entities that should be audited
 export const AUDITED_ENTITIES = [
@@ -88,18 +83,15 @@ class AuditService {
         select: { id: true },
       });
 
-      // Forward compliance-critical events to external open-audit mirror (fire-and-forget)
-      if (OPEN_AUDIT_ENTITIES.has(entityType)) {
-        import('@/lib/services/open-audit.service').then(({ openAuditService }) => {
-          openAuditService.forward(auditLog.id, {
-            actorId: performedById,
-            action: action as string,
-            entity: entityType,
-            entityId,
-            metadata: metadata ?? undefined,
-          }).catch((err) => logger.error({ err }, '[OpenAudit] Silent forward failure'));
-        }).catch((err) => logger.error({ err }, '[OpenAudit] Import failure'));
-      }
+      // Emit for integration listeners (open-audit mirror, etc.)
+      otsEmitter.emit('audit:created', {
+        auditLogId: auditLog.id,
+        entityType,
+        entityId,
+        action: action as string,
+        actorId: performedById,
+        metadata: metadata ?? undefined,
+      });
     } catch (error) {
       logger.error({ error }, '[AuditService] Failed to create audit log');
       // Don't throw - audit failures shouldn't break the main operation
