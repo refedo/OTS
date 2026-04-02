@@ -24,6 +24,7 @@ import {
   FileText,
   HelpCircle,
   ChevronDown,
+  Pin,
 } from 'lucide-react';
 
 // --- Types ---
@@ -635,6 +636,7 @@ export default function ProjectTrackerClient() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDark, setIsDark] = useState(true);
+  const [freezeHeader, setFreezeHeader] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -715,17 +717,39 @@ export default function ProjectTrackerClient() {
               Real-time progress across all active projects
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsDark((prev) => !prev)}
-            className={`
-              rounded-lg transition-colors
-              ${isDark ? 'border-slate-700 bg-[#1a2332] hover:bg-[#243044] text-slate-300' : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'}
-            `}
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setFreezeHeader((prev) => !prev)}
+              title={freezeHeader ? 'Unfreeze header row' : 'Freeze header row'}
+              className={`
+                rounded-lg transition-colors
+                ${
+                  freezeHeader
+                    ? isDark
+                      ? 'border-amber-500/60 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                      : 'border-amber-400 bg-amber-50 text-amber-600 hover:bg-amber-100'
+                    : isDark
+                      ? 'border-slate-700 bg-[#1a2332] hover:bg-[#243044] text-slate-300'
+                      : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'
+                }
+              `}
+            >
+              <Pin className={`w-4 h-4 ${freezeHeader ? 'fill-current' : ''}`} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsDark((prev) => !prev)}
+              className={`
+                rounded-lg transition-colors
+                ${isDark ? 'border-slate-700 bg-[#1a2332] hover:bg-[#243044] text-slate-300' : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'}
+              `}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+          </div>
         </div>
 
         {loading && !data ? (
@@ -843,10 +867,10 @@ export default function ProjectTrackerClient() {
                 ${isDark ? 'border-slate-700/50' : 'border-slate-200'}
               `}
             >
-              <div className="overflow-x-auto">
+              <div className={freezeHeader ? 'overflow-auto max-h-[calc(100vh-300px)]' : 'overflow-x-auto'}>
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className={headerBg}>
+                    <tr className={`${headerBg} ${freezeHeader ? 'sticky top-0 z-30' : ''}`}>
                       <th
                         className={`
                           sticky left-0 z-10 text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-3
