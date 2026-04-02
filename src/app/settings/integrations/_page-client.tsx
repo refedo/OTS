@@ -122,7 +122,8 @@ export default function IntegrationsSettingsPage() {
     setHealthLoading(prev => ({ ...prev, [integration]: true }));
     try {
       const res = await fetch(`/api/integrations/${integration}/health`);
-      setHealth(prev => ({ ...prev, [integration]: await res.json() }));
+      const data = await res.json();
+      setHealth(prev => ({ ...prev, [integration]: data }));
     } catch {
       setHealth(prev => ({ ...prev, [integration]: { ok: false, error: 'Request failed' } }));
     } finally {
