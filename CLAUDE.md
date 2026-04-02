@@ -12,7 +12,7 @@ Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
 - **Minor** (17.X.0): New features, new pages, new API endpoints — bump automatically
 - **Major** (X.0.0): Only bumped when explicitly instructed by the user
 - Update the version in both `CLAUDE.md` and `package.json` on every commit
-
+- Update changelog.md and /changelog page content on every version update
 ---
 
 ## Development Branch
