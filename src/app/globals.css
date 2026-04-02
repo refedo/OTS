@@ -139,4 +139,38 @@
     size: A4 landscape;
     margin: 15mm;
   }
+
+  /* Force light-mode CSS variables so dark-mode users print correctly */
+  :root, .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.1 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.1 0 0);
+    --muted: oklch(0.95 0 0);
+    --muted-foreground: oklch(0.2 0 0);
+    --border: oklch(0.85 0 0);
+  }
+
+  /* Ensure body and table text is near-black */
+  body, table, th, td, p, span, div {
+    color: inherit;
+  }
+  table {
+    color: #111 !important;
+  }
+  /* Keep colored amount cells readable */
+  .text-green-700  { color: #15803d !important; }
+  .text-yellow-700 { color: #a16207 !important; }
+  .text-orange-600 { color: #ea580c !important; }
+  .text-red-500    { color: #ef4444 !important; }
+  .text-red-700    { color: #b91c1c !important; }
+  .text-muted-foreground { color: #444 !important; }
+
+  /* thead background for readability without "background graphics" */
+  table thead tr {
+    background-color: #f1f5f9 !important;
+  }
+  table tfoot tr {
+    background-color: #f1f5f9 !important;
+  }
 }
