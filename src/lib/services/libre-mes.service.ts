@@ -35,8 +35,9 @@ export interface FullSyncResult {
 }
 
 class LibreMesService {
-  private get enabled(): boolean {
-    return env.LIBRE_MES_ENABLED === 'true';
+  private async isEnabled(): Promise<boolean> {
+    const settings = await prisma.systemSettings.findFirst({ select: { libreMesEnabled: true } });
+    return settings?.libreMesEnabled ?? false;
   }
 
   private getInfluxClient(): InfluxClient {
@@ -59,7 +60,7 @@ class LibreMesService {
    * Updates LibreMesOrderSync rows accordingly.
    */
   async pushOrders(workOrderIds: string[]): Promise<OrderPushResult[]> {
-    if (!this.enabled) return [];
+    if (!await this.isEnabled()) return [];
     const results: OrderPushResult[] = [];
 
     let pg: LibrePgClient;
@@ -120,7 +121,7 @@ class LibreMesService {
    * persist new rows into LibreMesMetricSnapshot.
    */
   async pullMetrics(params: { from: Date; to: Date; workOrderIds?: string[] }): Promise<MetricPullResult[]> {
-    if (!this.enabled) return [];
+    if (!await this.isEnabled()) return [];
 
     let influx: InfluxClient;
     try {

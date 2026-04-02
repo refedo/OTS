@@ -31,8 +31,9 @@ export interface OpenAuditForwardResult {
 const MAX_ATTEMPTS = 3;
 
 class OpenAuditService {
-  private get enabled(): boolean {
-    return env.OPEN_AUDIT_ENABLED === 'true';
+  private async isEnabled(): Promise<boolean> {
+    const settings = await prisma.systemSettings.findFirst({ select: { openAuditEnabled: true } });
+    return settings?.openAuditEnabled ?? false;
   }
 
   /**
@@ -42,7 +43,7 @@ class OpenAuditService {
    * Never throws — all errors are swallowed and logged.
    */
   async forward(auditLogId: string, event: OpenAuditEvent): Promise<OpenAuditForwardResult> {
-    if (!this.enabled) {
+    if (!await this.isEnabled()) {
       return { success: false, mirrorLogId: '', error: 'open-audit disabled' };
     }
 
@@ -157,7 +158,7 @@ class OpenAuditService {
    * Retry all rows where status='failed' and attempts < MAX_ATTEMPTS.
    */
   async retryFailed(): Promise<{ retried: number; succeeded: number; failed: number }> {
-    if (!this.enabled) return { retried: 0, succeeded: 0, failed: 0 };
+    if (!await this.isEnabled()) return { retried: 0, succeeded: 0, failed: 0 };
 
     const rows = await prisma.openAuditMirrorLog.findMany({
       where: { status: 'failed', attempts: { lt: MAX_ATTEMPTS } },
@@ -220,7 +221,7 @@ class OpenAuditService {
    * Connectivity check against the open-audit endpoint.
    */
   async checkHealth(): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
-    if (!this.enabled || !env.OPEN_AUDIT_API_URL) {
+    if (!await this.isEnabled() || !env.OPEN_AUDIT_API_URL) {
       return { ok: false, latencyMs: 0, error: 'open-audit not configured' };
     }
 

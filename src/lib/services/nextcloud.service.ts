@@ -35,8 +35,9 @@ export interface ShareResult {
 }
 
 class NextcloudService {
-  private get enabled(): boolean {
-    return env.NEXTCLOUD_ENABLED === 'true';
+  private async isEnabled(): Promise<boolean> {
+    const settings = await prisma.systemSettings.findFirst({ select: { nextcloudEnabled: true } });
+    return settings?.nextcloudEnabled ?? false;
   }
 
   private get client(): WebDavClient {
@@ -68,7 +69,7 @@ class NextcloudService {
     entityId: string;
     uploadedById: string;
   }): Promise<UploadResult> {
-    if (!this.enabled) throw new Error('Nextcloud is not enabled');
+    if (!await this.isEnabled()) throw new Error('Nextcloud is not enabled');
 
     const { buffer, fileName, mimeType, entityType, entityId, uploadedById } = params;
 
@@ -100,7 +101,7 @@ class NextcloudService {
    * Download a file from Nextcloud by its remote path.
    */
   async download(remotePath: string): Promise<DownloadResult> {
-    if (!this.enabled) throw new Error('Nextcloud is not enabled');
+    if (!await this.isEnabled()) throw new Error('Nextcloud is not enabled');
 
     const row = await prisma.nextcloudFile.findFirst({
       where: { remotePath },
@@ -121,7 +122,7 @@ class NextcloudService {
    * Delete a file from Nextcloud and remove the NextcloudFile row.
    */
   async delete(remotePath: string): Promise<void> {
-    if (!this.enabled) throw new Error('Nextcloud is not enabled');
+    if (!await this.isEnabled()) throw new Error('Nextcloud is not enabled');
 
     await this.client.delete(remotePath);
     await prisma.nextcloudFile.deleteMany({ where: { remotePath } });
@@ -148,7 +149,7 @@ class NextcloudService {
     password?: string;
     expiresAt?: Date;
   }): Promise<ShareResult> {
-    if (!this.enabled) throw new Error('Nextcloud is not enabled');
+    if (!await this.isEnabled()) throw new Error('Nextcloud is not enabled');
 
     const base = env.NEXTCLOUD_BASE_URL;
     const user = env.NEXTCLOUD_USERNAME;
@@ -200,7 +201,7 @@ class NextcloudService {
    * PROPFIND root path to confirm the WebDAV endpoint is reachable.
    */
   async checkHealth(): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
-    if (!this.enabled || !env.NEXTCLOUD_BASE_URL) {
+    if (!await this.isEnabled() || !env.NEXTCLOUD_BASE_URL) {
       return { ok: false, latencyMs: 0, error: 'Nextcloud not configured' };
     }
 

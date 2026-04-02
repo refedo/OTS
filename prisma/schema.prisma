@@ -2345,6 +2345,11 @@ model SystemSettings {
   githubToken        String?  @db.Text // Personal Access Token (stored encrypted-at-rest)
   githubDefaultRepo  String?           // default owner/repo, e.g. "acme/ots-issues"
 
+  // Integration Toggles (DB-backed, supersede *_ENABLED env vars)
+  openAuditEnabled   Boolean  @default(false)
+  nextcloudEnabled   Boolean  @default(false)
+  libreMesEnabled    Boolean  @default(false)
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
