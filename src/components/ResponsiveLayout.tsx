@@ -14,7 +14,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <AppSidebar />
       <TopBar />
-      <main className={`flex-1 transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} pt-14`}>
+      <main className={`flex-1 transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} pt-14 print:!ml-0 print:!pt-0`}>
         <RouteGuard>{children}</RouteGuard>
       </main>
     </div>

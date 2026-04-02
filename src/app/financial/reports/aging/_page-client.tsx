@@ -24,6 +24,14 @@ export default function AgingReportPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
   const [bucketFilter, setBucketFilter] = useState<string | null>(null);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.companyLogo) setCompanyLogo(data.companyLogo); })
+      .catch(() => {});
+  }, []);
 
   const BUCKETS = [
     { key: 'current',  label: 'Current',    color: 'text-green-600',  ring: 'ring-green-400',  field: 'current' },
@@ -62,8 +70,34 @@ export default function AgingReportPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Print Header (visible only when printing) ─────────────────────────── */}
+      <div className="hidden print:flex items-center justify-between border-b pb-4 mb-4">
+        <div className="flex items-center gap-3">
+          {companyLogo ? (
+            <img
+              src={companyLogo}
+              alt="Company Logo"
+              className="h-10 max-w-[140px] object-contain"
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="size-10 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-base">HS</span>
+              </div>
+              <span className="font-semibold text-lg">Hexa Steel</span>
+            </div>
+          )}
+        </div>
+        <div className="text-right">
+          <h1 className="text-xl font-bold">Aging Report</h1>
+          <p className="text-sm text-muted-foreground">
+            {type === 'ar' ? 'Accounts Receivable' : 'Accounts Payable'} &middot; As of {asOfDate}
+          </p>
+        </div>
+      </div>
+
       {/* ── Header ────────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
           <Link href="/financial">
             <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
