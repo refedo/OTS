@@ -43,8 +43,9 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deploy-package
-          # Copy .next but exclude the webpack module cache (not needed at runtime, ~200-400MB)
-          rsync -a --exclude='cache' .next/ deploy-package/.next/
+          # Copy .next then remove webpack module cache (not needed at runtime, ~200-400MB)
+          cp -r .next deploy-package/
+          rm -rf deploy-package/.next/cache
           cp -r public deploy-package/ || true
           cp -r prisma deploy-package/
           cp package*.json deploy-package/
