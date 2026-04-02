@@ -8,8 +8,7 @@ Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
 ---
 
 ## Development Branch
-Always develop on: `claude/review-ots-improvements-LJzXb`
-Never push directly to `main`.
+Push directly to `main`. No feature branches required.
 
 ---
 
