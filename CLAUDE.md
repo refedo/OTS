@@ -3,13 +3,12 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.4.2` — Service Integrations: open-audit, Nextcloud, Libre MES (Patch Release)
+**Current version:** `17.4.3` — Event Bus & UI Polish (Patch Release)
 
 ---
 
 ## Development Branch
-Always develop on: `claude/review-ots-improvements-LJzXb`
-Never push directly to `main`.
+Push directly to `main`. No feature branches required.
 
 ---
 

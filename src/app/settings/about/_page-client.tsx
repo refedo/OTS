@@ -149,7 +149,7 @@ const modules = [
     name: 'External Integrations',
     icon: Plug,
     description: 'Bidirectional integrations with open-audit, Nextcloud, and Libre MES for ISO compliance, document management, and manufacturing execution.',
-    features: ['open-audit ISO mirror', 'Nextcloud WebDAV (ISO 9001 §7.5)', 'Libre MES OEE sync', 'InfluxDB v2 metrics', 'Integration health dashboard'],
+    features: ['open-audit ISO mirror', 'Nextcloud WebDAV (ISO 9001 §7.5)', 'Libre MES OEE sync', 'InfluxDB v2 metrics', 'Event Bus (typed EventEmitter)', 'Integration health dashboard'],
     color: 'bg-sky-600',
   },
 ];
