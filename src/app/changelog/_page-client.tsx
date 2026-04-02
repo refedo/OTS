@@ -23,10 +23,90 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.4.2',
+    date: 'April 2, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🔌 Service Integrations: open-audit, Nextcloud & Libre MES',
+    highlights: [
+      'open-audit mirror — ISO compliance audit events forwarded automatically to an external open-audit endpoint; configurable via OPEN_AUDIT_* env vars with retry logic and a dedicated event log',
+      'Nextcloud document storage — ISO 9001 Clause 7.5 compliant file management via WebDAV; document uploads route to Nextcloud when NEXTCLOUD_ENABLED=true with full share-link support',
+      'Libre MES bidirectional sync — work orders pushed to Libre MES PostgreSQL on creation; OEE metrics (availability, performance, quality) pulled from InfluxDB v2 on demand',
+      'Integration Settings page — /settings/integrations shows enabled/configured status for all three services with live "Test Connection" health checks',
+      'Sidebar Integrations section — quick navigation to Integration Settings, Libre MES Dashboard, Nextcloud Files, and open-audit Log',
+      'Build-time env safety — NEXT_PHASE detection prevents env validation errors during next build on CI/CD pipelines without runtime vars',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'open-audit Integration',
+          items: [
+            'OpenAuditMirrorLog Prisma model — tracks forwarded compliance events (status: pending/delivered/failed, up to 3 retries)',
+            'OpenAuditService — forward(), retryFailed(), getLogs(), checkHealth() singleton',
+            'Auto-forward hook in audit.service.ts — fires for WPS, ITP, NCRReport, RFIRequest, Document, QCInspection, Project, WorkOrder entities',
+            'GET /api/integrations/open-audit/events — paginated event log with status/entity filters',
+            'POST /api/integrations/open-audit/events — retry failed events (Admin/Manager)',
+            'GET /api/integrations/open-audit/health — live health check with latency',
+            'Env vars: OPEN_AUDIT_ENABLED, OPEN_AUDIT_URL, OPEN_AUDIT_API_KEY',
+          ],
+        },
+        {
+          title: 'Nextcloud Integration',
+          items: [
+            'NextcloudFile Prisma model — references uploaded files by remote WebDAV path with optional share link',
+            'WebDAV client — mkdirp, put, get, delete, propfind with path traversal protection',
+            'NextcloudService — upload(), download(), delete(), listForEntity(), share(), checkHealth() singleton',
+            'Document upload route now routes to Nextcloud when NEXTCLOUD_ENABLED=true (storageBackend: nextcloud | local)',
+            'GET /api/integrations/nextcloud/files — list files by entityType + entityId',
+            'GET|DELETE /api/integrations/nextcloud/files/[...path] — proxy download and delete',
+            'POST /api/integrations/nextcloud/share — create OCS share link',
+            'GET /api/integrations/nextcloud/health — WebDAV PROPFIND health check',
+            'Env vars: NEXTCLOUD_ENABLED, NEXTCLOUD_URL, NEXTCLOUD_USER, NEXTCLOUD_PASSWORD, NEXTCLOUD_BASE_PATH',
+          ],
+        },
+        {
+          title: 'Libre MES Integration',
+          items: [
+            'LibreMesOrderSync Prisma model — per-WorkOrder sync state (unique on workOrderId)',
+            'LibreMesMetricSnapshot Prisma model — OEE metrics: availability, performance, quality, oee',
+            'LibreMesSyncLog Prisma model — audit log for every sync operation',
+            'InfluxDB v2 client — query (Flux), write (line protocol), ping',
+            'node-postgres pool wrapper — generic query<T>, upsertOrder, ping',
+            'LibreMesService — pushOrders(), pullMetrics(), fullSync(), getSyncStatus(), checkHealth()',
+            'Auto-push hook on WorkOrder creation when LIBRE_MES_ENABLED=true',
+            'POST /api/integrations/libre-mes/push-orders — manual push with Zod validation',
+            'POST /api/integrations/libre-mes/pull-metrics — pull OEE metrics (from/to/workOrderIds)',
+            'GET|POST /api/integrations/libre-mes/sync — status + full sync (Admin/Manager)',
+            'GET /api/integrations/libre-mes/health — independent InfluxDB + PostgreSQL health checks',
+            'Env vars: LIBRE_MES_ENABLED, LIBRE_MES_PG_*, LIBRE_MES_INFLUX_*',
+          ],
+        },
+        {
+          title: 'Integration Settings UI (/settings/integrations)',
+          items: [
+            'Three status cards: open-audit (Shield/blue), Nextcloud (Cloud/sky), Libre MES (Factory/orange)',
+            'Active/Inactive badge per service with configured env var checklist',
+            'Test Connection button per card — calls health endpoint, shows latency ms or error message',
+            'Copy-to-clipboard for env var names',
+            'Footer instructions for .env + pm2 restart ots workflow',
+          ],
+        },
+        'Sidebar Integrations section with links to /settings/integrations (hash-anchored per service)',
+        'GET /api/settings/integrations — returns enabled/configured booleans without exposing secret values',
+        'navigation-permissions.ts entry for /settings/integrations (permissions: settings.view)',
+      ],
+      fixed: [
+        'Build-time env validation crash — NEXT_PHASE === phase-production-build now skips validateEnv() so CI builds succeed without runtime env vars',
+        'Sidebar Integrations section invisible — missing navigation-permissions.ts entry caused hasAccessToRoute() to filter out the entire section',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.4.0',
     date: 'April 1, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '📒 Financial Accuracy & Manual Journal Entries',
     highlights: [
       'Manual Journal Entries — new /financial/manual-journal-entries page for creating locked double-entry journal entries with live balance validation, journal code guide (OD/AN/RAN/BQ/VTE/ACH/SAL), and COA combobox search',

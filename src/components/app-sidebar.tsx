@@ -283,9 +283,9 @@ const navigationSections: NavigationSection[] = [
     icon: Plug,
     items: [
       { name: 'Integration Settings', href: '/settings/integrations', icon: Plug },
-      { name: 'open-audit Events', href: '/api/integrations/open-audit/events', icon: Shield },
-      { name: 'Nextcloud Files', href: '/api/integrations/nextcloud/files', icon: Cloud },
-      { name: 'Libre MES Sync', href: '/api/integrations/libre-mes/sync', icon: Factory },
+      { name: 'Libre MES Dashboard', href: '/settings/integrations#libre-mes', icon: Factory },
+      { name: 'Nextcloud Files', href: '/settings/integrations#nextcloud', icon: Cloud },
+      { name: 'open-audit Log', href: '/settings/integrations#open-audit', icon: Shield },
     ],
   },
   {

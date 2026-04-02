@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.4.2] - 2026-04-02
+
+### Service Integrations: open-audit, Nextcloud & Libre MES (Patch Release)
+
+**Patch Release:** Integrates three external services into OTS — open-audit as an external compliance audit mirror, Nextcloud for ISO 9001-compliant document storage via WebDAV, and Libre MES for bidirectional manufacturing execution data exchange (WorkOrder push + OEE metrics pull). Each integration is opt-in via feature-flag env vars and has no impact when disabled.
+
+#### Added
+
+- **open-audit compliance mirror** — Forwards critical governance events (WPS, ITP, NCR, RFI, Document, QCInspection, Project, WorkOrder) to an external open-audit HTTP endpoint as an independent tamper-evident compliance record:
+  - `OpenAuditMirrorLog` Prisma model tracks delivery status with up to 3 retries; fire-and-forget — never blocks the main request
+  - Hook in `audit.service.ts` fires after every `prisma.auditLog.create()` for compliance-critical entities
+  - `GET /api/integrations/open-audit/events` — list events with status/entity/date filters
+  - `POST /api/integrations/open-audit/events` — retry all failed mirror entries (Admin/Manager)
+  - `GET /api/integrations/open-audit/health` — connectivity check
+  - Env vars: `OPEN_AUDIT_ENABLED`, `OPEN_AUDIT_API_URL`, `OPEN_AUDIT_API_KEY`
+
+- **Nextcloud document & file management** — WebDAV-backed storage for all document uploads, addressing ISO 9001 Clause 7.5 (Documented Information):
+  - Thin `WebDavClient` (native `fetch`, no extra npm deps) with path-traversal guard and automatic `MKCOL` for missing directories
+  - `NextcloudService` with upload, download proxy, delete, list-by-entity, and OCS share-link creation
+  - `NextcloudFile` Prisma model references every file by remote WebDAV path with cached metadata and optional share link
+  - `/api/documents/upload` modified: uploads go to Nextcloud when `NEXTCLOUD_ENABLED=true`; falls back to local disk otherwise (zero breaking change)
+  - `GET/DELETE /api/integrations/nextcloud/files/[...path]` — proxy download and delete
+  - `GET /api/integrations/nextcloud/files` — list files by entityType + entityId
+  - `POST /api/integrations/nextcloud/upload` — multipart upload endpoint
+  - `POST /api/integrations/nextcloud/share` — OCS share-link creation (public or password-protected)
+  - `GET /api/integrations/nextcloud/health` — WebDAV connectivity check
+  - Env vars: `NEXTCLOUD_ENABLED`, `NEXTCLOUD_BASE_URL`, `NEXTCLOUD_USERNAME`, `NEXTCLOUD_APP_PASSWORD`, `NEXTCLOUD_ROOT_PATH`
+
+- **Libre MES manufacturing execution integration** — Bidirectional sync with Libre MES (Spruik/Libre — InfluxDB + PostgreSQL + Grafana):
+  - `InfluxClient` (fetch-based, Flux query language) for four OEE buckets: availability, performance, quality, orderPerformance
+  - `LibrePgClient` (node-postgres pool) for production order upserts into Libre PostgreSQL
+  - `LibreMesService` with `pushOrders()`, `pullMetrics()`, `fullSync()`, and `getSyncStatus()`
+  - Auto-push hook in `/api/work-orders` POST — fires after every new WorkOrder creation (fire-and-forget)
+  - `LibreMesOrderSync` — per-WorkOrder sync state (pending/synced/failed/stale)
+  - `LibreMesMetricSnapshot` — stores pulled OEE metrics (availability, performance, quality, oee, plannedQty, actualQty)
+  - `LibreMesSyncLog` — audit log for every push/pull/full-sync operation
+  - `POST /api/integrations/libre-mes/push-orders` — push one or more WorkOrders to Libre PG
+  - `POST /api/integrations/libre-mes/pull-metrics` — pull OEE metrics for a time window from InfluxDB
+  - `GET/POST /api/integrations/libre-mes/sync` — sync status and full-sync trigger
+  - `GET /api/integrations/libre-mes/health` — independent InfluxDB + PostgreSQL health checks
+  - New dependency: `pg` + `@types/pg` (node-postgres)
+  - Env vars: `LIBRE_MES_ENABLED`, `LIBRE_MES_INFLUX_URL`, `LIBRE_MES_INFLUX_TOKEN`, `LIBRE_MES_INFLUX_ORG`, `LIBRE_MES_INFLUX_BUCKET_*`, `LIBRE_MES_PG_URL`
+
+- **Integrations settings page** (`/settings/integrations`) — Status dashboard for all three integrations:
+  - Card per integration showing which env vars are set (✓) or missing (✗) without exposing values
+  - **Test Connection** button per card — hits the live health endpoint and shows latency
+  - Copy-to-clipboard button for each env var name
+  - `GET /api/settings/integrations` — returns configured/enabled status for all three integrations
+
+- **Integrations sidebar section** — New collapsible section (Plug icon) between Dolibarr ERP and Settings with links to Integration Settings, Libre MES, Nextcloud, and open-audit
+
+- **5 new Prisma models**: `OpenAuditMirrorLog`, `NextcloudFile`, `LibreMesOrderSync`, `LibreMesMetricSnapshot`, `LibreMesSyncLog`
+
+- **19 new environment variables** added to `src/lib/env.ts` (all optional, grouped by integration)
+
+#### Fixed
+
+- **Digital Ocean CI build failure** — `next build` was crashing with `Error: Missing required environment variables` because `env.ts` called `validateEnv()` at module load time; build environments don't inject runtime secrets. Fixed by skipping validation when `NEXT_PHASE === 'phase-production-build'` (same pattern as the existing `NODE_ENV === 'test'` bypass). Validation still runs at server startup.
+- **Integrations not appearing in sidebar** — `navigation-permissions.ts` was missing the `/settings/integrations` route entry, so `hasAccessToRoute()` denied access and filtered out the entire section. Added `'/settings/integrations': ['settings.view']`.
+- **`console.log/warn/error` in `audit.service.ts`** — Replaced all remaining `console.*` calls with the Pino `logger` per CLAUDE.md coding standards.
+
+---
+
 ## [17.4.0] - 2026-04-01
 
 ### Financial Accuracy & Manual Journal Entries (Minor Release)

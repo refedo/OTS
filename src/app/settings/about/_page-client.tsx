@@ -22,6 +22,7 @@ import {
   Brain,
   Clock,
   Database,
+  Plug,
 } from 'lucide-react';
 
 const modules = [
@@ -144,6 +145,13 @@ const modules = [
     features: ['Backlog management', 'Priority tracking', 'Status workflow', 'CEO dashboard'],
     color: 'bg-rose-500',
   },
+  {
+    name: 'External Integrations',
+    icon: Plug,
+    description: 'Bidirectional integrations with open-audit, Nextcloud, and Libre MES for ISO compliance, document management, and manufacturing execution.',
+    features: ['open-audit ISO mirror', 'Nextcloud WebDAV (ISO 9001 §7.5)', 'Libre MES OEE sync', 'InfluxDB v2 metrics', 'Integration health dashboard'],
+    color: 'bg-sky-600',
+  },
 ];
 
 export default function AboutOTSPage() {
@@ -174,12 +182,14 @@ export default function AboutOTSPage() {
             for Hexa Steel®. It provides end-to-end project management, production tracking,
             quality control, and business intelligence capabilities. Features include smart navigation
             with Recent Links &amp; Bookmarks, Production Trend analytics with Day/Week/Month views,
-            LCR procurement analytics, enhanced task filtering across all activity types, and a
-            Payment Schedule Report for consolidated cross-project financial collection tracking and cash flow forecasting.
+            LCR procurement analytics, enhanced task filtering across all activity types, a
+            Payment Schedule Report for consolidated cross-project financial collection tracking, and
+            external service integrations with open-audit (ISO compliance mirror), Nextcloud (ISO 9001 §7.5
+            document management via WebDAV), and Libre MES (bidirectional manufacturing execution sync with OEE metrics).
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-3xl font-bold text-primary">15+</p>
+              <p className="text-3xl font-bold text-primary">18+</p>
               <p className="text-sm text-muted-foreground">Integrated Modules</p>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
