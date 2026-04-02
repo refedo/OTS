@@ -43,9 +43,8 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deploy-package
-          # Copy .next then remove webpack module cache (not needed at runtime, ~200-400MB)
-          cp -r .next deploy-package/
-          rm -rf deploy-package/.next/cache
+          # Copy .next excluding the webpack module cache (~200-400MB, not needed at runtime)
+          tar -C . --exclude='.next/cache' -cf - .next | tar -C deploy-package -xf -
           cp -r public deploy-package/ || true
           cp -r prisma deploy-package/
           cp package*.json deploy-package/
