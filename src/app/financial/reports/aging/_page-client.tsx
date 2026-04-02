@@ -23,10 +23,21 @@ export default function AgingReportPage() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
+  const [bucketFilter, setBucketFilter] = useState<string | null>(null);
+
+  const BUCKETS = [
+    { key: 'current',  label: 'Current',    color: 'text-green-600',  ring: 'ring-green-400',  field: 'current' },
+    { key: '1to30',    label: '1-30 Days',  color: 'text-yellow-600', ring: 'ring-yellow-400', field: 'days1to30' },
+    { key: '31to60',   label: '31-60 Days', color: 'text-orange-600', ring: 'ring-orange-400', field: 'days31to60' },
+    { key: '61to90',   label: '61-90 Days', color: 'text-red-500',    ring: 'ring-red-400',    field: 'days61to90' },
+    { key: '90plus',   label: '90+ Days',   color: 'text-red-700',    ring: 'ring-red-600',    field: 'days90plus' },
+    { key: null,       label: 'Total',      color: type === 'ar' ? 'text-green-700' : 'text-red-700', ring: 'ring-gray-400', field: 'total' },
+  ] as const;
 
   const generate = async () => {
     setLoading(true);
     setExpanded(new Set());
+    setBucketFilter(null);
     try {
       const res = await fetch(`/api/financial/reports/aging?type=${type}&as_of=${asOfDate}`);
       if (res.ok) setReport(await res.json());
@@ -39,11 +50,15 @@ export default function AgingReportPage() {
     setExpanded(next);
   };
 
-  const filteredRows = (report?.rows ?? []).filter((row: any) =>
-    !search ||
-    row.thirdpartyName?.toLowerCase().includes(search.toLowerCase()) ||
-    row.invoices?.some((inv: any) => inv.ref?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const bucketField = BUCKETS.find(b => b.key === bucketFilter)?.field ?? null;
+
+  const filteredRows = (report?.rows ?? []).filter((row: any) => {
+    const matchesBucket = !bucketField || bucketField === 'total' || row.buckets[bucketField] > 0;
+    const matchesSearch = !search ||
+      row.thirdpartyName?.toLowerCase().includes(search.toLowerCase()) ||
+      row.invoices?.some((inv: any) => inv.ref?.toLowerCase().includes(search.toLowerCase()));
+    return matchesBucket && matchesSearch;
+  });
 
   return (
     <div className="space-y-6">
@@ -72,7 +87,7 @@ export default function AgingReportPage() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => { setType('ar'); setReport(null); }}
+                  onClick={() => { setType('ar'); setReport(null); setBucketFilter(null); }}
                   className={cn(
                     'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                     type === 'ar'
@@ -82,7 +97,7 @@ export default function AgingReportPage() {
                 >AR</button>
                 <button
                   type="button"
-                  onClick={() => { setType('ap'); setReport(null); }}
+                  onClick={() => { setType('ap'); setReport(null); setBucketFilter(null); }}
                   className={cn(
                     'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                     type === 'ap'
@@ -116,19 +131,30 @@ export default function AgingReportPage() {
       {/* ── Bucket Summary Cards ──────────────────────────────────────────────── */}
       {report && (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 print:hidden">
-          {[
-            { label: 'Current',   value: report.totals.current,    color: 'text-green-600' },
-            { label: '1-30 Days', value: report.totals.days1to30,  color: 'text-yellow-600' },
-            { label: '31-60 Days',value: report.totals.days31to60, color: 'text-orange-600' },
-            { label: '61-90 Days',value: report.totals.days61to90, color: 'text-red-500' },
-            { label: '90+ Days',  value: report.totals.days90plus, color: 'text-red-700' },
-            { label: 'Total',     value: report.totals.total,      color: type === 'ar' ? 'text-green-700' : 'text-red-700' },
-          ].map(b => (
-            <div key={b.label} className="p-3 border rounded-lg text-center">
-              <div className="text-xs text-muted-foreground">{b.label}</div>
-              <div className={cn('text-sm font-bold tabular-nums', b.color)}>{fmt(b.value)}</div>
-            </div>
-          ))}
+          {BUCKETS.map(b => {
+            const value = report.totals[b.field];
+            const active = bucketFilter === b.key;
+            return (
+              <button
+                key={b.label}
+                type="button"
+                onClick={() => setBucketFilter(active ? null : b.key)}
+                className={cn(
+                  'p-3 border rounded-lg text-center transition-all',
+                  'hover:shadow-md hover:scale-[1.03]',
+                  active
+                    ? cn('ring-2 shadow-md scale-[1.03]', b.ring, 'bg-muted/60')
+                    : 'hover:bg-muted/30',
+                )}
+              >
+                <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                  {b.label}
+                  {active && <span className="text-[10px] font-semibold">(filtered)</span>}
+                </div>
+                <div className={cn('text-sm font-bold tabular-nums', b.color)}>{fmt(value)}</div>
+              </button>
+            );
+          })}
         </div>
       )}
 
