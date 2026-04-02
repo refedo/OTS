@@ -39,7 +39,7 @@ export default function TopBar() {
   };
 
   return (
-    <div className="fixed top-0 right-0 z-50 flex items-center gap-1 p-2 lg:p-3">
+    <div className="fixed top-0 right-0 z-50 flex items-center gap-1 p-2 lg:p-3 print:hidden">
       <GlobalSearch />
       <RecentLinksPanel />
       <NotificationBell />

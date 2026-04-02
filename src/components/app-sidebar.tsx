@@ -453,7 +453,7 @@ export function AppSidebar() {
   return (
     <>
       {/* Mobile menu button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+      <div className="lg:hidden fixed top-4 left-4 z-50 print:hidden">
         <Button
           variant="outline"
           size="icon"
@@ -466,8 +466,8 @@ export function AppSidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen bg-card border-r transition-all duration-300',
-          collapsed ? 'w-0 lg:w-16' : 'w-64',
+          'fixed left-0 top-0 z-40 h-screen bg-card border-r transition-all duration-300 print:hidden',
+          collapsed ? 'w-0 overflow-hidden lg:w-16 lg:overflow-visible' : 'w-64',
           'max-lg:shadow-lg'
         )}
       >
