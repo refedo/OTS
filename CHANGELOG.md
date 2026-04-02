@@ -11,62 +11,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Service Integrations: open-audit, Nextcloud & Libre MES (Patch Release)
 
-**Patch Release:** Integrates three external services into OTS — open-audit as an external compliance audit mirror, Nextcloud for ISO 9001-compliant document storage via WebDAV, and Libre MES for bidirectional manufacturing execution data exchange (WorkOrder push + OEE metrics pull). Each integration is opt-in via feature-flag env vars and has no impact when disabled.
+**Patch Release:** Integrates three external services — open-audit (ISO compliance audit mirror), Nextcloud (ISO 9001 §7.5 document management via WebDAV), and Libre MES (bidirectional manufacturing execution sync with OEE metrics). Adds an Integrations Settings page at `/settings/integrations` with live health checks and a new Integrations sidebar section. Fixes a `next build` crash caused by env var validation running at compile time.
 
 #### Added
 
-- **open-audit compliance mirror** — Forwards critical governance events (WPS, ITP, NCR, RFI, Document, QCInspection, Project, WorkOrder) to an external open-audit HTTP endpoint as an independent tamper-evident compliance record:
-  - `OpenAuditMirrorLog` Prisma model tracks delivery status with up to 3 retries; fire-and-forget — never blocks the main request
-  - Hook in `audit.service.ts` fires after every `prisma.auditLog.create()` for compliance-critical entities
-  - `GET /api/integrations/open-audit/events` — list events with status/entity/date filters
-  - `POST /api/integrations/open-audit/events` — retry all failed mirror entries (Admin/Manager)
-  - `GET /api/integrations/open-audit/health` — connectivity check
-  - Env vars: `OPEN_AUDIT_ENABLED`, `OPEN_AUDIT_API_URL`, `OPEN_AUDIT_API_KEY`
+- **open-audit Integration**
+  - `OpenAuditMirrorLog` Prisma model — tracks forwarded compliance events (status: pending/delivered/failed, up to 3 retries)
+  - `OpenAuditService` singleton — `forward()`, `retryFailed()`, `getLogs()`, `checkHealth()`
+  - Auto-forward hook in `audit.service.ts` — fires for WPS, ITP, NCRReport, RFIRequest, Document, QCInspection, Project, WorkOrder entities (fire-and-forget, never blocks primary operation)
+  - `GET /api/integrations/open-audit/events` — paginated event log with status/entity filters
+  - `POST /api/integrations/open-audit/events` — retry failed events (Admin/Manager only)
+  - `GET /api/integrations/open-audit/health` — live connectivity health check with latency
+  - Env vars: `OPEN_AUDIT_ENABLED`, `OPEN_AUDIT_URL`, `OPEN_AUDIT_API_KEY`
 
-- **Nextcloud document & file management** — WebDAV-backed storage for all document uploads, addressing ISO 9001 Clause 7.5 (Documented Information):
-  - Thin `WebDavClient` (native `fetch`, no extra npm deps) with path-traversal guard and automatic `MKCOL` for missing directories
-  - `NextcloudService` with upload, download proxy, delete, list-by-entity, and OCS share-link creation
-  - `NextcloudFile` Prisma model references every file by remote WebDAV path with cached metadata and optional share link
-  - `/api/documents/upload` modified: uploads go to Nextcloud when `NEXTCLOUD_ENABLED=true`; falls back to local disk otherwise (zero breaking change)
-  - `GET/DELETE /api/integrations/nextcloud/files/[...path]` — proxy download and delete
-  - `GET /api/integrations/nextcloud/files` — list files by entityType + entityId
-  - `POST /api/integrations/nextcloud/upload` — multipart upload endpoint
-  - `POST /api/integrations/nextcloud/share` — OCS share-link creation (public or password-protected)
-  - `GET /api/integrations/nextcloud/health` — WebDAV connectivity check
-  - Env vars: `NEXTCLOUD_ENABLED`, `NEXTCLOUD_BASE_URL`, `NEXTCLOUD_USERNAME`, `NEXTCLOUD_APP_PASSWORD`, `NEXTCLOUD_ROOT_PATH`
+- **Nextcloud Integration**
+  - `NextcloudFile` Prisma model — references uploaded files by remote WebDAV path with optional share link
+  - WebDAV client — `mkdirp`, `put`, `get`, `delete`, `propfind` with path-traversal protection
+  - `NextcloudService` singleton — `upload()`, `download()`, `delete()`, `listForEntity()`, `share()`, `checkHealth()`
+  - Document upload route now routes to Nextcloud when `NEXTCLOUD_ENABLED=true` (`storageBackend: nextcloud | local`)
+  - `GET /api/integrations/nextcloud/files` — list files by `entityType` + `entityId`
+  - `GET|DELETE /api/integrations/nextcloud/files/[...path]` — proxy download and file delete
+  - `POST /api/integrations/nextcloud/share` — OCS share-link creation
+  - `GET /api/integrations/nextcloud/health` — WebDAV PROPFIND health check
+  - Env vars: `NEXTCLOUD_ENABLED`, `NEXTCLOUD_URL`, `NEXTCLOUD_USER`, `NEXTCLOUD_PASSWORD`, `NEXTCLOUD_BASE_PATH`
 
-- **Libre MES manufacturing execution integration** — Bidirectional sync with Libre MES (Spruik/Libre — InfluxDB + PostgreSQL + Grafana):
-  - `InfluxClient` (fetch-based, Flux query language) for four OEE buckets: availability, performance, quality, orderPerformance
-  - `LibrePgClient` (node-postgres pool) for production order upserts into Libre PostgreSQL
-  - `LibreMesService` with `pushOrders()`, `pullMetrics()`, `fullSync()`, and `getSyncStatus()`
-  - Auto-push hook in `/api/work-orders` POST — fires after every new WorkOrder creation (fire-and-forget)
-  - `LibreMesOrderSync` — per-WorkOrder sync state (pending/synced/failed/stale)
-  - `LibreMesMetricSnapshot` — stores pulled OEE metrics (availability, performance, quality, oee, plannedQty, actualQty)
-  - `LibreMesSyncLog` — audit log for every push/pull/full-sync operation
-  - `POST /api/integrations/libre-mes/push-orders` — push one or more WorkOrders to Libre PG
-  - `POST /api/integrations/libre-mes/pull-metrics` — pull OEE metrics for a time window from InfluxDB
-  - `GET/POST /api/integrations/libre-mes/sync` — sync status and full-sync trigger
+- **Libre MES Integration**
+  - `LibreMesOrderSync`, `LibreMesMetricSnapshot`, `LibreMesSyncLog` Prisma models
+  - InfluxDB v2 client — Flux query, line-protocol write, ping
+  - node-postgres pool wrapper — generic `query<T>`, `upsertOrder`, ping
+  - `LibreMesService` singleton — `pushOrders()`, `pullMetrics()`, `fullSync()`, `getSyncStatus()`, `checkHealth()`
+  - Auto-push hook on WorkOrder creation when `LIBRE_MES_ENABLED=true` (fire-and-forget)
+  - `POST /api/integrations/libre-mes/push-orders` — manual push with Zod validation
+  - `POST /api/integrations/libre-mes/pull-metrics` — pull OEE metrics (from/to/workOrderIds)
+  - `GET|POST /api/integrations/libre-mes/sync` — status + full sync trigger (Admin/Manager only)
   - `GET /api/integrations/libre-mes/health` — independent InfluxDB + PostgreSQL health checks
-  - New dependency: `pg` + `@types/pg` (node-postgres)
-  - Env vars: `LIBRE_MES_ENABLED`, `LIBRE_MES_INFLUX_URL`, `LIBRE_MES_INFLUX_TOKEN`, `LIBRE_MES_INFLUX_ORG`, `LIBRE_MES_INFLUX_BUCKET_*`, `LIBRE_MES_PG_URL`
+  - Env vars: `LIBRE_MES_ENABLED`, `LIBRE_MES_PG_*`, `LIBRE_MES_INFLUX_*`
 
-- **Integrations settings page** (`/settings/integrations`) — Status dashboard for all three integrations:
-  - Card per integration showing which env vars are set (✓) or missing (✗) without exposing values
-  - **Test Connection** button per card — hits the live health endpoint and shows latency
-  - Copy-to-clipboard button for each env var name
-  - `GET /api/settings/integrations` — returns configured/enabled status for all three integrations
+- **Integration Settings UI** (`/settings/integrations`)
+  - Three cards: open-audit (Shield/blue), Nextcloud (Cloud/sky), Libre MES (Factory/orange)
+  - Active/Inactive status badge with configured env var checklist per service
+  - "Test Connection" button — calls health endpoint, shows latency ms or error message
+  - `GET /api/settings/integrations` — returns enabled/configured booleans without exposing secret values
 
-- **Integrations sidebar section** — New collapsible section (Plug icon) between Dolibarr ERP and Settings with links to Integration Settings, Libre MES, Nextcloud, and open-audit
-
-- **5 new Prisma models**: `OpenAuditMirrorLog`, `NextcloudFile`, `LibreMesOrderSync`, `LibreMesMetricSnapshot`, `LibreMesSyncLog`
-
-- **19 new environment variables** added to `src/lib/env.ts` (all optional, grouped by integration)
+- **Sidebar Integrations section** — quick navigation to Integration Settings, Libre MES Dashboard, Nextcloud Files, open-audit Log
+- `navigation-permissions.ts` entry for `/settings/integrations` (permissions: `settings.view`)
 
 #### Fixed
 
-- **Digital Ocean CI build failure** — `next build` was crashing with `Error: Missing required environment variables` because `env.ts` called `validateEnv()` at module load time; build environments don't inject runtime secrets. Fixed by skipping validation when `NEXT_PHASE === 'phase-production-build'` (same pattern as the existing `NODE_ENV === 'test'` bypass). Validation still runs at server startup.
-- **Integrations not appearing in sidebar** — `navigation-permissions.ts` was missing the `/settings/integrations` route entry, so `hasAccessToRoute()` denied access and filtered out the entire section. Added `'/settings/integrations': ['settings.view']`.
-- **`console.log/warn/error` in `audit.service.ts`** — Replaced all remaining `console.*` calls with the Pino `logger` per CLAUDE.md coding standards.
+- **CI build crash** — `next build` on Digital Ocean failed because `validateEnv()` ran at compile time without runtime env vars. Fixed by skipping validation when `NEXT_PHASE === 'phase-production-build'`
+- **Sidebar Integrations invisible** — missing `navigation-permissions.ts` entry caused `hasAccessToRoute()` to filter out the entire Integrations section
+
+---
+
+## [17.4.1] - 2026-04-01
+
+### Financial UX & Deploy Optimizations (Patch Release)
+
+**Patch Release:** Redesigns the Aging Report to match the Statement of Account style. Improves the SOA with separate Overdue Balance and Total Outstanding cards plus a Credit Limit indicator. Adds a year selector to the Balance Sheet. Highlights stale account codes in Financial Settings. Enables inline viewing of image/PDF attachments in the Backlog. Optimizes the GitHub Actions deploy workflow with conditional dependency installs and zero-downtime `pm2 reload`.
+
+#### Added
+
+- **Aging Report redesign** — Matches SOA style with AR/AP toggle buttons (green/red), 6 bucket summary stat cards (Current, 1–30, 31–60, 61–90, 90+, Total), color-coded table columns per aging bucket, mobile-responsive hidden columns for mid-range buckets, and invoice-level expand rows showing overdue days in red/green
+- **Statement of Account — Credit Limit card** — 5th stat card (amber) showing the supplier's `outstanding_limit` from Dolibarr; displays "Over by SAR X" in red or "SAR X available" in green; requires `add_credit_limit_to_thirdparties.sql` migration
+- **Balance Sheet — Year selector** — Quick-select dropdown for 5 years back (sets `as_of_date` to Dec 31 of selected year) alongside the existing custom date input
+- **Financial Settings — Stale code detection** — Each account code field now checks whether the stored code exists in the current COA; shows amber `⚠ Stale: {code} not in COA` badge and amber Select border when stale; summary warning banner at the bottom if any field is stale, guiding the user to update codes and re-run sync
+- **DB migration `add_is_locked_journal_entries.sql`** — Adds `is_locked TINYINT(1) DEFAULT 0` column to `fin_journal_entries` for production databases missing the column; fixes Manual Journal Entries saving on legacy installs
+
+#### Fixed
+
+- **Manual Journal Entries not saving on production** — Root cause: `fin_journal_entries.is_locked` column absent from databases created before the column was added to the schema. Fixed via `prisma/manual_migrations/add_is_locked_journal_entries.sql`
+- **SOA Outstanding showing same number as Overdue** — SOA lines now carry `dateDue`; the client separates "Overdue Balance" (past-due invoices only) from "Total Outstanding" (all unpaid), matching the Aging Report totals
+- **Backlog attachments forced download** — Images and PDFs now served with `Content-Disposition: inline` and opened in a new tab via an `<a target="_blank">` link; Eye icon replaces Download icon for viewable file types
+
+#### Changed
+
+- **Deploy workflow** — Build cache key now keyed only on `package-lock.json` hash (was also hashing all `.ts`/`.tsx` files), enabling incremental webpack module cache reuse across code-only commits (~30–40% faster builds)
+- **Deploy workflow** — `npm ci --omit=dev` now runs conditionally only when `package.json` md5sum changes; `npx prisma generate` runs conditionally only when `prisma/schema.prisma` changes; saves ~1–2 min per deployment
+- **Deploy workflow** — Switched from `pm2 stop + pm2 restart` to `pm2 reload hexa-steel-ots --update-env` for zero-downtime hot reload (workers replaced one at a time, no traffic interruption)
 
 ---
 

@@ -23,16 +23,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**/*.ts', 'src/**/*.tsx') }}
+          # Key on deps only — src changes reuse the module cache for faster incremental builds
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
-            nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
             nextjs-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build application
-        run: npm run build
+        run: npx prisma generate && NODE_OPTIONS=--max-old-space-size=4096 npx next build
         env:
           NODE_ENV: production
           # No NEXT_PUBLIC_BASE_PATH - nginx proxies ots.hexasteel.sa directly to localhost:3000
@@ -43,7 +43,9 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deploy-package
+          # Copy .next then remove webpack module cache (not needed at runtime, ~200-400MB)
           cp -r .next deploy-package/
+          rm -rf deploy-package/.next/cache
           cp -r public deploy-package/ || true
           cp -r prisma deploy-package/
           cp package*.json deploy-package/
@@ -69,33 +71,46 @@ jobs:
           key: ${{ secrets.DO_SSH_KEY }}
           port: ${{ secrets.DO_PORT }}
           script: |
-            cd /var/www/hexasteel.sa/ots
+            set -e
+            APP_DIR=/var/www/hexasteel.sa/ots
+            cd "$APP_DIR"
 
-            echo "Stopping application..."
-            pm2 stop hexa-steel-ots || true
+            # ── 1. Capture what changed before extracting ────────────────────
+            PREV_PKG_HASH=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1 || echo "none")
+            PREV_SCHEMA_HASH=$(md5sum prisma/schema.prisma 2>/dev/null | cut -d' ' -f1 || echo "none")
 
-            echo "Pulling latest code..."
-            git pull origin main || true
-
-            echo "Installing production dependencies..."
-            npm ci --omit=dev
-
-            echo "Generating Prisma Client..."
-            npx prisma generate
-
-            echo "Running database migrations..."
-            npx prisma migrate deploy
-
-            echo "Cleaning old build artifacts..."
+            # ── 2. Extract pre-built artifacts (built in CI) ─────────────────
+            echo "Extracting build artifacts..."
             rm -rf .next
-            rm -f server.js
-
-            echo "Extracting pre-built files..."
-            tar -xzf /tmp/deploy.tar.gz -C /var/www/hexasteel.sa/ots
+            tar -xzf /tmp/deploy.tar.gz -C "$APP_DIR"
             rm -f /tmp/deploy.tar.gz
 
-            echo "Restarting application..."
-            pm2 restart hexa-steel-ots --update-env || pm2 start ecosystem.config.js
+            NEW_PKG_HASH=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1 || echo "none")
+            NEW_SCHEMA_HASH=$(md5sum prisma/schema.prisma 2>/dev/null | cut -d' ' -f1 || echo "none")
+
+            # ── 3. Install deps only when package-lock.json changed ─────────
+            if [ "$PREV_PKG_HASH" != "$NEW_PKG_HASH" ]; then
+              echo "package-lock.json changed — installing production dependencies..."
+              npm ci --omit=dev
+            else
+              echo "package.json unchanged — skipping npm ci"
+            fi
+
+            # ── 4. Regenerate Prisma client only when schema changed ─────────
+            if [ "$PREV_SCHEMA_HASH" != "$NEW_SCHEMA_HASH" ]; then
+              echo "Prisma schema changed — regenerating client..."
+              npx prisma generate
+            else
+              echo "Prisma schema unchanged — skipping prisma generate"
+            fi
+
+            # ── 5. Run Prisma migrations ──────────────────────────────────────
+            echo "Running database migrations..."
+            npx prisma migrate deploy || echo "No pending migrations"
+
+            # ── 6. Reload app (zero-downtime hot reload) ──────────────────────
+            echo "Reloading application..."
+            pm2 reload hexa-steel-ots --update-env || pm2 start ecosystem.config.js
 
             echo "Deployment complete!"
             pm2 status

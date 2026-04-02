@@ -103,6 +103,48 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '17.4.1',
+    date: 'April 1, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '📊 Financial UX & Deploy Optimizations',
+    highlights: [
+      'Aging Report redesigned — AR/AP toggle buttons, 6 bucket summary cards (Current/1-30/31-60/61-90/90+/Total), color-coded columns and per-bucket expand rows',
+      'Statement of Account — Overdue Balance (past-due only) and Total Outstanding (all unpaid) shown as separate stat cards; Credit Limit card with over-limit / headroom indicator',
+      'Balance Sheet — year selector dropdown (5 years back) alongside custom date for faster period navigation',
+      'Financial Settings — stale account code detection: amber warning badges + summary banner when stored codes are missing from COA',
+      'Backlog attachments — images and PDFs open inline in the browser; Eye icon for viewable files, no forced download',
+      'Deploy optimizations — conditional npm ci / prisma generate (md5sum check), pm2 reload for zero-downtime, build cache keyed on package-lock.json only',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Aging Report redesign',
+          items: [
+            'AR/AP toggle buttons matching SOA green/red style',
+            '6 bucket summary stat cards: Current (green), 1-30 (yellow), 31-60 (orange), 61-90 (red), 90+ (dark red), Total',
+            'Color-coded table columns and invoice-level expand rows with overdue days shown in red/green',
+            'Mobile-responsive: mid-range bucket columns (31–90 days) hidden on small screens',
+          ],
+        },
+        'Statement of Account — Credit Limit card (5th card, amber) showing outstanding_limit from Dolibarr; over-limit in red, headroom in green',
+        'Balance Sheet — year selector dropdown (5 years) that sets as_of_date to Dec 31 of the selected year',
+        'Financial Settings — per-field stale code detection with amber ⚠ badge and summary warning banner guiding user to update codes and re-run sync',
+        'DB migration add_is_locked_journal_entries.sql — adds is_locked column to fin_journal_entries for legacy production databases; fixes Manual Journal Entries saving',
+      ],
+      fixed: [
+        'Manual Journal Entries not saving on production — is_locked column was absent from fin_journal_entries tables created before the column was added to the schema',
+        'SOA Outstanding showing same value as Overdue Balance — lines now carry dateDue; Overdue Balance (past-due only) and Total Outstanding (all unpaid) are now separate cards',
+        'Backlog attachments forced download — images and PDFs now served with Content-Disposition: inline and open in a new browser tab via Eye icon link',
+      ],
+      changed: [
+        'Deploy build cache — cache key now hashes only package-lock.json, enabling webpack module cache reuse across code commits (~30-40% faster incremental builds)',
+        'Deploy npm ci — conditional on package.json hash; prisma generate conditional on schema.prisma hash; saves ~1-2 min per deploy when dependencies unchanged',
+        'Deploy restart — pm2 reload replaces pm2 stop + pm2 restart for zero-downtime rolling worker replacement',
+      ],
+    },
+  },
+  {
     version: '17.4.0',
     date: 'April 1, 2026',
     type: 'minor',

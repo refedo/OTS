@@ -376,6 +376,16 @@ export class FinancialSyncService {
         const batch = await this.client.getInvoices({ limit: BATCH_SIZE, page });
         console.log(`[FinSync] Got ${batch.length} customer invoices (page ${page})`);
 
+        // Batch hash pre-load (1 query per page instead of N per invoice)
+        const invoiceIds = batch.map(inv => pi(inv.id)).filter(Boolean) as number[];
+        const existingMap = new Map<number, string>();
+        if (invoiceIds.length > 0) {
+          const existing: any[] = await prisma.$queryRawUnsafe(
+            `SELECT dolibarr_id, sync_hash FROM fin_customer_invoices WHERE dolibarr_id IN (${invoiceIds.join(',')})`
+          );
+          existing.forEach((row: any) => existingMap.set(row.dolibarr_id, row.sync_hash));
+        }
+
         for (const inv of batch) {
           totalInvoices++;
           if (totalInvoices % 200 === 0) {
@@ -386,37 +396,40 @@ export class FinancialSyncService {
 
           const fkProjet = pi(inv.fk_project || inv.fk_projet);
 
+          const lineProductSig = Array.isArray(inv.lines)
+            ? inv.lines.map((l: any) => `${pi(l.rowid)}:${pi(l.fk_product) ?? 0}`).sort().join(',')
+            : '';
           const hashFields = {
             ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye,
             total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
             date_echeance: inv.date_echeance, fk_project: fkProjet || null,
+            line_products: lineProductSig,
           };
           const newHash = computeHash(hashFields);
+
+          // Skip unchanged invoices — this also skips the payment API call
+          if (existingMap.has(dolibarrId) && existingMap.get(dolibarrId) === newHash) {
+            unchanged++;
+            continue;
+          }
 
           const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
           const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
           const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
 
-          const existing: any[] = await prisma.$queryRawUnsafe(
-            `SELECT sync_hash FROM fin_customer_invoices WHERE dolibarr_id = ?`, dolibarrId
-          );
-
           const rawJson = JSON.stringify(inv);
-          if (existing.length > 0) {
-            if (existing[0].sync_hash === newHash) { unchanged++; }
-            else {
-              await prisma.$executeRawUnsafe(
-                `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, fk_projet=?, type=?, status=?, is_paid=?,
-                 total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
-                 dolibarr_raw=?, last_synced_at=NOW(), sync_hash=?, is_active=1
-                 WHERE dolibarr_id=?`,
-                inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
-                pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
-                pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
-                invoiceDate, dueDate, creationDate, rawJson, newHash, dolibarrId
-              );
-              updated++;
-            }
+          if (existingMap.has(dolibarrId)) {
+            await prisma.$executeRawUnsafe(
+              `UPDATE fin_customer_invoices SET ref=?, ref_client=?, socid=?, fk_projet=?, type=?, status=?, is_paid=?,
+               total_ht=?, total_tva=?, total_ttc=?, date_invoice=?, date_due=?, date_creation=?,
+               dolibarr_raw=?, last_synced_at=NOW(), sync_hash=?, is_active=1
+               WHERE dolibarr_id=?`,
+              inv.ref, inv.ref_client, pi(inv.socid), fkProjet || null, pi(inv.type),
+              pi(inv.statut || inv.status), inv.paye === '1' ? 1 : 0,
+              pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
+              invoiceDate, dueDate, creationDate, rawJson, newHash, dolibarrId
+            );
+            updated++;
           } else {
             await prisma.$executeRawUnsafe(
               `INSERT INTO fin_customer_invoices (dolibarr_id, ref, ref_client, socid, fk_projet, type, status, is_paid,
@@ -560,10 +573,14 @@ export class FinancialSyncService {
 
           const fkProjet = pi(inv.fk_project || inv.fk_projet);
 
+          const lineProductSig = Array.isArray(inv.lines)
+            ? inv.lines.map((l: any) => `${pi(l.rowid)}:${pi(l.fk_product) ?? 0}`).sort().join(',')
+            : '';
           const hashFields = {
             ref: inv.ref, status: inv.statut || inv.status, paye: inv.paye || inv.paid,
             total_ht: inv.total_ht, total_tva: inv.total_tva, total_ttc: inv.total_ttc,
             date_echeance: inv.date_echeance, fk_project: fkProjet || null,
+            line_products: lineProductSig,
           };
           const newHash = computeHash(hashFields);
 

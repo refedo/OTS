@@ -64,40 +64,23 @@ const nextConfig: NextConfig = {
     // Disable CSS optimization to avoid critters module error
     optimizeCss: false,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    // Speed up builds
     serverActions: {
       bodySizeLimit: '2mb',
     },
   },
-  
-  // Reduce build time
+
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
   compress: true,
-  
-  // Webpack optimizations
-  webpack: (config, { dev, isServer }) => {
-    if (!dev && !isServer) {
-      config.optimization.splitChunks.cacheGroups = {
-        ...config.optimization.splitChunks.cacheGroups,
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-          priority: 10,
-        },
-      };
-    }
-    
-    // Ignore handlebars warnings by replacing with empty module
+
+  // Webpack config — only applies when NOT using --turbopack
+  webpack: (config, { isServer }) => {
+    // Ignore handlebars warnings
     config.module.rules.push({
       test: /\.js$/,
       include: /node_modules\/handlebars/,
-      resolve: {
-        fullySpecified: false,
-      },
+      resolve: { fullySpecified: false },
     });
-
     return config;
   },
 };
