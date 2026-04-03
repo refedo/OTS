@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.7.0',
+    version: '17.8.0',
     date: 'April 3, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Points Badge, SQL Migration Fixes & UI Polish',
+    highlights: [
+      'User points and rank now visible in the top-right corner of every page — click to view full leaderboard',
+      'SQL migrations fixed — add_integration_toggles.sql and add_task_conversations.sql both corrected and ready to run',
+      'Early Warning System — removed decorative spark emoji from sidebar item name',
+    ],
+    changes: {
+      added: [
+        'Points badge in TopBar — shows total points and rank (#N) with amber star icon; links to /points leaderboard',
+        'GET /api/points/me — new lightweight endpoint returns current user\'s totalPoints and rank for the TopBar badge',
+      ],
+      fixed: [
+        'add_integration_toggles.sql: removed ADD COLUMN IF NOT EXISTS syntax (not supported on MySQL <8.0.3); now uses separate ALTER TABLE statements',
+        'add_task_conversations.sql: corrected ALTER TABLE `Notification` → `notifications` (Prisma @@map); removed IF NOT EXISTS from notes column add',
+      ],
+      changed: [
+        'Early Warning sidebar label changed from "⚡ Early Warning" to "Early Warning"',
+      ],
+    },
+  },
+  {
+    version: '17.7.0',
+    date: 'April 3, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: '💬 Slack-Style Conversations, AP Aging Fix & Task Indicators',
     highlights: [
       'Conversations page redesigned with Slack-style two-panel layout — channel sidebar on the left, threaded messages on the right',
