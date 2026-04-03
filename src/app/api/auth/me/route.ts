@@ -24,6 +24,10 @@ export async function GET() {
     restrictedModules: (user.role.restrictedModules as string[]) || [],
   });
 
+  // navPermissions reflects the role's selected permissions for sidebar visibility.
+  // Admins still get full API access above, but sidebar respects role deselections.
+  const navPermissions = (user.role.permissions as string[]) || [];
+
   return NextResponse.json({
     id: user.id,
     name: user.name,
@@ -31,6 +35,7 @@ export async function GET() {
     role: user.role.name,
     department: user.department?.name ?? null,
     permissions: permissions,
+    navPermissions: navPermissions,
     isAdmin: user.isAdmin || false,
     mobileNumber: user.mobileNumber || null,
   });

@@ -13,6 +13,7 @@
 
 import prisma from '@/lib/db';
 import { filterPermissionsByModules } from '@/lib/module-restrictions';
+import { ALL_PERMISSIONS } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 
 export interface CustomPermissions {
@@ -40,9 +41,8 @@ export interface PermissionResolutionData {
 export function resolvePermissionsFromData(params: PermissionResolutionData): string[] {
   const { isAdmin, rolePermissions, customPermissions, restrictedModules } = params;
 
-  // All users (including admins) use role permissions as their base.
-  // isAdmin controls UI management capabilities, not permission bypass.
-  let permissions = [...rolePermissions];
+  // Admins get all permissions for API access. Role selections control sidebar visibility only.
+  let permissions = isAdmin ? ALL_PERMISSIONS.map(p => p.id) : [...rolePermissions];
 
   if (customPermissions) {
     const grants = Array.isArray(customPermissions.grants) ? customPermissions.grants : [];

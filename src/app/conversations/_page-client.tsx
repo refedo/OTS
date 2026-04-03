@@ -255,19 +255,24 @@ export default function ConversationsPage() {
 
   const handleSendMessage = async () => {
     if (!selectedTaskId || !newMessage.trim() || sending) return;
+    const content = newMessage.trim();
+    setNewMessage('');
     setSending(true);
     try {
       const res = await fetch(`/api/tasks/${selectedTaskId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newMessage.trim() }),
+        body: JSON.stringify({ content }),
       });
       if (res.ok) {
         const msg = await res.json();
         setMessages(prev => [...prev, msg]);
-        setNewMessage('');
         await loadConversations();
+      } else {
+        setNewMessage(content);
       }
+    } catch {
+      setNewMessage(content);
     } finally {
       setSending(false);
     }

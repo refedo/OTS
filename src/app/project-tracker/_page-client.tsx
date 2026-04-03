@@ -117,16 +117,16 @@ interface TrackerResponse {
 // --- Constants ---
 
 const ACTIVITY_COLUMNS = [
-  { type: 'arch_approval', label: 'ARCH DRAWING' },
-  { type: 'design', label: 'DESIGN STAGE' },
-  { type: 'design_approval', label: 'DESIGN APPROVAL' },
-  { type: 'detailing', label: 'SHOP DRAWINGS' },
-  { type: 'detailing_approval', label: 'SD APPROVAL' },
-  { type: 'procurement', label: 'PROCUREMENT' },
-  { type: 'production', label: 'PRODUCTION' },
-  { type: 'coating', label: 'COATING' },
-  { type: 'dispatch', label: 'DISPATCH' },
-  { type: 'erection', label: 'ERECTION' },
+  { type: 'arch_approval',    label: 'ARCH DRAWING',    color: 'text-sky-400' },
+  { type: 'design',           label: 'DESIGN STAGE',    color: 'text-violet-400' },
+  { type: 'design_approval',  label: 'DESIGN APPROVAL', color: 'text-indigo-400' },
+  { type: 'detailing',        label: 'SHOP DRAWINGS',   color: 'text-cyan-400' },
+  { type: 'detailing_approval', label: 'SD APPROVAL',   color: 'text-blue-400' },
+  { type: 'procurement',      label: 'PROCUREMENT',     color: 'text-amber-400' },
+  { type: 'production',       label: 'PRODUCTION',      color: 'text-orange-400' },
+  { type: 'coating',          label: 'COATING',         color: 'text-pink-400' },
+  { type: 'dispatch',         label: 'DISPATCH',        color: 'text-lime-400' },
+  { type: 'erection',         label: 'ERECTION',        color: 'text-emerald-400' },
 ] as const;
 
 type FilterTab = 'all' | 'in_progress' | 'blocked' | 'completed';
@@ -896,7 +896,7 @@ export default function ProjectTrackerClient() {
                       {ACTIVITY_COLUMNS.map((col) => (
                         <th
                           key={col.type}
-                          className={`text-center text-[10px] font-semibold uppercase tracking-wider px-2 py-3 whitespace-nowrap ${mutedTextClass}`}
+                          className={`text-center text-[10px] font-semibold uppercase tracking-wider px-2 py-3 whitespace-nowrap ${col.color}`}
                         >
                           {col.label}
                         </th>
@@ -970,9 +970,9 @@ export default function ProjectTrackerClient() {
 
                             <td className={`px-3 py-2.5 text-center text-sm align-top whitespace-nowrap ${mutedTextClass}`}>
                               {row.building.assemblyTonnage > 0
-                                ? <span className="font-medium text-foreground">{row.building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T</span>
+                                ? <span className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{row.building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T</span>
                                 : row.building.weight
-                                  ? <span className="font-medium text-foreground">{Number(row.building.weight).toLocaleString()} T</span>
+                                  ? <span className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{Number(row.building.weight).toLocaleString()} T</span>
                                   : <span>—</span>
                               }
                             </td>

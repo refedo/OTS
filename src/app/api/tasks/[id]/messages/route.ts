@@ -105,24 +105,35 @@ export const POST = withApiContext(async (req: NextRequest, session, { params }:
     recipientSet.delete(userId);
     const otherParticipantIds = [...recipientSet];
 
+    const response = NextResponse.json(message, { status: 201 });
+
+    // Fire-and-forget: notifications must not block the response
     if (otherParticipantIds.length > 0) {
-      const sender = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
-      await Promise.all(
-        otherParticipantIds.map(recipientId =>
-          NotificationService.createNotification({
-            userId: recipientId,
-            type: 'TASK_MESSAGE',
-            title: `New message on task: ${task.title}`,
-            message: `${sender?.name ?? 'Someone'}: ${parsed.data.content.slice(0, 100)}${parsed.data.content.length > 100 ? '…' : ''}`,
-            relatedEntityType: 'task',
-            relatedEntityId: taskId,
-            metadata: { taskId, taskTitle: task.title, senderId: userId, senderName: sender?.name },
-          })
-        )
-      );
+      const content = parsed.data.content;
+      const taskTitle = task.title;
+      Promise.resolve().then(async () => {
+        try {
+          const sender = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+          await Promise.all(
+            otherParticipantIds.map(recipientId =>
+              NotificationService.createNotification({
+                userId: recipientId,
+                type: 'TASK_MESSAGE',
+                title: `New message on task: ${taskTitle}`,
+                message: `${sender?.name ?? 'Someone'}: ${content.slice(0, 100)}${content.length > 100 ? '…' : ''}`,
+                relatedEntityType: 'task',
+                relatedEntityId: taskId,
+                metadata: { taskId, taskTitle, senderId: userId, senderName: sender?.name },
+              })
+            )
+          );
+        } catch (err) {
+          logger.error({ err, taskId }, 'Failed to send task message notifications');
+        }
+      });
     }
 
-    return NextResponse.json(message, { status: 201 });
+    return response;
   } catch (error) {
     logger.error({ error, taskId }, 'Failed to post task message');
     return NextResponse.json({ error: 'Failed to post message' }, { status: 500 });

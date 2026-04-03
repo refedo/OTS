@@ -23,14 +23,47 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.10.1',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'RBAC Nav Fix, Conversation UX, Header Colors',
+    highlights: [
+      'Admins keep full API access (ALL_PERMISSIONS) while sidebar navigation respects role deselections — deselecting AI Assistant now hides it from sidebar even for admins',
+      'Conversation textarea clears immediately on send (optimistic UX) — no more stale input after sending a message',
+      'Conversation messages fire-and-forget notifications — 500 errors from notification delivery no longer block message send or clear',
+      'Conversations tab in sidebar shows an unread message badge (blue)',
+      'Project tracker column headers are now color-coded per stage (sky, violet, indigo, cyan, blue, amber, orange, pink, lime, emerald)',
+      'Existing assembly parts linked to Steel scope of work via migration SQL backfill',
+    ],
+    changes: {
+      added: [
+        'navPermissions field in auth/me API response — role raw permissions for sidebar visibility (separate from full API permissions)',
+        'navPermissions stored in PermissionsContext and used by app-sidebar for all route/section visibility checks',
+        'Conversations sidebar badge showing unread task message notification count',
+        'seed_steel_scope.sql: UPDATE step links existing AssemblyPart records to their building\'s Steel scope',
+      ],
+      fixed: [
+        'RBAC: admins keep ALL_PERMISSIONS for API access; sidebar uses role permissions (navPermissions) — deselected items are hidden',
+        'Conversation send: textarea clears optimistically before awaiting response; restored on network failure',
+        'Conversation 500: notification creation is now fire-and-forget — failures are logged but do not affect message delivery response',
+        'permission-resolution.service.ts: restored isAdmin → ALL_PERMISSIONS bypass for API authorization',
+      ],
+      changed: [
+        'Project tracker ACTIVITY_COLUMNS: each stage now has a distinct header color',
+        'app-sidebar uses navPermissions (role selections) instead of permissions (API access) for route/section visibility',
+      ],
+    },
+  },
+  {
     version: '17.10.0',
     date: 'April 3, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Tonnage Fix, Permissions, Conversations Delivery',
     highlights: [
       'Tonnage calculation rewritten with raw SQL — bypasses Prisma Decimal conversion issues for reliable weight aggregation',
-      'Admin permission bypass removed — role deselections (e.g., AI Assistant) are now respected for all users including admins',
+      'Role permission deselections now affect sidebar visibility',
       'Conversations now deliver messages to task assignee and creator automatically, with 30-second polling for new conversations',
       'Assembly part designations are clickable links to the detail page',
       'Default "Steel" scope of work auto-created when buildings are added',
@@ -46,15 +79,12 @@ const hardcodedVersions: ChangelogVersion[] = [
       ],
       fixed: [
         'Tonnage: rewrote calculation with raw SQL SUM(singlePartWeight * quantity) to avoid Prisma Decimal issues',
-        'Admin permission bypass: admins now use role permissions as base instead of ALL_PERMISSIONS — sidebar respects role deselections',
+        'Tonnage text color: now uses explicit dark/light class instead of text-foreground CSS var',
         'Conversations: task assignee and creator are auto-added as participants on first message',
         'Conversations list now polls every 30 seconds (was one-time load)',
         'Notification polling reduced to 60 seconds (was 5 minutes)',
       ],
-      changed: [
-        'permission-resolution.service.ts: admin users start with role permissions, not ALL_PERMISSIONS',
-        'auth/me API: always uses resolvePermissionsFromData for both admin and non-admin users',
-      ],
+      changed: [],
     },
   },
   {

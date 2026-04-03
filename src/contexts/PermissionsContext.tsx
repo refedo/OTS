@@ -6,6 +6,7 @@ const CACHE_KEY = 'ots_permissions';
 
 interface PermissionsState {
   permissions: string[];
+  navPermissions: string[];
   role: string;
   isAdmin: boolean;
   isLoading: boolean;
@@ -13,6 +14,7 @@ interface PermissionsState {
 
 const defaultState: PermissionsState = {
   permissions: [],
+  navPermissions: [],
   role: '',
   isAdmin: false,
   isLoading: true,
@@ -29,7 +31,13 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       const cached = sessionStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        setState({ ...parsed, isLoading: false });
+        setState({
+          permissions: parsed.permissions ?? [],
+          navPermissions: parsed.navPermissions ?? parsed.permissions ?? [],
+          role: parsed.role ?? '',
+          isAdmin: parsed.isAdmin ?? false,
+          isLoading: false,
+        });
         return;
       }
     } catch {
@@ -42,6 +50,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         if (data) {
           const next: PermissionsState = {
             permissions: data.permissions ?? [],
+            navPermissions: data.navPermissions ?? data.permissions ?? [],
             role: data.role ?? '',
             isAdmin: data.isAdmin ?? false,
             isLoading: false,
@@ -52,6 +61,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
               CACHE_KEY,
               JSON.stringify({
                 permissions: next.permissions,
+                navPermissions: next.navPermissions,
                 role: next.role,
                 isAdmin: next.isAdmin,
               })
