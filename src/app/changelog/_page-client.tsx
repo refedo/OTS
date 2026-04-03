@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.10.2',
+    version: '17.10.3',
     date: 'April 3, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Attachments, Backlog Fixes, Asset Report, Integrations',
+    highlights: [
+      'Conversations now support file attachments — images, PDFs, and documents can be sent inline; images render as thumbnails',
+      'Task picker in "Start New Conversation" now shows building, assigned to, activity, and due date with color-coded status badges',
+      'Backlog notes 500 error fixed (Next.js 15 params must be awaited)',
+      'Backlog "Next" navigation now skips Completed and Dropped items',
+      'Integrations moved under the Settings sidebar section — no longer a separate top-level group',
+      'Assets report now has a Fixed Assets section in addition to Current Assets',
+    ],
+    changes: {
+      added: [
+        'Conversation file attachments: paperclip button in message input, pending files preview, image thumbnails in thread',
+        'task_messages.attachments JSON column (migration: add_task_message_attachments.sql)',
+        'Fixed Assets section in assets report (queries account_type = fixed_asset)',
+        'Task picker: building, assigned to, mainActivity, dueDate (with overdue/warning colors) shown per task',
+      ],
+      fixed: [
+        'Backlog notes POST 500 — Next.js 15 dynamic route params now properly awaited',
+        'Backlog next/prev navigation skips COMPLETED and DROPPED statuses',
+      ],
+      changed: [
+        'Integrations sidebar section merged into Settings (Integration Settings, Libre MES, Nextcloud Files, Event Bus)',
+        'Assets report: separate Current Assets and Fixed Assets sections with individual totals',
+        'Task picker status badges colorized per status (Pending=amber, In Progress=indigo, Completed=emerald, etc.)',
+      ],
+    },
+  },
+  {
+    version: '17.10.2',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Conversation Real-time, Mentions, Notification Tabs',
     highlights: [
       'Conversations now update every 5 seconds — new messages from others appear without refreshing, like Slack/WhatsApp',

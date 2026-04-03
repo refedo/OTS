@@ -103,12 +103,14 @@ export default function BacklogItemDetail() {
   useEffect(() => {
     fetch('/api/backlog?_nav=1')
       .then(r => r.ok ? r.json() : [])
-      .then((data: Array<{ id: string; code: string }>) => {
-        // sort by code number ascending (matches default list view)
-        const sorted = [...data].sort((a, b) => {
-          const n = (s: string) => parseInt(s.match(/\d+$/)?.[0] ?? '0');
-          return n(a.code) - n(b.code);
-        });
+      .then((data: Array<{ id: string; code: string; status: string }>) => {
+        // sort by code number ascending, skip completed/dropped items
+        const sorted = [...data]
+          .filter(i => !['COMPLETED', 'DROPPED'].includes(i.status))
+          .sort((a, b) => {
+            const n = (s: string) => parseInt(s.match(/\d+$/)?.[0] ?? '0');
+            return n(a.code) - n(b.code);
+          });
         setNavIds(sorted.map(i => i.id));
       })
       .catch(() => {});

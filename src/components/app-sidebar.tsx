@@ -281,21 +281,14 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    name: 'Integrations',
-    icon: Plug,
-    items: [
-      { name: 'Integration Settings', href: '/settings/integrations', icon: Plug },
-      { name: 'Libre MES Dashboard', href: '/settings/integrations#libre-mes', icon: Factory },
-      { name: 'Nextcloud Files', href: '/settings/integrations#nextcloud', icon: Cloud },
-      { name: 'open-audit Log', href: '/governance?tab=open-audit', icon: Shield },
-      { name: 'Event Bus', href: '/settings/integrations#event-bus', icon: Zap },
-    ],
-  },
-  {
     name: 'Settings',
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Integrations', href: '/settings/integrations', icon: Plug },
+      { name: 'Libre MES', href: '/settings/integrations#libre-mes', icon: Factory },
+      { name: 'Nextcloud Files', href: '/settings/integrations#nextcloud', icon: Cloud },
+      { name: 'Event Bus', href: '/settings/integrations#event-bus', icon: Zap },
       { name: 'Sidebar Order', href: '/settings/sidebar', icon: Settings },
       { name: 'Backup Management', href: '/settings/backups', icon: Database },
       { name: 'Cron Jobs', href: '/settings/cron-jobs', icon: Clock },

@@ -13,9 +13,10 @@ const noteSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const store = await cookies();
     const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
     const session = token ? verifySession(token) : null;
@@ -28,7 +29,7 @@ export async function POST(
     }
 
     const item = await prisma.productBacklogItem.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, code: true, title: true, createdById: true, notes: true },
     });
     if (!item) return NextResponse.json({ error: 'Backlog item not found' }, { status: 404 });
@@ -48,7 +49,7 @@ export async function POST(
     };
 
     await prisma.productBacklogItem.update({
-      where: { id: params.id },
+      where: { id },
       data: { notes: [...existingNotes, newNote] },
     });
 

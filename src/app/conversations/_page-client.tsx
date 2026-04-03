@@ -5,7 +5,7 @@ import { useSessionValidator } from '@/hooks/use-session-validator';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign } from 'lucide-react';
+import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign, Calendar, Paperclip, FileText, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +21,17 @@ type Conversation = {
   participants: { id: string; name: string }[];
 };
 
+type MessageAttachment = {
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  fileSize: number;
+};
+
 type Message = {
   id: string;
   content: string;
+  attachments?: MessageAttachment[] | null;
   createdAt: string;
   user: { id: string; name: string; position: string | null };
 };
@@ -44,8 +52,12 @@ type TaskOption = {
   id: string;
   title: string;
   status: string;
+  dueDate?: string | null;
+  mainActivity?: string | null;
+  subActivity?: string | null;
   project?: { id: string; projectNumber: string; name: string } | null;
   building?: { id: string; designation: string; name: string } | null;
+  assignedTo?: { id: string; name: string } | null;
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -64,6 +76,26 @@ function timeAgo(date: string) {
 
 function fmtTime(date: string) {
   return new Date(date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function taskStatusStyle(status: string): string {
+  switch (status) {
+    case 'In Progress': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300';
+    case 'Pending': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    case 'Waiting for Approval': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'Completed': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    case 'Cancelled': return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
+    default: return 'bg-muted text-muted-foreground';
+  }
+}
+
+function dueDateStyle(dueDate: string | null | undefined): string {
+  if (!dueDate) return '';
+  const diff = new Date(dueDate).getTime() - Date.now();
+  const days = diff / 86400000;
+  if (days < 0) return 'text-red-600 font-semibold';
+  if (days < 3) return 'text-orange-500 font-medium';
+  return 'text-muted-foreground';
 }
 
 function renderContent(content: string) {
@@ -109,9 +141,14 @@ export default function ConversationsPage() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // @ mention state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+
+  // Attachment state
+  const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Start new conversation state
   const [showStartNew, setShowStartNew] = useState(false);
@@ -291,6 +328,33 @@ export default function ConversationsPage() {
     setShowPeople(false);
     setUserSearch('');
     setUserResults([]);
+    setPendingAttachments([]);
+  };
+
+  // File upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploadingFile(true);
+    try {
+      for (const file of Array.from(e.target.files)) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('folder', 'conversations');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (res.ok) {
+          const data = await res.json();
+          setPendingAttachments(prev => [...prev, {
+            fileName: data.originalName,
+            filePath: data.filePath,
+            fileType: data.fileType,
+            fileSize: data.fileSize,
+          }]);
+        }
+      }
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   // @ mention helpers
@@ -324,16 +388,18 @@ export default function ConversationsPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!selectedTaskId || !newMessage.trim() || sending) return;
     const content = newMessage.trim();
+    if (!selectedTaskId || (!content && pendingAttachments.length === 0) || sending) return;
     setNewMessage('');
     setMentionQuery(null);
+    const attachmentsToSend = [...pendingAttachments];
+    setPendingAttachments([]);
     setSending(true);
     try {
       const res = await fetch(`/api/tasks/${selectedTaskId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, attachments: attachmentsToSend }),
       });
       if (res.ok) {
         const msg = await res.json();
@@ -341,9 +407,11 @@ export default function ConversationsPage() {
         await loadConversations();
       } else {
         setNewMessage(content);
+        setPendingAttachments(attachmentsToSend);
       }
     } catch {
       setNewMessage(content);
+      setPendingAttachments(attachmentsToSend);
     } finally {
       setSending(false);
     }
@@ -482,20 +550,49 @@ export default function ConversationsPage() {
                 </div>
 
                 {taskOptions.length > 0 && !selectedNewTask && (
-                  <div className="mt-1 border rounded-lg overflow-hidden bg-background shadow-sm max-h-[300px] overflow-y-auto">
+                  <div className="mt-1 border rounded-lg overflow-hidden bg-background shadow-sm max-h-[340px] overflow-y-auto">
                     {taskOptions.map(task => (
                       <button
                         key={task.id}
                         onClick={() => { setSelectedNewTask(task); setTaskSearch(task.title); setTaskOptions([]); }}
-                        className="w-full text-left px-3 py-2.5 hover:bg-muted transition-colors border-b last:border-0"
+                        className="w-full text-left px-3 py-2.5 hover:bg-muted/60 transition-colors border-b last:border-0"
                       >
-                        <div className="flex items-center gap-2">
-                          <Hash className="size-3 text-muted-foreground shrink-0" />
-                          <span className="text-sm font-medium truncate">{task.title}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 pl-5 text-[11px] text-muted-foreground">
-                          {task.project && <span>{task.project.projectNumber}</span>}
-                          <span className="px-1.5 py-0 rounded bg-muted text-[10px]">{task.status}</span>
+                        <div className="flex items-start gap-2">
+                          <Hash className="size-3 text-muted-foreground shrink-0 mt-1" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold truncate">{task.title}</span>
+                              <span className={`shrink-0 px-1.5 py-0 rounded text-[10px] font-medium ${taskStatusStyle(task.status)}`}>
+                                {task.status}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2.5 mt-0.5 flex-wrap text-[11px]">
+                              {task.project && (
+                                <span className="text-blue-500 font-medium">{task.project.projectNumber}</span>
+                              )}
+                              {task.building && (
+                                <span className="text-muted-foreground flex items-center gap-0.5">
+                                  <Building2 className="size-2.5" />
+                                  {task.building.name || task.building.designation}
+                                </span>
+                              )}
+                              {task.mainActivity && (
+                                <span className="text-violet-500">{task.mainActivity}</span>
+                              )}
+                              {task.assignedTo && (
+                                <span className="text-muted-foreground flex items-center gap-0.5">
+                                  <Users className="size-2.5" />
+                                  {task.assignedTo.name}
+                                </span>
+                              )}
+                              {task.dueDate && (
+                                <span className={`flex items-center gap-0.5 ${dueDateStyle(task.dueDate)}`}>
+                                  <Calendar className="size-2.5" />
+                                  {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -503,12 +600,31 @@ export default function ConversationsPage() {
                 )}
 
                 {selectedNewTask && (
-                  <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg text-sm">
-                    <Hash className="size-3.5 text-primary shrink-0" />
-                    <span className="truncate font-medium">{selectedNewTask.title}</span>
-                    <button onClick={() => { setSelectedNewTask(null); setTaskSearch(''); setFocusLoaded(false); }} className="ml-auto shrink-0">
-                      <X className="size-3.5 text-muted-foreground hover:text-foreground" />
-                    </button>
+                  <div className="mt-2 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Hash className="size-3.5 text-primary shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold truncate">{selectedNewTask.title}</span>
+                          <span className={`px-1.5 py-0 rounded text-[10px] font-medium ${taskStatusStyle(selectedNewTask.status)}`}>
+                            {selectedNewTask.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2.5 mt-0.5 flex-wrap text-[11px]">
+                          {selectedNewTask.project && <span className="text-blue-500 font-medium">{selectedNewTask.project.projectNumber}</span>}
+                          {selectedNewTask.building && <span className="text-muted-foreground">{selectedNewTask.building.name || selectedNewTask.building.designation}</span>}
+                          {selectedNewTask.assignedTo && <span className="text-muted-foreground">→ {selectedNewTask.assignedTo.name}</span>}
+                          {selectedNewTask.dueDate && (
+                            <span className={dueDateStyle(selectedNewTask.dueDate)}>
+                              Due {new Date(selectedNewTask.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button onClick={() => { setSelectedNewTask(null); setTaskSearch(''); setFocusLoaded(false); }} className="shrink-0 mt-0.5">
+                        <X className="size-3.5 text-muted-foreground hover:text-foreground" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -644,9 +760,30 @@ export default function ConversationsPage() {
                                 <span className="text-[10px] text-muted-foreground">{fmtTime(msg.createdAt)}</span>
                               </div>
                             )}
-                            <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                              {renderContent(msg.content)}
-                            </div>
+                            {msg.content && (
+                              <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                {renderContent(msg.content)}
+                              </div>
+                            )}
+                            {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                {(msg.attachments as MessageAttachment[]).map((att, ai) => {
+                                  const isImage = att.fileType.startsWith('image/');
+                                  return isImage ? (
+                                    <a key={ai} href={att.filePath} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border max-w-[240px]">
+                                      <img src={att.filePath} alt={att.fileName} className="max-h-40 object-contain bg-muted" />
+                                    </a>
+                                  ) : (
+                                    <a key={ai} href={att.filePath} target="_blank" rel="noreferrer"
+                                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border bg-muted/50 text-xs hover:bg-muted transition-colors"
+                                    >
+                                      <FileText className="size-3.5 text-blue-500 shrink-0" />
+                                      <span className="truncate max-w-[160px]">{att.fileName}</span>
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -678,6 +815,27 @@ export default function ConversationsPage() {
                   ))}
                 </div>
               )}
+              {/* Pending attachments preview */}
+              {pendingAttachments.length > 0 && (
+                <div className="mb-1 flex flex-wrap gap-1.5 px-1">
+                  {pendingAttachments.map((att, i) => {
+                    const isImage = att.fileType.startsWith('image/');
+                    return (
+                      <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg border bg-muted/50 text-xs group">
+                        {isImage ? <ImageIcon className="size-3 text-blue-500" /> : <FileText className="size-3 text-blue-500" />}
+                        <span className="truncate max-w-[140px]">{att.fileName}</span>
+                        <button onClick={() => setPendingAttachments(prev => prev.filter((_, j) => j !== i))} className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5">
+                          <X className="size-3 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <input ref={fileInputRef} type="file" multiple className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif,.webp"
+                onChange={handleFileUpload}
+              />
               <div className="border rounded-xl bg-background focus-within:ring-2 focus-within:ring-ring transition-shadow">
                 <textarea
                   ref={textareaRef}
@@ -695,6 +853,16 @@ export default function ConversationsPage() {
                   className="w-full px-3 pt-2.5 pb-1 text-sm bg-transparent focus:outline-none resize-none"
                 />
                 <div className="flex items-center justify-between px-3 pb-2">
+                  <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    title="Attach file"
+                    disabled={uploadingFile}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    {uploadingFile ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+                  </button>
                   <button
                     type="button"
                     title="Mention someone (@)"
@@ -710,6 +878,7 @@ export default function ConversationsPage() {
                   >
                     <AtSign className="size-4" />
                   </button>
+                  </div>
                   <Button
                     size="icon"
                     variant={newMessage.trim() ? 'default' : 'ghost'}

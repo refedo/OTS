@@ -644,13 +644,14 @@ model TaskAuditLog {
 }
 
 model TaskMessage {
-  id        String   @id @default(uuid()) @db.Char(36)
-  taskId    String   @db.Char(36)
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  userId    String   @db.Char(36)
-  user      User     @relation("TaskMessageAuthor", fields: [userId], references: [id])
-  content   String   @db.Text
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid()) @db.Char(36)
+  taskId      String   @db.Char(36)
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String   @db.Char(36)
+  user        User     @relation("TaskMessageAuthor", fields: [userId], references: [id])
+  content     String   @db.Text
+  attachments Json?    // [{ fileName, filePath, fileType, fileSize }]
+  createdAt   DateTime @default(now())
 
   @@index([taskId])
   @@index([createdAt])

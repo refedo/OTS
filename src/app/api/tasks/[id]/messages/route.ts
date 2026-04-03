@@ -5,8 +5,18 @@ import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { NotificationService } from '@/lib/services/notification.service';
 
+const attachmentSchema = z.object({
+  fileName: z.string(),
+  filePath: z.string(),
+  fileType: z.string(),
+  fileSize: z.number(),
+});
+
 const postSchema = z.object({
-  content: z.string().min(1).max(5000),
+  content: z.string().max(5000).default(''),
+  attachments: z.array(attachmentSchema).optional(),
+}).refine(d => d.content.trim().length > 0 || (d.attachments && d.attachments.length > 0), {
+  message: 'Message must have content or at least one attachment',
 });
 
 export const GET = withApiContext(async (req: NextRequest, session, { params }: { params: Promise<{ id: string }> }) => {
@@ -21,6 +31,7 @@ export const GET = withApiContext(async (req: NextRequest, session, { params }: 
         select: {
           id: true,
           content: true,
+          attachments: true,
           createdAt: true,
           user: { select: { id: true, name: true, position: true } },
         },
@@ -62,10 +73,18 @@ export const POST = withApiContext(async (req: NextRequest, session, { params }:
 
     const [message] = await prisma.$transaction([
       prisma.taskMessage.create({
-        data: { taskId, userId, content: parsed.data.content },
+        data: {
+          taskId,
+          userId,
+          content: parsed.data.content,
+          ...(parsed.data.attachments && parsed.data.attachments.length > 0
+            ? { attachments: parsed.data.attachments }
+            : {}),
+        },
         select: {
           id: true,
           content: true,
+          attachments: true,
           createdAt: true,
           user: { select: { id: true, name: true, position: true } },
         },
