@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, Eye, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, Eye, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink, MessageSquare, Send, Loader2 } from 'lucide-react';
 
 interface ActivityLog {
   id: string;
@@ -72,6 +72,7 @@ interface BacklogItem {
     } | null;
   }>;
   activityLogs: ActivityLog[];
+  notes: Array<{ id: string; content: string; authorId: string; authorName: string; createdAt: string }> | null;
   githubIssueNumber: number | null;
   githubIssueUrl: string | null;
   githubRepo: string | null;
@@ -96,6 +97,8 @@ export default function BacklogItemDetail() {
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [githubSyncing, setGithubSyncing] = useState(false);
   const [navIds, setNavIds] = useState<string[]>([]);
+  const [noteContent, setNoteContent] = useState('');
+  const [sendingNote, setSendingNote] = useState(false);
 
   useEffect(() => {
     fetch('/api/backlog?_nav=1')
@@ -165,6 +168,26 @@ export default function BacklogItemDetail() {
         title: 'Update Failed',
         message: 'Failed to update status',
       });
+    }
+  };
+
+  const handleSendNote = async () => {
+    if (!item || !noteContent.trim() || sendingNote) return;
+    setSendingNote(true);
+    try {
+      const res = await fetch(`/api/backlog/${item.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: noteContent.trim() }),
+      });
+      if (res.ok) {
+        setNoteContent('');
+        fetchBacklogItem();
+      } else {
+        showConfirmation({ type: 'error', title: 'Failed', message: 'Could not send note.' });
+      }
+    } finally {
+      setSendingNote(false);
     }
   };
 
@@ -790,6 +813,50 @@ export default function BacklogItemDetail() {
                     })}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Notes */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="size-5" />
+                  Notes
+                  {(item.notes?.length ?? 0) > 0 && (
+                    <span className="text-sm font-normal text-muted-foreground">({item.notes!.length})</span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(item.notes?.length ?? 0) > 0 && (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {(item.notes ?? []).map(note => (
+                      <div key={note.id} className="rounded-lg border bg-muted/30 p-3">
+                        <p className="text-sm whitespace-pre-wrap break-words">{note.content}</p>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {note.authorName} · {new Date(note.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Add a note for the raiser…"
+                    value={noteContent}
+                    onChange={e => setNoteContent(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendNote(); } }}
+                  />
+                  <Button
+                    onClick={handleSendNote}
+                    disabled={sendingNote || !noteContent.trim()}
+                    className="self-end"
+                  >
+                    {sendingNote ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 

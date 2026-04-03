@@ -23,10 +23,47 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.5.1',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '🔧 Tonnage Column, Conversations Nav & Backlog Notes',
+    highlights: [
+      'Dedicated Tonnage column in Project Tracker — between Building and activity columns, showing assembly-parts data',
+      'Conversations sidebar link now appears correctly (was missing due to missing navigation permission registration)',
+      'Backlog item notes — handlers can annotate any backlog item and the raiser receives a push notification',
+      'GitHub Actions workflow to run manual SQL migrations from the GitHub UI',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Backlog Notes',
+          items: [
+            'Notes section on every backlog item detail page — textarea + Send button; notes persist in a JSON column on the item',
+            'POST /api/backlog/[id]/notes — appends a note and sends a SYSTEM push notification to the item creator (raiser)',
+            'notes Json? field added to ProductBacklogItem schema; ALTER TABLE in migration SQL',
+          ],
+        },
+        {
+          title: 'SQL Migration Workflow',
+          items: [
+            '.github/workflows/run-sql-migration.yml — manually dispatched workflow with migration_file input and "yes" confirmation guard',
+            'SSHes to the production server and runs the specified SQL file from prisma/manual_migrations/ using the mysql client',
+          ],
+        },
+      ],
+      fixed: [
+        'Project Tracker: Tonnage moved to a dedicated column header ("Tonnage") between Building and Arch Drawing; shows X.X T formatted value',
+        'Conversations page missing from sidebar: /conversations added to NAVIGATION_PERMISSIONS with tasks.view requirement',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.5.0',
     date: 'April 3, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: '💬 Task Conversations, Tonnage from Assembly Parts & Fixes',
     highlights: [
       'Task Conversations — start a message thread on any task, invite teammates, and receive push notifications on new messages',
@@ -64,6 +101,66 @@ const hardcodedVersions: ChangelogVersion[] = [
         'VAT Report: invoice detail drill-down endpoint changed from status >= 1 to status IN (1, 2) — abandoned invoices (status=3) are now excluded from the detail view, matching the summary totals',
         'Finance navigation: Financial Dashboard nav item no longer highlights when viewing sub-pages like VAT Report, Aging Report, etc.',
         'Backlog board: default view now shows "Open" filter (all statuses except Completed and Dropped); Clear All Filters resets to Open, not All Statuses',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.4.6',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '📌 Project Tracker Freeze Header Panes',
+    highlights: [
+      'Sticky header row and frozen first two columns (Proj # and Building) stay visible when scrolling large project tracker tables',
+      'Freeze toggle button in the tracker toolbar — remembers preference',
+    ],
+    changes: {
+      added: [
+        'Freeze header panes toggle in the project tracker toolbar — enables sticky column/row headers for easier navigation of wide tables',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '17.4.5',
+    date: 'April 2, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '🖨️ Print & Navigation Fixes',
+    highlights: [
+      'Full-colour print output restored — reports no longer appear faded or dimmed when printed from the browser',
+      'Recent links breadcrumb now shows the correct page name instead of the module/section name',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Print output faded/dimmed — added print-color-adjust: exact to force full-opacity print rendering across all browsers',
+        'Recent links showing module name instead of page name — breadcrumb now resolves to the correct leaf page title',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.4.4',
+    date: 'April 1, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: '📋 Aging Report Print & Mobile Fixes',
+    highlights: [
+      'Aging report prints correctly — columns no longer overflow and bucket summary renders cleanly',
+      'Sidebar no longer bleeds off-screen on mobile devices',
+      'Print timestamp added to financial report headers',
+    ],
+    changes: {
+      added: [
+        'Generated-at timestamp in print header for all financial reports',
+      ],
+      fixed: [
+        'Aging report print layout — table columns render without overflow; bucket summary section prints cleanly',
+        'Sidebar mobile overflow — sidebar stays within viewport on narrow screens',
+        'Print all columns on mobile — all table columns now appear in print regardless of responsive breakpoint visibility',
       ],
       changed: [],
     },

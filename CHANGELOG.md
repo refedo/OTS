@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.5.1] - 2026-04-03
+
+### Tonnage Column, Conversations Nav & Backlog Notes (Patch Release)
+
+#### Added
+- **Backlog item notes** — handlers can add internal notes on any backlog item; notes are stored on the item and the raiser receives a push notification for each note; `POST /api/backlog/[id]/notes`; `notes Json?` field added to `ProductBacklogItem`
+- **GitHub Actions SQL migration workflow** — new `run-sql-migration.yml` workflow dispatched manually from GitHub UI to run any SQL file in `prisma/manual_migrations/` against the production database via SSH + mysql client
+
+#### Fixed
+- **Project tracker tonnage column** — tonnage is now displayed in a dedicated "Tonnage" column (between Building and Arch Drawing) instead of as small subscript text under the building name; shows `X.X T` from assembly parts or falls back to `building.weight`
+- **Conversations sidebar link missing** — `/conversations` was not registered in `NAVIGATION_PERMISSIONS`, causing it to be hidden during initial permission load; added with `['tasks.view']` permission requirement
+
+---
+
+## [17.5.0] - 2026-04-03
+
+### Task Conversations, Assembly Tonnage & Multi-Fix Release (Minor Release)
+
+#### Added
+- **Task Conversations** — `TaskMessage` and `TaskConversationParticipant` Prisma models; conversation card in task detail view (bubble thread, 30-second polling, Enter-to-send); invite any user as participant; `TASK_MESSAGE` push notifications
+- **Conversations page** — `/conversations` lists all task threads the current user participates in; last message preview, participant avatars, project/building context; linked from Tasks sidebar section
+- **Assembly-parts tonnage in Project Tracker** — building tonnage sourced from `SUM(netWeightTotal)/1000` of `AssemblyPart` records; falls back to `building.weight`
+- **Backlog "Open" default filter** — board defaults to Open (excludes Completed + Dropped); "Open" option added to status dropdown; Clear Filters resets to Open
+
+#### Fixed
+- **VAT Report** — invoice detail drill-down changed from `status >= 1` to `status IN (1, 2)`; abandoned invoices excluded from detail view
+- **Finance navigation** — Financial Dashboard no longer stays highlighted when viewing sub-pages
+
+---
+
+## [17.4.6] - 2026-04-03
+
+### Project Tracker Freeze Header Panes (Patch Release)
+
+#### Added
+- **Freeze header panes toggle** in project tracker — sticky header row and frozen first two columns (Proj # and Building) stay visible when scrolling large tables; toggle button in tracker toolbar
+
+---
+
+## [17.4.5] - 2026-04-02
+
+### Print & Navigation Fixes (Patch Release)
+
+#### Fixed
+- **Faded/dimmed print output** — print styles updated to force full-colour output (`print-color-adjust: exact`) so reports print at full opacity on all browsers
+- **Recent links showing module name** — breadcrumb/recent links now display the page name instead of the section/module name
+
+---
+
+## [17.4.4] - 2026-04-01
+
+### Aging Report Print & Mobile Fixes (Patch Release)
+
+#### Fixed
+- **Aging report print layout** — print columns now render correctly without overflow; header and bucket summary print cleanly
+- **Sidebar mobile overflow** — sidebar no longer bleeds off-screen on narrow devices
+- **Print shows all columns on mobile** — all table columns are now included in print output regardless of responsive breakpoint
+- **Print timestamp added** — generated-at timestamp appears in the print header of financial reports
+
+---
+
 ## [17.4.3] - 2026-04-03
 
 ### Event Bus & UI Polish (Patch Release)

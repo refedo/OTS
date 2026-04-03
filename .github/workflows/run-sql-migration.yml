@@ -1,0 +1,67 @@
+name: Run Manual SQL Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_file:
+        description: 'SQL file to run (relative to prisma/manual_migrations/)'
+        required: true
+        default: 'add_task_conversations.sql'
+      confirm:
+        description: 'Type "yes" to confirm you want to run this migration against the production database'
+        required: true
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'yes' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate migration file exists
+        run: |
+          FILE="prisma/manual_migrations/${{ github.event.inputs.migration_file }}"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: Migration file '$FILE' not found"
+            exit 1
+          fi
+          echo "Migration file found: $FILE"
+          echo "--- SQL Preview (first 30 lines) ---"
+          head -30 "$FILE"
+
+      - name: Run SQL migration on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          port: ${{ secrets.DO_PORT }}
+          script: |
+            set -e
+            APP_DIR=/var/www/hexasteel.sa/ots
+            MIGRATION_FILE="prisma/manual_migrations/${{ github.event.inputs.migration_file }}"
+
+            if [ ! -f "$APP_DIR/$MIGRATION_FILE" ]; then
+              echo "ERROR: File not found on server: $APP_DIR/$MIGRATION_FILE"
+              exit 1
+            fi
+
+            echo "Running migration: $MIGRATION_FILE"
+            source "$APP_DIR/.env"
+
+            # Extract connection details from DATABASE_URL
+            # Expected format: mysql://user:password@host:port/database
+            DB_USER=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
+            DB_PASS=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
+            DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]+@([^:/]+)[:/].*|\1|')
+            DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]+@[^:]+:([0-9]+)/.*|\1|')
+            DB_NAME=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^/]+/([^?]+).*|\1|')
+
+            echo "Database: $DB_HOST:$DB_PORT/$DB_NAME"
+            echo "Running SQL file..."
+
+            mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < "$APP_DIR/$MIGRATION_FILE"
+
+            echo "Migration completed successfully!"

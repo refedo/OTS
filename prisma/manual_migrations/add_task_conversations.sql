@@ -34,3 +34,6 @@ ALTER TABLE `notifications` MODIFY COLUMN `type` ENUM(
   'TASK_ASSIGNED','TASK_COMPLETED','APPROVAL_REQUIRED','DEADLINE_WARNING',
   'APPROVED','REJECTED','SYSTEM','TASK_MESSAGE'
 ) NOT NULL;
+
+-- Add notes column to product_backlog_items (v17.5.1)
+ALTER TABLE `product_backlog_items` ADD COLUMN IF NOT EXISTS `notes` JSON NULL;
