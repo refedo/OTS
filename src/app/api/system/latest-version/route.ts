@@ -7,15 +7,15 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '💬 Conversations, Attachments & Search',
+  mainTitle: '📎 Upload Preview & Task Workflow Improvements',
   highlights: [
-    'Conversations — real-time messaging between users on tasks, @mentions, file attachments with image lightbox, deep-link from push notifications',
-    'Global search expanded — buildings, users, and more system modules now searchable',
-    'Task search — now searches by assignee, requester, building, project, and more',
-    'Fixed Assets report — fixed assets now appear in the Assets report',
-    'Notification panel — new Conversations tab for TASK_MESSAGE notifications',
-    'Backlog navigation — skips COMPLETED/DROPPED items; GitHub sync closes issues on COMPLETED/DROPPED',
-    'Integrations moved under Settings; sign-out fixed; image attachments with popup preview',
+    'Image attachments now show thumbnail preview before sending; upload progress bar tracks each file',
+    'Send button activates with attachments alone — no text required',
+    'Completion note is now mandatory for overdue tasks — serves as delay justification, posted to conversation',
+    '"Ask for Clarification" navigates to the conversation after posting the message',
+    'Conversations redesigned with iMessage-style bubbles, colored avatars, gradient sidebar',
+    'Global search expanded — buildings, users, task search covers assignee, project, building',
+    'Fixed Assets report fixed; GitHub sync closes issues on COMPLETED/DROPPED',
   ],
   changes: {
     added: [

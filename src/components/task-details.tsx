@@ -310,10 +310,24 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     }
   };
 
+  const isTaskOverdue = !!(task.dueDate && task.status !== 'Completed' && new Date(task.dueDate) < new Date());
+
   const handleConfirmComplete = async () => {
-    await handleStatusUpdate('Completed', completeNote.trim() || undefined);
+    const note = completeNote.trim();
+    await handleStatusUpdate('Completed', note || undefined);
     setShowCompleteDialog(false);
     setCompleteNote('');
+    // If a note was provided, post it to the task conversation
+    if (note) {
+      try {
+        const prefix = isTaskOverdue ? '⚠️ *Delay Justification:*\n' : '✅ *Completion Note:*\n';
+        await fetch(`/api/tasks/${task.id}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: prefix + note }),
+        });
+      } catch { /* non-critical */ }
+    }
   };
 
   const handleSendRequest = async (type: 'clarification' | 'time_extension', message: string) => {
@@ -1214,17 +1228,37 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
             </DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Describe how you completed this task. The requester and creator will be notified.
-            </p>
+            {isTaskOverdue ? (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">This task is overdue</p>
+                  <p className="text-xs mt-0.5 text-red-600/80">A delay justification is required. This note will be automatically posted to the task conversation.</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Optionally describe how you completed this task. If provided, it will be posted to the task conversation.
+              </p>
+            )}
             <div className="space-y-1.5">
-              <Label htmlFor="complete-note">Completion note <span className="text-muted-foreground">(optional)</span></Label>
+              <Label htmlFor="complete-note" className={isTaskOverdue ? 'text-red-700' : ''}>
+                {isTaskOverdue ? (
+                  <>Delay justification <span className="text-red-500">*</span></>
+                ) : (
+                  <>Completion note <span className="text-muted-foreground">(optional)</span></>
+                )}
+              </Label>
               <Textarea
                 id="complete-note"
-                placeholder="How did you complete this task?"
+                placeholder={isTaskOverdue
+                  ? 'Explain why this task was delayed and how it was resolved…'
+                  : 'How did you complete this task?'
+                }
                 value={completeNote}
                 onChange={(e) => setCompleteNote(e.target.value)}
                 rows={4}
+                className={isTaskOverdue && !completeNote.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}
               />
             </div>
           </div>
@@ -1234,8 +1268,8 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
             </Button>
             <Button
               onClick={handleConfirmComplete}
-              disabled={updating}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={updating || (isTaskOverdue && !completeNote.trim())}
+              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
             >
               <CheckCircle2 className="size-4 mr-2" />
               {updating ? 'Saving…' : 'Confirm Completion'}
@@ -1255,7 +1289,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground">
-              Your message will be posted in the task conversation and all participants will be notified.
+              Your message will be posted to the task conversation and all participants will be notified. You'll be taken to the conversation after sending.
             </p>
             <div className="space-y-1.5">
               <Label htmlFor="clarification-msg">Message</Label>
@@ -1286,7 +1320,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                   if (!res.ok) throw new Error('Failed');
                   setShowClarificationDialog(false);
                   setClarificationMessage('');
-                  if (typeof fetchConversation === 'function') fetchConversation();
+                  router.push(`/conversations?taskId=${task.id}`);
                 } catch {
                   alert('Failed to send clarification');
                 } finally {

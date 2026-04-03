@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.10.4',
+    version: '17.10.5',
     date: 'April 3, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Upload Preview, Mandatory Delay Note, Clarification Conversation',
+    highlights: [
+      'Image attachments show thumbnail preview before sending; upload progress bar tracks each file',
+      'Sending attachments no longer requires typing a message — send button activates with files alone',
+      'Completion note is now mandatory when a task is overdue — serves as delay justification, posted to conversation',
+      'Completion note (when provided) is automatically posted to the task conversation',
+      '"Ask for Clarification" now navigates to the conversation after sending',
+    ],
+    changes: {
+      added: [
+        'Upload progress bar in message input showing X/N files uploaded and percentage',
+        'Image thumbnail preview in pending attachments area before sending',
+        'Delay justification requirement: overdue tasks require a completion note before confirming',
+        'Completion note auto-posted to task conversation with "⚠️ Delay Justification" or "✅ Completion Note" prefix',
+      ],
+      fixed: [
+        'Send button was disabled when only attachments were pending (no text required now)',
+        'File MIME type detection fallback for mobile uploads returning application/octet-stream',
+      ],
+      changed: [
+        '"Ask for Clarification" dialog now navigates to /conversations?taskId=X after sending',
+        'Completion dialog shows red warning banner and required asterisk when task is overdue',
+      ],
+    },
+  },
+  {
+    version: '17.10.4',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Global Search, Task Search, Conversation Beautification, GitHub Fix',
     highlights: [
       'Conversation interface redesigned — iMessage-style bubbles, colored avatars, vibrant sidebar, gradient header',

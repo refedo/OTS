@@ -148,8 +148,8 @@ export default function ConversationsPage() {
 
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ total: number; done: number } | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
 
   // Start new conversation state
   const [showStartNew, setShowStartNew] = useState(false);
@@ -332,28 +332,35 @@ export default function ConversationsPage() {
     setPendingAttachments([]);
   };
 
-  // File upload
+  // File upload with progress tracking
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    setUploadingFile(true);
+    const files = Array.from(e.target.files);
+    setUploadProgress({ total: files.length, done: 0 });
     try {
-      for (const file of Array.from(e.target.files)) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         const fd = new FormData();
         fd.append('file', file);
         fd.append('folder', 'conversations');
         const res = await fetch('/api/upload', { method: 'POST', body: fd });
         if (res.ok) {
           const data = await res.json();
+          // Detect type from name if server returns generic MIME
+          const detectedType = data.fileType && data.fileType !== 'application/octet-stream'
+            ? data.fileType
+            : file.type || (file.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? 'image/jpeg' : 'application/octet-stream');
           setPendingAttachments(prev => [...prev, {
             fileName: data.originalName,
             filePath: data.filePath,
-            fileType: data.fileType,
+            fileType: detectedType,
             fileSize: data.fileSize,
           }]);
         }
+        setUploadProgress({ total: files.length, done: i + 1 });
       }
     } finally {
-      setUploadingFile(false);
+      setUploadProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -856,16 +863,48 @@ export default function ConversationsPage() {
                   ))}
                 </div>
               )}
+              {/* Upload progress bar */}
+              {uploadProgress && (
+                <div className="mb-2 px-1">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                    <span>Uploading {uploadProgress.done}/{uploadProgress.total}…</span>
+                    <span>{Math.round((uploadProgress.done / uploadProgress.total) * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               {/* Pending attachments preview */}
               {pendingAttachments.length > 0 && (
-                <div className="mb-1 flex flex-wrap gap-1.5 px-1">
+                <div className="mb-2 flex flex-wrap gap-2 px-1">
                   {pendingAttachments.map((att, i) => {
                     const isImage = att.fileType.startsWith('image/');
-                    return (
-                      <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg border bg-muted/50 text-xs group">
-                        {isImage ? <ImageIcon className="size-3 text-blue-500" /> : <FileText className="size-3 text-blue-500" />}
-                        <span className="truncate max-w-[140px]">{att.fileName}</span>
-                        <button onClick={() => setPendingAttachments(prev => prev.filter((_, j) => j !== i))} className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5">
+                    return isImage ? (
+                      <div key={i} className="relative group">
+                        <img
+                          src={att.filePath}
+                          alt={att.fileName}
+                          className="size-16 object-cover rounded-xl border-2 border-primary/20 shadow-sm"
+                        />
+                        <button
+                          onClick={() => setPendingAttachments(prev => prev.filter((_, j) => j !== i))}
+                          className="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 border-border/60 bg-muted/60 text-xs group relative">
+                        <FileText className="size-3.5 text-blue-500 shrink-0" />
+                        <span className="truncate max-w-[120px]">{att.fileName}</span>
+                        <button
+                          onClick={() => setPendingAttachments(prev => prev.filter((_, j) => j !== i))}
+                          className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
                           <X className="size-3 text-muted-foreground hover:text-destructive" />
                         </button>
                       </div>
@@ -898,11 +937,11 @@ export default function ConversationsPage() {
                   <button
                     type="button"
                     title="Attach file"
-                    disabled={uploadingFile}
+                    disabled={!!uploadProgress}
                     onClick={() => fileInputRef.current?.click()}
                     className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                   >
-                    {uploadingFile ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+                    {uploadProgress ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
                   </button>
                   <button
                     type="button"
@@ -922,9 +961,9 @@ export default function ConversationsPage() {
                   </div>
                   <Button
                     size="icon"
-                    variant={newMessage.trim() ? 'default' : 'ghost'}
+                    variant={newMessage.trim() || pendingAttachments.length > 0 ? 'default' : 'ghost'}
                     onClick={handleSendMessage}
-                    disabled={!newMessage.trim() || sending}
+                    disabled={(!newMessage.trim() && pendingAttachments.length === 0) || sending}
                     className="size-7 rounded-lg"
                   >
                     {sending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
