@@ -10,6 +10,7 @@ export const APP_VERSION = {
   version: resolvedVersion,
   date: 'April 3, 2026',
   type: 'patch' as const,
+  // version is injected from package.json via NEXT_PUBLIC_APP_VERSION
   name: 'Hexa Steel Operation Tracking System',
 };
 

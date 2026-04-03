@@ -3225,6 +3225,9 @@ model ProductBacklogItem {
   completedById     String?           @db.Char(36)
   completedAt       DateTime?
 
+  // Handler notes (sent to raiser)
+  notes             Json?             // [{ id, content, authorId, authorName, createdAt }]
+
   // GitHub Integration
   githubIssueNumber Int?
   githubIssueUrl    String?

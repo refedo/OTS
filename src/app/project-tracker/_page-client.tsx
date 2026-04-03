@@ -888,6 +888,11 @@ export default function ProjectTrackerClient() {
                       >
                         Building
                       </th>
+                      <th
+                        className={`text-center text-[11px] font-semibold uppercase tracking-wider px-3 py-3 whitespace-nowrap ${mutedTextClass}`}
+                      >
+                        Tonnage
+                      </th>
                       {ACTIVITY_COLUMNS.map((col) => (
                         <th
                           key={col.type}
@@ -907,7 +912,7 @@ export default function ProjectTrackerClient() {
                     {rows.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={ACTIVITY_COLUMNS.length + 3}
+                          colSpan={ACTIVITY_COLUMNS.length + 4}
                           className={`text-center py-12 ${mutedTextClass}`}
                         >
                           No projects found
@@ -961,15 +966,15 @@ export default function ProjectTrackerClient() {
                               <span className="font-medium">
                                 {row.building.name || row.building.designation}
                               </span>
-                              {row.building.assemblyTonnage > 0 ? (
-                                <p className={`text-[10px] ${mutedTextClass}`}>
-                                  {row.building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T
-                                </p>
-                              ) : row.building.weight ? (
-                                <p className={`text-[10px] ${mutedTextClass}`}>
-                                  {Number(row.building.weight).toLocaleString()} T
-                                </p>
-                              ) : null}
+                            </td>
+
+                            <td className={`px-3 py-2.5 text-center text-sm align-top whitespace-nowrap ${mutedTextClass}`}>
+                              {row.building.assemblyTonnage > 0
+                                ? <span className="font-medium text-foreground">{row.building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T</span>
+                                : row.building.weight
+                                  ? <span className="font-medium text-foreground">{Number(row.building.weight).toLocaleString()} T</span>
+                                  : <span>—</span>
+                              }
                             </td>
 
                             {ACTIVITY_COLUMNS.map((col) => {
