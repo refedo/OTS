@@ -126,7 +126,11 @@ export default function ConversationsPage() {
     setLoadingList(false);
   }, []);
 
-  useEffect(() => { loadConversations(); }, [loadConversations]);
+  useEffect(() => {
+    loadConversations();
+    const interval = setInterval(loadConversations, 30000);
+    return () => clearInterval(interval);
+  }, [loadConversations]);
 
   // Load messages for selected conversation
   const loadMessages = useCallback(async (taskId: string) => {

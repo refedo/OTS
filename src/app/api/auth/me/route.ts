@@ -3,7 +3,6 @@ import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { resolvePermissionsFromData, parseCustomPermissions } from '@/lib/services/permission-resolution.service';
-import { ALL_PERMISSIONS } from '@/lib/permissions';
 
 export async function GET() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -18,14 +17,12 @@ export async function GET() {
   });
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const permissions = user.isAdmin
-    ? ALL_PERMISSIONS.map(p => p.id)
-    : resolvePermissionsFromData({
-        isAdmin: false,
-        rolePermissions: (user.role.permissions as string[]) || [],
-        customPermissions: parseCustomPermissions(user.customPermissions),
-        restrictedModules: (user.role.restrictedModules as string[]) || [],
-      });
+  const permissions = resolvePermissionsFromData({
+    isAdmin: user.isAdmin,
+    rolePermissions: (user.role.permissions as string[]) || [],
+    customPermissions: parseCustomPermissions(user.customPermissions),
+    restrictedModules: (user.role.restrictedModules as string[]) || [],
+  });
 
   return NextResponse.json({
     id: user.id,

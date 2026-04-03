@@ -14,6 +14,7 @@ import {
 import { Plus, MoreVertical, Shield, Users, Edit, Trash2, Key, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ALL_PERMISSIONS } from '@/lib/permissions';
 
 type Role = {
   id: string;
@@ -171,7 +172,7 @@ export function RolesClient({ roles }: RolesClientProps) {
                       <Key className="size-4" />
                       <span>Permissions</span>
                     </div>
-                    <span className="font-medium">{getPermissionCount(role.permissions)}</span>
+                    <span className="font-medium">{getPermissionCount(role.permissions)}/{ALL_PERMISSIONS.length}</span>
                   </div>
                   <div className="pt-3 border-t">
                     <Link href={`/roles/${role.id}/permissions`}>

@@ -23,10 +23,45 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.9.0',
+    version: '17.10.0',
     date: 'April 3, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Tonnage Fix, Permissions, Conversations Delivery',
+    highlights: [
+      'Tonnage calculation rewritten with raw SQL — bypasses Prisma Decimal conversion issues for reliable weight aggregation',
+      'Admin permission bypass removed — role deselections (e.g., AI Assistant) are now respected for all users including admins',
+      'Conversations now deliver messages to task assignee and creator automatically, with 30-second polling for new conversations',
+      'Assembly part designations are clickable links to the detail page',
+      'Default "Steel" scope of work auto-created when buildings are added',
+      'Roles page shows active/total permissions count (e.g., 144/147)',
+      'Notification polling reduced from 5 minutes to 1 minute',
+    ],
+    changes: {
+      added: [
+        'Default "Steel" scope of work auto-created on every new building (both building APIs)',
+        'Migration SQL to backfill Steel scope for existing buildings',
+        'Assembly part designation is now a clickable link in both table and card views',
+        'Roles page shows permission count as active/total (e.g., 144/147)',
+      ],
+      fixed: [
+        'Tonnage: rewrote calculation with raw SQL SUM(singlePartWeight * quantity) to avoid Prisma Decimal issues',
+        'Admin permission bypass: admins now use role permissions as base instead of ALL_PERMISSIONS — sidebar respects role deselections',
+        'Conversations: task assignee and creator are auto-added as participants on first message',
+        'Conversations list now polls every 30 seconds (was one-time load)',
+        'Notification polling reduced to 60 seconds (was 5 minutes)',
+      ],
+      changed: [
+        'permission-resolution.service.ts: admin users start with role permissions, not ALL_PERMISSIONS',
+        'auth/me API: always uses resolvePermissionsFromData for both admin and non-admin users',
+      ],
+    },
+  },
+  {
+    version: '17.9.0',
+    date: 'April 3, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Conversation Delivery, Points Leaderboard & Task Building Details',
     highlights: [
       'Task conversation messages now notify the task assignee and creator even before they join the conversation',

@@ -153,35 +153,36 @@ export const GET = withApiContext(async (req, session) => {
 
             const hasBlocked = activities.some((a) => a.status === 'blocked');
 
-            // Sum assembly tonnage — use netWeightTotal if set, else singlePartWeight * quantity
-            const calcPartWeight = (p: { netWeightTotal: unknown; singlePartWeight: unknown; quantity: number | null }) => {
-              const net = Number(p.netWeightTotal ?? 0);
-              if (net > 0) return net;
-              return Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
-            };
+            // Sum assembly tonnage via raw SQL to avoid Prisma Decimal conversion issues
+            const [tonnageResult] = await prisma.$queryRaw<[{totalKg: number | null}]>`
+              SELECT COALESCE(SUM(
+                CASE
+                  WHEN netWeightTotal > 0 THEN netWeightTotal
+                  ELSE COALESCE(singlePartWeight, 0) * COALESCE(quantity, 1)
+                END
+              ), 0) as totalKg
+              FROM AssemblyPart
+              WHERE buildingId = ${building.id} AND deletedAt IS NULL
+            `;
+            let rawTotalKg = Number(tonnageResult?.totalKg ?? 0);
 
-            const buildingParts = await prisma.assemblyPart.findMany({
-              where: { buildingId: building.id, deletedAt: null },
-              select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
-            });
-            let rawTotalKg = buildingParts.reduce((sum, p) => sum + calcPartWeight(p), 0);
-
-            // Fallback 1: parts at project level with no building assigned
+            // Fallback: project-level parts with no building assigned
             if (rawTotalKg === 0) {
-              const unboundParts = await prisma.assemblyPart.findMany({
-                where: { projectId: project.id, buildingId: null, deletedAt: null },
-                select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
-              });
-              const unboundKg = unboundParts.reduce((sum, p) => sum + calcPartWeight(p), 0);
-              // Distribute evenly across buildings
-              const numBuildings = project.buildings.length || 1;
-              rawTotalKg = unboundKg / numBuildings;
+              const [unboundResult] = await prisma.$queryRaw<[{totalKg: number | null}]>`
+                SELECT COALESCE(SUM(
+                  CASE
+                    WHEN netWeightTotal > 0 THEN netWeightTotal
+                    ELSE COALESCE(singlePartWeight, 0) * COALESCE(quantity, 1)
+                  END
+                ), 0) as totalKg
+                FROM AssemblyPart
+                WHERE projectId = ${project.id} AND buildingId IS NULL AND deletedAt IS NULL
+              `;
+              rawTotalKg = Number(unboundResult?.totalKg ?? 0) / (project.buildings.length || 1);
             }
 
-            // Fallback 2: use building.weight (stored in tons) directly
-            const assemblyTonnage = rawTotalKg > 0
-              ? rawTotalKg / 1000
-              : Number(building.weight ?? 0);
+            // Final fallback: building.weight (already in tons)
+            const assemblyTonnage = rawTotalKg > 0 ? rawTotalKg / 1000 : Number(building.weight ?? 0);
 
             return {
               id: building.id,

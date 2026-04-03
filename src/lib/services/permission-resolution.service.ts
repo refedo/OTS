@@ -12,7 +12,6 @@
  */
 
 import prisma from '@/lib/db';
-import { ALL_PERMISSIONS } from '@/lib/permissions';
 import { filterPermissionsByModules } from '@/lib/module-restrictions';
 import { logger } from '@/lib/logger';
 
@@ -32,9 +31,8 @@ export interface PermissionResolutionData {
  * Pure function: resolves effective permissions from data (works client-side)
  *
  * Resolution order:
- * 1. If isAdmin → start with ALL_PERMISSIONS (instead of rolePermissions)
- * 2. Otherwise start with rolePermissions
- * 3. Add customPermissions.grants
+ * 1. Start with rolePermissions (same for admin and non-admin)
+ * 2. Add customPermissions.grants
  * 4. Remove customPermissions.revokes  ← applied even for isAdmin (PBAC overrides RBAC)
  * 5. Apply restrictedModules filter     ← applied even for isAdmin
  * 6. Return deduplicated array
@@ -42,10 +40,9 @@ export interface PermissionResolutionData {
 export function resolvePermissionsFromData(params: PermissionResolutionData): string[] {
   const { isAdmin, rolePermissions, customPermissions, restrictedModules } = params;
 
-  // isAdmin users start with ALL permissions but still respect PBAC revokes + module restrictions
-  let permissions = isAdmin
-    ? ALL_PERMISSIONS.map(p => p.id)
-    : [...rolePermissions];
+  // All users (including admins) use role permissions as their base.
+  // isAdmin controls UI management capabilities, not permission bypass.
+  let permissions = [...rolePermissions];
 
   if (customPermissions) {
     const grants = Array.isArray(customPermissions.grants) ? customPermissions.grants : [];

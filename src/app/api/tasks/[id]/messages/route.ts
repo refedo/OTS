@@ -77,6 +77,22 @@ export const POST = withApiContext(async (req: NextRequest, session, { params }:
       }),
     ]);
 
+    // Auto-add task assignee + creator as conversation participants so the conversation appears in their list
+    const autoParticipantIds = [task.assignedToId, task.createdById].filter(
+      (id): id is string => !!id && id !== userId
+    );
+    if (autoParticipantIds.length > 0) {
+      await Promise.all(
+        autoParticipantIds.map(uid =>
+          prisma.taskConversationParticipant.upsert({
+            where: { taskId_userId: { taskId, userId: uid } },
+            update: {},
+            create: { taskId, userId: uid },
+          })
+        )
+      );
+    }
+
     const participants = await prisma.taskConversationParticipant.findMany({
       where: { taskId },
       select: { userId: true },
