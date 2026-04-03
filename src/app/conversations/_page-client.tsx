@@ -5,9 +5,19 @@ import { useSessionValidator } from '@/hooks/use-session-validator';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign, Calendar, Paperclip, FileText, Image as ImageIcon } from 'lucide-react';
+import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign, Calendar, Paperclip, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Download, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+
+// Resolve attachment path — old uploads may be missing basePath prefix
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+function resolveFilePath(path: string): string {
+  if (!path) return path;
+  if (BASE && !path.startsWith(BASE) && path.startsWith('/uploads/')) {
+    return `${BASE}${path}`;
+  }
+  return path;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -149,7 +159,19 @@ export default function ConversationsPage() {
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
   const [uploadProgress, setUploadProgress] = useState<{ total: number; done: number } | null>(null);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  // Lightbox: track all images + current index for swipe navigation
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number>(-1);
+  const lightboxSrc = lightboxIndex >= 0 ? lightboxImages[lightboxIndex] ?? null : null;
+  const touchStartX = useRef<number>(0);
+
+  const openLightbox = (images: string[], index: number) => {
+    setLightboxImages(images.map(resolveFilePath));
+    setLightboxIndex(index);
+  };
+  const closeLightbox = () => setLightboxIndex(-1);
+  const lightboxPrev = () => setLightboxIndex(i => (i > 0 ? i - 1 : lightboxImages.length - 1));
+  const lightboxNext = () => setLightboxIndex(i => (i < lightboxImages.length - 1 ? i + 1 : 0));
 
   // Start new conversation state
   const [showStartNew, setShowStartNew] = useState(false);
@@ -811,27 +833,47 @@ export default function ConversationsPage() {
                                 {renderContent(msg.content)}
                               </div>
                             )}
-                            {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                            {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (() => {
+                              const atts = msg.attachments as MessageAttachment[];
+                              const msgImages = atts.filter(a => a.fileType.startsWith('image/')).map(a => resolveFilePath(a.filePath));
+                              return (
                               <div className="mt-1 flex flex-wrap gap-1.5">
-                                {(msg.attachments as MessageAttachment[]).map((att, ai) => {
-                                  const isImage = att.fileType.startsWith('image/');
-                                  return isImage ? (
-                                    <button key={ai} type="button" onClick={() => setLightboxSrc(att.filePath)}
-                                      className={cn('block rounded-xl overflow-hidden max-w-[220px] hover:opacity-90 transition-opacity shadow-sm border', isMe ? 'border-primary/30' : 'border-border/50')}>
-                                      <img src={att.filePath} alt={att.fileName} className="max-h-36 object-contain bg-muted/50" />
-                                    </button>
-                                  ) : (
-                                    <a key={ai} href={att.filePath} target="_blank" rel="noreferrer"
-                                      className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity shadow-sm',
-                                        isMe ? 'bg-primary/80 text-primary-foreground border border-primary/30' : 'bg-muted border border-border/50')}
-                                    >
+                                {atts.map((att, ai) => {
+                                  const isImage = att.fileType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.fileName);
+                                  const resolvedPath = resolveFilePath(att.filePath);
+                                  if (isImage) {
+                                    const imgIdx = msgImages.indexOf(resolvedPath);
+                                    return (
+                                      <button key={ai} type="button"
+                                        onClick={() => openLightbox(msgImages, imgIdx >= 0 ? imgIdx : 0)}
+                                        className={cn('block rounded-xl overflow-hidden max-w-[220px] hover:opacity-90 transition-opacity shadow-sm border', isMe ? 'border-primary/30' : 'border-border/50')}>
+                                        <img src={resolvedPath} alt={att.fileName} className="max-h-36 object-contain bg-muted/50" />
+                                      </button>
+                                    );
+                                  }
+                                  const isPdf = att.fileType === 'application/pdf' || att.fileName.endsWith('.pdf');
+                                  return (
+                                    <div key={ai} className={cn('flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-xl text-xs shadow-sm',
+                                      isMe ? 'bg-primary/80 text-primary-foreground border border-primary/30' : 'bg-muted border border-border/50')}>
                                       <FileText className="size-3.5 shrink-0" />
-                                      <span className="truncate max-w-[140px]">{att.fileName}</span>
-                                    </a>
+                                      <span className="truncate max-w-[120px]">{att.fileName}</span>
+                                      {isPdf && (
+                                        <button type="button" title="Preview PDF"
+                                          onClick={() => openLightbox([resolvedPath], 0)}
+                                          className="ml-1 opacity-70 hover:opacity-100 transition-opacity">
+                                          <ExternalLink className="size-3" />
+                                        </button>
+                                      )}
+                                      <a href={resolvedPath} download={att.fileName}
+                                        title="Download" className="ml-0.5 opacity-70 hover:opacity-100 transition-opacity">
+                                        <Download className="size-3" />
+                                      </a>
+                                    </div>
                                   );
                                 })}
                               </div>
-                            )}
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -886,7 +928,7 @@ export default function ConversationsPage() {
                     return isImage ? (
                       <div key={i} className="relative group">
                         <img
-                          src={att.filePath}
+                          src={resolveFilePath(att.filePath)}
                           alt={att.fileName}
                           className="size-16 object-cover rounded-xl border-2 border-primary/20 shadow-sm"
                         />
@@ -1079,37 +1121,66 @@ export default function ConversationsPage() {
       </div>
     </div>
 
-    {/* Image lightbox */}
+    {/* Image / PDF lightbox with swipe navigation */}
+    {lightboxIndex >= 0 && lightboxSrc && (() => {
+      const isPdf = lightboxSrc.endsWith('.pdf');
+      const hasMany = lightboxImages.length > 1;
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm select-none"
+          onClick={closeLightbox}
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={e => {
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            if (Math.abs(dx) > 50) { dx < 0 ? lightboxNext() : lightboxPrev(); }
+            else { closeLightbox(); } // tap to dismiss
+          }}
+        >
+          {/* Close */}
+          <button type="button"
+            className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10"
+            onClick={e => { e.stopPropagation(); closeLightbox(); }}>
+            <X className="size-5" />
+          </button>
 
-    {lightboxSrc && (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-        onClick={() => setLightboxSrc(null)}
-      >
-        <button
-          type="button"
-          className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
-          onClick={() => setLightboxSrc(null)}
-        >
-          <X className="size-6" />
-        </button>
-        <img
-          src={lightboxSrc}
-          alt="Preview"
-          className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-          onClick={e => e.stopPropagation()}
-        />
-        <a
-          href={lightboxSrc}
-          target="_blank"
-          rel="noreferrer"
-          className="absolute bottom-4 right-4 text-white/70 hover:text-white text-xs px-3 py-1.5 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
-          onClick={e => e.stopPropagation()}
-        >
-          Open in new tab ↗
-        </a>
-      </div>
-    )}
+          {/* Prev / Next */}
+          {hasMany && (
+            <>
+              <button type="button"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10"
+                onClick={e => { e.stopPropagation(); lightboxPrev(); }}>
+                <ChevronLeft className="size-6" />
+              </button>
+              <button type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10"
+                onClick={e => { e.stopPropagation(); lightboxNext(); }}>
+                <ChevronRight className="size-6" />
+              </button>
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/60 text-xs bg-black/40 px-3 py-1 rounded-full z-10">
+                {lightboxIndex + 1} / {lightboxImages.length}
+              </div>
+            </>
+          )}
+
+          {/* Content */}
+          {isPdf ? (
+            <iframe src={lightboxSrc} className="w-[90vw] h-[90vh] rounded-lg shadow-2xl bg-white"
+              onClick={e => e.stopPropagation()} title="PDF preview" />
+          ) : (
+            <img src={lightboxSrc} alt="Preview"
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              onClick={e => e.stopPropagation()} />
+          )}
+
+          {/* Open in new tab */}
+          <a href={lightboxSrc} target="_blank" rel="noreferrer"
+            className="absolute bottom-4 right-4 text-white/60 hover:text-white text-xs px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10 flex items-center gap-1"
+            onClick={e => e.stopPropagation()}>
+            <ExternalLink className="size-3" /> Open original
+          </a>
+        </div>
+      );
+    })()}
     </>
   );
 }

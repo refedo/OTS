@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock, MessageCircle, Send, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock, MessageCircle, Send, UserPlus, X, AtSign, ChevronLeft, ChevronRight } from 'lucide-react';
 import { EntityTimeline } from '@/components/events/EntityTimeline';
 import {
   DropdownMenu,
@@ -119,7 +119,8 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
 
   // Conversation state
-  type ConvMessage = { id: string; content: string; createdAt: string; user: { id: string; name: string; position: string | null } };
+  type ConvAttachment = { fileName: string; filePath: string; fileType: string; fileSize: number };
+  type ConvMessage = { id: string; content: string; attachments?: ConvAttachment[] | null; createdAt: string; user: { id: string; name: string; position: string | null } };
   type ConvParticipant = { joinedAt: string; user: { id: string; name: string; position: string | null }; invitedBy: { id: string; name: string } | null };
   const [convMessages, setConvMessages] = useState<ConvMessage[]>([]);
   const [convParticipants, setConvParticipants] = useState<ConvParticipant[]>([]);
@@ -130,6 +131,83 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [allUsers, setAllUsers] = useState<{ id: string; name: string; position: string | null }[]>([]);
   const [inviting, setInviting] = useState(false);
   const convEndRef = useRef<HTMLDivElement>(null);
+  const convTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const convFileInputRef = useRef<HTMLInputElement>(null);
+  const [convPendingAtts, setConvPendingAtts] = useState<ConvAttachment[]>([]);
+  const [convUploading, setConvUploading] = useState(false);
+  const [convMentionQuery, setConvMentionQuery] = useState<string | null>(null);
+  const [convTaskQuery, setConvTaskQuery] = useState<string | null>(null);
+  const [convTaskOptions, setConvTaskOptions] = useState<{ id: string; title: string; status: string }[]>([]);
+  // Lightbox for inline conversation
+  const [convLbImages, setConvLbImages] = useState<string[]>([]);
+  const [convLbIdx, setConvLbIdx] = useState(-1);
+  const convTouchX = useRef(0);
+
+  const convBase = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+  const resolveConvPath = (p: string) => (convBase && !p.startsWith(convBase) && p.startsWith('/uploads/') ? `${convBase}${p}` : p);
+
+  const convMentionCandidates = convMentionQuery !== null
+    ? convParticipants.map(p => p.user).filter(u => u.name.toLowerCase().includes(convMentionQuery.toLowerCase())).slice(0, 5)
+    : [];
+
+  const handleConvTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value; const cur = e.target.selectionStart ?? val.length;
+    setConvMessage(val); setConvMentionQuery(null); setConvTaskQuery(null);
+    const before = val.slice(0, cur);
+    const atMatch = before.match(/@([\w ]*)$/); if (atMatch) setConvMentionQuery(atMatch[1]);
+    const hashMatch = before.match(/#([\w ]*)$/); if (hashMatch) { setConvTaskQuery(hashMatch[1]); fetchTaskSuggestions(hashMatch[1]); }
+  };
+
+  const fetchTaskSuggestions = async (q: string) => {
+    if (q.length < 1) { setConvTaskOptions([]); return; }
+    try {
+      const res = await fetch(`/api/tasks?search=${encodeURIComponent(q)}&limit=5`);
+      if (res.ok) { const d = await res.json(); setConvTaskOptions((Array.isArray(d) ? d : d.tasks ?? []).slice(0, 5)); }
+    } catch { /* ignore */ }
+  };
+
+  const insertConvMention = (user: { name: string }) => {
+    const el = convTextareaRef.current; const cur = el?.selectionStart ?? convMessage.length;
+    const before = convMessage.slice(0, cur); const after = convMessage.slice(cur);
+    const m = before.match(/@([\w ]*)$/);
+    setConvMessage(`${m ? before.slice(0, m.index) : before}@[${user.name}] ${after}`);
+    setConvMentionQuery(null); setTimeout(() => el?.focus(), 0);
+  };
+
+  const insertConvTaskRef = (t: { id: string; title: string }) => {
+    const el = convTextareaRef.current; const cur = el?.selectionStart ?? convMessage.length;
+    const before = convMessage.slice(0, cur); const after = convMessage.slice(cur);
+    const m = before.match(/#([\w ]*)$/);
+    setConvMessage(`${m ? before.slice(0, m.index) : before}#[${t.title}](/tasks/${t.id}) ${after}`);
+    setConvTaskQuery(null); setConvTaskOptions([]); setTimeout(() => el?.focus(), 0);
+  };
+
+  const handleConvFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    setConvUploading(true);
+    try {
+      for (const file of Array.from(e.target.files)) {
+        const fd = new FormData(); fd.append('file', file); fd.append('folder', 'conversations');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (res.ok) {
+          const d = await res.json();
+          const detectedType = d.fileType && d.fileType !== 'application/octet-stream' ? d.fileType : file.type || (file.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? 'image/jpeg' : 'application/octet-stream');
+          setConvPendingAtts(prev => [...prev, { fileName: d.originalName, filePath: d.filePath, fileType: detectedType, fileSize: d.fileSize }]);
+        }
+      }
+    } finally { setConvUploading(false); if (convFileInputRef.current) convFileInputRef.current.value = ''; }
+  };
+
+  function renderConvContent(content: string) {
+    const parts = content.split(/(@\[[^\]]+\]|#\[[^\]]+\]\([^)]+\))/g);
+    return parts.map((part, i) => {
+      const atM = part.match(/^@\[([^\]]+)\]$/);
+      if (atM) return <span key={i} className="text-blue-500 font-medium bg-blue-500/10 rounded px-0.5">@{atM[1]}</span>;
+      const hashM = part.match(/^#\[([^\]]+)\]\(([^)]+)\)$/);
+      if (hashM) return <a key={i} href={hashM[2]} className="text-primary font-medium underline underline-offset-2 hover:opacity-80">#{hashM[1]}</a>;
+      return part;
+    });
+  }
 
   // Check permissions - use permission-based check if available, fallback to role-based
   const canEdit = userPermissions.includes('tasks.edit');
@@ -161,23 +239,32 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     fetchAuditLogs();
   }, [task.id]);
 
-  // Fetch conversation
-  const fetchConversation = useCallback(async () => {
+  // Fetch conversation (non-destructive poll — only append new messages)
+  const fetchConversation = useCallback(async (initial = false) => {
     try {
       const res = await fetch(`/api/tasks/${task.id}/messages`);
       if (res.ok) {
         const data = await res.json();
-        setConvMessages(data.messages);
-        setConvParticipants(data.participants);
+        setConvMessages(prev => {
+          const incoming: ConvMessage[] = data.messages ?? [];
+          if (!initial && prev.length > 0) {
+            const ids = new Set(prev.map(m => m.id));
+            const newOnes = incoming.filter(m => !ids.has(m.id));
+            return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+          }
+          return incoming;
+        });
+        setConvParticipants(data.participants ?? []);
       }
     } finally {
-      setConvLoading(false);
+      if (initial) setConvLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.id]);
 
   useEffect(() => {
-    fetchConversation();
-    const interval = setInterval(fetchConversation, 30000);
+    fetchConversation(true);
+    const interval = setInterval(() => fetchConversation(false), 5000);
     return () => clearInterval(interval);
   }, [fetchConversation]);
 
@@ -186,21 +273,26 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   }, [convMessages]);
 
   const handleSendMessage = async () => {
-    if (!convMessage.trim() || convSending) return;
+    const content = convMessage.trim();
+    if ((!content && convPendingAtts.length === 0) || convSending) return;
     setConvSending(true);
+    const atts = [...convPendingAtts];
+    setConvMessage(''); setConvPendingAtts([]); setConvMentionQuery(null); setConvTaskQuery(null);
     try {
       const res = await fetch(`/api/tasks/${task.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: convMessage.trim() }),
+        body: JSON.stringify({ content, attachments: atts }),
       });
       if (res.ok) {
-        setConvMessage('');
-        await fetchConversation();
-      }
-    } finally {
-      setConvSending(false);
-    }
+        const msg = await res.json();
+        setConvMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      } else { setConvMessage(content); setConvPendingAtts(atts); }
+    } catch { setConvMessage(content); setConvPendingAtts(atts); }
+    finally { setConvSending(false); }
   };
 
   const handleInviteParticipant = async (inviteUserId: string) => {
@@ -1115,107 +1207,259 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
         </Card>
 
         {/* Conversation */}
-        <Card className="mt-6">
-          <CardHeader>
+        <Card className="mt-6 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircle className="size-5" />
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MessageCircle className="size-4 text-primary" />
                 Conversation
                 {convMessages.length > 0 && (
-                  <span className="text-sm font-normal text-muted-foreground">({convMessages.length})</span>
+                  <span className="text-xs font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{convMessages.length}</span>
                 )}
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={loadAllUsers} disabled={inviting}>
-                <UserPlus className="size-4 mr-1.5" />
-                Invite
-              </Button>
+              <div className="flex items-center gap-2">
+                {convParticipants.length > 0 && (
+                  <div className="flex -space-x-1.5">
+                    {convParticipants.slice(0, 4).map(p => (
+                      <div key={p.user.id} title={p.user.name}
+                        className="size-6 rounded-full bg-primary/20 text-primary border-2 border-background flex items-center justify-center text-[9px] font-bold">
+                        {p.user.name.charAt(0).toUpperCase()}
+                      </div>
+                    ))}
+                    {convParticipants.length > 4 && (
+                      <div className="size-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[9px] font-bold text-muted-foreground">
+                        +{convParticipants.length - 4}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <Button variant="ghost" size="sm" onClick={loadAllUsers} disabled={inviting} className="h-7 px-2 text-xs">
+                  <UserPlus className="size-3.5 mr-1" />Invite
+                </Button>
+                <Link href={`/conversations?taskId=${task.id}`}>
+                  <Button variant="outline" size="sm" className="h-7 px-2 text-xs border-primary/20 text-primary hover:bg-primary/5">
+                    Open
+                  </Button>
+                </Link>
+              </div>
             </div>
-            {convParticipants.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {convParticipants.map(p => (
-                  <span key={p.user.id} className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
-                    {p.user.name}
-                  </span>
-                ))}
+            {showInvite && (
+              <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium">Add to conversation</p>
+                  <button onClick={() => setShowInvite(false)}><X className="size-3.5 text-muted-foreground" /></button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-32 overflow-y-auto">
+                  {allUsers.filter(u => !convParticipants.some(p => p.user.id === u.id)).map(u => (
+                    <button key={u.id} onClick={() => handleInviteParticipant(u.id)} disabled={inviting}
+                      className="text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors flex items-center gap-1.5">
+                      <div className="size-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
+                        {u.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium truncate">{u.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </CardHeader>
-          <CardContent className="space-y-4">
-            {showInvite && (
-              <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Invite to conversation</p>
-                  <button onClick={() => setShowInvite(false)}><X className="size-4 text-muted-foreground" /></button>
+          <CardContent className="p-0">
+            {/* Messages */}
+            <div className="space-y-1 max-h-80 overflow-y-auto px-4 py-3">
+              {convLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto">
-                  {allUsers
-                    .filter(u => !convParticipants.some(p => p.user.id === u.id))
-                    .map(u => (
-                      <button
-                        key={u.id}
-                        onClick={() => handleInviteParticipant(u.id)}
-                        disabled={inviting}
-                        className="text-left text-sm px-3 py-1.5 rounded hover:bg-muted transition-colors"
-                      >
-                        <span className="font-medium">{u.name}</span>
-                        {u.position && <span className="text-muted-foreground ml-1 text-xs">· {u.position}</span>}
-                      </button>
-                    ))}
+              ) : convMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <MessageCircle className="size-8 text-primary/20 mb-2" />
+                  <p className="text-sm text-muted-foreground">No messages yet. Start the conversation below.</p>
                 </div>
-              </div>
-            )}
-
-            {convLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : convMessages.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No messages yet. Start the conversation below.
-              </p>
-            ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {convMessages.map(msg => (
-                  <div key={msg.id} className={cn('flex gap-3', msg.user.id === userId ? 'flex-row-reverse' : '')}>
-                    <div className={cn(
-                      'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
-                      msg.user.id === userId
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                        : 'bg-muted rounded-tl-sm'
-                    )}>
-                      {msg.user.id !== userId && (
-                        <p className="text-xs font-semibold mb-0.5 opacity-70">{msg.user.name}</p>
-                      )}
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                      <p className={cn('text-[10px] mt-1 opacity-60', msg.user.id === userId ? 'text-right' : '')}>
-                        {new Date(msg.createdAt).toLocaleString()}
-                      </p>
+              ) : (
+                convMessages.map((msg, i) => {
+                  const isMe = msg.user.id === userId;
+                  const prev = i > 0 ? convMessages[i - 1] : null;
+                  const showName = !prev || prev.user.id !== msg.user.id;
+                  const atts = (msg.attachments ?? []) as ConvAttachment[];
+                  const msgImgs = atts.filter(a => a.fileType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(a.fileName)).map(a => resolveConvPath(a.filePath));
+                  return (
+                    <div key={msg.id} className={cn('flex gap-2', isMe ? 'flex-row-reverse' : '', showName ? 'mt-3' : 'mt-0.5')}>
+                      {showName ? (
+                        <div className={cn('size-7 rounded-xl shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 shadow-sm',
+                          isMe ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground' : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white')}>
+                          {msg.user.name.charAt(0).toUpperCase()}
+                        </div>
+                      ) : <div className="w-7 shrink-0" />}
+                      <div className={cn('flex flex-col max-w-[75%]', isMe ? 'items-end' : 'items-start')}>
+                        {showName && (
+                          <div className={cn('flex items-baseline gap-1.5 mb-0.5 px-1', isMe ? 'flex-row-reverse' : '')}>
+                            <span className="text-xs font-semibold">{isMe ? 'You' : msg.user.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        )}
+                        {msg.content && (
+                          <div className={cn('px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm',
+                            isMe ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm' : 'bg-muted rounded-tl-sm border border-border/30')}>
+                            {renderConvContent(msg.content)}
+                          </div>
+                        )}
+                        {atts.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {atts.map((att, ai) => {
+                              const isImg = att.fileType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.fileName);
+                              const rp = resolveConvPath(att.filePath);
+                              if (isImg) {
+                                const idx = msgImgs.indexOf(rp);
+                                return (
+                                  <button key={ai} type="button" onClick={() => { setConvLbImages(msgImgs); setConvLbIdx(idx >= 0 ? idx : 0); }}
+                                    className={cn('block rounded-xl overflow-hidden max-w-[180px] hover:opacity-90 transition-opacity shadow-sm border', isMe ? 'border-primary/30' : 'border-border/50')}>
+                                    <img src={rp} alt={att.fileName} className="max-h-32 object-contain bg-muted/50" />
+                                  </button>
+                                );
+                              }
+                              return (
+                                <div key={ai} className={cn('flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-xl text-xs shadow-sm',
+                                  isMe ? 'bg-primary/80 text-primary-foreground border border-primary/30' : 'bg-muted border border-border/50')}>
+                                  <FileText className="size-3 shrink-0" />
+                                  <span className="truncate max-w-[100px]">{att.fileName}</span>
+                                  <a href={rp} download={att.fileName} className="ml-0.5 opacity-70 hover:opacity-100" onClick={e => e.stopPropagation()}>
+                                    <Download className="size-3" />
+                                  </a>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <div ref={convEndRef} />
-              </div>
-            )}
+                  );
+                })
+              )}
+              <div ref={convEndRef} />
+            </div>
 
-            <div className="flex gap-2 pt-1">
-              <Textarea
-                placeholder="Type a message…"
-                value={convMessage}
-                onChange={e => setConvMessage(e.target.value)}
-                rows={2}
-                className="resize-none"
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={convSending || !convMessage.trim()}
-                className="self-end"
-              >
-                {convSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              </Button>
+            {/* Input area */}
+            <div className="border-t px-3 py-2.5 bg-background/50">
+              {/* @mention dropdown */}
+              {convMentionCandidates.length > 0 && (
+                <div className="mb-1 border rounded-lg bg-popover shadow-md overflow-hidden">
+                  {convMentionCandidates.map(u => (
+                    <button key={u.id} type="button" onMouseDown={e => { e.preventDefault(); insertConvMention(u); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors text-left">
+                      <div className="size-5 rounded-md bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
+                        {u.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium">{u.name}</span>
+                      {u.position && <span className="text-muted-foreground ml-auto text-[10px]">{u.position}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* #task dropdown */}
+              {convTaskQuery !== null && convTaskOptions.length > 0 && (
+                <div className="mb-1 border rounded-lg bg-popover shadow-md overflow-hidden">
+                  {convTaskOptions.map(t => (
+                    <button key={t.id} type="button" onMouseDown={e => { e.preventDefault(); insertConvTaskRef(t); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors text-left">
+                      <span className="font-medium truncate flex-1">{t.title}</span>
+                      <span className="text-muted-foreground text-[10px] shrink-0">{t.status}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Pending attachments */}
+              {convPendingAtts.length > 0 && (
+                <div className="mb-1.5 flex flex-wrap gap-1.5">
+                  {convPendingAtts.map((att, i) => {
+                    const isImg = att.fileType.startsWith('image/');
+                    return isImg ? (
+                      <div key={i} className="relative group">
+                        <img src={resolveConvPath(att.filePath)} alt={att.fileName} className="size-12 object-cover rounded-lg border border-primary/20 shadow-sm" />
+                        <button onClick={() => setConvPendingAtts(prev => prev.filter((_, j) => j !== i))}
+                          className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="size-2.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div key={i} className="flex items-center gap-1 px-2 py-1 rounded-lg border bg-muted/60 text-xs group">
+                        <FileText className="size-3 text-blue-500 shrink-0" />
+                        <span className="truncate max-w-[100px]">{att.fileName}</span>
+                        <button onClick={() => setConvPendingAtts(prev => prev.filter((_, j) => j !== i))}
+                          className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="size-2.5 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <input ref={convFileInputRef} type="file" multiple className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif,.webp" onChange={handleConvFileUpload} />
+              <div className="border-2 border-border/60 rounded-xl bg-background focus-within:border-primary/40 transition-all">
+                <Textarea
+                  ref={convTextareaRef}
+                  placeholder="Type a message… @ to mention · # to reference a task"
+                  value={convMessage}
+                  onChange={handleConvTextChange}
+                  rows={2}
+                  className="resize-none border-0 shadow-none focus-visible:ring-0 text-sm px-3 pt-2 pb-1 bg-transparent"
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') { setConvMentionQuery(null); setConvTaskQuery(null); return; }
+                    if (e.key === 'Enter' && !e.shiftKey && convMentionCandidates.length === 0 && convTaskOptions.length === 0) {
+                      e.preventDefault(); handleSendMessage();
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-between px-3 pb-2">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => convFileInputRef.current?.click()} disabled={convUploading}
+                      className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
+                      {convUploading ? <Loader2 className="size-3.5 animate-spin" /> : <Paperclip className="size-3.5" />}
+                    </button>
+                    <button type="button" onClick={() => { const pos = convTextareaRef.current?.selectionStart ?? convMessage.length; setConvMessage(v => `${v.slice(0, pos)}@${v.slice(pos)}`); setConvMentionQuery(''); setTimeout(() => convTextareaRef.current?.focus(), 0); }}
+                      className="text-muted-foreground hover:text-foreground transition-colors">
+                      <AtSign className="size-3.5" />
+                    </button>
+                    <button type="button" onClick={() => { const pos = convTextareaRef.current?.selectionStart ?? convMessage.length; setConvMessage(v => `${v.slice(0, pos)}#${v.slice(pos)}`); setConvTaskQuery(''); fetchTaskSuggestions(''); setTimeout(() => convTextareaRef.current?.focus(), 0); }}
+                      title="Reference a task"
+                      className="text-muted-foreground hover:text-foreground transition-colors font-bold text-sm leading-none pb-0.5">
+                      #
+                    </button>
+                  </div>
+                  <Button size="icon" variant={convMessage.trim() || convPendingAtts.length > 0 ? 'default' : 'ghost'}
+                    onClick={handleSendMessage} disabled={(!convMessage.trim() && convPendingAtts.length === 0) || convSending}
+                    className="size-7 rounded-lg">
+                    {convSending ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1 text-center">Enter to send · Shift+Enter for new line · @ mention · # task reference</p>
             </div>
           </CardContent>
         </Card>
+
+        {/* Inline conversation lightbox */}
+        {convLbIdx >= 0 && convLbImages[convLbIdx] && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+            onClick={() => setConvLbIdx(-1)}
+            onTouchStart={e => { convTouchX.current = e.touches[0].clientX; }}
+            onTouchEnd={e => { const dx = e.changedTouches[0].clientX - convTouchX.current; if (Math.abs(dx) > 50) dx < 0 ? setConvLbIdx(i => Math.min(i + 1, convLbImages.length - 1)) : setConvLbIdx(i => Math.max(i - 1, 0)); else setConvLbIdx(-1); }}>
+            <button type="button" className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-black/40 z-10"
+              onClick={e => { e.stopPropagation(); setConvLbIdx(-1); }}><X className="size-5" /></button>
+            {convLbImages.length > 1 && (
+              <>
+                <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2 rounded-full bg-black/40 z-10"
+                  onClick={e => { e.stopPropagation(); setConvLbIdx(i => Math.max(i - 1, 0)); }}><ChevronLeft className="size-5" /></button>
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2 rounded-full bg-black/40 z-10"
+                  onClick={e => { e.stopPropagation(); setConvLbIdx(i => Math.min(i + 1, convLbImages.length - 1)); }}><ChevronRight className="size-5" /></button>
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/60 text-xs bg-black/40 px-3 py-1 rounded-full z-10">{convLbIdx + 1}/{convLbImages.length}</div>
+              </>
+            )}
+            <img src={convLbImages[convLbIdx]} alt="Preview"
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              onClick={e => e.stopPropagation()} />
+          </div>
+        )}
       </div>
 
       {/* Completion Dialog */}
@@ -1346,7 +1590,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground">
-              Your request will be sent to the task creator as a push notification.
+              Your request will be posted to the task conversation and sent to the creator as a push notification.
             </p>
             <div className="space-y-1.5">
               <Label htmlFor="extension-msg">Message</Label>
@@ -1364,7 +1608,22 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
               Cancel
             </Button>
             <Button
-              onClick={() => handleSendRequest('time_extension', extensionMessage)}
+              onClick={async () => {
+                if (!extensionMessage.trim()) return;
+                setSendingRequest(true);
+                try {
+                  // Post to conversation
+                  await fetch(`/api/tasks/${task.id}/messages`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: `⏱️ *Time Extension Request:*\n${extensionMessage.trim()}` }),
+                  });
+                  // Also send push notification
+                  await handleSendRequest('time_extension', extensionMessage);
+                  setShowExtensionDialog(false);
+                  setExtensionMessage('');
+                  router.push(`/conversations?taskId=${task.id}`);
+                } finally { setSendingRequest(false); }
+              }}
               disabled={sendingRequest || !extensionMessage.trim()}
             >
               {sendingRequest ? 'Sending…' : 'Send Request'}

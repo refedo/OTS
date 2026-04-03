@@ -82,7 +82,7 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Executive Command Center', href: '/executive', icon: Crown },
+  { name: 'CEO Dashboard', href: '/executive', icon: Crown },
   { name: 'Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
@@ -119,8 +119,6 @@ const navigationSections: NavigationSection[] = [
     icon: Bell,
     items: [
       { name: 'All Notifications', href: '/notifications', icon: Bell },
-      { name: 'System Events', href: '/events', icon: Activity },
-      { name: 'Governance Center', href: '/governance', icon: Shield },
       { name: 'Delayed Tasks', href: '/notifications?tab=delayed-tasks', icon: AlertTriangle },
       { name: 'Approvals', href: '/notifications?tab=approvals', icon: CheckCircle },
       { name: 'Deadlines', href: '/notifications?tab=deadlines', icon: Clock },
@@ -289,6 +287,8 @@ const navigationSections: NavigationSection[] = [
       { name: 'Libre MES', href: '/settings/integrations#libre-mes', icon: Factory },
       { name: 'Nextcloud Files', href: '/settings/integrations#nextcloud', icon: Cloud },
       { name: 'Event Bus', href: '/settings/integrations#event-bus', icon: Zap },
+      { name: 'System Events', href: '/events', icon: Activity },
+      { name: 'Governance Center', href: '/governance', icon: Shield },
       { name: 'Sidebar Order', href: '/settings/sidebar', icon: Settings },
       { name: 'Backup Management', href: '/settings/backups', icon: Database },
       { name: 'Cron Jobs', href: '/settings/cron-jobs', icon: Clock },

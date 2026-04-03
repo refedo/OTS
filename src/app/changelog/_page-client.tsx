@@ -23,10 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.11.0',
+    date: 'April 3, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'CEO Dashboard, Conversation Parity, Search Fix, Sidebar Reorganization',
+    highlights: [
+      '"Executive Command Center" renamed to "CEO Dashboard" across app and sidebar — now appears in sidebar order settings',
+      '8-week cash flow forecast added to CEO Dashboard with bar chart, balance trend, and full weekly breakdown',
+      'System Events and Governance Center moved from Notifications to Settings in the sidebar',
+      'Task-detail inline conversation fully upgraded — attachments, @mentions, #task references, iMessage bubbles, 5s polling, swipe lightbox',
+      'Global search fixed — Buildings and People categories now show results',
+      'File attachments in conversations: basePath 404 fix, PDF inline preview, image swipe navigation with tap-to-dismiss',
+      'Time Extension request now posts to conversation and navigates to /conversations?taskId=X',
+    ],
+    changes: {
+      added: [
+        '8-week cash flow forecast widget on CEO Dashboard (bar chart + weekly table with In/Out/Balance)',
+        'Task-detail conversation: file attachments (images + docs), upload thumbnails, @mention autocomplete, #task reference search',
+        'Global search: Buildings and People now correctly returned (SearchResults interface updated)',
+        'Inline conversation in task detail: 5s polling, non-destructive append, iMessage-style bubbles, swipe lightbox',
+        '"CEO Dashboard" added to Sidebar Order settings so it can be repositioned',
+      ],
+      fixed: [
+        'File attachment 404 — basePath prefix resolution helper ensures /uploads/ paths work regardless of deployment config',
+        'PDF attachments now open inline in lightbox iframe instead of 404',
+        'Image swipe: tap-to-dismiss on mobile, ChevronLeft/Right nav, counter badge',
+        'Time extension dialog now posts to conversation AND sends push notification',
+      ],
+      changed: [
+        '"Executive Command Center" renamed to "CEO Dashboard" in sidebar, page title, and settings',
+        'System Events and Governance Center moved from Notifications section to Settings section in sidebar',
+        'Conversation in task detail upgraded to match /conversations page feature parity',
+      ],
+    },
+  },
+  {
     version: '17.10.5',
     date: 'April 3, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Upload Preview, Mandatory Delay Note, Clarification Conversation',
     highlights: [
       'Image attachments show thumbnail preview before sending; upload progress bar tracks each file',

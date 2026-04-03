@@ -57,7 +57,80 @@ interface APAgingData {
   rows: Array<{ thirdpartyName: string; invoiceCount: number; current: number; days1to30: number; days31to60: number; days61to90: number; days90plus: number; total: number }>;
 }
 
+interface CashFlowForecastData {
+  openingBalance: number;
+  weeks: Array<{ week: number; weekStart: string; weekEnd: string; expectedCollections: number; expectedPayments: number; netFlow: number; projectedBalance: number }>;
+}
+
 type FetchStatus = 'loading' | 'ok' | 'error';
+
+function CashFlowForecastWidget({ data, isDark }: { data: CashFlowForecastData; isDark: boolean }) {
+  const borderCls = isDark ? 'border-slate-700/50' : 'border-gray-100';
+  const textMuted = isDark ? 'text-slate-400' : 'text-gray-500';
+  const textMain = isDark ? 'text-slate-200' : 'text-gray-800';
+  const weeks = data.weeks.slice(0, 8);
+  const minBal = Math.min(...weeks.map(w => w.projectedBalance));
+  const maxBal = Math.max(...weeks.map(w => w.projectedBalance), data.openingBalance);
+  const range = maxBal - minBal || 1;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className={cn('text-xs', textMuted)}>Opening Balance</p>
+          <p className={cn('text-lg font-bold tabular-nums', textMain)}>{formatSAR(data.openingBalance)}</p>
+        </div>
+        <div className="text-right">
+          <p className={cn('text-xs', textMuted)}>8-Week Projected</p>
+          <p className={cn('text-lg font-bold tabular-nums', weeks[7]?.projectedBalance >= data.openingBalance ? 'text-green-400' : 'text-red-400')}>
+            {formatSAR(weeks[7]?.projectedBalance ?? data.openingBalance)}
+          </p>
+        </div>
+      </div>
+
+      {/* Mini bar chart */}
+      <div className="flex items-end gap-1 h-16">
+        {weeks.map(w => {
+          const h = Math.max(4, ((w.projectedBalance - minBal) / range) * 56);
+          const positive = w.netFlow >= 0;
+          return (
+            <div key={w.week} className="flex-1 flex flex-col items-center gap-0.5" title={`W${w.week}: ${formatSAR(w.projectedBalance)}`}>
+              <div className={cn('w-full rounded-sm transition-all', positive ? 'bg-green-500/70' : 'bg-red-500/70')} style={{ height: `${h}px` }} />
+              <span className={cn('text-[9px]', textMuted)}>W{w.week}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Weekly table (first 4 weeks) */}
+      <div className={cn('text-xs border rounded-lg overflow-hidden', borderCls)}>
+        <table className="w-full">
+          <thead>
+            <tr className={cn('border-b', borderCls, isDark ? 'bg-slate-800/40' : 'bg-gray-50')}>
+              <th className={cn('text-left px-2 py-1.5 font-medium', textMuted)}>Week</th>
+              <th className={cn('text-right px-2 py-1.5 font-medium text-green-400')}>In</th>
+              <th className={cn('text-right px-2 py-1.5 font-medium text-red-400')}>Out</th>
+              <th className={cn('text-right px-2 py-1.5 font-medium', textMuted)}>Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {weeks.slice(0, 4).map(w => (
+              <tr key={w.week} className={cn('border-b last:border-0', borderCls)}>
+                <td className={cn('px-2 py-1', textMuted)}>W{w.week} <span className="opacity-60 text-[9px]">{w.weekStart.slice(5)}</span></td>
+                <td className="px-2 py-1 text-right tabular-nums text-green-400">{formatSAR(w.expectedCollections)}</td>
+                <td className="px-2 py-1 text-right tabular-nums text-red-400">{formatSAR(w.expectedPayments)}</td>
+                <td className={cn('px-2 py-1 text-right tabular-nums font-medium', w.projectedBalance >= 0 ? textMain : 'text-red-400')}>{formatSAR(w.projectedBalance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className={cn('text-[10px] text-right', textMuted)}>
+        <Link href="/financial/reports/cash-flow-forecast" className="underline hover:opacity-80">Full 13-week forecast →</Link>
+      </p>
+    </div>
+  );
+}
 
 function formatSAR(n: number): string {
   if (n >= 1_000_000) return `SAR ${(n / 1_000_000).toFixed(1)}M`;
@@ -229,12 +302,14 @@ export function ExecutiveDashboard() {
   const [decisionsStatus, setDecisionsStatus] = useState<FetchStatus>('loading');
   const [cashflowStatus, setCashflowStatus] = useState<FetchStatus>('loading');
   const [apAgingStatus, setApAgingStatus] = useState<FetchStatus>('loading');
+  const [forecastStatus, setForecastStatus] = useState<FetchStatus>('loading');
 
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [healthRows, setHealthRows] = useState<ProjectHealthRow[]>([]);
   const [decisionItems, setDecisionItems] = useState<DecisionItem[]>([]);
   const [cashflowData, setCashflowData] = useState<CashflowData | null>(null);
   const [apAgingData, setApAgingData] = useState<APAgingData | null>(null);
+  const [forecastData, setForecastData] = useState<CashFlowForecastData | null>(null);
 
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
@@ -246,12 +321,13 @@ export function ExecutiveDashboard() {
   const fetchAll = useCallback(async () => {
     setIsRefreshing(true);
 
-    const [summaryRes, healthRes, decisionsRes, cashflowRes, apAgingRes] = await Promise.allSettled([
+    const [summaryRes, healthRes, decisionsRes, cashflowRes, apAgingRes, forecastRes] = await Promise.allSettled([
       fetch('/api/executive/summary'),
       fetch('/api/executive/project-health'),
       fetch('/api/executive/decisions-required'),
       fetch('/api/executive/cashflow-snapshot'),
       fetch('/api/executive/ap-aging'),
+      fetch('/api/financial/reports/cash-flow-forecast'),
     ]);
 
     if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
@@ -294,6 +370,14 @@ export function ExecutiveDashboard() {
       setApAgingStatus('error');
     }
 
+    if (forecastRes.status === 'fulfilled' && forecastRes.value.ok) {
+      const json = await forecastRes.value.json();
+      setForecastData(json);
+      setForecastStatus('ok');
+    } else {
+      setForecastStatus('error');
+    }
+
     setLastUpdated(new Date().toISOString());
     setCountdown(REFRESH_INTERVAL);
     setIsRefreshing(false);
@@ -332,7 +416,7 @@ export function ExecutiveDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className={cn('text-xl lg:text-2xl font-bold tracking-tight', headerText)}>
-              OTS™ Executive Command Center
+              CEO Dashboard
             </h1>
             <p className={cn('text-xs mt-0.5', mutedText)}>
               Real-time operational intelligence
@@ -436,6 +520,20 @@ export function ExecutiveDashboard() {
             <DecisionsRequired items={decisionItems} />
           </SectionCard>
         </div>
+
+        {/* ── 8-Week Cash Flow Forecast ────────────────────────────────────── */}
+        <SectionCard
+          title="8-Week Cash Flow Forecast"
+          status={forecastStatus}
+          lastUpdated={lastUpdated}
+          isDark={isDark}
+        >
+          {forecastData ? (
+            <CashFlowForecastWidget data={forecastData} isDark={isDark} />
+          ) : (
+            <div className={cn('h-40 rounded-lg animate-pulse', isDark ? 'bg-slate-800/30' : 'bg-gray-100')} />
+          )}
+        </SectionCard>
 
         {/* ── AP Aging — Next 30 Days ──────────────────────────────────────── */}
         <SectionCard

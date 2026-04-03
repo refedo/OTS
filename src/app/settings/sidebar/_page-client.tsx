@@ -44,6 +44,7 @@ const DEFAULT_SECTIONS = [
 
 const DEFAULT_SINGLE = [
   'Dashboard',
+  'CEO Dashboard',
   'Early Warning',
   'Project Status Tracker',
   'AI Assistant',
