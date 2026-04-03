@@ -36,14 +36,44 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Use explicit select to avoid crash when notes column hasn't been migrated yet.
+    // Once the notes migration has run, add `notes: true` back to this select.
     const items = await prisma.productBacklogItem.findMany({
       where,
       orderBy: { createdAt: 'asc' },
-      include: {
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        description: true,
+        type: true,
+        category: true,
+        businessReason: true,
+        expectedValue: true,
+        priority: true,
+        status: true,
+        affectedModules: true,
+        attachments: true,
+        riskLevel: true,
+        complianceFlag: true,
+        linkedObjectiveId: true,
+        linkedKpiId: true,
+        createdById: true,
+        createdAt: true,
+        approvedById: true,
+        approvedAt: true,
+        reviewedById: true,
+        reviewedAt: true,
+        plannedById: true,
+        plannedAt: true,
+        completedById: true,
+        completedAt: true,
+        githubIssueNumber: true,
+        githubIssueUrl: true,
+        githubRepo: true,
+        githubSyncedAt: true,
         createdBy: { select: { id: true, name: true } },
-        tasks: {
-          select: { id: true, title: true, status: true },
-        },
+        tasks: { select: { id: true, title: true, status: true } },
       },
     });
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionValidator } from '@/hooks/use-session-validator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Paperclip } from 'lucide-react';
+import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,13 @@ type Message = {
 type Participant = {
   joinedAt: string;
   user: { id: string; name: string; position: string | null };
+  invitedBy?: { id: string; name: string } | null;
+};
+
+type UserResult = {
+  id: string;
+  name: string;
+  position: string | null;
 };
 
 type TaskOption = {
@@ -94,6 +101,14 @@ export default function ConversationsPage() {
   const [selectedNewTask, setSelectedNewTask] = useState<TaskOption | null>(null);
   const [startingSend, setStartingSend] = useState(false);
   const [focusLoaded, setFocusLoaded] = useState(false);
+
+  // Participant management
+  const [showPeople, setShowPeople] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userResults, setUserResults] = useState<UserResult[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [addingUserId, setAddingUserId] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   const selectedConv = conversations.find(c => c.taskId === selectedTaskId) ?? null;
 
@@ -180,9 +195,58 @@ export default function ConversationsPage() {
     return () => clearTimeout(timer);
   }, [taskSearch, showStartNew, focusLoaded, loadMyTasks]);
 
+  // User search for inviting to conversation
+  useEffect(() => {
+    if (!showPeople || userSearch.trim().length < 1) { setUserResults([]); return; }
+    const t = setTimeout(async () => {
+      setSearchingUsers(true);
+      try {
+        const res = await fetch(`/api/users?forAssignment=true`, { credentials: 'include' });
+        if (res.ok) {
+          const all: UserResult[] = await res.json();
+          const q = userSearch.toLowerCase();
+          setUserResults(all.filter(u => u.name.toLowerCase().includes(q)).slice(0, 8));
+        }
+      } finally { setSearchingUsers(false); }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [userSearch, showPeople]);
+
+  const handleInviteUser = async (user: UserResult) => {
+    if (!selectedTaskId || addingUserId) return;
+    setAddingUserId(user.id);
+    try {
+      const res = await fetch(`/api/tasks/${selectedTaskId}/conversation/participants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (res.ok) {
+        const newP: Participant = await res.json();
+        setParticipants(prev => [...prev.filter(p => p.user.id !== user.id), newP]);
+        setUserSearch('');
+        setUserResults([]);
+      }
+    } finally { setAddingUserId(null); }
+  };
+
+  const handleRemoveUser = async (userId: string) => {
+    if (!selectedTaskId || removingUserId) return;
+    setRemovingUserId(userId);
+    try {
+      const res = await fetch(`/api/tasks/${selectedTaskId}/conversation/participants?userId=${userId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) setParticipants(prev => prev.filter(p => p.user.id !== userId));
+    } finally { setRemovingUserId(null); }
+  };
+
   const handleSelectConversation = (taskId: string) => {
     setSelectedTaskId(taskId);
     setShowStartNew(false);
+    setShowPeople(false);
+    setUserSearch('');
+    setUserResults([]);
   };
 
   const handleSendMessage = async () => {
@@ -419,30 +483,27 @@ export default function ConversationsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {participants.length > 0 && (
-                  <div className="flex -space-x-1.5">
-                    {participants.slice(0, 5).map(p => (
-                      <div
-                        key={p.user.id}
-                        title={p.user.name}
-                        className="size-6 rounded-full bg-primary/10 border-2 border-background flex items-center justify-center text-[10px] font-bold text-primary"
-                      >
-                        {p.user.name.charAt(0).toUpperCase()}
-                      </div>
-                    ))}
-                    {participants.length > 5 && (
-                      <div className="size-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px]">
-                        +{participants.length - 5}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <button
+                  onClick={() => setShowPeople(v => !v)}
+                  title="Manage participants"
+                  className={cn(
+                    'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors',
+                    showPeople ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  <Users className="size-3.5" />
+                  <span>{participants.length}</span>
+                </button>
                 <Link href={`/tasks/${selectedTaskId}`}>
                   <Button variant="ghost" size="sm" className="text-xs h-7">View Task</Button>
                 </Link>
               </div>
             </div>
+            {/* Main area: messages + optional people panel */}
+            <div className="flex flex-1 min-h-0">
 
+            {/* Messages column */}
+            <div className="flex-1 min-w-0 flex flex-col">
             {/* Messages area */}
             <div className="flex-1 overflow-y-auto px-4 py-3">
               {loadingConv ? (
@@ -544,6 +605,93 @@ export default function ConversationsPage() {
                 Enter to send, Shift+Enter for new line
               </p>
             </div>
+            </div>{/* end messages column */}
+
+            {/* People panel */}
+            {showPeople && (
+              <div className="w-64 shrink-0 border-l flex flex-col bg-muted/20 overflow-y-auto">
+                <div className="px-3 py-2.5 border-b flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">People</span>
+                  <button onClick={() => setShowPeople(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+
+                {/* Invite section */}
+                <div className="p-3 border-b">
+                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Invite someone</label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)}
+                      placeholder="Search by name..."
+                      className="w-full pl-7 pr-3 py-1.5 text-xs border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    {searchingUsers && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 size-3 animate-spin text-muted-foreground" />}
+                  </div>
+                  {userResults.length > 0 && (
+                    <div className="mt-1 border rounded-md overflow-hidden bg-background shadow-sm">
+                      {userResults
+                        .filter(u => !participants.some(p => p.user.id === u.id))
+                        .map(u => (
+                          <button
+                            key={u.id}
+                            onClick={() => handleInviteUser(u)}
+                            disabled={addingUserId === u.id}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted transition-colors border-b last:border-0"
+                          >
+                            <div className="size-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                              {u.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="truncate flex-1 text-left">{u.name}</span>
+                            {addingUserId === u.id
+                              ? <Loader2 className="size-3 animate-spin shrink-0" />
+                              : <UserPlus className="size-3 text-muted-foreground shrink-0" />
+                            }
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Participant list */}
+                <div className="flex-1 overflow-y-auto">
+                  <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    {participants.length} participant{participants.length !== 1 ? 's' : ''}
+                  </p>
+                  {participants.map(p => (
+                    <div key={p.user.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/40 group">
+                      <div className={cn(
+                        'size-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0',
+                        p.user.id === currentUserId ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
+                      )}>
+                        {p.user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{p.user.name}</p>
+                        {p.user.position && <p className="text-[10px] text-muted-foreground truncate">{p.user.position}</p>}
+                      </div>
+                      {p.user.id !== currentUserId && (
+                        <button
+                          onClick={() => handleRemoveUser(p.user.id)}
+                          disabled={removingUserId === p.user.id}
+                          title="Remove from conversation"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                        >
+                          {removingUserId === p.user.id
+                            ? <Loader2 className="size-3 animate-spin" />
+                            : <UserMinus className="size-3.5" />
+                          }
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            </div>{/* end main area flex */}
           </div>
         ) : (
           /* Empty state */

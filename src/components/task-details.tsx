@@ -886,6 +886,22 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
               </Card>
             )}
 
+            {/* Building */}
+            {task.building && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Building className="size-4" />
+                    Building
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-medium">{task.building.designation}</p>
+                  <p className="text-sm text-muted-foreground">{task.building.name}</p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Activity */}
             {task.mainActivity && (
               <Card>

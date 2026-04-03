@@ -154,30 +154,34 @@ export const GET = withApiContext(async (req, session) => {
             const hasBlocked = activities.some((a) => a.status === 'blocked');
 
             // Sum assembly tonnage — use netWeightTotal if set, else singlePartWeight * quantity
-            const assemblyParts = await prisma.assemblyPart.findMany({
+            const calcPartWeight = (p: { netWeightTotal: unknown; singlePartWeight: unknown; quantity: number | null }) => {
+              const net = Number(p.netWeightTotal ?? 0);
+              if (net > 0) return net;
+              return Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
+            };
+
+            const buildingParts = await prisma.assemblyPart.findMany({
               where: { buildingId: building.id, deletedAt: null },
               select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
             });
-            let rawTotalKg = assemblyParts.reduce((sum, p) => {
-              const w = Number(p.netWeightTotal ?? 0) > 0
-                ? Number(p.netWeightTotal)
-                : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
-              return sum + w;
-            }, 0);
-            // Fallback: if no building-level data, aggregate at project level
+            let rawTotalKg = buildingParts.reduce((sum, p) => sum + calcPartWeight(p), 0);
+
+            // Fallback 1: parts at project level with no building assigned
             if (rawTotalKg === 0) {
-              const projectParts = await prisma.assemblyPart.findMany({
+              const unboundParts = await prisma.assemblyPart.findMany({
                 where: { projectId: project.id, buildingId: null, deletedAt: null },
                 select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
               });
-              rawTotalKg = projectParts.reduce((sum, p) => {
-                const w = Number(p.netWeightTotal ?? 0) > 0
-                  ? Number(p.netWeightTotal)
-                  : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
-                return sum + w;
-              }, 0);
+              const unboundKg = unboundParts.reduce((sum, p) => sum + calcPartWeight(p), 0);
+              // Distribute evenly across buildings
+              const numBuildings = project.buildings.length || 1;
+              rawTotalKg = unboundKg / numBuildings;
             }
-            const assemblyTonnage = rawTotalKg / 1000;
+
+            // Fallback 2: use building.weight (stored in tons) directly
+            const assemblyTonnage = rawTotalKg > 0
+              ? rawTotalKg / 1000
+              : Number(building.weight ?? 0);
 
             return {
               id: building.id,

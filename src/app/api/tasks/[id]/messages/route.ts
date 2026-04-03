@@ -54,7 +54,7 @@ export const POST = withApiContext(async (req: NextRequest, session, { params }:
   try {
     const task = await prisma.task.findFirst({
       where: { id: taskId },
-      select: { id: true, title: true },
+      select: { id: true, title: true, assignedToId: true, createdById: true },
     });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
@@ -82,7 +82,12 @@ export const POST = withApiContext(async (req: NextRequest, session, { params }:
       select: { userId: true },
     });
 
-    const otherParticipantIds = participants.map(p => p.userId).filter(id => id !== userId);
+    // Notify: conversation participants + task assignee + task creator (deduplicated, excluding sender)
+    const participantIds = participants.map(p => p.userId);
+    const implicitIds = [task.assignedToId, task.createdById].filter(Boolean) as string[];
+    const recipientSet = new Set([...participantIds, ...implicitIds]);
+    recipientSet.delete(userId);
+    const otherParticipantIds = [...recipientSet];
 
     if (otherParticipantIds.length > 0) {
       const sender = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
