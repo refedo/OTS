@@ -105,18 +105,25 @@ function ManualInstallGuide({ browser, onDismiss, onDismissPermanently }: { brow
 export function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showManualGuide, setShowManualGuide] = useState(false);
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return !!localStorage.getItem('pwa-install-dismissed-permanently') || !!sessionStorage.getItem('pwa-install-dismissed');
-  });
-  const [isStandalone, setIsStandalone] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(display-mode: standalone)').matches;
-  });
+  const [dismissed, setDismissed] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const [promptChecked, setPromptChecked] = useState(false);
 
   useEffect(() => {
-    if (isStandalone || dismissed) return;
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsStandalone(true);
+      return;
+    }
+    // Permanent dismissal check (persists across sessions)
+    if (localStorage.getItem('pwa-install-dismissed-permanently')) {
+      setDismissed(true);
+      return;
+    }
+    // Session dismissal check
+    if (sessionStorage.getItem('pwa-install-dismissed')) {
+      setDismissed(true);
+      return;
+    }
 
     let promptFired = false;
 
