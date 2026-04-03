@@ -28,7 +28,15 @@ import { systemEventService } from '@/services/system-events.service';
 import { logger } from '@/lib/logger';
 
 export const GET = withApiContext(async (req: NextRequest, session) => {
-  if (!session || !['Admin', 'Manager', 'CEO'].includes(session.role)) {
+  if (!session) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const isPrivileged = ['Admin', 'Manager', 'CEO'].includes(session.role);
+  const hasEntityFilter = req.nextUrl.searchParams.get('entityId') !== null;
+
+  // Non-privileged users may only query events for a specific entity they can access
+  if (!isPrivileged && !hasEntityFilter) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

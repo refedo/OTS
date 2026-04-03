@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionValidator } from '@/hooks/use-session-validator';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus } from 'lucide-react';
+import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -65,6 +66,21 @@ function fmtTime(date: string) {
   return new Date(date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
+function renderContent(content: string) {
+  const parts = content.split(/(@\[[^\]]+\])/g);
+  return parts.map((part, i) => {
+    const m = part.match(/^@\[([^\]]+)\]$/);
+    if (m) {
+      return (
+        <span key={i} className="text-blue-500 font-medium bg-blue-500/10 rounded px-0.5">
+          @{m[1]}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
 function fmtDateLabel(date: string) {
   const d = new Date(date);
   const today = new Date();
@@ -79,6 +95,7 @@ function fmtDateLabel(date: string) {
 
 export default function ConversationsPage() {
   const { isValidating } = useSessionValidator();
+  const searchParams = useSearchParams();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -91,6 +108,10 @@ export default function ConversationsPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // @ mention state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 
   // Start new conversation state
   const [showStartNew, setShowStartNew] = useState(false);
@@ -132,25 +153,44 @@ export default function ConversationsPage() {
     return () => clearInterval(interval);
   }, [loadConversations]);
 
+  // Deep-link: open conversation from notification (e.g. ?taskId=xxx)
+  useEffect(() => {
+    const taskId = searchParams.get('taskId');
+    if (taskId && !selectedTaskId) {
+      setSelectedTaskId(taskId);
+    }
+  }, [searchParams, selectedTaskId]);
+
   // Load messages for selected conversation
-  const loadMessages = useCallback(async (taskId: string) => {
-    setLoadingConv(true);
-    setMessages([]);
-    setParticipants([]);
+  const loadMessages = useCallback(async (taskId: string, initial = false) => {
+    if (initial) {
+      setLoadingConv(true);
+      setMessages([]);
+      setParticipants([]);
+    }
     const res = await fetch(`/api/tasks/${taskId}/messages`);
     if (res.ok) {
       const data = await res.json();
-      setMessages(data.messages ?? []);
+      setMessages(prev => {
+        const incoming: Message[] = data.messages ?? [];
+        // Append only new messages (by id) to avoid scroll-reset on polls
+        if (!initial && prev.length > 0) {
+          const existingIds = new Set(prev.map(m => m.id));
+          const newOnes = incoming.filter(m => !existingIds.has(m.id));
+          return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+        }
+        return incoming;
+      });
       setParticipants(data.participants ?? []);
     }
-    setLoadingConv(false);
+    if (initial) setLoadingConv(false);
   }, []);
 
   useEffect(() => {
     if (!selectedTaskId) return;
-    loadMessages(selectedTaskId);
-    // Poll every 30s
-    const interval = setInterval(() => loadMessages(selectedTaskId), 30000);
+    loadMessages(selectedTaskId, true);
+    // Poll every 5s for near-real-time updates
+    const interval = setInterval(() => loadMessages(selectedTaskId), 5000);
     return () => clearInterval(interval);
   }, [selectedTaskId, loadMessages]);
 
@@ -253,10 +293,41 @@ export default function ConversationsPage() {
     setUserResults([]);
   };
 
+  // @ mention helpers
+  const mentionCandidates = mentionQuery !== null
+    ? participants
+        .map(p => p.user)
+        .filter(u => u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+        .slice(0, 6)
+    : [];
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursor = e.target.selectionStart ?? value.length;
+    setNewMessage(value);
+    setMentionQuery(null);
+    const textBefore = value.slice(0, cursor);
+    const atMatch = textBefore.match(/@([\w ]*)$/);
+    if (atMatch) setMentionQuery(atMatch[1]);
+  };
+
+  const insertMention = (user: { name: string }) => {
+    const el = textareaRef.current;
+    const cursor = el?.selectionStart ?? newMessage.length;
+    const textBefore = newMessage.slice(0, cursor);
+    const textAfter = newMessage.slice(cursor);
+    const atMatch = textBefore.match(/@([\w ]*)$/);
+    const prefix = atMatch ? textBefore.slice(0, atMatch.index) : textBefore;
+    setNewMessage(`${prefix}@[${user.name}] ${textAfter}`);
+    setMentionQuery(null);
+    setTimeout(() => el?.focus(), 0);
+  };
+
   const handleSendMessage = async () => {
     if (!selectedTaskId || !newMessage.trim() || sending) return;
     const content = newMessage.trim();
     setNewMessage('');
+    setMentionQuery(null);
     setSending(true);
     try {
       const res = await fetch(`/api/tasks/${selectedTaskId}/messages`, {
@@ -574,7 +645,7 @@ export default function ConversationsPage() {
                               </div>
                             )}
                             <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                              {msg.content}
+                              {renderContent(msg.content)}
                             </div>
                           </div>
                         </div>
@@ -588,17 +659,57 @@ export default function ConversationsPage() {
 
             {/* Message Input — Slack-style */}
             <div className="px-4 py-3 border-t shrink-0">
+              {/* @ mention dropdown */}
+              {mentionCandidates.length > 0 && (
+                <div className="mb-1 border rounded-lg bg-popover shadow-md overflow-hidden">
+                  {mentionCandidates.map(u => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onMouseDown={e => { e.preventDefault(); insertMention(u); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                    >
+                      <span className="size-6 rounded-md bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                        {u.name.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="font-medium">{u.name}</span>
+                      {u.position && <span className="text-muted-foreground text-xs ml-auto">{u.position}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="border rounded-xl bg-background focus-within:ring-2 focus-within:ring-ring transition-shadow">
                 <textarea
+                  ref={textareaRef}
                   value={newMessage}
-                  onChange={e => setNewMessage(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                  onChange={handleTextareaChange}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') { setMentionQuery(null); return; }
+                    if (e.key === 'Enter' && !e.shiftKey && mentionCandidates.length === 0) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
                   placeholder={`Message #${selectedConv.taskTitle.slice(0, 30)}...`}
                   rows={2}
                   className="w-full px-3 pt-2.5 pb-1 text-sm bg-transparent focus:outline-none resize-none"
                 />
                 <div className="flex items-center justify-between px-3 pb-2">
-                  <div />
+                  <button
+                    type="button"
+                    title="Mention someone (@)"
+                    onClick={() => {
+                      const pos = textareaRef.current?.selectionStart ?? newMessage.length;
+                      const before = newMessage.slice(0, pos);
+                      const after = newMessage.slice(pos);
+                      setNewMessage(`${before}@${after}`);
+                      setMentionQuery('');
+                      setTimeout(() => textareaRef.current?.focus(), 0);
+                    }}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <AtSign className="size-4" />
+                  </button>
                   <Button
                     size="icon"
                     variant={newMessage.trim() ? 'default' : 'ghost'}
@@ -611,7 +722,7 @@ export default function ConversationsPage() {
                 </div>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1 text-center">
-                Enter to send, Shift+Enter for new line
+                Enter to send · Shift+Enter for new line · @ to mention
               </p>
             </div>
             </div>{/* end messages column */}

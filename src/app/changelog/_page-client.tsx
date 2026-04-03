@@ -23,10 +23,41 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.10.1',
+    version: '17.10.2',
     date: 'April 3, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Conversation Real-time, Mentions, Notification Tabs',
+    highlights: [
+      'Conversations now update every 5 seconds — new messages from others appear without refreshing, like Slack/WhatsApp',
+      '@ mentions in conversations — type @ or click the @ button to mention a participant; mentions render as highlighted blue pills',
+      'Notification panel has a new Conversations tab (between Tasks and Approvals) showing TASK_MESSAGE notifications',
+      'Clicking a Conversations notification opens the conversation directly',
+      'System events activity log now visible to all users when viewing a specific task (was Admin/Manager/CEO only)',
+    ],
+    changes: {
+      added: [
+        '@ mention support in conversations: typing @ triggers participant dropdown, click or Enter to insert @[Name]',
+        '@ button in message input toolbar as shortcut',
+        'Conversations tab in notification panel (type=TASK_MESSAGE filter)',
+        'Deep-link support: /conversations?taskId=X opens that conversation directly (used by notification click)',
+      ],
+      fixed: [
+        'Messages now appear in real-time (5s poll) without requiring a page refresh',
+        'Poll on message load is non-destructive — only appends new messages, no scroll reset on background updates',
+        'System events 403: non-admin users can now view events for a specific entity they have access to',
+      ],
+      changed: [
+        'Message polling reduced from 30s to 5s for active conversations',
+        'TASK_MESSAGE notifications route to /conversations page instead of task detail',
+      ],
+    },
+  },
+  {
+    version: '17.10.1',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'RBAC Nav Fix, Conversation UX, Header Colors',
     highlights: [
       'Admins keep full API access (ALL_PERMISSIONS) while sidebar navigation respects role deselections — deselecting AI Assistant now hides it from sidebar even for admins',

@@ -22,6 +22,7 @@ import {
   Check,
   X,
   ThumbsUp,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -49,6 +50,7 @@ interface NotificationPanelProps {
 const TYPE_FILTERS: Record<string, string> = {
   notifications: 'isArchived=false',
   tasks: 'type=TASK_ASSIGNED&isArchived=false',
+  conversations: 'type=TASK_MESSAGE&isArchived=false',
   approvals: 'type=APPROVAL_REQUIRED&isArchived=false',
 };
 
@@ -91,6 +93,12 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
     await markAsReadAndRemove(notification.id);
 
     if (notification.relatedEntityType && notification.relatedEntityId) {
+      // TASK_MESSAGE notifications open the conversation directly
+      if (notification.type === 'TASK_MESSAGE') {
+        router.push(`/conversations?taskId=${notification.relatedEntityId}`);
+        onClose?.();
+        return;
+      }
       const directRoutes: Record<string, (id: string) => string> = {
         task: (id) => `/tasks/${id}`,
         project: (id) => `/projects?id=${id}`,
@@ -143,6 +151,8 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
     switch (type) {
       case 'TASK_ASSIGNED':
         return <CheckCircle className="h-4 w-4 text-blue-500" />;
+      case 'TASK_MESSAGE':
+        return <MessageCircle className="h-4 w-4 text-violet-500" />;
       case 'APPROVAL_REQUIRED':
         return <AlertCircle className="h-4 w-4 text-orange-500" />;
       case 'DEADLINE_WARNING':
@@ -164,6 +174,7 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
       case 'REJECTED': return 'bg-red-100';
       case 'DEADLINE_WARNING': return 'bg-orange-100';
       case 'APPROVAL_REQUIRED': return 'bg-orange-100';
+      case 'TASK_MESSAGE': return 'bg-violet-100';
       default: return 'bg-blue-100';
     }
   };
@@ -250,6 +261,13 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-3 py-2 text-xs"
           >
             Tasks
+          </TabsTrigger>
+          <TabsTrigger
+            value="conversations"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-3 py-2 text-xs flex items-center gap-1"
+          >
+            <MessageCircle className="h-3 w-3" />
+            Conversations
           </TabsTrigger>
           <TabsTrigger
             value="approvals"
