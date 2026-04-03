@@ -53,10 +53,8 @@ interface CashflowData {
 }
 
 interface APAgingData {
-  overdue: { count: number; totalSAR: number };
-  dueSoon7: { count: number; totalSAR: number };
-  due30Days: { count: number; totalSAR: number };
-  items: Array<{ ref: string; supplierName: string; totalSAR: number; dueDate: string | null; daysOverdue: number | null; status: number }>;
+  buckets: { current: number; days1to30: number; days31to60: number; days61to90: number; days90plus: number; total: number };
+  rows: Array<{ thirdpartyName: string; invoiceCount: number; current: number; days1to30: number; days31to60: number; days61to90: number; days90plus: number; total: number }>;
 }
 
 type FetchStatus = 'loading' | 'ok' | 'error';
@@ -72,66 +70,67 @@ function APAgingWidget({ data, isDark }: { data: APAgingData; isDark: boolean })
   const borderCls = isDark ? 'border-slate-700/50' : 'border-gray-100';
   const textMuted = isDark ? 'text-slate-400' : 'text-gray-500';
   const textMain = isDark ? 'text-slate-200' : 'text-gray-800';
+  const { buckets, rows } = data;
 
-  const buckets = [
-    { label: 'Overdue', count: data.overdue.count, total: data.overdue.totalSAR, color: 'text-red-400' },
-    { label: 'Due ≤ 7 days', count: data.dueSoon7.count, total: data.dueSoon7.totalSAR, color: 'text-amber-400' },
-    { label: 'Due 8–30 days', count: data.due30Days.count, total: data.due30Days.totalSAR, color: 'text-blue-400' },
+  const bucketItems = [
+    { label: 'Current', value: buckets.current, color: 'text-green-400' },
+    { label: '1-30 Days', value: buckets.days1to30, color: 'text-yellow-400' },
+    { label: '31-60 Days', value: buckets.days31to60, color: 'text-orange-400' },
+    { label: '61-90 Days', value: buckets.days61to90, color: 'text-red-400' },
+    { label: '90+ Days', value: buckets.days90plus, color: 'text-red-600' },
+    { label: 'Total', value: buckets.total, color: isDark ? 'text-white' : 'text-gray-900' },
   ];
 
   return (
     <div className="space-y-4">
       {/* Summary buckets */}
-      <div className="grid grid-cols-3 gap-3">
-        {buckets.map(b => (
-          <div key={b.label} className={cn('rounded-lg p-3', isDark ? 'bg-slate-800/40' : 'bg-gray-50')}>
-            <div className={cn('text-xs', textMuted)}>{b.label}</div>
-            <div className={cn('text-lg font-bold mt-0.5', b.color)}>{formatSAR(b.total)}</div>
-            <div className={cn('text-xs', textMuted)}>{b.count} invoice{b.count !== 1 ? 's' : ''}</div>
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+        {bucketItems.map(b => (
+          <div key={b.label} className={cn('rounded-lg p-2.5', isDark ? 'bg-slate-800/40' : 'bg-gray-50')}>
+            <div className={cn('text-[10px]', textMuted)}>{b.label}</div>
+            <div className={cn('text-sm font-bold mt-0.5 tabular-nums', b.color)}>{formatSAR(b.value)}</div>
           </div>
         ))}
       </div>
 
-      {/* Invoice list */}
-      {data.items.length === 0 ? (
-        <p className={cn('text-xs text-center py-2', textMuted)}>No payables due in the next 30 days.</p>
+      {/* Supplier table */}
+      {rows.length === 0 ? (
+        <p className={cn('text-xs text-center py-2', textMuted)}>No outstanding payables.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className={cn('border-b', borderCls)}>
-                <th className={cn('text-left py-1.5 pr-3 font-medium', textMuted)}>Ref</th>
-                <th className={cn('text-left py-1.5 pr-3 font-medium', textMuted)}>Supplier</th>
-                <th className={cn('text-right py-1.5 pr-3 font-medium', textMuted)}>Amount</th>
-                <th className={cn('text-left py-1.5 font-medium', textMuted)}>Due</th>
+                <th className={cn('text-left py-1.5 pr-3 font-medium', textMuted)}>Third Party</th>
+                <th className={cn('text-right py-1.5 pr-2 font-medium', textMuted)}>Current</th>
+                <th className={cn('text-right py-1.5 pr-2 font-medium', textMuted)}>1-30</th>
+                <th className={cn('text-right py-1.5 pr-2 font-medium', textMuted)}>31-60</th>
+                <th className={cn('text-right py-1.5 pr-2 font-medium', textMuted)}>61-90</th>
+                <th className={cn('text-right py-1.5 pr-2 font-medium', textMuted)}>90+</th>
+                <th className={cn('text-right py-1.5 font-medium', textMuted)}>Total</th>
               </tr>
             </thead>
             <tbody>
-              {data.items.slice(0, 10).map((inv, i) => {
-                const overdue = inv.daysOverdue !== null && inv.daysOverdue > 0;
-                return (
-                  <tr key={i} className={cn('border-b transition-colors', borderCls, rowBg)}>
-                    <td className={cn('py-1.5 pr-3 font-mono', textMain)}>{inv.ref}</td>
-                    <td className={cn('py-1.5 pr-3 truncate max-w-[140px]', textMuted)}>{inv.supplierName}</td>
-                    <td className={cn('py-1.5 pr-3 text-right tabular-nums', textMain)}>{formatSAR(inv.totalSAR)}</td>
-                    <td className="py-1.5">
-                      {inv.dueDate ? (
-                        <span className={cn('font-medium', overdue ? 'text-red-400' : 'text-amber-400')}>
-                          {overdue ? `${inv.daysOverdue}d overdue` : inv.dueDate}
-                        </span>
-                      ) : (
-                        <span className={textMuted}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {rows.slice(0, 10).map((r, i) => (
+                <tr key={i} className={cn('border-b transition-colors', borderCls, rowBg)}>
+                  <td className={cn('py-1.5 pr-3 truncate max-w-[160px]', textMain)}>
+                    {r.thirdpartyName}
+                    <span className={cn('ml-1 text-[10px]', textMuted)}>{r.invoiceCount}</span>
+                  </td>
+                  <td className={cn('py-1.5 pr-2 text-right tabular-nums', r.current > 0 ? 'text-green-400' : textMuted)}>{r.current > 0 ? formatSAR(r.current) : '—'}</td>
+                  <td className={cn('py-1.5 pr-2 text-right tabular-nums', r.days1to30 > 0 ? 'text-yellow-400' : textMuted)}>{r.days1to30 > 0 ? formatSAR(r.days1to30) : '—'}</td>
+                  <td className={cn('py-1.5 pr-2 text-right tabular-nums', r.days31to60 > 0 ? 'text-orange-400' : textMuted)}>{r.days31to60 > 0 ? formatSAR(r.days31to60) : '—'}</td>
+                  <td className={cn('py-1.5 pr-2 text-right tabular-nums', r.days61to90 > 0 ? 'text-red-400' : textMuted)}>{r.days61to90 > 0 ? formatSAR(r.days61to90) : '—'}</td>
+                  <td className={cn('py-1.5 pr-2 text-right tabular-nums', r.days90plus > 0 ? 'text-red-600' : textMuted)}>{r.days90plus > 0 ? formatSAR(r.days90plus) : '—'}</td>
+                  <td className={cn('py-1.5 text-right tabular-nums font-medium', textMain)}>{formatSAR(r.total)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
-          {data.items.length > 10 && (
+          {rows.length > 10 && (
             <p className={cn('text-xs mt-2 text-center', textMuted)}>
-              Showing 10 of {data.items.length} invoices.{' '}
-              <Link href="/financial" className="underline hover:opacity-80">View all in Finance</Link>
+              Showing top 10 of {rows.length} suppliers.{' '}
+              <Link href="/financial/reports/aging?type=payable" className="underline hover:opacity-80">View full report</Link>
             </p>
           )}
         </div>

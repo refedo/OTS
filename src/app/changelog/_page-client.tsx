@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.6.0',
+    version: '17.7.0',
     date: 'April 3, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: '💬 Slack-Style Conversations, AP Aging Fix & Task Indicators',
+    highlights: [
+      'Conversations page redesigned with Slack-style two-panel layout — channel sidebar on the left, threaded messages on the right',
+      'Task table now shows paperclip and message bubble icons for tasks with attachments or conversations',
+      'AP Aging in CEO dashboard reads from the real Financial Reports aging engine — matches /financial/reports/aging data exactly',
+      '"Ask for Clarification" now posts directly into the task conversation thread instead of a separate request',
+      'SQL migration fixed — correct Prisma table names (Task, User, Notification, ProductBacklogItem)',
+      'PWA install prompt "Don\'t show again" now persists correctly across page loads',
+      'Conversations page sidebar now visible (was missing layout.tsx)',
+    ],
+    changes: {
+      added: [
+        'Conversations layout.tsx — /conversations now wrapped in ResponsiveLayout, fixing missing sidebar',
+        'Task attachment/conversation indicators in table and grid views',
+        'Task search loads user\'s tasks on focus before typing in new conversation flow',
+      ],
+      fixed: [
+        'SQL migration: table names corrected to match Prisma schema (Task, User, Notification, ProductBacklogItem)',
+        'PWA install prompt: dismissed state now initializes from localStorage during mount',
+        'AP Aging widget: reads from FinancialReportService instead of raw supplier invoice queries',
+      ],
+      changed: [
+        'Conversations page redesigned as Slack-style two-panel layout with channel list and inline message thread',
+        '"Ask for Clarification" redirected from separate request to task conversation message',
+      ],
+    },
+  },
+  {
+    version: '17.6.0',
+    date: 'April 3, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: '💬 Conversations Split View, AP Aging & Dashboard Theme',
     highlights: [
       'Conversations page rebuilt as a two-panel split view — browse threads on the left, read and reply inline on the right',
