@@ -43,6 +43,7 @@ export async function GET(req: Request) {
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
   const projectId = searchParams.get('projectId');
+  const search = searchParams.get('search');
 
   // Get user permissions
   const userPermissions = await getCurrentUserPermissions();
@@ -108,6 +109,7 @@ export async function GET(req: Request) {
   if (status) whereClause.status = status;
   if (priority) whereClause.priority = priority;
   if (projectId) whereClause.projectId = projectId;
+  if (search) whereClause.title = { contains: search };
 
   let tasks = await prisma.task.findMany({
     where: whereClause,

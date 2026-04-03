@@ -196,8 +196,12 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
       const effectiveStatus = computeEffectiveStatus(row);
       if (filterStatus && effectiveStatus !== filterStatus) return false;
       if (filterAction && e?.actionRequired !== filterAction) return false;
-      if (filterDateFrom && e?.dueDate && e.dueDate < new Date(filterDateFrom)) return false;
-      if (filterDateTo && e?.dueDate && e.dueDate > new Date(filterDateTo)) return false;
+      if (filterDateFrom || filterDateTo) {
+        const effectiveDate = e?.dueDate ?? row.baseDate;
+        if (!effectiveDate) return false;
+        if (filterDateFrom && effectiveDate < new Date(filterDateFrom)) return false;
+        if (filterDateTo && effectiveDate > new Date(filterDateTo)) return false;
+      }
       return true;
     });
 
