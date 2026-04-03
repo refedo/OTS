@@ -450,6 +450,7 @@ export default function ConversationsPage() {
   }
 
   return (
+    <>
     <div className="flex h-[calc(100vh-3.5rem)] bg-background">
       {/* ── Left Channel List ──────────────────────────────────────────── */}
       <div className="w-72 shrink-0 flex flex-col border-r bg-gradient-to-b from-primary/5 via-primary/3 to-background">
@@ -1040,6 +1041,7 @@ export default function ConversationsPage() {
     </div>
 
     {/* Image lightbox */}
+
     {lightboxSrc && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
@@ -1069,5 +1071,6 @@ export default function ConversationsPage() {
         </a>
       </div>
     )}
+    </>
   );
 }
