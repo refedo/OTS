@@ -23,10 +23,56 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.5.0',
+    date: 'April 3, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '💬 Task Conversations, Tonnage from Assembly Parts & Fixes',
+    highlights: [
+      'Task Conversations — start a message thread on any task, invite teammates, and receive push notifications on new messages',
+      'Conversations page — new sidebar page listing all task conversations you participate in',
+      'Project Tracker — building tonnage now sourced from actual assembly-parts raw data (sum of netWeightTotal), not the static weight field',
+      'Backlog board defaults to "Open" filter (excludes Completed and Dropped items); new "Open" filter option added to status dropdown',
+      'VAT report detail drill-down now excludes abandoned invoices (status=3) matching the summary calculation',
+      'Finance nav fix — Financial Dashboard no longer stays active when viewing a sub-page like VAT Report',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Task Conversations',
+          items: [
+            'New TaskMessage and TaskConversationParticipant Prisma models with MySQL tables task_messages and task_conversation_participants',
+            'GET/POST /api/tasks/[id]/messages — fetch thread and post a message; auto-adds sender as participant; notifies other participants via TASK_MESSAGE push notification',
+            'GET/POST/DELETE /api/tasks/[id]/conversation/participants — invite users to a conversation, remove them',
+            'Conversation card at the bottom of task detail view — bubble-style message thread, 30-second polling, Enter-to-send, Shift+Enter for newline',
+            'Invite panel inside conversation card — pick any user from the system to add to the thread',
+            'New TASK_MESSAGE NotificationType added to enum',
+          ],
+        },
+        {
+          title: 'Conversations Page',
+          items: [
+            'New /conversations page listing all task conversations the current user participates in',
+            'Shows task name, project/building context, last message preview with sender name and relative timestamp, and participant avatars',
+            '"Conversations" link added to Tasks section in sidebar (MessageCircle icon)',
+            'GET /api/conversations — returns conversations grouped by task for the current user',
+          ],
+        },
+      ],
+      fixed: [
+        'Project Tracker: building tonnage now computed from SUM(netWeightTotal)/1000 of AssemblyPart records per building, falling back to building.weight if no assembly parts exist',
+        'VAT Report: invoice detail drill-down endpoint changed from status >= 1 to status IN (1, 2) — abandoned invoices (status=3) are now excluded from the detail view, matching the summary totals',
+        'Finance navigation: Financial Dashboard nav item no longer highlights when viewing sub-pages like VAT Report, Aging Report, etc.',
+        'Backlog board: default view now shows "Open" filter (all statuses except Completed and Dropped); Clear All Filters resets to Open, not All Statuses',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.4.3',
     date: 'April 3, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '⚡ Event Bus & UI Polish',
     highlights: [
       'OTSEventEmitter — typed Node.js EventEmitter singleton decouples core services from integration side-effects; listeners registered once at startup via instrumentation.ts',

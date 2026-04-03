@@ -153,11 +153,18 @@ export const GET = withApiContext(async (req, session) => {
 
             const hasBlocked = activities.some((a) => a.status === 'blocked');
 
+            const assemblyAgg = await prisma.assemblyPart.aggregate({
+              where: { buildingId: building.id },
+              _sum: { netWeightTotal: true },
+            });
+            const assemblyTonnage = Number(assemblyAgg._sum.netWeightTotal ?? 0) / 1000;
+
             return {
               id: building.id,
               name: building.name,
               designation: building.designation,
               weight: building.weight,
+              assemblyTonnage,
               scopes: [{
                 id: `${building.id}-default`,
                 scopeType: 'steel',
