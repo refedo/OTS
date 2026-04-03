@@ -149,6 +149,7 @@ export default function ConversationsPage() {
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   // Start new conversation state
   const [showStartNew, setShowStartNew] = useState(false);
@@ -450,67 +451,80 @@ export default function ConversationsPage() {
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] bg-background">
-      {/* ── Left Channel List (Slack-style) ───────────────────────────── */}
-      <div className="w-72 shrink-0 flex flex-col border-r bg-muted/30">
-        <div className="px-3 py-3 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-sm flex items-center gap-1.5">
+      {/* ── Left Channel List ──────────────────────────────────────────── */}
+      <div className="w-72 shrink-0 flex flex-col border-r bg-gradient-to-b from-primary/5 via-primary/3 to-background">
+        <div className="px-4 py-3.5 border-b bg-primary/8 flex items-center justify-between">
+          <h2 className="font-bold text-sm flex items-center gap-2 text-primary">
             <MessageCircle className="size-4" />
             Conversations
           </h2>
           <button
             onClick={() => { setShowStartNew(true); setSelectedTaskId(null); setFocusLoaded(false); }}
-            className="size-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="size-7 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary transition-all hover:scale-110"
             title="Start new conversation"
           >
             <Plus className="size-4" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1 py-1">
           {loadingList ? (
             <div className="flex items-center justify-center h-40">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              <Loader2 className="size-5 animate-spin text-primary/40" />
             </div>
           ) : conversations.length === 0 ? (
-            <div className="p-4 text-center">
+            <div className="p-6 text-center">
+              <MessageCircle className="size-10 text-primary/15 mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">No conversations yet</p>
+              <p className="text-[11px] text-muted-foreground/60 mt-1">Start one with the + button</p>
             </div>
           ) : (
             conversations.map(conv => {
               const active = selectedTaskId === conv.taskId;
+              const initials = conv.lastMessage?.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? '?';
               return (
                 <button
                   key={conv.taskId}
                   onClick={() => handleSelectConversation(conv.taskId)}
                   className={cn(
-                    'w-full text-left px-3 py-2.5 transition-colors border-b border-border/30',
-                    active ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-muted/50',
+                    'w-full text-left px-3 py-2.5 mx-1 w-[calc(100%-8px)] rounded-lg transition-all mb-0.5',
+                    active
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'hover:bg-primary/8 text-foreground',
                   )}
                 >
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <Hash className="size-3 text-muted-foreground shrink-0" />
-                    <span className={cn('text-sm truncate', active ? 'font-semibold' : 'font-medium')}>
-                      {conv.taskTitle}
-                    </span>
-                  </div>
-
-                  {conv.project && (
-                    <span className="text-[10px] text-muted-foreground truncate block pl-4.5">
-                      {conv.project.projectNumber}
-                    </span>
-                  )}
-
-                  {conv.lastMessage && (
-                    <div className="flex items-center justify-between mt-1 pl-4.5">
-                      <p className="text-[11px] text-muted-foreground truncate flex-1 mr-2">
-                        <span className="font-medium">{conv.lastMessage.user.name.split(' ')[0]}:</span>{' '}
-                        {conv.lastMessage.content}
-                      </p>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {timeAgo(conv.lastMessage.createdAt)}
-                      </span>
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn(
+                      'size-8 rounded-xl shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5',
+                      active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary',
+                    )}>
+                      {conv.taskTitle.charAt(0).toUpperCase()}
                     </div>
-                  )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className={cn('text-sm truncate font-semibold', active ? 'text-primary-foreground' : '')}>
+                          {conv.taskTitle}
+                        </span>
+                        {conv.lastMessage && (
+                          <span className={cn('text-[10px] shrink-0', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                            {timeAgo(conv.lastMessage.createdAt)}
+                          </span>
+                        )}
+                      </div>
+                      {conv.project && (
+                        <span className={cn('text-[10px] font-medium', active ? 'text-primary-foreground/70' : 'text-primary/70')}>
+                          {conv.project.projectNumber}
+                          {conv.building ? ` · ${conv.building.designation}` : ''}
+                        </span>
+                      )}
+                      {conv.lastMessage && (
+                        <p className={cn('text-[11px] truncate mt-0.5', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                          <span className="font-medium">{conv.lastMessage.user.name.split(' ')[0]}:</span>{' '}
+                          {conv.lastMessage.content}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </button>
               );
             })
@@ -656,26 +670,34 @@ export default function ConversationsPage() {
             </div>
           </div>
         ) : selectedTaskId && selectedConv ? (
-          /* Slack-style Conversation Thread */
+          /* Conversation Thread */
           <div className="flex flex-col h-full">
             {/* Channel header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b bg-background shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <Hash className="size-4 text-muted-foreground shrink-0" />
-                <span className="font-semibold text-sm truncate">{selectedConv.taskTitle}</span>
-                <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-                  {selectedConv.project && (
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="size-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                  {selectedConv.taskTitle.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm truncate">{selectedConv.taskTitle}</h3>
+                  <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
+                    {selectedConv.project && (
+                      <span className="flex items-center gap-1 text-primary/80 font-medium">
+                        <Briefcase className="size-3" />
+                        {selectedConv.project.projectNumber}
+                      </span>
+                    )}
+                    {selectedConv.building && (
+                      <span className="flex items-center gap-1">
+                        <Building2 className="size-3" />
+                        {selectedConv.building.name || selectedConv.building.designation}
+                      </span>
+                    )}
                     <span className="flex items-center gap-1">
-                      <Briefcase className="size-3" />
-                      {selectedConv.project.projectNumber}
+                      <Users className="size-3" />
+                      {participants.length} {participants.length === 1 ? 'participant' : 'participants'}
                     </span>
-                  )}
-                  {selectedConv.building && (
-                    <span className="flex items-center gap-1">
-                      <Building2 className="size-3" />
-                      {selectedConv.building.name || selectedConv.building.designation}
-                    </span>
-                  )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -683,15 +705,19 @@ export default function ConversationsPage() {
                   onClick={() => setShowPeople(v => !v)}
                   title="Manage participants"
                   className={cn(
-                    'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors',
-                    showPeople ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                    showPeople
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-primary/10 text-primary hover:bg-primary/20',
                   )}
                 >
                   <Users className="size-3.5" />
-                  <span>{participants.length}</span>
+                  <span>People</span>
                 </button>
                 <Link href={`/tasks/${selectedTaskId}`}>
-                  <Button variant="ghost" size="sm" className="text-xs h-7">View Task</Button>
+                  <Button variant="outline" size="sm" className="text-xs h-8 border-primary/20 text-primary hover:bg-primary/5">
+                    View Task
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -708,12 +734,16 @@ export default function ConversationsPage() {
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <Hash className="size-12 text-muted-foreground/20 mb-3" />
-                  <p className="font-medium text-muted-foreground">This is the start of the conversation</p>
-                  <p className="text-sm text-muted-foreground mt-1">Send a message to begin.</p>
+                  <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                    <MessageCircle className="size-8 text-primary/50" />
+                  </div>
+                  <p className="font-semibold text-foreground/80">Start the conversation</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                    Be the first to send a message. The task assignee and creator will be notified.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {messages.map((msg, i) => {
                     const isMe = msg.user.id === currentUserId;
                     const prevMsg = i > 0 ? messages[i - 1] : null;
@@ -723,37 +753,40 @@ export default function ConversationsPage() {
                     return (
                       <div key={msg.id}>
                         {showDate && (
-                          <div className="flex items-center gap-3 my-3">
-                            <div className="flex-1 border-t" />
-                            <span className="text-[11px] font-medium text-muted-foreground bg-background px-2">
+                          <div className="flex items-center gap-3 my-4">
+                            <div className="flex-1 border-t border-border/50" />
+                            <span className="text-[11px] font-semibold text-muted-foreground bg-muted/50 px-3 py-0.5 rounded-full">
                               {fmtDateLabel(msg.createdAt)}
                             </span>
-                            <div className="flex-1 border-t" />
+                            <div className="flex-1 border-t border-border/50" />
                           </div>
                         )}
                         <div className={cn(
-                          'group flex gap-2.5 py-0.5 px-2 -mx-2 rounded-md transition-colors hover:bg-muted/40',
-                          showAuthor && 'mt-2',
+                          'group flex gap-2.5 px-1',
+                          showAuthor ? 'mt-3' : 'mt-0.5',
+                          isMe ? 'flex-row-reverse' : 'flex-row',
                         )}>
                           {/* Avatar */}
                           {showAuthor ? (
                             <div className={cn(
-                              'size-8 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold mt-0.5',
-                              isMe ? 'bg-primary/15 text-primary' : 'bg-amber-500/15 text-amber-600',
+                              'size-8 rounded-xl shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 shadow-sm',
+                              isMe
+                                ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground'
+                                : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white',
                             )}>
                               {msg.user.name.charAt(0).toUpperCase()}
                             </div>
                           ) : (
-                            <div className="w-8 shrink-0">
-                              <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity leading-6 block text-center">
+                            <div className="w-8 shrink-0 flex items-end justify-center">
+                              <span className="text-[10px] text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {fmtTime(msg.createdAt)}
                               </span>
                             </div>
                           )}
-                          <div className="flex-1 min-w-0">
+                          <div className={cn('flex flex-col max-w-[70%]', isMe ? 'items-end' : 'items-start')}>
                             {showAuthor && (
-                              <div className="flex items-baseline gap-2 mb-0.5">
-                                <span className="font-semibold text-sm">{msg.user.name}</span>
+                              <div className={cn('flex items-baseline gap-2 mb-1 px-1', isMe ? 'flex-row-reverse' : '')}>
+                                <span className="font-semibold text-xs">{isMe ? 'You' : msg.user.name}</span>
                                 {msg.user.position && (
                                   <span className="text-[10px] text-muted-foreground">{msg.user.position}</span>
                                 )}
@@ -761,24 +794,31 @@ export default function ConversationsPage() {
                               </div>
                             )}
                             {msg.content && (
-                              <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                              <div className={cn(
+                                'px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm',
+                                isMe
+                                  ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm'
+                                  : 'bg-muted rounded-tl-sm border border-border/30',
+                              )}>
                                 {renderContent(msg.content)}
                               </div>
                             )}
                             {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
-                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              <div className="mt-1 flex flex-wrap gap-1.5">
                                 {(msg.attachments as MessageAttachment[]).map((att, ai) => {
                                   const isImage = att.fileType.startsWith('image/');
                                   return isImage ? (
-                                    <a key={ai} href={att.filePath} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border max-w-[240px]">
-                                      <img src={att.filePath} alt={att.fileName} className="max-h-40 object-contain bg-muted" />
-                                    </a>
+                                    <button key={ai} type="button" onClick={() => setLightboxSrc(att.filePath)}
+                                      className={cn('block rounded-xl overflow-hidden max-w-[220px] hover:opacity-90 transition-opacity shadow-sm border', isMe ? 'border-primary/30' : 'border-border/50')}>
+                                      <img src={att.filePath} alt={att.fileName} className="max-h-36 object-contain bg-muted/50" />
+                                    </button>
                                   ) : (
                                     <a key={ai} href={att.filePath} target="_blank" rel="noreferrer"
-                                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border bg-muted/50 text-xs hover:bg-muted transition-colors"
+                                      className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity shadow-sm',
+                                        isMe ? 'bg-primary/80 text-primary-foreground border border-primary/30' : 'bg-muted border border-border/50')}
                                     >
-                                      <FileText className="size-3.5 text-blue-500 shrink-0" />
-                                      <span className="truncate max-w-[160px]">{att.fileName}</span>
+                                      <FileText className="size-3.5 shrink-0" />
+                                      <span className="truncate max-w-[140px]">{att.fileName}</span>
                                     </a>
                                   );
                                 })}
@@ -794,8 +834,8 @@ export default function ConversationsPage() {
               )}
             </div>
 
-            {/* Message Input — Slack-style */}
-            <div className="px-4 py-3 border-t shrink-0">
+            {/* Message Input */}
+            <div className="px-4 py-3 border-t bg-gradient-to-t from-background to-transparent shrink-0">
               {/* @ mention dropdown */}
               {mentionCandidates.length > 0 && (
                 <div className="mb-1 border rounded-lg bg-popover shadow-md overflow-hidden">
@@ -836,7 +876,7 @@ export default function ConversationsPage() {
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif,.webp"
                 onChange={handleFileUpload}
               />
-              <div className="border rounded-xl bg-background focus-within:ring-2 focus-within:ring-ring transition-shadow">
+              <div className="border-2 border-border/60 rounded-2xl bg-background focus-within:border-primary/40 focus-within:shadow-md transition-all">
                 <textarea
                   ref={textareaRef}
                   value={newMessage}
@@ -985,14 +1025,49 @@ export default function ConversationsPage() {
         ) : (
           /* Empty state */
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <MessageCircle className="size-16 text-muted-foreground/15 mb-4" />
-            <p className="font-semibold text-lg text-muted-foreground">Welcome to Conversations</p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Select a conversation from the sidebar, or start a new one by clicking the + button.
+            <div className="size-24 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mb-6 shadow-sm">
+              <MessageCircle className="size-12 text-primary/60" />
+            </div>
+            <p className="font-bold text-xl text-foreground/80">Welcome to Conversations</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-sm leading-relaxed">
+              Select a conversation from the sidebar, or click the{' '}
+              <span className="font-semibold text-primary">+</span>{' '}
+              button to start a new one on any task.
             </p>
           </div>
         )}
       </div>
     </div>
+
+    {/* Image lightbox */}
+    {lightboxSrc && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+        onClick={() => setLightboxSrc(null)}
+      >
+        <button
+          type="button"
+          className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <X className="size-6" />
+        </button>
+        <img
+          src={lightboxSrc}
+          alt="Preview"
+          className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+          onClick={e => e.stopPropagation()}
+        />
+        <a
+          href={lightboxSrc}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute bottom-4 right-4 text-white/70 hover:text-white text-xs px-3 py-1.5 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
+          onClick={e => e.stopPropagation()}
+        >
+          Open in new tab ↗
+        </a>
+      </div>
+    )}
   );
 }

@@ -109,7 +109,24 @@ export async function GET(req: Request) {
   if (status) whereClause.status = status;
   if (priority) whereClause.priority = priority;
   if (projectId) whereClause.projectId = projectId;
-  if (search) whereClause.title = { contains: search };
+  if (search) {
+    const searchOr = [
+      { title: { contains: search } },
+      { description: { contains: search } },
+      { assignedTo: { name: { contains: search } } },
+      { createdBy: { name: { contains: search } } },
+      { requester: { name: { contains: search } } },
+      { building: { name: { contains: search } } },
+      { building: { designation: { contains: search } } },
+      { project: { name: { contains: search } } },
+      { project: { projectNumber: { contains: search } } },
+    ];
+    if (whereClause.AND) {
+      (whereClause.AND as unknown[]).push({ OR: searchOr });
+    } else {
+      whereClause.AND = [{ OR: searchOr }];
+    }
+  }
 
   let tasks = await prisma.task.findMany({
     where: whereClause,

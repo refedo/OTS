@@ -76,50 +76,29 @@ export function UserMenu() {
   }, []);
 
   const handleLogout = async () => {
+    cachedUser = null;
+    setUser(null);
+
+    // Stop session activity tracker
     try {
-      // Clear cached user data immediately
-      cachedUser = null;
-      setUser(null);
-      
-      // Stop session activity tracker immediately
       const tracker = (window as any).__sessionActivityTracker;
       if (tracker) {
         tracker.stop();
         delete (window as any).__sessionActivityTracker;
       }
-      
-      // Clear any pending timeouts/intervals
-      const highestTimeoutId = setTimeout(() => {}) as unknown as number;
-      for (let i = 0; i < highestTimeoutId; i++) {
-        clearTimeout(i);
-        clearInterval(i);
-      }
-      
-      // Clear all local storage and session storage first
-      localStorage.clear();
-      sessionStorage.clear();
+    } catch { /* non-critical */ }
 
-      // Await logout API so the Set-Cookie headers are applied before redirect
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      }).catch(() => {});
+    localStorage.clear();
+    sessionStorage.clear();
 
-      // Force full page redirect to login with cache busting
-      const loginUrl = process.env.NODE_ENV === 'production'
-        ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
-        : '/login?t=' + Date.now();
+    // Call logout API to clear the session cookie
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch { /* non-critical — redirect anyway */ }
 
-      window.location.href = loginUrl;
-    } catch (error) {
-      console.error('Error logging out:', error);
-      // Force redirect even on error
-      const loginUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://ots.hexasteel.sa/login?t=' + Date.now()
-        : '/login?t=' + Date.now();
-      
-      window.location.href = loginUrl;
-    }
+    // Redirect to login; use basePath-aware absolute URL
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    window.location.replace(`${window.location.origin}${basePath}/login?t=${Date.now()}`);
   };
 
   const getInitials = (name: string) => {

@@ -73,6 +73,11 @@ function getNotificationUrl(type: NotificationType, relatedEntityType?: string |
 
   if (!relatedEntityType || !relatedEntityId) return `${basePath}/notifications`;
 
+  // Conversation messages open the conversation thread directly
+  if (type === 'TASK_MESSAGE') {
+    return `${basePath}/conversations?taskId=${relatedEntityId}`;
+  }
+
   const entityRoutes: Record<string, string> = {
     task: '/tasks',
     project: '/projects',

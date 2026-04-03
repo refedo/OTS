@@ -14,7 +14,7 @@ export const GET = withApiContext<any>(async (req) => {
   }
 
   try {
-    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries] =
+    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries, buildings, users] =
       await Promise.all([
         prisma.task.findMany({
           where: {
@@ -145,6 +145,33 @@ export const GET = withApiContext<any>(async (req) => {
           ORDER BY syncedAt DESC
           LIMIT ${MAX_PER_CATEGORY}
         `,
+
+        prisma.building.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { name: { contains: q } },
+              { designation: { contains: q } },
+            ],
+          },
+          select: { id: true, name: true, designation: true, projectId: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { updatedAt: 'desc' },
+        }),
+
+        prisma.user.findMany({
+          where: {
+            isActive: true,
+            OR: [
+              { name: { contains: q } },
+              { email: { contains: q } },
+              { position: { contains: q } },
+            ],
+          },
+          select: { id: true, name: true, email: true, position: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { name: 'asc' },
+        }),
       ]);
 
     return NextResponse.json({
@@ -220,6 +247,22 @@ export const GET = withApiContext<any>(async (req) => {
           badge: l.status ?? 'Unknown',
           url: `/supply-chain/lcr`,
           type: 'LCR',
+        })),
+        buildings: buildings.map((b) => ({
+          id: b.id,
+          title: b.name || b.designation,
+          subtitle: b.designation,
+          badge: 'Building',
+          url: `/projects/${b.projectId}`,
+          type: 'Building',
+        })),
+        users: users.map((u) => ({
+          id: u.id,
+          title: u.name,
+          subtitle: u.position ?? u.email,
+          badge: 'User',
+          url: `/settings/users/${u.id}`,
+          type: 'User',
         })),
       },
     });

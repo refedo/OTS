@@ -38,7 +38,13 @@ export async function GET(req: Request) {
           COALESCE(SUM(je.debit) - SUM(je.credit), 0) as balance
         FROM fin_journal_entries je
         JOIN fin_chart_of_accounts coa ON coa.account_code = je.account_code
-        WHERE coa.account_type = 'fixed_asset' AND je.entry_date <= ?
+        WHERE (coa.account_type = 'fixed_asset'
+           OR coa.account_type LIKE '%fixed%'
+           OR coa.account_category LIKE '%Fixed%'
+           OR coa.account_category LIKE '%Property%'
+           OR coa.account_category LIKE '%Equipment%')
+          AND coa.account_type NOT IN ('asset')
+          AND je.entry_date <= ?
         GROUP BY coa.account_code, coa.account_name, coa.account_category
         HAVING balance != 0
         ORDER BY coa.account_category, balance DESC

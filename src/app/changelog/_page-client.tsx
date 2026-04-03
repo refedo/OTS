@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.10.3',
+    version: '17.10.4',
     date: 'April 3, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Global Search, Task Search, Conversation Beautification, GitHub Fix',
+    highlights: [
+      'Conversation interface redesigned — iMessage-style bubbles, colored avatars, vibrant sidebar, gradient header',
+      'Global search now includes Buildings (by name/designation) and Users (by name/email/position)',
+      'Task search now covers assignee, requester, building, project number, and description — not just title',
+      'Fixed Assets now appear in the Assets report (broadened account_type matching)',
+      'GitHub sync now correctly closes issues when backlog item status is COMPLETED or DROPPED',
+      'What\'s New dialog updated to reflect v17.10.x changes instead of old v17.8.0 content',
+    ],
+    changes: {
+      added: [
+        'Global search: Buildings and Users results with links to relevant pages',
+        'Task search: OR search across assignedTo.name, requester.name, building.name, building.designation, project.name, project.projectNumber, description',
+      ],
+      fixed: [
+        'Fixed Assets not appearing in /financial/reports/assets — broadened query to match account_category patterns',
+        'GitHub sync: newly created issues for COMPLETED/DROPPED items now immediately closed via a follow-up PATCH',
+        'What\'s New dialog was showing v17.8.0 content — now shows v17.10.x highlights',
+      ],
+      changed: [
+        'Conversation layout: iMessage-style chat bubbles (own messages right-aligned primary, others left-aligned muted)',
+        'Conversation sidebar: gradient background, rounded active items with primary color fill',
+        'Conversation header: richer header with avatar, project/building info, participant count',
+        'Conversation empty state: branded illustration instead of plain icon',
+      ],
+    },
+  },
+  {
+    version: '17.10.3',
+    date: 'April 3, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Attachments, Backlog Fixes, Asset Report, Integrations',
     highlights: [
       'Conversations now support file attachments — images, PDFs, and documents can be sent inline; images render as thumbnails',
