@@ -135,21 +135,22 @@ export async function GET(req: Request) {
     },
   });
 
-  // Try to add attachment counts (requires task_attachments table to exist)
+  // Try to add attachment and message counts
   try {
     const taskCounts = await prisma.task.findMany({
       where: whereClause,
       select: {
         id: true,
-        _count: { select: { attachments: true } },
+        _count: { select: { attachments: true, messages: true } },
       },
     });
     tasks = tasks.map(task => {
       const countData = taskCounts.find(t => t.id === task.id);
-      return { ...task, _count: { attachments: countData?._count?.attachments ?? 0 } };
+      return { ...task, _count: { attachments: countData?._count?.attachments ?? 0, messages: countData?._count?.messages ?? 0 } };
     });
   } catch {
-    // task_attachments table not yet migrated — skip count
+    // tables not yet migrated — skip counts
+    tasks = tasks.map(task => ({ ...task, _count: { attachments: 0, messages: 0 } }));
   }
 
   // Try to add completedBy and approvedBy if the fields exist in the database

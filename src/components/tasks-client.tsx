@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip, BarChart3, MessageCircleQuestion, Clock } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip, BarChart3, MessageCircleQuestion, Clock, MessageCircle } from 'lucide-react';
 import { TasksGanttView } from '@/components/tasks-gantt-view';
 import { uploadPendingAttachments, type PendingFile } from '@/components/task-attachment-uploader';
 import Link from 'next/link';
@@ -247,12 +247,23 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
     if (!taskRequestDialog.message.trim()) return;
     setTaskRequestDialog((prev) => ({ ...prev, sending: true }));
     try {
-      const res = await fetch(`/api/tasks/${taskRequestDialog.taskId}/request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: taskRequestDialog.type, message: taskRequestDialog.message }),
-      });
-      if (!res.ok) throw new Error('Failed');
+      if (taskRequestDialog.type === 'clarification') {
+        // Send clarification as a conversation message
+        const prefix = '🔍 *Clarification Request:*\n';
+        const res = await fetch(`/api/tasks/${taskRequestDialog.taskId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: prefix + taskRequestDialog.message.trim() }),
+        });
+        if (!res.ok) throw new Error('Failed');
+      } else {
+        const res = await fetch(`/api/tasks/${taskRequestDialog.taskId}/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: taskRequestDialog.type, message: taskRequestDialog.message }),
+        });
+        if (!res.ok) throw new Error('Failed');
+      }
       setTaskRequestDialog((prev) => ({ ...prev, open: false, message: '', sending: false }));
     } catch {
       setTaskRequestDialog((prev) => ({ ...prev, sending: false }));
@@ -1661,6 +1672,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('revision')}>
                       <div className="flex items-center">Revision{getSortIcon('revision')}</div>
                     </TableHead>
+                    <TableHead className="text-center w-12" title="Indicators"></TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -2415,6 +2427,17 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                           <span className="text-sm font-mono">{task.revision || '-'}</span>
                         )}
                       </TableCell>
+                      {/* Attachment / Conversation indicators */}
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {(task as any)._count?.attachments > 0 && (
+                            <Paperclip className="size-3.5 text-muted-foreground" title={`${(task as any)._count.attachments} attachment(s)`} />
+                          )}
+                          {(task as any)._count?.messages > 0 && (
+                            <MessageCircle className="size-3.5 text-blue-500" title={`${(task as any)._count.messages} message(s)`} />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         {isEditing ? (
                           <div className="flex gap-1 justify-end">
@@ -2528,6 +2551,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                         {task.title}
                         {(task._count?.attachments ?? 0) > 0 && (
                           <Paperclip className="size-3.5 shrink-0 text-muted-foreground" title={`${task._count!.attachments} attachment(s)`} />
+                        )}
+                        {((task as any)._count?.messages ?? 0) > 0 && (
+                          <MessageCircle className="size-3.5 shrink-0 text-blue-500" title={`${(task as any)._count.messages} message(s)`} />
                         )}
                       </Link>
                     </CardTitle>

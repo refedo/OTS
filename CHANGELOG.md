@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.7.0] - 2026-04-03
+
+### Slack-Style Conversations, AP Aging Fix, Task Indicators (Minor Release)
+
+#### Added
+- **Conversations layout.tsx** — `/conversations` now wrapped in `ResponsiveLayout`, fixing the missing sidebar
+- **Task attachment/conversation indicators** — small paperclip and message icons appear in the task table (and grid view) next to the actions column when a task has attachments or conversation messages; `GET /api/tasks` now returns `_count.messages` alongside `_count.attachments`
+- **Task search on focus** — when starting a new conversation, clicking the task search field immediately loads the user's tasks (requester, assigned, assigner) before typing; typing further narrows results via title search
+
+#### Changed
+- **Conversations page — Slack-style redesign** — two-panel layout with channel-style left sidebar (# prefixed, last message preview) and right message pane; messages grouped by date with Slack-style author/timestamp headers; hover to reveal timestamps on consecutive messages; Slack-like input bar with "Enter to send, Shift+Enter for new line"
+- **AP Aging widget** — CEO dashboard AP Aging now reads from `FinancialReportService.getAgingReport('ap')` (same data as `/financial/reports/aging`); shows standard aging buckets (Current, 1-30, 31-60, 61-90, 90+ Days) with per-supplier breakdown matching the existing report
+- **Ask for Clarification → task conversation** — both in task details and task table, "Ask for Clarification" now posts the message as a conversation message (prefixed with clarification marker) instead of a separate request; all conversation participants receive push notifications
+
+#### Fixed
+- **SQL migration table names** — `add_task_conversations.sql` now references correct Prisma table names (`Task`, `User`, `Notification`, `ProductBacklogItem`) instead of incorrect lowercase plural forms (`tasks`, `users`, etc.)
+- **PWA install prompt** — "Don't show again" now initializes the dismissed state from localStorage immediately during component mount (not in useEffect), preventing the prompt from flashing on page load
+
+---
+
 ## [17.6.0] - 2026-04-03
 
 ### Conversations Split View, CEO AP Aging & Dashboard Improvements (Minor Release)

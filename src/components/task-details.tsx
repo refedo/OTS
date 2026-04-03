@@ -1228,7 +1228,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
         </DialogContent>
       </Dialog>
 
-      {/* Clarification Dialog */}
+      {/* Clarification Dialog — sends to task conversation */}
       <Dialog open={showClarificationDialog} onOpenChange={setShowClarificationDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1239,7 +1239,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
           </DialogHeader>
           <div className="py-2 space-y-3">
             <p className="text-sm text-muted-foreground">
-              Your message will be sent to the task creator as a push notification.
+              Your message will be posted in the task conversation and all participants will be notified.
             </p>
             <div className="space-y-1.5">
               <Label htmlFor="clarification-msg">Message</Label>
@@ -1257,10 +1257,29 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
               Cancel
             </Button>
             <Button
-              onClick={() => handleSendRequest('clarification', clarificationMessage)}
+              onClick={async () => {
+                if (!clarificationMessage.trim()) return;
+                setSendingRequest(true);
+                try {
+                  const prefix = '🔍 *Clarification Request:*\n';
+                  const res = await fetch(`/api/tasks/${task.id}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: prefix + clarificationMessage.trim() }),
+                  });
+                  if (!res.ok) throw new Error('Failed');
+                  setShowClarificationDialog(false);
+                  setClarificationMessage('');
+                  if (typeof fetchConversation === 'function') fetchConversation();
+                } catch {
+                  alert('Failed to send clarification');
+                } finally {
+                  setSendingRequest(false);
+                }
+              }}
               disabled={sendingRequest || !clarificationMessage.trim()}
             >
-              {sendingRequest ? 'Sending…' : 'Send Request'}
+              {sendingRequest ? 'Sending…' : 'Send to Conversation'}
             </Button>
           </DialogFooter>
         </DialogContent>
