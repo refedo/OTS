@@ -84,6 +84,7 @@ interface BuildingData {
   name: string;
   designation: string;
   weight: number | null;
+  assemblyTonnage: number;
   scopes: ScopeData[];
   overallProgress: number;
   hasBlocked: boolean;
@@ -960,11 +961,15 @@ export default function ProjectTrackerClient() {
                               <span className="font-medium">
                                 {row.building.name || row.building.designation}
                               </span>
-                              {row.building.weight && (
+                              {row.building.assemblyTonnage > 0 ? (
+                                <p className={`text-[10px] ${mutedTextClass}`}>
+                                  {row.building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T
+                                </p>
+                              ) : row.building.weight ? (
                                 <p className={`text-[10px] ${mutedTextClass}`}>
                                   {Number(row.building.weight).toLocaleString()} T
                                 </p>
-                              )}
+                              ) : null}
                             </td>
 
                             {ACTIVITY_COLUMNS.map((col) => {

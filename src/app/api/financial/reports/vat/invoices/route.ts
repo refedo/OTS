@@ -31,7 +31,7 @@ export async function GET(req: Request) {
         JOIN fin_customer_invoices ci ON ci.dolibarr_id = cil.invoice_dolibarr_id
         LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = ci.socid
         WHERE ci.date_invoice BETWEEN ? AND ?
-          AND ci.status >= 1 AND ci.is_active = 1
+          AND ci.status IN (1, 2) AND ci.is_active = 1
           AND cil.vat_rate = ?
         ORDER BY ci.date_invoice DESC
       `, from, to, parseFloat(vatRate));
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
         JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
         LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
         WHERE si.date_invoice BETWEEN ? AND ?
-          AND si.status >= 1 AND si.is_active = 1
+          AND si.status IN (1, 2) AND si.is_active = 1
           AND sil.vat_rate = ?
         ORDER BY si.date_invoice DESC
       `, from, to, parseFloat(vatRate));

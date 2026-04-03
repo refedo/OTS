@@ -55,7 +55,7 @@ export default function BacklogBoard() {
   const router = useRouter();
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ type: '', category: '', status: '', priority: '', search: '' });
+  const [filters, setFilters] = useState({ type: '', category: '', status: 'OPEN', priority: '', search: '' });
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'code', dir: 'asc' });
   const [bulkSyncing, setBulkSyncing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
@@ -66,11 +66,14 @@ export default function BacklogBoard() {
       const params = new URLSearchParams();
       if (filters.type) params.append('type', filters.type);
       if (filters.category) params.append('category', filters.category);
-      if (filters.status) params.append('status', filters.status);
+      if (filters.status && filters.status !== 'OPEN') params.append('status', filters.status);
       if (filters.priority) params.append('priority', filters.priority);
       if (filters.search) params.append('search', filters.search);
       const response = await fetch(`/api/backlog?${params.toString()}`);
-      if (response.ok) setItems(await response.json());
+      if (response.ok) {
+        const data: BacklogItem[] = await response.json();
+        setItems(filters.status === 'OPEN' ? data.filter(i => i.status !== 'COMPLETED' && i.status !== 'DROPPED') : data);
+      }
     } finally {
       setLoading(false);
     }
@@ -321,7 +324,7 @@ export default function BacklogBoard() {
               {[
                 { key: 'type', options: [['', 'All Types'], ['FEATURE', 'Feature'], ['BUG', 'Bug'], ['TECH_DEBT', 'Tech Debt'], ['PERFORMANCE', 'Performance'], ['REPORTING', 'Reporting'], ['REFACTOR', 'Refactor'], ['COMPLIANCE', 'Compliance'], ['INSIGHT', 'Insight']] },
                 { key: 'priority', options: [['', 'All Priorities'], ['CRITICAL', 'Critical'], ['HIGH', 'High'], ['MEDIUM', 'Medium'], ['LOW', 'Low']] },
-                { key: 'status', options: [['', 'All Statuses'], ['IDEA', 'Idea'], ['UNDER_REVIEW', 'Under Review'], ['APPROVED', 'Approved'], ['PLANNED', 'Planned'], ['IN_PROGRESS', 'In Progress'], ['BLOCKED', 'Blocked'], ['COMPLETED', 'Completed'], ['DROPPED', 'Dropped']] },
+                { key: 'status', options: [['', 'All Statuses'], ['OPEN', 'Open'], ['IDEA', 'Idea'], ['UNDER_REVIEW', 'Under Review'], ['APPROVED', 'Approved'], ['PLANNED', 'Planned'], ['IN_PROGRESS', 'In Progress'], ['BLOCKED', 'Blocked'], ['COMPLETED', 'Completed'], ['DROPPED', 'Dropped']] },
                 { key: 'category', options: [['', 'All Categories'], ['CORE_SYSTEM', 'Core System'], ['PRODUCTION', 'Production'], ['DESIGN', 'Design'], ['DETAILING', 'Detailing'], ['PROCUREMENT', 'Procurement'], ['QC', 'QC'], ['LOGISTICS', 'Logistics'], ['FINANCE', 'Finance'], ['REPORTING', 'Reporting'], ['AI', 'AI'], ['GOVERNANCE', 'Governance'], ['PROJECTS', 'Projects']] },
               ].map(({ key, options }) => (
                 <select
@@ -334,9 +337,9 @@ export default function BacklogBoard() {
                 </select>
               ))}
             </div>
-            {Object.values(filters).some(Boolean) && (
+            {(filters.type || filters.category || filters.priority || filters.search || (filters.status !== 'OPEN' && filters.status !== '')) && (
               <button
-                onClick={() => setFilters({ type: '', category: '', status: '', priority: '', search: '' })}
+                onClick={() => setFilters({ type: '', category: '', status: 'OPEN', priority: '', search: '' })}
                 className="mt-3 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
               >
                 Clear all filters

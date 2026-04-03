@@ -55,6 +55,7 @@ import {
   CalendarClock,
   Plug,
   Cloud,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -96,6 +97,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'My Tasks', href: '/tasks?filter=my-tasks', icon: User },
       { name: 'Requested by Me', href: '/tasks?filter=requested-by-me', icon: FileCheck },
       { name: 'Tasks Dashboard', href: '/tasks/dashboard', icon: BarChart3 },
+      { name: 'Conversations', href: '/conversations', icon: MessageCircle },
       { name: 'Create Task', href: '/tasks/new', icon: Plus },
     ],
   },
@@ -329,7 +331,7 @@ export function AppSidebar() {
       }
       return true;
     }
-    if (href === '/qc' || href === '/production') return pathname === href;
+    if (href === '/qc' || href === '/production' || href === '/financial') return pathname === href;
     return pathname === href || pathname.startsWith(href + '/');
   };
 

@@ -1,11 +1,11 @@
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock, MessageCircle, Send, UserPlus, X } from 'lucide-react';
 import { EntityTimeline } from '@/components/events/EntityTimeline';
 import {
   DropdownMenu,
@@ -118,6 +118,19 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [attachments, setAttachments] = useState<TaskAttachment[]>(task.attachments || []);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
 
+  // Conversation state
+  type ConvMessage = { id: string; content: string; createdAt: string; user: { id: string; name: string; position: string | null } };
+  type ConvParticipant = { joinedAt: string; user: { id: string; name: string; position: string | null }; invitedBy: { id: string; name: string } | null };
+  const [convMessages, setConvMessages] = useState<ConvMessage[]>([]);
+  const [convParticipants, setConvParticipants] = useState<ConvParticipant[]>([]);
+  const [convLoading, setConvLoading] = useState(true);
+  const [convMessage, setConvMessage] = useState('');
+  const [convSending, setConvSending] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [allUsers, setAllUsers] = useState<{ id: string; name: string; position: string | null }[]>([]);
+  const [inviting, setInviting] = useState(false);
+  const convEndRef = useRef<HTMLDivElement>(null);
+
   // Check permissions - use permission-based check if available, fallback to role-based
   const canEdit = userPermissions.includes('tasks.edit');
   const canDelete = userPermissions.includes('tasks.delete');
@@ -147,6 +160,73 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     };
     fetchAuditLogs();
   }, [task.id]);
+
+  // Fetch conversation
+  const fetchConversation = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        setConvMessages(data.messages);
+        setConvParticipants(data.participants);
+      }
+    } finally {
+      setConvLoading(false);
+    }
+  }, [task.id]);
+
+  useEffect(() => {
+    fetchConversation();
+    const interval = setInterval(fetchConversation, 30000);
+    return () => clearInterval(interval);
+  }, [fetchConversation]);
+
+  useEffect(() => {
+    convEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [convMessages]);
+
+  const handleSendMessage = async () => {
+    if (!convMessage.trim() || convSending) return;
+    setConvSending(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: convMessage.trim() }),
+      });
+      if (res.ok) {
+        setConvMessage('');
+        await fetchConversation();
+      }
+    } finally {
+      setConvSending(false);
+    }
+  };
+
+  const handleInviteParticipant = async (inviteUserId: string) => {
+    setInviting(true);
+    try {
+      await fetch(`/api/tasks/${task.id}/conversation/participants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: inviteUserId }),
+      });
+      await fetchConversation();
+      setShowInvite(false);
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const loadAllUsers = async () => {
+    if (allUsers.length > 0) { setShowInvite(true); return; }
+    const res = await fetch('/api/users?forAssignment=true');
+    if (res.ok) {
+      const data = await res.json();
+      setAllUsers(data.map((u: { id: string; name: string; position?: string | null }) => ({ id: u.id, name: u.name, position: u.position ?? null })));
+    }
+    setShowInvite(true);
+  };
 
   // Format field names for display
   const formatFieldName = (field: string) => {
@@ -1001,6 +1081,109 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Conversation */}
+        <Card className="mt-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="size-5" />
+                Conversation
+                {convMessages.length > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground">({convMessages.length})</span>
+                )}
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={loadAllUsers} disabled={inviting}>
+                <UserPlus className="size-4 mr-1.5" />
+                Invite
+              </Button>
+            </div>
+            {convParticipants.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {convParticipants.map(p => (
+                  <span key={p.user.id} className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full">
+                    {p.user.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showInvite && (
+              <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Invite to conversation</p>
+                  <button onClick={() => setShowInvite(false)}><X className="size-4 text-muted-foreground" /></button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto">
+                  {allUsers
+                    .filter(u => !convParticipants.some(p => p.user.id === u.id))
+                    .map(u => (
+                      <button
+                        key={u.id}
+                        onClick={() => handleInviteParticipant(u.id)}
+                        disabled={inviting}
+                        className="text-left text-sm px-3 py-1.5 rounded hover:bg-muted transition-colors"
+                      >
+                        <span className="font-medium">{u.name}</span>
+                        {u.position && <span className="text-muted-foreground ml-1 text-xs">· {u.position}</span>}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {convLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : convMessages.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No messages yet. Start the conversation below.
+              </p>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {convMessages.map(msg => (
+                  <div key={msg.id} className={cn('flex gap-3', msg.user.id === userId ? 'flex-row-reverse' : '')}>
+                    <div className={cn(
+                      'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm',
+                      msg.user.id === userId
+                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                        : 'bg-muted rounded-tl-sm'
+                    )}>
+                      {msg.user.id !== userId && (
+                        <p className="text-xs font-semibold mb-0.5 opacity-70">{msg.user.name}</p>
+                      )}
+                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                      <p className={cn('text-[10px] mt-1 opacity-60', msg.user.id === userId ? 'text-right' : '')}>
+                        {new Date(msg.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={convEndRef} />
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Textarea
+                placeholder="Type a message…"
+                value={convMessage}
+                onChange={e => setConvMessage(e.target.value)}
+                rows={2}
+                className="resize-none"
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={convSending || !convMessage.trim()}
+                className="self-end"
+              >
+                {convSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
