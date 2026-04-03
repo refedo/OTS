@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.6.0] - 2026-04-03
+
+### Conversations Split View, CEO AP Aging & Dashboard Improvements (Minor Release)
+
+#### Added
+- **Conversations split view** — `/conversations` page rebuilt as a two-panel layout; left panel shows all conversation threads; right panel shows inline message thread with bubble-style chat, send input, and participant chips; "Start New Conversation" button lets users search for any task and compose the first message directly from the page
+- **AP Aging widget** — new `GET /api/executive/ap-aging` queries `fin_supplier_invoices` for payables due in the next 30 days; displays overdue, due ≤7 days, and due 8–30 days buckets with SAR totals and a top-10 invoice list; widget added to the bottom of the Executive Command Center
+- **Tasks API search** — `GET /api/tasks?search=<term>` now filters by title; powers the task-picker in the new conversation flow
+
+#### Fixed
+- **Tonnage calculation** — project tracker now falls back to `singlePartWeight × quantity` when `netWeightTotal` is null; additionally falls back to project-level assembly parts when no building-level parts exist; adds `deletedAt: null` filter
+- **Cash flow forecast drilldown** — month expand now shows only payments due within that month; rows with no effective due date (neither `enrichment.dueDate` nor `baseDate`) are excluded when a date filter is active
+- **Executive Dashboard theme** — added light/dark toggle (sun/moon button) in dashboard header; dashboard supports both dark (default) and light modes
+
+---
+
 ## [17.5.1] - 2026-04-03
 
 ### Tonnage Column, Conversations Nav & Backlog Notes (Patch Release)

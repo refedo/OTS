@@ -153,11 +153,31 @@ export const GET = withApiContext(async (req, session) => {
 
             const hasBlocked = activities.some((a) => a.status === 'blocked');
 
-            const assemblyAgg = await prisma.assemblyPart.aggregate({
-              where: { buildingId: building.id },
-              _sum: { netWeightTotal: true },
+            // Sum assembly tonnage — use netWeightTotal if set, else singlePartWeight * quantity
+            const assemblyParts = await prisma.assemblyPart.findMany({
+              where: { buildingId: building.id, deletedAt: null },
+              select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
             });
-            const assemblyTonnage = Number(assemblyAgg._sum.netWeightTotal ?? 0) / 1000;
+            let rawTotalKg = assemblyParts.reduce((sum, p) => {
+              const w = Number(p.netWeightTotal ?? 0) > 0
+                ? Number(p.netWeightTotal)
+                : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
+              return sum + w;
+            }, 0);
+            // Fallback: if no building-level data, aggregate at project level
+            if (rawTotalKg === 0) {
+              const projectParts = await prisma.assemblyPart.findMany({
+                where: { projectId: project.id, buildingId: null, deletedAt: null },
+                select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
+              });
+              rawTotalKg = projectParts.reduce((sum, p) => {
+                const w = Number(p.netWeightTotal ?? 0) > 0
+                  ? Number(p.netWeightTotal)
+                  : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
+                return sum + w;
+              }, 0);
+            }
+            const assemblyTonnage = rawTotalKg / 1000;
 
             return {
               id: building.id,

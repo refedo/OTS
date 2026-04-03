@@ -23,10 +23,50 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.6.0',
+    date: 'April 3, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: '💬 Conversations Split View, AP Aging & Dashboard Theme',
+    highlights: [
+      'Conversations page rebuilt as a two-panel split view — browse threads on the left, read and reply inline on the right',
+      '"Start New Conversation" — search any task by name and compose the first message directly from the Conversations page',
+      'CEO Executive Dashboard — AP Aging widget shows payables due in the next 30 days (overdue, ≤7 days, 8–30 days buckets)',
+      'Executive Dashboard light/dark mode toggle — switch between the default dark theme and a light theme in one click',
+      'Tonnage calculation fixed — now uses singlePartWeight × quantity when netWeightTotal is null',
+      'Cash Flow Forecast month drilldown now shows only payments due within that specific month',
+    ],
+    changes: {
+      added: [
+        {
+          title: 'Conversations Split View',
+          items: [
+            '/conversations rebuilt as two-panel layout: left panel shows conversation list, right panel shows inline message thread',
+            '"Start New Conversation" button — search tasks by title, select one, and type the first message to start a thread',
+            'GET /api/tasks?search=<term> — added title search support to the tasks endpoint to power the task-picker',
+          ],
+        },
+        {
+          title: 'AP Aging — CEO Dashboard',
+          items: [
+            'GET /api/executive/ap-aging — queries fin_supplier_invoices for unpaid/partial invoices due ≤30 days; returns overdue, ≤7 days, and 8–30 days buckets',
+            'APAgingWidget added to Executive Command Center; shows SAR totals per bucket and top-10 invoice list with supplier name, amount, and due date',
+          ],
+        },
+        'Executive Dashboard light/dark toggle — sun/moon button in the dashboard header; defaults to dark mode',
+      ],
+      fixed: [
+        'Tonnage: project tracker API now uses singlePartWeight × quantity as fallback when netWeightTotal is null; also falls back to project-level parts when building-level query returns zero',
+        'Cash Flow Forecast: month drilldown now excludes rows with no effective date when filtering by date range; uses enrichment.dueDate → baseDate → exclude',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.5.1',
     date: 'April 3, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '🔧 Tonnage Column, Conversations Nav & Backlog Notes',
     highlights: [
       'Dedicated Tonnage column in Project Tracker — between Building and activity columns, showing assembly-parts data',
