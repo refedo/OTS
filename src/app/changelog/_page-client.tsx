@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.12.1',
+    date: 'April 4, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Global Search Fix, Coating KPI & LCR Display Corrections',
+    highlights: [
+      'Global search now works even when optional modules (Initiatives, NCRs, RFIs, Backlog) are not available — each category searched independently',
+      'Project Tracker coating percentage now shows correctly — processes with no data don\'t drag down the average',
+      'LCR comparison table now shows the correct LCR1 / LCR2 supplier and amounts (column mapping was offset by one)',
+      'LCR page: removed Needed By date filters to clean up the header; Project and Status now stacked for better readability',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Global search returned "No results" for everything — Promise.all failed if any single model query threw; now each category is searched independently',
+        'Coating % in project tracker showed average of all 3 surface processes (sandblasting/painting/galvanization) even when only one was applicable — now only averages processes with actual data',
+        'LCR comparison table showed LCR1 supplier as "Awarded To" (wrong field) while the correct LCR1 supplier/amount was showing as LCR2',
+      ],
+      changed: [
+        'LCR page header: removed "Needed By From / To" date filters (available in column sort instead)',
+        'LCR page: Project and Status filters are now stacked vertically for cleaner mobile layout',
+      ],
+    },
+  },
+  {
     version: '17.12.0',
     date: 'April 4, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Conversation Improvements, PTS Sync Fix & Bookmarks Persistence',
     highlights: [
       'Conversations can now be started without linking to a task — just enter a topic/purpose to create a standalone discussion thread',

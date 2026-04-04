@@ -296,19 +296,18 @@ export default function LcrPage() {
 
   return (
     <div className="space-y-3 p-4 md:p-6">
-      {/* Page Header + Filter Bar combined */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+      {/* Page Header + Filter Bar */}
+      <div className="flex flex-wrap items-end gap-3">
         {/* Title */}
-        <div className="flex items-center gap-2 mr-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Package className="size-5" />
           <h1 className="text-xl font-bold whitespace-nowrap">LCR — Least Cost Routing</h1>
         </div>
 
-        {/* Project filter */}
-        <div className="w-64">
-          <label className="text-xs text-muted-foreground mb-1 block">Project</label>
+        {/* Project + Status stacked */}
+        <div className="flex flex-col gap-1.5 w-56">
           <Select value={projectFilter} onValueChange={(v) => { setProjectFilter(v === 'all' ? '' : v); setPage(1); }}>
-            <SelectTrigger className="h-9"><SelectValue placeholder="All Projects" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="All Projects" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Projects</SelectItem>
               {projectOptions.map(p => (
@@ -316,13 +315,8 @@ export default function LcrPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        {/* Status filter */}
-        <div className="w-52">
-          <label className="text-xs text-muted-foreground mb-1 block">Status</label>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === 'all' ? '' : v); setPage(1); }}>
-            <SelectTrigger className="h-9"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="All Statuses" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               {statusOptions.map(status => (
@@ -332,35 +326,23 @@ export default function LcrPage() {
           </Select>
         </div>
 
-        {/* Date filters */}
-        <div className="w-36">
-          <label className="text-xs text-muted-foreground mb-1 block">Needed By From</label>
-          <Input type="date" className="h-9" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
-        </div>
-
-        <div className="w-36">
-          <label className="text-xs text-muted-foreground mb-1 block">Needed By To</label>
-          <Input type="date" className="h-9" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
-        </div>
-
         {/* Search */}
         <div className="flex-1 min-w-[200px]">
-          <label className="text-xs text-muted-foreground mb-1 block">Search</label>
           <Input
             type="text"
             className="h-9"
-            placeholder="Search items, P.O., project, building, supplier..."
+            placeholder="Search items, P.O., project, building, supplier…"
             value={itemSearch}
             onChange={(e) => { setItemSearch(e.target.value); setPage(1); }}
           />
         </div>
 
         {/* Reset */}
-        {(projectFilter || statusFilter || dateFrom || dateTo || itemSearch) && (
+        {(projectFilter || statusFilter || itemSearch) && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 self-end"
+            className="h-9"
             onClick={() => { setProjectFilter(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setItemSearch(''); setPage(1); }}
           >
             Reset
@@ -696,23 +678,23 @@ export default function LcrPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr className="border-b bg-green-50/50">
-                          <td className="px-3 py-2 font-medium text-green-700">LCR 1 ★</td>
-                          <td className="px-3 py-2">{selectedEntry.awardedToRaw ?? '—'}</td>
-                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr1Amount)}</td>
-                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr1PricePerTon)}</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="px-3 py-2 font-medium">LCR 2</td>
-                          <td className="px-3 py-2">{selectedEntry.lcr2 ?? '—'}</td>
+                        <tr className="border-b bg-green-50/50 dark:bg-green-900/10">
+                          <td className="px-3 py-2 font-medium text-green-700 dark:text-green-400">LCR 1 ★</td>
+                          <td className="px-3 py-2">{selectedEntry.lcr2 ?? selectedEntry.awardedToRaw ?? '—'}</td>
                           <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr2Amount)}</td>
                           <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr2PricePerTon)}</td>
                         </tr>
-                        <tr>
-                          <td className="px-3 py-2 font-medium">LCR 3</td>
+                        <tr className="border-b">
+                          <td className="px-3 py-2 font-medium">LCR 2</td>
                           <td className="px-3 py-2">{selectedEntry.lcr3 ?? '—'}</td>
                           <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr3Amount)}</td>
                           <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr3PricePerTon)}</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2 font-medium text-muted-foreground">LCR 3</td>
+                          <td className="px-3 py-2 text-muted-foreground">—</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr1Amount)}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr1PricePerTon)}</td>
                         </tr>
                       </tbody>
                     </table>

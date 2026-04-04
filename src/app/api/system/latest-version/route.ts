@@ -7,29 +7,23 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '💬 Conversation Improvements, PTS Sync Fix & Bookmarks Persistence',
+  mainTitle: '🔍 Global Search Fix, Coating KPI & LCR Display Corrections',
   highlights: [
-    'Start conversations without a task — enter a topic/purpose to create a standalone discussion thread',
-    'Invite people upfront when starting a new conversation, before sending the first message',
-    'Invitee search in task-detail conversation — no more scrolling the full user list',
-    'Bookmarks now survive logout — preserved across sessions on the same device',
-    'PTS full sync no longer times out — eliminated N+1 DB queries for dramatically faster sync',
-    '#task references now render as clickable links in the main Conversations page',
+    'Global search now works — each category (tasks, projects, NCRs…) searched independently; one failing model no longer blocks all results',
+    'Coating percentage in Project Tracker is now correct — only averages processes that have actual production data',
+    'LCR comparison now shows the right LCR1 / LCR2 suppliers and amounts (column mapping was offset)',
+    'LCR page is cleaner — date filters removed, Project/Status stacked vertically',
   ],
   changes: {
-    added: [
-      'Topic-only conversations — start a group discussion without linking to a task',
-      'Invitee picker in "New Conversation" form — search and add participants before sending the first message',
-      '#task link rendering in /conversations message bubbles (already worked in task-detail)',
-    ],
+    added: [],
     fixed: [
-      'Bookmarks cleared on logout because localStorage.clear() wiped everything — bookmarks now preserved',
-      'PTS full sync 504 gateway timeout — preloads all existing logs in one query instead of N+1 per row',
-      'Invitee panel in task-detail conversation had no search — now searchable by name',
+      'Global search returned no results for any query — Promise.all failed when optional models (Initiatives, NCRs, etc.) threw; now each category is independent',
+      'Coating KPI in project tracker showed average of sandblasting+painting+galvanization even when only one was applicable — now skips processes with zero data',
+      'LCR comparison table: LCR1 was using awardedToRaw (wrong field) — now correctly uses lcr2/lcr2Amount which maps to the first supplier in the sheet',
     ],
     changed: [
-      '"Select a task" in new conversation form is optional — use topic field for standalone discussions',
-      'PTS log sync reduced from ~3 DB queries per row to 1; existing logs preloaded in a single query',
+      'LCR header: removed Needed By From/To date filters',
+      'LCR header: Project and Status dropdowns now stacked vertically for cleaner layout',
     ],
   },
 };

@@ -507,10 +507,13 @@ async function computeProductionProgress(
   });
 
   let totalPct = 0;
-  for (const p of processes) {
+  // Only average processes that have actual production data — processes with 0 weight
+  // (not applicable for this building) should not drag down the percentage.
+  const activeProcesses = processes.filter(p => p.processedWeight > 0);
+  for (const p of activeProcesses) {
     totalPct += p.percentage;
   }
-  const pct = Math.round(totalPct / processTypes.length);
+  const pct = activeProcesses.length > 0 ? Math.round(totalPct / activeProcesses.length) : 0;
 
   const dispatchedWeight = processTypes.includes('Dispatched to Customer')
     ? Math.round((weightByProcess.get('Dispatched to Customer') || 0) * 100) / 100

@@ -5,18 +5,27 @@ import { logger } from '@/lib/logger';
 
 const MAX_PER_CATEGORY = 5;
 
-export const GET = withApiContext<any>(async (req) => {
+// Run each query independently so one failing model doesn't break the entire search
+async function safe<T>(fn: () => Promise<T>): Promise<T | []> {
+  try {
+    return await fn();
+  } catch {
+    return [];
+  }
+}
+
+export const GET = withApiContext(async (req) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get('q')?.trim() ?? '';
 
   if (q.length < 2) {
-    return NextResponse.json({ results: [] });
+    return NextResponse.json({ results: {} });
   }
 
   try {
     const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries, buildings, users] =
       await Promise.all([
-        prisma.task.findMany({
+        safe(() => prisma.task.findMany({
           where: {
             OR: [
               { title: { contains: q } },
@@ -26,9 +35,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, title: true, status: true, priority: true },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.project.findMany({
+        safe(() => prisma.project.findMany({
           where: {
             deletedAt: null,
             OR: [
@@ -39,9 +48,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, name: true, projectNumber: true, status: true },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.initiative.findMany({
+        safe(() => prisma.initiative.findMany({
           where: {
             OR: [
               { name: { contains: q } },
@@ -52,9 +61,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, name: true, initiativeNumber: true, status: true },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.weeklyIssue.findMany({
+        safe(() => prisma.weeklyIssue.findMany({
           where: {
             OR: [
               { title: { contains: q } },
@@ -64,9 +73,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, title: true, issueNumber: true, status: true, priority: true },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.productBacklogItem.findMany({
+        safe(() => prisma.productBacklogItem.findMany({
           where: {
             OR: [
               { title: { contains: q } },
@@ -77,9 +86,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, title: true, code: true, status: true, priority: true },
           take: MAX_PER_CATEGORY,
           orderBy: { createdAt: 'desc' },
-        }),
+        })),
 
-        prisma.nCRReport.findMany({
+        safe(() => prisma.nCRReport.findMany({
           where: {
             OR: [
               { ncrNumber: { contains: q } },
@@ -89,9 +98,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, ncrNumber: true, description: true, status: true, severity: true },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.rFIRequest.findMany({
+        safe(() => prisma.rFIRequest.findMany({
           where: {
             OR: [
               { rfiNumber: { contains: q } },
@@ -101,9 +110,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, rfiNumber: true, inspectionType: true, status: true },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.assemblyPart.findMany({
+        safe(() => prisma.assemblyPart.findMany({
           where: {
             deletedAt: null,
             OR: [
@@ -124,9 +133,9 @@ export const GET = withApiContext<any>(async (req) => {
           },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.$queryRaw<Array<{
+        safe(() => prisma.$queryRaw<Array<{
           id: string;
           sn: string | null;
           itemLabel: string | null;
@@ -143,10 +152,10 @@ export const GET = withApiContext<any>(async (req) => {
               OR mrfNumber LIKE ${`%${q}%`}
               OR awardedToRaw LIKE ${`%${q}%`})
           ORDER BY syncedAt DESC
-          LIMIT ${MAX_PER_CATEGORY}
-        `,
+          LIMIT 5
+        `),
 
-        prisma.building.findMany({
+        safe(() => prisma.building.findMany({
           where: {
             deletedAt: null,
             OR: [
@@ -157,9 +166,9 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, name: true, designation: true, projectId: true },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
-        }),
+        })),
 
-        prisma.user.findMany({
+        safe(() => prisma.user.findMany({
           where: {
             isActive: true,
             OR: [
@@ -171,12 +180,24 @@ export const GET = withApiContext<any>(async (req) => {
           select: { id: true, name: true, email: true, position: true },
           take: MAX_PER_CATEGORY,
           orderBy: { name: 'asc' },
-        }),
+        })),
       ]);
+
+    const taskArr = Array.isArray(tasks) ? tasks : [];
+    const projectArr = Array.isArray(projects) ? projects : [];
+    const initiativeArr = Array.isArray(initiatives) ? initiatives : [];
+    const weeklyIssueArr = Array.isArray(weeklyIssues) ? weeklyIssues : [];
+    const backlogArr = Array.isArray(backlogItems) ? backlogItems : [];
+    const ncrArr = Array.isArray(ncrs) ? ncrs : [];
+    const rfiArr = Array.isArray(rfis) ? rfis : [];
+    const assemblyArr = Array.isArray(assemblyParts) ? assemblyParts : [];
+    const lcrArr = Array.isArray(lcrEntries) ? lcrEntries : [];
+    const buildingArr = Array.isArray(buildings) ? buildings : [];
+    const userArr = Array.isArray(users) ? users : [];
 
     return NextResponse.json({
       results: {
-        tasks: tasks.map((t) => ({
+        tasks: taskArr.map((t) => ({
           id: t.id,
           title: t.title,
           subtitle: t.status,
@@ -184,7 +205,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/tasks/${t.id}`,
           type: 'Task',
         })),
-        projects: projects.map((p) => ({
+        projects: projectArr.map((p) => ({
           id: p.id,
           title: p.name,
           subtitle: p.projectNumber,
@@ -192,7 +213,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/projects/${p.id}`,
           type: 'Project',
         })),
-        initiatives: initiatives.map((i) => ({
+        initiatives: initiativeArr.map((i) => ({
           id: i.id,
           title: i.name,
           subtitle: i.initiativeNumber,
@@ -200,7 +221,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/business-planning/initiatives`,
           type: 'Initiative',
         })),
-        weeklyIssues: weeklyIssues.map((w) => ({
+        weeklyIssues: weeklyIssueArr.map((w) => ({
           id: w.id,
           title: w.title,
           subtitle: `#${w.issueNumber}`,
@@ -208,7 +229,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/business-planning/issues`,
           type: 'Weekly Issue',
         })),
-        backlogItems: backlogItems.map((b) => ({
+        backlogItems: backlogArr.map((b) => ({
           id: b.id,
           title: b.title,
           subtitle: b.code,
@@ -216,7 +237,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/backlog/${b.id}`,
           type: 'Backlog',
         })),
-        ncrs: ncrs.map((n) => ({
+        ncrs: ncrArr.map((n) => ({
           id: n.id,
           title: `NCR ${n.ncrNumber}`,
           subtitle: n.description.slice(0, 60),
@@ -224,7 +245,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/qc/ncr`,
           type: 'NCR',
         })),
-        rfis: rfis.map((r) => ({
+        rfis: rfiArr.map((r) => ({
           id: r.id,
           title: `RFI ${r.rfiNumber ?? r.id.slice(0, 8)}`,
           subtitle: r.inspectionType,
@@ -232,7 +253,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/qc/rfi`,
           type: 'RFI',
         })),
-        assemblyParts: assemblyParts.map((a) => ({
+        assemblyParts: assemblyArr.map((a) => ({
           id: a.id,
           title: a.assemblyMark,
           subtitle: `${a.name} — ${a.partDesignation}`,
@@ -240,7 +261,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/production?project=${a.projectId}`,
           type: 'Assembly',
         })),
-        lcrEntries: lcrEntries.map((l) => ({
+        lcrEntries: lcrArr.map((l) => ({
           id: l.id,
           title: l.itemLabel ?? `LCR ${l.sn ?? l.id.slice(0, 8)}`,
           subtitle: `${l.projectNumber ?? 'Unknown'} — ${l.poNumber ? `PO: ${l.poNumber}` : 'No PO'}`,
@@ -248,7 +269,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/supply-chain/lcr`,
           type: 'LCR',
         })),
-        buildings: buildings.map((b) => ({
+        buildings: buildingArr.map((b) => ({
           id: b.id,
           title: b.name || b.designation,
           subtitle: b.designation,
@@ -256,7 +277,7 @@ export const GET = withApiContext<any>(async (req) => {
           url: `/projects/${b.projectId}`,
           type: 'Building',
         })),
-        users: users.map((u) => ({
+        users: userArr.map((u) => ({
           id: u.id,
           title: u.name,
           subtitle: u.position ?? u.email,
