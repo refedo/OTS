@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.12.0',
+    date: 'April 4, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Conversation Improvements, PTS Sync Fix & Bookmarks Persistence',
+    highlights: [
+      'Conversations can now be started without linking to a task — just enter a topic/purpose to create a standalone discussion thread',
+      'Invite people directly when starting a new conversation, before sending the first message',
+      'Invitee picker in task-detail conversation now has search — no more scrolling through the entire user list',
+      'Bookmarks now survive logout — preserved across sessions on the same device',
+      'PTS full sync no longer times out — eliminated N+1 DB queries; preloads existing logs in a single query',
+      '#task references now render as clickable links in the main Conversations page (already worked in task detail)',
+    ],
+    changes: {
+      added: [
+        'Topic-only conversations — start a discussion without a task by entering a purpose/subject',
+        'Invitee picker in "New Conversation" form — search and add participants before sending',
+        'POST /api/conversations endpoint — creates discussion task + participants + first message atomically',
+        '#task link rendering in the main /conversations message bubbles',
+      ],
+      fixed: [
+        'Bookmarks cleared on logout due to localStorage.clear() — now preserved across logout/login',
+        'PTS full sync 504 gateway timeout — preload all existing PTS logs upfront to avoid per-row DB queries',
+        'Invitee list in task-detail conversation had no search — now searchable by name with position shown',
+      ],
+      changed: [
+        '"Select a task" in new conversation form is now optional — can use topic field instead',
+        'PTS log sync reduced from ~3 DB queries per row to 1 (create/update only); preloads everything in 1 query',
+      ],
+    },
+  },
+  {
     version: '17.11.0',
     date: 'April 3, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'CEO Dashboard, Conversation Parity, Search Fix, Sidebar Reorganization',
     highlights: [
       '"Executive Command Center" renamed to "CEO Dashboard" across app and sidebar — now appears in sidebar order settings',

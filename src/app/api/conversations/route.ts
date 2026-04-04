@@ -1,7 +1,87 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
+
+const createSchema = z.object({
+  taskId: z.string().uuid().nullable().optional(),
+  topic: z.string().min(1).max(200).nullable().optional(),
+  firstMessage: z.string().min(1),
+  inviteeIds: z.array(z.string().uuid()).optional().default([]),
+});
+
+/**
+ * POST /api/conversations
+ * Start a new conversation: either linked to an existing task, or create a
+ * standalone "Discussion" task for topic-only threads.
+ */
+export const POST = withApiContext(async (req, session) => {
+  const body = await req.json();
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
+  }
+  const { taskId, topic, firstMessage, inviteeIds } = parsed.data;
+
+  if (!taskId && !topic?.trim()) {
+    return NextResponse.json({ error: 'Either taskId or topic is required' }, { status: 400 });
+  }
+
+  const userId = session!.userId;
+
+  try {
+    let targetTaskId = taskId ?? null;
+
+    // If no task selected, create a standalone Discussion task
+    if (!targetTaskId && topic) {
+      const discussionTask = await prisma.task.create({
+        data: {
+          title: topic.trim(),
+          createdById: userId,
+          mainActivity: 'Discussion',
+          status: 'In Progress',
+        },
+        select: { id: true },
+      });
+      targetTaskId = discussionTask.id;
+    }
+
+    if (!targetTaskId) {
+      return NextResponse.json({ error: 'Could not resolve target task' }, { status: 500 });
+    }
+
+    // Add creator as participant
+    await prisma.taskConversationParticipant.upsert({
+      where: { taskId_userId: { taskId: targetTaskId, userId } },
+      create: { taskId: targetTaskId, userId, invitedById: userId },
+      update: {},
+    });
+
+    // Add invitees as participants
+    if (inviteeIds.length > 0) {
+      await Promise.all(inviteeIds.map(inviteeId =>
+        prisma.taskConversationParticipant.upsert({
+          where: { taskId_userId: { taskId: targetTaskId!, userId: inviteeId } },
+          create: { taskId: targetTaskId!, userId: inviteeId, invitedById: userId },
+          update: {},
+        })
+      ));
+    }
+
+    // Post first message
+    const message = await prisma.taskMessage.create({
+      data: { taskId: targetTaskId, userId, content: firstMessage },
+      include: { user: { select: { id: true, name: true, position: true } } },
+    });
+
+    logger.info({ taskId: targetTaskId, userId, inviteeCount: inviteeIds.length }, 'Conversation started');
+    return NextResponse.json({ taskId: targetTaskId, message });
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to create conversation');
+    return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 });
+  }
+});
 
 export const GET = withApiContext(async (req, session) => {
   const userId = session!.userId;

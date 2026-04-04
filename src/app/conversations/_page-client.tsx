@@ -109,14 +109,22 @@ function dueDateStyle(dueDate: string | null | undefined): string {
 }
 
 function renderContent(content: string) {
-  const parts = content.split(/(@\[[^\]]+\])/g);
+  const parts = content.split(/(@\[[^\]]+\]|#\[[^\]]+\]\([^)]+\))/g);
   return parts.map((part, i) => {
-    const m = part.match(/^@\[([^\]]+)\]$/);
-    if (m) {
+    const atM = part.match(/^@\[([^\]]+)\]$/);
+    if (atM) {
       return (
         <span key={i} className="text-blue-500 font-medium bg-blue-500/10 rounded px-0.5">
-          @{m[1]}
+          @{atM[1]}
         </span>
+      );
+    }
+    const hashM = part.match(/^#\[([^\]]+)\]\(([^)]+)\)$/);
+    if (hashM) {
+      return (
+        <a key={i} href={hashM[2]} className="text-primary font-medium underline underline-offset-2 hover:opacity-80">
+          #{hashM[1]}
+        </a>
       );
     }
     return part;
@@ -182,6 +190,13 @@ export default function ConversationsPage() {
   const [selectedNewTask, setSelectedNewTask] = useState<TaskOption | null>(null);
   const [startingSend, setStartingSend] = useState(false);
   const [focusLoaded, setFocusLoaded] = useState(false);
+  // Topic-only conversation (no task required)
+  const [convTopic, setConvTopic] = useState('');
+  // Invitees for new conversation
+  const [newConvInviteeSearch, setNewConvInviteeSearch] = useState('');
+  const [newConvInviteeResults, setNewConvInviteeResults] = useState<UserResult[]>([]);
+  const [newConvInvitees, setNewConvInvitees] = useState<UserResult[]>([]);
+  const [searchingNewInvitees, setSearchingNewInvitees] = useState(false);
 
   // Participant management
   const [showPeople, setShowPeople] = useState(false);
@@ -316,6 +331,25 @@ export default function ConversationsPage() {
     return () => clearTimeout(t);
   }, [userSearch, showPeople]);
 
+  // Invitee search for new conversation form
+  useEffect(() => {
+    if (newConvInviteeSearch.trim().length < 1) { setNewConvInviteeResults([]); return; }
+    const t = setTimeout(async () => {
+      setSearchingNewInvitees(true);
+      try {
+        const res = await fetch('/api/users?forAssignment=true', { credentials: 'include' });
+        if (res.ok) {
+          const all: UserResult[] = await res.json();
+          const q = newConvInviteeSearch.toLowerCase();
+          setNewConvInviteeResults(
+            all.filter(u => u.name.toLowerCase().includes(q) && !newConvInvitees.some(inv => inv.id === u.id)).slice(0, 8)
+          );
+        }
+      } finally { setSearchingNewInvitees(false); }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [newConvInviteeSearch, newConvInvitees]);
+
   const handleInviteUser = async (user: UserResult) => {
     if (!selectedTaskId || addingUserId) return;
     setAddingUserId(user.id);
@@ -345,13 +379,25 @@ export default function ConversationsPage() {
     } finally { setRemovingUserId(null); }
   };
 
+  const resetStartNew = () => {
+    setShowStartNew(false);
+    setSelectedNewTask(null);
+    setFirstMessage('');
+    setTaskSearch('');
+    setConvTopic('');
+    setNewConvInvitees([]);
+    setNewConvInviteeSearch('');
+    setNewConvInviteeResults([]);
+    setFocusLoaded(false);
+  };
+
   const handleSelectConversation = (taskId: string) => {
     setSelectedTaskId(taskId);
-    setShowStartNew(false);
     setShowPeople(false);
     setUserSearch('');
     setUserResults([]);
     setPendingAttachments([]);
+    resetStartNew();
   };
 
   // File upload with progress tracking
@@ -448,22 +494,28 @@ export default function ConversationsPage() {
   };
 
   const handleStartNewConversation = async () => {
-    if (!selectedNewTask || !firstMessage.trim() || startingSend) return;
+    const message = firstMessage.trim();
+    const hasTask = !!selectedNewTask;
+    const hasTopic = convTopic.trim().length > 0;
+    if ((!hasTask && !hasTopic) || !message || startingSend) return;
     setStartingSend(true);
     try {
-      const res = await fetch(`/api/tasks/${selectedNewTask.id}/messages`, {
+      // Use POST /api/conversations to create the conversation (handles both task-linked and topic-only)
+      const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: firstMessage.trim() }),
+        body: JSON.stringify({
+          taskId: selectedNewTask?.id ?? null,
+          topic: hasTopic && !hasTask ? convTopic.trim() : null,
+          firstMessage: message,
+          inviteeIds: newConvInvitees.map(u => u.id),
+        }),
       });
       if (res.ok) {
+        const { taskId } = await res.json();
         await loadConversations();
-        setSelectedTaskId(selectedNewTask.id);
-        setShowStartNew(false);
-        setSelectedNewTask(null);
-        setFirstMessage('');
-        setTaskSearch('');
-        setFocusLoaded(false);
+        setSelectedTaskId(taskId);
+        resetStartNew();
       }
     } finally {
       setStartingSend(false);
@@ -489,7 +541,7 @@ export default function ConversationsPage() {
             Conversations
           </h2>
           <button
-            onClick={() => { setShowStartNew(true); setSelectedTaskId(null); setFocusLoaded(false); }}
+            onClick={() => { resetStartNew(); setShowStartNew(true); setSelectedTaskId(null); }}
             className="size-7 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary transition-all hover:scale-110"
             title="Start new conversation"
           >
@@ -567,38 +619,64 @@ export default function ConversationsPage() {
         {showStartNew ? (
           /* Start New Conversation */
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
-              <h2 className="font-semibold text-sm flex items-center gap-2">
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent">
+              <h2 className="font-semibold text-sm flex items-center gap-2 text-primary">
                 <Plus className="size-4" />
-                Start New Conversation
+                New Conversation
               </h2>
-              <button onClick={() => setShowStartNew(false)} className="text-muted-foreground hover:text-foreground">
+              <button onClick={resetStartNew} className="text-muted-foreground hover:text-foreground">
                 <X className="size-4" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+
+              {/* Topic / Purpose */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wide">Topic / Purpose</label>
+                <input
+                  type="text"
+                  value={convTopic}
+                  onChange={e => setConvTopic(e.target.value)}
+                  placeholder="e.g. Weekly coordination, Design review…"
+                  disabled={!!selectedNewTask}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                  autoFocus={!selectedNewTask}
+                />
+                {!selectedNewTask && convTopic.trim() && (
+                  <p className="text-[11px] text-muted-foreground mt-1">This will create a standalone discussion thread.</p>
+                )}
+              </div>
+
+              {/* OR divider */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 border-t" />
+                <span className="text-[11px] text-muted-foreground font-medium">OR link to a task</span>
+                <div className="flex-1 border-t" />
+              </div>
+
               {/* Task Search */}
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Select a task</label>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wide">Select a task (optional)</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <input
                     type="text"
                     value={taskSearch}
-                    onChange={e => { setTaskSearch(e.target.value); setSelectedNewTask(null); }}
+                    onChange={e => { setTaskSearch(e.target.value); setSelectedNewTask(null); setConvTopic(''); }}
                     onFocus={() => { if (!focusLoaded && !taskSearch) loadMyTasks(); }}
-                    placeholder="Search tasks by name..."
-                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Search tasks by name…"
+                    disabled={!!convTopic.trim() && !selectedNewTask}
+                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   {loadingTasks && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />}
                 </div>
 
                 {taskOptions.length > 0 && !selectedNewTask && (
-                  <div className="mt-1 border rounded-lg overflow-hidden bg-background shadow-sm max-h-[340px] overflow-y-auto">
+                  <div className="mt-1 border rounded-lg overflow-hidden bg-background shadow-sm max-h-[260px] overflow-y-auto">
                     {taskOptions.map(task => (
                       <button
                         key={task.id}
-                        onClick={() => { setSelectedNewTask(task); setTaskSearch(task.title); setTaskOptions([]); }}
+                        onClick={() => { setSelectedNewTask(task); setTaskSearch(task.title); setTaskOptions([]); setConvTopic(''); }}
                         className="w-full text-left px-3 py-2.5 hover:bg-muted/60 transition-colors border-b last:border-0"
                       >
                         <div className="flex items-start gap-2">
@@ -606,35 +684,13 @@ export default function ConversationsPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-semibold truncate">{task.title}</span>
-                              <span className={`shrink-0 px-1.5 py-0 rounded text-[10px] font-medium ${taskStatusStyle(task.status)}`}>
-                                {task.status}
-                              </span>
+                              <span className={`shrink-0 px-1.5 py-0 rounded text-[10px] font-medium ${taskStatusStyle(task.status)}`}>{task.status}</span>
                             </div>
                             <div className="flex items-center gap-2.5 mt-0.5 flex-wrap text-[11px]">
-                              {task.project && (
-                                <span className="text-blue-500 font-medium">{task.project.projectNumber}</span>
-                              )}
-                              {task.building && (
-                                <span className="text-muted-foreground flex items-center gap-0.5">
-                                  <Building2 className="size-2.5" />
-                                  {task.building.name || task.building.designation}
-                                </span>
-                              )}
-                              {task.mainActivity && (
-                                <span className="text-violet-500">{task.mainActivity}</span>
-                              )}
-                              {task.assignedTo && (
-                                <span className="text-muted-foreground flex items-center gap-0.5">
-                                  <Users className="size-2.5" />
-                                  {task.assignedTo.name}
-                                </span>
-                              )}
-                              {task.dueDate && (
-                                <span className={`flex items-center gap-0.5 ${dueDateStyle(task.dueDate)}`}>
-                                  <Calendar className="size-2.5" />
-                                  {new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                                </span>
-                              )}
+                              {task.project && <span className="text-blue-500 font-medium">{task.project.projectNumber}</span>}
+                              {task.building && <span className="text-muted-foreground flex items-center gap-0.5"><Building2 className="size-2.5" />{task.building.name || task.building.designation}</span>}
+                              {task.assignedTo && <span className="text-muted-foreground flex items-center gap-0.5"><Users className="size-2.5" />{task.assignedTo.name}</span>}
+                              {task.dueDate && <span className={`flex items-center gap-0.5 ${dueDateStyle(task.dueDate)}`}><Calendar className="size-2.5" />{new Date(task.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
                             </div>
                           </div>
                         </div>
@@ -650,19 +706,12 @@ export default function ConversationsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold truncate">{selectedNewTask.title}</span>
-                          <span className={`px-1.5 py-0 rounded text-[10px] font-medium ${taskStatusStyle(selectedNewTask.status)}`}>
-                            {selectedNewTask.status}
-                          </span>
+                          <span className={`px-1.5 py-0 rounded text-[10px] font-medium ${taskStatusStyle(selectedNewTask.status)}`}>{selectedNewTask.status}</span>
                         </div>
                         <div className="flex items-center gap-2.5 mt-0.5 flex-wrap text-[11px]">
                           {selectedNewTask.project && <span className="text-blue-500 font-medium">{selectedNewTask.project.projectNumber}</span>}
                           {selectedNewTask.building && <span className="text-muted-foreground">{selectedNewTask.building.name || selectedNewTask.building.designation}</span>}
                           {selectedNewTask.assignedTo && <span className="text-muted-foreground">→ {selectedNewTask.assignedTo.name}</span>}
-                          {selectedNewTask.dueDate && (
-                            <span className={dueDateStyle(selectedNewTask.dueDate)}>
-                              Due {new Date(selectedNewTask.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                            </span>
-                          )}
                         </div>
                       </div>
                       <button onClick={() => { setSelectedNewTask(null); setTaskSearch(''); setFocusLoaded(false); }} className="shrink-0 mt-0.5">
@@ -673,27 +722,77 @@ export default function ConversationsPage() {
                 )}
               </div>
 
-              {/* First message */}
-              {selectedNewTask && (
+              {/* Invitees */}
+              {(selectedNewTask || convTopic.trim()) && (
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Your message</label>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wide">Invite people (optional)</label>
+                  {newConvInvitees.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {newConvInvitees.map(u => (
+                        <span key={u.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                          {u.name}
+                          <button onClick={() => setNewConvInvitees(prev => prev.filter(i => i.id !== u.id))} className="hover:text-destructive ml-0.5">
+                            <X className="size-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="relative">
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={newConvInviteeSearch}
+                      onChange={e => setNewConvInviteeSearch(e.target.value)}
+                      placeholder="Search and add people…"
+                      className="w-full pl-8 pr-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    {searchingNewInvitees && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 animate-spin text-muted-foreground" />}
+                  </div>
+                  {newConvInviteeResults.length > 0 && (
+                    <div className="mt-1 border rounded-lg overflow-hidden bg-background shadow-sm">
+                      {newConvInviteeResults.map(u => (
+                        <button
+                          key={u.id}
+                          onClick={() => { setNewConvInvitees(prev => [...prev, u]); setNewConvInviteeSearch(''); setNewConvInviteeResults([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors border-b last:border-0 flex items-center gap-2.5"
+                        >
+                          <div className="size-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{u.name}</p>
+                            {u.position && <p className="text-[11px] text-muted-foreground truncate">{u.position}</p>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* First message */}
+              {(selectedNewTask || convTopic.trim()) && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wide">Your message</label>
                   <textarea
                     value={firstMessage}
                     onChange={e => setFirstMessage(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStartNewConversation(); } }}
-                    placeholder="Type your message..."
+                    placeholder="Type your first message…"
                     rows={3}
                     className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                    autoFocus
+                    autoFocus={!!selectedNewTask || !!convTopic.trim()}
                   />
                   <Button
                     size="sm"
                     onClick={handleStartNewConversation}
                     disabled={!firstMessage.trim() || startingSend}
-                    className="mt-2"
+                    className="mt-2 w-full"
                   >
-                    {startingSend ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Send className="size-3.5 mr-1" />}
+                    {startingSend ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Send className="size-3.5 mr-1.5" />}
                     Start Conversation
+                    {newConvInvitees.length > 0 && ` · ${newConvInvitees.length} invited`}
                   </Button>
                 </div>
               )}

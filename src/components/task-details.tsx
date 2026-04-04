@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock, MessageCircle, Send, UserPlus, X, AtSign, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock, MessageCircle, Send, UserPlus, X, AtSign, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { EntityTimeline } from '@/components/events/EntityTimeline';
 import {
   DropdownMenu,
@@ -130,6 +130,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [showInvite, setShowInvite] = useState(false);
   const [allUsers, setAllUsers] = useState<{ id: string; name: string; position: string | null }[]>([]);
   const [inviting, setInviting] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState('');
   const convEndRef = useRef<HTMLDivElement>(null);
   const convTextareaRef = useRef<HTMLTextAreaElement>(null);
   const convFileInputRef = useRef<HTMLInputElement>(null);
@@ -1247,18 +1248,37 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
               <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium">Add to conversation</p>
-                  <button onClick={() => setShowInvite(false)}><X className="size-3.5 text-muted-foreground" /></button>
+                  <button onClick={() => { setShowInvite(false); setInviteSearch(''); }}><X className="size-3.5 text-muted-foreground" /></button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-32 overflow-y-auto">
-                  {allUsers.filter(u => !convParticipants.some(p => p.user.id === u.id)).map(u => (
-                    <button key={u.id} onClick={() => handleInviteParticipant(u.id)} disabled={inviting}
-                      className="text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors flex items-center gap-1.5">
-                      <div className="size-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
-                        {u.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-medium truncate">{u.name}</span>
-                    </button>
-                  ))}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={inviteSearch}
+                    onChange={e => setInviteSearch(e.target.value)}
+                    placeholder="Search people..."
+                    autoFocus
+                    className="w-full pl-7 pr-3 py-1.5 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-40 overflow-y-auto">
+                  {allUsers
+                    .filter(u =>
+                      !convParticipants.some(p => p.user.id === u.id) &&
+                      (inviteSearch.trim() === '' || u.name.toLowerCase().includes(inviteSearch.toLowerCase()))
+                    )
+                    .map(u => (
+                      <button key={u.id} onClick={() => handleInviteParticipant(u.id)} disabled={inviting}
+                        className="text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors flex items-center gap-1.5">
+                        <div className="size-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-medium truncate block">{u.name}</span>
+                          {u.position && <span className="text-[10px] text-muted-foreground truncate block">{u.position}</span>}
+                        </div>
+                      </button>
+                    ))}
                 </div>
               </div>
             )}

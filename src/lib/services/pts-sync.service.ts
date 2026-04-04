@@ -651,6 +651,21 @@ class PTSSyncService {
     const skippedItems: SkippedItem[] = [];
     const syncedItems: SyncedItem[] = [];
 
+    // Pre-load all existing PTS production logs to eliminate N+1 DB queries during the loop
+    const existingPtsLogs = await prisma.productionLog.findMany({
+      where: { source: 'PTS', externalRef: { not: null } },
+      select: { id: true, externalRef: true, assemblyPartId: true, processType: true, processedQty: true },
+    });
+    // Map externalRef → existing log record (for update vs create decision)
+    const logByRef = new Map<string, { id: string; assemblyPartId: string; processType: string; processedQty: number }>();
+    existingPtsLogs.forEach(l => { if (l.externalRef) logByRef.set(l.externalRef, l); });
+    // Map "assemblyPartId::processType" → total already-processed qty (for remainingQty calculation)
+    const processedQtyByKey = new Map<string, number>();
+    existingPtsLogs.forEach(l => {
+      const key = `${l.assemblyPartId}::${l.processType}`;
+      processedQtyByKey.set(key, (processedQtyByKey.get(key) ?? 0) + l.processedQty);
+    });
+
     // Process in batches
     const BATCH_SIZE = 100;
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
@@ -716,10 +731,8 @@ class PTSSyncService {
           // Generate external reference for UPSERT
           const externalRef = `PTS-${rowNum}-${partNumber}-${processType}`;
 
-          // Check if log exists by external ref
-          const existingByRef = await prisma.productionLog.findFirst({
-            where: { externalRef, source: 'PTS' },
-          });
+          // Check if log exists using pre-loaded map (no DB query per row)
+          const existingByRef = logByRef.get(externalRef);
 
           if (existingByRef) {
             // Update existing
@@ -744,12 +757,9 @@ class PTSSyncService {
               type: 'log',
             });
           } else {
-            // Calculate remaining qty
-            const existingLogs = await prisma.productionLog.findMany({
-              where: { assemblyPartId: part.id, processType },
-              select: { processedQty: true },
-            });
-            const alreadyProcessed = existingLogs.reduce((sum, log) => sum + log.processedQty, 0);
+            // Use pre-loaded qty map instead of a per-row DB query
+            const qtyKey = `${part.id}::${processType}`;
+            const alreadyProcessed = processedQtyByKey.get(qtyKey) ?? 0;
             const remainingQty = Math.max(0, part.quantity - alreadyProcessed - processedQty);
 
             // Create new log
@@ -770,6 +780,8 @@ class PTSSyncService {
                 externalRef,
               },
             });
+            // Keep in-memory map current so subsequent rows for same part/type are correct
+            processedQtyByKey.set(qtyKey, alreadyProcessed + processedQty);
             created++;
             syncedItems.push({
               partDesignation: partNumber,

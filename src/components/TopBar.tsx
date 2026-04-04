@@ -33,7 +33,10 @@ export default function TopBar() {
         delete (window as any).__sessionActivityTracker;
       }
 
+      // Preserve bookmarks across logout — they're user-device preferences, not session data
+      const savedBookmarks = localStorage.getItem('ots_bookmarks');
       localStorage.clear();
+      if (savedBookmarks) localStorage.setItem('ots_bookmarks', savedBookmarks);
       sessionStorage.clear();
 
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
