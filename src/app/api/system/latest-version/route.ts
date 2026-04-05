@@ -7,28 +7,26 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '💬 Standalone Conversations, File Download Fix, Notification Links & Share',
+  mainTitle: '🔍 Conversation Search, Unread Indicators & Mobile File Fix',
   highlights: [
-    'Standalone conversations are now a proper independent module — no phantom tasks created behind the scenes',
-    'Excel (.xlsx) and other non-image files now download correctly on mobile — no more .xlsx.html extension issue',
-    'Conversation notification clicks now open the Conversations page directly at the right thread',
-    'Share button in conversation header — copy link to clipboard or open in WhatsApp',
+    'Search bar in the conversation list — filter by title, topic, participant name, or message content instantly',
+    'Unread indicator — orange dot and bold text mark conversations with new messages you haven\'t read yet',
+    'Conversations auto-mark as read when you open them',
+    'File attachments now open in a new tab on mobile so you can close the tab and return to OTS',
   ],
   changes: {
     added: [
-      'New Conversation model (conversations, conversation_messages, conversation_participants tables) — standalone conversations no longer depend on the Task model',
-      'New API routes: POST/GET /api/conversations/[id]/messages, PATCH /api/conversations/[id]/messages/[messageId], GET/POST/DELETE /api/conversations/[id]/participants',
-      'GET /api/file/[...path] — serves uploads with explicit Content-Type + Content-Disposition headers to fix mobile download extension issue',
-      'Share button (clipboard copy + WhatsApp) in conversation header for both task-linked and standalone conversations',
+      'Search input in the conversation list sidebar — real-time client-side filtering',
+      'lastReadAt field on conversation participants (both task and standalone)',
+      'PATCH /api/conversations/[id]/read and PATCH /api/tasks/[id]/conversation/read — mark-as-read endpoints',
+      'hasUnread flag in GET /api/conversations response',
     ],
     fixed: [
-      '.xlsx (and other document) attachments downloaded as .xlsx.html on mobile — now served through /api/file/ which sets correct headers',
-      'Conversation notification clicks navigated to Dashboard — now routes to /conversations?taskId=... or /conversations?id=... correctly',
-      'Standalone conversations created a "Discussion" Task as a container — now use the dedicated Conversation model',
+      'Non-image attachments now open with target="_blank" so mobile users can close tab and return to OTS',
+      'Message input placeholder crashed for standalone conversations — now uses correct topic field',
     ],
     changed: [
-      'Conversation list now shows both task-linked conversations and standalone discussions in one feed',
-      'Standalone conversations shown with chat bubble icon in the list; task conversations retain the task initial',
+      'Unread conversations highlighted with orange dot, bold title, and orange timestamp',
     ],
   },
 };

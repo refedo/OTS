@@ -664,13 +664,14 @@ model TaskMessage {
 }
 
 model TaskConversationParticipant {
-  taskId      String   @db.Char(36)
-  userId      String   @db.Char(36)
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user        User     @relation("TaskConversationParticipants", fields: [userId], references: [id])
-  invitedById String?  @db.Char(36)
-  invitedBy   User?    @relation("TaskConversationInvites", fields: [invitedById], references: [id])
-  joinedAt    DateTime @default(now())
+  taskId      String    @db.Char(36)
+  userId      String    @db.Char(36)
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User      @relation("TaskConversationParticipants", fields: [userId], references: [id])
+  invitedById String?   @db.Char(36)
+  invitedBy   User?     @relation("TaskConversationInvites", fields: [invitedById], references: [id])
+  joinedAt    DateTime  @default(now())
+  lastReadAt  DateTime?
 
   @@id([taskId, userId])
   @@map("task_conversation_participants")
@@ -718,6 +719,7 @@ model ConversationParticipant {
   invitedById    String?      @db.Char(36)
   invitedBy      User?        @relation("ConvInviter", fields: [invitedById], references: [id])
   joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime?
 
   @@id([conversationId, userId])
   @@map("conversation_participants")

@@ -23,10 +23,39 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.14.0',
+    version: '17.15.0',
     date: 'April 5, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Conversation Search, Unread Indicators & Mobile File Fix',
+    highlights: [
+      'Search bar in the conversation list — filter by title, topic, participant name, or message content',
+      'Unread conversation indicator — orange dot and bold text mark conversations with new messages since your last visit',
+      'Mark-as-read on open — conversations are automatically marked as read when you open them',
+      'Non-image file attachments now open in a new tab on mobile, so you can close the tab and return to the app',
+    ],
+    changes: {
+      added: [
+        'Search input in the conversation list sidebar — client-side filtering across title, topic, participants, and last message',
+        'lastReadAt field on TaskConversationParticipant and ConversationParticipant — tracks when each user last read a conversation',
+        'PATCH /api/conversations/[id]/read and PATCH /api/tasks/[id]/conversation/read endpoints — mark conversation as read for the current user',
+        'hasUnread flag in GET /api/conversations response — computed by comparing lastMessage.createdAt vs lastReadAt',
+      ],
+      fixed: [
+        'Non-image file attachments (xlsx, docx, pdf) now open with target="_blank" so mobile users can close the tab and return to OTS',
+        'Message input placeholder crashed for standalone conversations (used .taskTitle instead of .topic) — now uses correct field based on conversation type',
+      ],
+      changed: [
+        'Unread conversations shown with orange dot, bold title, and highlighted timestamp in the conversation list',
+        'Conversations marked as read optimistically on the client when opened, confirmed server-side via PATCH',
+      ],
+    },
+  },
+  {
+    version: '17.14.0',
+    date: 'April 5, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Standalone Conversations Module, File Download Fix, Notification Links & Share',
     highlights: [
       'Standalone conversations are now a proper independent module — no phantom tasks, dedicated DB tables, full message/participant API',

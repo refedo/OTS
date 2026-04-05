@@ -12,7 +12,7 @@ export const GET = withApiContext(async (req, session) => {
     const [participantTasks, messageTasks, standaloneConvs] = await Promise.all([
       prisma.taskConversationParticipant.findMany({
         where: { userId },
-        select: { taskId: true },
+        select: { taskId: true, lastReadAt: true },
       }),
       prisma.taskMessage.findMany({
         where: { userId },
@@ -22,9 +22,13 @@ export const GET = withApiContext(async (req, session) => {
       // Standalone conversations: user is a participant
       prisma.conversationParticipant.findMany({
         where: { userId },
-        select: { conversationId: true },
+        select: { conversationId: true, lastReadAt: true },
       }),
     ]);
+
+    // Build lastReadAt maps keyed by taskId / conversationId
+    const taskLastReadMap = new Map(participantTasks.map(p => [p.taskId, p.lastReadAt]));
+    const convLastReadMap = new Map(standaloneConvs.map(c => [c.conversationId, c.lastReadAt]));
 
     const taskIds = [...new Set([
       ...participantTasks.map(p => p.taskId),
@@ -73,26 +77,38 @@ export const GET = withApiContext(async (req, session) => {
         : Promise.resolve([]),
     ]);
 
-    const taskResults = tasks.map(t => ({
-      type: 'task' as const,
-      taskId: t.id,
-      taskTitle: t.title,
-      taskStatus: t.status,
-      project: t.project,
-      building: t.building,
-      lastMessage: t.messages[0] ?? null,
-      participants: t.conversationParticipants.map(p => p.user),
-      updatedAt: t.messages[0]?.createdAt ?? null,
-    }));
+    const taskResults = tasks.map(t => {
+      const lastMsg = t.messages[0] ?? null;
+      const lastRead = taskLastReadMap.get(t.id) ?? null;
+      const hasUnread = lastMsg !== null && (lastRead === null || new Date(lastMsg.createdAt) > new Date(lastRead));
+      return {
+        type: 'task' as const,
+        taskId: t.id,
+        taskTitle: t.title,
+        taskStatus: t.status,
+        project: t.project,
+        building: t.building,
+        lastMessage: lastMsg,
+        participants: t.conversationParticipants.map(p => p.user),
+        updatedAt: lastMsg?.createdAt ?? null,
+        hasUnread,
+      };
+    });
 
-    const convResults = conversations.map(c => ({
-      type: 'standalone' as const,
-      conversationId: c.id,
-      topic: c.topic,
-      lastMessage: c.messages[0] ?? null,
-      participants: c.participants.map(p => p.user),
-      updatedAt: c.messages[0]?.createdAt ?? null,
-    }));
+    const convResults = conversations.map(c => {
+      const lastMsg = c.messages[0] ?? null;
+      const lastRead = convLastReadMap.get(c.id) ?? null;
+      const hasUnread = lastMsg !== null && (lastRead === null || new Date(lastMsg.createdAt) > new Date(lastRead));
+      return {
+        type: 'standalone' as const,
+        conversationId: c.id,
+        topic: c.topic,
+        lastMessage: lastMsg,
+        participants: c.participants.map(p => p.user),
+        updatedAt: lastMsg?.createdAt ?? null,
+        hasUnread,
+      };
+    });
 
     // Merge and sort by last message time (most recent first)
     const all = [...taskResults, ...convResults].sort((a, b) => {

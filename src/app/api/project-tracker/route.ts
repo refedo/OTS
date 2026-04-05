@@ -477,6 +477,7 @@ async function computeProductionProgress(
     select: {
       processType: true,
       processedQty: true,
+      reportNumber: true,
       assemblyPart: { select: { singlePartWeight: true } },
     },
   });
@@ -503,17 +504,24 @@ async function computeProductionProgress(
   });
 
   let totalPct = 0;
-  for (const p of processes) {
+  // Only average processes that have actual production data
+  const activeProcesses = processes.filter(p => p.processedWeight > 0);
+  for (const p of activeProcesses) {
     totalPct += p.percentage;
   }
-  const pct = Math.round(totalPct / processTypes.length);
+  const pct = activeProcesses.length > 0 ? Math.round(totalPct / activeProcesses.length) : 0;
 
   const dispatchedWeight = processTypes.includes('Dispatched to Customer')
     ? Math.round((weightByProcess.get('Dispatched to Customer') || 0) * 100) / 100
     : 0;
 
+  // Count distinct report numbers for dispatch (each distinct reportNumber = one shipment/delivery)
   const shipmentCount = activityType === 'dispatch'
-    ? logs.filter(l => l.processType === 'Dispatched to Customer').length
+    ? (() => {
+        const dispatchLogs = logs.filter(l => l.processType === 'Dispatched to Customer');
+        const reportNums = new Set(dispatchLogs.map(l => l.reportNumber).filter(Boolean));
+        return reportNums.size > 0 ? reportNums.size : dispatchLogs.length;
+      })()
     : undefined;
 
   const detail: ProductionDetail = {

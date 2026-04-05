@@ -43,6 +43,7 @@ type TaskConversation = {
   lastMessage: { content: string; createdAt: string; user: { id: string; name: string } } | null;
   participants: { id: string; name: string }[];
   updatedAt: string | null;
+  hasUnread: boolean;
 };
 
 type StandaloneConversation = {
@@ -52,6 +53,7 @@ type StandaloneConversation = {
   lastMessage: { content: string; createdAt: string; user: { id: string; name: string } } | null;
   participants: { id: string; name: string }[];
   updatedAt: string | null;
+  hasUnread: boolean;
 };
 
 type Conversation = TaskConversation | StandaloneConversation;
@@ -234,6 +236,9 @@ export default function ConversationsPage() {
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
+  // Conversation search
+  const [convSearch, setConvSearch] = useState('');
+
   // Message editing state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
@@ -245,6 +250,19 @@ export default function ConversationsPage() {
     ? (conversations.find(c => c.type === 'standalone' && c.conversationId === selectedConversationId) as StandaloneConversation | undefined) ?? null
     : null;
   const isStandalone = !!selectedConversationId;
+
+  // Filtered conversation list based on search query
+  const filteredConversations = convSearch.trim()
+    ? conversations.filter(conv => {
+        const q = convSearch.toLowerCase();
+        const title = conv.type === 'task' ? conv.taskTitle : conv.topic;
+        if (title.toLowerCase().includes(q)) return true;
+        if (conv.participants.some(p => p.name.toLowerCase().includes(q))) return true;
+        if (conv.lastMessage?.content.toLowerCase().includes(q)) return true;
+        if (conv.type === 'task' && conv.project?.projectNumber.toLowerCase().includes(q)) return true;
+        return false;
+      })
+    : conversations;
 
   // Load current user ID
   useEffect(() => {
@@ -462,10 +480,21 @@ export default function ConversationsPage() {
     if (conv.type === 'task') {
       setSelectedTaskId(conv.taskId);
       setSelectedConversationId(null);
+      // Mark as read
+      fetch(`/api/tasks/${conv.taskId}/conversation/read`, { method: 'PATCH' }).catch(() => null);
     } else {
       setSelectedConversationId(conv.conversationId);
       setSelectedTaskId(null);
+      // Mark as read
+      fetch(`/api/conversations/${conv.conversationId}/read`, { method: 'PATCH' }).catch(() => null);
     }
+    // Optimistically clear unread in local state
+    setConversations(prev => prev.map(c =>
+      (c.type === 'task' && conv.type === 'task' && c.taskId === conv.taskId) ||
+      (c.type === 'standalone' && conv.type === 'standalone' && c.conversationId === conv.conversationId)
+        ? { ...c, hasUnread: false }
+        : c
+    ));
     setShowPeople(false);
     setUserSearch('');
     setUserResults([]);
@@ -653,23 +682,45 @@ export default function ConversationsPage() {
           </button>
         </div>
 
+        {/* Search bar */}
+        <div className="px-3 py-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={convSearch}
+              onChange={e => setConvSearch(e.target.value)}
+              placeholder="Search conversations…"
+              className="w-full pl-8 pr-7 py-1.5 text-xs border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {convSearch && (
+              <button onClick={() => setConvSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="overflow-y-auto flex-1 py-1">
           {loadingList ? (
             <div className="flex items-center justify-center h-40">
               <Loader2 className="size-5 animate-spin text-primary/40" />
             </div>
-          ) : conversations.length === 0 ? (
+          ) : filteredConversations.length === 0 ? (
             <div className="p-6 text-center">
               <MessageCircle className="size-10 text-primary/15 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">No conversations yet</p>
-              <p className="text-[11px] text-muted-foreground/60 mt-1">Start one with the + button</p>
+              <p className="text-xs text-muted-foreground">
+                {convSearch ? 'No matches found' : 'No conversations yet'}
+              </p>
+              {!convSearch && <p className="text-[11px] text-muted-foreground/60 mt-1">Start one with the + button</p>}
             </div>
           ) : (
-            conversations.map(conv => {
+            filteredConversations.map(conv => {
               const active = conv.type === 'task'
                 ? selectedTaskId === conv.taskId
                 : selectedConversationId === conv.conversationId;
               const displayTitle = conv.type === 'task' ? conv.taskTitle : conv.topic;
+              const showUnread = conv.hasUnread && !active;
               return (
                 <button
                   key={conv.type === 'task' ? conv.taskId : conv.conversationId}
@@ -682,21 +733,29 @@ export default function ConversationsPage() {
                   )}
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className={cn(
-                      'size-8 rounded-xl shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5',
-                      active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary',
-                    )}>
-                      {conv.type === 'standalone'
-                        ? <MessageCircle className="size-4" />
-                        : displayTitle.charAt(0).toUpperCase()}
+                    <div className="relative shrink-0">
+                      <div className={cn(
+                        'size-8 rounded-xl flex items-center justify-center text-[11px] font-bold mt-0.5',
+                        active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary',
+                      )}>
+                        {conv.type === 'standalone'
+                          ? <MessageCircle className="size-4" />
+                          : displayTitle.charAt(0).toUpperCase()}
+                      </div>
+                      {showUnread && (
+                        <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-orange-500 border-2 border-background" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <span className={cn('text-sm truncate font-semibold', active ? 'text-primary-foreground' : '')}>
+                        <span className={cn(
+                          'text-sm truncate',
+                          active ? 'text-primary-foreground font-semibold' : showUnread ? 'font-bold' : 'font-semibold',
+                        )}>
                           {displayTitle}
                         </span>
                         {conv.lastMessage && (
-                          <span className={cn('text-[10px] shrink-0', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                          <span className={cn('text-[10px] shrink-0', active ? 'text-primary-foreground/70' : showUnread ? 'font-semibold text-orange-500' : 'text-muted-foreground')}>
                             {timeAgo(conv.lastMessage.createdAt)}
                           </span>
                         )}
@@ -713,7 +772,7 @@ export default function ConversationsPage() {
                         </span>
                       )}
                       {conv.lastMessage && (
-                        <p className={cn('text-[11px] truncate mt-0.5', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                        <p className={cn('text-[11px] truncate mt-0.5', active ? 'text-primary-foreground/70' : showUnread ? 'text-foreground font-medium' : 'text-muted-foreground')}>
                           <span className="font-medium">{conv.lastMessage.user.name.split(' ')[0]}:</span>{' '}
                           {conv.lastMessage.content}
                         </p>
@@ -1163,6 +1222,7 @@ export default function ConversationsPage() {
                                         </button>
                                       )}
                                       <a href={fileDownloadUrl(att.filePath)} download={att.fileName}
+                                        target="_blank" rel="noopener noreferrer"
                                         title="Download" className="ml-0.5 opacity-70 hover:opacity-100 transition-opacity">
                                         <Download className="size-3" />
                                       </a>
@@ -1268,7 +1328,7 @@ export default function ConversationsPage() {
                       handleSendMessage();
                     }
                   }}
-                  placeholder={`Message #${selectedConv.taskTitle.slice(0, 30)}...`}
+                  placeholder={`Message ${isStandalone ? (selectedConv as StandaloneConversation).topic.slice(0, 30) : '#' + (selectedConv as TaskConversation).taskTitle.slice(0, 30)}...`}
                   rows={2}
                   className="w-full px-3 pt-2.5 pb-1 text-sm bg-transparent focus:outline-none resize-none"
                 />
