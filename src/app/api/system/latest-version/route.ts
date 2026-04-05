@@ -7,42 +7,24 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '📊 Financial UX & Deploy Optimizations',
+  mainTitle: '✏️ Message Editing, LCR Supplier Fix, Shipment Count & Conversation Cleanup',
   highlights: [
-    'Aging Report redesigned — AR/AP toggles, 6 bucket summary cards (Current/1-30/31-60/61-90/90+/Total), color-coded columns matching SOA style',
-    'Statement of Account — Overdue Balance (past-due only) and Total Outstanding (all unpaid) shown separately; Credit Limit card with headroom/over-limit indicator',
-    'Balance Sheet — year selector dropdown (5 years back) alongside custom date input for faster period navigation',
-    'Financial Settings — stale account code detection with amber warnings when stored codes are missing from COA; re-sync guidance',
-    'Backlog attachments — images and PDFs now open inline in the browser (Eye icon); no forced download',
-    'Deploy workflow — conditional npm ci / prisma generate, pm2 reload for zero-downtime, faster build cache',
+    'Edit your own messages within 1 minute of sending — pencil icon appears on hover in both conversations page and task detail panel',
+    'LCR comparison table now shows the correct supplier names: LCR1/LCR2/LCR3 each map to their proper sheet columns',
+    'Project tracker dispatch detail now shows number of shipments alongside shipped weight and percentage',
+    'Standalone conversations no longer create phantom "Discussion" tasks that clutter the task list',
   ],
   changes: {
     added: [
-      {
-        title: 'Aging Report redesign',
-        items: [
-          'AR/AP toggle buttons matching SOA green/red style',
-          '6 bucket summary stat cards: Current (green), 1-30 (yellow), 31-60 (orange), 61-90 (red), 90+ (dark red), Total',
-          'Color-coded table columns per aging bucket',
-          'Invoice-level expand rows with overdue days in red/green',
-          'Mobile-responsive: mid-range bucket columns hidden on small screens',
-        ],
-      },
-      'Statement of Account — Credit Limit card showing outstanding_limit from Dolibarr; over-limit shown in red, headroom in green',
-      'Balance Sheet — year selector (5 years back) sets as_of_date to Dec 31 of selected year',
-      'Financial Settings — per-field stale code badges and summary warning banner with re-sync guidance',
-      'DB migration add_is_locked_journal_entries.sql — fixes Manual Journal Entries on legacy production databases',
+      'Message editing: PATCH /api/tasks/[id]/messages/[messageId] — author-only, within 1 minute, shows "(edited)" label after save',
+      'Shipment count in project tracker dispatch popup — shows how many dispatch log entries exist per building',
+      'lcr1 supplier name field added to LcrEntry schema — LCR sync now reads supplier name from the correct sheet column (col 24)',
     ],
     fixed: [
-      'Manual Journal Entries not saving on production — is_locked column was missing from fin_journal_entries on databases predating the column addition',
-      'SOA Outstanding showing same number as Overdue — SOA lines now carry dateDue; Overdue Balance (past-due) and Total Outstanding (all unpaid) are now separate',
-      'Backlog attachments forced download — images and PDFs now served inline (Content-Disposition: inline) and open in new tab',
+      'LCR comparison table had column mapping offset: what was displayed as LCR2 was actually LCR1, and LCR3 was LCR2 — now correctly mapped',
+      'Standalone conversations were creating a Discussion task behind the scenes — those tasks are now hidden from the task list',
     ],
-    changed: [
-      'Deploy cache key — now keyed only on package-lock.json hash; webpack module cache reused across code-only commits (~30-40% faster builds)',
-      'Deploy npm ci — now conditional on package.json hash change; prisma generate conditional on schema.prisma hash change (saves ~1-2 min per deploy)',
-      'Deploy restart — pm2 reload (zero-downtime hot reload) replaces pm2 stop + pm2 restart',
-    ],
+    changed: [],
   },
 };
 

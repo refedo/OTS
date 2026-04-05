@@ -32,14 +32,14 @@ const COL = {
   TARGET_PRICE: 19,
   MRF_NUMBER: 20,
   RATIO_1TO2_LCR1: 21,
-  LCR1_AMOUNT: 22,
-  PRICE_PER_TON_LCR1: 23,
-  LCR2: 24,
-  LCR2_AMOUNT: 25,
-  PRICE_PER_TON_LCR2: 26,
-  LCR3: 27,
-  LCR3_AMOUNT: 28,
-  PRICE_PER_TON_LCR3: 29,
+  LCR3_AMOUNT: 22,
+  PRICE_PER_TON_LCR3: 23,
+  LCR1: 24,
+  LCR1_AMOUNT: 25,
+  PRICE_PER_TON_LCR1: 26,
+  LCR2: 27,
+  LCR2_AMOUNT: 28,
+  PRICE_PER_TON_LCR2: 29,
   THICKNESS: 30,
 } as const;
 
@@ -112,6 +112,7 @@ interface RawRow {
   targetPrice: Prisma.Decimal | null;
   mrfNumber: string | null;
   ratio1to2Lcr1: Prisma.Decimal | null;
+  lcr1: string | null;
   lcr1Amount: Prisma.Decimal | null;
   lcr1PricePerTon: Prisma.Decimal | null;
   lcr2: string | null;
@@ -147,12 +148,13 @@ function mapRow(cells: string[]): RawRow {
     targetPrice: parseDecimal(cells[COL.TARGET_PRICE]),
     mrfNumber: str(cells[COL.MRF_NUMBER]),
     ratio1to2Lcr1: parseDecimal(cells[COL.RATIO_1TO2_LCR1]),
+    lcr1: str(cells[COL.LCR1]),
     lcr1Amount: parseDecimal(cells[COL.LCR1_AMOUNT]),
     lcr1PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR1]),
     lcr2: str(cells[COL.LCR2]),
     lcr2Amount: parseDecimal(cells[COL.LCR2_AMOUNT]),
     lcr2PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR2]),
-    lcr3: str(cells[COL.LCR3]),
+    lcr3: null,
     lcr3Amount: parseDecimal(cells[COL.LCR3_AMOUNT]),
     lcr3PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR3]),
     thickness: str(cells[COL.THICKNESS]),
@@ -361,6 +363,7 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual'): Promise<LcrSyn
             targetPrice: raw.targetPrice,
             totalLcr1: raw.totalLcr1,
             ratio1to2Lcr1: raw.ratio1to2Lcr1,
+            lcr1: raw.lcr1,
             lcr1Amount: raw.lcr1Amount,
             lcr1PricePerTon: raw.lcr1PricePerTon,
             totalLcr2: raw.totalLcr2,
@@ -417,6 +420,7 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual'): Promise<LcrSyn
             targetPrice: raw.targetPrice,
             totalLcr1: raw.totalLcr1,
             ratio1to2Lcr1: raw.ratio1to2Lcr1,
+            lcr1: raw.lcr1,
             lcr1Amount: raw.lcr1Amount,
             lcr1PricePerTon: raw.lcr1PricePerTon,
             totalLcr2: raw.totalLcr2,

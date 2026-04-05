@@ -76,6 +76,7 @@ interface ProcurementDetail {
 interface ProductionDetail {
   totalWeight: number;
   dispatchedWeight: number;
+  shipmentCount?: number;
   processes: { name: string; processedWeight: number; percentage: number }[];
 }
 
@@ -511,9 +512,14 @@ async function computeProductionProgress(
     ? Math.round((weightByProcess.get('Dispatched to Customer') || 0) * 100) / 100
     : 0;
 
+  const shipmentCount = activityType === 'dispatch'
+    ? logs.filter(l => l.processType === 'Dispatched to Customer').length
+    : undefined;
+
   const detail: ProductionDetail = {
     totalWeight: Math.round(totalWeight * 100) / 100,
     dispatchedWeight,
+    ...(shipmentCount !== undefined && { shipmentCount }),
     processes,
   };
 

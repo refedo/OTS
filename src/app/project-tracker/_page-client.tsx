@@ -54,6 +54,7 @@ interface ProcurementDetail {
 interface ProductionDetail {
   totalWeight: number;
   dispatchedWeight: number;
+  shipmentCount?: number;
   processes: { name: string; processedWeight: number; percentage: number }[];
 }
 
@@ -364,6 +365,14 @@ function DetailPopover({
                   {formatWeight(activity.details.production.dispatchedWeight)}
                 </span>
               </div>
+              {activity.details.production.shipmentCount !== undefined && (
+                <div className="flex items-center justify-between">
+                  <span className={muted}>Shipments</span>
+                  <span className={`tabular-nums font-medium ${activity.details.production.shipmentCount > 0 ? (isDark ? 'text-slate-300' : 'text-slate-700') : muted}`}>
+                    {activity.details.production.shipmentCount}
+                  </span>
+                </div>
+              )}
               {activity.details.production.totalWeight > 0 && (
                 <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
                   <div
