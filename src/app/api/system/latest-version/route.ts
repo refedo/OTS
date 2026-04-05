@@ -7,24 +7,29 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '✏️ Message Editing, LCR Supplier Fix, Shipment Count & Conversation Cleanup',
+  mainTitle: '💬 Standalone Conversations, File Download Fix, Notification Links & Share',
   highlights: [
-    'Edit your own messages within 1 minute of sending — pencil icon appears on hover in both conversations page and task detail panel',
-    'LCR comparison table now shows the correct supplier names: LCR1/LCR2/LCR3 each map to their proper sheet columns',
-    'Project tracker dispatch detail now shows number of shipments alongside shipped weight and percentage',
-    'Standalone conversations no longer create phantom "Discussion" tasks that clutter the task list',
+    'Standalone conversations are now a proper independent module — no phantom tasks created behind the scenes',
+    'Excel (.xlsx) and other non-image files now download correctly on mobile — no more .xlsx.html extension issue',
+    'Conversation notification clicks now open the Conversations page directly at the right thread',
+    'Share button in conversation header — copy link to clipboard or open in WhatsApp',
   ],
   changes: {
     added: [
-      'Message editing: PATCH /api/tasks/[id]/messages/[messageId] — author-only, within 1 minute, shows "(edited)" label after save',
-      'Shipment count in project tracker dispatch popup — shows how many dispatch log entries exist per building',
-      'lcr1 supplier name field added to LcrEntry schema — LCR sync now reads supplier name from the correct sheet column (col 24)',
+      'New Conversation model (conversations, conversation_messages, conversation_participants tables) — standalone conversations no longer depend on the Task model',
+      'New API routes: POST/GET /api/conversations/[id]/messages, PATCH /api/conversations/[id]/messages/[messageId], GET/POST/DELETE /api/conversations/[id]/participants',
+      'GET /api/file/[...path] — serves uploads with explicit Content-Type + Content-Disposition headers to fix mobile download extension issue',
+      'Share button (clipboard copy + WhatsApp) in conversation header for both task-linked and standalone conversations',
     ],
     fixed: [
-      'LCR comparison table had column mapping offset: what was displayed as LCR2 was actually LCR1, and LCR3 was LCR2 — now correctly mapped',
-      'Standalone conversations were creating a Discussion task behind the scenes — those tasks are now hidden from the task list',
+      '.xlsx (and other document) attachments downloaded as .xlsx.html on mobile — now served through /api/file/ which sets correct headers',
+      'Conversation notification clicks navigated to Dashboard — now routes to /conversations?taskId=... or /conversations?id=... correctly',
+      'Standalone conversations created a "Discussion" Task as a container — now use the dedicated Conversation model',
     ],
-    changed: [],
+    changed: [
+      'Conversation list now shows both task-linked conversations and standalone discussions in one feed',
+      'Standalone conversations shown with chat bubble icon in the list; task conversations retain the task initial',
+    ],
   },
 };
 

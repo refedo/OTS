@@ -5,7 +5,7 @@ import { useSessionValidator } from '@/hooks/use-session-validator';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign, Calendar, Paperclip, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Download, ExternalLink, Pencil, Check } from 'lucide-react';
+import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign, Calendar, Paperclip, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Download, ExternalLink, Pencil, Check, Share2, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -19,9 +19,22 @@ function resolveFilePath(path: string): string {
   return path;
 }
 
+// Route file downloads through API to ensure proper Content-Disposition + Content-Type headers.
+// This prevents mobile browsers from appending .html to non-image files.
+function fileDownloadUrl(filePath: string): string {
+  if (!filePath) return filePath;
+  // Convert /uploads/folder/file.ext → /api/file/folder/file.ext
+  const stripped = filePath.startsWith(BASE) ? filePath.slice(BASE.length) : filePath;
+  if (stripped.startsWith('/uploads/')) {
+    return `${BASE}/api/file${stripped.slice('/uploads'.length)}`;
+  }
+  return resolveFilePath(filePath);
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type Conversation = {
+type TaskConversation = {
+  type: 'task';
   taskId: string;
   taskTitle: string;
   taskStatus: string;
@@ -29,7 +42,19 @@ type Conversation = {
   building: { id: string; name: string; designation: string } | null;
   lastMessage: { content: string; createdAt: string; user: { id: string; name: string } } | null;
   participants: { id: string; name: string }[];
+  updatedAt: string | null;
 };
+
+type StandaloneConversation = {
+  type: 'standalone';
+  conversationId: string;
+  topic: string;
+  lastMessage: { content: string; createdAt: string; user: { id: string; name: string } } | null;
+  participants: { id: string; name: string }[];
+  updatedAt: string | null;
+};
+
+type Conversation = TaskConversation | StandaloneConversation;
 
 type MessageAttachment = {
   fileName: string;
@@ -151,8 +176,10 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
-  // Selected conversation state
+  // Selected conversation state (only one of these is set at a time)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [showShareToast, setShowShareToast] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loadingConv, setLoadingConv] = useState(false);
@@ -212,7 +239,12 @@ export default function ConversationsPage() {
   const [editingContent, setEditingContent] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const selectedConv = conversations.find(c => c.taskId === selectedTaskId) ?? null;
+  const selectedConv = selectedTaskId
+    ? (conversations.find(c => c.type === 'task' && c.taskId === selectedTaskId) as TaskConversation | undefined) ?? null
+    : selectedConversationId
+    ? (conversations.find(c => c.type === 'standalone' && c.conversationId === selectedConversationId) as StandaloneConversation | undefined) ?? null
+    : null;
+  const isStandalone = !!selectedConversationId;
 
   // Load current user ID
   useEffect(() => {
@@ -234,27 +266,30 @@ export default function ConversationsPage() {
     return () => clearInterval(interval);
   }, [loadConversations]);
 
-  // Deep-link: open conversation from notification (e.g. ?taskId=xxx)
+  // Deep-link: open conversation from notification (?taskId=xxx or ?id=xxx)
   useEffect(() => {
     const taskId = searchParams.get('taskId');
-    if (taskId && !selectedTaskId) {
+    const convId = searchParams.get('id');
+    if (taskId && !selectedTaskId && !selectedConversationId) {
       setSelectedTaskId(taskId);
+    } else if (convId && !selectedTaskId && !selectedConversationId) {
+      setSelectedConversationId(convId);
     }
-  }, [searchParams, selectedTaskId]);
+  }, [searchParams, selectedTaskId, selectedConversationId]);
 
-  // Load messages for selected conversation
-  const loadMessages = useCallback(async (taskId: string, initial = false) => {
+  // Load messages for selected conversation (task or standalone)
+  const loadMessages = useCallback(async (id: string, standalone: boolean, initial = false) => {
     if (initial) {
       setLoadingConv(true);
       setMessages([]);
       setParticipants([]);
     }
-    const res = await fetch(`/api/tasks/${taskId}/messages`);
+    const url = standalone ? `/api/conversations/${id}/messages` : `/api/tasks/${id}/messages`;
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       setMessages(prev => {
         const incoming: Message[] = data.messages ?? [];
-        // Append only new messages (by id) to avoid scroll-reset on polls
         if (!initial && prev.length > 0) {
           const existingIds = new Set(prev.map(m => m.id));
           const newOnes = incoming.filter(m => !existingIds.has(m.id));
@@ -268,12 +303,13 @@ export default function ConversationsPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedTaskId) return;
-    loadMessages(selectedTaskId, true);
-    // Poll every 5s for near-real-time updates
-    const interval = setInterval(() => loadMessages(selectedTaskId), 5000);
+    if (!selectedTaskId && !selectedConversationId) return;
+    const id = selectedTaskId ?? selectedConversationId!;
+    const standalone = !!selectedConversationId;
+    loadMessages(id, standalone, true);
+    const interval = setInterval(() => loadMessages(id, standalone), 5000);
     return () => clearInterval(interval);
-  }, [selectedTaskId, loadMessages]);
+  }, [selectedTaskId, selectedConversationId, loadMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -357,10 +393,13 @@ export default function ConversationsPage() {
   }, [newConvInviteeSearch, newConvInvitees]);
 
   const handleInviteUser = async (user: UserResult) => {
-    if (!selectedTaskId || addingUserId) return;
+    if ((!selectedTaskId && !selectedConversationId) || addingUserId) return;
     setAddingUserId(user.id);
     try {
-      const res = await fetch(`/api/tasks/${selectedTaskId}/conversation/participants`, {
+      const url = isStandalone
+        ? `/api/conversations/${selectedConversationId}/participants`
+        : `/api/tasks/${selectedTaskId}/conversation/participants`;
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id }),
@@ -375,21 +414,25 @@ export default function ConversationsPage() {
   };
 
   const handleRemoveUser = async (userId: string) => {
-    if (!selectedTaskId || removingUserId) return;
+    if ((!selectedTaskId && !selectedConversationId) || removingUserId) return;
     setRemovingUserId(userId);
     try {
-      const res = await fetch(`/api/tasks/${selectedTaskId}/conversation/participants?userId=${userId}`, {
-        method: 'DELETE',
-      });
+      const url = isStandalone
+        ? `/api/conversations/${selectedConversationId}/participants?userId=${userId}`
+        : `/api/tasks/${selectedTaskId}/conversation/participants?userId=${userId}`;
+      const res = await fetch(url, { method: 'DELETE' });
       if (res.ok) setParticipants(prev => prev.filter(p => p.user.id !== userId));
     } finally { setRemovingUserId(null); }
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedTaskId || !editingMessageId || !editingContent.trim() || savingEdit) return;
+    if (!editingMessageId || !editingContent.trim() || savingEdit) return;
     setSavingEdit(true);
     try {
-      const res = await fetch(`/api/tasks/${selectedTaskId}/messages/${editingMessageId}`, {
+      const url = isStandalone
+        ? `/api/conversations/${selectedConversationId}/messages/${editingMessageId}`
+        : `/api/tasks/${selectedTaskId}/messages/${editingMessageId}`;
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editingContent.trim() }),
@@ -415,13 +458,41 @@ export default function ConversationsPage() {
     setFocusLoaded(false);
   };
 
-  const handleSelectConversation = (taskId: string) => {
-    setSelectedTaskId(taskId);
+  const handleSelectConversation = (conv: Conversation) => {
+    if (conv.type === 'task') {
+      setSelectedTaskId(conv.taskId);
+      setSelectedConversationId(null);
+    } else {
+      setSelectedConversationId(conv.conversationId);
+      setSelectedTaskId(null);
+    }
     setShowPeople(false);
     setUserSearch('');
     setUserResults([]);
     setPendingAttachments([]);
     resetStartNew();
+  };
+
+  const handleShareConversation = () => {
+    const base = window.location.origin + BASE;
+    const url = isStandalone
+      ? `${base}/conversations?id=${selectedConversationId}`
+      : `${base}/conversations?taskId=${selectedTaskId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShowShareToast(true);
+      setTimeout(() => setShowShareToast(false), 2500);
+    });
+  };
+
+  const handleShareWhatsApp = () => {
+    const base = window.location.origin + BASE;
+    const url = isStandalone
+      ? `${base}/conversations?id=${selectedConversationId}`
+      : `${base}/conversations?taskId=${selectedTaskId}`;
+    const title = isStandalone
+      ? (selectedConv as StandaloneConversation)?.topic ?? 'Conversation'
+      : (selectedConv as TaskConversation)?.taskTitle ?? 'Conversation';
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
   };
 
   // File upload with progress tracking
@@ -489,14 +560,17 @@ export default function ConversationsPage() {
 
   const handleSendMessage = async () => {
     const content = newMessage.trim();
-    if (!selectedTaskId || (!content && pendingAttachments.length === 0) || sending) return;
+    if ((!selectedTaskId && !selectedConversationId) || (!content && pendingAttachments.length === 0) || sending) return;
     setNewMessage('');
     setMentionQuery(null);
     const attachmentsToSend = [...pendingAttachments];
     setPendingAttachments([]);
     setSending(true);
     try {
-      const res = await fetch(`/api/tasks/${selectedTaskId}/messages`, {
+      const url = isStandalone
+        ? `/api/conversations/${selectedConversationId}/messages`
+        : `/api/tasks/${selectedTaskId}/messages`;
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, attachments: attachmentsToSend }),
@@ -536,9 +610,15 @@ export default function ConversationsPage() {
         }),
       });
       if (res.ok) {
-        const { taskId } = await res.json();
+        const data = await res.json();
         await loadConversations();
-        setSelectedTaskId(taskId);
+        if (data.type === 'standalone') {
+          setSelectedConversationId(data.conversationId);
+          setSelectedTaskId(null);
+        } else {
+          setSelectedTaskId(data.taskId);
+          setSelectedConversationId(null);
+        }
         resetStartNew();
       }
     } finally {
@@ -565,7 +645,7 @@ export default function ConversationsPage() {
             Conversations
           </h2>
           <button
-            onClick={() => { resetStartNew(); setShowStartNew(true); setSelectedTaskId(null); }}
+            onClick={() => { resetStartNew(); setShowStartNew(true); setSelectedTaskId(null); setSelectedConversationId(null); }}
             className="size-7 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary transition-all hover:scale-110"
             title="Start new conversation"
           >
@@ -586,12 +666,14 @@ export default function ConversationsPage() {
             </div>
           ) : (
             conversations.map(conv => {
-              const active = selectedTaskId === conv.taskId;
-              const initials = conv.lastMessage?.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? '?';
+              const active = conv.type === 'task'
+                ? selectedTaskId === conv.taskId
+                : selectedConversationId === conv.conversationId;
+              const displayTitle = conv.type === 'task' ? conv.taskTitle : conv.topic;
               return (
                 <button
-                  key={conv.taskId}
-                  onClick={() => handleSelectConversation(conv.taskId)}
+                  key={conv.type === 'task' ? conv.taskId : conv.conversationId}
+                  onClick={() => handleSelectConversation(conv)}
                   className={cn(
                     'w-full text-left px-3 py-2.5 mx-1 w-[calc(100%-8px)] rounded-lg transition-all mb-0.5',
                     active
@@ -604,12 +686,14 @@ export default function ConversationsPage() {
                       'size-8 rounded-xl shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5',
                       active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary',
                     )}>
-                      {conv.taskTitle.charAt(0).toUpperCase()}
+                      {conv.type === 'standalone'
+                        ? <MessageCircle className="size-4" />
+                        : displayTitle.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <span className={cn('text-sm truncate font-semibold', active ? 'text-primary-foreground' : '')}>
-                          {conv.taskTitle}
+                          {displayTitle}
                         </span>
                         {conv.lastMessage && (
                           <span className={cn('text-[10px] shrink-0', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
@@ -617,10 +701,15 @@ export default function ConversationsPage() {
                           </span>
                         )}
                       </div>
-                      {conv.project && (
+                      {conv.type === 'task' && conv.project && (
                         <span className={cn('text-[10px] font-medium', active ? 'text-primary-foreground/70' : 'text-primary/70')}>
                           {conv.project.projectNumber}
                           {conv.building ? ` · ${conv.building.designation}` : ''}
+                        </span>
+                      )}
+                      {conv.type === 'standalone' && (
+                        <span className={cn('text-[10px] font-medium', active ? 'text-primary-foreground/70' : 'text-muted-foreground/70')}>
+                          Discussion · {conv.participants.length} people
                         </span>
                       )}
                       {conv.lastMessage && (
@@ -822,28 +911,43 @@ export default function ConversationsPage() {
               )}
             </div>
           </div>
-        ) : selectedTaskId && selectedConv ? (
+        ) : (selectedTaskId || selectedConversationId) && selectedConv ? (
           /* Conversation Thread */
           <div className="flex flex-col h-full">
             {/* Channel header */}
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="size-9 rounded-xl bg-primary/15 text-primary flex items-center justify-center text-sm font-bold shrink-0">
-                  {selectedConv.taskTitle.charAt(0).toUpperCase()}
+                <div className={cn(
+                  'size-9 rounded-xl text-primary flex items-center justify-center text-sm font-bold shrink-0',
+                  isStandalone ? 'bg-primary/10' : 'bg-primary/15',
+                )}>
+                  {isStandalone
+                    ? <MessageCircle className="size-5" />
+                    : (selectedConv as TaskConversation).taskTitle.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-sm truncate">{selectedConv.taskTitle}</h3>
+                  <h3 className="font-bold text-sm truncate">
+                    {isStandalone
+                      ? (selectedConv as StandaloneConversation).topic
+                      : (selectedConv as TaskConversation).taskTitle}
+                  </h3>
                   <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
-                    {selectedConv.project && (
+                    {!isStandalone && (selectedConv as TaskConversation).project && (
                       <span className="flex items-center gap-1 text-primary/80 font-medium">
                         <Briefcase className="size-3" />
-                        {selectedConv.project.projectNumber}
+                        {(selectedConv as TaskConversation).project!.projectNumber}
                       </span>
                     )}
-                    {selectedConv.building && (
+                    {!isStandalone && (selectedConv as TaskConversation).building && (
                       <span className="flex items-center gap-1">
                         <Building2 className="size-3" />
-                        {selectedConv.building.name || selectedConv.building.designation}
+                        {(selectedConv as TaskConversation).building!.name || (selectedConv as TaskConversation).building!.designation}
+                      </span>
+                    )}
+                    {isStandalone && (
+                      <span className="flex items-center gap-1 text-primary/70">
+                        <MessageCircle className="size-3" />
+                        Standalone Discussion
                       </span>
                     )}
                     <span className="flex items-center gap-1">
@@ -854,6 +958,31 @@ export default function ConversationsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {/* Share button */}
+                <div className="relative">
+                  <button
+                    onClick={handleShareConversation}
+                    title="Copy conversation link"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                  >
+                    <Share2 className="size-3.5" />
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+                  {showShareToast && (
+                    <div className="absolute right-0 top-full mt-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-[11px] font-medium whitespace-nowrap shadow-lg z-50">
+                      Link copied!
+                    </div>
+                  )}
+                </div>
+                {/* WhatsApp share */}
+                <button
+                  onClick={handleShareWhatsApp}
+                  title="Share via WhatsApp"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-all"
+                >
+                  <svg className="size-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  <span className="hidden sm:inline">WhatsApp</span>
+                </button>
                 <button
                   onClick={() => setShowPeople(v => !v)}
                   title="Manage participants"
@@ -867,11 +996,13 @@ export default function ConversationsPage() {
                   <Users className="size-3.5" />
                   <span>People</span>
                 </button>
-                <Link href={`/tasks/${selectedTaskId}`}>
-                  <Button variant="outline" size="sm" className="text-xs h-8 border-primary/20 text-primary hover:bg-primary/5">
-                    View Task
-                  </Button>
-                </Link>
+                {!isStandalone && (
+                  <Link href={`/tasks/${selectedTaskId}`}>
+                    <Button variant="outline" size="sm" className="text-xs h-8 border-primary/20 text-primary hover:bg-primary/5">
+                      View Task
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
             {/* Main area: messages + optional people panel */}
@@ -1031,7 +1162,7 @@ export default function ConversationsPage() {
                                           <ExternalLink className="size-3" />
                                         </button>
                                       )}
-                                      <a href={resolvedPath} download={att.fileName}
+                                      <a href={fileDownloadUrl(att.filePath)} download={att.fileName}
                                         title="Download" className="ml-0.5 opacity-70 hover:opacity-100 transition-opacity">
                                         <Download className="size-3" />
                                       </a>

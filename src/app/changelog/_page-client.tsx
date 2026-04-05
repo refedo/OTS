@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.13.0',
+    version: '17.14.0',
     date: 'April 5, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Standalone Conversations Module, File Download Fix, Notification Links & Share',
+    highlights: [
+      'Standalone conversations are now a proper independent module — no phantom tasks, dedicated DB tables, full message/participant API',
+      'Excel, Word, and other documents now download correctly on mobile — /api/file/ endpoint sets proper Content-Type + Content-Disposition headers',
+      'Conversation notification clicks now navigate directly to the right thread in the Conversations page',
+      'Share button in conversation header: copy link to clipboard or send via WhatsApp',
+    ],
+    changes: {
+      added: [
+        'Conversation model + ConversationMessage + ConversationParticipant tables — standalone conversations are fully independent from the Task model',
+        'Full API: POST /api/conversations, GET/POST /api/conversations/[id]/messages, PATCH /api/conversations/[id]/messages/[messageId], GET/POST/DELETE /api/conversations/[id]/participants',
+        'GET /api/file/[...path] — serves uploads with explicit Content-Disposition + Content-Type headers',
+        'Share button (clipboard + WhatsApp) in conversation header, works for both task-linked and standalone conversations',
+      ],
+      fixed: [
+        '.xlsx / .docx attachments appeared as .xlsx.html on mobile — resolved by routing downloads through /api/file/ which sets correct MIME and disposition headers',
+        'Conversation notifications navigated to Dashboard — now correctly opens /conversations?taskId=... or /conversations?id=...',
+        'Standalone conversations previously created a hidden "Discussion" Task — now use dedicated Conversation model',
+      ],
+      changed: [
+        'Conversation list shows task conversations AND standalone discussions together, sorted by last message time',
+        'Standalone conversations displayed with chat bubble icon and "Discussion · N people" subtitle',
+      ],
+    },
+  },
+  {
+    version: '17.13.0',
+    date: 'April 5, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Message Editing, LCR Supplier Fix, Shipment Count & Conversation Cleanup',
     highlights: [
       'Edit your own messages within 1 minute of sending — pencil icon appears on hover in both the conversations page and the task detail conversation panel',

@@ -91,16 +91,37 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
     await markAsReadAndRemove(notification.id);
 
     if (notification.relatedEntityType && notification.relatedEntityId) {
-      const directRoutes: Record<string, (id: string) => string> = {
+      const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+      const directRoutes: Record<string, (id: string, meta?: Record<string, unknown>) => string> = {
         task: (id) => `/tasks/${id}`,
         project: (id) => `/projects?id=${id}`,
         rfi: (id) => `/qc/rfi?id=${id}`,
         ncr: (id) => `/qc/ncr?id=${id}`,
         document: (id) => `/documents?id=${id}`,
+        // task-linked conversation → open conversations page at that task
+        conversation_task: (id) => `/conversations?taskId=${id}`,
+        // standalone conversation → open conversations page with conversationId
+        conversation: (id) => `/conversations?id=${id}`,
       };
+
+      // TASK_MESSAGE with conversation type → route to conversations page
+      if (notification.type === 'TASK_MESSAGE') {
+        const meta = notification.metadata ?? {};
+        if (meta.conversationId) {
+          router.push(`${BASE}/conversations?id=${meta.conversationId}`);
+        } else if (notification.relatedEntityType === 'conversation') {
+          router.push(`${BASE}/conversations?id=${notification.relatedEntityId}`);
+        } else {
+          // task-linked conversation
+          router.push(`${BASE}/conversations?taskId=${notification.relatedEntityId}`);
+        }
+        onClose?.();
+        return;
+      }
+
       const buildUrl = directRoutes[notification.relatedEntityType];
       if (buildUrl) {
-        router.push(buildUrl(notification.relatedEntityId));
+        router.push(`${BASE}${buildUrl(notification.relatedEntityId, notification.metadata)}`);
         onClose?.();
       }
     }
