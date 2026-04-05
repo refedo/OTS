@@ -23,10 +23,30 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.15.1',
+    date: 'April 5, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Fix MySQL Migration Syntax for Production Deploy',
+    highlights: [
+      'Migration SQL rewritten to use MySQL 8-compatible syntax — resolves ERROR 1064 on production',
+      'Fixes LCR data not loading (500 error) and task conversation messages not loading (500 error)',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Migration file used MariaDB-only ADD COLUMN IF NOT EXISTS syntax which is not supported by MySQL 8 — rewritten using a stored procedure that checks information_schema',
+        'LCR API returned 500 because the lcr1 column was never created in the database due to the failed migration',
+        'Task messages API returned 500 because the updatedAt column on task_messages was never created due to the failed migration',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.15.0',
     date: 'April 5, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Conversation Search, Unread Indicators & Mobile File Fix',
     highlights: [
       'Search bar in the conversation list — filter by title, topic, participant name, or message content',
