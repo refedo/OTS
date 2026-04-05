@@ -1,17 +1,46 @@
 -- ============================================================
 -- Pending migrations for v17.13.0 → v17.15.0
 -- Run this file once on production to apply all pending changes.
--- Each ALTER uses IF NOT EXISTS / IF EXISTS where supported,
--- and CREATE TABLE uses IF NOT EXISTS so it is safe to re-run.
+-- Uses MySQL-compatible syntax with stored procedures for
+-- safe re-runs (checks information_schema before adding columns).
 -- ============================================================
 
+-- Helper procedure: add column only if it does not already exist
+DROP PROCEDURE IF EXISTS add_column_if_not_exists;
+DELIMITER $$
+CREATE PROCEDURE add_column_if_not_exists(
+  IN p_table VARCHAR(64),
+  IN p_column VARCHAR(64),
+  IN p_definition TEXT
+)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = p_table
+      AND COLUMN_NAME  = p_column
+  ) THEN
+    SET @ddl = CONCAT('ALTER TABLE `', p_table, '` ADD COLUMN `', p_column, '` ', p_definition);
+    PREPARE stmt FROM @ddl;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+  END IF;
+END$$
+DELIMITER ;
+
 -- 1. Add updatedAt to task_messages (v17.13.0 — message editing)
-ALTER TABLE task_messages
-  ADD COLUMN IF NOT EXISTS updatedAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3);
+CALL add_column_if_not_exists(
+  'task_messages',
+  'updatedAt',
+  'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)'
+);
 
 -- 2. Add lcr1 supplier name column to LcrEntry (v17.13.0 — LCR fix)
-ALTER TABLE LcrEntry
-  ADD COLUMN IF NOT EXISTS lcr1 VARCHAR(255) NULL AFTER ratio1to2Lcr1;
+CALL add_column_if_not_exists(
+  'lcr_entries',
+  'lcr1',
+  'VARCHAR(255) NULL'
+);
 
 -- 3. Standalone conversations tables (v17.14.0)
 CREATE TABLE IF NOT EXISTS conversations (
@@ -53,7 +82,13 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
 );
 
 -- 4. Add lastReadAt to task_conversation_participants (v17.15.0 — unread indicators)
-ALTER TABLE task_conversation_participants
-  ADD COLUMN IF NOT EXISTS lastReadAt DATETIME(3) NULL AFTER joinedAt;
+CALL add_column_if_not_exists(
+  'task_conversation_participants',
+  'lastReadAt',
+  'DATETIME(3) NULL'
+);
+
+-- Cleanup helper procedure
+DROP PROCEDURE IF EXISTS add_column_if_not_exists;
 
 -- Done.
