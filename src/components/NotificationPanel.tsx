@@ -49,6 +49,7 @@ interface NotificationPanelProps {
 const TYPE_FILTERS: Record<string, string> = {
   notifications: 'isArchived=false',
   tasks: 'type=TASK_ASSIGNED&isArchived=false',
+  conversations: 'type=TASK_MESSAGE&isArchived=false',
   approvals: 'type=APPROVAL_REQUIRED&isArchived=false',
 };
 
@@ -271,6 +272,12 @@ export default function NotificationPanel({ onClose }: NotificationPanelProps) {
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-3 py-2 text-xs"
           >
             Tasks
+          </TabsTrigger>
+          <TabsTrigger
+            value="conversations"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent px-3 py-2 text-xs"
+          >
+            Conversations
           </TabsTrigger>
           <TabsTrigger
             value="approvals"

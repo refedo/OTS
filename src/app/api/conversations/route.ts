@@ -9,7 +9,9 @@ export const GET = withApiContext(async (req, session) => {
   const userId = session!.userId;
   try {
     // Task-linked conversations: user is a participant or sent a message
-    const [participantTasks, messageTasks, standaloneConvs] = await Promise.all([
+    // Standalone conversations are fetched separately with a fallback in case
+    // the tables don't exist yet (migration not yet run).
+    const [participantTasks, messageTasks] = await Promise.all([
       prisma.taskConversationParticipant.findMany({
         where: { userId },
         select: { taskId: true, lastReadAt: true },
@@ -19,12 +21,18 @@ export const GET = withApiContext(async (req, session) => {
         select: { taskId: true },
         distinct: ['taskId'],
       }),
-      // Standalone conversations: user is a participant
-      prisma.conversationParticipant.findMany({
+    ]);
+
+    // Standalone conversations — guarded in case migration hasn't run yet
+    let standaloneConvs: { conversationId: string; lastReadAt: Date | null }[] = [];
+    try {
+      standaloneConvs = await prisma.conversationParticipant.findMany({
         where: { userId },
         select: { conversationId: true, lastReadAt: true },
-      }),
-    ]);
+      });
+    } catch {
+      // Table doesn't exist yet — ignore standalone conversations
+    }
 
     // Build lastReadAt maps keyed by taskId / conversationId
     const taskLastReadMap = new Map(participantTasks.map(p => [p.taskId, p.lastReadAt]));
@@ -35,7 +43,15 @@ export const GET = withApiContext(async (req, session) => {
       ...messageTasks.map(m => m.taskId),
     ])];
 
-    const [tasks, conversations] = await Promise.all([
+    // Fetch task conversations and standalone conversations in parallel
+    // The standalone query is guarded against missing tables.
+    let conversations: Array<{
+      id: string; topic: string;
+      messages: Array<{ content: string; createdAt: Date; user: { id: string; name: string } }>;
+      participants: Array<{ user: { id: string; name: string } }>;
+    }> = [];
+
+    const [tasks] = await Promise.all([
       taskIds.length > 0
         ? prisma.task.findMany({
             where: { id: { in: taskIds }, NOT: { mainActivity: 'Discussion' } },
@@ -57,25 +73,31 @@ export const GET = withApiContext(async (req, session) => {
             orderBy: { updatedAt: 'desc' },
           })
         : Promise.resolve([]),
-      standaloneConvs.length > 0
-        ? prisma.conversation.findMany({
-            where: { id: { in: standaloneConvs.map(c => c.conversationId) } },
-            select: {
-              id: true,
-              topic: true,
-              messages: {
-                orderBy: { createdAt: 'desc' },
-                take: 1,
-                select: { content: true, createdAt: true, user: { select: { id: true, name: true } } },
-              },
-              participants: {
-                select: { user: { select: { id: true, name: true } } },
-              },
-            },
-            orderBy: { updatedAt: 'desc' },
-          })
-        : Promise.resolve([]),
     ]);
+
+    // Fetch standalone conversations, guarded in case migration hasn't run yet
+    if (standaloneConvs.length > 0) {
+      try {
+        conversations = await prisma.conversation.findMany({
+          where: { id: { in: standaloneConvs.map(c => c.conversationId) } },
+          select: {
+            id: true,
+            topic: true,
+            messages: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { content: true, createdAt: true, user: { select: { id: true, name: true } } },
+            },
+            participants: {
+              select: { user: { select: { id: true, name: true } } },
+            },
+          },
+          orderBy: { updatedAt: 'desc' },
+        });
+      } catch {
+        // Table doesn't exist yet — skip standalone conversations
+      }
+    }
 
     const taskResults = tasks.map(t => {
       const lastMsg = t.messages[0] ?? null;
