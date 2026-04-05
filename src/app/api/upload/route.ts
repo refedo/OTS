@@ -88,9 +88,10 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(bytes);
     await writeFile(filepath, buffer);
 
-    // Return file info
+    // Return file info — prepend basePath so URLs resolve correctly under /ots subdirectory
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
     const fileInfo = {
-      filePath: `/uploads/${folder}/${filename}`,
+      filePath: `${basePath}/uploads/${folder}/${filename}`,
       fileSize: file.size,
       fileType: file.type,
       originalName: file.name,

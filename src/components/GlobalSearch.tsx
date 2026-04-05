@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type ComponentType, type SVGProps, type KeyboardEvent } from 'react';
 import Link from 'next/link';
-import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package } from 'lucide-react';
+import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package, Building2, Users } from 'lucide-react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,8 @@ interface SearchResults {
   rfis: SearchResult[];
   assemblyParts: SearchResult[];
   lcrEntries: SearchResult[];
+  buildings: SearchResult[];
+  users: SearchResult[];
 }
 
 const CATEGORY_META: Record<
@@ -46,6 +48,8 @@ const CATEGORY_META: Record<
   rfis: { label: 'RFIs', icon: FileSearch, color: 'text-sky-500' },
   assemblyParts: { label: 'Assembly Marks', icon: Wrench, color: 'text-teal-500' },
   lcrEntries: { label: 'LCR Items', icon: Package, color: 'text-indigo-500' },
+  buildings: { label: 'Buildings', icon: Building2, color: 'text-cyan-500' },
+  users: { label: 'People', icon: Users, color: 'text-violet-500' },
 };
 
 const EMPTY_RESULTS: SearchResults = {
@@ -58,6 +62,8 @@ const EMPTY_RESULTS: SearchResults = {
   rfis: [],
   assemblyParts: [],
   lcrEntries: [],
+  buildings: [],
+  users: [],
 };
 
 function statusBadgeVariant(badge: string): 'default' | 'secondary' | 'destructive' | 'outline' {

@@ -82,8 +82,8 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Executive Command Center', href: '/executive', icon: Crown },
-  { name: '⚡ Early Warning', href: '/risk-dashboard', icon: Zap },
+  { name: 'CEO Dashboard', href: '/executive', icon: Crown },
+  { name: 'Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
@@ -119,8 +119,6 @@ const navigationSections: NavigationSection[] = [
     icon: Bell,
     items: [
       { name: 'All Notifications', href: '/notifications', icon: Bell },
-      { name: 'System Events', href: '/events', icon: Activity },
-      { name: 'Governance Center', href: '/governance', icon: Shield },
       { name: 'Delayed Tasks', href: '/notifications?tab=delayed-tasks', icon: AlertTriangle },
       { name: 'Approvals', href: '/notifications?tab=approvals', icon: CheckCircle },
       { name: 'Deadlines', href: '/notifications?tab=deadlines', icon: Clock },
@@ -281,21 +279,16 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    name: 'Integrations',
-    icon: Plug,
-    items: [
-      { name: 'Integration Settings', href: '/settings/integrations', icon: Plug },
-      { name: 'Libre MES Dashboard', href: '/settings/integrations#libre-mes', icon: Factory },
-      { name: 'Nextcloud Files', href: '/settings/integrations#nextcloud', icon: Cloud },
-      { name: 'open-audit Log', href: '/governance?tab=open-audit', icon: Shield },
-      { name: 'Event Bus', href: '/settings/integrations#event-bus', icon: Zap },
-    ],
-  },
-  {
     name: 'Settings',
     icon: Settings,
     items: [
       { name: 'Settings', href: '/settings', icon: Settings },
+      { name: 'Integrations', href: '/settings/integrations', icon: Plug },
+      { name: 'Libre MES', href: '/settings/integrations#libre-mes', icon: Factory },
+      { name: 'Nextcloud Files', href: '/settings/integrations#nextcloud', icon: Cloud },
+      { name: 'Event Bus', href: '/settings/integrations#event-bus', icon: Zap },
+      { name: 'System Events', href: '/events', icon: Activity },
+      { name: 'Governance Center', href: '/governance', icon: Shield },
       { name: 'Sidebar Order', href: '/settings/sidebar', icon: Settings },
       { name: 'Backup Management', href: '/settings/backups', icon: Database },
       { name: 'Cron Jobs', href: '/settings/cron-jobs', icon: Clock },
@@ -311,13 +304,13 @@ export function AppSidebar() {
   const searchParams = useSearchParams();
   const { collapsed, setCollapsed } = useSidebar();
   const [isMounted, setIsMounted] = useState(false);
-  const { permissions: userPermissions, role: userRole, isLoading: isLoadingPermissions } = usePermissions();
+  const { permissions: userPermissions, navPermissions, role: userRole, isLoading: isLoadingPermissions } = usePermissions();
   const [riskCount, setRiskCount] = useState(0);
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const [singleOrder, setSingleOrder] = useState<string[]>([]);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
-  const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount } = useNotifications();
+  const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount, taskMessageCount } = useNotifications();
   const { version } = useVersion();
   
   // Check if a nav item is active, respecting query-param-based hrefs
@@ -516,7 +509,7 @@ export function AppSidebar() {
                 ]
               : singleNavigation
             ).filter(item =>
-              isLoadingPermissions ? item.href === '/dashboard' : hasAccessToRoute(userPermissions, item.href)
+              isLoadingPermissions ? item.href === '/dashboard' : hasAccessToRoute(navPermissions, item.href)
             ).map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -576,7 +569,7 @@ export function AppSidebar() {
             ).filter(section =>
               isLoadingPermissions 
                 ? section.name === 'Settings' 
-                : hasAccessToSection(userPermissions, section.items.map(item => item.href))
+                : hasAccessToSection(navPermissions, section.items.map(item => item.href))
             ).map((section) => {
               const SectionIcon = section.icon;
               const isExpanded = expandedSections.includes(section.name);
@@ -645,7 +638,7 @@ export function AppSidebar() {
                       {section.items.filter(item => 
                         isLoadingPermissions 
                           ? NAVIGATION_PERMISSIONS[item.href] === null 
-                          : hasAccessToRoute(userPermissions, item.href)
+                          : hasAccessToRoute(navPermissions, item.href)
                       ).map((item) => {
                         const ItemIcon = item.icon;
                         const isActive = isNavItemActive(item.href);
@@ -660,6 +653,8 @@ export function AppSidebar() {
                           } else if (item.name === 'All Notifications') {
                             badgeCount = unreadCount;
                           }
+                        } else if (item.href === '/conversations') {
+                          badgeCount = taskMessageCount;
                         }
 
                         return (

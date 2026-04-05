@@ -225,6 +225,16 @@ export async function POST(
       },
     });
 
+    // Auto-create default "Steel" scope of work
+    await prisma.scopeOfWork.create({
+      data: {
+        projectId,
+        buildingId: building.id,
+        scopeType: 'steel',
+        scopeLabel: 'Steel',
+      },
+    });
+
     return NextResponse.json(building, { status: 201 });
   } catch (error) {
     console.error('Error creating building:', error);

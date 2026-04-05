@@ -622,7 +622,9 @@ export default function AssemblyPartsPage() {
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <Package className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{part.partDesignation}</span>
+                        <Link href={`/production/assembly-parts/${part.id}`} className="font-medium text-primary hover:underline">
+                          {part.partDesignation}
+                        </Link>
                       </div>
                     </td>
                     <td className="p-3 text-sm">{part.name}</td>
@@ -678,7 +680,9 @@ export default function AssemblyPartsPage() {
                         <div className="flex items-center gap-3 mb-2">
                           <Package className="h-5 w-5 text-muted-foreground" />
                           <CardTitle className="text-lg">
-                            {part.partDesignation}
+                            <Link href={`/production/assembly-parts/${part.id}`} className="text-primary hover:underline">
+                              {part.partDesignation}
+                            </Link>
                           </CardTitle>
                           {getSourceBadge(part.source)}
                           <div

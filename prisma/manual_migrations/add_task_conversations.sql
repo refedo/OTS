@@ -3,6 +3,8 @@
 -- Date: 2026-04-03
 -- Description: Adds task_messages and task_conversation_participants tables for the Task Conversations feature.
 --              Also adds TASK_MESSAGE to the NotificationType enum.
+-- NOTE: If tables already exist, CREATE TABLE IF NOT EXISTS will skip silently.
+--       The ALTER TABLE for notes column will error if already present — safe to ignore.
 
 CREATE TABLE IF NOT EXISTS `task_messages` (
   `id` CHAR(36) NOT NULL,
@@ -30,10 +32,12 @@ CREATE TABLE IF NOT EXISTS `task_conversation_participants` (
 
 -- Add TASK_MESSAGE to NotificationType enum
 -- MySQL ENUM alteration requires all existing values to be listed.
-ALTER TABLE `Notification` MODIFY COLUMN `type` ENUM(
+-- Table name is `notifications` (Prisma model Notification has @@map("notifications"))
+ALTER TABLE `notifications` MODIFY COLUMN `type` ENUM(
   'TASK_ASSIGNED','TASK_COMPLETED','APPROVAL_REQUIRED','DEADLINE_WARNING',
   'APPROVED','REJECTED','SYSTEM','TASK_MESSAGE'
 ) NOT NULL;
 
 -- Add notes column to ProductBacklogItem (v17.5.1)
-ALTER TABLE `ProductBacklogItem` ADD COLUMN IF NOT EXISTS `notes` JSON NULL;
+-- Will error with "Duplicate column name" if already present — safe to ignore.
+ALTER TABLE `ProductBacklogItem` ADD COLUMN `notes` JSON NULL;

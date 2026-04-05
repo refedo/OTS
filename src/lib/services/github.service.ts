@@ -174,6 +174,21 @@ export async function createGitHubIssue(token: string, repo: string, item: GitHu
   }
 
   const data = await res.json() as { number: number; html_url: string };
+
+  // If item is already completed or dropped, immediately close the newly created issue
+  if (['COMPLETED', 'DROPPED'].includes(item.status)) {
+    await fetch(`${GITHUB_API}/repos/${owner}/${repoName}/issues/${data.number}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      body: JSON.stringify({ state: 'closed' }),
+    });
+  }
+
   return { issueNumber: data.number, issueUrl: data.html_url };
 }
 
