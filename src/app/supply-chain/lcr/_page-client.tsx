@@ -58,6 +58,7 @@ interface LcrEntry {
   targetPrice: number | null;
   totalLcr1: number | null;
   ratio1to2Lcr1: number | null;
+  lcr1: string | null;
   lcr1Amount: number | null;
   lcr1PricePerTon: number | null;
   totalLcr2: number | null;
@@ -680,15 +681,21 @@ export default function LcrPage() {
                       <tbody>
                         <tr className="border-b bg-green-50/50 dark:bg-green-900/10">
                           <td className="px-3 py-2 font-medium text-green-700 dark:text-green-400">LCR 1 ★</td>
-                          <td className="px-3 py-2">{selectedEntry.lcr2 ?? selectedEntry.awardedToRaw ?? '—'}</td>
-                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr2Amount)}</td>
-                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr2PricePerTon)}</td>
+                          <td className="px-3 py-2">{selectedEntry.lcr1 ?? selectedEntry.awardedToRaw ?? '—'}</td>
+                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr1Amount)}</td>
+                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr1PricePerTon)}</td>
                         </tr>
                         <tr className="border-b">
                           <td className="px-3 py-2 font-medium">LCR 2</td>
-                          <td className="px-3 py-2">{selectedEntry.lcr3 ?? '—'}</td>
-                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr3Amount)}</td>
-                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr3PricePerTon)}</td>
+                          <td className="px-3 py-2">{selectedEntry.lcr2 ?? '—'}</td>
+                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr2Amount)}</td>
+                          <td className="px-3 py-2 text-right">{formatSAR(selectedEntry.lcr2PricePerTon)}</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2 font-medium text-muted-foreground">LCR 3</td>
+                          <td className="px-3 py-2 text-muted-foreground">—</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr3Amount)}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr3PricePerTon)}</td>
                         </tr>
                         <tr>
                           <td className="px-3 py-2 font-medium text-muted-foreground">LCR 3</td>

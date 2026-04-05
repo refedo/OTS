@@ -23,10 +23,94 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.15.0',
+    date: 'April 5, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Conversation Search, Unread Indicators & Mobile File Fix',
+    highlights: [
+      'Search bar in the conversation list — filter by title, topic, participant name, or message content',
+      'Unread conversation indicator — orange dot and bold text mark conversations with new messages since your last visit',
+      'Mark-as-read on open — conversations are automatically marked as read when you open them',
+      'Non-image file attachments now open in a new tab on mobile, so you can close the tab and return to the app',
+    ],
+    changes: {
+      added: [
+        'Search input in the conversation list sidebar — client-side filtering across title, topic, participants, and last message',
+        'lastReadAt field on TaskConversationParticipant and ConversationParticipant — tracks when each user last read a conversation',
+        'PATCH /api/conversations/[id]/read and PATCH /api/tasks/[id]/conversation/read endpoints — mark conversation as read for the current user',
+        'hasUnread flag in GET /api/conversations response — computed by comparing lastMessage.createdAt vs lastReadAt',
+      ],
+      fixed: [
+        'Non-image file attachments (xlsx, docx, pdf) now open with target="_blank" so mobile users can close the tab and return to OTS',
+        'Message input placeholder crashed for standalone conversations (used .taskTitle instead of .topic) — now uses correct field based on conversation type',
+      ],
+      changed: [
+        'Unread conversations shown with orange dot, bold title, and highlighted timestamp in the conversation list',
+        'Conversations marked as read optimistically on the client when opened, confirmed server-side via PATCH',
+      ],
+    },
+  },
+  {
+    version: '17.14.0',
+    date: 'April 5, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Standalone Conversations Module, File Download Fix, Notification Links & Share',
+    highlights: [
+      'Standalone conversations are now a proper independent module — no phantom tasks, dedicated DB tables, full message/participant API',
+      'Excel, Word, and other documents now download correctly on mobile — /api/file/ endpoint sets proper Content-Type + Content-Disposition headers',
+      'Conversation notification clicks now navigate directly to the right thread in the Conversations page',
+      'Share button in conversation header: copy link to clipboard or send via WhatsApp',
+    ],
+    changes: {
+      added: [
+        'Conversation model + ConversationMessage + ConversationParticipant tables — standalone conversations are fully independent from the Task model',
+        'Full API: POST /api/conversations, GET/POST /api/conversations/[id]/messages, PATCH /api/conversations/[id]/messages/[messageId], GET/POST/DELETE /api/conversations/[id]/participants',
+        'GET /api/file/[...path] — serves uploads with explicit Content-Disposition + Content-Type headers',
+        'Share button (clipboard + WhatsApp) in conversation header, works for both task-linked and standalone conversations',
+      ],
+      fixed: [
+        '.xlsx / .docx attachments appeared as .xlsx.html on mobile — resolved by routing downloads through /api/file/ which sets correct MIME and disposition headers',
+        'Conversation notifications navigated to Dashboard — now correctly opens /conversations?taskId=... or /conversations?id=...',
+        'Standalone conversations previously created a hidden "Discussion" Task — now use dedicated Conversation model',
+      ],
+      changed: [
+        'Conversation list shows task conversations AND standalone discussions together, sorted by last message time',
+        'Standalone conversations displayed with chat bubble icon and "Discussion · N people" subtitle',
+      ],
+    },
+  },
+  {
+    version: '17.13.0',
+    date: 'April 5, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Message Editing, LCR Supplier Fix, Shipment Count & Conversation Cleanup',
+    highlights: [
+      'Edit your own messages within 1 minute of sending — pencil icon appears on hover in both the conversations page and the task detail conversation panel',
+      'LCR comparison table now uses the correct supplier name for each LCR tier — lcr1/lcr2/lcr3 fields properly mapped from their sheet columns',
+      'Project tracker dispatch section now shows a shipment count (number of dispatch entries) alongside shipped weight and percentage',
+      'Standalone conversations no longer create phantom "Discussion" tasks visible in the task list',
+    ],
+    changes: {
+      added: [
+        'Message editing: pencil button on hover for own messages under 1 minute old; PATCH /api/tasks/[id]/messages/[messageId] enforces author + time window',
+        'Shipment count in project tracker dispatch popup — shows number of dispatch log records per building',
+        'lcr1 String field added to LcrEntry schema — sync now reads LCR1 supplier name from sheet column 24 instead of misusing the lcr2 field',
+      ],
+      fixed: [
+        'LCR comparison table column mapping was offset: lcr1/lcr1Amount (cols 25-26) incorrectly pointed to cols 22-23; lcr2 pointed to col 24 (actually LCR1 supplier); now all three tiers map to correct columns',
+        'Standalone conversations (topic-only) were backed by a Discussion task that appeared in the task list — now filtered out of GET /api/tasks',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.12.1',
     date: 'April 4, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Global Search Fix, Coating KPI & LCR Display Corrections',
     highlights: [
       'Global search now works even when optional modules (Initiatives, NCRs, RFIs, Backlog) are not available — each category searched independently',

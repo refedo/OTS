@@ -76,6 +76,7 @@ interface ProcurementDetail {
 interface ProductionDetail {
   totalWeight: number;
   dispatchedWeight: number;
+  shipmentCount?: number;
   processes: { name: string; processedWeight: number; percentage: number }[];
 }
 
@@ -153,36 +154,31 @@ export const GET = withApiContext(async (req, session) => {
 
             const hasBlocked = activities.some((a) => a.status === 'blocked');
 
-            // Sum assembly tonnage via raw SQL to avoid Prisma Decimal conversion issues
-            const [tonnageResult] = await prisma.$queryRaw<[{totalKg: number | null}]>`
-              SELECT COALESCE(SUM(
-                CASE
-                  WHEN netWeightTotal > 0 THEN netWeightTotal
-                  ELSE COALESCE(singlePartWeight, 0) * COALESCE(quantity, 1)
-                END
-              ), 0) as totalKg
-              FROM AssemblyPart
-              WHERE buildingId = ${building.id} AND deletedAt IS NULL
-            `;
-            let rawTotalKg = Number(tonnageResult?.totalKg ?? 0);
-
-            // Fallback: project-level parts with no building assigned
+            // Sum assembly tonnage — use netWeightTotal if set, else singlePartWeight * quantity
+            const assemblyParts = await prisma.assemblyPart.findMany({
+              where: { buildingId: building.id, deletedAt: null },
+              select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
+            });
+            let rawTotalKg = assemblyParts.reduce((sum, p) => {
+              const w = Number(p.netWeightTotal ?? 0) > 0
+                ? Number(p.netWeightTotal)
+                : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
+              return sum + w;
+            }, 0);
+            // Fallback: if no building-level data, aggregate at project level
             if (rawTotalKg === 0) {
-              const [unboundResult] = await prisma.$queryRaw<[{totalKg: number | null}]>`
-                SELECT COALESCE(SUM(
-                  CASE
-                    WHEN netWeightTotal > 0 THEN netWeightTotal
-                    ELSE COALESCE(singlePartWeight, 0) * COALESCE(quantity, 1)
-                  END
-                ), 0) as totalKg
-                FROM AssemblyPart
-                WHERE projectId = ${project.id} AND buildingId IS NULL AND deletedAt IS NULL
-              `;
-              rawTotalKg = Number(unboundResult?.totalKg ?? 0) / (project.buildings.length || 1);
+              const projectParts = await prisma.assemblyPart.findMany({
+                where: { projectId: project.id, buildingId: null, deletedAt: null },
+                select: { netWeightTotal: true, singlePartWeight: true, quantity: true },
+              });
+              rawTotalKg = projectParts.reduce((sum, p) => {
+                const w = Number(p.netWeightTotal ?? 0) > 0
+                  ? Number(p.netWeightTotal)
+                  : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
+                return sum + w;
+              }, 0);
             }
-
-            // Final fallback: building.weight (already in tons)
-            const assemblyTonnage = rawTotalKg > 0 ? rawTotalKg / 1000 : Number(building.weight ?? 0);
+            const assemblyTonnage = rawTotalKg / 1000;
 
             return {
               id: building.id,
@@ -481,6 +477,7 @@ async function computeProductionProgress(
     select: {
       processType: true,
       processedQty: true,
+      reportNumber: true,
       assemblyPart: { select: { singlePartWeight: true } },
     },
   });
@@ -507,8 +504,7 @@ async function computeProductionProgress(
   });
 
   let totalPct = 0;
-  // Only average processes that have actual production data — processes with 0 weight
-  // (not applicable for this building) should not drag down the percentage.
+  // Only average processes that have actual production data
   const activeProcesses = processes.filter(p => p.processedWeight > 0);
   for (const p of activeProcesses) {
     totalPct += p.percentage;
@@ -519,9 +515,19 @@ async function computeProductionProgress(
     ? Math.round((weightByProcess.get('Dispatched to Customer') || 0) * 100) / 100
     : 0;
 
+  // Count distinct report numbers for dispatch (each distinct reportNumber = one shipment/delivery)
+  const shipmentCount = activityType === 'dispatch'
+    ? (() => {
+        const dispatchLogs = logs.filter(l => l.processType === 'Dispatched to Customer');
+        const reportNums = new Set(dispatchLogs.map(l => l.reportNumber).filter(Boolean));
+        return reportNums.size > 0 ? reportNums.size : dispatchLogs.length;
+      })()
+    : undefined;
+
   const detail: ProductionDetail = {
     totalWeight: Math.round(totalWeight * 100) / 100,
     dispatchedWeight,
+    ...(shipmentCount !== undefined && { shipmentCount }),
     processes,
   };
 

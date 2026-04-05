@@ -165,6 +165,10 @@ model User {
   taskMessages  TaskMessage[] @relation("TaskMessageAuthor")
   taskConversationParticipants TaskConversationParticipant[] @relation("TaskConversationParticipants")
   invitedToConversations TaskConversationParticipant[] @relation("TaskConversationInvites")
+  conversations         Conversation[]                @relation("ConversationCreator")
+  convMessages          ConversationMessage[]          @relation("ConvMessageAuthor")
+  convParticipants      ConversationParticipant[]      @relation("ConvParticipants")
+  invitedToConvs        ConversationParticipant[]      @relation("ConvInviter")
 
   // Integration back-relations
   nextcloudFiles     NextcloudFile[] @relation("NextcloudFileUploader")
@@ -652,6 +656,7 @@ model TaskMessage {
   content     String   @db.Text
   attachments Json?    // [{ fileName, filePath, fileType, fileSize }]
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([taskId])
   @@index([createdAt])
@@ -659,16 +664,65 @@ model TaskMessage {
 }
 
 model TaskConversationParticipant {
-  taskId      String   @db.Char(36)
-  userId      String   @db.Char(36)
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user        User     @relation("TaskConversationParticipants", fields: [userId], references: [id])
-  invitedById String?  @db.Char(36)
-  invitedBy   User?    @relation("TaskConversationInvites", fields: [invitedById], references: [id])
-  joinedAt    DateTime @default(now())
+  taskId      String    @db.Char(36)
+  userId      String    @db.Char(36)
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User      @relation("TaskConversationParticipants", fields: [userId], references: [id])
+  invitedById String?   @db.Char(36)
+  invitedBy   User?     @relation("TaskConversationInvites", fields: [invitedById], references: [id])
+  joinedAt    DateTime  @default(now())
+  lastReadAt  DateTime?
 
   @@id([taskId, userId])
   @@map("task_conversation_participants")
+}
+
+// ============================================================================
+// STANDALONE CONVERSATION MODULE
+// ============================================================================
+
+model Conversation {
+  id           String                   @id @default(uuid()) @db.Char(36)
+  topic        String                   @db.VarChar(500)
+  createdById  String                   @db.Char(36)
+  createdBy    User                     @relation("ConversationCreator", fields: [createdById], references: [id])
+  messages     ConversationMessage[]
+  participants ConversationParticipant[]
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([createdById])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id             String       @id @default(uuid()) @db.Char(36)
+  conversationId String       @db.Char(36)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String       @db.Char(36)
+  user           User         @relation("ConvMessageAuthor", fields: [userId], references: [id])
+  content        String       @db.Text
+  attachments    Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("conversation_messages")
+}
+
+model ConversationParticipant {
+  conversationId String       @db.Char(36)
+  userId         String       @db.Char(36)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation("ConvParticipants", fields: [userId], references: [id])
+  invitedById    String?      @db.Char(36)
+  invitedBy      User?        @relation("ConvInviter", fields: [invitedById], references: [id])
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime?
+
+  @@id([conversationId, userId])
+  @@map("conversation_participants")
 }
 
 /// Inspection & Test Plan (ITP) Models
@@ -3518,6 +3572,7 @@ model LcrEntry {
   // LCR1
   totalLcr1        Decimal?  @db.Decimal(15, 2)
   ratio1to2Lcr1    Decimal?  @db.Decimal(10, 4)
+  lcr1             String?   @db.VarChar(255)
   lcr1Amount       Decimal?  @db.Decimal(15, 2)
   lcr1PricePerTon  Decimal?  @db.Decimal(15, 2)
 

@@ -7,23 +7,26 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🔍 Global Search Fix, Coating KPI & LCR Display Corrections',
+  mainTitle: '🔍 Conversation Search, Unread Indicators & Mobile File Fix',
   highlights: [
-    'Global search now works — each category (tasks, projects, NCRs…) searched independently; one failing model no longer blocks all results',
-    'Coating percentage in Project Tracker is now correct — only averages processes that have actual production data',
-    'LCR comparison now shows the right LCR1 / LCR2 suppliers and amounts (column mapping was offset)',
-    'LCR page is cleaner — date filters removed, Project/Status stacked vertically',
+    'Search bar in the conversation list — filter by title, topic, participant name, or message content instantly',
+    'Unread indicator — orange dot and bold text mark conversations with new messages you haven\'t read yet',
+    'Conversations auto-mark as read when you open them',
+    'File attachments now open in a new tab on mobile so you can close the tab and return to OTS',
   ],
   changes: {
-    added: [],
+    added: [
+      'Search input in the conversation list sidebar — real-time client-side filtering',
+      'lastReadAt field on conversation participants (both task and standalone)',
+      'PATCH /api/conversations/[id]/read and PATCH /api/tasks/[id]/conversation/read — mark-as-read endpoints',
+      'hasUnread flag in GET /api/conversations response',
+    ],
     fixed: [
-      'Global search returned no results for any query — Promise.all failed when optional models (Initiatives, NCRs, etc.) threw; now each category is independent',
-      'Coating KPI in project tracker showed average of sandblasting+painting+galvanization even when only one was applicable — now skips processes with zero data',
-      'LCR comparison table: LCR1 was using awardedToRaw (wrong field) — now correctly uses lcr2/lcr2Amount which maps to the first supplier in the sheet',
+      'Non-image attachments now open with target="_blank" so mobile users can close tab and return to OTS',
+      'Message input placeholder crashed for standalone conversations — now uses correct topic field',
     ],
     changed: [
-      'LCR header: removed Needed By From/To date filters',
-      'LCR header: Project and Status dropdowns now stacked vertically for cleaner layout',
+      'Unread conversations highlighted with orange dot, bold title, and orange timestamp',
     ],
   },
 };

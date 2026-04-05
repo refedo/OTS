@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock, MessageCircle, Send, UserPlus, X, AtSign, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Calendar, User, Briefcase, AlertCircle, CheckCircle2, History, Lock, Building, FolderKanban, ShieldCheck, Shield, Check, Undo2, XCircle, Activity, Paperclip, Download, File, FileText, Image, Loader2, MoreVertical, MessageCircleQuestion, Clock, MessageCircle, Send, UserPlus, X, AtSign, ChevronLeft, ChevronRight, Search, Pencil } from 'lucide-react';
 import { EntityTimeline } from '@/components/events/EntityTimeline';
 import {
   DropdownMenu,
@@ -120,7 +120,7 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
 
   // Conversation state
   type ConvAttachment = { fileName: string; filePath: string; fileType: string; fileSize: number };
-  type ConvMessage = { id: string; content: string; attachments?: ConvAttachment[] | null; createdAt: string; user: { id: string; name: string; position: string | null } };
+  type ConvMessage = { id: string; content: string; attachments?: ConvAttachment[] | null; createdAt: string; updatedAt?: string; user: { id: string; name: string; position: string | null } };
   type ConvParticipant = { joinedAt: string; user: { id: string; name: string; position: string | null }; invitedBy: { id: string; name: string } | null };
   const [convMessages, setConvMessages] = useState<ConvMessage[]>([]);
   const [convParticipants, setConvParticipants] = useState<ConvParticipant[]>([]);
@@ -143,6 +143,10 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
   const [convLbImages, setConvLbImages] = useState<string[]>([]);
   const [convLbIdx, setConvLbIdx] = useState(-1);
   const convTouchX = useRef(0);
+
+  const [convEditingId, setConvEditingId] = useState<string | null>(null);
+  const [convEditingContent, setConvEditingContent] = useState('');
+  const [convSavingEdit, setConvSavingEdit] = useState(false);
 
   const convBase = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
   const resolveConvPath = (p: string) => (convBase && !p.startsWith(convBase) && p.startsWith('/uploads/') ? `${convBase}${p}` : p);
@@ -294,6 +298,24 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
       } else { setConvMessage(content); setConvPendingAtts(atts); }
     } catch { setConvMessage(content); setConvPendingAtts(atts); }
     finally { setConvSending(false); }
+  };
+
+  const handleSaveConvEdit = async () => {
+    if (!convEditingId || !convEditingContent.trim() || convSavingEdit) return;
+    setConvSavingEdit(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/messages/${convEditingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: convEditingContent.trim() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setConvMessages(prev => prev.map(m => m.id === convEditingId ? { ...m, content: updated.content, updatedAt: updated.updatedAt } : m));
+        setConvEditingId(null);
+        setConvEditingContent('');
+      }
+    } finally { setConvSavingEdit(false); }
   };
 
   const handleInviteParticipant = async (inviteUserId: string) => {
@@ -1317,12 +1339,51 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
                             <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         )}
-                        {msg.content && (
-                          <div className={cn('px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm',
-                            isMe ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm' : 'bg-muted rounded-tl-sm border border-border/30')}>
-                            {renderConvContent(msg.content)}
-                          </div>
-                        )}
+                        {msg.content && (() => {
+                          const isEditing = convEditingId === msg.id;
+                          const canEditMsg = isMe && (Date.now() - new Date(msg.createdAt).getTime()) < 60000;
+                          const wasEdited = msg.updatedAt && msg.updatedAt !== msg.createdAt;
+                          return (
+                            <div className="relative group/bubble">
+                              {isEditing ? (
+                                <div className="flex flex-col gap-1">
+                                  <textarea
+                                    autoFocus
+                                    className="px-3 py-2 rounded-xl text-sm border border-primary/50 bg-background text-foreground resize-none w-full focus:outline-none focus:ring-1 focus:ring-primary"
+                                    rows={3}
+                                    value={convEditingContent}
+                                    onChange={e => setConvEditingContent(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveConvEdit(); }
+                                      if (e.key === 'Escape') { setConvEditingId(null); setConvEditingContent(''); }
+                                    }}
+                                  />
+                                  <div className="flex gap-1 justify-end">
+                                    <button type="button" onClick={() => { setConvEditingId(null); setConvEditingContent(''); }}
+                                      className="text-xs px-2 py-0.5 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground">Cancel</button>
+                                    <button type="button" onClick={handleSaveConvEdit} disabled={convSavingEdit || !convEditingContent.trim()}
+                                      className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className={cn('px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm',
+                                    isMe ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm' : 'bg-muted rounded-tl-sm border border-border/30')}>
+                                    {renderConvContent(msg.content)}
+                                    {wasEdited && <span className="text-[10px] opacity-60 ml-1">(edited)</span>}
+                                  </div>
+                                  {canEditMsg && (
+                                    <button type="button"
+                                      onClick={() => { setConvEditingId(msg.id); setConvEditingContent(msg.content); }}
+                                      className="absolute -top-2 -right-2 opacity-0 group-hover/bubble:opacity-100 transition-opacity size-5 rounded-full bg-background border border-border shadow-sm flex items-center justify-center hover:bg-muted">
+                                      <Pencil className="size-2.5 text-muted-foreground" />
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {atts.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {atts.map((att, ai) => {

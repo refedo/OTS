@@ -128,6 +128,13 @@ export async function GET(req: Request) {
     }
   }
 
+  // Exclude standalone conversation containers (Discussion tasks)
+  if (whereClause.AND) {
+    (whereClause.AND as unknown[]).push({ NOT: { mainActivity: 'Discussion' } });
+  } else {
+    whereClause.AND = [{ NOT: { mainActivity: 'Discussion' } }];
+  }
+
   let tasks = await prisma.task.findMany({
     where: whereClause,
     include: {
