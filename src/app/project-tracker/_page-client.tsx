@@ -38,6 +38,7 @@ interface TaskDetail {
   dueDate: string | null;
   completedAt: string | null;
   approvedAt: string | null;
+  rejectedAt: string | null;
   consultantResponseCode: string | null;
   assignedTo: string | null;
   isOverdue: boolean;
@@ -69,7 +70,9 @@ interface ActivityData {
   activityType: string;
   activityLabel: string;
   percentage: number;
-  status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'pending_approval';
+  status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'pending_approval'
+    | 'pending' | 'waiting_approval' | 'completed_released' | 'rejected' | 'approved';
+  consultantCode?: string;
   details: ActivityDetails;
 }
 
@@ -118,17 +121,17 @@ interface TrackerResponse {
 // --- Constants ---
 
 const ACTIVITY_COLUMNS = [
-  { type: 'arch_approval',    label: 'ARCH DRAWING',    color: 'text-sky-400' },
-  { type: 'design',           label: 'DESIGN STAGE',    color: 'text-violet-400' },
-  { type: 'design_approval',  label: 'DESIGN APPROVAL', color: 'text-indigo-400' },
-  { type: 'detailing',        label: 'SHOP DRAWINGS',   color: 'text-cyan-400' },
-  { type: 'detailing_approval', label: 'SD APPROVAL',   color: 'text-blue-400' },
-  { type: 'procurement',      label: 'PROCUREMENT',     color: 'text-amber-400' },
-  { type: 'production',       label: 'PRODUCTION',      color: 'text-orange-400' },
-  { type: 'coating',          label: 'COATING',         color: 'text-pink-400' },
-  { type: 'dispatch',         label: 'DISPATCH',        color: 'text-lime-400' },
-  { type: 'erection',         label: 'ERECTION',        color: 'text-emerald-400' },
+  { type: 'arch_approval', label: 'ARCH DRAWING',  color: 'text-sky-400' },
+  { type: 'design',        label: 'DESIGN STAGE',  color: 'text-violet-400' },
+  { type: 'detailing',     label: 'SHOP DRAWINGS', color: 'text-cyan-400' },
+  { type: 'procurement',   label: 'PROCUREMENT',   color: 'text-amber-400' },
+  { type: 'production',    label: 'PRODUCTION',    color: 'text-orange-400' },
+  { type: 'coating',       label: 'COATING',       color: 'text-pink-400' },
+  { type: 'dispatch',      label: 'DISPATCH',      color: 'text-lime-400' },
+  { type: 'erection',      label: 'ERECTION',      color: 'text-emerald-400' },
 ] as const;
+
+const DESIGN_REVISION_TYPES = new Set(['design', 'detailing']);
 
 type FilterTab = 'all' | 'in_progress' | 'blocked' | 'completed';
 
@@ -147,7 +150,14 @@ const CONSULTANT_CODES: Record<string, { label: string; color: string }> = {
 
 // --- Helper Functions ---
 
-function getStatusColor(status: string, percentage: number): string {
+function getStatusColor(status: string, percentage: number, isDesignRevision = false): string {
+  if (status === 'approved') return 'text-emerald-400';
+  if (status === 'rejected') return 'text-red-400';
+  if (status === 'completed_released') return 'text-teal-400';
+  if (status === 'completed' && isDesignRevision) return 'text-green-400';
+  if (status === 'waiting_approval') return 'text-purple-400';
+  if (status === 'pending') return 'text-orange-400';
+  if (status === 'in_progress' && isDesignRevision) return 'text-blue-400';
   if (status === 'blocked') return 'text-red-400';
   if (status === 'pending_approval') return 'text-blue-400';
   if (percentage === 100 || status === 'completed') return 'text-emerald-400';
@@ -155,7 +165,14 @@ function getStatusColor(status: string, percentage: number): string {
   return 'text-slate-500';
 }
 
-function getProgressBarColor(status: string, percentage: number): string {
+function getProgressBarColor(status: string, percentage: number, isDesignRevision = false): string {
+  if (status === 'approved') return 'bg-emerald-500';
+  if (status === 'rejected') return 'bg-red-500';
+  if (status === 'completed_released') return 'bg-teal-500';
+  if (status === 'completed' && isDesignRevision) return 'bg-green-500';
+  if (status === 'waiting_approval') return 'bg-purple-500';
+  if (status === 'pending') return 'bg-orange-500';
+  if (status === 'in_progress' && isDesignRevision) return 'bg-blue-500';
   if (status === 'blocked') return 'bg-red-500';
   if (status === 'pending_approval') return 'bg-blue-500';
   if (percentage === 100 || status === 'completed') return 'bg-emerald-500';
@@ -167,23 +184,29 @@ function getProgressBarTrack(isDark: boolean): string {
   return isDark ? 'bg-slate-700/50' : 'bg-slate-200';
 }
 
-function getStatusIcon(status: string, percentage: number) {
-  if (status === 'blocked') {
-    return <X className="w-3.5 h-3.5 text-red-400" />;
-  }
-  if (status === 'pending_approval') {
-    return <Clock className="w-3.5 h-3.5 text-blue-400" />;
-  }
-  if (percentage === 100 || status === 'completed') {
-    return <Check className="w-3.5 h-3.5 text-emerald-400" />;
-  }
-  if (percentage > 0 || status === 'in_progress') {
-    return <Play className="w-3 h-3 text-amber-400 fill-amber-400" />;
-  }
+function getStatusIcon(status: string, percentage: number, isDesignRevision = false) {
+  if (status === 'approved') return <Check className="w-3.5 h-3.5 text-emerald-400" />;
+  if (status === 'rejected') return <X className="w-3.5 h-3.5 text-red-400" />;
+  if (status === 'completed_released') return <Check className="w-3.5 h-3.5 text-teal-400" />;
+  if (status === 'completed' && isDesignRevision) return <Check className="w-3.5 h-3.5 text-green-400" />;
+  if (status === 'waiting_approval') return <Clock className="w-3.5 h-3.5 text-purple-400" />;
+  if (status === 'pending') return <Minus className="w-3.5 h-3.5 text-orange-400" />;
+  if (status === 'in_progress' && isDesignRevision) return <Play className="w-3 h-3 text-blue-400 fill-blue-400" />;
+  if (status === 'blocked') return <X className="w-3.5 h-3.5 text-red-400" />;
+  if (status === 'pending_approval') return <Clock className="w-3.5 h-3.5 text-blue-400" />;
+  if (percentage === 100 || status === 'completed') return <Check className="w-3.5 h-3.5 text-emerald-400" />;
+  if (percentage > 0 || status === 'in_progress') return <Play className="w-3 h-3 text-amber-400 fill-amber-400" />;
   return <Minus className="w-3.5 h-3.5 text-slate-500" />;
 }
 
 function getBorderColor(status: string, isDark: boolean): string {
+  if (status === 'approved') return isDark ? 'border-emerald-500/40' : 'border-emerald-300';
+  if (status === 'rejected') return 'border-red-500/60';
+  if (status === 'completed_released') return isDark ? 'border-teal-500/40' : 'border-teal-300';
+  if (status === 'completed') return isDark ? 'border-green-500/40' : 'border-green-300';
+  if (status === 'waiting_approval') return isDark ? 'border-purple-500/40' : 'border-purple-300';
+  if (status === 'pending') return isDark ? 'border-orange-500/40' : 'border-orange-300';
+  if (status === 'in_progress') return isDark ? 'border-blue-500/30' : 'border-blue-200';
   if (status === 'blocked') return 'border-red-500/60';
   if (status === 'pending_approval') return isDark ? 'border-blue-500/40' : 'border-blue-300';
   if (status === 'completed') return isDark ? 'border-emerald-500/40' : 'border-emerald-300';
@@ -282,6 +305,12 @@ function DetailPopover({
                     Approved: {formatDate(task.approvedAt)}
                   </div>
                 )}
+                {task.rejectedAt && (
+                  <div className="text-red-400">
+                    <X className="w-3 h-3 inline mr-1" />
+                    Rejected: {formatDate(task.rejectedAt)}
+                  </div>
+                )}
                 {task.revision && (
                   <div className={muted}>
                     <FileText className="w-3 h-3 inline mr-1" />
@@ -305,8 +334,10 @@ function DetailPopover({
                     task.status === 'Completed'
                       ? 'bg-emerald-500/20 text-emerald-400'
                       : task.status === 'In Progress'
-                        ? 'bg-amber-500/20 text-amber-400'
-                        : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : task.status === 'Waiting for Approval'
+                          ? 'bg-purple-500/20 text-purple-400'
+                          : isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
                   }`}
                 >
                   {task.status}
@@ -426,34 +457,40 @@ function StatusCell({
   const [showDetail, setShowDetail] = useState(false);
   const pct = activity?.percentage ?? 0;
   const status = activity?.status ?? 'not_started';
+  const isDesignRevision = DESIGN_REVISION_TYPES.has(activity?.activityType ?? '');
   const hasDetails = activity?.details && (
     activity.details.tasks?.length ||
     activity.details.procurement ||
     activity.details.production
   );
+  const isPending = status === 'pending';
 
   return (
     <div className="relative">
       <div
         onClick={() => hasDetails && setShowDetail((v) => !v)}
         className={`
-          rounded-lg px-2.5 py-2 min-w-[90px] transition-colors
+          relative rounded-lg px-2.5 py-2 min-w-[90px] transition-colors
           ${hasDetails ? 'cursor-pointer' : ''}
           ${isDark ? 'bg-[#1a2332]' : 'bg-white shadow-sm'}
           border ${getBorderColor(status, isDark)}
         `}
       >
+        {/* Consultant code badge (upper-right corner, approved state only) */}
+        {status === 'approved' && activity?.consultantCode && (
+          <span className={`absolute top-0.5 right-1 text-[9px] font-bold leading-none ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
+            {activity.consultantCode}
+          </span>
+        )}
         <div className="flex items-center gap-1.5 mb-1.5">
-          {getStatusIcon(status, pct)}
-          <span
-            className={`text-sm font-semibold tabular-nums ${getStatusColor(status, pct)}`}
-          >
-            {pct}%
+          {getStatusIcon(status, pct, isDesignRevision)}
+          <span className={`text-sm font-semibold tabular-nums ${getStatusColor(status, pct, isDesignRevision)}`}>
+            {isPending ? 'P' : `${pct}%`}
           </span>
         </div>
         <div className={`h-1.5 rounded-full overflow-hidden ${getProgressBarTrack(isDark)}`}>
           <div
-            className={`h-full rounded-full transition-all duration-500 ease-out ${getProgressBarColor(status, pct)}`}
+            className={`h-full rounded-full transition-all duration-500 ease-out ${getProgressBarColor(status, pct, isDesignRevision)}`}
             style={{ width: `${Math.max(pct, status === 'blocked' ? 100 : 0)}%` }}
           />
         </div>
@@ -590,29 +627,42 @@ function CalculationLegend({ isDark, mutedTextClass }: { isDark: boolean; mutedT
         <div className={`px-4 pb-4 pt-1 space-y-3 border-t ${borderClass}`}>
           <div className="space-y-1.5">
             <p className={`font-semibold text-[11px] uppercase tracking-wide ${mutedTextClass}`}>
-              Approval-led columns
+              Design Stage &amp; Shop Drawings
             </p>
             <p className={`${textClass} leading-relaxed`}>
-              <strong>Arch Drawing, Design Approval, SD Approval</strong> — progress is driven by consultant approval on tasks.
+              Progress is driven by the latest revision status of each task.
             </p>
             <div className={`grid grid-cols-2 gap-x-4 gap-y-0.5 ${mutedTextClass} pl-2`}>
-              <span>Fully approved by consultant</span><span className="text-emerald-500 font-medium">100%</span>
-              <span>Submitted / completed (awaiting approval)</span><span className="text-amber-500 font-medium">75%</span>
-              <span>In Progress</span><span className="font-medium">40%</span>
-              <span>Open / Pending</span><span className="font-medium">15%</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />Pending</span>
+              <span className="text-orange-400 font-medium">P (orange)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />In Progress</span>
+              <span className="text-blue-400 font-medium">50% — blue</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />Waiting for Approval</span>
+              <span className="text-purple-400 font-medium">50% — purple</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />Completed</span>
+              <span className="text-green-400 font-medium">70% — pale green</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500 shrink-0" />Completed &amp; Released</span>
+              <span className="text-teal-400 font-medium">80% — teal</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />Rejected</span>
+              <span className="text-red-400 font-medium">50% — red</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />Approved</span>
+              <span className="text-emerald-400 font-medium">100% — green + code (A/B/C)</span>
             </div>
+            <p className={`${mutedTextClass} italic text-[10px]`}>
+              Cell shows the worst state across all tasks for that building. Consultant code (A/B/C) appears in the upper-right corner when all tasks are approved.
+            </p>
           </div>
 
           <div className="space-y-1.5">
             <p className={`font-semibold text-[11px] uppercase tracking-wide ${mutedTextClass}`}>
-              Completion-led columns
+              Arch Drawing (approval-led)
             </p>
             <p className={`${textClass} leading-relaxed`}>
-              <strong>Design Stage, Shop Drawings</strong> — progress is driven by task completion and release.
+              Progress driven by consultant approval on tasks.
             </p>
             <div className={`grid grid-cols-2 gap-x-4 gap-y-0.5 ${mutedTextClass} pl-2`}>
-              <span>Completed + released</span><span className="text-emerald-500 font-medium">100%</span>
-              <span>Completed (not yet released)</span><span className="text-amber-500 font-medium">65%</span>
+              <span>Fully approved by consultant</span><span className="text-emerald-500 font-medium">100%</span>
+              <span>Submitted / completed (awaiting)</span><span className="text-amber-500 font-medium">75%</span>
               <span>In Progress</span><span className="font-medium">40%</span>
               <span>Open / Pending</span><span className="font-medium">15%</span>
             </div>
@@ -623,14 +673,13 @@ function CalculationLegend({ isDark, mutedTextClass }: { isDark: boolean; mutedT
             <div className={`${mutedTextClass} space-y-0.5 pl-2`}>
               <p><strong className={textClass}>Procurement</strong> — weight-based: (bought + available) ÷ total LCR weight</p>
               <p><strong className={textClass}>Production</strong> — actual processed weight ÷ total scope weight</p>
-              <p><strong className={textClass}>Coating, Dispatch, Erection</strong> — task scoring same as completion-led columns</p>
+              <p><strong className={textClass}>Coating, Dispatch, Erection</strong> — production log weight ÷ total scope weight</p>
               <p><strong className={textClass}>Overall</strong> — simple average of all activity percentages for the building</p>
             </div>
           </div>
 
           <p className={`${mutedTextClass} italic`}>
-            When any task is overdue the column is marked Blocked. The displayed percentage is always ≥ 10% once work has started,
-            to avoid showing 0% when tasks exist but are early-stage.
+            When any task is overdue the column is marked Blocked.
           </p>
         </div>
       )}
@@ -849,22 +898,38 @@ export default function ProjectTrackerClient() {
 
             {/* Legend */}
             <div className="space-y-2">
-              <div className="flex items-center gap-5 text-xs">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <span className={mutedTextClass}>Completed</span>
+                  <span className={mutedTextClass}>Approved (100%)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span className={mutedTextClass}>Active / In Progress</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+                  <span className={mutedTextClass}>Completed &amp; Released (80%)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                  <span className={mutedTextClass}>Completed (70%)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                  <span className={mutedTextClass}>Waiting for Approval (50%)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                  <span className={mutedTextClass}>In Progress (50%)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <span className={mutedTextClass}>Rejected (50%) / Blocked</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2.5 h-2.5 rounded-full border-2 ${isDark ? 'border-orange-400 bg-transparent' : 'border-orange-400 bg-orange-100'}`} />
+                  <span className={mutedTextClass}>Pending (P)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
                   <span className={mutedTextClass}>Not Started</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                  <span className={mutedTextClass}>Blocked / Overdue</span>
                 </div>
               </div>
               <CalculationLegend isDark={isDark} mutedTextClass={mutedTextClass} />
