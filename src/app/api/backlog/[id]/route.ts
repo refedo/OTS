@@ -28,7 +28,12 @@ export async function GET(
           plannedBy:   { select: { id: true, name: true } },
           completedBy: { select: { id: true, name: true } },
           tasks: {
-            include: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              priority: true,
+              dueDate: true,
               assignedTo: { select: { id: true, name: true, email: true } },
             },
           },
@@ -156,7 +161,16 @@ export async function PATCH(
         reviewedBy:  { select: { id: true, name: true } },
         plannedBy:   { select: { id: true, name: true } },
         completedBy: { select: { id: true, name: true } },
-        tasks: true,
+        tasks: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            priority: true,
+            dueDate: true,
+            assignedTo: { select: { id: true, name: true, email: true } },
+          },
+        },
       },
     });
 

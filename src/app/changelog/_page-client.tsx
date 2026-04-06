@@ -23,10 +23,39 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.18.0',
+    version: '17.19.0',
     date: 'April 6, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'API 500 Fixes, LCR Column Mapping & Force Resync',
+    highlights: [
+      'Fixed 500 errors on delayed tasks, backlog items, and conversations',
+      'LCR column mapping corrected to match actual spreadsheet structure',
+      'LCR 3 supplier name now correctly synced from spreadsheet',
+      'Force resync option added: POST /api/supply-chain/lcr/sync?force=true',
+      'Task soft-delete migration file placed at correct path for deployment',
+    ],
+    changes: {
+      added: [
+        'LCR sync: force-refresh mode (POST /api/supply-chain/lcr/sync?force=true) re-processes all rows with new column mapping',
+        'Task soft-delete migration file added to prisma/manual_migrations/ for easy deployment',
+      ],
+      fixed: [
+        'GET /api/notifications/delayed-tasks returned 500 due to Prisma selecting new Task columns (deletedAt) not yet in DB — fixed with explicit select',
+        'GET /api/backlog/[id] returned 500 for same reason when including tasks — fixed with explicit select',
+        'POST /api/conversations returned 500 when creating standalone conversation without a task',
+        'LCR comparison table showed wrong data: LCR 1 amount and price were null, LCR 2/3 supplier columns contained numbers — fixed column index mapping',
+        'LCR 3 supplier was hardcoded to null in sync — now reads from correct spreadsheet column (index 32)',
+        'LCR column indices updated: LCR1 Amount at col 27 (was 25), LCR2 supplier at col 29 (was 27), LCR3 at cols 32-34',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.18.0',
+    date: 'April 6, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Full-Page Tracker, Task Recovery, Backlog Notes & LCR Fixes',
     highlights: [
       'Project Tracker now fills the full page width',
