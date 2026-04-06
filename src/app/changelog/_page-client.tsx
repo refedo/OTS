@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.19.0',
+    version: '17.20.0',
     date: 'April 6, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'LCR Column Mapping UI, Backlog Note Fix, Task Search Expansion',
+    highlights: [
+      'New LCR Column Mapping page: update spreadsheet column positions from the UI without code changes',
+      'Fixed backlog note delete crash (wrong dialog type caused icon lookup to fail)',
+      'Tasks search now also searches by department name',
+    ],
+    changes: {
+      added: [
+        'LCR Column Mapping page at /supply-chain/lcr/columns — admins can update column letter assignments for all LCR fields',
+        'LCR column mapping stored in database (SystemSettings.lcrColumnMapping JSON); sync always reads from DB, falls back to defaults',
+        'New migration: prisma/manual_migrations/add_lcr_column_mapping.sql',
+        'Column Mapping button added to LCR page header',
+      ],
+      fixed: [
+        'Backlog note delete threw "Cannot read properties of undefined (reading icon)" — type "destructive" is not valid; changed to "danger"',
+        'Tasks search now includes department name alongside project number, building name, revision etc.',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.19.0',
+    date: 'April 6, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'API 500 Fixes, LCR Column Mapping & Force Resync',
     highlights: [
       'Fixed 500 errors on delayed tasks, backlog items, and conversations',

@@ -124,6 +124,7 @@ export async function GET(req: Request) {
       { building: { designation: { contains: search } } },
       { project: { name: { contains: search } } },
       { project: { projectNumber: { contains: search } } },
+      { department: { name: { contains: search } } },
     ];
     if (whereClause.AND) {
       (whereClause.AND as unknown[]).push({ OR: searchOr });
