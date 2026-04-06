@@ -248,10 +248,11 @@ export default function LcrPage() {
 
   useEffect(() => { fetchData(); fetchProjects(); fetchStatuses(); fetchSyncLogs(); }, [fetchData, fetchProjects, fetchStatuses, fetchSyncLogs]);
 
-  const handleSync = async () => {
+  const handleSync = async (force = false) => {
     setSyncing(true);
     try {
-      const res = await fetch('/api/supply-chain/lcr/sync', { method: 'POST' });
+      const url = force ? '/api/supply-chain/lcr/sync?force=true' : '/api/supply-chain/lcr/sync';
+      const res = await fetch(url, { method: 'POST' });
       const result = await res.json();
       if (!res.ok) {
         toast({ title: 'Sync Error', description: result.error || 'Sync failed', variant: 'destructive' });
@@ -362,9 +363,13 @@ export default function LcrPage() {
               </Link>
             )}
           </div>
-          <Button onClick={handleSync} disabled={syncing} size="sm" variant="outline">
+          <Button onClick={() => handleSync(false)} disabled={syncing} size="sm" variant="outline">
             {syncing ? <Loader2 className="size-4 mr-1 animate-spin" /> : <RefreshCw className="size-4 mr-1" />}
             {syncing ? 'Syncing...' : 'Sync Now'}
+          </Button>
+          <Button onClick={() => handleSync(true)} disabled={syncing} size="sm" variant="outline" title="Re-process all rows (use after column mapping changes)">
+            <RefreshCw className="size-4 mr-1" />
+            Force Resync All
           </Button>
           <Link href="/supply-chain/lcr/reports">
             <Button variant="outline" size="sm">
