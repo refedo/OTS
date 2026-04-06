@@ -882,54 +882,126 @@ function MonthlyForecastCard({ rows }: { rows: PaymentRow[] }) {
 
 // ── Cash Flow Timeline ─────────────────────────────────────────────────────
 
-function CashFlowTimeline({ rows }: { rows: PaymentRow[] }) {
-  const monthlyData = useMemo(() => {
-    const map = new Map<string, number>();
+function CashFlowTimeline({
+  rows,
+  selectedMonth,
+  onSelectMonth,
+}: {
+  rows: PaymentRow[];
+  selectedMonth: string | null;
+  onSelectMonth: (month: string | null) => void;
+}) {
+  const { pendingData, collectedData, allMonths } = useMemo(() => {
+    const pending   = new Map<string, number>();
+    const collected = new Map<string, number>();
+
     for (const row of rows) {
-      const status = effectiveStatus(row);
-      if (status === 'collected') continue;
+      const status  = effectiveStatus(row);
       const dueDate = row.enrichment?.dueDate ?? row.baseDate;
       if (!dueDate) continue;
-      const d = new Date(dueDate);
+      const d   = new Date(dueDate);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      map.set(key, (map.get(key) ?? 0) + row.amount);
+
+      if (status === 'collected') {
+        collected.set(key, (collected.get(key) ?? 0) + row.amount);
+      } else {
+        pending.set(key, (pending.get(key) ?? 0) + row.amount);
+      }
     }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+
+    const months = Array.from(new Set([...pending.keys(), ...collected.keys()]))
+      .sort()
       .slice(0, 12);
+
+    return {
+      pendingData:   pending,
+      collectedData: collected,
+      allMonths:     months,
+    };
   }, [rows]);
 
-  if (monthlyData.length === 0) return null;
+  if (allMonths.length === 0) return null;
 
-  const maxVal = Math.max(...monthlyData.map(([, v]) => v));
+  const maxVal = Math.max(
+    ...allMonths.map(m => (pendingData.get(m) ?? 0) + (collectedData.get(m) ?? 0)),
+    1
+  );
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <CalendarClock className="h-4 w-4" />
-          Cash Flow Timeline — Expected Collections
-        </CardTitle>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Cash Flow Timeline
+            {selectedMonth && (
+              <span className="text-sm font-normal text-muted-foreground ml-1">
+                — filtered to {(() => {
+                  const [yr, mo] = selectedMonth.split('-');
+                  return new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+                })()}
+              </span>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-primary" />Expected</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-green-500" />Collected</span>
+            {selectedMonth && (
+              <button
+                onClick={() => onSelectMonth(null)}
+                className="text-xs underline text-muted-foreground hover:text-foreground"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-end gap-2 overflow-x-auto pb-2">
-          {monthlyData.map(([month, amount]) => {
-            const pct = maxVal > 0 ? (amount / maxVal) * 100 : 0;
-            const [yr, mo] = month.split('-');
-            const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+        <div className="flex items-end gap-3 overflow-x-auto pb-2">
+          {allMonths.map(month => {
+            const pendingAmt   = pendingData.get(month)   ?? 0;
+            const collectedAmt = collectedData.get(month) ?? 0;
+            const totalAmt     = pendingAmt + collectedAmt;
+            const pendingPct   = maxVal > 0 ? (pendingAmt   / maxVal) * 100 : 0;
+            const collectedPct = maxVal > 0 ? (collectedAmt / maxVal) * 100 : 0;
+            const [yr, mo]     = month.split('-');
+            const label        = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+            const isSelected   = selectedMonth === month;
+
             return (
-              <div key={month} className="flex flex-col items-center gap-1 min-w-[60px]">
-                <span className="text-xs text-muted-foreground font-medium">
-                  {fmt(amount / 1000)}K
+              <button
+                key={month}
+                onClick={() => onSelectMonth(isSelected ? null : month)}
+                className={`flex flex-col items-center gap-1 min-w-[64px] rounded-md p-1 transition-colors ${
+                  isSelected
+                    ? 'bg-primary/10 ring-2 ring-primary'
+                    : 'hover:bg-muted/50'
+                }`}
+              >
+                <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                  {fmt(totalAmt / 1000)}K
                 </span>
-                <div className="w-10 bg-primary/20 rounded-sm relative" style={{ height: '80px' }}>
-                  <div
-                    className="w-full bg-primary rounded-sm absolute bottom-0"
-                    style={{ height: `${pct}%` }}
-                  />
+                <div className="flex items-end gap-1" style={{ height: '80px' }}>
+                  {/* Expected (pending) bar */}
+                  <div className="w-5 bg-primary/20 rounded-sm relative" style={{ height: '80px' }}>
+                    <div
+                      className="w-full bg-primary rounded-sm absolute bottom-0 transition-all"
+                      style={{ height: `${pendingPct}%` }}
+                    />
+                  </div>
+                  {/* Collected bar */}
+                  <div className="w-5 bg-green-100 dark:bg-green-900/30 rounded-sm relative" style={{ height: '80px' }}>
+                    <div
+                      className="w-full bg-green-500 rounded-sm absolute bottom-0 transition-all"
+                      style={{ height: `${collectedPct}%` }}
+                    />
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground">{label}</span>
-              </div>
+                <span className={`text-xs ${isSelected ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
+                  {label}
+                </span>
+              </button>
             );
           })}
         </div>
@@ -952,6 +1024,9 @@ export default function PaymentScheduleReportPage() {
   const [filterProjectStatus, setFilterProjectStatus] = useState('all');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+
+  // Timeline month filter
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   // Sort
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -988,14 +1063,25 @@ export default function PaymentScheduleReportPage() {
   const filteredRows = useMemo(() => {
     if (!data) return [];
     const q = search.toLowerCase();
-    return data.rows.filter(row =>
-      !q ||
-      row.projectNumber.toLowerCase().includes(q) ||
-      row.projectName.toLowerCase().includes(q) ||
-      row.clientName.toLowerCase().includes(q) ||
-      row.slotLabel.toLowerCase().includes(q)
-    );
-  }, [data, search]);
+    return data.rows.filter(row => {
+      if (q && !(
+        row.projectNumber.toLowerCase().includes(q) ||
+        row.projectName.toLowerCase().includes(q) ||
+        row.clientName.toLowerCase().includes(q) ||
+        row.slotLabel.toLowerCase().includes(q)
+      )) return false;
+
+      if (selectedMonth) {
+        const dueDate = row.enrichment?.dueDate ?? row.baseDate;
+        if (!dueDate) return false;
+        const d   = new Date(dueDate);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (key !== selectedMonth) return false;
+      }
+
+      return true;
+    });
+  }, [data, search, selectedMonth]);
 
   const sortedRows = useMemo(() => {
     if (!sortField) return filteredRows;
@@ -1129,7 +1215,13 @@ export default function PaymentScheduleReportPage() {
 
       {/* Cash Flow Timeline */}
       {data && <MonthlyForecastCard rows={data.rows} />}
-      {data && <CashFlowTimeline rows={data.rows} />}
+      {data && (
+        <CashFlowTimeline
+          rows={data.rows}
+          selectedMonth={selectedMonth}
+          onSelectMonth={setSelectedMonth}
+        />
+      )}
 
       {/* Filters */}
       <Card className="print:hidden">

@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.20.0` — LCR column mapping UI page, backlog note delete fix, task search includes department name
+**Current version:** `17.21.0` — LCR column mapping redesign with Google Sheet dropdowns, clickable cash flow timeline with collected payments, tasks search expanded, MySQL migration rule
 
 ---
 
@@ -133,6 +133,32 @@ Always filter: `where: { deletedAt: null }` in queries on soft-deletable models.
 
 ---
 
+## Database Migrations (Manual SQL)
+- Store manual migration files in `prisma/manual_migrations/`
+- **NEVER use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`** — MySQL does NOT support this syntax (causes `ERROR 1064`). This mistake recurs — treat it as a hard rule.
+- Always use the stored procedure pattern with `information_schema.COLUMNS`:
+  ```sql
+  DROP PROCEDURE IF EXISTS migration_name;
+  DELIMITER $$
+  CREATE PROCEDURE migration_name()
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'YourTable'
+        AND COLUMN_NAME = 'yourColumn'
+    ) THEN
+      ALTER TABLE YourTable ADD COLUMN yourColumn TYPE NULL;
+    END IF;
+  END$$
+  DELIMITER ;
+  CALL migration_name();
+  DROP PROCEDURE IF EXISTS migration_name;
+  ```
+- See `prisma/manual_migrations/add_task_soft_delete.sql` as the canonical example.
+
+---
+
 ## Component Patterns
 - Server Components by default in `app/` directory
 - Add `'use client'` only when needed (event handlers, hooks, browser APIs)
@@ -156,4 +182,5 @@ Never access `process.env` directly in components — import from `src/lib/env.t
 - Don't hardcode strings that belong in env vars
 - Don't add comments to code that is self-explanatory
 - Don't add error handling for impossible scenarios
+- **Never write `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`** — MySQL doesn't support it; use the stored procedure pattern in the Database Migrations section
 - Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.
