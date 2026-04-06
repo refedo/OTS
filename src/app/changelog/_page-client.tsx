@@ -23,10 +23,43 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.17.0',
+    version: '17.18.0',
     date: 'April 6, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Full-Page Tracker, Task Recovery, Backlog Notes & LCR Fixes',
+    highlights: [
+      'Project Tracker now fills the full page width',
+      'Deleted tasks are now soft-deleted and can be recovered from Governance → Deleted tab',
+      'Backlog notes support inline edit and delete for the author',
+      'Governance audit trail shows building names and a dedicated Project column',
+      'Document attachments in conversations are fully clickable',
+      'LCR comparison panel fixed: duplicate row removed, LCR 3 supplier now shown, default sort is SN ascending',
+    ],
+    changes: {
+      added: [
+        'Task soft delete: tasks deleted by users are now soft-deleted with deletedAt/deletedById fields, recoverable from Governance → Deleted tab',
+        'Governance: Task added to recoverable entities list with count in dashboard',
+        'Governance audit trail: new Project column shows which project an entity change belongs to',
+        'Governance: Building entity names now resolved in audit trail and recent activity (like Task names)',
+        'Backlog notes: author can now edit or delete their own notes inline',
+        'Tasks search now also searches revision, remark, mainActivity, and subActivity fields',
+      ],
+      fixed: [
+        'Project Tracker page was constrained to 1800px max-width — now expands to full viewport width',
+        'Document attachment cards in conversations were only partially clickable — whole card now triggers download/preview',
+        'LCR comparison panel showed a duplicate "LCR 3" row using wrong data (lcr1Amount/lcr1PricePerTon) — removed',
+        'LCR comparison panel showed "—" for LCR 3 supplier even when data existed — now shows lcr3 supplier name',
+        'LCR list default sort was by neededToDate descending — changed to SN ascending to match spreadsheet order',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.17.0',
+    date: 'April 6, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Bug Fixes: PTS Columns, Governance, Conversations & Backlog',
     highlights: [
       'PTS column fetch no longer times out — optimized to a single batchGet call instead of 4 serial requests',

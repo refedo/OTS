@@ -14,6 +14,37 @@ import { Prisma } from '@prisma/client';
 const USER_SOURCES = ['UI', 'API'];
 const SYSTEM_SOURCES = ['SYNC', 'AI', 'SYSTEM', 'CRON'];
 
+type EntityMeta = { name: string; project: { projectNumber: string; name: string } | null };
+
+async function resolveEntityMeta(
+  logs: Array<{ entityType: string; entityId: string }>
+): Promise<Map<string, EntityMeta>> {
+  const map = new Map<string, EntityMeta>();
+
+  const taskIds = logs.filter(l => l.entityType === 'Task' && l.entityId !== 'BATCH').map(l => l.entityId);
+  const buildingIds = logs.filter(l => l.entityType === 'Building' && l.entityId !== 'BATCH').map(l => l.entityId);
+
+  const [tasks, buildings] = await Promise.all([
+    taskIds.length > 0
+      ? prisma.task.findMany({
+          where: { id: { in: taskIds } },
+          select: { id: true, title: true, project: { select: { projectNumber: true, name: true } } },
+        })
+      : Promise.resolve([]),
+    buildingIds.length > 0
+      ? prisma.building.findMany({
+          where: { id: { in: buildingIds } },
+          select: { id: true, name: true, designation: true, project: { select: { projectNumber: true, name: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  tasks.forEach(t => map.set(t.id, { name: t.title, project: t.project }));
+  buildings.forEach(b => map.set(b.id, { name: b.name || b.designation, project: b.project }));
+
+  return map;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const store = await cookies();
@@ -68,26 +99,14 @@ export async function GET(req: NextRequest) {
       prisma.auditLog.count({ where }),
     ]);
 
-    // Resolve task names for Task-type audit entries
-    const taskIds = logs
-      .filter(l => l.entityType === 'Task' && l.entityId !== 'BATCH')
-      .map(l => l.entityId);
-
-    const taskMap = new Map<string, { title: string; project: { projectNumber: string; name: string } | null }>();
-    if (taskIds.length > 0) {
-      const tasks = await prisma.task.findMany({
-        where: { id: { in: taskIds } },
-        select: { id: true, title: true, project: { select: { projectNumber: true, name: true } } },
-      });
-      tasks.forEach(t => taskMap.set(t.id, { title: t.title, project: t.project }));
-    }
+    const metaMap = await resolveEntityMeta(logs);
 
     const enrichedLogs = logs.map(log => {
-      const taskInfo = log.entityType === 'Task' ? taskMap.get(log.entityId) : undefined;
+      const meta = metaMap.get(log.entityId);
       return {
         ...log,
-        entityName: taskInfo?.title ?? null,
-        entityProject: taskInfo?.project ?? null,
+        entityName: meta?.name ?? null,
+        entityProject: meta?.project ?? null,
       };
     });
 

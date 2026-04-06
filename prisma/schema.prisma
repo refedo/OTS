@@ -68,6 +68,7 @@ model User {
   completedTasks     Task[]   @relation("CompletedTasks")
   approvedTasks      Task[]   @relation("ApprovedTasks")
   rejectedTasks      Task[]   @relation("RejectedTasks")
+  deletedTasks       Task[]   @relation("DeletedTasks")
   managedProjects    Project[] @relation("ProjectManager")
   salesProjects      Project[] @relation("SalesEngineer")
   createdITPs        ITP[]    @relation("ITPCreatedBy")
@@ -594,7 +595,13 @@ model Task {
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
+  // Soft delete
+  deletedAt     DateTime?
+  deletedById   String?  @db.Char(36)
+  deletedBy     User?    @relation("DeletedTasks", fields: [deletedById], references: [id])
+  deleteReason  String?  @db.VarChar(500)
+
   // Audit trail
   auditLogs     TaskAuditLog[]
   attachments   TaskAttachment[]

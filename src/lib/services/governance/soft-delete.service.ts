@@ -14,6 +14,7 @@ export const SOFT_DELETE_ENTITIES = [
   'Project',
   'Building',
   'AssemblyPart',
+  'Task',
 ] as const;
 
 export type SoftDeleteEntity = typeof SOFT_DELETE_ENTITIES[number];
@@ -80,6 +81,17 @@ class SoftDeleteService {
           });
           break;
 
+        case 'Task':
+          await prisma.task.update({
+            where: { id: entityId },
+            data: {
+              deletedAt: now,
+              deletedById,
+              deleteReason: reason,
+            },
+          });
+          break;
+
         default:
           return { success: false, error: `Entity type ${entityType} does not support soft delete` };
       }
@@ -134,6 +146,17 @@ class SoftDeleteService {
 
         case 'AssemblyPart':
           await prisma.assemblyPart.update({
+            where: { id: entityId },
+            data: {
+              deletedAt: null,
+              deletedById: null,
+              deleteReason: null,
+            },
+          });
+          break;
+
+        case 'Task':
+          await prisma.task.update({
             where: { id: entityId },
             data: {
               deletedAt: null,
@@ -350,6 +373,34 @@ class SoftDeleteService {
             deleteReason: p.deleteReason,
           })),
           total: partTotal,
+        };
+
+      case 'Task':
+        const [tasks, taskTotal] = await Promise.all([
+          prisma.task.findMany({
+            where: where as any,
+            take: limit,
+            skip: offset,
+            orderBy: { deletedAt: 'desc' },
+            select: {
+              id: true,
+              title: true,
+              deletedAt: true,
+              deleteReason: true,
+              deletedBy: { select: { id: true, name: true } },
+            },
+          }),
+          prisma.task.count({ where: where as any }),
+        ]);
+        return {
+          items: tasks.map(t => ({
+            id: t.id,
+            name: t.title,
+            deletedAt: t.deletedAt!,
+            deletedBy: t.deletedBy,
+            deleteReason: t.deleteReason,
+          })),
+          total: taskTotal,
         };
 
       default:

@@ -77,8 +77,8 @@ export async function GET(
   }
 
   const { id } = await params;
-  const task = await prisma.task.findUnique({
-    where: { id },
+  const task = await prisma.task.findFirst({
+    where: { id, deletedAt: null },
     include: {
       assignedTo: {
         select: { id: true, name: true, email: true, position: true },
@@ -711,8 +711,12 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden: You can only delete your own tasks' }, { status: 403 });
   }
 
-  await prisma.task.delete({
+  await prisma.task.update({
     where: { id: taskId },
+    data: {
+      deletedAt: new Date(),
+      deletedById: session.sub,
+    },
   });
 
   systemEventService.logTask('TASK_DELETED', taskId, session.sub, {

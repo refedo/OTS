@@ -693,15 +693,9 @@ export default function LcrPage() {
                         </tr>
                         <tr>
                           <td className="px-3 py-2 font-medium text-muted-foreground">LCR 3</td>
-                          <td className="px-3 py-2 text-muted-foreground">—</td>
+                          <td className="px-3 py-2 text-muted-foreground">{selectedEntry.lcr3 ?? '—'}</td>
                           <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr3Amount)}</td>
                           <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr3PricePerTon)}</td>
-                        </tr>
-                        <tr>
-                          <td className="px-3 py-2 font-medium text-muted-foreground">LCR 3</td>
-                          <td className="px-3 py-2 text-muted-foreground">—</td>
-                          <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr1Amount)}</td>
-                          <td className="px-3 py-2 text-right text-muted-foreground">{formatSAR(selectedEntry.lcr1PricePerTon)}</td>
                         </tr>
                       </tbody>
                     </table>

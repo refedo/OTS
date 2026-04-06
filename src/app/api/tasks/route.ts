@@ -113,6 +113,10 @@ export async function GET(req: Request) {
     const searchOr = [
       { title: { contains: search } },
       { description: { contains: search } },
+      { revision: { contains: search } },
+      { remark: { contains: search } },
+      { mainActivity: { contains: search } },
+      { subActivity: { contains: search } },
       { assignedTo: { name: { contains: search } } },
       { createdBy: { name: { contains: search } } },
       { requester: { name: { contains: search } } },
@@ -128,11 +132,12 @@ export async function GET(req: Request) {
     }
   }
 
-  // Exclude standalone conversation containers (Discussion tasks)
+  // Exclude standalone conversation containers (Discussion tasks) and soft-deleted tasks
   if (whereClause.AND) {
     (whereClause.AND as unknown[]).push({ NOT: { mainActivity: 'Discussion' } });
+    (whereClause.AND as unknown[]).push({ deletedAt: null });
   } else {
-    whereClause.AND = [{ NOT: { mainActivity: 'Discussion' } }];
+    whereClause.AND = [{ NOT: { mainActivity: 'Discussion' } }, { deletedAt: null }];
   }
 
   let tasks = await prisma.task.findMany({
