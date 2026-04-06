@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/jwt';
+import { logger } from '@/lib/logger';
 import { google } from 'googleapis';
 
 // Set max duration for serverless function (Vercel/Netlify)
@@ -34,7 +35,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Initialize Google Sheets API using the same approach as pts-sync.service.ts
     const keyJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
     if (!keyJson) {
       return NextResponse.json(
@@ -51,80 +51,63 @@ export async function GET(request: NextRequest) {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Fetch headers from both sheets with timeout
-    const TIMEOUT_MS = 25000; // 25 seconds
-    
-    const [rawDataResponse, logResponse] = await withTimeout(
-      Promise.all([
-        sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `'${RAW_DATA_SHEET}'!A1:Z1`,
-        }),
-        sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `'${LOG_SHEET}'!A1:Z1`,
-        }),
-      ]),
+    // Single batchGet request for all 4 ranges (headers + sample rows for both sheets)
+    const TIMEOUT_MS = 25000;
+    const batchResponse = await withTimeout(
+      sheets.spreadsheets.values.batchGet({
+        spreadsheetId: SPREADSHEET_ID,
+        ranges: [
+          `'${RAW_DATA_SHEET}'!A1:ZZ1`,
+          `'${LOG_SHEET}'!A1:ZZ1`,
+          `'${RAW_DATA_SHEET}'!A2:ZZ2`,
+          `'${LOG_SHEET}'!A2:ZZ2`,
+        ],
+      }),
       TIMEOUT_MS
     );
 
-    const rawDataHeaders = rawDataResponse.data.values?.[0] || [];
-    const logHeaders = logResponse.data.values?.[0] || [];
-
-    // Also fetch a sample row to show data preview
-    const [rawDataSample, logSample] = await withTimeout(
-      Promise.all([
-        sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `'${RAW_DATA_SHEET}'!A2:Z2`,
-        }),
-        sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `'${LOG_SHEET}'!A2:Z2`,
-        }),
-      ]),
-      TIMEOUT_MS
-    );
+    const valueRanges = batchResponse.data.valueRanges ?? [];
+    const rawDataHeaders: string[] = valueRanges[0]?.values?.[0] ?? [];
+    const logHeaders: string[] = valueRanges[1]?.values?.[0] ?? [];
+    const rawDataSample: string[] = valueRanges[2]?.values?.[0] ?? [];
+    const logSample: string[] = valueRanges[3]?.values?.[0] ?? [];
 
     return NextResponse.json({
       rawData: {
-        headers: rawDataHeaders.map((h: string, i: number) => ({
-          index: i,
-          column: String.fromCharCode(65 + i), // A, B, C, etc.
-          name: h || `Column ${String.fromCharCode(65 + i)}`,
-          sample: rawDataSample.data.values?.[0]?.[i] || '',
-        })),
-      },
-      logs: {
-        headers: logHeaders.map((h: string, i: number) => ({
+        headers: rawDataHeaders.map((h, i) => ({
           index: i,
           column: String.fromCharCode(65 + i),
           name: h || `Column ${String.fromCharCode(65 + i)}`,
-          sample: logSample.data.values?.[0]?.[i] || '',
+          sample: rawDataSample[i] || '',
+        })),
+      },
+      logs: {
+        headers: logHeaders.map((h, i) => ({
+          index: i,
+          column: String.fromCharCode(65 + i),
+          name: h || `Column ${String.fromCharCode(65 + i)}`,
+          sample: logSample[i] || '',
         })),
       },
     });
   } catch (error) {
-    console.error('[PTS Columns API] Error:', error);
+    logger.error({ error }, 'PTS Columns API error');
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : '';
-    console.error('[PTS Columns API] Stack:', errorStack);
-    
-    // Check for common issues
+
     if (errorMessage.includes('private_key')) {
       return NextResponse.json(
-        { error: 'Google API credentials not configured properly. Check GOOGLE_PRIVATE_KEY environment variable.' },
+        { error: 'Google API credentials not configured properly.' },
         { status: 500 }
       );
     }
-    
+
     if (errorMessage.includes('timed out')) {
       return NextResponse.json(
         { error: 'Google Sheets API request timed out. Please try again.', message: errorMessage },
         { status: 504 }
       );
     }
-    
+
     return NextResponse.json(
       { error: 'Failed to fetch columns', message: errorMessage },
       { status: 500 }

@@ -54,7 +54,7 @@ export const GET = withApiContext(async (req, session) => {
     const [tasks] = await Promise.all([
       taskIds.length > 0
         ? prisma.task.findMany({
-            where: { id: { in: taskIds }, NOT: { mainActivity: 'Discussion' } },
+            where: { id: { in: taskIds } },
             select: {
               id: true,
               title: true,

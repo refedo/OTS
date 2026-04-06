@@ -273,7 +273,13 @@ export function TaskDetails({ task, userId, userPermissions = [] }: TaskDetailsP
     return () => clearInterval(interval);
   }, [fetchConversation]);
 
+  const convInitialScrollDone = useRef(false);
   useEffect(() => {
+    if (convMessages.length === 0) return;
+    if (!convInitialScrollDone.current) {
+      convInitialScrollDone.current = true;
+      return; // don't auto-scroll on initial load
+    }
     convEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [convMessages]);
 
