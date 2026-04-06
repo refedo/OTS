@@ -225,7 +225,7 @@ export default function BacklogItemDetail() {
   const handleDeleteNote = async (noteId: string) => {
     if (!item) return;
     const confirmed = await showConfirmation({
-      type: 'destructive',
+      type: 'danger',
       title: 'Delete Note',
       message: 'Are you sure you want to delete this note? This action cannot be undone.',
       confirmText: 'Delete',

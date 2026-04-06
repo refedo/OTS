@@ -8,8 +8,8 @@ import { Prisma } from '@prisma/client';
 
 const log = logger.child({ module: 'LcrSync' });
 
-// Column mapping (0-indexed from sheet)
-const COL = {
+// Default column mapping (0-indexed from sheet)
+export const DEFAULT_LCR_COL_MAP = {
   SN: 0,
   PROJECT_NUMBER: 1,
   ITEM: 2,
@@ -32,9 +32,7 @@ const COL = {
   TARGET_PRICE: 19,
   MRF_NUMBER: 20,
   RATIO_1TO2_LCR1: 21,
-  // Cols 22-23 are reserved/unused summary columns in the sheet
   LCR1: 24,
-  // Cols 25-26 contain SAR-formatted duplicates (not parsed)
   LCR1_AMOUNT: 27,
   PRICE_PER_TON_LCR1: 28,
   LCR2: 29,
@@ -45,6 +43,22 @@ const COL = {
   PRICE_PER_TON_LCR3: 34,
   THICKNESS: 35,
 } as const;
+
+export type LcrColKey = keyof typeof DEFAULT_LCR_COL_MAP;
+
+async function loadColMap(): Promise<Record<LcrColKey, number>> {
+  try {
+    const settings = await prisma.systemSettings.findFirst({ select: { lcrColumnMapping: true } });
+    if (settings?.lcrColumnMapping && typeof settings.lcrColumnMapping === 'object') {
+      const saved = settings.lcrColumnMapping as Record<string, number>;
+      // Merge saved values over defaults so new fields added later still work
+      return { ...DEFAULT_LCR_COL_MAP, ...saved } as Record<LcrColKey, number>;
+    }
+  } catch {
+    // DB not yet migrated — use defaults silently
+  }
+  return { ...DEFAULT_LCR_COL_MAP };
+}
 
 function parseDate(value: string | undefined | null): Date | null {
   if (!value || value.trim() === '') return null;
@@ -127,40 +141,40 @@ interface RawRow {
   thickness: string | null;
 }
 
-function mapRow(cells: string[]): RawRow {
+function mapRow(cells: string[], col: Record<LcrColKey, number>): RawRow {
   return {
-    sn: str(cells[COL.SN]),
-    projectNumber: str(cells[COL.PROJECT_NUMBER]),
-    itemLabel: str(cells[COL.ITEM]),
-    qty: parseDecimal(cells[COL.QTY]),
-    amount: parseDecimal(cells[COL.AMOUNT]),
-    status: str(cells[COL.STATUS]),
-    buildingNameRaw: str(cells[COL.BUILDING_NAME]),
-    requestDate: parseDate(cells[COL.REQUEST_DATE]),
-    neededFromDate: parseDate(cells[COL.NEEDED_FROM_DATE]),
-    neededToDate: parseDate(cells[COL.NEEDED_TO_DATE]),
-    buyingDate: parseDate(cells[COL.BUYING_DATE]),
-    receivingDate: parseDate(cells[COL.RECEIVING_DATE]),
-    poNumber: str(cells[COL.PO_NUMBER]),
-    dnNumber: str(cells[COL.DN_NUMBER]),
-    awardedToRaw: str(cells[COL.AWARDED_TO]),
-    weight: parseDecimal(cells[COL.WEIGHT]),
-    totalWeight: parseDecimal(cells[COL.TOTAL_WEIGHT]),
-    totalLcr1: parseDecimal(cells[COL.TOTAL_LCR1]),
-    totalLcr2: parseDecimal(cells[COL.TOTAL_LCR2]),
-    targetPrice: parseDecimal(cells[COL.TARGET_PRICE]),
-    mrfNumber: str(cells[COL.MRF_NUMBER]),
-    ratio1to2Lcr1: parseDecimal(cells[COL.RATIO_1TO2_LCR1]),
-    lcr1: str(cells[COL.LCR1]),
-    lcr1Amount: parseDecimal(cells[COL.LCR1_AMOUNT]),
-    lcr1PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR1]),
-    lcr2: str(cells[COL.LCR2]),
-    lcr2Amount: parseDecimal(cells[COL.LCR2_AMOUNT]),
-    lcr2PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR2]),
-    lcr3: str(cells[COL.LCR3]),
-    lcr3Amount: parseDecimal(cells[COL.LCR3_AMOUNT]),
-    lcr3PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR3]),
-    thickness: str(cells[COL.THICKNESS]),
+    sn: str(cells[col.SN]),
+    projectNumber: str(cells[col.PROJECT_NUMBER]),
+    itemLabel: str(cells[col.ITEM]),
+    qty: parseDecimal(cells[col.QTY]),
+    amount: parseDecimal(cells[col.AMOUNT]),
+    status: str(cells[col.STATUS]),
+    buildingNameRaw: str(cells[col.BUILDING_NAME]),
+    requestDate: parseDate(cells[col.REQUEST_DATE]),
+    neededFromDate: parseDate(cells[col.NEEDED_FROM_DATE]),
+    neededToDate: parseDate(cells[col.NEEDED_TO_DATE]),
+    buyingDate: parseDate(cells[col.BUYING_DATE]),
+    receivingDate: parseDate(cells[col.RECEIVING_DATE]),
+    poNumber: str(cells[col.PO_NUMBER]),
+    dnNumber: str(cells[col.DN_NUMBER]),
+    awardedToRaw: str(cells[col.AWARDED_TO]),
+    weight: parseDecimal(cells[col.WEIGHT]),
+    totalWeight: parseDecimal(cells[col.TOTAL_WEIGHT]),
+    totalLcr1: parseDecimal(cells[col.TOTAL_LCR1]),
+    totalLcr2: parseDecimal(cells[col.TOTAL_LCR2]),
+    targetPrice: parseDecimal(cells[col.TARGET_PRICE]),
+    mrfNumber: str(cells[col.MRF_NUMBER]),
+    ratio1to2Lcr1: parseDecimal(cells[col.RATIO_1TO2_LCR1]),
+    lcr1: str(cells[col.LCR1]),
+    lcr1Amount: parseDecimal(cells[col.LCR1_AMOUNT]),
+    lcr1PricePerTon: parseDecimal(cells[col.PRICE_PER_TON_LCR1]),
+    lcr2: str(cells[col.LCR2]),
+    lcr2Amount: parseDecimal(cells[col.LCR2_AMOUNT]),
+    lcr2PricePerTon: parseDecimal(cells[col.PRICE_PER_TON_LCR2]),
+    lcr3: str(cells[col.LCR3]),
+    lcr3Amount: parseDecimal(cells[col.LCR3_AMOUNT]),
+    lcr3PricePerTon: parseDecimal(cells[col.PRICE_PER_TON_LCR3]),
+    thickness: str(cells[col.THICKNESS]),
   };
 }
 
@@ -243,6 +257,9 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
   let pendingAliases = 0;
 
   try {
+    // 0. Load column mapping from DB (falls back to defaults if not configured)
+    const col = await loadColMap();
+
     // 1. Authenticate with Google Sheets
     const keyJson = process.env.GOOGLE_SHEETS_KEY_JSON;
     const sheetId = process.env.GOOGLE_SHEET_LCR_ID;
@@ -326,7 +343,7 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
     const upsertOperations: Prisma.PrismaPromise<unknown>[] = [];
 
     for (const item of toInsert) {
-      const raw = mapRow(item.cells);
+      const raw = mapRow(item.cells, col);
       const projectId = await resolveProjectId(raw.projectNumber);
       const productId = await resolveProductId(raw.itemLabel);
       const buildingId = await resolveBuildingId(raw.buildingNameRaw);
@@ -383,7 +400,7 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = 
     }
 
     for (const item of toUpdate) {
-      const raw = mapRow(item.cells);
+      const raw = mapRow(item.cells, col);
       const projectId = await resolveProjectId(raw.projectNumber);
       const productId = await resolveProductId(raw.itemLabel);
       const buildingId = await resolveBuildingId(raw.buildingNameRaw);

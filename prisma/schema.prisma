@@ -2444,6 +2444,9 @@ model SystemSettings {
   nextcloudEnabled   Boolean  @default(false)
   libreMesEnabled    Boolean  @default(false)
 
+  // LCR Column Mapping (JSON, stores field key → 0-based column index)
+  lcrColumnMapping  Json?
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

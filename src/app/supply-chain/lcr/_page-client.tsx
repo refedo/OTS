@@ -371,6 +371,11 @@ export default function LcrPage() {
             <RefreshCw className="size-4 mr-1" />
             Force Resync All
           </Button>
+          <Link href="/supply-chain/lcr/columns">
+            <Button variant="outline" size="sm">
+              <Info className="size-4 mr-1" /> Column Mapping
+            </Button>
+          </Link>
           <Link href="/supply-chain/lcr/reports">
             <Button variant="outline" size="sm">
               <FileSpreadsheet className="size-4 mr-1" /> Reports
