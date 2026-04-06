@@ -3,13 +3,11 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
-// The 10 fixed activity columns displayed in the tracker
+// The 8 fixed activity columns displayed in the tracker
 const TRACKER_COLUMNS = [
   { type: 'arch_approval', label: 'Arch Drawing' },
   { type: 'design', label: 'Design Stage' },
-  { type: 'design_approval', label: 'Design Approval' },
   { type: 'detailing', label: 'Shop Drawings' },
-  { type: 'detailing_approval', label: 'SD Approval' },
   { type: 'procurement', label: 'Procurement' },
   { type: 'production', label: 'Production' },
   { type: 'coating', label: 'Coating' },
@@ -21,16 +19,14 @@ const TRACKER_COLUMNS = [
 const ACTIVITY_TO_TASK_MAIN: Record<string, string> = {
   arch_approval: 'architecture',
   design: 'design',
-  design_approval: 'design',
   detailing: 'detailing',
-  detailing_approval: 'detailing',
 };
 
 // Activities where we check approvedAt (approval-led)
-const APPROVAL_ACTIVITIES = new Set(['arch_approval', 'design_approval', 'detailing_approval']);
+const APPROVAL_ACTIVITIES = new Set(['arch_approval']);
 
-// Activities where we check completedAt + releaseDate (completion-led)
-const COMPLETION_ACTIVITIES = new Set(['design', 'detailing']);
+// Activities where progress is driven by revision status (design/detailing new logic)
+const DESIGN_REVISION_ACTIVITIES = new Set(['design', 'detailing']);
 
 // Production log process types
 const PRODUCTION_PROCESS_TYPES: Record<string, string[]> = {
@@ -49,7 +45,39 @@ const LCR_ACTIVE_STATUSES = [
 // LCR statuses that count as "bought"
 const LCR_BOUGHT_STATUSES = ['bought', 'ordered', 'po issued'];
 
-type ActivityStatus = 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'pending_approval';
+type ActivityStatus =
+  | 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'pending_approval'
+  | 'pending' | 'waiting_approval' | 'completed_released' | 'rejected' | 'approved';
+
+type DesignRevisionState = 'pending' | 'in_progress' | 'waiting_approval' | 'completed' | 'completed_released' | 'rejected' | 'approved';
+
+const DESIGN_STATE_PRIORITY: Record<DesignRevisionState, number> = {
+  pending: 0, rejected: 1, in_progress: 2, waiting_approval: 3,
+  completed: 4, completed_released: 5, approved: 6,
+};
+
+const DESIGN_STATE_PERCENTAGE: Record<DesignRevisionState, number> = {
+  pending: 0, rejected: 50, in_progress: 50, waiting_approval: 50,
+  completed: 70, completed_released: 80, approved: 100,
+};
+
+function getTaskDesignState(t: {
+  status: string;
+  completedAt: Date | null;
+  releaseDate: Date | null;
+  approvedAt: Date | null;
+  rejectedAt: Date | null;
+  consultantResponseCode: string | null;
+}): DesignRevisionState {
+  if (t.approvedAt) return 'approved';
+  if (t.rejectedAt || t.consultantResponseCode === 'code_c') return 'rejected';
+  if (t.completedAt || t.status === 'Completed') {
+    return t.releaseDate ? 'completed_released' : 'completed';
+  }
+  if (t.status === 'Waiting for Approval') return 'waiting_approval';
+  if (t.status === 'In Progress') return 'in_progress';
+  return 'pending';
+}
 
 interface TaskDetail {
   id: string;
@@ -60,6 +88,7 @@ interface TaskDetail {
   dueDate: string | null;
   completedAt: string | null;
   approvedAt: string | null;
+  rejectedAt: string | null;
   consultantResponseCode: string | null;
   assignedTo: string | null;
   isOverdue: boolean;
@@ -83,6 +112,7 @@ interface ProductionDetail {
 interface ActivityResult {
   percentage: number;
   status: ActivityStatus;
+  consultantCode?: string;
   details: {
     tasks?: TaskDetail[];
     procurement?: ProcurementDetail;
@@ -278,7 +308,6 @@ async function computeTaskProgress(
 ): Promise<ActivityResult> {
   const mainActivity = ACTIVITY_TO_TASK_MAIN[activityType];
   const now = new Date();
-  const isApprovalLed = APPROVAL_ACTIVITIES.has(activityType);
 
   // NOTE: Task model has no deletedAt — do not add that filter
   const tasks = await prisma.task.findMany({
@@ -296,6 +325,7 @@ async function computeTaskProgress(
       releaseDate: true,
       approvedAt: true,
       completedAt: true,
+      rejectedAt: true,
       subActivity: true,
       consultantResponseCode: true,
       createdAt: true,
@@ -333,56 +363,57 @@ async function computeTaskProgress(
       dueDate: t.dueDate?.toISOString() ?? null,
       completedAt: t.completedAt?.toISOString() ?? null,
       approvedAt: t.approvedAt?.toISOString() ?? null,
+      rejectedAt: t.rejectedAt?.toISOString() ?? null,
       consultantResponseCode: t.consultantResponseCode,
       assignedTo: t.assignedTo?.name ?? null,
       isOverdue,
     };
   });
 
+  // Design Stage & Shop Drawings: revision-based status logic
+  if (DESIGN_REVISION_ACTIVITIES.has(activityType)) {
+    let worstState: DesignRevisionState = 'approved';
+    for (const t of latestTasks) {
+      const state = getTaskDesignState(t);
+      if (DESIGN_STATE_PRIORITY[state] < DESIGN_STATE_PRIORITY[worstState]) {
+        worstState = state;
+      }
+    }
+    const percentage = DESIGN_STATE_PERCENTAGE[worstState];
+
+    let consultantCode: string | undefined;
+    if (worstState === 'approved') {
+      const codes = latestTasks.map((t) => t.consultantResponseCode).filter(Boolean) as string[];
+      if (codes.some((c) => c === 'code_b')) consultantCode = 'B';
+      else if (codes.some((c) => c === 'code_a')) consultantCode = 'A';
+      else consultantCode = 'A';
+    }
+
+    return { percentage, status: worstState, consultantCode, details: { tasks: taskDetails } };
+  }
+
   const hasOverdue = taskDetails.some((t) => t.isOverdue);
 
   /**
-   * Score each task 0-100 based on its actual state so we always
-   * show meaningful progress — even for open / pending tasks.
-   *
-   * Approval-led columns (arch_approval, design_approval, detailing_approval):
+   * Score each task 0-100 for approval-led columns (arch_approval):
    *   approved                          → 100
    *   completed / released (not approved) → 75
    *   in_progress                       → 40
    *   pending (open)                    → 15
-   *
-   * Completion-led columns (design, detailing):
-   *   completed + releaseDate           → 100
-   *   completed (no releaseDate)        → 65
-   *   in_progress                       → 40
-   *   pending (open)                    → 15
    */
   const scores = latestTasks.map((t) => {
-    if (isApprovalLed) {
-      if (t.approvedAt) return 100;
-      if (t.completedAt || t.releaseDate !== null || t.status === 'Completed') return 75;
-      if (t.status === 'In Progress') return 40;
-      return 15;
-    } else {
-      if (t.completedAt && t.releaseDate) return 100;
-      if (t.completedAt || t.status === 'Completed') return 65;
-      if (t.status === 'In Progress') return 40;
-      return 15;
-    }
+    if (t.approvedAt) return 100;
+    if (t.completedAt || t.releaseDate !== null || t.status === 'Completed') return 75;
+    if (t.status === 'In Progress') return 40;
+    return 15;
   });
 
   const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 
-  // Overall status
-  const allFullyDone = isApprovalLed
-    ? latestTasks.every((t) => t.approvedAt !== null)
-    : latestTasks.every((t) => t.completedAt !== null && t.releaseDate !== null);
-
-  if (allFullyDone) {
+  if (latestTasks.every((t) => t.approvedAt !== null)) {
     return { percentage: 100, status: 'completed', details: { tasks: taskDetails } };
   }
 
-  // All tasks have at least been submitted/completed
   const allSubmitted = latestTasks.every(
     (t) => t.completedAt !== null || t.releaseDate !== null || t.status === 'Completed'
   );
@@ -394,7 +425,6 @@ async function computeTaskProgress(
     return { percentage: Math.max(avgScore, 15), status: 'blocked', details: { tasks: taskDetails } };
   }
 
-  // Tasks exist (open, in-progress, partially done) — show real score, min 10%
   return { percentage: Math.max(avgScore, 10), status: 'in_progress', details: { tasks: taskDetails } };
 }
 

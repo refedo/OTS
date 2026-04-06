@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.16.0',
+    date: 'April 6, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Revamp Project Tracker Design/SD Progress Logic',
+    highlights: [
+      'Removed Design Approval and SD Approval columns from the project tracker',
+      'Design Stage and Shop Drawings now display revision-based status with 7 distinct states and colors',
+      'Approved cells show the consultant response code (A/B/C) in the upper-right corner',
+    ],
+    changes: {
+      added: [
+        'New status states for Design Stage & Shop Drawings: Pending (P/orange), In Progress (50%/blue), Waiting for Approval (50%/purple), Completed (70%/pale green), Completed & Released (80%/teal), Rejected (50%/red), Approved (100%/green)',
+        'Consultant code badge (A/B/C) displayed in upper-right corner of approved cells',
+        'Updated legend with color-coded status descriptions for all new states',
+      ],
+      fixed: [],
+      changed: [
+        'Removed Design Approval column from project tracker',
+        'Removed SD Approval column from project tracker',
+        'Design Stage and Shop Drawings progress calculation rewritten to use task revision status instead of completion/approval scores',
+      ],
+    },
+  },
+  {
     version: '17.15.1',
     date: 'April 5, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'stable',
     mainTitle: 'Fix MySQL Migration Syntax for Production Deploy',
     highlights: [
       'Migration SQL rewritten to use MySQL 8-compatible syntax — resolves ERROR 1064 on production',
