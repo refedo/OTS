@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.20.0',
+    version: '17.21.0',
     date: 'April 6, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'LCR Mapping Redesign with Google Sheet Dropdowns, Clickable Cash Flow Timeline',
+    highlights: [
+      'LCR column mapping page redesigned: dropdowns populated from live Google Sheet column headers with sample data',
+      'Cash Flow Timeline bars are now clickable to filter the payment table by month',
+      'Cash Flow Timeline now shows collected payments as green bars alongside expected amounts',
+      'Fixed MySQL migration SQL for lcrColumnMapping (removed unsupported IF NOT EXISTS syntax)',
+      'Added permanent CLAUDE.md rule about MySQL ADD COLUMN IF NOT EXISTS syntax',
+    ],
+    changes: {
+      added: [
+        'New API endpoint: GET /api/supply-chain/lcr/columns/sheet-headers — fetches real column headers and sample data from the LCR Google Sheet',
+        'LCR column mapping page now shows dropdowns with actual sheet column name + sample value per field',
+        'Cash Flow Timeline: green bars showing collected payment amounts per month',
+        'Cash Flow Timeline: click any bar to filter payment table to that month; click again to clear',
+        'CLAUDE.md: Database Migrations section with stored procedure pattern rule for MySQL',
+      ],
+      fixed: [
+        'prisma/manual_migrations/add_lcr_column_mapping.sql: replaced unsupported ALTER TABLE ... ADD COLUMN IF NOT EXISTS with stored procedure pattern',
+      ],
+      changed: [
+        'LCR column mapping page: text inputs replaced with Google Sheet-aware dropdowns',
+        'Cash Flow Timeline: title updated, shows both expected and collected bars, clickable for filtering',
+      ],
+    },
+  },
+  {
+    version: '17.20.0',
+    date: 'April 6, 2026',
+    type: 'minor',
+    status: 'archived',
     mainTitle: 'LCR Column Mapping UI, Backlog Note Fix, Task Search Expansion',
     highlights: [
       'New LCR Column Mapping page: update spreadsheet column positions from the UI without code changes',

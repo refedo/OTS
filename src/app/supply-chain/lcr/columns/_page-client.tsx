@@ -3,54 +3,63 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, RotateCcw, Info } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ArrowLeft, Save, RotateCcw, Info, RefreshCw, Loader2 } from 'lucide-react';
 
-// Human-readable labels for each column key
-const FIELD_LABELS: Record<string, { label: string; group: string; note?: string }> = {
-  SN:                'Serial Number (SN):Identity:',
-  PROJECT_NUMBER:    'Project Number:Identity:',
-  ITEM:              'Item Label:Identity:',
-  QTY:               'Quantity:Identity:',
-  AMOUNT:            'Amount (Total):Identity:',
-  STATUS:            'Status:Identity:',
-  BUILDING_NAME:     'Building Name:Identity:',
-  REQUEST_DATE:      'Request Date:Timeline:',
-  NEEDED_FROM_DATE:  'Needed From Date:Timeline:',
-  NEEDED_TO_DATE:    'Needed To Date:Timeline:',
-  BUYING_DATE:       'Buying Date:Timeline:',
-  RECEIVING_DATE:    'Receiving Date:Timeline:',
-  PO_NUMBER:         'PO Number:Purchase:',
-  DN_NUMBER:         'DN Number:Purchase:',
-  AWARDED_TO:        'Awarded To (Supplier):Purchase:',
-  WEIGHT:            'Weight:Purchase:',
-  TOTAL_WEIGHT:      'Total Weight:Purchase:',
-  TOTAL_LCR1:        'Total LCR 1:LCR Summary:',
-  TOTAL_LCR2:        'Total LCR 2:LCR Summary:',
-  TARGET_PRICE:      'Target Price:LCR Summary:',
-  MRF_NUMBER:        'MRF Number:LCR Summary:',
-  RATIO_1TO2_LCR1:   'LCR1/LCR2 Ratio:LCR Summary:',
-  LCR1:              'LCR 1 Supplier Name:LCR Bids:',
-  LCR1_AMOUNT:       'LCR 1 Amount:LCR Bids:',
-  PRICE_PER_TON_LCR1:'LCR 1 Price/Ton:LCR Bids:',
-  LCR2:              'LCR 2 Supplier Name:LCR Bids:',
-  LCR2_AMOUNT:       'LCR 2 Amount:LCR Bids:',
-  PRICE_PER_TON_LCR2:'LCR 2 Price/Ton:LCR Bids:',
-  LCR3:              'LCR 3 Supplier Name:LCR Bids:',
-  LCR3_AMOUNT:       'LCR 3 Amount:LCR Bids:',
-  PRICE_PER_TON_LCR3:'LCR 3 Price/Ton:LCR Bids:',
-  THICKNESS:         'Thickness:Other:',
-};
-
-function parseLabel(raw: string) {
-  const parts = raw.split(':');
-  return { label: parts[0], group: parts[1] ?? 'Other', note: parts[2] || undefined };
+interface ColumnHeader {
+  index: number;
+  column: string;
+  name: string;
+  sample: string;
 }
 
-// Convert 0-based index ↔ spreadsheet letter (A=0, Z=25, AA=26, ...)
+// Human-readable labels for each column key
+const FIELD_META: Record<string, { label: string; group: string }> = {
+  SN:                { label: 'Serial Number (SN)',       group: 'Identity'    },
+  PROJECT_NUMBER:    { label: 'Project Number',           group: 'Identity'    },
+  ITEM:              { label: 'Item Label',               group: 'Identity'    },
+  QTY:               { label: 'Quantity',                 group: 'Identity'    },
+  AMOUNT:            { label: 'Amount (Total)',           group: 'Identity'    },
+  STATUS:            { label: 'Status',                   group: 'Identity'    },
+  BUILDING_NAME:     { label: 'Building Name',            group: 'Identity'    },
+  REQUEST_DATE:      { label: 'Request Date',             group: 'Timeline'    },
+  NEEDED_FROM_DATE:  { label: 'Needed From Date',         group: 'Timeline'    },
+  NEEDED_TO_DATE:    { label: 'Needed To Date',           group: 'Timeline'    },
+  BUYING_DATE:       { label: 'Buying Date',              group: 'Timeline'    },
+  RECEIVING_DATE:    { label: 'Receiving Date',           group: 'Timeline'    },
+  PO_NUMBER:         { label: 'PO Number',                group: 'Purchase'    },
+  DN_NUMBER:         { label: 'DN Number',                group: 'Purchase'    },
+  AWARDED_TO:        { label: 'Awarded To (Supplier)',    group: 'Purchase'    },
+  WEIGHT:            { label: 'Weight',                   group: 'Purchase'    },
+  TOTAL_WEIGHT:      { label: 'Total Weight',             group: 'Purchase'    },
+  TOTAL_LCR1:        { label: 'Total LCR 1',             group: 'LCR Summary' },
+  TOTAL_LCR2:        { label: 'Total LCR 2',             group: 'LCR Summary' },
+  TARGET_PRICE:      { label: 'Target Price',             group: 'LCR Summary' },
+  MRF_NUMBER:        { label: 'MRF Number',               group: 'LCR Summary' },
+  RATIO_1TO2_LCR1:   { label: 'LCR1/LCR2 Ratio',         group: 'LCR Summary' },
+  LCR1:              { label: 'LCR 1 Supplier Name',      group: 'LCR Bids'    },
+  LCR1_AMOUNT:       { label: 'LCR 1 Amount',             group: 'LCR Bids'    },
+  PRICE_PER_TON_LCR1:{ label: 'LCR 1 Price/Ton',         group: 'LCR Bids'    },
+  LCR2:              { label: 'LCR 2 Supplier Name',      group: 'LCR Bids'    },
+  LCR2_AMOUNT:       { label: 'LCR 2 Amount',             group: 'LCR Bids'    },
+  PRICE_PER_TON_LCR2:{ label: 'LCR 2 Price/Ton',         group: 'LCR Bids'    },
+  LCR3:              { label: 'LCR 3 Supplier Name',      group: 'LCR Bids'    },
+  LCR3_AMOUNT:       { label: 'LCR 3 Amount',             group: 'LCR Bids'    },
+  PRICE_PER_TON_LCR3:{ label: 'LCR 3 Price/Ton',         group: 'LCR Bids'    },
+  THICKNESS:         { label: 'Thickness',                group: 'Other'       },
+};
+
+const GROUPS = ['Identity', 'Timeline', 'Purchase', 'LCR Summary', 'LCR Bids', 'Other'];
+
 function indexToLetter(idx: number): string {
   let n = idx + 1;
   let result = '';
@@ -62,86 +71,116 @@ function indexToLetter(idx: number): string {
   return result;
 }
 
-function letterToIndex(letter: string): number | null {
-  const up = letter.toUpperCase().trim();
-  if (!/^[A-Z]+$/.test(up)) return null;
-  let result = 0;
-  for (let i = 0; i < up.length; i++) {
-    result = result * 26 + (up.charCodeAt(i) - 64);
-  }
-  return result - 1;
-}
-
-const GROUPS = ['Identity', 'Timeline', 'Purchase', 'LCR Summary', 'LCR Bids', 'Other'];
-
 export default function LcrColumnMappingPage() {
   const { toast } = useToast();
-  const [mapping, setMapping] = useState<Record<string, number>>({});
-  const [defaults, setDefaults] = useState<Record<string, number>>({});
-  const [inputs, setInputs] = useState<Record<string, string>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
+  // Saved mapping from DB (key → 0-based index)
+  const [mapping, setMapping]   = useState<Record<string, number>>({});
+  const [defaults, setDefaults] = useState<Record<string, number>>({});
+
+  // In-progress selections (key → column letter like "A", "AB")
+  const [selections, setSelections] = useState<Record<string, string>>({});
+
+  // Google Sheet columns
+  const [sheetColumns, setSheetColumns]     = useState<ColumnHeader[]>([]);
+  const [loadingSheet, setLoadingSheet]     = useState(false);
+  const [sheetError, setSheetError]         = useState<string | null>(null);
+
+  const [loadingMapping, setLoadingMapping] = useState(true);
+  const [saving, setSaving]                 = useState(false);
+
+  // ── Fetch saved mapping from DB ──────────────────────────────────────────
   const fetchMapping = useCallback(async () => {
-    setLoading(true);
+    setLoadingMapping(true);
     try {
       const res = await fetch('/api/supply-chain/lcr/columns');
-      if (res.ok) {
-        const data = await res.json();
-        setMapping(data.mapping);
-        setDefaults(data.defaults);
-        const init: Record<string, string> = {};
-        for (const [k, v] of Object.entries(data.mapping as Record<string, number>)) {
-          init[k] = indexToLetter(v);
-        }
-        setInputs(init);
+      if (!res.ok) throw new Error('Failed to load mapping');
+      const data = await res.json();
+      setMapping(data.mapping);
+      setDefaults(data.defaults);
+      const init: Record<string, string> = {};
+      for (const [k, v] of Object.entries(data.mapping as Record<string, number>)) {
+        init[k] = indexToLetter(v);
       }
+      setSelections(init);
+    } catch (error) {
+      toast({ title: 'Failed to load mapping', description: String(error), variant: 'destructive' });
     } finally {
-      setLoading(false);
+      setLoadingMapping(false);
     }
-  }, []);
+  }, [toast]);
 
-  useEffect(() => { fetchMapping(); }, [fetchMapping]);
+  // ── Fetch Google Sheet column headers ────────────────────────────────────
+  const fetchSheetColumns = useCallback(async () => {
+    setLoadingSheet(true);
+    setSheetError(null);
+    try {
+      const res = await fetch('/api/supply-chain/lcr/columns/sheet-headers');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? 'Failed to fetch sheet columns');
+      }
+      const data = await res.json();
+      setSheetColumns(data.headers);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      setSheetError(msg);
+      toast({ title: 'Could not fetch sheet columns', description: msg, variant: 'destructive' });
+    } finally {
+      setLoadingSheet(false);
+    }
+  }, [toast]);
 
-  const handleChange = (key: string, value: string) => {
-    setInputs(prev => ({ ...prev, [key]: value.toUpperCase() }));
-    setErrors(prev => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
+  useEffect(() => {
+    fetchMapping();
+    fetchSheetColumns();
+  }, [fetchMapping, fetchSheetColumns]);
+
+  const handleChange = (key: string, columnLetter: string) => {
+    setSelections(prev => ({ ...prev, [key]: columnLetter }));
   };
 
-  const validate = (): Record<string, number> | null => {
-    const newErrors: Record<string, string> = {};
-    const result: Record<string, number> = {};
-    for (const key of Object.keys(FIELD_LABELS)) {
-      const val = inputs[key]?.trim() ?? '';
-      if (!val) { newErrors[key] = 'Required'; continue; }
-      const idx = letterToIndex(val);
-      if (idx === null) { newErrors[key] = 'Invalid column (use letters like A, AB)'; continue; }
-      result[key] = idx;
+  const handleReset = () => {
+    const init: Record<string, string> = {};
+    for (const [k, v] of Object.entries(defaults)) {
+      init[k] = indexToLetter(v);
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0 ? result : null;
+    setSelections(init);
+    toast({ title: 'Reset to defaults', description: 'Click Save Mapping to apply.' });
   };
 
   const handleSave = async () => {
-    const validated = validate();
-    if (!validated) {
-      toast({ title: 'Validation Error', description: 'Fix the highlighted fields before saving.', variant: 'destructive' });
-      return;
+    // Convert column letters → 0-based indices
+    const payload: Record<string, number> = {};
+    for (const key of Object.keys(FIELD_META)) {
+      const letter = selections[key];
+      if (!letter) continue;
+      // find index from sheetColumns first (exact match), fall back to mapping from defaults
+      const col = sheetColumns.find(c => c.column === letter);
+      if (col) {
+        payload[key] = col.index;
+      } else {
+        // letter-based fallback (no sheet columns loaded)
+        let n = 0;
+        for (let i = 0; i < letter.length; i++) {
+          n = n * 26 + (letter.toUpperCase().charCodeAt(i) - 64);
+        }
+        payload[key] = n - 1;
+      }
     }
+
     setSaving(true);
     try {
       const res = await fetch('/api/supply-chain/lcr/columns', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(validated),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        toast({ title: 'Mapping Saved', description: 'Run "Force Resync All" on the LCR page to re-process all rows with the new mapping.' });
+        toast({
+          title: 'Mapping Saved',
+          description: 'Run "Force Resync All" on the LCR page to re-process all rows with the new mapping.',
+        });
         fetchMapping();
       } else {
         const err = await res.json();
@@ -152,27 +191,22 @@ export default function LcrColumnMappingPage() {
     }
   };
 
-  const handleReset = () => {
-    const init: Record<string, string> = {};
-    for (const [k, v] of Object.entries(defaults)) {
-      init[k] = indexToLetter(v);
-    }
-    setInputs(init);
-    setErrors({});
-    toast({ title: 'Reset to defaults', description: 'Click Save to apply.' });
-  };
-
-  const isDirty = Object.keys(FIELD_LABELS).some(k => {
-    const currentIdx = letterToIndex(inputs[k] ?? '') ?? mapping[k];
-    return currentIdx !== mapping[k];
+  const isDirty = Object.keys(FIELD_META).some(k => {
+    const col = sheetColumns.find(c => c.column === selections[k]);
+    const currentIdx = col ? col.index : (mapping[k] ?? defaults[k]);
+    return currentIdx !== (mapping[k] ?? defaults[k]);
   });
 
-  if (loading) {
-    return <div className="p-6 text-muted-foreground">Loading column mapping…</div>;
+  if (loadingMapping) {
+    return (
+      <div className="p-6 flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Loading column mapping…
+      </div>
+    );
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/supply-chain/lcr">
@@ -181,8 +215,8 @@ export default function LcrColumnMappingPage() {
         <div className="flex-1">
           <h1 className="text-xl font-semibold">LCR Spreadsheet Column Mapping</h1>
           <p className="text-sm text-muted-foreground">
-            Map each LCR field to its spreadsheet column. Use the column letter (A, B, Z, AA, AB…).
-            After saving, run <strong>Force Resync All</strong> on the LCR page to update all existing rows.
+            Map each OTS database field to its Google Sheet column. After saving, run{' '}
+            <strong>Force Resync All</strong> on the LCR page to re-process all rows.
           </p>
         </div>
         <div className="flex gap-2">
@@ -190,62 +224,98 @@ export default function LcrColumnMappingPage() {
             <RotateCcw className="size-4 mr-1" />Reset to Defaults
           </Button>
           <Button size="sm" onClick={handleSave} disabled={saving || !isDirty}>
-            <Save className="size-4 mr-1" />{saving ? 'Saving…' : 'Save Mapping'}
+            {saving ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Save className="size-4 mr-1" />}
+            {saving ? 'Saving…' : 'Save Mapping'}
           </Button>
         </div>
       </div>
 
-      {/* Info banner */}
-      <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
-        <CardContent className="py-3 flex gap-2 items-start">
-          <Info className="size-4 text-blue-600 mt-0.5 shrink-0" />
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            The spreadsheet range is <code className="font-mono bg-blue-100 dark:bg-blue-900 px-1 rounded">Sheet1!A:AJ</code> by default (set via <code className="font-mono bg-blue-100 dark:bg-blue-900 px-1 rounded">GOOGLE_SHEET_LCR_RANGE</code> env var).
-            Column A = index 0, B = 1, Z = 25, AA = 26, AB = 27, etc.
-            Each row shows: <strong>current saved column</strong> (index in parentheses) and the default.
-          </p>
+      {/* Sheet column fetch status */}
+      <Card className={sheetError ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20' : 'border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800'}>
+        <CardContent className="py-3 flex items-center gap-3">
+          <Info className="size-4 text-blue-600 shrink-0" />
+          <div className="flex-1 text-sm text-blue-800 dark:text-blue-200">
+            {loadingSheet ? (
+              <span className="flex items-center gap-2"><Loader2 className="size-3 animate-spin" /> Fetching column headers from Google Sheet…</span>
+            ) : sheetError ? (
+              <span className="text-yellow-800 dark:text-yellow-200">
+                Could not fetch sheet columns: <em>{sheetError}</em>. Dropdowns show saved column letters only.
+              </span>
+            ) : (
+              <span>
+                Loaded <strong>{sheetColumns.length}</strong> columns from the LCR Google Sheet.
+                Each dropdown shows the column letter, header name, and a sample value.
+                Select the matching column for each OTS field.
+              </span>
+            )}
+          </div>
+          {!loadingSheet && (
+            <Button variant="outline" size="sm" onClick={fetchSheetColumns} className="shrink-0">
+              <RefreshCw className="size-3 mr-1" />Refresh
+            </Button>
+          )}
         </CardContent>
       </Card>
 
       {/* Mapping groups */}
       {GROUPS.map(group => {
-        const groupKeys = Object.keys(FIELD_LABELS).filter(k => parseLabel(FIELD_LABELS[k]).group === group);
+        const groupKeys = Object.keys(FIELD_META).filter(k => FIELD_META[k].group === group);
         if (groupKeys.length === 0) return null;
         return (
           <Card key={group}>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{group}</CardTitle>
+            <CardHeader className="py-3 pb-0">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {group}
+              </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            <CardContent className="pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                 {groupKeys.map(key => {
-                  const { label } = parseLabel(FIELD_LABELS[key]);
+                  const { label } = FIELD_META[key];
                   const defaultIdx = defaults[key] ?? 0;
-                  const currentIdx = mapping[key] ?? defaultIdx;
-                  const inputVal = inputs[key] ?? indexToLetter(currentIdx);
-                  const isChanged = (letterToIndex(inputVal) ?? currentIdx) !== defaultIdx;
-                  const err = errors[key];
+                  const savedIdx   = mapping[key] ?? defaultIdx;
+                  const currentLetter = selections[key] ?? indexToLetter(savedIdx);
+                  const currentCol = sheetColumns.find(c => c.column === currentLetter);
+                  const isModified = currentCol ? currentCol.index !== defaultIdx : (savedIdx !== defaultIdx);
+
                   return (
-                    <div key={key} className="flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate">{label}</span>
-                          {isChanged && <Badge variant="secondary" className="text-xs shrink-0">modified</Badge>}
+                    <div key={key} className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{label}</span>
+                        {isModified && (
+                          <Badge variant="secondary" className="text-xs">modified</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        default: {indexToLetter(defaultIdx)} (col {defaultIdx})
+                        {savedIdx !== defaultIdx && ` · saved: ${indexToLetter(savedIdx)} (col ${savedIdx})`}
+                      </p>
+
+                      {sheetColumns.length > 0 ? (
+                        <Select value={currentLetter} onValueChange={v => handleChange(key, v)}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Select column…" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-64">
+                            {sheetColumns.map(col => (
+                              <SelectItem key={col.column} value={col.column}>
+                                <span className="font-mono text-xs w-6 inline-block">{col.column}</span>
+                                <span className="ml-1 truncate max-w-[160px]">{col.name}</span>
+                                {col.sample && (
+                                  <Badge variant="outline" className="ml-2 text-xs font-normal max-w-[80px] truncate">
+                                    {col.sample}
+                                  </Badge>
+                                )}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="h-9 flex items-center px-3 rounded-md border bg-muted/40 text-sm font-mono text-muted-foreground">
+                          {currentLetter}
+                          {loadingSheet && <Loader2 className="size-3 ml-2 animate-spin" />}
                         </div>
-                        <span className="text-xs text-muted-foreground font-mono">
-                          default: {indexToLetter(defaultIdx)} (col {defaultIdx})
-                        </span>
-                      </div>
-                      <div className="w-20 shrink-0">
-                        <Input
-                          value={inputVal}
-                          onChange={e => handleChange(key, e.target.value)}
-                          className={`font-mono text-center uppercase text-sm h-8 ${err ? 'border-destructive' : ''}`}
-                          maxLength={3}
-                          placeholder="AB"
-                        />
-                        {err && <p className="text-xs text-destructive mt-0.5">{err}</p>}
-                      </div>
+                      )}
                     </div>
                   );
                 })}
@@ -255,13 +325,14 @@ export default function LcrColumnMappingPage() {
         );
       })}
 
-      {/* Save button at bottom too */}
+      {/* Bottom save bar */}
       <div className="flex justify-end gap-2 pb-4">
         <Button variant="outline" size="sm" onClick={handleReset}>
           <RotateCcw className="size-4 mr-1" />Reset to Defaults
         </Button>
         <Button size="sm" onClick={handleSave} disabled={saving || !isDirty}>
-          <Save className="size-4 mr-1" />{saving ? 'Saving…' : 'Save Mapping'}
+          {saving ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Save className="size-4 mr-1" />}
+          {saving ? 'Saving…' : 'Save Mapping'}
         </Button>
       </div>
     </div>
