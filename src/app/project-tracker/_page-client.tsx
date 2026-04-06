@@ -767,7 +767,7 @@ export default function ProjectTrackerClient() {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${bgClass} ${textClass}`}>
-      <div className="max-w-[1800px] mx-auto p-4 lg:p-6 space-y-5 max-lg:pt-20">
+      <div className="w-full p-4 lg:p-6 space-y-5 max-lg:pt-20">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

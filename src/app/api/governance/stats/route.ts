@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       deletedProjects,
       deletedBuildings,
       deletedParts,
+      deletedTasks,
       auditByAction,
       recentActivity,
     ] = await Promise.all([
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
       prisma.project.count({ where: { deletedAt: { not: null } } }),
       prisma.building.count({ where: { deletedAt: { not: null } } }),
       prisma.assemblyPart.count({ where: { deletedAt: { not: null } } }),
+      prisma.task.count({ where: { deletedAt: { not: null } } }).catch(() => 0),
       prisma.auditLog.groupBy({
         by: ['action'],
         _count: true,
@@ -51,19 +53,22 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    // Resolve entity names for Task entries in recent activity
-    const taskIds = recentActivity
-      .filter(l => l.entityType === 'Task' && l.entityId !== 'BATCH')
-      .map(l => l.entityId);
+    // Resolve entity names for Task and Building entries in recent activity
+    const taskIds = recentActivity.filter(l => l.entityType === 'Task' && l.entityId !== 'BATCH').map(l => l.entityId);
+    const buildingIds = recentActivity.filter(l => l.entityType === 'Building' && l.entityId !== 'BATCH').map(l => l.entityId);
 
-    const taskMap = new Map<string, { title: string; project: { projectNumber: string; name: string } | null }>();
-    if (taskIds.length > 0) {
-      const tasks = await prisma.task.findMany({
-        where: { id: { in: taskIds } },
-        select: { id: true, title: true, project: { select: { projectNumber: true, name: true } } },
-      });
-      tasks.forEach(t => taskMap.set(t.id, { title: t.title, project: t.project }));
-    }
+    const [tasksData, buildingsData] = await Promise.all([
+      taskIds.length > 0
+        ? prisma.task.findMany({ where: { id: { in: taskIds } }, select: { id: true, title: true, project: { select: { projectNumber: true, name: true } } } })
+        : Promise.resolve([]),
+      buildingIds.length > 0
+        ? prisma.building.findMany({ where: { id: { in: buildingIds } }, select: { id: true, name: true, designation: true, project: { select: { projectNumber: true, name: true } } } })
+        : Promise.resolve([]),
+    ]);
+
+    const metaMap = new Map<string, { name: string; project: { projectNumber: string; name: string } | null }>();
+    tasksData.forEach(t => metaMap.set(t.id, { name: t.title, project: t.project }));
+    buildingsData.forEach(b => metaMap.set(b.id, { name: b.name || b.designation, project: b.project }));
 
     return NextResponse.json({
       auditLogs: {
@@ -79,16 +84,17 @@ export async function GET(req: NextRequest) {
         projects: deletedProjects,
         buildings: deletedBuildings,
         assemblyParts: deletedParts,
-        total: deletedProjects + deletedBuildings + deletedParts,
+        tasks: deletedTasks,
+        total: deletedProjects + deletedBuildings + deletedParts + deletedTasks,
       },
       recentActivity: recentActivity.map(log => {
-        const taskInfo = log.entityType === 'Task' ? taskMap.get(log.entityId) : undefined;
+        const meta = metaMap.get(log.entityId);
         return {
           id: log.id,
           entityType: log.entityType,
           entityId: log.entityId,
-          entityName: taskInfo?.title ?? null,
-          entityProject: taskInfo?.project ?? null,
+          entityName: meta?.name ?? null,
+          entityProject: meta?.project ?? null,
           action: log.action,
           performedBy: log.performedBy,
           performedAt: log.performedAt,

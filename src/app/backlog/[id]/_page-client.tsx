@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, Eye, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink, MessageSquare, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, Eye, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink, MessageSquare, Send, Loader2, Pencil, X } from 'lucide-react';
 
 interface ActivityLog {
   id: string;
@@ -99,6 +99,16 @@ export default function BacklogItemDetail() {
   const [navIds, setNavIds] = useState<string[]>([]);
   const [noteContent, setNoteContent] = useState('');
   const [sendingNote, setSendingNote] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteContent, setEditingNoteContent] = useState('');
+  const [savingNoteEdit, setSavingNoteEdit] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/session').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.user?.id) setCurrentUserId(d.user.id);
+    });
+  }, []);
 
   useEffect(() => {
     fetch('/api/backlog?_nav=1')
@@ -191,6 +201,38 @@ export default function BacklogItemDetail() {
     } finally {
       setSendingNote(false);
     }
+  };
+
+  const handleEditNote = async (noteId: string) => {
+    if (!item || !editingNoteContent.trim() || savingNoteEdit) return;
+    setSavingNoteEdit(true);
+    try {
+      const res = await fetch(`/api/backlog/${item.id}/notes/${noteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editingNoteContent.trim() }),
+      });
+      if (res.ok) {
+        setEditingNoteId(null);
+        setEditingNoteContent('');
+        fetchBacklogItem();
+      }
+    } finally {
+      setSavingNoteEdit(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!item) return;
+    const confirmed = await showConfirmation({
+      type: 'destructive',
+      title: 'Delete Note',
+      message: 'Are you sure you want to delete this note? This action cannot be undone.',
+      confirmText: 'Delete',
+    });
+    if (!confirmed) return;
+    const res = await fetch(`/api/backlog/${item.id}/notes/${noteId}`, { method: 'DELETE' });
+    if (res.ok) fetchBacklogItem();
   };
 
   const handlePriorityChange = async (newPriority: string) => {
@@ -834,10 +876,47 @@ export default function BacklogItemDetail() {
                   <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
                     {(item.notes ?? []).map(note => (
                       <div key={note.id} className="rounded-lg border bg-muted/30 p-3">
-                        <p className="text-sm whitespace-pre-wrap break-words">{note.content}</p>
-                        <p className="text-xs text-muted-foreground mt-1.5">
-                          {note.authorName} · {new Date(note.createdAt).toLocaleString()}
-                        </p>
+                        {editingNoteId === note.id ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editingNoteContent}
+                              onChange={e => setEditingNoteContent(e.target.value)}
+                              rows={3}
+                              className="resize-none text-sm"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => handleEditNote(note.id)} disabled={savingNoteEdit || !editingNoteContent.trim()}>
+                                {savingNoteEdit ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
+                                Save
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingNoteId(null); setEditingNoteContent(''); }}>
+                                <X className="size-3" /> Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm whitespace-pre-wrap break-words">{note.content}</p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              <p className="text-xs text-muted-foreground">
+                                {note.authorName} · {new Date(note.createdAt).toLocaleString()}
+                              </p>
+                              {note.authorId === currentUserId && (
+                                <div className="flex items-center gap-1">
+                                  <Button size="icon" variant="ghost" className="size-6"
+                                    onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content); }}>
+                                    <Pencil className="size-3" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="size-6 text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteNote(note.id)}>
+                                    <Trash2 className="size-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>

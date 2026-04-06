@@ -71,7 +71,7 @@ export const GET = withApiContext<any>(async (req, session) => {
   const skip = (page - 1) * limit;
 
   // Build orderBy based on sortBy parameter
-  let orderBy: any = [{ neededToDate: 'desc' }, { createdAt: 'desc' }];
+  let orderBy: any = [{ sn: 'asc' }, { createdAt: 'asc' }];
   if (sortBy && sortOrder) {
     const direction = sortOrder;
     switch (sortBy) {

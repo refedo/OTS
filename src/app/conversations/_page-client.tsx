@@ -1264,10 +1264,16 @@ export default function ConversationsPage() {
                                       : `${Math.round(att.fileSize / 1024)} KB`
                                     : null;
                                   return (
-                                    <div key={ai} className={cn(
-                                      'flex items-center gap-3 rounded-xl shadow-sm border overflow-hidden w-[220px]',
-                                      isMe ? 'bg-primary/80 text-primary-foreground border-primary/30' : 'bg-muted border-border/50'
-                                    )}>
+                                    <a key={ai}
+                                      href={fileDownloadUrl(att.filePath)}
+                                      download={att.fileName}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={isPdf ? (e) => { e.preventDefault(); openLightbox([resolvedPath], 0); } : undefined}
+                                      className={cn(
+                                        'flex items-center gap-3 rounded-xl shadow-sm border overflow-hidden w-[220px] hover:opacity-90 transition-opacity cursor-pointer',
+                                        isMe ? 'bg-primary/80 text-primary-foreground border-primary/30' : 'bg-muted border-border/50'
+                                      )}>
                                       {/* Thumbnail / icon area */}
                                       <div className={cn(
                                         'flex-shrink-0 w-14 h-14 flex flex-col items-center justify-center gap-0.5',
@@ -1280,23 +1286,9 @@ export default function ConversationsPage() {
                                       <div className="flex-1 min-w-0 py-2 pr-2">
                                         <p className="text-xs font-medium truncate leading-tight" title={att.fileName}>{att.fileName}</p>
                                         {fmtSize && <p className="text-[10px] opacity-60 mt-0.5">{fmtSize}</p>}
-                                        <div className="flex items-center gap-2 mt-1.5">
-                                          {isPdf && (
-                                            <button type="button" title="Preview"
-                                              onClick={() => openLightbox([resolvedPath], 0)}
-                                              className="text-[10px] underline underline-offset-2 opacity-80 hover:opacity-100">
-                                              Preview
-                                            </button>
-                                          )}
-                                          <a href={fileDownloadUrl(att.filePath)} download={att.fileName}
-                                            target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center gap-1 text-[10px] opacity-80 hover:opacity-100">
-                                            <Download className="size-2.5" />
-                                            Download
-                                          </a>
-                                        </div>
+                                        <p className="text-[10px] opacity-70 mt-1">{isPdf ? 'Tap to preview' : 'Tap to download'}</p>
                                       </div>
-                                    </div>
+                                    </a>
                                   );
                                 })}
                               </div>

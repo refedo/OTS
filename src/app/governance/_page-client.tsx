@@ -111,6 +111,7 @@ interface GovernanceStats {
     projects: number;
     buildings: number;
     assemblyParts: number;
+    tasks: number;
     total: number;
   };
   recentActivity: AuditLog[];
@@ -174,7 +175,7 @@ const ENTITY_TYPES = [
 
 const VERSIONED_ENTITIES = ['Project', 'Building', 'QCInspection', 'WPS', 'ITP'];
 
-const SOFT_DELETE_ENTITIES = ['Project', 'Building', 'AssemblyPart'];
+const SOFT_DELETE_ENTITIES = ['Project', 'Building', 'AssemblyPart', 'Task'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -777,11 +778,12 @@ export default function GovernancePage() {
                 <CardDescription>These items have been soft-deleted and can be fully restored</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-4 gap-4 mb-4">
                   {[
                     { label: 'Projects', count: stats.deleted.projects },
                     { label: 'Buildings', count: stats.deleted.buildings },
                     { label: 'Assembly Parts', count: stats.deleted.assemblyParts },
+                    { label: 'Tasks', count: stats.deleted.tasks ?? 0 },
                   ].map(({ label, count }) => (
                     <div key={label} className="text-center p-4 rounded-lg bg-muted/50">
                       <div className="text-2xl font-bold">{count}</div>
@@ -922,6 +924,7 @@ export default function GovernancePage() {
                         <TableHead>Action</TableHead>
                         <TableHead>Source</TableHead>
                         <TableHead>Entity</TableHead>
+                        <TableHead>Project</TableHead>
                         <TableHead>User</TableHead>
                         <TableHead>Time</TableHead>
                         <TableHead>Reason</TableHead>
@@ -948,9 +951,6 @@ export default function GovernancePage() {
                                 {log.entityName ? (
                                   <div className="text-xs font-medium text-foreground/80 truncate max-w-[160px]">
                                     {log.entityName}
-                                    {log.entityProject && (
-                                      <span className="text-muted-foreground font-normal ml-1">· {log.entityProject.projectNumber}</span>
-                                    )}
                                   </div>
                                 ) : (
                                   <div className="text-xs text-muted-foreground font-mono">
@@ -958,6 +958,13 @@ export default function GovernancePage() {
                                   </div>
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              {log.entityProject ? (
+                                <span className="text-xs font-medium text-primary">{log.entityProject.projectNumber}</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-sm">{log.performedBy.name}</TableCell>
                             <TableCell>
