@@ -32,15 +32,18 @@ const COL = {
   TARGET_PRICE: 19,
   MRF_NUMBER: 20,
   RATIO_1TO2_LCR1: 21,
-  LCR3_AMOUNT: 22,
-  PRICE_PER_TON_LCR3: 23,
+  // Cols 22-23 are reserved/unused summary columns in the sheet
   LCR1: 24,
-  LCR1_AMOUNT: 25,
-  PRICE_PER_TON_LCR1: 26,
-  LCR2: 27,
-  LCR2_AMOUNT: 28,
-  PRICE_PER_TON_LCR2: 29,
-  THICKNESS: 30,
+  // Cols 25-26 contain SAR-formatted duplicates (not parsed)
+  LCR1_AMOUNT: 27,
+  PRICE_PER_TON_LCR1: 28,
+  LCR2: 29,
+  LCR2_AMOUNT: 30,
+  PRICE_PER_TON_LCR2: 31,
+  LCR3: 32,
+  LCR3_AMOUNT: 33,
+  PRICE_PER_TON_LCR3: 34,
+  THICKNESS: 35,
 } as const;
 
 function parseDate(value: string | undefined | null): Date | null {
@@ -154,7 +157,7 @@ function mapRow(cells: string[]): RawRow {
     lcr2: str(cells[COL.LCR2]),
     lcr2Amount: parseDecimal(cells[COL.LCR2_AMOUNT]),
     lcr2PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR2]),
-    lcr3: null,
+    lcr3: str(cells[COL.LCR3]),
     lcr3Amount: parseDecimal(cells[COL.LCR3_AMOUNT]),
     lcr3PricePerTon: parseDecimal(cells[COL.PRICE_PER_TON_LCR3]),
     thickness: str(cells[COL.THICKNESS]),
@@ -231,7 +234,7 @@ async function getSystemUserId(): Promise<string> {
   return anyUser?.id ?? 'system';
 }
 
-export async function runLcrSync(triggeredBy: 'cron' | 'manual'): Promise<LcrSyncResult> {
+export async function runLcrSync(triggeredBy: 'cron' | 'manual', forceRefresh = false): Promise<LcrSyncResult> {
   const startTime = Date.now();
   let inserted = 0;
   let updated = 0;
@@ -305,7 +308,7 @@ export async function runLcrSync(triggeredBy: 'cron' | 'manual'): Promise<LcrSyn
       const ex = existingMap.get(rowId);
       if (!ex) {
         toInsert.push({ sheetRowId: rowId, hash, cells });
-      } else if (ex.hash !== hash) {
+      } else if (forceRefresh || ex.hash !== hash) {
         toUpdate.push({ id: ex.id, sheetRowId: rowId, hash, cells });
       } else {
         unchanged++;

@@ -74,9 +74,15 @@ export async function GET(req: Request) {
         status: {
           not: 'Completed', // Not completed
         },
+        deletedAt: null,
         ...userFilter,
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        dueDate: true,
+        priority: true,
         assignedTo: {
           select: {
             id: true,

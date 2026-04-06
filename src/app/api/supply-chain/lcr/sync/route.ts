@@ -7,7 +7,7 @@ const log = logger.child({ module: 'API:LcrSync' });
 
 export const dynamic = 'force-dynamic';
 
-export const POST = withApiContext<any>(async (_req, session) => {
+export const POST = withApiContext<any>(async (req, session) => {
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -17,8 +17,11 @@ export const POST = withApiContext<any>(async (_req, session) => {
     return NextResponse.json({ error: 'Forbidden: requires supply_chain.sync permission' }, { status: 403 });
   }
 
+  const url = new URL(req.url);
+  const forceRefresh = url.searchParams.get('force') === 'true';
+
   try {
-    const result = await runLcrSync('manual');
+    const result = await runLcrSync('manual', forceRefresh);
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Sync failed';
