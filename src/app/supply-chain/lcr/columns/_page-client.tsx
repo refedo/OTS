@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Save, RotateCcw, Info, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, RotateCcw, Info, RefreshCw, Loader2, Wand2 } from 'lucide-react';
 
 interface ColumnHeader {
   index: number;
@@ -70,6 +70,42 @@ function indexToLetter(idx: number): string {
   }
   return result;
 }
+
+// Keywords to match against sheet column header names (case-insensitive)
+const AUTO_MAP_KEYWORDS: Record<string, string[]> = {
+  SN:                ['sn', 's/n', 'serial', 'serial no', 'serial number', 'no.', '#'],
+  PROJECT_NUMBER:    ['project number', 'project no', 'project#', 'proj no', 'proj number', 'project num'],
+  ITEM:              ['item', 'item label', 'item name', 'description', 'material'],
+  QTY:               ['qty', 'quantity', 'count', 'pcs'],
+  AMOUNT:            ['amount', 'total amount', 'value', 'total value'],
+  STATUS:            ['status', 'state'],
+  BUILDING_NAME:     ['building', 'building name', 'building no', 'bldg'],
+  REQUEST_DATE:      ['request date', 'req date', 'requested date', 'request'],
+  NEEDED_FROM_DATE:  ['needed from', 'need from', 'from date', 'start date'],
+  NEEDED_TO_DATE:    ['needed to', 'need to', 'to date', 'end date', 'delivery date'],
+  BUYING_DATE:       ['buying date', 'purchase date', 'buy date', 'po date'],
+  RECEIVING_DATE:    ['receiving date', 'received date', 'delivery', 'receive date'],
+  PO_NUMBER:         ['po number', 'po no', 'po#', 'purchase order'],
+  DN_NUMBER:         ['dn number', 'dn no', 'dn#', 'delivery note'],
+  AWARDED_TO:        ['awarded to', 'supplier', 'vendor', 'contractor'],
+  WEIGHT:            ['weight', 'wt', 'unit weight'],
+  TOTAL_WEIGHT:      ['total weight', 'total wt', 'gross weight'],
+  TOTAL_LCR1:        ['total lcr1', 'total lcr 1', 'lcr1 total'],
+  TOTAL_LCR2:        ['total lcr2', 'total lcr 2', 'lcr2 total'],
+  TARGET_PRICE:      ['target price', 'target', 'budget price'],
+  MRF_NUMBER:        ['mrf', 'mrf number', 'mrf no', 'mrf#'],
+  RATIO_1TO2_LCR1:   ['ratio', 'lcr1/lcr2', 'ratio lcr1', '1to2'],
+  LCR1:              ['lcr1 supplier', 'lcr 1 supplier', 'lcr1 name', 'supplier 1', 'lcr1'],
+  LCR1_AMOUNT:       ['lcr1 amount', 'lcr 1 amount', 'amount lcr1'],
+  PRICE_PER_TON_LCR1:['lcr1 price/ton', 'lcr 1 price/ton', 'price per ton lcr1', 'lcr1 ppt'],
+  LCR2:              ['lcr2 supplier', 'lcr 2 supplier', 'lcr2 name', 'supplier 2', 'lcr2'],
+  LCR2_AMOUNT:       ['lcr2 amount', 'lcr 2 amount', 'amount lcr2'],
+  PRICE_PER_TON_LCR2:['lcr2 price/ton', 'lcr 2 price/ton', 'price per ton lcr2', 'lcr2 ppt'],
+  LCR3:              ['lcr3 supplier', 'lcr 3 supplier', 'lcr3 name', 'supplier 3', 'lcr3'],
+  LCR3_AMOUNT:       ['lcr3 amount', 'lcr 3 amount', 'amount lcr3'],
+  PRICE_PER_TON_LCR3:['lcr3 price/ton', 'lcr 3 price/ton', 'price per ton lcr3', 'lcr3 ppt'],
+  THICKNESS:         ['thickness', 'thick', 'thk'],
+};
 
 export default function LcrColumnMappingPage() {
   const { toast } = useToast();
@@ -149,6 +185,32 @@ export default function LcrColumnMappingPage() {
     toast({ title: 'Reset to defaults', description: 'Click Save Mapping to apply.' });
   };
 
+  const handleAutoMap = () => {
+    if (sheetColumns.length === 0) {
+      toast({ title: 'No sheet columns loaded', description: 'Fetch sheet columns first before auto-mapping.', variant: 'destructive' });
+      return;
+    }
+    const newSelections: Record<string, string> = { ...selections };
+    let matched = 0;
+    for (const key of Object.keys(FIELD_META)) {
+      const keywords = AUTO_MAP_KEYWORDS[key] ?? [];
+      const found = sheetColumns.find(col =>
+        keywords.some(kw => col.name.toLowerCase().trim() === kw)
+      );
+      if (found) {
+        newSelections[key] = found.column;
+        matched++;
+      }
+    }
+    setSelections(newSelections);
+    toast({
+      title: `Auto-mapped ${matched} field${matched !== 1 ? 's' : ''}`,
+      description: matched > 0
+        ? 'Review the mappings below and click Save Mapping to apply.'
+        : 'No matching column headers found. Check that the sheet columns are loaded.',
+    });
+  };
+
   const handleSave = async () => {
     // Convert column letters → 0-based indices
     const payload: Record<string, number> = {};
@@ -220,6 +282,9 @@ export default function LcrColumnMappingPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleAutoMap} disabled={sheetColumns.length === 0 || loadingSheet}>
+            <Wand2 className="size-4 mr-1" />Auto Map
+          </Button>
           <Button variant="outline" size="sm" onClick={handleReset}>
             <RotateCcw className="size-4 mr-1" />Reset to Defaults
           </Button>
@@ -327,6 +392,9 @@ export default function LcrColumnMappingPage() {
 
       {/* Bottom save bar */}
       <div className="flex justify-end gap-2 pb-4">
+        <Button variant="outline" size="sm" onClick={handleAutoMap} disabled={sheetColumns.length === 0 || loadingSheet}>
+          <Wand2 className="size-4 mr-1" />Auto Map
+        </Button>
         <Button variant="outline" size="sm" onClick={handleReset}>
           <RotateCcw className="size-4 mr-1" />Reset to Defaults
         </Button>

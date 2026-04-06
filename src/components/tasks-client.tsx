@@ -359,11 +359,16 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
         return false;
       }
 
-      const matchesSearch = !search || 
-        task.title.toLowerCase().includes(search.toLowerCase()) ||
-        task.description?.toLowerCase().includes(search.toLowerCase()) ||
-        task.assignedTo?.name.toLowerCase().includes(search.toLowerCase()) ||
-        task.project?.name.toLowerCase().includes(search.toLowerCase());
+      const q = search.toLowerCase();
+      const matchesSearch = !search ||
+        task.title.toLowerCase().includes(q) ||
+        task.description?.toLowerCase().includes(q) ||
+        task.assignedTo?.name.toLowerCase().includes(q) ||
+        task.project?.name.toLowerCase().includes(q) ||
+        task.project?.projectNumber?.toLowerCase().includes(q) ||
+        task.building?.name?.toLowerCase().includes(q) ||
+        task.building?.designation?.toLowerCase().includes(q) ||
+        task.department?.name?.toLowerCase().includes(q);
       
       const matchesStatus = statusFilter.length === 0 || statusFilter.includes(task.status);
       const matchesPriority = priorityFilter.length === 0 || priorityFilter.includes(task.priority);
