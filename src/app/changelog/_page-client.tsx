@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.16.0',
+    version: '17.17.0',
     date: 'April 6, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Bug Fixes: PTS Columns, Governance, Conversations & Backlog',
+    highlights: [
+      'PTS column fetch no longer times out — optimized to a single batchGet call instead of 4 serial requests',
+      'Governance tab now shows task name and project number instead of a raw UUID',
+      'Task details page no longer jumps to the bottom on load',
+      'Conversations deep-link (?taskId=) now works even if you are not yet a participant',
+      'Document attachments in conversations display as larger WhatsApp-style thumbnail cards',
+      'Backlog notes 500 error fixed — session lookup used wrong field',
+    ],
+    changes: {
+      added: [
+        'Document attachments in conversations now render as thumbnail cards with file name, size, and download/preview actions (WhatsApp-style)',
+        'Governance audit trail and recent activity now resolve task name and project number for Task-type entries',
+        'Conversations page fetches task info as fallback when opening via a ?taskId= link for a task not yet in your list',
+      ],
+      fixed: [
+        'PTS sync column fetch was making 4 serial Google Sheets API calls — collapsed to a single batchGet, eliminating 504 timeouts',
+        'Task details page scrolled the entire page to the bottom on initial load due to scrollIntoView running on first message fetch',
+        'Conversations page showed empty state when navigating to a task conversation via a shared link (?taskId=) if the user was not a participant — now loads the conversation header from the task API as fallback',
+        'Conversations API filtered out tasks with mainActivity = Discussion, hiding those conversations from the list',
+        'Backlog notes POST returned 500 because session.userId was undefined (should be session.sub)',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.16.0',
+    date: 'April 6, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Revamp Project Tracker Design/SD Progress Logic',
     highlights: [
       'Removed Design Approval and SD Approval columns from the project tracker',

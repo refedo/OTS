@@ -73,6 +73,8 @@ interface AuditLog {
   id: string;
   entityType: string;
   entityId: string;
+  entityName: string | null;
+  entityProject: { projectNumber: string; name: string } | null;
   action: string;
   changes: Record<string, { old: unknown; new: unknown }> | null;
   metadata: { batchSize?: number; entityIds?: string[] } | null;
@@ -730,9 +732,18 @@ export default function GovernancePage() {
                         <div className="min-w-0">
                           <span className="font-medium">{log.entityType}</span>
                           <span className="text-muted-foreground mx-1">·</span>
-                          <span className="text-sm text-muted-foreground font-mono">
-                            {log.entityId.slice(0, 8)}…
-                          </span>
+                          {log.entityName ? (
+                            <span className="text-sm font-medium truncate max-w-[200px] inline-block align-bottom">
+                              {log.entityName}
+                              {log.entityProject && (
+                                <span className="text-muted-foreground font-normal ml-1">({log.entityProject.projectNumber})</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground font-mono">
+                              {log.entityId.slice(0, 8)}…
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground shrink-0 ml-2">
@@ -934,9 +945,18 @@ export default function GovernancePage() {
                             <TableCell>
                               <div>
                                 <span className="font-medium text-sm">{log.entityType}</span>
-                                <div className="text-xs text-muted-foreground font-mono">
-                                  {log.entityId === 'BATCH' ? 'BATCH' : `${log.entityId.slice(0, 10)}…`}
-                                </div>
+                                {log.entityName ? (
+                                  <div className="text-xs font-medium text-foreground/80 truncate max-w-[160px]">
+                                    {log.entityName}
+                                    {log.entityProject && (
+                                      <span className="text-muted-foreground font-normal ml-1">· {log.entityProject.projectNumber}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {log.entityId === 'BATCH' ? 'BATCH' : `${log.entityId.slice(0, 10)}…`}
+                                  </div>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-sm">{log.performedBy.name}</TableCell>

@@ -244,12 +244,37 @@ export default function ConversationsPage() {
   const [editingContent, setEditingContent] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Fallback task info for when a taskId deep-link points to a task not in the conversations list
+  const [fallbackTaskInfo, setFallbackTaskInfo] = useState<{
+    title: string; status: string;
+    project: { id: string; projectNumber: string; name: string } | null;
+    building: { id: string; designation: string; name: string } | null;
+  } | null>(null);
+
   const selectedConv = selectedTaskId
     ? (conversations.find(c => c.type === 'task' && c.taskId === selectedTaskId) as TaskConversation | undefined) ?? null
     : selectedConversationId
     ? (conversations.find(c => c.type === 'standalone' && c.conversationId === selectedConversationId) as StandaloneConversation | undefined) ?? null
     : null;
   const isStandalone = !!selectedConversationId;
+
+  // When a taskId is selected but not found in the conversations list, fetch task info as fallback
+  const effectiveConv: Conversation | null = selectedConv ?? (
+    selectedTaskId && fallbackTaskInfo ? {
+      type: 'task',
+      taskId: selectedTaskId,
+      taskTitle: fallbackTaskInfo.title,
+      taskStatus: fallbackTaskInfo.status,
+      project: fallbackTaskInfo.project,
+      building: fallbackTaskInfo.building,
+      lastMessage: messages[messages.length - 1]
+        ? { content: messages[messages.length - 1].content, createdAt: messages[messages.length - 1].createdAt, user: messages[messages.length - 1].user }
+        : null,
+      participants: participants.map(p => p.user),
+      updatedAt: null,
+      hasUnread: false,
+    } : null
+  );
 
   // Filtered conversation list based on search query
   const filteredConversations = convSearch.trim()
@@ -294,6 +319,29 @@ export default function ConversationsPage() {
       setSelectedConversationId(convId);
     }
   }, [searchParams, selectedTaskId, selectedConversationId]);
+
+  // Fetch fallback task info when a taskId deep-link points to a task not in conversations list
+  useEffect(() => {
+    if (!selectedTaskId || !loadingList === false && selectedConv) {
+      setFallbackTaskInfo(null);
+      return;
+    }
+    if (loadingList) return; // wait until list is loaded before deciding to fetch fallback
+    if (selectedConv) { setFallbackTaskInfo(null); return; }
+    fetch(`/api/tasks/${selectedTaskId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(task => {
+        if (task && task.title) {
+          setFallbackTaskInfo({
+            title: task.title,
+            status: task.status,
+            project: task.project ?? null,
+            building: task.building ?? null,
+          });
+        }
+      })
+      .catch(() => null);
+  }, [selectedTaskId, selectedConv, loadingList]);
 
   // Load messages for selected conversation (task or standalone)
   const loadMessages = useCallback(async (id: string, standalone: boolean, initial = false) => {
@@ -519,8 +567,8 @@ export default function ConversationsPage() {
       ? `${base}/conversations?id=${selectedConversationId}`
       : `${base}/conversations?taskId=${selectedTaskId}`;
     const title = isStandalone
-      ? (selectedConv as StandaloneConversation)?.topic ?? 'Conversation'
-      : (selectedConv as TaskConversation)?.taskTitle ?? 'Conversation';
+      ? (effectiveConv as StandaloneConversation)?.topic ?? 'Conversation'
+      : (effectiveConv as TaskConversation)?.taskTitle ?? 'Conversation';
     window.open(`https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
   };
 
@@ -970,7 +1018,7 @@ export default function ConversationsPage() {
               )}
             </div>
           </div>
-        ) : (selectedTaskId || selectedConversationId) && selectedConv ? (
+        ) : (selectedTaskId || selectedConversationId) && effectiveConv ? (
           /* Conversation Thread */
           <div className="flex flex-col h-full">
             {/* Channel header */}
@@ -982,25 +1030,25 @@ export default function ConversationsPage() {
                 )}>
                   {isStandalone
                     ? <MessageCircle className="size-5" />
-                    : (selectedConv as TaskConversation).taskTitle.charAt(0).toUpperCase()}
+                    : (effectiveConv as TaskConversation).taskTitle.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <h3 className="font-bold text-sm truncate">
                     {isStandalone
-                      ? (selectedConv as StandaloneConversation).topic
-                      : (selectedConv as TaskConversation).taskTitle}
+                      ? (effectiveConv as StandaloneConversation).topic
+                      : (effectiveConv as TaskConversation).taskTitle}
                   </h3>
                   <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
-                    {!isStandalone && (selectedConv as TaskConversation).project && (
+                    {!isStandalone && (effectiveConv as TaskConversation).project && (
                       <span className="flex items-center gap-1 text-primary/80 font-medium">
                         <Briefcase className="size-3" />
-                        {(selectedConv as TaskConversation).project!.projectNumber}
+                        {(effectiveConv as TaskConversation).project!.projectNumber}
                       </span>
                     )}
-                    {!isStandalone && (selectedConv as TaskConversation).building && (
+                    {!isStandalone && (effectiveConv as TaskConversation).building && (
                       <span className="flex items-center gap-1">
                         <Building2 className="size-3" />
-                        {(selectedConv as TaskConversation).building!.name || (selectedConv as TaskConversation).building!.designation}
+                        {(effectiveConv as TaskConversation).building!.name || (effectiveConv as TaskConversation).building!.designation}
                       </span>
                     )}
                     {isStandalone && (
@@ -1194,7 +1242,7 @@ export default function ConversationsPage() {
                               const atts = msg.attachments as MessageAttachment[];
                               const msgImages = atts.filter(a => a.fileType.startsWith('image/')).map(a => resolveFilePath(a.filePath));
                               return (
-                              <div className="mt-1 flex flex-wrap gap-1.5">
+                              <div className="mt-2 flex flex-wrap gap-2">
                                 {atts.map((att, ai) => {
                                   const isImage = att.fileType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.fileName);
                                   const resolvedPath = resolveFilePath(att.filePath);
@@ -1203,29 +1251,51 @@ export default function ConversationsPage() {
                                     return (
                                       <button key={ai} type="button"
                                         onClick={() => openLightbox(msgImages, imgIdx >= 0 ? imgIdx : 0)}
-                                        className={cn('block rounded-xl overflow-hidden max-w-[220px] hover:opacity-90 transition-opacity shadow-sm border', isMe ? 'border-primary/30' : 'border-border/50')}>
-                                        <img src={resolvedPath} alt={att.fileName} className="max-h-36 object-contain bg-muted/50" />
+                                        className={cn('block rounded-xl overflow-hidden max-w-[240px] hover:opacity-90 transition-opacity shadow-sm border', isMe ? 'border-primary/30' : 'border-border/50')}>
+                                        <img src={resolvedPath} alt={att.fileName} className="max-h-48 object-contain bg-muted/50" />
                                       </button>
                                     );
                                   }
                                   const isPdf = att.fileType === 'application/pdf' || att.fileName.endsWith('.pdf');
+                                  const ext = att.fileName.split('.').pop()?.toUpperCase() ?? 'FILE';
+                                  const fmtSize = att.fileSize
+                                    ? att.fileSize > 1024 * 1024
+                                      ? `${(att.fileSize / (1024 * 1024)).toFixed(1)} MB`
+                                      : `${Math.round(att.fileSize / 1024)} KB`
+                                    : null;
                                   return (
-                                    <div key={ai} className={cn('flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-xl text-xs shadow-sm',
-                                      isMe ? 'bg-primary/80 text-primary-foreground border border-primary/30' : 'bg-muted border border-border/50')}>
-                                      <FileText className="size-3.5 shrink-0" />
-                                      <span className="truncate max-w-[120px]">{att.fileName}</span>
-                                      {isPdf && (
-                                        <button type="button" title="Preview PDF"
-                                          onClick={() => openLightbox([resolvedPath], 0)}
-                                          className="ml-1 opacity-70 hover:opacity-100 transition-opacity">
-                                          <ExternalLink className="size-3" />
-                                        </button>
-                                      )}
-                                      <a href={fileDownloadUrl(att.filePath)} download={att.fileName}
-                                        target="_blank" rel="noopener noreferrer"
-                                        title="Download" className="ml-0.5 opacity-70 hover:opacity-100 transition-opacity">
-                                        <Download className="size-3" />
-                                      </a>
+                                    <div key={ai} className={cn(
+                                      'flex items-center gap-3 rounded-xl shadow-sm border overflow-hidden w-[220px]',
+                                      isMe ? 'bg-primary/80 text-primary-foreground border-primary/30' : 'bg-muted border-border/50'
+                                    )}>
+                                      {/* Thumbnail / icon area */}
+                                      <div className={cn(
+                                        'flex-shrink-0 w-14 h-14 flex flex-col items-center justify-center gap-0.5',
+                                        isMe ? 'bg-primary/60' : 'bg-muted-foreground/10'
+                                      )}>
+                                        <FileText className="size-6" />
+                                        <span className="text-[9px] font-bold uppercase tracking-wide opacity-80">{ext}</span>
+                                      </div>
+                                      {/* File info */}
+                                      <div className="flex-1 min-w-0 py-2 pr-2">
+                                        <p className="text-xs font-medium truncate leading-tight" title={att.fileName}>{att.fileName}</p>
+                                        {fmtSize && <p className="text-[10px] opacity-60 mt-0.5">{fmtSize}</p>}
+                                        <div className="flex items-center gap-2 mt-1.5">
+                                          {isPdf && (
+                                            <button type="button" title="Preview"
+                                              onClick={() => openLightbox([resolvedPath], 0)}
+                                              className="text-[10px] underline underline-offset-2 opacity-80 hover:opacity-100">
+                                              Preview
+                                            </button>
+                                          )}
+                                          <a href={fileDownloadUrl(att.filePath)} download={att.fileName}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="flex items-center gap-1 text-[10px] opacity-80 hover:opacity-100">
+                                            <Download className="size-2.5" />
+                                            Download
+                                          </a>
+                                        </div>
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -1328,7 +1398,7 @@ export default function ConversationsPage() {
                       handleSendMessage();
                     }
                   }}
-                  placeholder={`Message ${isStandalone ? (selectedConv as StandaloneConversation).topic.slice(0, 30) : '#' + (selectedConv as TaskConversation).taskTitle.slice(0, 30)}...`}
+                  placeholder={`Message ${isStandalone ? (effectiveConv as StandaloneConversation).topic.slice(0, 30) : '#' + (effectiveConv as TaskConversation).taskTitle.slice(0, 30)}...`}
                   rows={2}
                   className="w-full px-3 pt-2.5 pb-1 text-sm bg-transparent focus:outline-none resize-none"
                 />

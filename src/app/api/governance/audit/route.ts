@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const entityId = searchParams.get('entityId');
     const action = searchParams.get('action');
     const userId = searchParams.get('userId');
-    const sourceType = searchParams.get('sourceType'); // 'user' | 'system'
+    const sourceType = searchParams.get('sourceType');
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
@@ -63,16 +63,35 @@ export async function GET(req: NextRequest) {
         orderBy: { performedAt: 'desc' },
         take: limit,
         skip: offset,
-        include: {
-          performedBy: {
-            select: { id: true, name: true },
-          },
-        },
+        include: { performedBy: { select: { id: true, name: true } } },
       }),
       prisma.auditLog.count({ where }),
     ]);
 
-    return NextResponse.json({ logs, total });
+    // Resolve task names for Task-type audit entries
+    const taskIds = logs
+      .filter(l => l.entityType === 'Task' && l.entityId !== 'BATCH')
+      .map(l => l.entityId);
+
+    const taskMap = new Map<string, { title: string; project: { projectNumber: string; name: string } | null }>();
+    if (taskIds.length > 0) {
+      const tasks = await prisma.task.findMany({
+        where: { id: { in: taskIds } },
+        select: { id: true, title: true, project: { select: { projectNumber: true, name: true } } },
+      });
+      tasks.forEach(t => taskMap.set(t.id, { title: t.title, project: t.project }));
+    }
+
+    const enrichedLogs = logs.map(log => {
+      const taskInfo = log.entityType === 'Task' ? taskMap.get(log.entityId) : undefined;
+      return {
+        ...log,
+        entityName: taskInfo?.title ?? null,
+        entityProject: taskInfo?.project ?? null,
+      };
+    });
+
+    return NextResponse.json({ logs: enrichedLogs, total });
   } catch (error) {
     logger.error({ error }, 'Failed to fetch audit logs');
     return NextResponse.json({ error: 'Failed to fetch audit logs' }, { status: 500 });

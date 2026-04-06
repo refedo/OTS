@@ -35,7 +35,7 @@ export async function POST(
     if (!item) return NextResponse.json({ error: 'Backlog item not found' }, { status: 404 });
 
     const author = await prisma.user.findUnique({
-      where: { id: session.userId },
+      where: { id: session.sub },
       select: { id: true, name: true },
     });
 
@@ -43,7 +43,7 @@ export async function POST(
     const newNote = {
       id: randomUUID(),
       content: parsed.data.content,
-      authorId: session.userId,
+      authorId: session.sub,
       authorName: author?.name ?? 'Unknown',
       createdAt: new Date().toISOString(),
     };
@@ -54,7 +54,7 @@ export async function POST(
     });
 
     // Notify the raiser if different from the author
-    if (item.createdById !== session.userId) {
+    if (item.createdById !== session.sub) {
       await NotificationService.createNotification({
         userId: item.createdById,
         type: 'SYSTEM',
