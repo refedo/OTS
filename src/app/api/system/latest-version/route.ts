@@ -7,26 +7,34 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🔍 Conversation Search, Unread Indicators & Mobile File Fix',
+  mainTitle: '💰 Payment Schedule Enhancements & MIR UX Fixes',
   highlights: [
-    'Search bar in the conversation list — filter by title, topic, participant name, or message content instantly',
-    'Unread indicator — orange dot and bold text mark conversations with new messages you haven\'t read yet',
-    'Conversations auto-mark as read when you open them',
-    'File attachments now open in a new tab on mobile so you can close the tab and return to OTS',
+    'Payment schedule summary cards are now clickable — tap Collected, Pending, or Overdue to filter the table instantly',
+    'Cash Flow Timeline shows the selected month\'s collected/expected totals when you click a bar',
+    'Table footer now shows total Amount, Received, and Remaining across all visible rows',
+    'Monthly Cash Forecast prev/next arrows for quick month navigation',
+    'New Payment Schedule widget available on the CEO dashboard',
+    'Project tracker now defaults to "Active" view with icons on all filter tabs',
+    'Material Inspection Receipt dialogs are now full-width and scrollable on all screen sizes',
+    'MIR inspect form shows a warning when Received Qty exceeds the PO ordered quantity',
   ],
   changes: {
     added: [
-      'Search input in the conversation list sidebar — real-time client-side filtering',
-      'lastReadAt field on conversation participants (both task and standalone)',
-      'PATCH /api/conversations/[id]/read and PATCH /api/tasks/[id]/conversation/read — mark-as-read endpoints',
-      'hasUnread flag in GET /api/conversations response',
+      'Payment schedule: clickable summary cards with filter ring highlighting',
+      'Cash Flow Timeline: header totals update to selected month when a bar is clicked',
+      'Payment schedule: table totals footer (Amount, Received, Remaining)',
+      'Monthly Cash Forecast: ‹ › navigation arrows',
+      'PaymentScheduleWidget for CEO dashboard',
+      'Project tracker: Active tab with ⚡ icon, defaults to Active view',
     ],
     fixed: [
-      'Non-image attachments now open with target="_blank" so mobile users can close tab and return to OTS',
-      'Message input placeholder crashed for standalone conversations — now uses correct topic field',
+      'Migration SQL: correct table name system_settings (was SystemSettings)',
+      'Cash In/Out drilldown modal expanded for full readability',
+      'MIR dialogs: full-width flex layout, no more clipped content on mobile',
+      'MIR inspect form: Received Qty max validation with inline warning',
     ],
     changed: [
-      'Unread conversations highlighted with orange dot, bold title, and orange timestamp',
+      'Project tracker default filter changed from All to Active',
     ],
   },
 };

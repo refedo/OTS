@@ -634,68 +634,68 @@ export default function MaterialInspectionReceiptPage() {
       {/* Receipt Detail/Inspection Dialog */}
       {selectedReceipt && (
         <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Material Receipt: {selectedReceipt.receiptNumber}</DialogTitle>
+          <DialogContent className="w-full sm:max-w-[95vw] md:max-w-5xl max-h-[92vh] flex flex-col p-0">
+            <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
+              <DialogTitle className="text-lg">Material Receipt: {selectedReceipt.receiptNumber}</DialogTitle>
               <DialogDescription>
                 PO: {selectedReceipt.dolibarrPoRef} | Supplier: {selectedReceipt.supplierName}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <div className="mt-1">{getStatusBadge(selectedReceipt.status)}</div>
+                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  {getStatusBadge(selectedReceipt.status)}
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Inspector</p>
+                  <p className="text-xs text-muted-foreground mb-1">Inspector</p>
                   <p className="font-medium">{selectedReceipt.inspector.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Receipt Date</p>
+                  <p className="text-xs text-muted-foreground mb-1">Receipt Date</p>
                   <p className="font-medium">{new Date(selectedReceipt.receiptDate).toLocaleDateString()}</p>
                 </div>
               </div>
 
               <div>
                 <h3 className="font-semibold mb-3">Items ({selectedReceipt.items.length})</h3>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm min-w-[700px]">
                     <thead>
                       <tr className="bg-muted/50 border-b">
-                        <th className="text-left py-2 px-3 font-medium">Item</th>
-                        <th className="text-right py-2 px-3 font-medium">Ordered</th>
-                        <th className="text-right py-2 px-3 font-medium">Received</th>
-                        <th className="text-right py-2 px-3 font-medium">Accepted</th>
-                        <th className="text-right py-2 px-3 font-medium">Rejected</th>
-                        <th className="text-center py-2 px-3 font-medium">MTC</th>
-                        <th className="text-center py-2 px-3 font-medium">Result</th>
-                        <th className="text-center py-2 px-3 font-medium">Action</th>
+                        <th className="text-left py-2.5 px-3 font-semibold">Item</th>
+                        <th className="text-right py-2.5 px-3 font-semibold whitespace-nowrap">Ordered</th>
+                        <th className="text-right py-2.5 px-3 font-semibold whitespace-nowrap">Received</th>
+                        <th className="text-right py-2.5 px-3 font-semibold whitespace-nowrap">Accepted</th>
+                        <th className="text-right py-2.5 px-3 font-semibold whitespace-nowrap">Rejected</th>
+                        <th className="text-center py-2.5 px-3 font-semibold">MTC</th>
+                        <th className="text-center py-2.5 px-3 font-semibold">Result</th>
+                        <th className="text-center py-2.5 px-3 font-semibold">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedReceipt.items.map((item) => (
-                        <tr key={item.id} className="border-b hover:bg-muted/50">
-                          <td className="py-2 px-3">
+                        <tr key={item.id} className="border-b hover:bg-muted/30">
+                          <td className="py-2.5 px-3">
                             <div className="font-medium">{item.itemName}</div>
                             {item.specification && (
-                              <div className="text-xs text-muted-foreground">{item.specification}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">{item.specification}</div>
                             )}
                           </td>
-                          <td className="py-2 px-3 text-right">{item.orderedQty} {item.unit}</td>
-                          <td className="py-2 px-3 text-right font-medium">{item.receivedQty} {item.unit}</td>
-                          <td className="py-2 px-3 text-right text-green-600">{item.acceptedQty} {item.unit}</td>
-                          <td className="py-2 px-3 text-right text-red-600">{item.rejectedQty} {item.unit}</td>
-                          <td className="py-2 px-3 text-center">
+                          <td className="py-2.5 px-3 text-right font-mono">{item.orderedQty} {item.unit}</td>
+                          <td className="py-2.5 px-3 text-right font-mono font-medium">{item.receivedQty} {item.unit}</td>
+                          <td className="py-2.5 px-3 text-right font-mono text-green-600">{item.acceptedQty} {item.unit}</td>
+                          <td className="py-2.5 px-3 text-right font-mono text-red-600">{item.rejectedQty} {item.unit}</td>
+                          <td className="py-2.5 px-3 text-center">
                             {item.mtcAvailable ? (
-                              <Badge className="bg-green-500/10 text-green-600">Yes</Badge>
+                              <Badge className="bg-green-500/10 text-green-600 text-xs">Yes</Badge>
                             ) : (
-                              <Badge variant="outline">No</Badge>
+                              <Badge variant="outline" className="text-xs">No</Badge>
                             )}
                           </td>
-                          <td className="py-2 px-3 text-center">{getInspectionResultBadge(item.inspectionResult)}</td>
-                          <td className="py-2 px-3 text-center">
+                          <td className="py-2.5 px-3 text-center">{getInspectionResultBadge(item.inspectionResult)}</td>
+                          <td className="py-2.5 px-3 text-center">
                             <Button size="sm" variant="outline" onClick={() => handleInspectItem(item)}>
                               Inspect
                             </Button>
@@ -714,48 +714,70 @@ export default function MaterialInspectionReceiptPage() {
       {/* Item Inspection Dialog */}
       {inspectingItem && (
         <Dialog open={!!inspectingItem} onOpenChange={() => setInspectingItem(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Inspect Item: {inspectingItem.itemName}</DialogTitle>
-              <DialogDescription>
-                Ordered: {inspectingItem.orderedQty} {inspectingItem.unit}
+          <DialogContent className="w-full sm:max-w-[95vw] md:max-w-2xl max-h-[92vh] flex flex-col p-0">
+            <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
+              <DialogTitle className="text-base leading-snug">{inspectingItem.itemName}</DialogTitle>
+              <DialogDescription className="flex items-center gap-3 mt-1">
+                <span>Inspect Item</span>
+                <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 text-xs font-semibold px-2 py-0.5 rounded-full">
+                  PO Qty: {inspectingItem.orderedQty} {inspectingItem.unit}
+                </span>
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {/* Quantities */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="receivedQty">Received Qty *</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="receivedQty" className="text-sm font-semibold">
+                    Received Qty *
+                    <span className="text-xs font-normal text-muted-foreground ml-1">(max {inspectingItem.orderedQty})</span>
+                  </Label>
                   <Input
                     id="receivedQty"
                     type="number"
                     step="0.01"
+                    min={0}
+                    max={inspectingItem.orderedQty}
                     value={itemFormData.receivedQty}
+                    className={Number(itemFormData.receivedQty) > inspectingItem.orderedQty ? 'border-red-500 focus-visible:ring-red-500' : ''}
                     onChange={(e) => setItemFormData({ ...itemFormData, receivedQty: e.target.value })}
                   />
+                  {Number(itemFormData.receivedQty) > inspectingItem.orderedQty && (
+                    <p className="text-xs text-red-600 font-medium">Exceeds PO qty ({inspectingItem.orderedQty} {inspectingItem.unit})</p>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="acceptedQty">Accepted Qty</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="acceptedQty" className="text-sm">Accepted Qty</Label>
                   <Input
                     id="acceptedQty"
                     type="number"
                     step="0.01"
+                    min={0}
+                    max={itemFormData.receivedQty || inspectingItem.orderedQty}
                     value={itemFormData.acceptedQty}
                     onChange={(e) => setItemFormData({ ...itemFormData, acceptedQty: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rejectedQty">Rejected Qty</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rejectedQty" className="text-sm">Rejected Qty</Label>
                   <Input
                     id="rejectedQty"
                     type="number"
                     step="0.01"
+                    min={0}
+                    max={itemFormData.receivedQty || inspectingItem.orderedQty}
                     value={itemFormData.rejectedQty}
                     onChange={(e) => setItemFormData({ ...itemFormData, rejectedQty: e.target.value })}
                   />
                 </div>
               </div>
+              {/* Qty sanity hint */}
+              {itemFormData.receivedQty && (Number(itemFormData.acceptedQty) + Number(itemFormData.rejectedQty)) > Number(itemFormData.receivedQty) && (
+                <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 rounded-md -mt-2">
+                  Accepted + Rejected ({Number(itemFormData.acceptedQty) + Number(itemFormData.rejectedQty)}) exceeds Received ({itemFormData.receivedQty})
+                </p>
+              )}
 
               {/* Surface Condition */}
               <div className="space-y-2">
@@ -959,7 +981,7 @@ export default function MaterialInspectionReceiptPage() {
               </div>
             </div>
 
-            <DialogFooter>
+            <div className="px-6 py-4 border-t shrink-0 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setInspectingItem(null)} disabled={savingItem}>
                 Cancel
               </Button>
@@ -976,7 +998,7 @@ export default function MaterialInspectionReceiptPage() {
                   </>
                 )}
               </Button>
-            </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
       )}

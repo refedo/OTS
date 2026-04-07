@@ -185,9 +185,9 @@ export default function MonthlyCashFlowPage() {
 
       {/* Drill-down Modal */}
       <Dialog open={drilldownOpen} onOpenChange={setDrilldownOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="w-full sm:max-w-[95vw] md:max-w-4xl max-h-[92vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               {drilldownType === 'in' ? (
                 <TrendingUp className="h-5 w-5 text-green-500" />
               ) : (
@@ -196,43 +196,44 @@ export default function MonthlyCashFlowPage() {
               {drilldownType === 'in' ? 'Cash In' : 'Cash Out'} — {drilldownMonth && getMonthName(drilldownMonth)} {year}
             </DialogTitle>
           </DialogHeader>
-          
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
           {drilldownLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : drilldownData ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm pb-2">
                 <span className="text-muted-foreground">{drilldownData.count} payments</span>
-                <span className={`font-bold ${drilldownType === 'in' ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-bold text-base ${drilldownType === 'in' ? 'text-green-600' : 'text-red-600'}`}>
                   Total: {formatSAR(drilldownData.total)}
                 </span>
               </div>
-              
-              <div className="overflow-x-auto">
+
+              <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-2">Date</th>
-                      <th className="text-left p-2">{drilldownType === 'in' ? 'Customer' : 'Supplier'}</th>
-                      <th className="text-left p-2">Invoice</th>
-                      <th className="text-left p-2">Payment Ref</th>
-                      <th className="text-left p-2">Method</th>
-                      <th className="text-right p-2">Amount</th>
+                    <tr className="border-b bg-muted/70">
+                      <th className="text-left p-3 font-semibold whitespace-nowrap">Date</th>
+                      <th className="text-left p-3 font-semibold">{drilldownType === 'in' ? 'Customer' : 'Supplier'}</th>
+                      <th className="text-left p-3 font-semibold whitespace-nowrap">Invoice</th>
+                      <th className="text-left p-3 font-semibold whitespace-nowrap">Payment Ref</th>
+                      <th className="text-left p-3 font-semibold">Method</th>
+                      <th className="text-right p-3 font-semibold whitespace-nowrap">Amount (SAR)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {drilldownData.payments.map((p: any, idx: number) => (
                       <tr key={p.id || idx} className="border-b hover:bg-muted/30">
-                        <td className="p-2">{p.date}</td>
-                        <td className="p-2 max-w-[200px] truncate" title={p.thirdpartyName}>{p.thirdpartyName}</td>
-                        <td className="p-2 font-mono text-xs">{p.invoiceRef}</td>
-                        <td className="p-2 font-mono text-xs">{p.paymentRef || '—'}</td>
-                        <td className="p-2">
+                        <td className="p-3 whitespace-nowrap">{p.date}</td>
+                        <td className="p-3 font-medium">{p.thirdpartyName}</td>
+                        <td className="p-3 font-mono text-xs whitespace-nowrap">{p.invoiceRef}</td>
+                        <td className="p-3 font-mono text-xs whitespace-nowrap">{p.paymentRef || '—'}</td>
+                        <td className="p-3">
                           {p.method && <Badge variant="outline" className="text-xs">{p.method}</Badge>}
                         </td>
-                        <td className={`p-2 text-right font-mono ${drilldownType === 'in' ? 'text-green-600' : 'text-red-600'}`}>
+                        <td className={`p-3 text-right font-mono font-semibold ${drilldownType === 'in' ? 'text-green-600' : 'text-red-600'}`}>
                           {formatSAR(p.amount)}
                         </td>
                       </tr>
@@ -253,6 +254,7 @@ export default function MonthlyCashFlowPage() {
               Failed to load payment details
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

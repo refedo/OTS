@@ -952,23 +952,24 @@ function CashFlowTimeline({
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarClock className="h-4 w-4" />
               Cash Flow Timeline
-              {selectedMonth && (
-                <span className="text-sm font-normal text-muted-foreground ml-1">
-                  — filtered to {(() => {
-                    const [yr, mo] = selectedMonth.split('-');
-                    return new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-                  })()}
-                </span>
-              )}
             </CardTitle>
             <div className="flex gap-5 mt-1.5 text-sm">
               <span>
-                <span className="text-muted-foreground">Collected: </span>
-                <span className="font-semibold text-green-600">SAR {fmt(totalCollected)}</span>
+                <span className="text-muted-foreground">
+                  {selectedMonth ? (() => {
+                    const [yr, mo] = selectedMonth.split('-');
+                    return new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+                  })() + ' — Collected:' : 'Collected:'}
+                </span>{' '}
+                <span className="font-semibold text-green-600">
+                  SAR {fmt(selectedMonth ? (collectedData.get(selectedMonth) ?? 0) : totalCollected)}
+                </span>
               </span>
               <span>
                 <span className="text-muted-foreground">Expected: </span>
-                <span className="font-semibold text-primary">SAR {fmt(totalExpected)}</span>
+                <span className="font-semibold text-primary">
+                  SAR {fmt(selectedMonth ? (pendingData.get(selectedMonth) ?? 0) : totalExpected)}
+                </span>
               </span>
             </div>
           </div>

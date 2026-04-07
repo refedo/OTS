@@ -23,10 +23,74 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.22.1',
+    date: 'April 7, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Payment Schedule Enhancements, Project Tracker Filter Icons, MIR UX Fixes',
+    highlights: [
+      'Payment schedule summary cards are now clickable — click Collected, Pending, or Overdue to instantly filter the table',
+      'Cash Flow Timeline header now shows the selected month\'s collected/expected totals when a bar is clicked',
+      'Payment schedule table footer shows column totals (Amount, Received, Remaining) across all visible rows',
+      'Monthly Cash Forecast now has prev/next arrow buttons for quick month navigation',
+      'New PaymentScheduleWidget for the CEO dashboard — shows this month\'s forecast and collection summary',
+      'Project tracker now defaults to "Active" filter with icons on all tab buttons',
+      'MIR: receipt detail and inspect item dialogs are now full-width with scrollable content',
+      'MIR inspect form: received qty shows max from PO with a red warning when exceeded',
+      'Cash In/Out monthly drilldown modal expanded for better readability',
+    ],
+    changes: {
+      added: [
+        'Payment schedule summary cards (Total, Collected, Pending, Overdue) now act as filter buttons with colored ring when active',
+        'Cash Flow Timeline: header Collected/Expected totals update to reflect selected month when a bar is clicked',
+        'Payment schedule table: sticky footer row with total Amount, total Received, and total Remaining balance',
+        'Monthly Cash Forecast: ‹ › arrow buttons to navigate between months without opening the dropdown',
+        'New PaymentScheduleWidget: shows this-month forecast, collected, pending, and overdue — available in CEO dashboard widget picker',
+        'Project tracker: "Active" tab (⚡) filters by project status = Active; now the default view',
+        'Project tracker: icons on all tabs (All, Active, In Progress, Blocked, Completed)',
+      ],
+      fixed: [
+        'Migration SQL: add_lcr_column_mapping.sql used wrong table name "SystemSettings" instead of "system_settings" (Prisma @@map)',
+        'Cash In/Out drilldown modal: expanded to near full-width, added proper header/scroll structure, improved column widths',
+        'MIR receipt detail dialog: now uses flex column layout with scrollable body — no more clipped content on small screens',
+        'MIR inspect item dialog: redesigned to full-width flex-column layout with PO qty shown as a pill badge in the subtitle',
+        'MIR inspect form: Received Qty field now has max attribute = orderedQty with inline red warning when exceeded',
+        'MIR inspect form: Accepted + Rejected qty sanity warning shown if combined > Received',
+      ],
+      changed: [
+        'Project tracker: default filter changed from "All" to "Active"',
+        'Cash Flow Timeline: month context shown in Collected/Expected line instead of separate title text',
+      ],
+    },
+  },
+  {
+    version: '17.22.0',
+    date: 'April 7, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Payment Schedule Enhancements, Project Tracker Active Filter, Migration SQL Fix',
+    highlights: [
+      'Payment schedule summary cards clickable to filter, table footer totals, timeline totals, month arrows',
+      'New PaymentScheduleWidget for CEO dashboard',
+      'Project tracker Active filter tab, default to Active view',
+      'Fixed migration SQL table name SystemSettings → system_settings',
+    ],
+    changes: {
+      added: [
+        'Clickable summary cards, table footer, timeline totals, month navigation arrows, PaymentScheduleWidget',
+        'Project tracker Active tab with ⚡ icon',
+      ],
+      fixed: [
+        'Migration SQL: add_lcr_column_mapping.sql table name fix',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.21.0',
     date: 'April 6, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'archived',
     mainTitle: 'LCR Mapping Redesign with Google Sheet Dropdowns, Clickable Cash Flow Timeline',
     highlights: [
       'LCR column mapping page redesigned: dropdowns populated from live Google Sheet column headers with sample data',
