@@ -25,6 +25,10 @@ import {
   HelpCircle,
   ChevronDown,
   Pin,
+  Zap,
+  LayoutGrid,
+  Ban,
+  PlayCircle,
 } from 'lucide-react';
 
 // --- Types ---
@@ -133,13 +137,14 @@ const ACTIVITY_COLUMNS = [
 
 const DESIGN_REVISION_TYPES = new Set(['design', 'detailing']);
 
-type FilterTab = 'all' | 'in_progress' | 'blocked' | 'completed';
+type FilterTab = 'all' | 'active' | 'in_progress' | 'blocked' | 'completed';
 
-const FILTER_TABS: { key: FilterTab; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'blocked', label: 'Blocked' },
-  { key: 'completed', label: 'Completed' },
+const FILTER_TABS: { key: FilterTab; label: string; icon: React.ElementType }[] = [
+  { key: 'all',         label: 'All',         icon: LayoutGrid   },
+  { key: 'active',      label: 'Active',       icon: Zap          },
+  { key: 'in_progress', label: 'In Progress',  icon: PlayCircle   },
+  { key: 'blocked',     label: 'Blocked',      icon: Ban          },
+  { key: 'completed',   label: 'Completed',    icon: CheckCircle2 },
 ];
 
 const CONSULTANT_CODES: Record<string, { label: string; color: string }> = {
@@ -692,7 +697,7 @@ function CalculationLegend({ isDark, mutedTextClass }: { isDark: boolean; mutedT
 export default function ProjectTrackerClient() {
   const [data, setData] = useState<TrackerResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [activeTab, setActiveTab] = useState<FilterTab>('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDark, setIsDark] = useState(true);
   const [freezeHeader, setFreezeHeader] = useState(false);
@@ -857,28 +862,32 @@ export default function ProjectTrackerClient() {
             {/* Filters & Search */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-1">
-                {FILTER_TABS.map((tab) => (
-                  <Button
-                    key={tab.key}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`
-                      rounded-lg px-4 text-sm font-medium transition-colors
-                      ${
-                        activeTab === tab.key
-                          ? isDark
-                            ? 'bg-[#1a2332] text-white border border-slate-600'
-                            : 'bg-white text-slate-900 border border-slate-300 shadow-sm'
-                          : isDark
-                            ? 'text-slate-400 hover:text-white hover:bg-[#1a2332]/60'
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                      }
-                    `}
-                  >
-                    {tab.label}
-                  </Button>
-                ))}
+                {FILTER_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <Button
+                      key={tab.key}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`
+                        rounded-lg px-3 text-sm font-medium transition-colors flex items-center gap-1.5
+                        ${
+                          activeTab === tab.key
+                            ? isDark
+                              ? 'bg-[#1a2332] text-white border border-slate-600'
+                              : 'bg-white text-slate-900 border border-slate-300 shadow-sm'
+                            : isDark
+                              ? 'text-slate-400 hover:text-white hover:bg-[#1a2332]/60'
+                              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                        }
+                      `}
+                    >
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      {tab.label}
+                    </Button>
+                  );
+                })}
               </div>
               <div className="relative w-full sm:w-72">
                 <Search

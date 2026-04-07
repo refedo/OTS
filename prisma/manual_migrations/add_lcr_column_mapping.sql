@@ -1,5 +1,5 @@
--- Add lcrColumnMapping JSON field to SystemSettings
--- Stores LCR spreadsheet column index mapping so admins can update it without code changes
+-- Add lcrColumnMapping JSON field to system_settings table
+-- Note: Prisma model "SystemSettings" maps to MySQL table "system_settings" via @@map
 
 DROP PROCEDURE IF EXISTS add_lcr_column_mapping;
 DELIMITER $$
@@ -8,10 +8,10 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'SystemSettings'
+      AND TABLE_NAME = 'system_settings'
       AND COLUMN_NAME = 'lcrColumnMapping'
   ) THEN
-    ALTER TABLE SystemSettings ADD COLUMN lcrColumnMapping JSON NULL;
+    ALTER TABLE system_settings ADD COLUMN lcrColumnMapping JSON NULL;
   END IF;
 END$$
 DELIMITER ;
