@@ -250,7 +250,9 @@ export const GET = withApiContext(async (req, session) => {
     );
 
     let filtered = trackerData;
-    if (statusFilter === 'in_progress') {
+    if (statusFilter === 'active') {
+      filtered = trackerData.filter((p) => p.status === 'Active');
+    } else if (statusFilter === 'in_progress') {
       filtered = trackerData.filter((p) => p.overallProgress > 0 && p.overallProgress < 100);
     } else if (statusFilter === 'completed') {
       filtered = trackerData.filter((p) => p.overallProgress === 100);

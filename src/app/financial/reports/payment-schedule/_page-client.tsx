@@ -15,12 +15,13 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
   ArrowLeft, Printer, Download, Loader2, PenLine, Plus,
   DollarSign, Clock, CheckCircle2, AlertTriangle, CalendarClock,
   ArrowUpDown, ArrowUp, ArrowDown, Trash2, Link2, Search, X,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -789,6 +790,9 @@ function MonthlyForecastCard({ rows }: { rows: PaymentRow[] }) {
   }, [rows, selectedMonth]);
 
   const selectedLabel = months.find(m => m.key === selectedMonth)?.label ?? selectedMonth;
+  const currentIndex = months.findIndex(m => m.key === selectedMonth);
+  const goPrev = () => { if (currentIndex > 0) { setSelectedMonth(months[currentIndex - 1].key); setExpanded(false); } };
+  const goNext = () => { if (currentIndex < months.length - 1) { setSelectedMonth(months[currentIndex + 1].key); setExpanded(false); } };
 
   return (
     <Card>
@@ -798,16 +802,24 @@ function MonthlyForecastCard({ rows }: { rows: PaymentRow[] }) {
             <CalendarClock className="h-4 w-4" />
             Monthly Cash Forecast
           </CardTitle>
-          <Select value={selectedMonth} onValueChange={v => { setSelectedMonth(v); setExpanded(false); }}>
-            <SelectTrigger className="w-48 h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map(m => (
-                <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goPrev} disabled={currentIndex <= 0}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Select value={selectedMonth} onValueChange={v => { setSelectedMonth(v); setExpanded(false); }}>
+              <SelectTrigger className="w-44 h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map(m => (
+                  <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goNext} disabled={currentIndex >= months.length - 1}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -891,7 +903,7 @@ function CashFlowTimeline({
   selectedMonth: string | null;
   onSelectMonth: (month: string | null) => void;
 }) {
-  const { pendingData, collectedData, allMonths } = useMemo(() => {
+  const { pendingData, collectedData, allMonths, totalExpected, totalCollected } = useMemo(() => {
     const pending   = new Map<string, number>();
     const collected = new Map<string, number>();
 
@@ -913,10 +925,15 @@ function CashFlowTimeline({
       .sort()
       .slice(0, 12);
 
+    const totExp = Array.from(pending.values()).reduce((s, v) => s + v, 0);
+    const totCol = Array.from(collected.values()).reduce((s, v) => s + v, 0);
+
     return {
-      pendingData:   pending,
-      collectedData: collected,
-      allMonths:     months,
+      pendingData:    pending,
+      collectedData:  collected,
+      allMonths:      months,
+      totalExpected:  totExp,
+      totalCollected: totCol,
     };
   }, [rows]);
 
@@ -930,19 +947,31 @@ function CashFlowTimeline({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <CalendarClock className="h-4 w-4" />
-            Cash Flow Timeline
-            {selectedMonth && (
-              <span className="text-sm font-normal text-muted-foreground ml-1">
-                — filtered to {(() => {
-                  const [yr, mo] = selectedMonth.split('-');
-                  return new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-                })()}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarClock className="h-4 w-4" />
+              Cash Flow Timeline
+              {selectedMonth && (
+                <span className="text-sm font-normal text-muted-foreground ml-1">
+                  — filtered to {(() => {
+                    const [yr, mo] = selectedMonth.split('-');
+                    return new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+                  })()}
+                </span>
+              )}
+            </CardTitle>
+            <div className="flex gap-5 mt-1.5 text-sm">
+              <span>
+                <span className="text-muted-foreground">Collected: </span>
+                <span className="font-semibold text-green-600">SAR {fmt(totalCollected)}</span>
               </span>
-            )}
-          </CardTitle>
+              <span>
+                <span className="text-muted-foreground">Expected: </span>
+                <span className="font-semibold text-primary">SAR {fmt(totalExpected)}</span>
+              </span>
+            </div>
+          </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-primary" />Expected</span>
             <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm bg-green-500" />Collected</span>
@@ -1167,50 +1196,58 @@ export default function PaymentScheduleReportPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-3">
-              <DollarSign className="h-8 w-8 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Total Scheduled</p>
-                <p className="text-xl font-bold">SAR {fmt(summary.total)}</p>
+        <button className="text-left" onClick={() => setFilterStatus('all')}>
+          <Card className={cn('transition-all hover:border-primary/50', filterStatus === 'all' && 'ring-2 ring-primary')}>
+            <CardContent className="pt-5">
+              <div className="flex items-center gap-3">
+                <DollarSign className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Scheduled</p>
+                  <p className="text-xl font-bold">SAR {fmt(summary.total)}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Collected</p>
-                <p className="text-xl font-bold text-green-600">SAR {fmt(summary.collected)}</p>
+            </CardContent>
+          </Card>
+        </button>
+        <button className="text-left" onClick={() => setFilterStatus('collected')}>
+          <Card className={cn('transition-all hover:border-green-400', filterStatus === 'collected' && 'ring-2 ring-green-500')}>
+            <CardContent className="pt-5">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-8 w-8 text-green-500" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Collected</p>
+                  <p className="text-xl font-bold text-green-600">SAR {fmt(summary.collected)}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 text-blue-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-xl font-bold text-blue-600">SAR {fmt(summary.pending)}</p>
+            </CardContent>
+          </Card>
+        </button>
+        <button className="text-left" onClick={() => setFilterStatus('pending')}>
+          <Card className={cn('transition-all hover:border-blue-400', filterStatus === 'pending' && 'ring-2 ring-blue-500')}>
+            <CardContent className="pt-5">
+              <div className="flex items-center gap-3">
+                <Clock className="h-8 w-8 text-blue-500" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-xl font-bold text-blue-600">SAR {fmt(summary.pending)}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-8 w-8 text-red-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className="text-xl font-bold text-red-600">SAR {fmt(summary.overdue)}</p>
+            </CardContent>
+          </Card>
+        </button>
+        <button className="text-left" onClick={() => setFilterStatus('overdue')}>
+          <Card className={cn('transition-all hover:border-red-400', filterStatus === 'overdue' && 'ring-2 ring-red-500')}>
+            <CardContent className="pt-5">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Overdue</p>
+                  <p className="text-xl font-bold text-red-600">SAR {fmt(summary.overdue)}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </button>
       </div>
 
       {/* Cash Flow Timeline */}
@@ -1475,6 +1512,28 @@ export default function PaymentScheduleReportPage() {
                     );
                   })}
                 </TableBody>
+                {sortedRows.length > 0 && (() => {
+                  const totAmt = sortedRows.reduce((s, r) => s + r.amount, 0);
+                  const totRec = sortedRows.reduce((s, r) => s + toNum(r.enrichment?.receivedAmount), 0);
+                  const totBal = sortedRows.reduce((s, r) => s + Math.max(r.amount - toNum(r.enrichment?.receivedAmount), 0), 0);
+                  return (
+                    <TableFooter>
+                      <TableRow className="bg-muted/60 font-semibold text-sm">
+                        <TableCell colSpan={4} className="text-right text-muted-foreground py-2">
+                          Totals ({sortedRows.length} rows)
+                        </TableCell>
+                        <TableCell className="text-right font-mono py-2">
+                          SAR {fmt(totAmt)}
+                        </TableCell>
+                        <TableCell className="py-2">
+                          {totRec > 0 && <div className="text-green-600 font-mono text-xs">+{fmt(totRec)} received</div>}
+                          {totBal > 0 && <div className="text-amber-600 font-mono text-xs">−{fmt(totBal)} remaining</div>}
+                        </TableCell>
+                        <TableCell colSpan={7} />
+                      </TableRow>
+                    </TableFooter>
+                  );
+                })()}
               </Table>
             </div>
           )}
