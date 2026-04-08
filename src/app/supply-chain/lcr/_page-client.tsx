@@ -678,8 +678,8 @@ export default function LcrPage() {
                         <tr className="bg-muted/50 border-b">
                           <th className="text-left px-3 py-2 font-medium"></th>
                           <th className="text-left px-3 py-2 font-medium">Supplier</th>
-                          <th className="text-right px-3 py-2 font-medium">Amount</th>
-                          <th className="text-right px-3 py-2 font-medium">Price/Ton</th>
+                          <th className="text-right px-3 py-2 font-medium">Price</th>
+                          <th className="text-right px-3 py-2 font-medium">Tonnage Rate</th>
                         </tr>
                       </thead>
                       <tbody>

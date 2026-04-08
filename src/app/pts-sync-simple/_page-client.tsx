@@ -82,6 +82,8 @@ interface BuildingSyncStats {
   syncedParts: number;
   totalLogs: number;
   syncedLogs: number;
+  totalWeight: number;
+  syncedWeight: number;
 }
 
 interface ProjectSyncStats {
@@ -92,6 +94,8 @@ interface ProjectSyncStats {
   totalLogs: number;
   syncedLogs: number;
   completionPercent: number;
+  totalWeight: number;
+  syncedWeight: number;
   buildings: BuildingSyncStats[];
 }
 
@@ -1078,6 +1082,7 @@ export default function PTSSyncSimplePage() {
                               <div className="flex gap-4 text-xs text-muted-foreground mt-1">
                                 <span>Parts: {stat.syncedParts}/{stat.totalParts}</span>
                                 <span>Logs: {stat.syncedLogs}/{stat.totalLogs}</span>
+                                <span>Weight: <strong className="text-foreground">{(stat.syncedWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong> / {(stat.totalWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-3">
@@ -1115,6 +1120,9 @@ export default function PTSSyncSimplePage() {
                                     </span>
                                     <span className="text-muted-foreground">
                                       Logs: <strong className="text-foreground">{b.syncedLogs}</strong>/{b.totalLogs}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      Weight: <strong className="text-foreground">{(b.syncedWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>/{(b.totalWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
                                     </span>
                                     {b.syncedParts > 0 || b.syncedLogs > 0 ? (
                                       <Button

@@ -92,11 +92,15 @@ interface BuildingSyncStats {
   syncedParts: number;
   totalLogs: number;
   syncedLogs: number;
+  totalWeight: number;
+  syncedWeight: number;
 }
 
 interface ProjectSyncStats {
   projectNumber: string;
   projectName: string;
+  totalWeight: number;
+  syncedWeight: number;
   totalParts: number;
   syncedParts: number;
   totalLogs: number;
@@ -1129,6 +1133,51 @@ export default function ExecuteSyncPage() {
             </Card>
           </div>
 
+          {/* Weight Verification */}
+          {syncResult.projectStats && syncResult.projectStats.some(p => (p.syncedWeight ?? 0) > 0) && (
+            <Card className="border-amber-300 bg-amber-50/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2 text-amber-700">
+                  <AlertTriangle className="h-4 w-4" />
+                  Weight Verification — Please Review Before Accepting
+                </CardTitle>
+                <CardDescription className="text-amber-600">
+                  Review the synced weights per building below. If any numbers seem doubled or incorrect, use the Rollback button for that project.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Building</TableHead>
+                      <TableHead>Parts</TableHead>
+                      <TableHead>Synced Weight (kg)</TableHead>
+                      <TableHead>Total Weight (kg)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {syncResult.projectStats.flatMap(p =>
+                      (p.buildings ?? []).filter(b => (b.syncedWeight ?? 0) > 0).map(b => (
+                        <TableRow key={b.buildingId}>
+                          <TableCell className="font-medium">{p.projectNumber} — {b.buildingDesignation} ({b.buildingName})</TableCell>
+                          <TableCell>{b.syncedParts}</TableCell>
+                          <TableCell className="font-bold">{(b.syncedWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell>{(b.totalWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                    <TableRow className="border-t-2 font-bold bg-muted/50">
+                      <TableCell>Grand Total</TableCell>
+                      <TableCell>{syncResult.projectStats.reduce((s, p) => s + p.syncedParts, 0)}</TableCell>
+                      <TableCell>{syncResult.projectStats.reduce((s, p) => s + (p.syncedWeight ?? 0), 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>{syncResult.projectStats.reduce((s, p) => s + (p.totalWeight ?? 0), 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Successfully Synced Items */}
           {syncResult.syncedItems && syncResult.syncedItems.length > 0 && (
             <Card className="border-green-200">
@@ -1179,40 +1228,68 @@ export default function ExecuteSyncPage() {
                       <TableHead>Project</TableHead>
                       <TableHead>Parts</TableHead>
                       <TableHead>Logs</TableHead>
+                      <TableHead>Synced Weight (kg)</TableHead>
                       <TableHead>Completion</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {syncResult.projectStats.map(stat => (
-                      <TableRow key={stat.projectNumber}>
-                        <TableCell className="font-medium">
-                          {stat.projectNumber} - {stat.projectName}
-                        </TableCell>
-                        <TableCell>{stat.syncedParts} / {stat.totalParts}</TableCell>
-                        <TableCell>{stat.syncedLogs} / {stat.totalLogs}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress value={stat.completionPercent} className="w-20 h-2" />
-                            <span className="text-sm">{stat.completionPercent}%</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => {
-                              setRollbackProject(stat.projectNumber);
-                              setShowRollbackDialog(true);
-                            }}
-                          >
-                            <RotateCcw className="h-3 w-3 mr-1" />
-                            Rollback
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                      <>
+                        <TableRow key={stat.projectNumber} className="border-b-0 bg-muted/30">
+                          <TableCell className="font-bold">
+                            {stat.projectNumber} - {stat.projectName}
+                          </TableCell>
+                          <TableCell className="font-bold">{stat.syncedParts} / {stat.totalParts}</TableCell>
+                          <TableCell className="font-bold">{stat.syncedLogs} / {stat.totalLogs}</TableCell>
+                          <TableCell className="font-bold">{(stat.syncedWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} / {(stat.totalWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Progress value={stat.completionPercent} className="w-20 h-2" />
+                              <span className="text-sm font-bold">{stat.completionPercent}%</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => {
+                                setRollbackProject(stat.projectNumber);
+                                setShowRollbackDialog(true);
+                              }}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Rollback
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {stat.buildings?.map(b => (
+                          <TableRow key={b.buildingId} className="text-muted-foreground text-xs">
+                            <TableCell className="pl-8">
+                              <Building2 className="h-3 w-3 inline mr-1" />
+                              {b.buildingDesignation} — {b.buildingName}
+                            </TableCell>
+                            <TableCell>{b.syncedParts} / {b.totalParts}</TableCell>
+                            <TableCell>{b.syncedLogs} / {b.totalLogs}</TableCell>
+                            <TableCell>{(b.syncedWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} / {(b.totalWeight ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell />
+                            <TableCell />
+                          </TableRow>
+                        ))}
+                      </>
                     ))}
+                    {/* Total row */}
+                    {syncResult.projectStats.length > 0 && (
+                      <TableRow className="border-t-2 font-bold bg-muted/50">
+                        <TableCell>Total</TableCell>
+                        <TableCell>{syncResult.projectStats.reduce((s, p) => s + p.syncedParts, 0)} / {syncResult.projectStats.reduce((s, p) => s + p.totalParts, 0)}</TableCell>
+                        <TableCell>{syncResult.projectStats.reduce((s, p) => s + p.syncedLogs, 0)} / {syncResult.projectStats.reduce((s, p) => s + p.totalLogs, 0)}</TableCell>
+                        <TableCell>{syncResult.projectStats.reduce((s, p) => s + (p.syncedWeight ?? 0), 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} / {syncResult.projectStats.reduce((s, p) => s + (p.totalWeight ?? 0), 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell />
+                        <TableCell />
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

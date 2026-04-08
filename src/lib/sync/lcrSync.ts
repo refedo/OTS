@@ -32,25 +32,47 @@ export const DEFAULT_LCR_COL_MAP = {
   TARGET_PRICE: 19,
   MRF_NUMBER: 20,
   RATIO_1TO2_LCR1: 21,
-  LCR1: 24,
-  LCR1_AMOUNT: 25,
+  LCR1_AMOUNT: 24,
+  LCR1: 25,
   PRICE_PER_TON_LCR1: 26,
-  LCR2: 27,
-  LCR2_AMOUNT: 28,
+  LCR2_AMOUNT: 27,
+  LCR2: 28,
   PRICE_PER_TON_LCR2: 29,
-  LCR3: 30,
-  LCR3_AMOUNT: 31,
+  LCR3_AMOUNT: 30,
+  LCR3: 31,
   PRICE_PER_TON_LCR3: 32,
   THICKNESS: 33,
 } as const;
 
 export type LcrColKey = keyof typeof DEFAULT_LCR_COL_MAP;
 
+// Known stale LCR column patterns from previous wrong defaults.
+// If the saved mapping matches any of these, discard the LCR fields so new defaults take over.
+const STALE_LCR_PATTERNS = [
+  // v17.24.0 and earlier: Supplier at 24, Amount at 25 (wrong — Amount is at 24 in the sheet)
+  { LCR1: 24, LCR1_AMOUNT: 25 },
+  // Pre-17.24 gapped mapping
+  { LCR1: 24, LCR1_AMOUNT: 27 },
+];
+
+const LCR_FIELD_KEYS = [
+  'LCR1', 'LCR1_AMOUNT', 'PRICE_PER_TON_LCR1',
+  'LCR2', 'LCR2_AMOUNT', 'PRICE_PER_TON_LCR2',
+  'LCR3', 'LCR3_AMOUNT', 'PRICE_PER_TON_LCR3',
+];
+
 async function loadColMap(): Promise<Record<LcrColKey, number>> {
   try {
     const settings = await prisma.systemSettings.findFirst({ select: { lcrColumnMapping: true } });
     if (settings?.lcrColumnMapping && typeof settings.lcrColumnMapping === 'object') {
-      const saved = settings.lcrColumnMapping as Record<string, number>;
+      const saved = { ...(settings.lcrColumnMapping as Record<string, number>) };
+      // Detect stale LCR columns from previous wrong defaults and discard them
+      const isStale = STALE_LCR_PATTERNS.some(
+        p => saved.LCR1 === p.LCR1 && saved.LCR1_AMOUNT === p.LCR1_AMOUNT
+      );
+      if (isStale) {
+        for (const key of LCR_FIELD_KEYS) delete saved[key];
+      }
       // Merge saved values over defaults so new fields added later still work
       return { ...DEFAULT_LCR_COL_MAP, ...saved } as Record<LcrColKey, number>;
     }
