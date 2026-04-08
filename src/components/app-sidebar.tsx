@@ -58,7 +58,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -308,6 +308,16 @@ export function AppSidebar() {
   const [riskCount, setRiskCount] = useState(0);
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const [singleOrder, setSingleOrder] = useState<string[]>([]);
+
+  // Restore cached order from localStorage before first paint to prevent reorder flash
+  useLayoutEffect(() => {
+    try {
+      const cachedSection = localStorage.getItem('sidebar-section-order');
+      if (cachedSection) setSectionOrder(JSON.parse(cachedSection));
+      const cachedSingle = localStorage.getItem('sidebar-single-order');
+      if (cachedSingle) setSingleOrder(JSON.parse(cachedSingle));
+    } catch { /* ignore */ }
+  }, []);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount, taskMessageCount } = useNotifications();
@@ -384,9 +394,11 @@ export function AppSidebar() {
           const { order, singleOrder: so } = await res.json();
           if (Array.isArray(order) && order.length > 0) {
             setSectionOrder(order);
+            try { localStorage.setItem('sidebar-section-order', JSON.stringify(order)); } catch { /* ignore */ }
           }
           if (Array.isArray(so) && so.length > 0) {
             setSingleOrder(so);
+            try { localStorage.setItem('sidebar-single-order', JSON.stringify(so)); } catch { /* ignore */ }
           }
         }
       } catch {

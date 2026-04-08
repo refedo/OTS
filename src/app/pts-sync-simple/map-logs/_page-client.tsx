@@ -100,7 +100,22 @@ export default function MapLogsPage() {
   const fetchColumns = async () => {
     try {
       const res = await fetch('/api/pts-sync/columns');
-      if (!res.ok) throw new Error('Failed to fetch columns');
+      if (!res.ok) {
+        let detail = `Server responded with status ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (res.status === 504) {
+            detail = `Google Sheets timed out — the spreadsheet may be slow or unreachable. Please try again. (${errData.message ?? errData.error ?? ''})`;
+          } else if (res.status === 401) {
+            detail = 'Session expired. Please refresh the page and log in again.';
+          } else if (res.status === 500 && (errData.error ?? '').includes('credentials')) {
+            detail = `Google API credentials are not configured on the server: ${errData.error}`;
+          } else {
+            detail = errData.message ?? errData.error ?? detail;
+          }
+        } catch { /* ignore JSON parse failure */ }
+        throw new Error(detail);
+      }
       const data = await res.json();
       setColumns(data.logs.headers);
       
