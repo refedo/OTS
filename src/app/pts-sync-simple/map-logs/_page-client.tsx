@@ -13,15 +13,23 @@ import {
   Database,
   Check,
   AlertCircle,
-  Play
+  Play,
+  ChevronsUpDown
 } from 'lucide-react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -282,22 +290,41 @@ export default function MapLogsPage() {
                       {mapping.description}
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={mapping.mappedColumn || 'none'}
-                        onValueChange={(value) => updateMapping(mapping.dbField, value === 'none' ? null : value)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select column..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">-- Not Mapped --</SelectItem>
-                          {columns.map(col => (
-                            <SelectItem key={col.column} value={col.column}>
-                              {col.column}: {col.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-9 text-sm">
+                            {mapping.mappedColumn
+                              ? (() => { const c = columns.find(col => col.column === mapping.mappedColumn); return c ? `${c.column}: ${c.name}` : mapping.mappedColumn; })()
+                              : <span className="text-muted-foreground">Select column...</span>}
+                            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search column..." />
+                            <CommandList>
+                              <CommandEmpty>No column found.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem value="not-mapped" onSelect={() => updateMapping(mapping.dbField, null)}>
+                                  <Check className={cn('mr-2 h-3 w-3', !mapping.mappedColumn ? 'opacity-100' : 'opacity-0')} />
+                                  -- Not Mapped --
+                                </CommandItem>
+                                {columns.map(col => (
+                                  <CommandItem
+                                    key={col.column}
+                                    value={`${col.column} ${col.name} ${col.sample}`}
+                                    onSelect={() => updateMapping(mapping.dbField, col.column)}
+                                  >
+                                    <Check className={cn('mr-2 h-3 w-3', mapping.mappedColumn === col.column ? 'opacity-100' : 'opacity-0')} />
+                                    <span className="font-mono text-xs w-6 shrink-0">{col.column}:</span>
+                                    <span className="ml-1 truncate">{col.name}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </TableCell>
                     <TableCell className="text-sm">
                       {columnInfo ? (

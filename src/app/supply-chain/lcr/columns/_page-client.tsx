@@ -7,13 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ArrowLeft, Save, RotateCcw, Info, RefreshCw, Loader2, Wand2 } from 'lucide-react';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { ArrowLeft, Save, RotateCcw, Info, RefreshCw, Loader2, Wand2, ChevronsUpDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ColumnHeader {
   index: number;
@@ -370,24 +377,45 @@ export default function LcrColumnMappingPage() {
                       </p>
 
                       {sheetColumns.length > 0 ? (
-                        <Select value={currentLetter} onValueChange={v => handleChange(key, v)}>
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue placeholder="Select column…" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-64">
-                            {sheetColumns.map(col => (
-                              <SelectItem key={col.column} value={col.column}>
-                                <span className="font-mono text-xs w-6 inline-block">{col.column}</span>
-                                <span className="ml-1 truncate max-w-[160px]">{col.name}</span>
-                                {col.sample && (
-                                  <Badge variant="outline" className="ml-2 text-xs font-normal max-w-[80px] truncate">
-                                    {col.sample}
-                                  </Badge>
-                                )}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="h-9 w-full justify-between text-sm font-normal">
+                              {(() => {
+                                const col = sheetColumns.find(c => c.column === currentLetter);
+                                return col
+                                  ? <span className="truncate"><span className="font-mono text-xs">{col.column}</span> {col.name}</span>
+                                  : <span className="text-muted-foreground">Select column…</span>;
+                              })()}
+                              <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Search column..." />
+                              <CommandList>
+                                <CommandEmpty>No column found.</CommandEmpty>
+                                <CommandGroup>
+                                  {sheetColumns.map(col => (
+                                    <CommandItem
+                                      key={col.column}
+                                      value={`${col.column} ${col.name} ${col.sample}`}
+                                      onSelect={() => handleChange(key, col.column)}
+                                    >
+                                      <Check className={cn('mr-2 h-3 w-3', currentLetter === col.column ? 'opacity-100' : 'opacity-0')} />
+                                      <span className="font-mono text-xs w-6 shrink-0">{col.column}</span>
+                                      <span className="ml-1 truncate">{col.name}</span>
+                                      {col.sample && (
+                                        <Badge variant="outline" className="ml-auto text-xs font-normal max-w-[80px] truncate">
+                                          {col.sample}
+                                        </Badge>
+                                      )}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       ) : (
                         <div className="h-9 flex items-center px-3 rounded-md border bg-muted/40 text-sm font-mono text-muted-foreground">
                           {currentLetter}
