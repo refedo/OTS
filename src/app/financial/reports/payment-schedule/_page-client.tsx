@@ -15,11 +15,17 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command';
+import {
   Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
   ArrowLeft, Printer, Download, Loader2, PenLine, Plus,
-  DollarSign, Clock, CheckCircle2, AlertTriangle, CalendarClock,
+  DollarSign, Clock, Check, CheckCircle2, AlertTriangle, CalendarClock,
   ArrowUpDown, ArrowUp, ArrowDown, Trash2, Link2, Search, X,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
@@ -405,19 +411,40 @@ function EditDrawer({ row, invoices, onClose, onSaved }: EditDrawerProps) {
 
           <div className="space-y-2">
             <Label>Link to Invoice</Label>
-            <Select value={invoiceId} onValueChange={setInvoiceId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select invoice..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— No invoice linked —</SelectItem>
-                {invoices.map(inv => (
-                  <SelectItem key={inv.id} value={String(inv.id)}>
-                    {inv.ref} · SAR {fmt(inv.total_ttc)} · {inv.is_paid ? 'Paid' : 'Unpaid'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-10 text-sm">
+                  {invoiceId !== 'none'
+                    ? (() => { const inv = invoices.find(i => String(i.id) === invoiceId); return inv ? `${inv.ref} · SAR ${fmt(inv.total_ttc)} · ${inv.is_paid ? 'Paid' : 'Unpaid'}` : 'Select invoice...'; })()
+                    : '— No invoice linked —'}
+                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search invoices..." />
+                  <CommandList>
+                    <CommandEmpty>No invoice found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="none" onSelect={() => setInvoiceId('none')}>
+                        {invoiceId === 'none' && <Check className="mr-2 h-4 w-4" />}
+                        <span className={invoiceId === 'none' ? '' : 'ml-6'}>— No invoice linked —</span>
+                      </CommandItem>
+                      {invoices.map(inv => {
+                        const val = String(inv.id);
+                        const label = `${inv.ref} · SAR ${fmt(inv.total_ttc)} · ${inv.is_paid ? 'Paid' : 'Unpaid'}`;
+                        return (
+                          <CommandItem key={inv.id} value={`${inv.ref} ${inv.ref_client ?? ''} ${inv.total_ttc}`} onSelect={() => setInvoiceId(val)}>
+                            {invoiceId === val && <Check className="mr-2 h-4 w-4" />}
+                            <span className={invoiceId === val ? '' : 'ml-6'}>{label}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">

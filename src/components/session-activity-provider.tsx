@@ -25,12 +25,13 @@ export function SessionActivityProvider({ children }: { children: React.ReactNod
         setShowWarning(true);
       },
       () => {
-        // Clean up everything before redirect
+        // Clean up tracker before redirect
         (window as any).__sessionActivityTracker?.stop();
         delete (window as any).__sessionActivityTracker;
-        localStorage.clear();
         sessionStorage.clear();
-        window.location.replace('/login?reason=idle&t=' + Date.now());
+        // Preserve current page path so user returns here after re-login
+        const currentPath = window.location.pathname + window.location.search;
+        window.location.replace('/login?reason=idle&next=' + encodeURIComponent(currentPath) + '&t=' + Date.now());
       }
     );
 

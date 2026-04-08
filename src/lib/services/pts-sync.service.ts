@@ -306,10 +306,10 @@ class PTSSyncService {
     for (const [, ptsBuilding] of ptsBuildingsMap) {
       const projectMatch = matchedProjects.find(m => m.pts === ptsBuilding.projectNumber);
       if (projectMatch) {
-        const otsBuilding = otsBuildings.find(
-          b => b.projectId === projectMatch.ots.id && 
-               (b.designation === ptsBuilding.designation || b.name === ptsBuilding.name)
-        );
+        // Prioritize building designation match over name match
+        const otsBuilding =
+          otsBuildings.find(b => b.projectId === projectMatch.ots.id && b.designation === ptsBuilding.designation) ??
+          otsBuildings.find(b => b.projectId === projectMatch.ots.id && b.name === ptsBuilding.name && ptsBuilding.name);
         if (otsBuilding) {
           matchedBuildings.push({ 
             pts: { projectNumber: ptsBuilding.projectNumber, designation: ptsBuilding.designation }, 

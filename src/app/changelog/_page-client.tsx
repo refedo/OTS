@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.22.2',
+    version: '17.22.3',
     date: 'April 8, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'KPI Redirect Fix, Multi-Tab Session, Conversation UX, Searchable Invoice, PTS Matching',
+    highlights: [
+      'KPI Dashboard widget no longer 404s — link corrected to /business-planning/kpis',
+      'Idle session timeout now preserves the current page path so users return to the same page after re-login instead of dashboard',
+      'Conversation @ mentions now support keyboard arrow navigation and Enter/Tab to select',
+      'Payment schedule invoice dropdown is now searchable — type to filter invoices by ref, amount, or status',
+      'PTS sync building matching now prioritizes building designation over building name',
+    ],
+    changes: {
+      added: [
+        'Payment schedule sidebar: invoice dropdown is now a searchable combobox — filter by invoice reference, amount, or status',
+        'Conversation messaging: @ mention suggestions now support ArrowUp/ArrowDown keyboard navigation, Enter/Tab to select, and visual highlighting',
+      ],
+      fixed: [
+        'KPI Dashboard widget: link pointed to /kpis (404) instead of /business-planning/kpis',
+        'Multi-tab idle redirect: idle timeout now includes ?next= param so users return to their original page after re-login instead of always going to dashboard; removed aggressive localStorage.clear() that wiped unrelated data',
+        'Install OTS App notification: removed the PWA install prompt entirely — "Don\'t show again" was not persisting reliably',
+        'Conversation new topic: typing in Topic/Purpose no longer auto-shifts focus to the message field after the first character',
+        'LCR column mapping: sheet-headers fetch now handles non-JSON server responses (e.g., nginx 502/504 HTML pages) gracefully instead of crashing with "Unexpected token <"',
+        'PTS sync: "Save & Continue" now also persists the mapping configuration so it auto-loads on next visit',
+        'PTS sync: building matching now strictly prioritizes building designation over building name during validation and sync',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.22.2',
+    date: 'April 8, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'PTS Logs Sync Error Detail, Sidebar Flash Fix, LCR Automap',
     highlights: [
       '"Failed to fetch columns" on Production Logs sync now shows the actual cause (timeout, credentials, server error)',

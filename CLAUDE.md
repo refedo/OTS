@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.22.2` — fix PTS logs "Failed to fetch columns" with detailed error cause, fix sidebar reorder flash via localStorage caching, fix LCR automap fuzzy keyword matching
+**Current version:** `17.22.3` — fix KPI 404, idle multi-tab redirect, remove PWA install prompt, conversation UX fixes, searchable invoice select, LCR error handling, PTS mapping persistence & building designation priority
 
 ---
 
