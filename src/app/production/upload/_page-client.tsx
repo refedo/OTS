@@ -651,6 +651,15 @@ export default function UploadPartsPage() {
                       <p className="font-semibold">
                         {uploadResult.success} parts uploaded successfully
                       </p>
+                      {uploadResult.results && uploadResult.results.length > 0 && (() => {
+                        const totalWt = uploadResult.results.reduce((sum: number, p: Record<string, unknown>) => sum + (Number(p.netWeightTotal) || 0), 0);
+                        return totalWt > 0 ? (
+                          <p className="text-lg font-bold text-primary mt-1">
+                            Total Weight: {totalWt.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg
+                            {totalWt >= 1000 && <span className="text-sm font-medium text-muted-foreground ml-2">({(totalWt / 1000).toLocaleString(undefined, { maximumFractionDigits: 3 })} tons)</span>}
+                          </p>
+                        ) : null;
+                      })()}
                       {uploadResult.failed > 0 && (
                         <p className="text-sm text-destructive">
                           {uploadResult.failed} parts failed to upload
@@ -696,14 +705,23 @@ export default function UploadPartsPage() {
 
                   {uploadResult.errors && uploadResult.errors.length > 0 && (
                     <div className="border-t pt-4">
-                      <p className="font-medium mb-2">Errors:</p>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {uploadResult.errors.map((error, idx) => (
-                          <div key={idx} className="text-sm text-destructive">
-                            <AlertCircle className="inline h-4 w-4 mr-2" />
-                            {JSON.stringify(error.error)}
-                          </div>
-                        ))}
+                      <p className="font-medium mb-2">Failed Parts ({uploadResult.errors.length}):</p>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {uploadResult.errors.map((err, idx) => {
+                          const item = err.item as Record<string, unknown> | null;
+                          const label = item?.assemblyMark || item?.partDesignation || item?.name || `Row ${idx + 1}`;
+                          return (
+                            <div key={idx} className="text-sm border rounded-md p-2 bg-destructive/5">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="font-medium">{String(label)}</p>
+                                  <p className="text-destructive text-xs mt-0.5">{typeof err.error === 'string' ? err.error : JSON.stringify(err.error)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
