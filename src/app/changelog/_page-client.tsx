@@ -23,10 +23,34 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.22.3',
+    version: '17.22.4',
     date: 'April 8, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Searchable Column Mapping Dropdowns, Auto-Deploy Migrations',
+    highlights: [
+      'All column mapping dropdowns (LCR, PTS raw data, PTS logs) are now searchable — type to filter by column letter, name, or sample data',
+      'Manual SQL migrations now run automatically on every deploy — no more 500 errors from missing DB columns',
+    ],
+    changes: {
+      added: [
+        'LCR column mapping: all dropdowns replaced with searchable combobox — filter by column letter, header name, or sample value',
+        'PTS raw data mapping: column selectors replaced with searchable combobox',
+        'PTS logs mapping: column selectors replaced with searchable combobox',
+      ],
+      fixed: [
+        'LCR column mapping PATCH 500: deploy workflow now auto-runs all manual SQL migrations (add_lcr_column_mapping.sql) so the lcrColumnMapping column exists on the server',
+      ],
+      changed: [
+        'Deploy workflow: all idempotent manual SQL migrations in prisma/manual_migrations/ are applied automatically on every deploy',
+      ],
+    },
+  },
+  {
+    version: '17.22.3',
+    date: 'April 8, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'KPI Redirect Fix, Multi-Tab Session, Conversation UX, Searchable Invoice, PTS Matching',
     highlights: [
       'KPI Dashboard widget no longer 404s — link corrected to /business-planning/kpis',
