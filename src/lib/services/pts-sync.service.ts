@@ -114,6 +114,17 @@ export interface SkippedItem {
   type: 'part' | 'log';
 }
 
+export interface BuildingSyncStats {
+  buildingId: string;
+  buildingName: string;
+  buildingDesignation: string;
+  projectNumber: string;
+  totalParts: number;
+  syncedParts: number;
+  totalLogs: number;
+  syncedLogs: number;
+}
+
 export interface ProjectSyncStats {
   projectNumber: string;
   projectName: string;
@@ -122,6 +133,7 @@ export interface ProjectSyncStats {
   totalLogs: number;
   syncedLogs: number;
   completionPercent: number;
+  buildings: BuildingSyncStats[];
 }
 
 export interface SyncedItem {
@@ -991,6 +1003,41 @@ class PTSSyncService {
 
       const completionPercent = totalParts > 0 ? Math.round((syncedParts / totalParts) * 100) : 0;
 
+      // Per-building stats
+      const buildings = await prisma.building.findMany({
+        where: { projectId: project.id },
+        select: { id: true, name: true, designation: true },
+      });
+
+      const buildingStats: BuildingSyncStats[] = [];
+      for (const building of buildings) {
+        const bTotalParts = await prisma.assemblyPart.count({
+          where: { projectId: project.id, buildingId: building.id },
+        });
+        const bSyncedParts = await prisma.assemblyPart.count({
+          where: { projectId: project.id, buildingId: building.id, source: 'PTS' },
+        });
+        const bTotalLogs = await prisma.productionLog.count({
+          where: { assemblyPart: { projectId: project.id, buildingId: building.id } },
+        });
+        const bSyncedLogs = await prisma.productionLog.count({
+          where: { assemblyPart: { projectId: project.id, buildingId: building.id }, source: 'PTS' },
+        });
+
+        if (bTotalParts > 0 || bSyncedParts > 0) {
+          buildingStats.push({
+            buildingId: building.id,
+            buildingName: building.name,
+            buildingDesignation: building.designation || '',
+            projectNumber: project.projectNumber,
+            totalParts: bTotalParts,
+            syncedParts: bSyncedParts,
+            totalLogs: bTotalLogs,
+            syncedLogs: bSyncedLogs,
+          });
+        }
+      }
+
       stats.push({
         projectNumber: project.projectNumber,
         projectName: project.name,
@@ -999,6 +1046,7 @@ class PTSSyncService {
         totalLogs,
         syncedLogs,
         completionPercent,
+        buildings: buildingStats,
       });
     }
 
@@ -1039,6 +1087,57 @@ class PTSSyncService {
     return {
       partsDeleted: partsDeleted.count,
       logsDeleted: logsDeleted.count,
+    };
+  }
+
+  /**
+   * Rollback sync for a specific building within a project
+   */
+  async rollbackBuilding(buildingId: string): Promise<{
+    partsDeleted: number;
+    logsDeleted: number;
+    buildingName: string;
+    buildingDesignation: string;
+    projectNumber: string;
+  }> {
+    const building = await prisma.building.findUnique({
+      where: { id: buildingId },
+      select: {
+        id: true,
+        name: true,
+        designation: true,
+        project: { select: { projectNumber: true } },
+      },
+    });
+
+    if (!building) {
+      throw new Error(`Building not found: ${buildingId}`);
+    }
+
+    // Delete PTS-synced production logs first (FK constraints)
+    const logsDeleted = await prisma.productionLog.deleteMany({
+      where: {
+        source: 'PTS',
+        assemblyPart: { buildingId },
+      },
+    });
+
+    // Delete PTS-synced assembly parts
+    const partsDeleted = await prisma.assemblyPart.deleteMany({
+      where: {
+        source: 'PTS',
+        buildingId,
+      },
+    });
+
+    console.log(`[PTS Sync] Rollback building ${building.designation} (${building.name}): ${partsDeleted.count} parts, ${logsDeleted.count} logs deleted`);
+
+    return {
+      partsDeleted: partsDeleted.count,
+      logsDeleted: logsDeleted.count,
+      buildingName: building.name,
+      buildingDesignation: building.designation || '',
+      projectNumber: building.project.projectNumber,
     };
   }
 }

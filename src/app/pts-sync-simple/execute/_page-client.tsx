@@ -83,6 +83,17 @@ interface SyncedItem {
   type: 'part' | 'log';
 }
 
+interface BuildingSyncStats {
+  buildingId: string;
+  buildingName: string;
+  buildingDesignation: string;
+  projectNumber: string;
+  totalParts: number;
+  syncedParts: number;
+  totalLogs: number;
+  syncedLogs: number;
+}
+
 interface ProjectSyncStats {
   projectNumber: string;
   projectName: string;
@@ -91,6 +102,7 @@ interface ProjectSyncStats {
   totalLogs: number;
   syncedLogs: number;
   completionPercent: number;
+  buildings?: BuildingSyncStats[];
 }
 
 interface SyncResult {

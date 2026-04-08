@@ -7,18 +7,26 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🔧 Deploy Fix & Numeric Assembly Mark Support',
+  mainTitle: '🔍 LCR Search Fix, PTS Per-Building Rollback & Building Selection',
   highlights: [
-    'Deploy workflow fixed — .env sourcing no longer fails on multi-line JSON values',
-    'Parts upload now accepts numeric assembly marks from Excel — coerced to strings automatically',
+    'LCR search now works correctly — previously search was ignored when sorting by SN (the default)',
+    'PTS Sync now shows per-building results with individual rollback buttons',
+    'Building selection grouped by project with no truncation',
+    'Uploaded parts are now tagged source="Upload" so PTS rollback can never delete them',
   ],
   changes: {
-    added: [],
-    fixed: [
-      'Deploy workflow: replaced "source .env" with grep-based DATABASE_URL extraction — multi-line JSON in .env caused bash failure',
-      'Parts upload: numeric assembly marks (e.g., 123 from Excel) now coerced to strings instead of being rejected by validation',
+    added: [
+      'PTS Sync: per-building rollback — roll back a single building instead of the entire project',
+      'PTS Sync results: per-building breakdown with parts/logs counts',
+      'Rollback confirmation now lists all affected buildings',
     ],
-    changed: [],
+    fixed: [
+      'LCR search: raw SQL SN sort now includes search and date filters — search was completely ignored on default sort',
+      'PTS rollback safety: uploaded parts tagged source="Upload" for extra protection',
+    ],
+    changed: [
+      'PTS building selection: grouped by project, all buildings visible (no truncation)',
+    ],
   },
 };
 
