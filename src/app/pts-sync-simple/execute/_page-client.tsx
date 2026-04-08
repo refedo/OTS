@@ -393,15 +393,20 @@ export default function ExecuteSyncPage() {
     abortControllerRef.current = new AbortController();
 
     try {
+      // Load column mapping from localStorage (set during map-raw-data step)
+      const savedRawMapping = localStorage.getItem('pts-raw-data-mapping');
+      const rawDataColumnMapping = savedRawMapping ? JSON.parse(savedRawMapping) : undefined;
+
       const res = await fetch('/api/pts-sync/full-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           autoCreateBuildings: true,
           selectedProjects: Array.from(selectedProjects),
           selectedBuildings: Array.from(selectedBuildings),
           syncRawData: true,
           syncLogs: false,
+          rawDataColumnMapping,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -782,6 +787,72 @@ export default function ExecuteSyncPage() {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Matched Buildings Selection */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Select Buildings to Sync
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 max-h-72 overflow-auto">
+                {validation.projects.matched
+                  .filter(m => selectedProjects.has(m.pts))
+                  .map(project => {
+                    const matched = validation.buildings.matched.filter(b => b.pts.projectNumber === project.pts);
+                    const unmatched = validation.buildings.unmatched.filter(b => b.projectNumber === project.pts);
+                    if (matched.length === 0 && unmatched.length === 0) return null;
+                    return (
+                      <div key={project.pts}>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1 px-2">
+                          {project.pts} — {validation.projects.otsProjects.find(p => p.id === project.ots.id)?.name}
+                        </p>
+                        <div className="space-y-1">
+                          {matched.map((m, i) => {
+                            const key = `${m.pts.projectNumber}-${m.pts.designation}`;
+                            return (
+                              <div key={i} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-muted/50">
+                                <Checkbox
+                                  id={`exec-building-${key}`}
+                                  checked={selectedBuildings.has(key)}
+                                  onCheckedChange={() => toggleBuilding(key)}
+                                />
+                                <label htmlFor={`exec-building-${key}`} className="flex items-center gap-2 flex-1 cursor-pointer">
+                                  <span className="font-medium">{m.pts.designation}</span>
+                                </label>
+                                <Badge variant="outline" className="text-green-600 border-green-300 text-xs">Matched</Badge>
+                              </div>
+                            );
+                          })}
+                          {unmatched.map((b, i) => {
+                            const key = `${b.projectNumber}-${b.designation}`;
+                            return (
+                              <div key={`new-${i}`} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-muted/50 bg-amber-50/50">
+                                <Checkbox
+                                  id={`exec-building-${key}`}
+                                  checked={selectedBuildings.has(key)}
+                                  onCheckedChange={() => toggleBuilding(key)}
+                                />
+                                <label htmlFor={`exec-building-${key}`} className="flex items-center gap-2 flex-1 cursor-pointer">
+                                  <span className="font-medium">{b.designation}</span>
+                                  <span className="text-xs text-muted-foreground">({b.name})</span>
+                                </label>
+                                <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">New</Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                {selectedBuildings.size} buildings selected for sync
+              </p>
             </CardContent>
           </Card>
 

@@ -277,15 +277,20 @@ export default function PTSSyncSimplePage() {
     abortControllerRef.current = new AbortController();
 
     try {
+      // Load column mapping from localStorage (set during map-raw-data step)
+      const savedRawMapping = localStorage.getItem('pts-raw-data-mapping') || localStorage.getItem('pts-saved-column-mapping');
+      const rawDataColumnMapping = savedRawMapping ? JSON.parse(savedRawMapping) : undefined;
+
       const res = await fetch('/api/pts-sync/full-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           autoCreateBuildings: true,
           selectedProjects: Array.from(selectedProjects),
           selectedBuildings: Array.from(selectedBuildings),
           syncRawData: true,
           syncLogs: false,
+          rawDataColumnMapping,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -297,7 +302,7 @@ export default function PTSSyncSimplePage() {
 
       const result = await res.json();
       setPartsProgress({ created: result.partsCreated, updated: result.partsUpdated, errors: result.errors.length });
-      
+
       // If logs sync is enabled, proceed to logs phase
       if (syncLogs) {
         setPhase('review'); // Go back to review to let user start logs sync

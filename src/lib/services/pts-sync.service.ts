@@ -383,7 +383,8 @@ class PTSSyncService {
     autoCreateBuildings: boolean = true,
     selectedProjects?: string[],
     selectedBuildings?: string[],
-    onProgress?: (progress: SyncProgress) => void
+    onProgress?: (progress: SyncProgress) => void,
+    columnMapping?: Record<string, string>
   ): Promise<{ created: number; updated: number; errors: string[] }> {
     if (!await this.initialize()) {
       throw new Error('Failed to initialize Google Sheets API');
@@ -392,10 +393,35 @@ class PTSSyncService {
     console.log('[PTS Sync] Starting raw data sync...');
     onProgress?.({ phase: 'raw-data', current: 0, total: 0, message: 'Fetching raw data...' });
 
+    // Use custom column mapping if provided (from the mapping UI)
+    const colMap = columnMapping
+      ? {
+          projectNumber: columnMapping.projectNumber || RAW_DATA_COLUMNS.projectNumber,
+          logDesignation: columnMapping.partDesignation || RAW_DATA_COLUMNS.logDesignation,
+          assemblyMark: columnMapping.assemblyMark || RAW_DATA_COLUMNS.assemblyMark,
+          subAssemblyMark: columnMapping.subAssemblyMark || RAW_DATA_COLUMNS.subAssemblyMark,
+          partMark: columnMapping.partMark || RAW_DATA_COLUMNS.partMark,
+          quantity: columnMapping.quantity || RAW_DATA_COLUMNS.quantity,
+          name: columnMapping.name || RAW_DATA_COLUMNS.name,
+          profile: columnMapping.profile || RAW_DATA_COLUMNS.profile,
+          grade: columnMapping.grade || RAW_DATA_COLUMNS.grade,
+          length: columnMapping.lengthMm || RAW_DATA_COLUMNS.length,
+          areaPerOne: columnMapping.netAreaPerUnit || RAW_DATA_COLUMNS.areaPerOne,
+          areaTotal: columnMapping.netAreaTotal || RAW_DATA_COLUMNS.areaTotal,
+          weightPerOne: columnMapping.singlePartWeight || RAW_DATA_COLUMNS.weightPerOne,
+          weightTotal: columnMapping.netWeightTotal || RAW_DATA_COLUMNS.weightTotal,
+          buildingDesignation: columnMapping.buildingDesignation || RAW_DATA_COLUMNS.buildingDesignation,
+          buildingName: columnMapping.buildingName || RAW_DATA_COLUMNS.buildingName,
+        }
+      : RAW_DATA_COLUMNS;
+
+    // Determine the widest column letter to set fetch range
+    const maxCol = Object.values(colMap).reduce((max, col) => col > max ? col : max, 'A');
+
     // Fetch all raw data
     const response = await this.sheets!.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `'${RAW_DATA_SHEET}'!A2:T`,
+      range: `'${RAW_DATA_SHEET}'!A2:${maxCol}`,
     });
     const rows = response.data.values || [];
 
@@ -424,146 +450,218 @@ class PTSSyncService {
     let created = 0;
     let updated = 0;
     const errors: string[] = [];
+    let duplicateCount = 0;
 
-    // Process in batches
+    // Phase 1: Parse all rows and consolidate duplicate part designations
+    interface ParsedPart {
+      projectNumber: string;
+      projectId: string;
+      buildingId: string | null;
+      buildingDesig: string;
+      partDesignation: string;
+      assemblyMark: string;
+      subAssemblyMark: string | null;
+      partMark: string;
+      quantity: number;
+      name: string;
+      profile: string;
+      grade: string | null;
+      lengthMm: number | null;
+      netAreaPerUnit: number | null;
+      netAreaTotal: number | null;
+      singlePartWeight: number | null;
+      netWeightTotal: number | null;
+      _rowCount: number;
+    }
+    const consolidatedParts = new Map<string, ParsedPart>();
+
+    for (const row of rows) {
+      try {
+        const projectNumber = row[this.colIndex(colMap.projectNumber)]?.toString().trim();
+        const partDesignation = row[this.colIndex(colMap.logDesignation)]?.toString().trim();
+        let buildingDesig = row[this.colIndex(colMap.buildingDesignation)]?.toString().trim();
+        const buildingName = row[this.colIndex(colMap.buildingName)]?.toString().trim();
+
+        if (!projectNumber || !partDesignation) {
+          errors.push(`Skipped row: Missing project number or part designation`);
+          continue;
+        }
+
+        // If building designation is empty, try to extract from part designation
+        if (!buildingDesig && partDesignation) {
+          const parts = partDesignation.split('-');
+          if (parts.length >= 2) {
+            buildingDesig = parts[1];
+          }
+        }
+
+        if (!buildingDesig) {
+          errors.push(`Skipped part ${partDesignation}: Missing building designation`);
+          continue;
+        }
+
+        // Filter by selected projects
+        if (selectedProjects && selectedProjects.length > 0 && !selectedProjects.includes(projectNumber)) {
+          continue;
+        }
+
+        // Get project ID
+        const projectId = projectCache.get(projectNumber);
+        if (!projectId) {
+          errors.push(`Project not found: ${projectNumber} (part: ${partDesignation})`);
+          continue;
+        }
+
+        // Filter by selected buildings
+        if (buildingDesig && selectedBuildings && selectedBuildings.length > 0) {
+          const buildingKey = `${projectNumber}-${buildingDesig}`;
+          if (!selectedBuildings.includes(buildingKey)) {
+            continue;
+          }
+        }
+
+        // Get or create building
+        let buildingId: string | null = null;
+        if (buildingDesig) {
+          const buildingKey = `${projectNumber}-${buildingDesig}`;
+          buildingId = buildingCache.get(buildingKey) || null;
+
+          if (!buildingId && autoCreateBuildings) {
+            const newBuilding = await prisma.building.create({
+              data: {
+                projectId,
+                designation: buildingDesig,
+                name: buildingName || buildingDesig,
+              },
+            });
+            buildingId = newBuilding.id;
+            buildingCache.set(buildingKey, buildingId);
+            console.log(`[PTS Sync] Created building: ${buildingDesig} (${buildingName})`);
+          }
+        }
+
+        // Parse fields
+        const assemblyMark = row[this.colIndex(colMap.assemblyMark)]?.toString().trim() || '';
+        const subAssemblyMark = row[this.colIndex(colMap.subAssemblyMark)]?.toString().trim() || null;
+        const partMark = row[this.colIndex(colMap.partMark)]?.toString().trim() || '';
+        const quantity = parseInt(row[this.colIndex(colMap.quantity)]) || 1;
+        const name = row[this.colIndex(colMap.name)]?.toString().trim() || '';
+        const profile = row[this.colIndex(colMap.profile)]?.toString().trim() || '';
+        const grade = row[this.colIndex(colMap.grade)]?.toString().trim() || null;
+        const lengthMm = parseFloat(row[this.colIndex(colMap.length)]) || null;
+        const netAreaPerUnit = parseFloat(row[this.colIndex(colMap.areaPerOne)]) || null;
+        const netAreaTotal = parseFloat(row[this.colIndex(colMap.areaTotal)]) || null;
+        const singlePartWeight = parseFloat(row[this.colIndex(colMap.weightPerOne)]) || null;
+        const netWeightTotal = parseFloat(row[this.colIndex(colMap.weightTotal)]) || null;
+
+        // Consolidate duplicates: aggregate qty and totals for same partDesignation+projectId
+        const consolidationKey = `${projectId}||${partDesignation}`;
+        const existing = consolidatedParts.get(consolidationKey);
+
+        if (existing) {
+          duplicateCount++;
+          existing.quantity += quantity;
+          // Aggregate total weight: singlePartWeight * new qty
+          if (singlePartWeight != null) {
+            existing.singlePartWeight = singlePartWeight; // take the single part weight
+            existing.netWeightTotal = singlePartWeight * existing.quantity;
+          } else if (netWeightTotal != null) {
+            existing.netWeightTotal = (existing.netWeightTotal ?? 0) + netWeightTotal;
+          }
+          // Aggregate total area
+          if (netAreaTotal != null) {
+            existing.netAreaTotal = (existing.netAreaTotal ?? 0) + netAreaTotal;
+          }
+          existing._rowCount++;
+        } else {
+          consolidatedParts.set(consolidationKey, {
+            projectNumber,
+            projectId,
+            buildingId,
+            buildingDesig,
+            partDesignation,
+            assemblyMark,
+            subAssemblyMark,
+            partMark,
+            quantity,
+            name,
+            profile,
+            grade,
+            lengthMm,
+            netAreaPerUnit,
+            netAreaTotal,
+            singlePartWeight,
+            netWeightTotal,
+            _rowCount: 1,
+          });
+        }
+      } catch (rowError) {
+        errors.push(`Error parsing row: ${rowError instanceof Error ? rowError.message : 'Unknown error'}`);
+      }
+    }
+
+    if (duplicateCount > 0) {
+      console.log(`[PTS Sync] Consolidated ${duplicateCount} duplicate rows into ${consolidatedParts.size} unique parts`);
+      errors.push(`Note: ${duplicateCount} duplicate part numbers were consolidated (quantities aggregated)`);
+    }
+
+    // Phase 2: Write consolidated parts to DB
+    const partsArray = Array.from(consolidatedParts.values());
     const BATCH_SIZE = 100;
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const batch = rows.slice(i, i + BATCH_SIZE);
-      
-      for (const row of batch) {
+    for (let i = 0; i < partsArray.length; i += BATCH_SIZE) {
+      const batch = partsArray.slice(i, i + BATCH_SIZE);
+      onProgress?.({ phase: 'raw-data', current: i, total: partsArray.length, message: `Writing parts ${i + 1}-${Math.min(i + BATCH_SIZE, partsArray.length)} of ${partsArray.length}...` });
+
+      for (const part of batch) {
         try {
-          const projectNumber = row[this.colIndex(RAW_DATA_COLUMNS.projectNumber)]?.toString().trim();
-          const partDesignation = row[this.colIndex(RAW_DATA_COLUMNS.logDesignation)]?.toString().trim();
-          let buildingDesig = row[this.colIndex(RAW_DATA_COLUMNS.buildingDesignation)]?.toString().trim();
-          const buildingName = row[this.colIndex(RAW_DATA_COLUMNS.buildingName)]?.toString().trim();
-
-          if (!projectNumber || !partDesignation) {
-            errors.push(`Skipped row: Missing project number or part designation`);
-            continue;
-          }
-
-          // If building designation is empty, try to extract from part designation
-          // Part designation format: PROJECT-BUILDING-PART (e.g., "254-Z5-BE2")
-          if (!buildingDesig && partDesignation) {
-            const parts = partDesignation.split('-');
-            if (parts.length >= 2) {
-              // The second part is typically the building designation
-              buildingDesig = parts[1];
-            }
-          }
-
-          // Skip items without building designation (validation requirement)
-          if (!buildingDesig) {
-            errors.push(`Skipped part ${partDesignation}: Missing building designation`);
-            continue;
-          }
-
-          // Filter by selected projects
-          if (selectedProjects && selectedProjects.length > 0 && !selectedProjects.includes(projectNumber)) {
-            continue;
-          }
-
-          // Get project ID
-          const projectId = projectCache.get(projectNumber);
-          if (!projectId) {
-            errors.push(`Project not found: ${projectNumber} (part: ${partDesignation})`);
-            continue;
-          }
-
-          // Filter by selected buildings
-          if (buildingDesig && selectedBuildings && selectedBuildings.length > 0) {
-            const buildingKey = `${projectNumber}-${buildingDesig}`;
-            if (!selectedBuildings.includes(buildingKey)) {
-              continue;
-            }
-          }
-
-          // Get or create building
-          let buildingId: string | null = null;
-          if (buildingDesig) {
-            const buildingKey = `${projectNumber}-${buildingDesig}`;
-            buildingId = buildingCache.get(buildingKey) || null;
-
-            if (!buildingId && autoCreateBuildings) {
-              // Create building
-              const newBuilding = await prisma.building.create({
-                data: {
-                  projectId,
-                  designation: buildingDesig,
-                  name: buildingName || buildingDesig,
-                },
-              });
-              buildingId = newBuilding.id;
-              buildingCache.set(buildingKey, buildingId);
-              console.log(`[PTS Sync] Created building: ${buildingDesig} (${buildingName})`);
-            }
-          }
-
-          // Parse other fields
-          const assemblyMark = row[this.colIndex(RAW_DATA_COLUMNS.assemblyMark)]?.toString().trim() || '';
-          const subAssemblyMark = row[this.colIndex(RAW_DATA_COLUMNS.subAssemblyMark)]?.toString().trim() || null;
-          const partMark = row[this.colIndex(RAW_DATA_COLUMNS.partMark)]?.toString().trim() || '';
-          const quantity = parseInt(row[this.colIndex(RAW_DATA_COLUMNS.quantity)]) || 1;
-          const name = row[this.colIndex(RAW_DATA_COLUMNS.name)]?.toString().trim() || '';
-          const profile = row[this.colIndex(RAW_DATA_COLUMNS.profile)]?.toString().trim() || '';
-          const grade = row[this.colIndex(RAW_DATA_COLUMNS.grade)]?.toString().trim() || null;
-          const lengthMm = parseFloat(row[this.colIndex(RAW_DATA_COLUMNS.length)]) || null;
-          const netAreaPerUnit = parseFloat(row[this.colIndex(RAW_DATA_COLUMNS.areaPerOne)]) || null;
-          const netAreaTotal = parseFloat(row[this.colIndex(RAW_DATA_COLUMNS.areaTotal)]) || null;
-          const singlePartWeight = parseFloat(row[this.colIndex(RAW_DATA_COLUMNS.weightPerOne)]) || null;
-          const netWeightTotal = parseFloat(row[this.colIndex(RAW_DATA_COLUMNS.weightTotal)]) || null;
-
-          // Check if part exists
           const existingPart = await prisma.assemblyPart.findFirst({
-            where: { partDesignation, projectId },
+            where: { partDesignation: part.partDesignation, projectId: part.projectId },
           });
 
           if (existingPart) {
-            // Update existing part
             await prisma.assemblyPart.update({
               where: { id: existingPart.id },
               data: {
-                buildingId,
-                assemblyMark,
-                subAssemblyMark,
-                partMark,
-                quantity,
-                name,
-                profile,
-                grade,
-                lengthMm,
-                netAreaPerUnit,
-                netAreaTotal,
-                singlePartWeight,
-                netWeightTotal,
+                buildingId: part.buildingId,
+                assemblyMark: part.assemblyMark,
+                subAssemblyMark: part.subAssemblyMark,
+                partMark: part.partMark,
+                quantity: part.quantity,
+                name: part.name,
+                profile: part.profile,
+                grade: part.grade,
+                lengthMm: part.lengthMm,
+                netAreaPerUnit: part.netAreaPerUnit,
+                netAreaTotal: part.netAreaTotal,
+                singlePartWeight: part.singlePartWeight,
+                netWeightTotal: part.netWeightTotal,
                 source: 'PTS',
-                externalRef: partDesignation,
+                externalRef: part.partDesignation,
               },
             });
             updated++;
           } else {
-            // Create new part
             await prisma.assemblyPart.create({
               data: {
-                projectId,
-                buildingId,
-                partDesignation,
-                assemblyMark,
-                subAssemblyMark,
-                partMark,
-                quantity,
-                name,
-                profile,
-                grade,
-                lengthMm,
-                netAreaPerUnit,
-                netAreaTotal,
-                singlePartWeight,
-                netWeightTotal,
+                projectId: part.projectId,
+                buildingId: part.buildingId,
+                partDesignation: part.partDesignation,
+                assemblyMark: part.assemblyMark,
+                subAssemblyMark: part.subAssemblyMark,
+                partMark: part.partMark,
+                quantity: part.quantity,
+                name: part.name,
+                profile: part.profile,
+                grade: part.grade,
+                lengthMm: part.lengthMm,
+                netAreaPerUnit: part.netAreaPerUnit,
+                netAreaTotal: part.netAreaTotal,
+                singlePartWeight: part.singlePartWeight,
+                netWeightTotal: part.netWeightTotal,
                 status: 'Not Started',
                 createdById: userId,
                 source: 'PTS',
-                externalRef: partDesignation,
+                externalRef: part.partDesignation,
               },
             });
             created++;
@@ -836,6 +934,7 @@ class PTSSyncService {
       syncByDate?: boolean;
       syncDateFrom?: string;
       syncDateTo?: string;
+      rawDataColumnMapping?: Record<string, string>;
     } = {},
     onProgress?: (progress: SyncProgress) => void
   ): Promise<SyncResult> {
@@ -848,6 +947,7 @@ class PTSSyncService {
       syncByDate = false,
       syncDateFrom,
       syncDateTo,
+      rawDataColumnMapping,
     } = options;
 
     const startTime = Date.now();
@@ -861,7 +961,7 @@ class PTSSyncService {
       // Phase 1: Sync Raw Data
       if (doSyncRawData) {
         onProgress?.({ phase: 'raw-data', current: 0, total: 0, message: 'Starting raw data sync...' });
-        rawResult = await this.syncRawData(userId, autoCreateBuildings, selectedProjects, selectedBuildings, onProgress);
+        rawResult = await this.syncRawData(userId, autoCreateBuildings, selectedProjects, selectedBuildings, onProgress, rawDataColumnMapping);
         errors.push(...rawResult.errors);
       }
 

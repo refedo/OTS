@@ -7,25 +7,26 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🔍 LCR Search Fix, PTS Per-Building Rollback & Building Selection',
+  mainTitle: '🔧 LCR Comparison Fix, PTS Column Mapping & Duplicate Part Aggregation',
   highlights: [
-    'LCR search now works correctly — previously search was ignored when sorting by SN (the default)',
-    'PTS Sync now shows per-building results with individual rollback buttons',
-    'Building selection grouped by project with no truncation',
-    'Uploaded parts are now tagged source="Upload" so PTS rollback can never delete them',
+    'LCR comparison panel now shows correct supplier/amount/price data — column indices were offset',
+    'PTS Sync now uses your custom column mapping for weights and all fields',
+    'Duplicate part numbers are now aggregated (quantities summed, weight multiplied) instead of last-wins',
+    'Execute page now shows matched buildings for selection before syncing',
   ],
   changes: {
     added: [
-      'PTS Sync: per-building rollback — roll back a single building instead of the entire project',
-      'PTS Sync results: per-building breakdown with parts/logs counts',
-      'Rollback confirmation now lists all affected buildings',
+      'PTS Sync execute page: matched building selection card grouped by project',
+      'PTS Sync: duplicate part number detection — consolidates rows, sums quantities, calculates total weight',
+      'PTS Sync: duplicate count notification in sync results',
     ],
     fixed: [
-      'LCR search: raw SQL SN sort now includes search and date filters — search was completely ignored on default sort',
-      'PTS rollback safety: uploaded parts tagged source="Upload" for extra protection',
+      'LCR comparison: DEFAULT_LCR_COL_MAP corrected from gapped indices to consecutive — supplier, amount, and price were shifted to wrong columns',
+      'PTS Sync weights: custom column mapping from the mapping UI is now passed through API to the sync service — previously hardcoded defaults were always used',
+      'PTS Sync: dynamic sheet range based on mapped columns — ensures all mapped data is fetched',
     ],
     changed: [
-      'PTS building selection: grouped by project, all buildings visible (no truncation)',
+      'PTS Sync: duplicate parts are now aggregated (qty summed, weight = singlePartWeight × total qty) instead of last occurrence winning',
     ],
   },
 };

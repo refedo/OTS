@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
       syncByDate: body.syncByDate === true,
       syncDateFrom: body.syncDateFrom as string | undefined,
       syncDateTo: body.syncDateTo as string | undefined,
+      // Column mapping from user's mapping UI
+      rawDataColumnMapping: body.rawDataColumnMapping as Record<string, string> | undefined,
     };
 
     const startTime = Date.now();
