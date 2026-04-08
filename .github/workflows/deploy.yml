@@ -107,6 +107,18 @@ jobs:
             echo "Running database migrations..."
             npx prisma migrate deploy || echo "No pending migrations"
 
+            # ── 5b. Run manual SQL migrations (all are idempotent — IF NOT EXISTS) ──
+            source "$APP_DIR/.env"
+            DB_USER=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
+            DB_PASS=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
+            DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]+@([^:/]+)[:/].*|\1|')
+            DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]+@[^:]+:([0-9]+)/.*|\1|')
+            DB_NAME=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^/]+/([^?]+).*|\1|')
+            for sql_file in "$APP_DIR"/prisma/manual_migrations/*.sql; do
+              echo "Applying manual migration: $(basename $sql_file)"
+              mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < "$sql_file" && echo "  ✓ OK" || echo "  ⚠ Warning (may already be applied)"
+            done
+
             # ── 6. Reload app (zero-downtime hot reload) ──────────────────────
             echo "Reloading application..."
             pm2 reload hexa-steel-ots --update-env || pm2 start ecosystem.config.js
