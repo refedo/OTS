@@ -152,12 +152,17 @@ export default function LcrColumnMappingPage() {
     setSheetError(null);
     try {
       const res = await fetch('/api/supply-chain/lcr/columns/sheet-headers');
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? 'Failed to fetch sheet columns');
+      const text = await res.text();
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error(`Server returned non-JSON response (HTTP ${res.status}). Please try again.`);
       }
-      const data = await res.json();
-      setSheetColumns(data.headers);
+      if (!res.ok) {
+        throw new Error((parsed.error as string) ?? 'Failed to fetch sheet columns');
+      }
+      setSheetColumns((parsed as { headers: ColumnHeader[] }).headers);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       setSheetError(msg);

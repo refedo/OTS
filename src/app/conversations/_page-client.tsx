@@ -193,6 +193,7 @@ export default function ConversationsPage() {
 
   // @ mention state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionSelectedIdx, setMentionSelectedIdx] = useState(0);
 
   // Attachment state
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
@@ -620,7 +621,7 @@ export default function ConversationsPage() {
     setMentionQuery(null);
     const textBefore = value.slice(0, cursor);
     const atMatch = textBefore.match(/@([\w ]*)$/);
-    if (atMatch) setMentionQuery(atMatch[1]);
+    if (atMatch) { setMentionQuery(atMatch[1]); setMentionSelectedIdx(0); }
   };
 
   const insertMention = (user: { name: string }) => {
@@ -1002,7 +1003,6 @@ export default function ConversationsPage() {
                     placeholder="Type your first message…"
                     rows={3}
                     className="w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                    autoFocus={!!selectedNewTask || !!convTopic.trim()}
                   />
                   <Button
                     size="sm"
@@ -1309,12 +1309,13 @@ export default function ConversationsPage() {
               {/* @ mention dropdown */}
               {mentionCandidates.length > 0 && (
                 <div className="mb-1 border rounded-lg bg-popover shadow-md overflow-hidden">
-                  {mentionCandidates.map(u => (
+                  {mentionCandidates.map((u, idx) => (
                     <button
                       key={u.id}
                       type="button"
                       onMouseDown={e => { e.preventDefault(); insertMention(u); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left"
+                      onMouseEnter={() => setMentionSelectedIdx(idx)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left ${idx === mentionSelectedIdx ? 'bg-muted' : ''}`}
                     >
                       <span className="size-6 rounded-md bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0">
                         {u.name.charAt(0).toUpperCase()}
@@ -1385,7 +1386,12 @@ export default function ConversationsPage() {
                   onChange={handleTextareaChange}
                   onKeyDown={e => {
                     if (e.key === 'Escape') { setMentionQuery(null); return; }
-                    if (e.key === 'Enter' && !e.shiftKey && mentionCandidates.length === 0) {
+                    if (mentionCandidates.length > 0) {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionSelectedIdx(i => (i + 1) % mentionCandidates.length); return; }
+                      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionSelectedIdx(i => (i - 1 + mentionCandidates.length) % mentionCandidates.length); return; }
+                      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(mentionCandidates[mentionSelectedIdx]); return; }
+                    }
+                    if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       handleSendMessage();
                     }

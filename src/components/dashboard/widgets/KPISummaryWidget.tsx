@@ -90,7 +90,7 @@ export default function KPISummaryWidget() {
   };
 
   return (
-    <Link href="/kpis">
+    <Link href="/business-planning/kpis">
       <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-purple-600">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">

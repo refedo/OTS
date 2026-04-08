@@ -276,16 +276,19 @@ export default function MapRawDataPage() {
 
     setSaving(true);
     try {
-      // Save mappings to localStorage for now (could be saved to DB later)
+      // Save mappings to localStorage
       const mappingConfig = mappings.reduce((acc, m) => {
         if (m.mappedColumn) {
           acc[m.dbField] = m.mappedColumn;
         }
         return acc;
       }, {} as Record<string, string>);
-      
+
       localStorage.setItem('pts-raw-data-mapping', JSON.stringify(mappingConfig));
       localStorage.setItem('pts-sync-mode', mode);
+      // Also persist to saved mapping so it auto-loads next time
+      localStorage.setItem(SAVED_MAPPING_KEY, JSON.stringify(mappingConfig));
+      setHasSavedMapping(true);
       
       // Navigate based on mode
       if (mode === 'parts') {
