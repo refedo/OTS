@@ -5,7 +5,17 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Package, Activity, Trash2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, Activity, Trash2, CheckCircle, Clock, AlertCircle, Pencil, Save, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +70,20 @@ export default function AssemblyPartDetailsPage() {
   const [part, setPart] = useState<AssemblyPart | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    assemblyMark: '',
+    partMark: '',
+    subAssemblyMark: '',
+    quantity: 1,
+    name: '',
+    profile: '',
+    grade: '',
+    lengthMm: '',
+    singlePartWeight: '',
+    netWeightTotal: '',
+  });
 
   useEffect(() => {
     if (params.id) {
@@ -81,6 +105,54 @@ export default function AssemblyPartDetailsPage() {
       alert('An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openEditDialog = () => {
+    if (!part) return;
+    setEditForm({
+      assemblyMark: part.assemblyMark || '',
+      partMark: part.partMark || '',
+      subAssemblyMark: part.subAssemblyMark || '',
+      quantity: part.quantity,
+      name: part.name || '',
+      profile: part.profile || '',
+      grade: part.grade || '',
+      lengthMm: part.lengthMm != null ? String(part.lengthMm) : '',
+      singlePartWeight: part.singlePartWeight != null ? String(part.singlePartWeight) : '',
+      netWeightTotal: part.netWeightTotal != null ? String(part.netWeightTotal) : '',
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/production/assembly-parts/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assemblyMark: editForm.assemblyMark,
+          partMark: editForm.partMark,
+          subAssemblyMark: editForm.subAssemblyMark || null,
+          quantity: editForm.quantity,
+          name: editForm.name,
+          profile: editForm.profile || null,
+          grade: editForm.grade || null,
+          lengthMm: editForm.lengthMm ? Number(editForm.lengthMm) : null,
+          singlePartWeight: editForm.singlePartWeight ? Number(editForm.singlePartWeight) : null,
+          netWeightTotal: editForm.netWeightTotal ? Number(editForm.netWeightTotal) : null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPart(updated);
+        setEditOpen(false);
+      }
+    } catch {
+      // silent
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -166,6 +238,10 @@ export default function AssemblyPartDetailsPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={openEditDialog}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
             {part.status !== 'Completed' && (
               <Link href={`/production/log?partId=${part.id}`}>
                 <Button>
@@ -428,6 +504,63 @@ export default function AssemblyPartDetailsPage() {
             </Card>
           </div>
         </div>
+        {/* Edit Dialog */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Part — {part.partDesignation}</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-1.5">
+                <Label>Assembly Mark</Label>
+                <Input value={editForm.assemblyMark} onChange={e => setEditForm(f => ({ ...f, assemblyMark: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Part Mark</Label>
+                <Input value={editForm.partMark} onChange={e => setEditForm(f => ({ ...f, partMark: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Sub-Assembly Mark</Label>
+                <Input value={editForm.subAssemblyMark} onChange={e => setEditForm(f => ({ ...f, subAssemblyMark: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Name</Label>
+                <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Quantity</Label>
+                <Input type="number" value={editForm.quantity} onChange={e => setEditForm(f => ({ ...f, quantity: Number(e.target.value) || 1 }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Profile</Label>
+                <Input value={editForm.profile} onChange={e => setEditForm(f => ({ ...f, profile: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Grade</Label>
+                <Input value={editForm.grade} onChange={e => setEditForm(f => ({ ...f, grade: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Length (mm)</Label>
+                <Input type="number" value={editForm.lengthMm} onChange={e => setEditForm(f => ({ ...f, lengthMm: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Single Part Weight (kg)</Label>
+                <Input type="number" step="0.01" value={editForm.singlePartWeight} onChange={e => setEditForm(f => ({ ...f, singlePartWeight: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Net Weight Total (kg)</Label>
+                <Input type="number" step="0.01" value={editForm.netWeightTotal} onChange={e => setEditForm(f => ({ ...f, netWeightTotal: e.target.value }))} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button onClick={handleEditSave} disabled={editSaving}>
+                {editSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </main>
   );

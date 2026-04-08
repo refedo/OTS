@@ -14,6 +14,8 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle,
+  ChevronsLeft,
+  ChevronsRight,
   ChevronLeft,
   ChevronRight,
   Package,
@@ -411,23 +413,19 @@ export default function LcrPage() {
               </div>
             </div>
             {pagination.totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                >
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>
+                  <ChevronsLeft className="size-4" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
                   <ChevronLeft className="size-4" />
                 </Button>
-                <span className="text-sm font-medium">Page {page} / {pagination.totalPages}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= pagination.totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                >
+                <span className="text-sm font-medium px-2">Page {page} / {pagination.totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage(p => p + 1)}>
                   <ChevronRight className="size-4" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage(pagination.totalPages)}>
+                  <ChevronsRight className="size-4" />
                 </Button>
               </div>
             )}
@@ -574,23 +572,19 @@ export default function LcrPage() {
               <span className="text-sm text-muted-foreground">
                 Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
               </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                >
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>
+                  <ChevronsLeft className="size-4" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
                   <ChevronLeft className="size-4" />
                 </Button>
-                <span className="text-sm font-medium">Page {page} / {pagination.totalPages}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= pagination.totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                >
+                <span className="text-sm font-medium px-2">Page {page} / {pagination.totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage(p => p + 1)}>
                   <ChevronRight className="size-4" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage(pagination.totalPages)}>
+                  <ChevronsRight className="size-4" />
                 </Button>
               </div>
             </div>

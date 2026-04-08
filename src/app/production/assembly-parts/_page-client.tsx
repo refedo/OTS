@@ -599,6 +599,9 @@ export default function AssemblyPartsPage() {
                   <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('lengthMm')}>
                     Length (mm) {getSortIcon('lengthMm')}
                   </th>
+                  <th className="p-3 text-right text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('netWeightTotal')}>
+                    Weight (kg) {getSortIcon('netWeightTotal')}
+                  </th>
                   <th className="p-3 text-left text-sm font-medium cursor-pointer hover:bg-muted-foreground/10" onClick={() => handleSort('createdAt')}>
                     Upload Date {getSortIcon('createdAt')}
                   </th>
@@ -634,6 +637,7 @@ export default function AssemblyPartsPage() {
                     <td className="p-3 text-sm">{part.scopeOfWork?.scopeLabel || 'N/A'}</td>
                     <td className="p-3 text-sm">{part.quantity}</td>
                     <td className="p-3 text-sm">{part.lengthMm ? Number(part.lengthMm).toLocaleString() : 'N/A'}</td>
+                    <td className="p-3 text-sm text-right">{part.netWeightTotal ? Number(part.netWeightTotal).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</td>
                     <td className="p-3 text-sm">{new Date(part.createdAt).toLocaleDateString()}</td>
                     <td className="p-3">
                       <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${getStatusColor(part.status)}`}>

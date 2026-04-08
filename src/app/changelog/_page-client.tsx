@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.23.0',
+    date: 'April 8, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Assembly Parts Editing, LCR Numeric Sort & Pagination',
+    highlights: [
+      'LCR SN column now sorts numerically (1, 2, 3…) instead of as text (1, 10, 100…)',
+      'LCR pagination now has First/Last page buttons for quick navigation',
+      'Assembly parts table shows weight (kg) column with sorting support',
+      'Parts upload summary now shows total weight and individual failed part details',
+      'Assembly part detail page has a new Edit button to modify part properties inline',
+    ],
+    changes: {
+      added: [
+        'Assembly parts table: Weight (kg) column with sort support and locale-formatted numbers',
+        'Assembly part detail: Edit button opens a dialog to modify all part properties (marks, quantity, profile, grade, dimensions, weights, area)',
+        'Assembly part detail: PUT API endpoint for updating part fields',
+        'Parts upload summary: total weight displayed prominently with tons conversion after successful upload',
+        'Parts upload summary: failed parts section now shows part identifier (assembly mark / part designation / name) and formatted error details',
+        'LCR pagination: First page and Last page buttons added to both top and bottom pagination bars',
+      ],
+      fixed: [
+        'LCR SN column sorting: now uses numeric cast (CAST AS UNSIGNED) in raw SQL so entries sort as 1, 2, 3… instead of 1, 10, 100…',
+      ],
+      changed: [
+        'LCR list query uses two-phase approach (raw SQL for sorted IDs, then Prisma for full data) when sorting by SN to ensure correct numeric ordering',
+      ],
+    },
+  },
+  {
     version: '17.22.4',
     date: 'April 8, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Searchable Column Mapping Dropdowns, Auto-Deploy Migrations',
     highlights: [
       'All column mapping dropdowns (LCR, PTS raw data, PTS logs) are now searchable — type to filter by column letter, name, or sample data',
@@ -50,7 +80,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     version: '17.22.3',
     date: 'April 8, 2026',
     type: 'patch',
-    status: 'previous',
+    status: 'archived',
     mainTitle: 'KPI Redirect Fix, Multi-Tab Session, Conversation UX, Searchable Invoice, PTS Matching',
     highlights: [
       'KPI Dashboard widget no longer 404s — link corrected to /business-planning/kpis',
