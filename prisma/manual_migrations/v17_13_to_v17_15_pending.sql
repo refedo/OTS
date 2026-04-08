@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   PRIMARY KEY (id),
   INDEX idx_conversations_createdById (createdById),
   FOREIGN KEY (createdById) REFERENCES User(id)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS conversation_messages (
   id             CHAR(36)    NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
   INDEX idx_conv_messages_createdAt (createdAt),
   FOREIGN KEY (conversationId) REFERENCES conversations(id) ON DELETE CASCADE,
   FOREIGN KEY (userId) REFERENCES User(id)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS conversation_participants (
   conversationId CHAR(36)    NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
   FOREIGN KEY (conversationId) REFERENCES conversations(id) ON DELETE CASCADE,
   FOREIGN KEY (userId) REFERENCES User(id),
   FOREIGN KEY (invitedById) REFERENCES User(id)
-);
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 4. Add lastReadAt to task_conversation_participants (v17.15.0 — unread indicators)
 CALL add_column_if_not_exists(
