@@ -8,17 +8,21 @@ import { logActivity, logSystemEvent } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { systemEventService } from '@/services/system-events.service';
 
+// Coerce numbers to strings — Excel parsers return numeric-looking values as numbers
+const coerceStr = z.preprocess((v) => (typeof v === 'number' ? String(v) : v), z.string().min(1));
+const coerceStrOpt = z.preprocess((v) => (typeof v === 'number' ? String(v) : v), z.string().optional().nullable());
+
 const assemblyPartSchema = z.object({
   projectId: z.string().uuid(),
   buildingId: z.string().uuid().optional().nullable(),
   scopeOfWorkId: z.string().uuid().optional().nullable(),
-  assemblyMark: z.string().min(1),
-  subAssemblyMark: z.string().optional().nullable(),
-  partMark: z.string().optional().nullable(),
+  assemblyMark: coerceStr,
+  subAssemblyMark: coerceStrOpt,
+  partMark: coerceStrOpt,
   quantity: z.number().int().min(1),
-  name: z.string().min(1),
-  profile: z.string().optional().nullable(),
-  grade: z.string().optional().nullable(),
+  name: coerceStr,
+  profile: coerceStrOpt,
+  grade: coerceStrOpt,
   lengthMm: z.number().optional().nullable(),
   netAreaPerUnit: z.number().optional().nullable(),
   netAreaTotal: z.number().optional().nullable(),

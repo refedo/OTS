@@ -23,10 +23,29 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.23.1',
+    date: 'April 8, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Deploy Fix & Numeric Assembly Mark Support',
+    highlights: [
+      'Deploy workflow fixed — .env sourcing no longer fails on multi-line JSON values (Google service account key)',
+      'Parts upload now accepts numeric assembly marks (e.g., "123") — Excel numeric cells are coerced to strings automatically',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Deploy workflow: replaced "source .env" with grep-based DATABASE_URL extraction — multi-line JSON values in .env (e.g., Google service account key) caused bash to fail with "command not found"',
+        'Parts upload: assembly marks that are numbers (e.g., 123 from Excel) are now coerced to strings — previously rejected by Zod validation as "Expected string, received number"',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.23.0',
     date: 'April 8, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Assembly Parts Editing, LCR Numeric Sort & Pagination',
     highlights: [
       'LCR SN column now sorts numerically (1, 2, 3…) instead of as text (1, 10, 100…)',
@@ -56,7 +75,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     version: '17.22.4',
     date: 'April 8, 2026',
     type: 'patch',
-    status: 'previous',
+    status: 'archived',
     mainTitle: 'Searchable Column Mapping Dropdowns, Auto-Deploy Migrations',
     highlights: [
       'All column mapping dropdowns (LCR, PTS raw data, PTS logs) are now searchable — type to filter by column letter, name, or sample data',
