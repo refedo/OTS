@@ -23,20 +23,49 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.24.0',
+    date: 'April 8, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'LCR Search Fix, PTS Per-Building Rollback & Building Selection',
+    highlights: [
+      'LCR search now works correctly — previously search was ignored when sorting by SN (the default sort)',
+      'PTS Sync results now show per-building breakdown with individual rollback buttons per building',
+      'Building selection in PTS Sync now shows all buildings grouped by project with no truncation',
+      'Uploaded assembly parts are now tagged source="Upload" so PTS rollback can never affect them',
+    ],
+    changes: {
+      added: [
+        'PTS Sync: per-building rollback — roll back PTS-synced data for a single building instead of the entire project',
+        'PTS Sync results: per-building breakdown showing parts/logs counts under each project',
+        'PTS Sync: rollback confirmation dialog now lists all affected buildings with their part/log counts',
+        'New API endpoint: POST /api/pts-sync/rollback-building for building-level rollback',
+      ],
+      fixed: [
+        'LCR search: raw SQL SN sort path now includes itemSearch and date filters — previously search was completely ignored on the default SN sort, showing all entries regardless of search term',
+        'PTS rollback safety: uploaded parts now explicitly tagged with source="Upload" so the PTS rollback (source="PTS" filter) can never accidentally delete manually uploaded data',
+      ],
+      changed: [
+        'PTS Sync building selection: buildings now grouped by project with all buildings visible (no more truncation at 10 matched + 5 new)',
+        'PTS Sync "Buildings to be Created" dialog renamed to "All Buildings" and now shows both matched and unmatched buildings',
+      ],
+    },
+  },
+  {
     version: '17.23.1',
     date: 'April 8, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Deploy Fix & Numeric Assembly Mark Support',
     highlights: [
-      'Deploy workflow fixed — .env sourcing no longer fails on multi-line JSON values (Google service account key)',
-      'Parts upload now accepts numeric assembly marks (e.g., "123") — Excel numeric cells are coerced to strings automatically',
+      'Deploy workflow fixed — .env sourcing no longer fails on multi-line JSON values',
+      'Parts upload now accepts numeric assembly marks from Excel',
     ],
     changes: {
       added: [],
       fixed: [
-        'Deploy workflow: replaced "source .env" with grep-based DATABASE_URL extraction — multi-line JSON values in .env (e.g., Google service account key) caused bash to fail with "command not found"',
-        'Parts upload: assembly marks that are numbers (e.g., 123 from Excel) are now coerced to strings — previously rejected by Zod validation as "Expected string, received number"',
+        'Deploy workflow: replaced "source .env" with grep-based DATABASE_URL extraction',
+        'Parts upload: numeric assembly marks coerced to strings',
       ],
       changed: [],
     },
@@ -45,7 +74,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     version: '17.23.0',
     date: 'April 8, 2026',
     type: 'minor',
-    status: 'previous',
+    status: 'archived',
     mainTitle: 'Assembly Parts Editing, LCR Numeric Sort & Pagination',
     highlights: [
       'LCR SN column now sorts numerically (1, 2, 3…) instead of as text (1, 10, 100…)',

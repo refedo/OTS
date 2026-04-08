@@ -73,6 +73,17 @@ interface SkippedItem {
   type: 'part' | 'log';
 }
 
+interface BuildingSyncStats {
+  buildingId: string;
+  buildingName: string;
+  buildingDesignation: string;
+  projectNumber: string;
+  totalParts: number;
+  syncedParts: number;
+  totalLogs: number;
+  syncedLogs: number;
+}
+
 interface ProjectSyncStats {
   projectNumber: string;
   projectName: string;
@@ -81,6 +92,7 @@ interface ProjectSyncStats {
   totalLogs: number;
   syncedLogs: number;
   completionPercent: number;
+  buildings: BuildingSyncStats[];
 }
 
 interface SyncBatchHistory {
@@ -149,6 +161,8 @@ export default function PTSSyncSimplePage() {
   const [showSkippedDialog, setShowSkippedDialog] = useState(false);
   const [showRollbackDialog, setShowRollbackDialog] = useState(false);
   const [rollbackProject, setRollbackProject] = useState<string | null>(null);
+  const [rollbackBuilding, setRollbackBuilding] = useState<BuildingSyncStats | null>(null);
+  const [showBuildingRollbackDialog, setShowBuildingRollbackDialog] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   
   // Sync history
@@ -431,6 +445,43 @@ export default function PTSSyncSimplePage() {
     }
   };
 
+  const handleBuildingRollback = async (building: BuildingSyncStats) => {
+    setIsRollingBack(true);
+    try {
+      const response = await fetch('/api/pts-sync/rollback-building', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buildingId: building.buildingId }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Rollback complete for ${building.buildingDesignation} (${building.buildingName}):\n${result.partsDeleted} parts and ${result.logsDeleted} logs deleted.\n\nOnly PTS-synced data was removed. Manually uploaded data is untouched.`);
+        setShowBuildingRollbackDialog(false);
+        setRollbackBuilding(null);
+        // Refresh stats by re-running validation
+        if (syncResult) {
+          const updatedStats = syncResult.projectStats.map(stat => ({
+            ...stat,
+            buildings: stat.buildings.map(b =>
+              b.buildingId === building.buildingId
+                ? { ...b, syncedParts: 0, syncedLogs: 0 }
+                : b
+            ),
+          }));
+          setSyncResult({ ...syncResult, projectStats: updatedStats });
+        }
+      } else {
+        const err = await response.json();
+        alert(`Rollback failed: ${err.error}`);
+      }
+    } catch (error) {
+      alert('Rollback failed: Network error');
+    } finally {
+      setIsRollingBack(false);
+    }
+  };
+
   const handleRollbackBatch = async (batchId: string) => {
     if (!confirm('Are you sure you want to rollback this entire sync batch? All synced data from this batch will be deleted.')) {
       return;
@@ -694,77 +745,69 @@ export default function PTSSyncSimplePage() {
                 </CardContent>
               </Card>
 
-              {/* Building Selection */}
+              {/* Building Selection — grouped by project */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Select Buildings to Sync
-                    </span>
-                    <Button variant="ghost" size="sm" onClick={() => setShowUnmatchedDialog(true)}>
-                      View All ({validation.buildings.matched.length + validation.buildings.unmatched.length})
-                    </Button>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Select Buildings to Sync
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 max-h-48 overflow-auto">
-                    {/* Show buildings for selected projects only */}
-                    {validation.buildings.matched
-                      .filter(m => selectedProjects.has(m.pts.projectNumber))
-                      .slice(0, 10)
-                      .map((m, i) => {
-                        const key = `${m.pts.projectNumber}-${m.pts.designation}`;
+                  <div className="space-y-4 max-h-72 overflow-auto">
+                    {validation.projects.matched
+                      .filter(m => selectedProjects.has(m.pts))
+                      .map(project => {
+                        const matched = validation.buildings.matched.filter(b => b.pts.projectNumber === project.pts);
+                        const unmatched = validation.buildings.unmatched.filter(b => b.projectNumber === project.pts);
+                        if (matched.length === 0 && unmatched.length === 0) return null;
                         return (
-                          <div key={i} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-muted/50">
-                            <Checkbox 
-                              id={`building-${key}`}
-                              checked={selectedBuildings.has(key)}
-                              onCheckedChange={() => toggleBuilding(key)}
-                            />
-                            <label 
-                              htmlFor={`building-${key}`}
-                              className="flex items-center gap-2 flex-1 cursor-pointer"
-                            >
-                              <span className="font-medium">{key}</span>
-                            </label>
-                            <Badge variant="outline" className="text-green-600 border-green-300 text-xs">
-                              Exists
-                            </Badge>
+                          <div key={project.pts}>
+                            <p className="text-xs font-semibold text-muted-foreground mb-1 px-2">
+                              {project.pts} — {validation.projects.otsProjects.find(p => p.id === project.ots.id)?.name}
+                            </p>
+                            <div className="space-y-1">
+                              {matched.map((m, i) => {
+                                const key = `${m.pts.projectNumber}-${m.pts.designation}`;
+                                return (
+                                  <div key={i} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-muted/50">
+                                    <Checkbox
+                                      id={`building-${key}`}
+                                      checked={selectedBuildings.has(key)}
+                                      onCheckedChange={() => toggleBuilding(key)}
+                                    />
+                                    <label htmlFor={`building-${key}`} className="flex items-center gap-2 flex-1 cursor-pointer">
+                                      <span className="font-medium">{m.pts.designation}</span>
+                                    </label>
+                                    <Badge variant="outline" className="text-green-600 border-green-300 text-xs">
+                                      Matched
+                                    </Badge>
+                                  </div>
+                                );
+                              })}
+                              {unmatched.map((b, i) => {
+                                const key = `${b.projectNumber}-${b.designation}`;
+                                return (
+                                  <div key={`new-${i}`} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-muted/50 bg-amber-50/50">
+                                    <Checkbox
+                                      id={`building-${key}`}
+                                      checked={selectedBuildings.has(key)}
+                                      onCheckedChange={() => toggleBuilding(key)}
+                                    />
+                                    <label htmlFor={`building-${key}`} className="flex items-center gap-2 flex-1 cursor-pointer">
+                                      <span className="font-medium">{b.designation}</span>
+                                      <span className="text-xs text-muted-foreground">({b.name})</span>
+                                    </label>
+                                    <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                                      New
+                                    </Badge>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         );
                       })}
-                    {validation.buildings.unmatched
-                      .filter(b => selectedProjects.has(b.projectNumber))
-                      .slice(0, 5)
-                      .map((b, i) => {
-                        const key = `${b.projectNumber}-${b.designation}`;
-                        return (
-                          <div key={`new-${i}`} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-muted/50 bg-amber-50/50">
-                            <Checkbox 
-                              id={`building-${key}`}
-                              checked={selectedBuildings.has(key)}
-                              onCheckedChange={() => toggleBuilding(key)}
-                            />
-                            <label 
-                              htmlFor={`building-${key}`}
-                              className="flex items-center gap-2 flex-1 cursor-pointer"
-                            >
-                              <span className="font-medium">{key}</span>
-                              <span className="text-xs text-muted-foreground">({b.name})</span>
-                            </label>
-                            <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
-                              New
-                            </Badge>
-                          </div>
-                        );
-                      })}
-                    {(validation.buildings.matched.filter(m => selectedProjects.has(m.pts.projectNumber)).length > 10 ||
-                      validation.buildings.unmatched.filter(b => selectedProjects.has(b.projectNumber)).length > 5) && (
-                      <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setShowUnmatchedDialog(true)}>
-                        View all buildings...
-                      </Button>
-                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-3">
                     {selectedBuildings.size} buildings selected for sync
@@ -1010,43 +1053,85 @@ export default function PTSSyncSimplePage() {
                 </Card>
               </div>
 
-              {/* Project Completion Stats */}
+              {/* Project & Building Completion Stats */}
               {syncResult.projectStats && syncResult.projectStats.length > 0 && (
                 <Card className="border-blue-200">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base text-blue-600 flex items-center gap-2">
                       <BarChart3 className="h-4 w-4" />
-                      Completion by Project
+                      Results by Project &amp; Building
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {syncResult.projectStats.map((stat) => (
-                        <div key={stat.projectNumber} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{stat.projectNumber} - {stat.projectName}</p>
-                            <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                              <span>Parts: {stat.syncedParts}/{stat.totalParts}</span>
-                              <span>Logs: {stat.syncedLogs}/{stat.totalLogs}</span>
+                        <div key={stat.projectNumber} className="border rounded-lg overflow-hidden">
+                          {/* Project header */}
+                          <div className="flex items-center justify-between p-3 bg-muted/50">
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{stat.projectNumber} — {stat.projectName}</p>
+                              <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+                                <span>Parts: {stat.syncedParts}/{stat.totalParts}</span>
+                                <span>Logs: {stat.syncedLogs}/{stat.totalLogs}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <p className="text-lg font-bold text-blue-600">{stat.completionPercent}%</p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                                onClick={() => {
+                                  setRollbackProject(stat.projectNumber);
+                                  setShowRollbackDialog(true);
+                                }}
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Rollback All
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <p className="text-lg font-bold text-blue-600">{stat.completionPercent}%</p>
+                          {/* Per-building rows */}
+                          {stat.buildings && stat.buildings.length > 0 && (
+                            <div className="divide-y">
+                              {stat.buildings.map((b) => (
+                                <div key={b.buildingId} className="flex items-center justify-between px-3 py-2 pl-6 text-sm">
+                                  <div className="flex-1">
+                                    <span className="font-medium">{b.buildingDesignation || '—'}</span>
+                                    {b.buildingName && b.buildingName !== b.buildingDesignation && (
+                                      <span className="text-muted-foreground ml-2 text-xs">({b.buildingName})</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs">
+                                    <span className="text-muted-foreground">
+                                      Parts: <strong className="text-foreground">{b.syncedParts}</strong>/{b.totalParts}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      Logs: <strong className="text-foreground">{b.syncedLogs}</strong>/{b.totalLogs}
+                                    </span>
+                                    {b.syncedParts > 0 || b.syncedLogs > 0 ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          setRollbackBuilding(b);
+                                          setShowBuildingRollbackDialog(true);
+                                        }}
+                                      >
+                                        <RotateCcw className="h-3 w-3 mr-1" />
+                                        Rollback
+                                      </Button>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground w-[82px]" />
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                              onClick={() => {
-                                setRollbackProject(stat.projectNumber);
-                                setShowRollbackDialog(true);
-                              }}
-                            >
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                              Rollback
-                            </Button>
-                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1124,13 +1209,13 @@ export default function PTSSyncSimplePage() {
         </CardContent>
       </Card>
 
-      {/* Unmatched Buildings Dialog */}
+      {/* All Buildings Dialog */}
       <Dialog open={showUnmatchedDialog} onOpenChange={setShowUnmatchedDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Buildings to be Created</DialogTitle>
+            <DialogTitle>All Buildings</DialogTitle>
             <DialogDescription>
-              These buildings from PTS don&apos;t exist in OTS and will be automatically created during sync.
+              All buildings found in PTS. Matched buildings exist in OTS; new buildings will be created during sync.
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-96 overflow-auto">
@@ -1140,14 +1225,28 @@ export default function PTSSyncSimplePage() {
                   <TableHead>Project</TableHead>
                   <TableHead>Designation</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {validation?.buildings.matched.map((b, i) => (
+                  <TableRow key={`m-${i}`}>
+                    <TableCell>{b.pts.projectNumber}</TableCell>
+                    <TableCell>{b.pts.designation}</TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-green-600 border-green-300 text-xs">Matched</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
                 {validation?.buildings.unmatched.map((b, i) => (
-                  <TableRow key={i}>
+                  <TableRow key={`u-${i}`}>
                     <TableCell>{b.projectNumber}</TableCell>
                     <TableCell>{b.designation}</TableCell>
                     <TableCell>{b.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">New</Badge>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1203,25 +1302,39 @@ export default function PTSSyncSimplePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Rollback Confirmation Dialog */}
+      {/* Rollback Project Confirmation Dialog */}
       <Dialog open={showRollbackDialog} onOpenChange={setShowRollbackDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <RotateCcw className="h-5 w-5" />
-              Rollback Project Sync
+              Rollback Entire Project
             </DialogTitle>
-            <DialogDescription>
-              This will delete all PTS-synced assembly parts and production logs for project <strong>{rollbackProject}</strong>. 
-              This action cannot be undone. Manually added (OTS) data will not be affected.
+            <DialogDescription asChild>
+              <div className="space-y-2">
+                <p>This will delete <strong>all PTS-synced</strong> assembly parts and production logs for project <strong>{rollbackProject}</strong>.</p>
+                <p className="text-green-700 font-medium">Manually uploaded (OTS/Upload) data will NOT be affected.</p>
+                {syncResult?.projectStats?.find(s => s.projectNumber === rollbackProject)?.buildings && (
+                  <div className="mt-2 p-2 bg-red-50 rounded text-xs">
+                    <p className="font-medium mb-1">Buildings affected:</p>
+                    {syncResult.projectStats.find(s => s.projectNumber === rollbackProject)!.buildings
+                      .filter(b => b.syncedParts > 0 || b.syncedLogs > 0)
+                      .map(b => (
+                        <p key={b.buildingId}>
+                          {b.buildingDesignation} — {b.syncedParts} parts, {b.syncedLogs} logs
+                        </p>
+                      ))}
+                  </div>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowRollbackDialog(false)} disabled={isRollingBack}>
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => rollbackProject && handleRollback(rollbackProject)}
               disabled={isRollingBack}
             >
@@ -1233,7 +1346,54 @@ export default function PTSSyncSimplePage() {
               ) : (
                 <>
                   <RotateCcw className="h-4 w-4 mr-2" />
-                  Confirm Rollback
+                  Rollback All Buildings
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rollback Building Confirmation Dialog */}
+      <Dialog open={showBuildingRollbackDialog} onOpenChange={setShowBuildingRollbackDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <RotateCcw className="h-5 w-5" />
+              Rollback Building Sync
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  This will delete <strong>only PTS-synced</strong> data for building{' '}
+                  <strong>{rollbackBuilding?.buildingDesignation}</strong>{' '}
+                  ({rollbackBuilding?.buildingName}) in project {rollbackBuilding?.projectNumber}.
+                </p>
+                <div className="p-2 bg-red-50 rounded text-xs">
+                  <p>{rollbackBuilding?.syncedParts} parts and {rollbackBuilding?.syncedLogs} logs will be deleted</p>
+                </div>
+                <p className="text-green-700 font-medium">Manually uploaded data will NOT be affected.</p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowBuildingRollbackDialog(false)} disabled={isRollingBack}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => rollbackBuilding && handleBuildingRollback(rollbackBuilding)}
+              disabled={isRollingBack}
+            >
+              {isRollingBack ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Rolling back...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Rollback Building
                 </>
               )}
             </Button>

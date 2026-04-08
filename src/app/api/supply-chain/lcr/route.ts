@@ -121,6 +121,7 @@ export const GET = withApiContext<any>(async (req, session) => {
 
     // Get sorted IDs using raw SQL for numeric SN ordering
     const dir = snDir === 'desc' ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+    const searchPattern = itemSearch ? `%${itemSearch}%` : null;
     const ids: { id: string }[] = await prisma.$queryRaw`
       SELECT id FROM lcr_entries
       WHERE isDeleted = 0
@@ -128,6 +129,19 @@ export const GET = withApiContext<any>(async (req, session) => {
       ${buildingId ? Prisma.sql`AND buildingId = ${buildingId}` : Prisma.empty}
       ${status ? Prisma.sql`AND status = ${status}` : Prisma.empty}
       ${resolutionStatus ? Prisma.sql`AND resolutionStatus = ${resolutionStatus}` : Prisma.empty}
+      ${searchPattern ? Prisma.sql`AND (
+        itemLabel LIKE ${searchPattern}
+        OR poNumber LIKE ${searchPattern}
+        OR dnNumber LIKE ${searchPattern}
+        OR projectNumber LIKE ${searchPattern}
+        OR buildingNameRaw LIKE ${searchPattern}
+        OR awardedToRaw LIKE ${searchPattern}
+        OR sn LIKE ${searchPattern}
+        OR mrfNumber LIKE ${searchPattern}
+        OR thickness LIKE ${searchPattern}
+      )` : Prisma.empty}
+      ${dateFrom ? Prisma.sql`AND neededToDate >= ${new Date(dateFrom)}` : Prisma.empty}
+      ${dateTo ? Prisma.sql`AND neededToDate <= ${new Date(dateTo)}` : Prisma.empty}
       ORDER BY CAST(sn AS UNSIGNED) ${dir}, createdAt ASC
       LIMIT ${limit} OFFSET ${skip}
     `;

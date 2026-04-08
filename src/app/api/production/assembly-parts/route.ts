@@ -305,6 +305,7 @@ export async function POST(req: Request) {
               ...itemData,
               partMark: itemData.partMark ?? '',
               partDesignation,
+              source: 'Upload',
               createdById: session.sub,
             },
           });
@@ -391,6 +392,7 @@ export async function POST(req: Request) {
         ...parsed.data,
         partMark: parsed.data.partMark ?? '',
         partDesignation,
+        source: 'Upload',
         createdById: session.sub,
       },
       include: {
