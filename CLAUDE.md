@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.23.0` — LCR numeric SN sort, first/last pagination, assembly part edit, upload weight totals, system_settings migration
+**Current version:** `17.23.1` — Deploy .env fix, numeric assembly mark support, LCR numeric SN sort, first/last pagination, assembly part edit, upload weight totals
 
 ---
 

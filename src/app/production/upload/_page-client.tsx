@@ -283,6 +283,9 @@ export default function UploadPartsPage() {
               ? parseFloat((value as string).replace(/,/g, ''))
               : Number(value);
             value = isNaN(num) ? null : num;
+          } else {
+            // Coerce non-numeric fields to strings (Excel may parse "123" as number)
+            value = String(value);
           }
           mappedRow[dbField] = value;
         }
