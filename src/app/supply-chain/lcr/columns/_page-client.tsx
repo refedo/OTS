@@ -194,9 +194,17 @@ export default function LcrColumnMappingPage() {
     let matched = 0;
     for (const key of Object.keys(FIELD_META)) {
       const keywords = AUTO_MAP_KEYWORDS[key] ?? [];
-      const found = sheetColumns.find(col =>
-        keywords.some(kw => col.name.toLowerCase().trim() === kw)
-      );
+      // Priority 1: exact match; Priority 2: column name contains keyword (or vice versa, for >= 4 chars)
+      const found =
+        sheetColumns.find(col =>
+          keywords.some(kw => col.name.toLowerCase().trim() === kw)
+        ) ??
+        sheetColumns.find(col => {
+          const colName = col.name.toLowerCase().trim();
+          return keywords.some(kw =>
+            kw.length >= 4 && (colName.includes(kw) || kw.includes(colName))
+          );
+        });
       if (found) {
         newSelections[key] = found.column;
         matched++;

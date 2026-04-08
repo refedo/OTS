@@ -23,10 +23,31 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.22.2',
+    date: 'April 8, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'PTS Logs Sync Error Detail, Sidebar Flash Fix, LCR Automap',
+    highlights: [
+      '"Failed to fetch columns" on Production Logs sync now shows the actual cause (timeout, credentials, server error)',
+      'Sidebar no longer briefly reorders to the old layout when navigating — custom order is now cached in localStorage',
+      'LCR column automap now uses fuzzy/partial matching so more columns are matched automatically',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'PTS Logs sync (map-logs page): "Failed to fetch columns" now shows detailed error — Google Sheets timeout, credentials misconfiguration, or server error code',
+        'Sidebar: custom section order is now persisted in localStorage; restored before first paint to eliminate the reorder flash when switching tabs',
+        'LCR column automap: matching now uses fuzzy/partial logic (contains match for keywords ≥ 4 chars) in addition to exact match — significantly more columns are auto-detected',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.22.1',
     date: 'April 7, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Payment Schedule Enhancements, Project Tracker Filter Icons, MIR UX Fixes',
     highlights: [
       'Payment schedule summary cards are now clickable — click Collected, Pending, or Overdue to instantly filter the table',
