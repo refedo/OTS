@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.24.0',
+    version: '17.25.0',
     date: 'April 8, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'LCR Comparison Fix, PTS Column Mapping & Duplicate Part Aggregation',
+    highlights: [
+      'LCR comparison panel now shows correct supplier/amount/price data — column indices were offset',
+      'PTS Sync now uses your custom column mapping for weights and all fields',
+      'Duplicate part numbers are now aggregated (quantities summed, weight multiplied) instead of last-wins',
+      'Execute page now shows matched buildings for selection before syncing',
+    ],
+    changes: {
+      added: [
+        'PTS Sync execute page: matched building selection card grouped by project with matched/new badges',
+        'PTS Sync: duplicate part number detection and consolidation — sums quantities, calculates total weight as singlePartWeight × qty',
+        'PTS Sync: duplicate count notification in sync results so users know how many rows were consolidated',
+      ],
+      fixed: [
+        'LCR comparison: DEFAULT_LCR_COL_MAP corrected from gapped indices (24, 27, 28…) to consecutive (24, 25, 26…) — supplier name, amount, and price per ton were shifted to wrong columns',
+        'PTS Sync weights: custom column mapping from the mapping UI is now passed through the full pipeline (UI → API → service) — previously the hardcoded defaults were always used regardless of mapping',
+        'PTS Sync: dynamic sheet range now calculated from mapped columns — ensures all data including weight columns is fetched from Google Sheets',
+      ],
+      changed: [
+        'PTS Sync: duplicate parts are now aggregated instead of last-occurrence-wins — quantities are summed and net weight = singlePartWeight × total quantity',
+      ],
+    },
+  },
+  {
+    version: '17.24.0',
+    date: 'April 8, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'LCR Search Fix, PTS Per-Building Rollback & Building Selection',
     highlights: [
       'LCR search now works correctly — previously search was ignored when sorting by SN (the default sort)',
@@ -55,7 +83,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     version: '17.23.1',
     date: 'April 8, 2026',
     type: 'patch',
-    status: 'previous',
+    status: 'archived',
     mainTitle: 'Deploy Fix & Numeric Assembly Mark Support',
     highlights: [
       'Deploy workflow fixed — .env sourcing no longer fails on multi-line JSON values',
