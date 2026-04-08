@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.25.0',
+    version: '17.26.0',
     date: 'April 8, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'LCR Comparison Fix, PTS Weight Verification & Scope of Work',
+    highlights: [
+      'LCR comparison table now correctly shows Supplier, Price, and Tonnage Rate — amount and supplier were swapped',
+      'PTS Sync results now show synced weight per building and project with a verification table',
+      'PTS Sync automatically sets scope of work to "Steel" for all synced assembly parts',
+      'Stale LCR column mapping in the database is auto-detected and corrected',
+    ],
+    changes: {
+      added: [
+        'PTS Sync: weight totals displayed per building and project in sync results',
+        'PTS Sync: weight verification card shown after sync completion — review numbers before accepting',
+        'PTS Sync: scope of work automatically set to "Steel" for all synced assembly parts',
+        'PTS Sync: per-building weight breakdown rows inside project stats table',
+        'PTS Sync: grand total row for parts, logs, and weight across all projects',
+      ],
+      fixed: [
+        'LCR comparison: supplier and amount column indices were swapped in the default mapping — Amount is at column 24, Supplier at 25, Price/Ton at 26 for each LCR group',
+        'LCR comparison: stale DB-saved column mapping from previous versions is auto-detected and discarded so corrected defaults take effect',
+        'LCR comparison table headers renamed from "Amount / Price/Ton" to "Price / Tonnage Rate" to match user terminology',
+      ],
+      changed: [
+        'PTS Sync results: project stats table now includes "Synced Weight" column with per-building expansion',
+      ],
+    },
+  },
+  {
+    version: '17.25.0',
+    date: 'April 8, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'LCR Comparison Fix, PTS Column Mapping & Duplicate Part Aggregation',
     highlights: [
       'LCR comparison panel now shows correct supplier/amount/price data — column indices were offset',
@@ -54,7 +84,7 @@ const hardcodedVersions: ChangelogVersion[] = [
     version: '17.24.0',
     date: 'April 8, 2026',
     type: 'minor',
-    status: 'previous',
+    status: 'archived',
     mainTitle: 'LCR Search Fix, PTS Per-Building Rollback & Building Selection',
     highlights: [
       'LCR search now works correctly — previously search was ignored when sorting by SN (the default sort)',

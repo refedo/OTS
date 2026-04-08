@@ -7,26 +7,28 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🔧 LCR Comparison Fix, PTS Column Mapping & Duplicate Part Aggregation',
+  mainTitle: '⚖️ LCR Comparison Fix, PTS Weight Verification & Scope of Work',
   highlights: [
-    'LCR comparison panel now shows correct supplier/amount/price data — column indices were offset',
-    'PTS Sync now uses your custom column mapping for weights and all fields',
-    'Duplicate part numbers are now aggregated (quantities summed, weight multiplied) instead of last-wins',
-    'Execute page now shows matched buildings for selection before syncing',
+    'LCR comparison table now correctly shows Supplier, Price, and Tonnage Rate — amount/supplier were swapped',
+    'PTS Sync results now show synced weight per building and project with verification table',
+    'PTS Sync automatically sets scope of work to "Steel" for all synced parts',
+    'Weight sorting already available in the assembly parts table',
   ],
   changes: {
     added: [
-      'PTS Sync execute page: matched building selection card grouped by project',
-      'PTS Sync: duplicate part number detection — consolidates rows, sums quantities, calculates total weight',
-      'PTS Sync: duplicate count notification in sync results',
+      'PTS Sync: weight totals per building and project in sync results',
+      'PTS Sync: weight verification card after sync for reviewing numbers before accepting',
+      'PTS Sync: scope of work automatically set to "Steel" for all synced assembly parts',
+      'PTS Sync: per-building weight breakdown in project stats table',
     ],
     fixed: [
-      'LCR comparison: DEFAULT_LCR_COL_MAP corrected from gapped indices to consecutive — supplier, amount, and price were shifted to wrong columns',
-      'PTS Sync weights: custom column mapping from the mapping UI is now passed through API to the sync service — previously hardcoded defaults were always used',
-      'PTS Sync: dynamic sheet range based on mapped columns — ensures all mapped data is fetched',
+      'LCR comparison: supplier and amount column indices were swapped — now correctly maps Amount→col24, Supplier→col25, Price/Ton→col26 per LCR group',
+      'LCR comparison: stale DB-saved column mapping auto-detected and discarded so corrected defaults take effect',
+      'LCR comparison: table headers updated to "Supplier / Price / Tonnage Rate"',
     ],
     changed: [
-      'PTS Sync: duplicate parts are now aggregated (qty summed, weight = singlePartWeight × total qty) instead of last occurrence winning',
+      'PTS Sync results: project stats table now includes weight column and per-building rows',
+      'PTS Sync results: grand total row added for parts, logs, and weight',
     ],
   },
 };

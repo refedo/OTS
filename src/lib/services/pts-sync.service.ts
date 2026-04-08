@@ -123,6 +123,8 @@ export interface BuildingSyncStats {
   syncedParts: number;
   totalLogs: number;
   syncedLogs: number;
+  totalWeight: number;
+  syncedWeight: number;
 }
 
 export interface ProjectSyncStats {
@@ -133,6 +135,8 @@ export interface ProjectSyncStats {
   totalLogs: number;
   syncedLogs: number;
   completionPercent: number;
+  totalWeight: number;
+  syncedWeight: number;
   buildings: BuildingSyncStats[];
 }
 
@@ -427,12 +431,20 @@ class PTSSyncService {
 
     onProgress?.({ phase: 'raw-data', current: 0, total: rows.length, message: `Processing ${rows.length} parts...` });
 
-    // Cache projects and buildings
+    // Cache projects, buildings, and scope of work
     const projectCache = new Map<string, string>();
     const buildingCache = new Map<string, string>();
+    const scopeOfWorkCache = new Map<string, string>(); // key: "projectId-buildingId" → scopeOfWorkId
 
     const projects = await prisma.project.findMany({ select: { id: true, projectNumber: true } });
     projects.forEach(p => projectCache.set(p.projectNumber, p.id));
+
+    // Pre-load existing "steel" scope of work entries
+    const steelScopes = await prisma.scopeOfWork.findMany({
+      where: { scopeType: 'steel' },
+      select: { id: true, projectId: true, buildingId: true },
+    });
+    steelScopes.forEach(s => scopeOfWorkCache.set(`${s.projectId}-${s.buildingId}`, s.id));
 
     const buildings = await prisma.building.findMany({ 
       select: { id: true, designation: true, name: true, projectId: true } 
@@ -457,6 +469,7 @@ class PTSSyncService {
       projectNumber: string;
       projectId: string;
       buildingId: string | null;
+      scopeOfWorkId: string | null;
       buildingDesig: string;
       partDesignation: string;
       assemblyMark: string;
@@ -540,6 +553,28 @@ class PTSSyncService {
           }
         }
 
+        // Get or create "Steel" scope of work for this project/building
+        let scopeOfWorkId: string | null = null;
+        if (buildingId) {
+          const scopeKey = `${projectId}-${buildingId}`;
+          scopeOfWorkId = scopeOfWorkCache.get(scopeKey) || null;
+          if (!scopeOfWorkId) {
+            const existing = await prisma.scopeOfWork.findFirst({
+              where: { projectId, buildingId, scopeType: 'steel' },
+              select: { id: true },
+            });
+            if (existing) {
+              scopeOfWorkId = existing.id;
+            } else {
+              const newScope = await prisma.scopeOfWork.create({
+                data: { projectId, buildingId, scopeType: 'steel', scopeLabel: 'Steel' },
+              });
+              scopeOfWorkId = newScope.id;
+            }
+            scopeOfWorkCache.set(scopeKey, scopeOfWorkId);
+          }
+        }
+
         // Parse fields
         const assemblyMark = row[this.colIndex(colMap.assemblyMark)]?.toString().trim() || '';
         const subAssemblyMark = row[this.colIndex(colMap.subAssemblyMark)]?.toString().trim() || null;
@@ -578,6 +613,7 @@ class PTSSyncService {
             projectNumber,
             projectId,
             buildingId,
+            scopeOfWorkId,
             buildingDesig,
             partDesignation,
             assemblyMark,
@@ -623,6 +659,7 @@ class PTSSyncService {
               where: { id: existingPart.id },
               data: {
                 buildingId: part.buildingId,
+                scopeOfWorkId: part.scopeOfWorkId,
                 assemblyMark: part.assemblyMark,
                 subAssemblyMark: part.subAssemblyMark,
                 partMark: part.partMark,
@@ -645,6 +682,7 @@ class PTSSyncService {
               data: {
                 projectId: part.projectId,
                 buildingId: part.buildingId,
+                scopeOfWorkId: part.scopeOfWorkId,
                 partDesignation: part.partDesignation,
                 assemblyMark: part.assemblyMark,
                 subAssemblyMark: part.subAssemblyMark,
@@ -1101,6 +1139,16 @@ class PTSSyncService {
         where: { assemblyPart: { projectId: project.id }, source: 'PTS' },
       });
 
+      // Weight aggregation
+      const totalWeightAgg = await prisma.assemblyPart.aggregate({
+        where: { projectId: project.id },
+        _sum: { netWeightTotal: true },
+      });
+      const syncedWeightAgg = await prisma.assemblyPart.aggregate({
+        where: { projectId: project.id, source: 'PTS' },
+        _sum: { netWeightTotal: true },
+      });
+
       const completionPercent = totalParts > 0 ? Math.round((syncedParts / totalParts) * 100) : 0;
 
       // Per-building stats
@@ -1123,6 +1171,14 @@ class PTSSyncService {
         const bSyncedLogs = await prisma.productionLog.count({
           where: { assemblyPart: { projectId: project.id, buildingId: building.id }, source: 'PTS' },
         });
+        const bTotalWeightAgg = await prisma.assemblyPart.aggregate({
+          where: { projectId: project.id, buildingId: building.id },
+          _sum: { netWeightTotal: true },
+        });
+        const bSyncedWeightAgg = await prisma.assemblyPart.aggregate({
+          where: { projectId: project.id, buildingId: building.id, source: 'PTS' },
+          _sum: { netWeightTotal: true },
+        });
 
         if (bTotalParts > 0 || bSyncedParts > 0) {
           buildingStats.push({
@@ -1134,6 +1190,8 @@ class PTSSyncService {
             syncedParts: bSyncedParts,
             totalLogs: bTotalLogs,
             syncedLogs: bSyncedLogs,
+            totalWeight: Number(bTotalWeightAgg._sum.netWeightTotal ?? 0),
+            syncedWeight: Number(bSyncedWeightAgg._sum.netWeightTotal ?? 0),
           });
         }
       }
@@ -1146,6 +1204,8 @@ class PTSSyncService {
         totalLogs,
         syncedLogs,
         completionPercent,
+        totalWeight: Number(totalWeightAgg._sum.netWeightTotal ?? 0),
+        syncedWeight: Number(syncedWeightAgg._sum.netWeightTotal ?? 0),
         buildings: buildingStats,
       });
     }
