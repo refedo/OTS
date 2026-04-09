@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.26.1` — Fix LCR column order (Supplier→Amount→Price/Ton), fix PTS double weight from duplicate rows
+**Current version:** `17.26.2` — Fix LCR column positions (groups start at col 26), fix PTS weight aggregation (sum totals, no multiplication)
 
 ---
 

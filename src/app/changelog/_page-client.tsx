@@ -23,24 +23,39 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.26.1',
+    version: '17.26.2',
     date: 'April 9, 2026',
     type: 'patch',
     status: 'current',
-    mainTitle: 'LCR Column Order Fix & PTS Double Weight Fix',
+    mainTitle: 'LCR Column Position Fix & PTS Weight Aggregation Fix',
     highlights: [
-      'LCR comparison column order corrected: Supplier → Amount → Price/Ton per group',
-      'PTS Sync no longer doubles weight when duplicate rows exist in the sheet',
+      'LCR comparison groups shifted to correct positions: LCR1 at col 26-28, LCR2 at 29-31, LCR3 at 32-34, Thickness at 35',
+      'PTS weight aggregation fixed: just sum netWeightTotal from rows, no multiplication',
       'LCR columns API now applies stale mapping detection',
     ],
     changes: {
       added: [],
       fixed: [
-        'LCR comparison: corrected per-group column order to Supplier (col 24) → Amount (col 25) → Price/Ton (col 26) — previous versions had wrong orderings',
+        'LCR comparison: LCR groups start at column 26 (not 24) — LCR1 Supplier/Amount/Price at 26/27/28, LCR2 at 29/30/31, LCR3 at 32/33/34, Thickness at 35',
         'LCR comparison: columns API GET now applies stale mapping detection (previously only sync did)',
-        'LCR comparison: added stale pattern detection for v17.25–17.26 wrong defaults',
-        'PTS Sync: true duplicate rows (identical qty + weight) are now skipped instead of aggregated, fixing doubled weight for buildings like INTAKE and Roasting',
+        'LCR comparison: stale patterns detect any mapping with LCR fields starting at column 24',
+        'PTS Sync: weight aggregation now sums netWeightTotal directly instead of multiplying singlePartWeight × qty — singlePartWeight stays as-is',
       ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.26.1',
+    date: 'April 9, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'LCR Column Order Fix & PTS Double Weight Fix (superseded by 17.26.2)',
+    highlights: [
+      'Intermediate fix — column positions still incorrect, replaced by v17.26.2',
+    ],
+    changes: {
+      added: [],
+      fixed: [],
       changed: [],
     },
   },

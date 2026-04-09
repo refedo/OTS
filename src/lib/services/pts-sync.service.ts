@@ -485,9 +485,6 @@ class PTSSyncService {
       singlePartWeight: number | null;
       netWeightTotal: number | null;
       _rowCount: number;
-      _origQuantity: number;
-      _origSinglePartWeight: number | null;
-      _origNetWeightTotal: number | null;
     }
     const consolidatedParts = new Map<string, ParsedPart>();
 
@@ -597,27 +594,19 @@ class PTSSyncService {
         const existing = consolidatedParts.get(consolidationKey);
 
         if (existing) {
-          // Detect true duplicate rows (identical qty + weight = same row repeated, skip)
-          const isTrueDuplicate =
-            quantity === existing._origQuantity &&
-            singlePartWeight === existing._origSinglePartWeight &&
-            netWeightTotal === existing._origNetWeightTotal;
-
           duplicateCount++;
           existing._rowCount++;
-
-          if (!isTrueDuplicate) {
-            // Different data — aggregate quantities and totals
-            existing.quantity += quantity;
-            if (singlePartWeight != null) {
-              existing.singlePartWeight = singlePartWeight;
-              existing.netWeightTotal = singlePartWeight * existing.quantity;
-            } else if (netWeightTotal != null) {
-              existing.netWeightTotal = (existing.netWeightTotal ?? 0) + netWeightTotal;
-            }
-            if (netAreaTotal != null) {
-              existing.netAreaTotal = (existing.netAreaTotal ?? 0) + netAreaTotal;
-            }
+          // Aggregate qty and totals — sum directly, never multiply
+          existing.quantity += quantity;
+          if (netWeightTotal != null) {
+            existing.netWeightTotal = (existing.netWeightTotal ?? 0) + netWeightTotal;
+          }
+          if (netAreaTotal != null) {
+            existing.netAreaTotal = (existing.netAreaTotal ?? 0) + netAreaTotal;
+          }
+          // Keep singlePartWeight as-is (per-piece weight doesn't change)
+          if (singlePartWeight != null) {
+            existing.singlePartWeight = singlePartWeight;
           }
         } else {
           consolidatedParts.set(consolidationKey, {
@@ -640,9 +629,6 @@ class PTSSyncService {
             singlePartWeight,
             netWeightTotal,
             _rowCount: 1,
-            _origQuantity: quantity,
-            _origSinglePartWeight: singlePartWeight,
-            _origNetWeightTotal: netWeightTotal,
           });
         }
       } catch (rowError) {

@@ -7,15 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [17.26.1] - 2026-04-09
+## [17.26.2] - 2026-04-09
 
-### LCR Column Order Fix & PTS Double Weight Fix (Patch)
+### LCR Column Position Fix & PTS Weight Aggregation Fix (Patch)
 
 #### Fixed
-- **LCR comparison column order** — corrected per-group order to Supplier (col 24) → Amount (col 25) → Price/Ton (col 26); previous versions had wrong orderings that showed data in wrong columns
-- **LCR columns API stale detection** — GET endpoint now applies the same stale mapping detection as the sync process; previously returned raw DB values even if stale
-- **LCR stale patterns** — added detection for v17.25–17.26 wrong default patterns so saved DB mappings are auto-corrected
-- **PTS Sync double weight** — true duplicate rows (identical qty + weight for same part) are now skipped instead of aggregated, fixing doubled weight for buildings like INTAKE and Roasting
+- **LCR comparison column positions** — LCR groups start at column 26 (not 24): LCR1 Supplier/Amount/Price at 26/27/28, LCR2 at 29/30/31, LCR3 at 32/33/34, Thickness at 35; previous versions had wrong starting position causing data to show in wrong columns (e.g. thickness showing LCR3 amount)
+- **LCR columns API stale detection** — GET endpoint now applies stale mapping detection; stale patterns detect any mapping with LCR fields at column 24
+- **PTS Sync weight aggregation** — duplicate part consolidation now sums `netWeightTotal` directly from each row instead of multiplying `singlePartWeight × aggregated qty`; `singlePartWeight` stays as-is (per-piece reference only)
 
 ---
 

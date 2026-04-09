@@ -32,16 +32,16 @@ export const DEFAULT_LCR_COL_MAP = {
   TARGET_PRICE: 19,
   MRF_NUMBER: 20,
   RATIO_1TO2_LCR1: 21,
-  LCR1: 24,
-  LCR1_AMOUNT: 25,
-  PRICE_PER_TON_LCR1: 26,
-  LCR2: 27,
-  LCR2_AMOUNT: 28,
-  PRICE_PER_TON_LCR2: 29,
-  LCR3: 30,
-  LCR3_AMOUNT: 31,
-  PRICE_PER_TON_LCR3: 32,
-  THICKNESS: 33,
+  LCR1: 26,
+  LCR1_AMOUNT: 27,
+  PRICE_PER_TON_LCR1: 28,
+  LCR2: 29,
+  LCR2_AMOUNT: 30,
+  PRICE_PER_TON_LCR2: 31,
+  LCR3: 32,
+  LCR3_AMOUNT: 33,
+  PRICE_PER_TON_LCR3: 34,
+  THICKNESS: 35,
 } as const;
 
 export type LcrColKey = keyof typeof DEFAULT_LCR_COL_MAP;
@@ -51,10 +51,12 @@ export type LcrColKey = keyof typeof DEFAULT_LCR_COL_MAP;
 const STALE_LCR_PATTERNS = [
   // Pre-17.24 gapped mapping
   { LCR1: 24, LCR1_AMOUNT: 27 },
-  // v17.25: Amount at 24, Supplier at 25
+  // Any mapping where LCR1 starts at 24 (wrong — groups start at 26)
+  { LCR1: 24 },
+  { LCR1_AMOUNT: 24 },
+  { PRICE_PER_TON_LCR1: 24 },
+  { LCR1: 24, LCR1_AMOUNT: 25 },
   { LCR1_AMOUNT: 24, LCR1: 25 },
-  // v17.26 wrong: Price/Ton at 24, Amount at 25, Supplier at 26
-  { PRICE_PER_TON_LCR1: 24, LCR1_AMOUNT: 25, LCR1: 26 },
 ];
 
 const LCR_FIELD_KEYS = [
