@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.26.2` — Fix LCR column positions (groups start at col 26), fix PTS weight aggregation (sum totals, no multiplication)
+**Current version:** `17.26.3` — Critical fix: tasks with null mainActivity were excluded from all task lists due to MySQL NULL comparison behavior
 
 ---
 
