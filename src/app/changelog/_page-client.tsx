@@ -23,10 +23,32 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.26.1',
+    date: 'April 9, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'LCR Column Order Fix & PTS Double Weight Fix',
+    highlights: [
+      'LCR comparison column order corrected: Supplier → Amount → Price/Ton per group',
+      'PTS Sync no longer doubles weight when duplicate rows exist in the sheet',
+      'LCR columns API now applies stale mapping detection',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'LCR comparison: corrected per-group column order to Supplier (col 24) → Amount (col 25) → Price/Ton (col 26) — previous versions had wrong orderings',
+        'LCR comparison: columns API GET now applies stale mapping detection (previously only sync did)',
+        'LCR comparison: added stale pattern detection for v17.25–17.26 wrong defaults',
+        'PTS Sync: true duplicate rows (identical qty + weight) are now skipped instead of aggregated, fixing doubled weight for buildings like INTAKE and Roasting',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.26.0',
     date: 'April 8, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'LCR Comparison Fix, PTS Weight Verification & Scope of Work',
     highlights: [
       'LCR comparison table now correctly shows Supplier, Price, and Tonnage Rate — amount and supplier were swapped',

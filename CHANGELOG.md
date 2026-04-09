@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.26.1] - 2026-04-09
+
+### LCR Column Order Fix & PTS Double Weight Fix (Patch)
+
+#### Fixed
+- **LCR comparison column order** — corrected per-group order to Supplier (col 24) → Amount (col 25) → Price/Ton (col 26); previous versions had wrong orderings that showed data in wrong columns
+- **LCR columns API stale detection** — GET endpoint now applies the same stale mapping detection as the sync process; previously returned raw DB values even if stale
+- **LCR stale patterns** — added detection for v17.25–17.26 wrong default patterns so saved DB mappings are auto-corrected
+- **PTS Sync double weight** — true duplicate rows (identical qty + weight for same part) are now skipped instead of aggregated, fixing doubled weight for buildings like INTAKE and Roasting
+
+---
+
 ## [17.7.0] - 2026-04-03
 
 ### Slack-Style Conversations, AP Aging Fix, Task Indicators (Minor Release)

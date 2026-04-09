@@ -3,16 +3,14 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
-import { DEFAULT_LCR_COL_MAP, type LcrColKey } from '@/lib/sync/lcrSync';
+import { DEFAULT_LCR_COL_MAP, loadColMap, type LcrColKey } from '@/lib/sync/lcrSync';
 
 const mappingSchema = z.record(z.string(), z.number().int().min(0).max(99));
 
 export const GET = withApiContext(async (_req, _session) => {
   try {
-    const settings = await prisma.systemSettings.findFirst({ select: { lcrColumnMapping: true } });
-    const saved = (settings?.lcrColumnMapping ?? {}) as Record<string, number>;
-    // Merge saved over defaults so the response always has all keys
-    const mapping: Record<LcrColKey, number> = { ...DEFAULT_LCR_COL_MAP, ...saved } as Record<LcrColKey, number>;
+    // Use loadColMap which applies stale detection for wrong defaults
+    const mapping = await loadColMap();
     return NextResponse.json({ mapping, defaults: DEFAULT_LCR_COL_MAP });
   } catch (error) {
     logger.error({ error }, 'Failed to fetch LCR column mapping');
