@@ -133,12 +133,15 @@ export async function GET(req: Request) {
     }
   }
 
-  // Exclude standalone conversation containers (Discussion tasks) and soft-deleted tasks
+  // Exclude standalone conversation containers (Discussion tasks) and soft-deleted tasks.
+  // Use OR to include tasks where mainActivity IS NULL — MySQL's NOT (field = value)
+  // evaluates to NULL (not TRUE) for NULL columns, which would silently exclude them.
+  const excludeDiscussion = { OR: [{ mainActivity: null }, { NOT: { mainActivity: 'Discussion' } }] };
   if (whereClause.AND) {
-    (whereClause.AND as unknown[]).push({ NOT: { mainActivity: 'Discussion' } });
+    (whereClause.AND as unknown[]).push(excludeDiscussion);
     (whereClause.AND as unknown[]).push({ deletedAt: null });
   } else {
-    whereClause.AND = [{ NOT: { mainActivity: 'Discussion' } }, { deletedAt: null }];
+    whereClause.AND = [excludeDiscussion, { deletedAt: null }];
   }
 
   let tasks = await prisma.task.findMany({

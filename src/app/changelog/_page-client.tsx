@@ -23,10 +23,29 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '17.26.2',
+    version: '17.26.3',
     date: 'April 9, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Critical Fix: Missing Tasks Across All Departments',
+    highlights: [
+      'Tasks without a mainActivity (the majority of tasks) were being silently excluded from all task list views',
+      'Root cause: MySQL NULL handling — NOT (mainActivity = \'Discussion\') evaluates to NULL for NULL rows, hiding them',
+      'Fix: filter now explicitly includes tasks where mainActivity IS NULL',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Tasks with no mainActivity set were missing from all task list views across every department and project',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '17.26.2',
+    date: 'April 9, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'LCR Column Position Fix & PTS Weight Aggregation Fix',
     highlights: [
       'LCR comparison groups shifted to correct positions: LCR1 at col 26-28, LCR2 at 29-31, LCR3 at 32-34, Thickness at 35',
