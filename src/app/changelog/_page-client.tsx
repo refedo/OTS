@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '17.27.0',
+    date: 'April 11, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Password Strength & Financial Report Fixes',
+    highlights: [
+      'User create/edit forms now show password strength indicator with real-time validation (uppercase, lowercase, number, special character)',
+      'Password fields now have a show/hide visibility toggle (eye icon)',
+      'SOA PDF export fixed — Remain to Pay and Balance columns now properly sized with explicit widths for all columns',
+      'Aging report invoice detail rows restructured to clearly show partial payments (Total, Paid, Remaining)',
+    ],
+    changes: {
+      added: [
+        'Password strength indicator with visual progress bar on user create and edit forms',
+        'Show/hide password toggle (eye icon) on user create and edit forms',
+        'Backend password validation enforces uppercase, lowercase, number, and special character requirements',
+      ],
+      fixed: [
+        'SOA PDF: Remain to Pay and Balance columns were squeezed with no explicit width — now all columns have proper widths for both AP (9 cols) and AR (8 cols)',
+        'Aging report: invoice detail rows now clearly show total amount, amount paid, and remaining balance with proper labels instead of misaligned columns',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '17.26.3',
     date: 'April 9, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Critical Fix: Missing Tasks Across All Departments',
     highlights: [
       'Tasks without a mainActivity (the majority of tasks) were being silently excluded from all task list views',

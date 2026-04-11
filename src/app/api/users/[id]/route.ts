@@ -18,7 +18,12 @@ const customPermissionsSchema = z.union([
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  password: z.string().min(8).optional(),
+  password: z.string().min(8)
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
+    .optional(),
   position: z.string().nullable().optional(),
   roleId: z.string().uuid().optional(),
   departmentId: z.string().uuid().nullable().optional(),

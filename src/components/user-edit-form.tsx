@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, User, Shield, Phone, ShieldCheck } from 'lucide-react';
+import { Loader2, User, Shield, Phone, ShieldCheck, Eye, EyeOff, Check, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionsMatrix } from '@/components/permissions-matrix';
 import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions';
@@ -69,6 +69,8 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState('');
   const [selectedRoleId, setSelectedRoleId] = useState<string>(user.roleId);
   const initialCustom = useMemo(() => parseCustomPerms(user.customPermissions), [user.customPermissions]);
   const [grants, setGrants] = useState<string[]>(initialCustom.grants);
@@ -197,17 +199,65 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
           <Label htmlFor="password">
             New Password
           </Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="Leave blank to keep current"
-            minLength={8}
-            disabled={loading}
-          />
-          <p className="text-xs text-muted-foreground">
-            Only fill this if you want to change the password
-          </p>
+          <div className="relative">
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Leave blank to keep current"
+              minLength={8}
+              disabled={loading}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          {password.length > 0 ? (
+            <div className="space-y-1.5 pt-1">
+              <div className="flex gap-1">
+                {[
+                  password.length >= 8,
+                  /[A-Z]/.test(password),
+                  /[a-z]/.test(password),
+                  /[0-9]/.test(password),
+                  /[^A-Za-z0-9]/.test(password),
+                ].map((met, i) => (
+                  <div
+                    key={i}
+                    className={`h-1.5 flex-1 rounded-full transition-colors ${
+                      met ? 'bg-green-500' : 'bg-muted'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="grid grid-cols-1 gap-0.5 text-xs">
+                {[
+                  { met: password.length >= 8, label: 'At least 8 characters' },
+                  { met: /[A-Z]/.test(password), label: 'One uppercase letter' },
+                  { met: /[a-z]/.test(password), label: 'One lowercase letter' },
+                  { met: /[0-9]/.test(password), label: 'One number' },
+                  { met: /[^A-Za-z0-9]/.test(password), label: 'One special character' },
+                ].map((rule) => (
+                  <div key={rule.label} className={`flex items-center gap-1 ${rule.met ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    {rule.met ? <Check className="size-3" /> : <X className="size-3" />}
+                    {rule.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Only fill this if you want to change the password
+            </p>
+          )}
         </div>
 
         {/* Position/Title */}

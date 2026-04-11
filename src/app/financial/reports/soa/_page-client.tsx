@@ -223,6 +223,30 @@ async function exportToPDF(report: any, type: 'ar' | 'ap', fromDate: string, toD
     return baseRow;
   });
 
+  // Column styles differ for AP (9 cols) vs AR (8 cols)
+  const apColumnStyles: Record<number, any> = {
+    0: { halign: 'center', cellWidth: 7 },   // #
+    1: { cellWidth: 18 },                      // Date
+    2: { cellWidth: 22 },                      // Reference
+    3: { cellWidth: 18 },                      // Supplier Ref
+    4: { cellWidth: 16 },                      // Type
+    5: { halign: 'right', cellWidth: 22 },     // Debit
+    6: { halign: 'right', cellWidth: 22 },     // Credit
+    7: { halign: 'right', cellWidth: 25, fontStyle: 'bold' }, // Remain to Pay
+    8: { halign: 'right', cellWidth: 25, fontStyle: 'bold' }, // Balance
+  };
+  const arColumnStyles: Record<number, any> = {
+    0: { halign: 'center', cellWidth: 7 },   // #
+    1: { cellWidth: 20 },                      // Date
+    2: { cellWidth: 28 },                      // Reference
+    3: { cellWidth: 18 },                      // Type
+    4: { halign: 'right', cellWidth: 26 },     // Debit
+    5: { halign: 'right', cellWidth: 26 },     // Credit
+    6: { halign: 'right', cellWidth: 27, fontStyle: 'bold' }, // Remain to Pay
+    7: { halign: 'right', cellWidth: 27, fontStyle: 'bold' }, // Balance
+  };
+  const typeColIndex = type === 'ap' ? 4 : 3;
+
   autoTable(doc, {
     head: [tableHeaders],
     body: tableRows,
@@ -233,25 +257,17 @@ async function exportToPDF(report: any, type: 'ar' | 'ap', fromDate: string, toD
       fillColor: primary,
       textColor: '#ffffff',
       fontStyle: 'bold',
-      fontSize: 8,
+      fontSize: 7,
       halign: 'center',
     },
     bodyStyles: {
-      fontSize: 7.5,
+      fontSize: 7,
       textColor: '#374151',
     },
-    columnStyles: {
-      0: { halign: 'center', cellWidth: 8 },
-      1: { cellWidth: 22 },
-      2: { cellWidth: 30 },
-      3: { cellWidth: 22 },
-      4: { halign: 'right', cellWidth: 28 },
-      5: { halign: 'right', cellWidth: 28 },
-      6: { halign: 'right', cellWidth: 28, fontStyle: 'bold' },
-    },
+    columnStyles: type === 'ap' ? apColumnStyles : arColumnStyles,
     alternateRowStyles: { fillColor: [249, 250, 251] },
     didParseCell: (data: any) => {
-      if (data.section === 'body' && data.column.index === 3) {
+      if (data.section === 'body' && data.column.index === typeColIndex) {
         const val = data.cell.raw;
         if (val === 'Payment') {
           data.cell.styles.textColor = [22, 163, 74];
