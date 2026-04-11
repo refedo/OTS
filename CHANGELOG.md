@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.26.5] - 2026-04-11
+
+### Project Tracker: Building Designation & Over-100% Indicator (Patch)
+
+#### Changed
+- **Building name column** — now shows `Name - Designation` (e.g. "Guest House - CAN") instead of just the building name; falls back gracefully if either field is empty
+
+#### Fixed
+- **Process percentage >100%** — cells with a percentage exceeding 100% now display the actual value in red with a "!" indicator instead of silently capping at 100%; the progress bar still fills to 100% visually but is coloured red to match
+
+---
+
 ## [17.26.4] - 2026-04-11
 
 ### Assembly Parts Column Sorting Fix (Patch)

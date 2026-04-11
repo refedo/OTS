@@ -489,14 +489,17 @@ function StatusCell({
         )}
         <div className="flex items-center gap-1.5 mb-1.5">
           {getStatusIcon(status, pct, isDesignRevision)}
-          <span className={`text-sm font-semibold tabular-nums ${getStatusColor(status, pct, isDesignRevision)}`}>
+          <span className={`text-sm font-semibold tabular-nums ${pct > 100 ? 'text-red-500' : getStatusColor(status, pct, isDesignRevision)}`}>
             {isPending ? 'P' : `${pct}%`}
           </span>
+          {pct > 100 && (
+            <span className="text-red-500 text-sm font-bold leading-none">!</span>
+          )}
         </div>
         <div className={`h-1.5 rounded-full overflow-hidden ${getProgressBarTrack(isDark)}`}>
           <div
-            className={`h-full rounded-full transition-all duration-500 ease-out ${getProgressBarColor(status, pct, isDesignRevision)}`}
-            style={{ width: `${Math.max(pct, status === 'blocked' ? 100 : 0)}%` }}
+            className={`h-full rounded-full transition-all duration-500 ease-out ${pct > 100 ? 'bg-red-500' : getProgressBarColor(status, pct, isDesignRevision)}`}
+            style={{ width: `${Math.min(Math.max(pct, status === 'blocked' ? 100 : 0), 100)}%` }}
           />
         </div>
       </div>
@@ -1047,7 +1050,7 @@ export default function ProjectTrackerClient() {
                               `}
                             >
                               <span className="font-medium">
-                                {row.building.name || row.building.designation}
+                                {[row.building.name, row.building.designation].filter(Boolean).join(' - ')}
                               </span>
                             </td>
 
