@@ -260,38 +260,57 @@ export default function AgingReportPage() {
                       </tr>
                       {expanded.has(row.thirdpartyId) && row.invoices.map((inv: any, j: number) => (
                         <tr key={`inv-${row.thirdpartyId}-${j}`} className="border-b bg-muted/20 text-xs">
-                          <td className="p-2 pl-10" colSpan={2}>
-                            <span className="font-mono font-semibold">{inv.ref}</span>
-                            <span className="text-muted-foreground ml-2">
-                              Inv: {inv.dateInvoice} | Due: {inv.dateDue}
-                            </span>
-                            <span className={cn(
-                              'ml-2 font-medium',
-                              inv.daysOverdue > 0 ? 'text-red-600' : 'text-green-600',
-                            )}>
-                              {inv.daysOverdue > 0 ? `${inv.daysOverdue}d overdue` : 'current'}
-                            </span>
-                            {inv.paymentTermsLabel && (
-                              <Badge variant="secondary" className="ml-2 text-xs">{inv.paymentTermsLabel}</Badge>
-                            )}
-                          </td>
-                          <td className="p-2 text-right font-mono">{fmt(inv.totalAmount)}</td>
-                          <td className="p-2 text-right font-mono text-green-600 hidden sm:table-cell print:!table-cell">{fmt(inv.amountPaid)}</td>
-                          <td className="p-2 text-right font-mono font-semibold text-orange-700 hidden sm:table-cell print:!table-cell">{fmt(inv.remaining)}</td>
-                          <td className="p-2 text-center" colSpan={2}>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'text-xs',
-                                inv.ageBucket === 'Current' && 'border-green-300 text-green-700',
-                                inv.ageBucket === '1-30 Days' && 'border-yellow-300 text-yellow-700',
-                                inv.ageBucket === '31-60 Days' && 'border-orange-300 text-orange-700',
-                                inv.ageBucket === '61-90 Days' && 'border-red-400 text-red-600',
-                                inv.ageBucket === '90+ Days' && 'border-red-600 text-red-700 bg-red-50',
+                          <td className="p-2 pl-10" colSpan={3}>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-mono font-semibold">{inv.ref}</span>
+                              <span className="text-muted-foreground">
+                                Inv: {inv.dateInvoice} | Due: {inv.dateDue}
+                              </span>
+                              <span className={cn(
+                                'font-medium',
+                                inv.daysOverdue > 0 ? 'text-red-600' : 'text-green-600',
+                              )}>
+                                {inv.daysOverdue > 0 ? `${inv.daysOverdue}d overdue` : 'current'}
+                              </span>
+                              {inv.paymentTermsLabel && (
+                                <Badge variant="secondary" className="text-xs">{inv.paymentTermsLabel}</Badge>
                               )}
-                            >
-                              {inv.ageBucket}
-                            </Badge>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'text-xs',
+                                  inv.ageBucket === 'Current' && 'border-green-300 text-green-700',
+                                  inv.ageBucket === '1-30 Days' && 'border-yellow-300 text-yellow-700',
+                                  inv.ageBucket === '31-60 Days' && 'border-orange-300 text-orange-700',
+                                  inv.ageBucket === '61-90 Days' && 'border-red-400 text-red-600',
+                                  inv.ageBucket === '90+ Days' && 'border-red-600 text-red-700 bg-red-50',
+                                )}
+                              >
+                                {inv.ageBucket}
+                              </Badge>
+                            </div>
+                          </td>
+                          <td className="p-2 text-right font-mono hidden sm:table-cell print:!table-cell" colSpan={2}>
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-muted-foreground">Total: {fmt(inv.totalAmount)}</span>
+                              {inv.amountPaid > 0 && (
+                                <span className="text-green-600">Paid: {fmt(inv.amountPaid)}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-2 text-right font-mono font-semibold" colSpan={2}>
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className={cn(
+                                inv.amountPaid > 0 ? 'text-orange-700' : '',
+                              )}>
+                                {fmt(inv.remaining)}
+                              </span>
+                              {inv.amountPaid > 0 && (
+                                <span className="text-muted-foreground font-normal sm:hidden print:!hidden">
+                                  ({fmt(inv.amountPaid)} paid)
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

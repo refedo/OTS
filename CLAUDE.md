@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.26.5` — Fix: project tracker shows building designation next to name; processes >100% shown in red with "!" indicator
+**Current version:** `17.27.0` — Add: password strength indicator & visibility toggle on user create/edit; Fix: SOA PDF column layout for Remain to Pay/Balance; Fix: aging report shows partial payments clearly
 
 ---
 

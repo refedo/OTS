@@ -10,7 +10,11 @@ import { systemEventService } from '@/services/system-events.service';
 const createSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(8)
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
   position: z.string().nullable().optional(),
   roleId: z.string().uuid(),
   departmentId: z.string().uuid().nullable().optional(),
