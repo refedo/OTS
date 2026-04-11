@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [17.26.4] - 2026-04-11
+
+### Assembly Parts Column Sorting Fix (Patch)
+
+#### Fixed
+- **Assembly parts column sorting** — clicking column headers (Part Designation, Name, Source, Project, Building, Qty, Length, Weight, Upload Date, Status) now correctly sorts the data; previously the dynamic sort was silently overridden by a duplicate hardcoded `orderBy` clause in the Prisma query that always forced `assemblyMark / partMark` order regardless of the selected column
+
+---
+
 ## [17.26.2] - 2026-04-09
 
 ### LCR Column Position Fix & PTS Weight Aggregation Fix (Patch)

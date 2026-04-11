@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.26.3` — Critical fix: tasks with null mainActivity were excluded from all task lists due to MySQL NULL comparison behavior
+**Current version:** `17.26.4` — Fix: assembly parts column sorting was always overridden by hardcoded assemblyMark/partMark sort due to duplicate orderBy keys
 
 ---
 

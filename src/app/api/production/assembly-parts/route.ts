@@ -152,13 +152,23 @@ export async function GET(req: Request) {
       statusCountMap[sc.status] = sc._count._all;
     });
 
+    const sortDir = (orderBy === 'asc' || orderBy === 'desc') ? orderBy : ('asc' as const);
+    const primarySort =
+      sortBy === 'projectNumber'
+        ? { project: { projectNumber: sortDir } }
+        : sortBy === 'buildingName'
+        ? { building: { name: sortDir } }
+        : { [sortBy]: sortDir };
+
     const assemblyParts = await prisma.assemblyPart.findMany({
       where,
       skip,
       take: limit,
-      orderBy: sortBy === 'projectNumber' || sortBy === 'buildingName'
-        ? { [sortBy === 'projectNumber' ? 'project' : 'building']: { [sortBy === 'projectNumber' ? 'projectNumber' : 'name']: orderBy } }
-        : { [sortBy]: orderBy },
+      orderBy: [
+        primarySort,
+        { assemblyMark: 'asc' },
+        { partMark: 'asc' },
+      ],
       select: {
         id: true,
         partDesignation: true,
@@ -175,6 +185,7 @@ export async function GET(req: Request) {
         singlePartWeight: true,
         netWeightTotal: true,
         status: true,
+        currentProcess: true,
         source: true,
         externalRef: true,
         projectId: true,
@@ -206,10 +217,6 @@ export async function GET(req: Request) {
           select: { productionLogs: true },
         },
       },
-      orderBy: [
-        { assemblyMark: 'asc' },
-        { partMark: 'asc' },
-      ],
     });
 
     return NextResponse.json({
