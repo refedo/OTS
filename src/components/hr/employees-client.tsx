@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, RefreshCw, Languages } from 'lucide-react';
+import { Plus, Search, RefreshCw, Languages, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 type EmployeeRow = {
   id: string;
@@ -25,12 +25,26 @@ type EmployeeRow = {
   status: string;
   trade: string | null;
   department: string | null;
+  section: string | null;
+  division: string | null;
+  occupation: string | null;
   dateOfJoining: string;
   dateOfLeaving: string | null;
   basicSalary: string | null;
   lastSyncedFromDolibarrAt: string | null;
   manuallyEditedFields: string[];
 };
+
+type SortKey =
+  | 'employmentId'
+  | 'name'
+  | 'trade'
+  | 'department'
+  | 'status'
+  | 'dateOfJoining'
+  | 'basicSalary'
+  | 'lastSyncedFromDolibarrAt';
+type SortDir = 'asc' | 'desc';
 
 type Props = {
   employees: EmployeeRow[];
@@ -61,6 +75,17 @@ export function EmployeesClient({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [tradeFilter, setTradeFilter] = useState<string>('all');
   const [showArabic, setShowArabic] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('employmentId');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
 
   const trades = useMemo(() => {
     const set = new Set<string>();
@@ -70,7 +95,7 @@ export function EmployeesClient({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return employees.filter((e) => {
+    const matches = employees.filter((e) => {
       if (statusFilter !== 'all' && e.status !== statusFilter) return false;
       if (tradeFilter !== 'all' && e.trade !== tradeFilter) return false;
       if (!q) return true;
@@ -81,7 +106,46 @@ export function EmployeesClient({
         (e.nationalId ?? '').toLowerCase().includes(q)
       );
     });
-  }, [employees, search, statusFilter, tradeFilter]);
+
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const getValue = (e: EmployeeRow): string | number => {
+      switch (sortKey) {
+        case 'employmentId':
+          return e.employmentId.toLowerCase();
+        case 'name':
+          return (showArabic && e.fullNameAr ? e.fullNameAr : e.fullNameEn).toLowerCase();
+        case 'trade':
+          return (e.trade ?? '').toLowerCase();
+        case 'department':
+          return (e.department ?? '').toLowerCase();
+        case 'status':
+          return e.status;
+        case 'dateOfJoining':
+          return e.dateOfJoining;
+        case 'basicSalary':
+          return e.basicSalary ? Number(e.basicSalary) : -Infinity;
+        case 'lastSyncedFromDolibarrAt':
+          return e.lastSyncedFromDolibarrAt ?? '';
+      }
+    };
+
+    return [...matches].sort((a, b) => {
+      const av = getValue(a);
+      const bv = getValue(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+  }, [employees, search, statusFilter, tradeFilter, sortKey, sortDir, showArabic]);
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+    return sortDir === 'asc' ? (
+      <ArrowUp className="ml-1 inline h-3 w-3" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3 w-3" />
+    );
+  };
 
   return (
     <div className="p-6 space-y-4">
@@ -89,7 +153,9 @@ export function EmployeesClient({
         <div>
           <h1 className="text-2xl font-semibold">Employees</h1>
           <p className="text-sm text-muted-foreground">
-            {employees.length} employees total
+            {filtered.length === employees.length
+              ? `${employees.length} employees total`
+              : `Showing ${filtered.length} of ${employees.length} employees`}
             {!reconciliationComplete && (
               <span className="ml-2 text-amber-600">
                 · Identity reconciliation pending
@@ -163,14 +229,64 @@ export function EmployeesClient({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
-                  <th className="p-2 font-medium">ID</th>
-                  <th className="p-2 font-medium">Name</th>
-                  <th className="p-2 font-medium">Trade</th>
-                  <th className="p-2 font-medium">Department</th>
-                  <th className="p-2 font-medium">Status</th>
-                  <th className="p-2 font-medium">Joined</th>
-                  {canViewCompensation && <th className="p-2 font-medium">Basic Salary</th>}
-                  <th className="p-2 font-medium">Sync</th>
+                  <th
+                    className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => toggleSort('employmentId')}
+                  >
+                    ID
+                    <SortIcon col="employmentId" />
+                  </th>
+                  <th
+                    className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => toggleSort('name')}
+                  >
+                    Name
+                    <SortIcon col="name" />
+                  </th>
+                  <th
+                    className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => toggleSort('trade')}
+                  >
+                    Trade
+                    <SortIcon col="trade" />
+                  </th>
+                  <th
+                    className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => toggleSort('department')}
+                  >
+                    Department
+                    <SortIcon col="department" />
+                  </th>
+                  <th
+                    className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => toggleSort('status')}
+                  >
+                    Status
+                    <SortIcon col="status" />
+                  </th>
+                  <th
+                    className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => toggleSort('dateOfJoining')}
+                  >
+                    Joined
+                    <SortIcon col="dateOfJoining" />
+                  </th>
+                  {canViewCompensation && (
+                    <th
+                      className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                      onClick={() => toggleSort('basicSalary')}
+                    >
+                      Basic Salary
+                      <SortIcon col="basicSalary" />
+                    </th>
+                  )}
+                  <th
+                    className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
+                    onClick={() => toggleSort('lastSyncedFromDolibarrAt')}
+                  >
+                    Sync
+                    <SortIcon col="lastSyncedFromDolibarrAt" />
+                  </th>
                 </tr>
               </thead>
               <tbody>

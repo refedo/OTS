@@ -24,9 +24,11 @@ export default async function HrSetupPage() {
     redirect('/unauthorized?from=/hr/setup');
   }
 
-  const [departments, sections] = await Promise.all([
+  const [departments, sections, divisions, occupations] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: 'asc' } }),
     prisma.hrSection.findMany({ orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }] }),
+    prisma.hrDivision.findMany({ orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }] }),
+    prisma.hrOccupation.findMany({ orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }] }),
   ]);
 
   const serializedDepartments = departments.map((d) => ({
@@ -43,10 +45,26 @@ export default async function HrSetupPage() {
     archivedAt: s.archivedAt ? s.archivedAt.toISOString() : null,
   }));
 
+  const serializedDivisions = divisions.map((d) => ({
+    id: d.id,
+    name: d.name,
+    displayOrder: d.displayOrder,
+    archivedAt: d.archivedAt ? d.archivedAt.toISOString() : null,
+  }));
+
+  const serializedOccupations = occupations.map((o) => ({
+    id: o.id,
+    name: o.name,
+    displayOrder: o.displayOrder,
+    archivedAt: o.archivedAt ? o.archivedAt.toISOString() : null,
+  }));
+
   return (
     <HrSetupClient
       initialDepartments={serializedDepartments}
       initialSections={serializedSections}
+      initialDivisions={serializedDivisions}
+      initialOccupations={serializedOccupations}
       canManageDepartments={canManageDepartments}
       canCreateDepartment={permissions.includes('departments.create')}
       canDeleteDepartment={permissions.includes('departments.delete')}

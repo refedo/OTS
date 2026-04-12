@@ -43,6 +43,7 @@ const schema = z.object({
   departmentId: z.string().optional().or(z.literal('')),
   occupation: z.string().max(120).optional().or(z.literal('')),
   section: z.string().max(60).optional().or(z.literal('')),
+  division: z.string().max(80).optional().or(z.literal('')),
   jobTitleEn: z.string().max(200).optional().or(z.literal('')),
   jobTitleAr: z.string().max(200).optional().or(z.literal('')),
   basicSalary: z.string().optional().or(z.literal('')),
@@ -76,6 +77,8 @@ type Props = {
 };
 
 const SECTION_FALLBACK = ['Preparation', 'Fabrication', 'Other'];
+const DIVISION_FALLBACK: string[] = [];
+const OCCUPATION_FALLBACK: string[] = [];
 
 export function EmployeeForm({
   initial,
@@ -89,6 +92,8 @@ export function EmployeeForm({
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sectionOptions, setSectionOptions] = useState<string[]>(SECTION_FALLBACK);
+  const [divisionOptions, setDivisionOptions] = useState<string[]>(DIVISION_FALLBACK);
+  const [occupationOptions, setOccupationOptions] = useState<string[]>(OCCUPATION_FALLBACK);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +118,48 @@ export function EmployeeForm({
     };
   }, [initial?.section]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/hr/divisions');
+        if (!res.ok) return;
+        const data = (await res.json()) as { name: string; archivedAt: string | null }[];
+        if (cancelled) return;
+        const active = data.filter((s) => !s.archivedAt).map((s) => s.name);
+        const current = initial?.division;
+        const merged = current && !active.includes(current) ? [...active, current] : active;
+        setDivisionOptions(merged);
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initial?.division]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/hr/occupations');
+        if (!res.ok) return;
+        const data = (await res.json()) as { name: string; archivedAt: string | null }[];
+        if (cancelled) return;
+        const active = data.filter((s) => !s.archivedAt).map((s) => s.name);
+        const current = initial?.occupation;
+        const merged = current && !active.includes(current) ? [...active, current] : active;
+        setOccupationOptions(merged);
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initial?.occupation]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -130,6 +177,7 @@ export function EmployeeForm({
       departmentId: initial?.departmentId ?? '',
       occupation: initial?.occupation ?? '',
       section: initial?.section ?? '',
+      division: initial?.division ?? '',
       jobTitleEn: initial?.jobTitleEn ?? '',
       jobTitleAr: initial?.jobTitleAr ?? '',
       basicSalary: initial?.basicSalary ?? '',
@@ -306,10 +354,24 @@ export function EmployeeForm({
               </div>
               <div>
                 <Label>Occupation</Label>
-                <Input
-                  {...form.register('occupation')}
-                  placeholder="e.g. Welder, Fitter"
-                />
+                <Select
+                  value={form.watch('occupation') || '__none__'}
+                  onValueChange={(v) =>
+                    form.setValue('occupation', v === '__none__' ? '' : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select occupation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None —</SelectItem>
+                    {occupationOptions.map((o) => (
+                      <SelectItem key={o} value={o}>
+                        {o}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Section</Label>
@@ -327,6 +389,27 @@ export function EmployeeForm({
                     {sectionOptions.map((s) => (
                       <SelectItem key={s} value={s}>
                         {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Division</Label>
+                <Select
+                  value={form.watch('division') || '__none__'}
+                  onValueChange={(v) =>
+                    form.setValue('division', v === '__none__' ? '' : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select division" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None —</SelectItem>
+                    {divisionOptions.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
                       </SelectItem>
                     ))}
                   </SelectContent>

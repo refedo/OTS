@@ -54,6 +54,7 @@ export default async function EmployeeDetailPage({
     departmentId: employee.departmentId ?? '',
     occupation: employee.occupation ?? '',
     section: employee.section ?? '',
+    division: employee.division ?? '',
     jobTitleEn: employee.jobTitleEn ?? '',
     jobTitleAr: employee.jobTitleAr ?? '',
     basicSalary: canViewCompensation ? employee.basicSalary.toString() : '',
