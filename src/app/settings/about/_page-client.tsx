@@ -147,9 +147,9 @@ const modules = [
     color: 'bg-rose-500',
   },
   {
-    name: 'HR Foundation (Phase 1)',
+    name: 'Human Resources',
     icon: UserCog,
-    description: 'Native employee master data with a one-way read-only Dolibarr mirror. Phase 1 of the HR / Payroll module — makes OTS the single source of truth for the employee master, with preserve-on-edit policy and a one-time identity reconciliation wizard linking existing OTS users to Dolibarr llx_user.',
+    description: 'Native employee master data with a one-way read-only Dolibarr mirror. Makes OTS the single source of truth for the employee master, with preserve-on-edit policy and a one-time identity reconciliation wizard linking existing OTS users to Dolibarr llx_user. Attendance, payroll, and leave management follow in later phases of the HR / Payroll roadmap.',
     features: [
       'Employee CRUD (bilingual EN/AR)',
       'Agencies & Manpower Slots',
