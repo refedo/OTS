@@ -8,7 +8,7 @@ import { ptsSyncService } from '@/lib/services/pts-sync.service';
 import { systemEventService } from '@/services/system-events.service';
 
 // Extend timeout for long-running sync operations
-export const maxDuration = 300; // 5 minutes
+export const maxDuration = 600; // 10 minutes
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
