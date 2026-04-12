@@ -56,6 +56,9 @@ import {
   Plug,
   Cloud,
   MessageCircle,
+  UserCog,
+  UserCheck,
+  Briefcase,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -231,6 +234,18 @@ const navigationSections: NavigationSection[] = [
       { name: 'Create Backlog', href: '/backlog/new', icon: Plus },
       { name: 'Backlog Board', href: '/backlog', icon: Layers },
       { name: 'CEO Control Center', href: '/ceo-control-center', icon: Crown },
+    ],
+  },
+  {
+    name: 'HR Foundation',
+    icon: UserCog,
+    items: [
+      { name: 'Employees', href: '/hr/employees', icon: Users, newSince: '2026-04-12' },
+      { name: 'New Employee', href: '/hr/employees/new', icon: Plus, newSince: '2026-04-12' },
+      { name: 'Dolibarr Sync', href: '/hr/employees/sync', icon: RefreshCw, newSince: '2026-04-12' },
+      { name: 'Agencies', href: '/hr/agencies', icon: Briefcase, newSince: '2026-04-12' },
+      { name: 'Manpower Slots', href: '/hr/manpower-slots', icon: UserCheck, newSince: '2026-04-12' },
+      { name: 'Identity Reconciliation', href: '/admin/identity-reconciliation', icon: Shield, newSince: '2026-04-12' },
     ],
   },
   {

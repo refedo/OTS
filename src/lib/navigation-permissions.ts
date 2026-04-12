@@ -150,6 +150,14 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Dolibarr Integration
   '/dolibarr': ['dolibarr.view'],
 
+  // HR Foundation (Phase 1 of OTS-MSS-HR-PAYROLL-v1)
+  '/hr/employees': ['hr.employee.view'],
+  '/hr/employees/new': ['hr.employee.create'],
+  '/hr/employees/sync': ['hr.employee.sync'],
+  '/hr/agencies': ['hr.agency.view', 'hr.agency.manage'],
+  '/hr/manpower-slots': ['hr.manpowerSlot.view', 'hr.manpowerSlot.manage'],
+  '/admin/identity-reconciliation': ['admin.identity.reconcile'],
+
   // Organization
   '/users': ['users.view'],
   '/roles': ['roles.view'],
