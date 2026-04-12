@@ -26,6 +26,22 @@ const HR_CEO_ONLY_PERMISSIONS = [
   'hr.employee.resetToDolibarr',
 ];
 
+// Regular HR permissions (non-escape-hatch). CEO gets these too so the
+// HR section is visible in the sidebar (sidebar visibility uses the role's
+// navPermissions JSON directly, not the isAdmin-expanded permission set).
+const HR_BASE_PERMISSIONS = [
+  'hr.employee.view',
+  'hr.employee.create',
+  'hr.employee.edit',
+  'hr.employee.delete',
+  'hr.employee.viewCompensation',
+  'hr.employee.sync',
+  'hr.agency.view',
+  'hr.agency.manage',
+  'hr.manpowerSlot.view',
+  'hr.manpowerSlot.manage',
+];
+
 function mergePermissions(existing: unknown, additions: string[]): string[] {
   const current = Array.isArray(existing) ? (existing as string[]) : [];
   const merged = new Set<string>(current);
@@ -63,7 +79,10 @@ async function main() {
   // ---- CEO role: add the super-admin HR escape hatches ----
   const existingCeo = await prisma.role.findUnique({ where: { name: 'CEO' } });
   if (existingCeo) {
-    const merged = mergePermissions(existingCeo.permissions, HR_CEO_ONLY_PERMISSIONS);
+    const merged = mergePermissions(existingCeo.permissions, [
+      ...HR_BASE_PERMISSIONS,
+      ...HR_CEO_ONLY_PERMISSIONS,
+    ]);
     await prisma.role.update({
       where: { id: existingCeo.id },
       data: { permissions: merged },
