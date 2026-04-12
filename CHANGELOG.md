@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.0.1] - 2026-04-12
+
+### PTS Full Sync Performance Fix (Patch)
+
+First patch on top of the v18.0.0 HR / Payroll Module launch. Targets the
+`/api/pts-sync/full-sync` endpoint which had started returning `504 Gateway
+Timeout` (manifesting in the browser as
+`Unexpected token '<', "<!DOCTYPE "... is not valid JSON`) for operators
+running a full sync against production-sized datasets.
+
+#### Fixed
+- **PTS full sync 504 Gateway Timeout** — `calculateProjectStats()` in
+  `src/lib/services/pts-sync.service.ts` was executing 6 sequential DB queries
+  **per building** (4 counts + 2 aggregates), creating
+  `O(projects × buildings)` query count — easily 80+ sequential round-trips
+  for a typical setup. Replaced the N+1 pattern with 3 concurrent queries
+  wrapped in `Promise.all`:
+  1. `assemblyPart.groupBy({ by: ['projectId', 'buildingId', 'source'], ... })`
+     returning part counts and `netWeightTotal` sums in one shot.
+  2. A raw `$queryRawUnsafe` `INNER JOIN` between `ProductionLog` and
+     `AssemblyPart` grouped by `projectId / buildingId / source` so log counts
+     are aggregated server-side in a single round-trip.
+  3. `building.findMany` for the building metadata used during aggregation.
+
+  Results are then aggregated in-memory into per-project and per-building Maps
+  keyed by `projectId` and `${projectId}:${buildingId}`. Stats phase now
+  completes in milliseconds instead of minutes.
+- **PTS full sync route timeout** — `maxDuration` on
+  `src/app/api/pts-sync/full-sync/route.ts` raised from `300s` → `600s`
+  to give very large tenant datasets the headroom they need even after the
+  stats-phase optimisation.
+
+#### Notes
+- No schema, no migrations, no permission changes. Purely a runtime-perf
+  and timeout patch on top of `18.0.0`.
+- The v17.27.0 password-strength indicator, SOA PDF column layout fix, and
+  aging-report partial-payment UX changes are already part of the v18 line —
+  they shipped in commit `44a4962` before the major bump to `18.0.0`.
+
+---
+
 ## [18.0.0] - 2026-04-12
 
 ### HR / Payroll Module Launch — Phase 1: HR Foundation & Master Data (Major)
