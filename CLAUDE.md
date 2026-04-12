@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `18.0.1` — **Patch** on top of the HR / Payroll Module launch (18.0.0). Resolves the `/api/pts-sync/full-sync` 504 timeout by replacing the N+1 per-building stats queries in `calculateProjectStats()` with four concurrent grouped queries (`groupBy` + raw JOIN + in-memory aggregation) and raising the route `maxDuration` to 600s. The 18.0.0 HR Foundation baseline (native Employee/Agency/ManpowerSlot/SystemConfig schema, read-only Dolibarr → OTS employee mirror with preserve-on-edit policy, one-time identity reconciliation wizard, full hr.* permission family, HR CRUD API + UI) remains the v18 line's defining feature.
+**Current version:** `18.1.0` — **Minor:** HR / Payroll Module Phase 2 — Attendance, Leaves & Overtime Ingestion. Adds the AttendanceRecord / PublicHoliday / GoogleSheetAttendanceSyncLog schema, one-way Google Sheets → OTS attendance sync reading the shared Overtime tab (same workbook used by PTS sync), the runAttendanceSync service with Friday 1.5× OT auto-detection and SHA-256 row-hash idempotency, monthly per-worker timesheet with colour-coded day grid, public holidays CRUD, and five new `hr.attendance.*` / `hr.holiday.*` permissions. Sheet-wins policy (no writeback, no preserve-on-edit). Orphan identifiers downgrade runs to PARTIAL without failing the job.
 
 ---
 

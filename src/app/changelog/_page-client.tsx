@@ -23,10 +23,47 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.1.0',
+    date: 'April 12, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'HR / Payroll Module — Phase 2: Attendance, Leaves & Overtime Ingestion',
+    highlights: [
+      'Google Sheet → OTS one-way attendance mirror reads the shared Overtime tab (same workbook used by PTS sync)',
+      'Full attendance domain: PRESENT, AP/ANP absences, AV vacation, SL sick leave, weekends, and public holidays',
+      'Monthly per-worker timesheet with colour-coded day grid, hours totals, and Friday 1.5× OT auto-detection',
+      'Public holidays CRUD with yearly-recurrence flag, bilingual EN/AR naming, and soft delete',
+      'Orphan worker identifiers downgrade runs to PARTIAL — non-fatal so operators can fix the sheet and re-sync',
+      'Sheet-wins policy (no writeback, no preserve-on-edit) — Google remains the source of truth',
+    ],
+    changes: {
+      added: [
+        'Schema: AttendanceRecord, PublicHoliday, GoogleSheetAttendanceSyncLog with WorkerType, AttendanceStatus, AttendanceSyncStatus enums',
+        'Manual migration prisma/manual_migrations/add_attendance_phase_2.sql (additive only, CREATE TABLE IF NOT EXISTS)',
+        'runAttendanceSync service: paginated sheet read, SHA-256 row-hash idempotent upsert, Friday 1.5× OT auto-detection, orphan capture',
+        'POST /api/hr/attendance/sync and GET /api/hr/attendance/sync for trigger + run history',
+        'GET /api/hr/attendance/sync/probe: raw row dump for layout verification against the live Overtime tab',
+        'GET /api/hr/attendance with month/worker/status filters and joined employee + manpower slot data',
+        'Public holidays REST API: GET/POST /api/hr/public-holidays + PUT/DELETE /api/hr/public-holidays/[id]',
+        'HR UI: /hr/attendance monthly list with EN/AR toggle, worker/status filters, and totals footer',
+        'HR UI: /hr/attendance/sync page with Sync now + Probe buttons and per-run orphan drill-down',
+        'HR UI: /hr/attendance/timesheet/[workerType]/[id] colour-coded monthly grid with hover tooltips, stats cards, and month navigation',
+        'HR UI: /hr/public-holidays CRUD with inline add form and recurrence toggle',
+        'Permissions: hr.attendance.view, hr.attendance.sync, hr.attendance.probe, hr.holiday.view, hr.holiday.manage — seeded into the runtime HR role',
+        'Sidebar: HR section now surfaces Attendance, Attendance Sync, and Public Holidays items',
+      ],
+      fixed: [],
+      changed: [
+        'Sheet-wins policy for attendance (unlike Phase 1 preserve-on-edit employee mirror) — Google is source of truth, no writeback',
+        'Version bumped to 18.1.0 — minor bump reflecting Phase 2 feature additions',
+      ],
+    },
+  },
+  {
     version: '18.0.1',
     date: 'April 12, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'v18.0.1 Patch — PTS Full Sync 504 Timeout Fix',
     highlights: [
       'PTS full sync 504 Gateway Timeout fixed — N+1 per-building stats queries replaced with concurrent grouped queries (groupBy + raw JOIN + findMany)',

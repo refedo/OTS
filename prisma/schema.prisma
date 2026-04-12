@@ -198,6 +198,12 @@ model User {
   deletedManpowerSlots   ManpowerSlot[]            @relation("ManpowerSlotDeletedBy")
   triggeredEmployeeSyncs DolibarrEmployeeSyncLog[] @relation("DolibarrEmployeeSyncLogTriggeredBy")
 
+  // HR Phase 2 — Attendance / Public Holiday audit back-relations
+  createdPublicHolidays    PublicHoliday[]                @relation("PublicHolidayCreatedBy")
+  updatedPublicHolidays    PublicHoliday[]                @relation("PublicHolidayUpdatedBy")
+  deletedPublicHolidays    PublicHoliday[]                @relation("PublicHolidayDeletedBy")
+  triggeredAttendanceSyncs GoogleSheetAttendanceSyncLog[] @relation("GoogleSheetAttendanceSyncLogTriggeredBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3930,6 +3936,9 @@ model Employee {
   // Employees will never have an OTS login.
   otsUser User? @relation("UserEmployee")
 
+  // Phase 2: attendance / leaves / overtime from Google Sheet
+  attendanceRecords AttendanceRecord[]
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -3987,6 +3996,9 @@ model ManpowerSlot {
 
   agency Agency @relation(fields: [agencyId], references: [id])
 
+  // Phase 2: attendance / leaves / overtime from Google Sheet
+  attendanceRecords AttendanceRecord[]
+
   createdById  String    @db.Char(36)
   createdBy    User      @relation("ManpowerSlotCreatedBy", fields: [createdById], references: [id])
   updatedById  String?   @db.Char(36)
@@ -4040,4 +4052,118 @@ model SystemConfig {
   createdAt   DateTime @default(now())
 
   @@index([key])
+}
+
+// ============================================================================
+// Phase 2 of OTS-MSS-HR-PAYROLL-v1 — Attendance, Leaves, Overtime
+// One-way Google Sheet → OTS mirror. The sheet stays source of truth for
+// corrections; OTS never writes back.
+// ============================================================================
+
+enum WorkerType {
+  EMPLOYEE // FK to Employee (direct hire, linked to Dolibarr)
+  MANPOWER_SLOT // FK to ManpowerSlot (agency worker)
+}
+
+enum AttendanceStatus {
+  PRESENT // worked any positive number of hours
+  ABSENT_WITH_PERMISSION // AP — approved absence, no hours worked
+  ABSENT_NO_PERMISSION // ANP — unauthorised no-show
+  ANNUAL_VACATION // AV — approved annual leave
+  SICK_LEAVE // SL — sick leave
+  WEEKEND // Friday rest day, no work
+  PUBLIC_HOLIDAY // On a PublicHoliday row and no hours worked
+  UNKNOWN // Cell couldn't be parsed — surfaced as soft warning
+}
+
+enum AttendanceSyncStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+// One row per (worker, date). Mirrors the Google Sheet attendance tab.
+// Uniqueness is enforced per worker per day — re-sync updates in place.
+model AttendanceRecord {
+  id             String           @id @default(uuid()) @db.Char(36)
+  workerType     WorkerType
+  employeeId     String?          @db.Char(36)
+  employee       Employee?        @relation(fields: [employeeId], references: [id])
+  manpowerSlotId String?          @db.Char(36)
+  manpowerSlot   ManpowerSlot?    @relation(fields: [manpowerSlotId], references: [id])
+
+  date            DateTime         @db.Date
+  status          AttendanceStatus
+  regularHours    Decimal          @default(0) @db.Decimal(5, 2)
+  overtimeHours   Decimal          @default(0) @db.Decimal(5, 2)
+  otMultiplier    Decimal          @default(1.00) @db.Decimal(3, 2) // 1.5 for Friday OT, 1.0 for weekday
+  isFriday        Boolean          @default(false)
+  isPublicHoliday Boolean          @default(false)
+
+  // Raw cell values — kept verbatim for audit and re-parsing on schema changes.
+  rawCellA String? @db.VarChar(32) // Absence column (code or hours)
+  rawCellP String? @db.VarChar(32) // Presence column (hours); null for manpower slots (1 col)
+
+  // sha256(employmentId|date|rawCellA|rawCellP) — lets the sync skip unchanged rows.
+  sourceRowHash String @db.Char(64)
+
+  lastImportBatchId String? @db.Char(36)
+  lastImportedAt    DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A worker can only have one record per date. The composite unique includes
+  // both FK columns so Prisma can validate at the client layer too.
+  @@unique([workerType, employeeId, manpowerSlotId, date], name: "uniq_attendance_worker_date")
+  @@index([date])
+  @@index([employeeId, date])
+  @@index([manpowerSlotId, date])
+  @@index([status])
+}
+
+// KSA public holidays. Manual CRUD for now; Phase 3 may pull from a feed.
+model PublicHoliday {
+  id          String  @id @default(uuid()) @db.Char(36)
+  date        DateTime @unique @db.Date
+  nameEn      String   @db.VarChar(200)
+  nameAr      String?  @db.VarChar(200)
+  isRecurring Boolean  @default(false) // annual holiday (e.g. National Day) vs one-off
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("PublicHolidayCreatedBy", fields: [createdById], references: [id])
+  updatedById String?  @db.Char(36)
+  updatedBy   User?    @relation("PublicHolidayUpdatedBy", fields: [updatedById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  deletedById String?  @db.Char(36)
+  deletedBy   User?    @relation("PublicHolidayDeletedBy", fields: [deletedById], references: [id])
+
+  @@index([deletedAt])
+}
+
+// Per-run log for the Google Sheet attendance sync. Mirrors DolibarrEmployeeSyncLog.
+model GoogleSheetAttendanceSyncLog {
+  id              String               @id @default(uuid()) @db.Char(36)
+  startedAt       DateTime             @default(now())
+  finishedAt      DateTime?
+  triggeredById   String               @db.Char(36)
+  triggeredBy     User                 @relation("GoogleSheetAttendanceSyncLogTriggeredBy", fields: [triggeredById], references: [id])
+  status          AttendanceSyncStatus
+  spreadsheetId   String               @db.VarChar(100)
+  tabName         String               @db.VarChar(100)
+  rowsRead        Int                  @default(0)
+  rowsCreated     Int                  @default(0)
+  rowsUpdated     Int                  @default(0)
+  rowsUnchanged   Int                  @default(0)
+  employeeOrphans Json? // [{ identifier, name, firstRowIndex }]
+  slotOrphans     Json? // [{ identifier, name, firstRowIndex }]
+  hardErrors      Json? // [{ row, column, message }]
+  softWarnings    Json? // [{ row, column, message }]
+  durationMs      Int?
+
+  @@index([status])
+  @@index([startedAt])
 }

@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.1.0] - 2026-04-12
+
+### HR / Payroll Module — Phase 2: Attendance, Leaves & Overtime Ingestion (Minor)
+
+Second milestone of `OTS-MSS-HR-PAYROLL-v1`. Teaches OTS to read the existing
+Hexa Steel® Google Sheet workbook (the same spreadsheet that already powers PTS
+sync) and mirror attendance, leaves, absence, and overtime data for both
+employees and manpower slots into native OTS tables. One-way Google → OTS only
+— no writeback. Sheet-wins policy (no preserve-on-edit gymnastics; if the
+sheet changes, OTS follows).
+
+#### Added
+
+- **Schema:** `AttendanceRecord`, `PublicHoliday`, `GoogleSheetAttendanceSyncLog`
+  models with new `WorkerType`, `AttendanceStatus`, and `AttendanceSyncStatus`
+  enums. Composite uniqueness on `(workerType, employeeId|manpowerSlotId, date)`
+  plus indexes on `date`, `employeeId+date`, `manpowerSlotId+date`, `status`.
+- **Sync service** `runAttendanceSync` — reads the `Overtime` tab starting at
+  data row 12, parses worker columns from the `ID-Name` header row (2 cols per
+  employee for A/P, 1 col per manpower slot), recognises AP / ANP / AV / SL
+  absence codes, auto-flags Fridays as 1.5× OT basis, and captures unresolved
+  identifiers in per-run orphan lists. Idempotent via SHA-256 row hash.
+- **Probe endpoint** `GET /api/hr/attendance/sync/probe` — dumps rows 1–25 of
+  the Overtime tab as raw JSON so the parser can be verified against the
+  live sheet without round-tripping deploy cycles.
+- **REST APIs:**
+  - `POST /api/hr/attendance/sync` — trigger a sync run
+  - `GET  /api/hr/attendance/sync` — list the last 50 runs
+  - `GET  /api/hr/attendance` — filterable attendance list (month, workerType,
+    employeeId, manpowerSlotId, status)
+  - `GET/POST  /api/hr/public-holidays`
+  - `PUT/DELETE /api/hr/public-holidays/[id]`
+- **UI pages:**
+  - `/hr/attendance` — monthly filterable list with EN/AR toggle and totals
+  - `/hr/attendance/sync` — Sync now + Probe sheet layout buttons, recent runs
+    history with per-run orphan drill-down
+  - `/hr/attendance/timesheet/[workerType]/[id]?month=YYYY-MM` — colour-coded
+    calendar grid with regular/OT hours, tooltips showing raw A/P cell values,
+    totals cards, and month navigation
+  - `/hr/public-holidays` — CRUD with inline add form, yearly-recurrence toggle,
+    and bilingual naming
+- **Permissions:** `hr.attendance.view`, `hr.attendance.sync`,
+  `hr.attendance.probe`, `hr.holiday.view`, `hr.holiday.manage` — all seeded
+  into the runtime HR role via the extended
+  `scripts/update-hr-role-permissions.ts` patch script.
+- **Sidebar:** HR section now includes Attendance, Attendance Sync, and
+  Public Holidays items, all gated by their respective nav permissions.
+
+#### Changed
+
+- Google Sheets client reused — no new env vars. The attendance sync consumes
+  the existing `GOOGLE_SERVICE_ACCOUNT_KEY` and the hardcoded
+  `ATTENDANCE_SPREADSHEET_ID` constant (the same workbook PTS sync reads).
+- Version bumped to `18.1.0` — minor bump reflecting feature additions without
+  breaking changes.
+
+#### Migration
+
+Ship `prisma/manual_migrations/add_attendance_phase_2.sql` via the existing
+`run-sql-migration.yml` workflow_dispatch action. Schema is additive only —
+no existing-table alterations needed.
+
+---
+
 ## [18.0.1] - 2026-04-12
 
 ### PTS Full Sync Performance Fix (Patch)

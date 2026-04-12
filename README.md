@@ -1,20 +1,27 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 18.0.1 | **Release Date:** April 12, 2026
+**Version:** 18.1.0 | **Release Date:** April 12, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 18.0.1 — PTS Full Sync Performance Patch
+### What's New in 18.1.0 — HR / Payroll Module Phase 2 (Attendance)
+- **Google Sheet → OTS attendance mirror** — one-way sync from the existing Hexa workbook's `Overtime` tab (same spreadsheet PTS sync uses); SHA-256 row-hash idempotency; Friday 1.5× OT auto-detection; orphans go to PARTIAL status, not failure
+- **Full attendance domain** — `AttendanceRecord` covers PRESENT, AP (with permission) / ANP (no permission), AV (annual vacation), SL (sick leave), weekends, and public holidays for both employees and manpower slots
+- **Monthly per-worker timesheet** — `/hr/attendance/timesheet/[workerType]/[id]?month=YYYY-MM` renders a colour-coded calendar grid with hours totals, hover tooltips showing raw A/P cell values, and month navigation
+- **Public holidays CRUD** — `/hr/public-holidays` with yearly-recurrence flag, bilingual EN/AR naming, and soft delete; drives timesheet colouring
+- **Probe endpoint** — `GET /api/hr/attendance/sync/probe` dumps rows 1–25 of the Overtime tab so the parser can be verified against the live sheet without a redeploy cycle
+- **5 new permissions** — `hr.attendance.view`, `hr.attendance.sync`, `hr.attendance.probe`, `hr.holiday.view`, `hr.holiday.manage` — all merged into the runtime HR role
+
+### Also in the v18 Line — 18.0.1 PTS Full Sync Performance Patch
 - **PTS full sync 504 fix** — `calculateProjectStats()` rewritten from N+1 (6 sequential DB queries × buildings) to 3 concurrent grouped queries (`groupBy` for parts, raw SQL `JOIN` for production logs, single `findMany` for buildings) with in-memory aggregation; stats phase now completes in milliseconds instead of minutes
 - **PTS sync route `maxDuration`** — raised from 300s to 600s on `/api/pts-sync/full-sync` to give very large tenants extra headroom
 
-### What's Already in the v18.0.0 Baseline — HR / Payroll Module Launch (Phase 1)
+### What's New in 18.0.0 — HR / Payroll Module Launch (Phase 1)
 - **Native HR schema** — new `Employee`, `Agency`, `ManpowerSlot`, `DolibarrEmployeeSyncLog`, and `SystemConfig` models; every OTS `User` is now linked to an `Employee` row
 - **Dolibarr employee mirror** — one-way read-only sync from `llx_user` with preserve-on-edit policy (`manuallyEditedFields` skip-list) and per-run audit in `DolibarrEmployeeSyncLog`
 - **Identity reconciliation wizard** — one-time `/admin/identity-reconciliation` flow links existing OTS users to their Dolibarr counterparts; first sync is blocked until the gate flips
 - **HR CRUD** — employees, agencies, and manpower slots under `/hr/*` with bilingual EN/AR paired fields, SA IBAN validation (`^SA\d{22}$`), compensation-field gating, and per-employee Reset-to-Dolibarr escape hatch
 - **Permissions** — 11 new `hr.*` permission IDs plus `admin.identity.reconcile`, merged into the existing HR role via a one-shot patch script without overwriting runtime customisations
-- **Major version bump** — marks the transition from steel-fabrication-only ERP to a unified fabrication + workforce platform; Phases 2–4 (Attendance, Payroll + WPS, Manpower Billing) will follow after Phase 1 ships to staging
 
 ### v17.27.0 UX Polish Carried Into the v18 Line
 - **Password strength indicator & visibility toggle** — user create and edit forms show a real-time strength meter (uppercase, lowercase, number, special character rules) and an eye icon to show/hide the password

@@ -195,10 +195,12 @@ export default function AboutOTSPage() {
           <p className="text-muted-foreground">
             <strong>Hexa Steel® OTS™</strong> is a comprehensive Operations Tracking System designed specifically
             for Hexa Steel®. It provides end-to-end project management, production tracking,
-            quality control, and business intelligence capabilities. As of v18.0.0 it also ships the
-            first phase of the native HR / Payroll module — making OTS the single source of truth for the
-            employee master, with a one-way read-only Dolibarr mirror, a one-time identity reconciliation
-            wizard, and full bilingual EN/AR CRUD for employees, agencies, and manpower slots. Other
+            quality control, and business intelligence capabilities. As of v18.1.0 it ships the
+            first two phases of the native HR / Payroll module — Phase 1 makes OTS the single source of
+            truth for the employee master with a one-way Dolibarr mirror and one-time identity
+            reconciliation wizard, and Phase 2 adds Google Sheets → OTS attendance ingestion (reading the
+            shared Overtime tab used by PTS sync) with per-worker monthly timesheets, public holidays
+            CRUD, and AP/ANP/AV/SL absence parsing. Other
             features include smart navigation with Recent Links &amp; Bookmarks, Production Trend analytics
             with Day/Week/Month views, LCR procurement analytics, enhanced task filtering across all
             activity types, a Payment Schedule Report for consolidated cross-project financial collection
