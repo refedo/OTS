@@ -37,13 +37,22 @@ type Manager = {
   role: { name: string };
 };
 
+type EmployeeOption = {
+  id: string;
+  employmentId: string;
+  fullNameEn: string;
+  fullNameAr: string | null;
+  trade: string | null;
+};
+
 type UserCreateFormProps = {
   roles: Role[];
   departments: Department[];
   managers: Manager[];
+  employees: EmployeeOption[];
 };
 
-export function UserCreateForm({ roles, departments: initialDepartments, managers }: UserCreateFormProps) {
+export function UserCreateForm({ roles, departments: initialDepartments, managers, employees }: UserCreateFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,6 +65,7 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
   const [activeTab, setActiveTab] = useState('basic');
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
 
   async function handleAddDepartment() {
     if (!newDeptName.trim()) return;
@@ -89,6 +99,12 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
     setLoading(true);
     setError('');
 
+    if (!selectedEmployeeId) {
+      setError('Please select the employee this user belongs to.');
+      setLoading(false);
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
     const data = {
       name: formData.get('name') as string,
@@ -102,6 +118,7 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
       isAdmin: formData.get('isAdmin') === 'on',
       mobileNumber: formData.get('mobileNumber') as string || null,
       customPermissions: customPermissions.length > 0 ? customPermissions : null,
+      employeeId: selectedEmployeeId,
     };
 
     try {
@@ -286,6 +303,38 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
           </select>
           <p className="text-xs text-muted-foreground">
             Defines user permissions
+          </p>
+        </div>
+
+        {/* Linked Employee (HR Foundation, Phase 1 of OTS-MSS-HR-PAYROLL-v1) */}
+        <div className="space-y-2">
+          <Label htmlFor="employeeId">
+            Linked Employee <span className="text-destructive">*</span>
+          </Label>
+          <select
+            id="employeeId"
+            name="employeeId"
+            required
+            disabled={loading || employees.length === 0}
+            value={selectedEmployeeId}
+            onChange={(e) => setSelectedEmployeeId(e.target.value)}
+            className="w-full h-9 px-3 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          >
+            <option value="">
+              {employees.length === 0
+                ? 'No unlinked employees — create one in /hr/employees first'
+                : 'Select an employee'}
+            </option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.fullNameEn} · {emp.employmentId}
+                {emp.trade ? ` · ${emp.trade}` : ''}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Every OTS user must link to an employee record. Only employees without an
+            existing login are shown.
           </p>
         </div>
 

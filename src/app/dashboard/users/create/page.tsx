@@ -23,13 +23,27 @@ export default async function CreateUserPage() {
     redirect('/login');
   }
 
-  // Fetch roles and departments for the form
-  const [roles, departments] = await Promise.all([
-    db.role.findMany({
+  // Fetch roles, departments, managers, and unlinked employees for the form.
+  // HR Foundation (Phase 1 of OTS-MSS-HR-PAYROLL-v1): every new User must be
+  // linked to an Employee.
+  const [roles, departments, managers, unlinkedEmployees] = await Promise.all([
+    db.role.findMany({ orderBy: { name: 'asc' } }),
+    db.department.findMany({ orderBy: { name: 'asc' } }),
+    db.user.findMany({
+      where: { status: 'active' },
+      select: { id: true, name: true, role: { select: { name: true } } },
       orderBy: { name: 'asc' },
     }),
-    db.department.findMany({
-      orderBy: { name: 'asc' },
+    db.employee.findMany({
+      where: { deletedAt: null, otsUser: null },
+      select: {
+        id: true,
+        employmentId: true,
+        fullNameEn: true,
+        fullNameAr: true,
+        trade: true,
+      },
+      orderBy: { fullNameEn: 'asc' },
     }),
   ]);
 
@@ -60,7 +74,12 @@ export default async function CreateUserPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <UserCreateForm roles={roles} departments={departments} />
+            <UserCreateForm
+              roles={roles}
+              departments={departments}
+              managers={managers}
+              employees={unlinkedEmployees}
+            />
           </CardContent>
         </Card>
       </div>

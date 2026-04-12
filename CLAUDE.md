@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.27.0` — Add: password strength indicator & visibility toggle on user create/edit; Fix: SOA PDF column layout for Remain to Pay/Balance; Fix: aging report shows partial payments clearly
+**Current version:** `17.28.0` — Add: HR Foundation module (Phase 1 of OTS-MSS-HR-PAYROLL-v1) — Employee, Agency, ManpowerSlot, SystemConfig models; Dolibarr → OTS one-way read-only employee mirror with preserve-on-edit; one-time identity reconciliation wizard linking OTS Users to Dolibarr llx_user; HR permissions + CRUD API & UI
 
 ---
 

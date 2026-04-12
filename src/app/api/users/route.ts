@@ -22,7 +22,12 @@ const createSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   isAdmin: z.boolean().optional(),
   mobileNumber: z.string().max(20).nullable().optional(),
-  customPermissions: z.array(z.string()).nullable().optional()
+  customPermissions: z.array(z.string()).nullable().optional(),
+  // HR Foundation (Phase 1 of OTS-MSS-HR-PAYROLL-v1): every new User must be
+  // linked to an Employee row. The UI fills this by letting the admin pick
+  // an unlinked Employee from a dropdown after the one-time identity
+  // reconciliation wizard has completed.
+  employeeId: z.string().uuid()
 });
 
 export async function GET(req: Request) {
@@ -93,17 +98,40 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
 
-  const { password, departmentId, reportsToId, status, isAdmin, mobileNumber, customPermissions, ...rest } = parsed.data;
+  const { password, departmentId, reportsToId, status, isAdmin, mobileNumber, customPermissions, employeeId, ...rest } = parsed.data;
+
+  // Validate the target Employee exists and has no existing linked User
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, deletedAt: null },
+    include: { otsUser: { select: { id: true, name: true, email: true } } },
+  });
+  if (!employee) {
+    return NextResponse.json(
+      { error: 'Selected employee does not exist', code: 'EMPLOYEE_NOT_FOUND' },
+      { status: 400 },
+    );
+  }
+  if (employee.otsUser) {
+    return NextResponse.json(
+      {
+        error: `Employee is already linked to user ${employee.otsUser.name} (${employee.otsUser.email})`,
+        code: 'EMPLOYEE_ALREADY_LINKED',
+      },
+      { status: 409 },
+    );
+  }
+
   const user = await prisma.user.create({
-    data: { 
-      ...rest, 
+    data: {
+      ...rest,
       password: await hashPassword(password),
       departmentId: departmentId || null,
       reportsToId: reportsToId || null,
       status: status || 'active',
       isAdmin: isAdmin || false,
       mobileNumber: mobileNumber || null,
-      customPermissions: customPermissions ?? undefined
+      customPermissions: customPermissions ?? undefined,
+      employeeId,
     },
     include: {
       role: true,
