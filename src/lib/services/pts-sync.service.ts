@@ -1115,102 +1115,143 @@ class PTSSyncService {
    * Calculate sync stats per project
    */
   private async calculateProjectStats(selectedProjects?: string[]): Promise<ProjectSyncStats[]> {
-    const stats: ProjectSyncStats[] = [];
-
     const projects = await prisma.project.findMany({
       where: selectedProjects?.length ? { projectNumber: { in: selectedProjects } } : undefined,
       select: { id: true, projectNumber: true, name: true },
     });
 
-    for (const project of projects) {
-      const totalParts = await prisma.assemblyPart.count({
-        where: { projectId: project.id },
-      });
+    if (projects.length === 0) return [];
+    const projectIds = projects.map(p => p.id);
 
-      const syncedParts = await prisma.assemblyPart.count({
-        where: { projectId: project.id, source: 'PTS' },
-      });
-
-      const totalLogs = await prisma.productionLog.count({
-        where: { assemblyPart: { projectId: project.id } },
-      });
-
-      const syncedLogs = await prisma.productionLog.count({
-        where: { assemblyPart: { projectId: project.id }, source: 'PTS' },
-      });
-
-      // Weight aggregation
-      const totalWeightAgg = await prisma.assemblyPart.aggregate({
-        where: { projectId: project.id },
+    // Run all data-fetching concurrently (4 queries instead of 6+N*6 sequential)
+    const [partGroups, logGroups, buildings] = await Promise.all([
+      // Assembly part counts + weight grouped by project + building + source
+      prisma.assemblyPart.groupBy({
+        by: ['projectId', 'buildingId', 'source'],
+        _count: { _all: true },
         _sum: { netWeightTotal: true },
-      });
-      const syncedWeightAgg = await prisma.assemblyPart.aggregate({
-        where: { projectId: project.id, source: 'PTS' },
-        _sum: { netWeightTotal: true },
-      });
+        where: { projectId: { in: projectIds }, deletedAt: null },
+      }),
+      // Production log counts grouped by project + building + source (requires a join)
+      (async () => {
+        const safeIds = projectIds.map(id => `'${id.replace(/['"\\]/g, '')}'`).join(',');
+        return prisma.$queryRawUnsafe<Array<{
+          projectId: string;
+          buildingId: string | null;
+          source: string;
+          cnt: bigint;
+        }>>(
+          `SELECT ap.projectId, ap.buildingId, pl.source, COUNT(*) as cnt
+           FROM ProductionLog pl
+           INNER JOIN AssemblyPart ap ON pl.assemblyPartId = ap.id
+           WHERE ap.projectId IN (${safeIds}) AND ap.deletedAt IS NULL
+           GROUP BY ap.projectId, ap.buildingId, pl.source`
+        );
+      })(),
+      // All buildings for these projects in one shot
+      prisma.building.findMany({
+        where: { projectId: { in: projectIds } },
+        select: { id: true, name: true, designation: true, projectId: true },
+      }),
+    ]);
 
-      const completionPercent = totalParts > 0 ? Math.round((syncedParts / totalParts) * 100) : 0;
-
-      // Per-building stats
-      const buildings = await prisma.building.findMany({
-        where: { projectId: project.id },
-        select: { id: true, name: true, designation: true },
-      });
-
-      const buildingStats: BuildingSyncStats[] = [];
-      for (const building of buildings) {
-        const bTotalParts = await prisma.assemblyPart.count({
-          where: { projectId: project.id, buildingId: building.id },
-        });
-        const bSyncedParts = await prisma.assemblyPart.count({
-          where: { projectId: project.id, buildingId: building.id, source: 'PTS' },
-        });
-        const bTotalLogs = await prisma.productionLog.count({
-          where: { assemblyPart: { projectId: project.id, buildingId: building.id } },
-        });
-        const bSyncedLogs = await prisma.productionLog.count({
-          where: { assemblyPart: { projectId: project.id, buildingId: building.id }, source: 'PTS' },
-        });
-        const bTotalWeightAgg = await prisma.assemblyPart.aggregate({
-          where: { projectId: project.id, buildingId: building.id },
-          _sum: { netWeightTotal: true },
-        });
-        const bSyncedWeightAgg = await prisma.assemblyPart.aggregate({
-          where: { projectId: project.id, buildingId: building.id, source: 'PTS' },
-          _sum: { netWeightTotal: true },
-        });
-
-        if (bTotalParts > 0 || bSyncedParts > 0) {
-          buildingStats.push({
-            buildingId: building.id,
-            buildingName: building.name,
-            buildingDesignation: building.designation || '',
-            projectNumber: project.projectNumber,
-            totalParts: bTotalParts,
-            syncedParts: bSyncedParts,
-            totalLogs: bTotalLogs,
-            syncedLogs: bSyncedLogs,
-            totalWeight: Number(bTotalWeightAgg._sum.netWeightTotal ?? 0),
-            syncedWeight: Number(bSyncedWeightAgg._sum.netWeightTotal ?? 0),
-          });
-        }
-      }
-
-      stats.push({
-        projectNumber: project.projectNumber,
-        projectName: project.name,
-        totalParts,
-        syncedParts,
-        totalLogs,
-        syncedLogs,
-        completionPercent,
-        totalWeight: Number(totalWeightAgg._sum.netWeightTotal ?? 0),
-        syncedWeight: Number(syncedWeightAgg._sum.netWeightTotal ?? 0),
-        buildings: buildingStats,
-      });
+    // ── Index buildings ──
+    const buildingsByProject = new Map<string, Array<{ id: string; name: string; designation: string | null; projectId: string }>>();
+    for (const b of buildings) {
+      if (!buildingsByProject.has(b.projectId)) buildingsByProject.set(b.projectId, []);
+      buildingsByProject.get(b.projectId)!.push(b);
     }
 
-    return stats;
+    // ── Aggregate part stats by (project) and by (project:building) ──
+    type PartAgg = { total: number; synced: number; totalWeight: number; syncedWeight: number };
+    const projParts = new Map<string, PartAgg>();
+    const bldgParts = new Map<string, PartAgg>();
+
+    for (const row of partGroups) {
+      const count = row._count._all;
+      const weight = Number(row._sum.netWeightTotal ?? 0);
+      const isPTS = row.source === 'PTS';
+
+      if (!projParts.has(row.projectId)) projParts.set(row.projectId, { total: 0, synced: 0, totalWeight: 0, syncedWeight: 0 });
+      const pp = projParts.get(row.projectId)!;
+      pp.total += count;
+      pp.totalWeight += weight;
+      if (isPTS) { pp.synced += count; pp.syncedWeight += weight; }
+
+      if (row.buildingId) {
+        const bk = `${row.projectId}:${row.buildingId}`;
+        if (!bldgParts.has(bk)) bldgParts.set(bk, { total: 0, synced: 0, totalWeight: 0, syncedWeight: 0 });
+        const bp = bldgParts.get(bk)!;
+        bp.total += count;
+        bp.totalWeight += weight;
+        if (isPTS) { bp.synced += count; bp.syncedWeight += weight; }
+      }
+    }
+
+    // ── Aggregate log stats by (project) and by (project:building) ──
+    type LogAgg = { total: number; synced: number };
+    const projLogs = new Map<string, LogAgg>();
+    const bldgLogs = new Map<string, LogAgg>();
+
+    for (const row of logGroups) {
+      const count = Number(row.cnt);
+      const isPTS = row.source === 'PTS';
+
+      if (!projLogs.has(row.projectId)) projLogs.set(row.projectId, { total: 0, synced: 0 });
+      const pl = projLogs.get(row.projectId)!;
+      pl.total += count;
+      if (isPTS) pl.synced += count;
+
+      if (row.buildingId) {
+        const bk = `${row.projectId}:${row.buildingId}`;
+        if (!bldgLogs.has(bk)) bldgLogs.set(bk, { total: 0, synced: 0 });
+        const bl = bldgLogs.get(bk)!;
+        bl.total += count;
+        if (isPTS) bl.synced += count;
+      }
+    }
+
+    // ── Assemble final stats ──
+    return projects.map(project => {
+      const pp = projParts.get(project.id) ?? { total: 0, synced: 0, totalWeight: 0, syncedWeight: 0 };
+      const pl = projLogs.get(project.id) ?? { total: 0, synced: 0 };
+      const completionPercent = pp.total > 0 ? Math.round((pp.synced / pp.total) * 100) : 0;
+
+      const projectBuildings = buildingsByProject.get(project.id) ?? [];
+      const buildingStats: BuildingSyncStats[] = projectBuildings
+        .map(building => {
+          const bk = `${project.id}:${building.id}`;
+          const bp = bldgParts.get(bk) ?? { total: 0, synced: 0, totalWeight: 0, syncedWeight: 0 };
+          const bl = bldgLogs.get(bk) ?? { total: 0, synced: 0 };
+          if (bp.total === 0 && bp.synced === 0) return null;
+          return {
+            buildingId: building.id,
+            buildingName: building.name,
+            buildingDesignation: building.designation ?? '',
+            projectNumber: project.projectNumber,
+            totalParts: bp.total,
+            syncedParts: bp.synced,
+            totalLogs: bl.total,
+            syncedLogs: bl.synced,
+            totalWeight: bp.totalWeight,
+            syncedWeight: bp.syncedWeight,
+          };
+        })
+        .filter((b): b is BuildingSyncStats => b !== null);
+
+      return {
+        projectNumber: project.projectNumber,
+        projectName: project.name,
+        totalParts: pp.total,
+        syncedParts: pp.synced,
+        totalLogs: pl.total,
+        syncedLogs: pl.synced,
+        completionPercent,
+        totalWeight: pp.totalWeight,
+        syncedWeight: pp.syncedWeight,
+        buildings: buildingStats,
+      };
+    });
   }
 
   /**

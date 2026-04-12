@@ -7,32 +7,20 @@ import { APP_VERSION } from '@/lib/version';
 // This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '👷 HR / Payroll Module Launch — Phase 1: HR Foundation & Master Data',
+  mainTitle: '⚡ v18.0.1 Patch — PTS Full Sync 504 Timeout Fix',
   highlights: [
-    'First-ever native HR schema — Employee, Agency, ManpowerSlot, SystemConfig — makes OTS the single source of truth for the employee master',
-    'One-way read-only Dolibarr employee mirror with preserve-on-edit policy (manuallyEditedFields skip-list)',
-    'One-time identity reconciliation wizard at /admin/identity-reconciliation links existing OTS users to Dolibarr llx_user before the first sync runs',
-    'Breaking change: every new User must now link to an unlinked Employee row — the user creation form enforces this',
-    'Major version bump marks the transition from steel-fabrication-only ERP to a unified fabrication + workforce platform',
+    'PTS full sync 504 Gateway Timeout fixed — N+1 per-building stats queries replaced with concurrent grouped queries (groupBy + raw JOIN)',
+    'Stats phase now completes in milliseconds instead of minutes, even on production-sized datasets',
+    '/api/pts-sync/full-sync maxDuration raised from 300s to 600s for additional headroom on very large tenants',
+    'First patch on top of the v18.0.0 HR / Payroll Module Launch — no schema, migration, or permission changes',
   ],
   changes: {
-    added: [
-      'HR schema: Employee, Agency, ManpowerSlot, DolibarrEmployeeSyncLog, SystemConfig models (UUID + AssemblyPart audit pattern)',
-      'HR CRUD UI under /hr/employees, /hr/agencies, /hr/manpower-slots with bilingual EN/AR paired fields and SA IBAN validation',
-      'Employee form: tabbed layout (Personal / Employment / Compensation / Banking) with React-Hook-Form + Zod, compensation-field gating, per-employee Reset-to-Dolibarr escape hatch',
-      '/hr/employees/sync page with sync button + full run history (hidden until reconciliation gate flips)',
-      '/admin/identity-reconciliation one-time wizard with per-row Dolibarr user picker and progress counter',
-      'Dolibarr client extended with getUsers / getUserById / getAllUsers methods',
-      'Preserve-on-edit sync service honouring manuallyEditedFields and writing every run to DolibarrEmployeeSyncLog',
-      '11 new hr.* permissions plus admin.identity.reconcile, merged into the runtime HR role via one-shot patch script',
-      'Bulk manpower-slot creation endpoint generates slot codes like SH-W01..SH-W05 from prefix + start number',
+    added: [],
+    fixed: [
+      'PTS full sync 504 Gateway Timeout: calculateProjectStats() was running 6 sequential DB queries per building (O(projects × buildings)) — replaced with 3 concurrent queries (assemblyPart.groupBy + raw SQL JOIN on ProductionLog + building.findMany) plus in-memory aggregation via per-project and per-building Maps',
+      'PTS full sync route maxDuration raised from 300s to 600s on /api/pts-sync/full-sync for very large datasets',
     ],
-    fixed: [],
-    changed: [
-      'Breaking: POST /api/users now requires an employeeId — returns 400 EMPLOYEE_NOT_FOUND / 409 EMPLOYEE_ALREADY_LINKED on violations',
-      'User creation form now surfaces an unlinked-Employee dropdown and blocks submission until one is selected',
-      'Version bumped to 18.0.0 — major bump reflecting the domain-model expansion and the breaking user-creation contract change',
-    ],
+    changed: [],
   },
 };
 
