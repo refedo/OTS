@@ -12,12 +12,21 @@ A comprehensive Enterprise Resource Planning (ERP) system specifically designed 
 - **Probe endpoint** — `GET /api/hr/attendance/sync/probe` dumps rows 1–25 of the Overtime tab so the parser can be verified against the live sheet without a redeploy cycle
 - **5 new permissions** — `hr.attendance.view`, `hr.attendance.sync`, `hr.attendance.probe`, `hr.holiday.view`, `hr.holiday.manage` — all merged into the runtime HR role
 
+### Also in the v18 Line — 18.0.1 PTS Full Sync Performance Patch
+- **PTS full sync 504 fix** — `calculateProjectStats()` rewritten from N+1 (6 sequential DB queries × buildings) to 3 concurrent grouped queries (`groupBy` for parts, raw SQL `JOIN` for production logs, single `findMany` for buildings) with in-memory aggregation; stats phase now completes in milliseconds instead of minutes
+- **PTS sync route `maxDuration`** — raised from 300s to 600s on `/api/pts-sync/full-sync` to give very large tenants extra headroom
+
 ### What's New in 18.0.0 — HR / Payroll Module Launch (Phase 1)
 - **Native HR schema** — new `Employee`, `Agency`, `ManpowerSlot`, `DolibarrEmployeeSyncLog`, and `SystemConfig` models; every OTS `User` is now linked to an `Employee` row
 - **Dolibarr employee mirror** — one-way read-only sync from `llx_user` with preserve-on-edit policy (`manuallyEditedFields` skip-list) and per-run audit in `DolibarrEmployeeSyncLog`
 - **Identity reconciliation wizard** — one-time `/admin/identity-reconciliation` flow links existing OTS users to their Dolibarr counterparts; first sync is blocked until the gate flips
 - **HR CRUD** — employees, agencies, and manpower slots under `/hr/*` with bilingual EN/AR paired fields, SA IBAN validation (`^SA\d{22}$`), compensation-field gating, and per-employee Reset-to-Dolibarr escape hatch
 - **Permissions** — 11 new `hr.*` permission IDs plus `admin.identity.reconcile`, merged into the existing HR role via a one-shot patch script without overwriting runtime customisations
+
+### v17.27.0 UX Polish Carried Into the v18 Line
+- **Password strength indicator & visibility toggle** — user create and edit forms show a real-time strength meter (uppercase, lowercase, number, special character rules) and an eye icon to show/hide the password
+- **Statement of Account PDF fix** — "Remain to Pay" and "Balance" columns now have explicit widths so they're no longer squeezed; AP (9 cols) and AR (8 cols) modes each have tuned column styles
+- **Aging report partial payments** — expanded invoice rows now clearly display Total, Paid, and Remaining amounts regardless of screen size
 
 
 

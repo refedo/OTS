@@ -60,6 +60,27 @@ const hardcodedVersions: ChangelogVersion[] = [
     },
   },
   {
+    version: '18.0.1',
+    date: 'April 12, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'v18.0.1 Patch — PTS Full Sync 504 Timeout Fix',
+    highlights: [
+      'PTS full sync 504 Gateway Timeout fixed — N+1 per-building stats queries replaced with concurrent grouped queries (groupBy + raw JOIN + findMany)',
+      'Stats phase now completes in milliseconds instead of minutes on production-sized datasets',
+      '/api/pts-sync/full-sync maxDuration raised from 300s to 600s for very large tenants',
+      'First patch on top of the v18.0.0 HR / Payroll Module launch — no schema, migration, or permission changes',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'PTS full sync 504 Gateway Timeout: calculateProjectStats() was running 6 sequential DB queries per building (O(projects × buildings) — easily 80+ sequential round-trips for a typical setup). Replaced with 3 concurrent queries wrapped in Promise.all: assemblyPart.groupBy({ by: ["projectId", "buildingId", "source"] }) for part counts and netWeightTotal sums, a raw $queryRawUnsafe INNER JOIN between ProductionLog and AssemblyPart grouped by project/building/source for log counts, and a single building.findMany for metadata — plus in-memory aggregation via per-project and per-building Maps',
+        'PTS full sync route maxDuration raised from 300s to 600s on /api/pts-sync/full-sync for very large datasets',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '18.0.0',
     date: 'April 12, 2026',
     type: 'major',
@@ -114,13 +135,13 @@ const hardcodedVersions: ChangelogVersion[] = [
     ],
     changes: {
       added: [
-        'Password strength indicator with visual progress bar on user create and edit forms',
+        'Password strength indicator with 5-segment visual progress bar on user create and edit forms',
         'Show/hide password toggle (eye icon) on user create and edit forms',
-        'Backend password validation enforces uppercase, lowercase, number, and special character requirements',
+        'Backend password validation enforces uppercase, lowercase, number, and special character requirements on POST /api/users and PATCH /api/users/[id]',
       ],
       fixed: [
-        'SOA PDF: Remain to Pay and Balance columns were squeezed with no explicit width — now all columns have proper widths for both AP (9 cols) and AR (8 cols)',
-        'Aging report: invoice detail rows now clearly show total amount, amount paid, and remaining balance with proper labels instead of misaligned columns',
+        'Statement of Account PDF: Remain to Pay and Balance columns were squeezed because only columns 0-6 had explicit widths — all 9 (AP) and 8 (AR) columns now have tuned widths with bold styling on key financial columns',
+        'Aging report: expanded invoice rows were showing amounts under misaligned column headers and hiding paid/remaining on mobile — restructured to display Total, Paid, and Remaining clearly at all screen sizes; compact "(X paid)" note beneath remaining on small screens',
       ],
       changed: [],
     },
