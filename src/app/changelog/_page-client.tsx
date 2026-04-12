@@ -23,10 +23,43 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.2.0',
+    version: '18.3.0',
     date: 'April 12, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'HR Setup + Dashboard / Timesheet Polish',
+    highlights: [
+      'New /hr/setup page (Departments + Sections tabs) — rename, reorder, archive, with rename cascading to existing employee records',
+      'HrSection table + Department.archivedAt — the employee form now fetches sections live instead of the hardcoded Preparation / Fabrication / Other list',
+      'hr.section.manage permission, seeded onto existing CEO and HR roles via scripts/update-hr-setup-permissions.ts',
+      'HR Dashboard and Employee Timesheet got a visual refresh — gradient hero header, icon-chipped KPI cards, larger day-grid cells, sticky filter bar',
+    ],
+    changes: {
+      added: [
+        'Schema: new HrSection model + Department.archivedAt for soft-archive',
+        'Manual migration prisma/manual_migrations/add_hr_setup.sql (idempotent, stored-procedure guarded, seeds Preparation / Fabrication / Other)',
+        'API: GET/POST /api/hr/sections and PUT/DELETE /api/hr/sections/[id] — rename cascades via a transaction that updates matching Employee.section strings',
+        'API: new PUT/DELETE /api/departments/[id] with soft archive; GET /api/departments accepts ?includeArchived=true',
+        'UI: /hr/setup tabbed page (Departments + Sections) with inline edit, archive / unarchive, and add rows',
+        'Permission: new hr.section.manage permission under the HR category, added to default HR role bundle',
+        'Script: scripts/update-hr-setup-permissions.ts idempotently merges hr.section.manage onto existing CEO + HR roles',
+        'Sidebar: HR Setup entry added under the HR group',
+        'Nav-permissions map: /hr/setup gated behind departments.create / departments.edit / hr.section.manage (any of)',
+      ],
+      fixed: [],
+      changed: [
+        'Employee form: section dropdown now fetches live from /api/hr/sections, with graceful fallback to the legacy list if the API is unreachable; current employee\'s archived section is preserved so edits never silently drop it',
+        'HR Dashboard: gradient hero header with date-range chip, icon-chipped KPI cards (Headcount / Regular / Overtime / Total) with colored accent bars + gradient day-counter cards, sticky filter bar, tabular numerics, max-width container',
+        'Employee Timesheet: gradient hero header with embedded employee picker, icon-chipped KPI cards, larger day-grid cells with hover elevation, refined status badges',
+        'Version bumped to 18.3.0 — minor bump reflecting the new HR setup page + polish',
+      ],
+    },
+  },
+  {
+    version: '18.2.0',
+    date: 'April 12, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'HR / Payroll Module — Phase 2.5: Dashboard, Timesheet Navigation, Attendance Mapping',
     highlights: [
       'New /hr/dashboard with KPIs, stacked bar + daily trend + absence-mix charts, and occupation/section/department grouping',

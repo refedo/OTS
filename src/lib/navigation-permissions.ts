@@ -164,6 +164,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/attendance/timesheet': ['hr.attendance.view'],
   '/hr/attendance/mapping': ['hr.attendance.sync'],
   '/hr/public-holidays': ['hr.holiday.view', 'hr.holiday.manage'],
+  '/hr/setup': ['departments.create', 'departments.edit', 'hr.section.manage'],
 
   '/admin/identity-reconciliation': ['admin.identity.reconcile'],
 
