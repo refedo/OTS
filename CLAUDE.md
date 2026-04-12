@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `18.1.0` — **Minor:** HR / Payroll Module Phase 2 — Attendance, Leaves & Overtime Ingestion. Adds the AttendanceRecord / PublicHoliday / GoogleSheetAttendanceSyncLog schema, one-way Google Sheets → OTS attendance sync reading the shared Overtime tab (same workbook used by PTS sync), the runAttendanceSync service with Friday 1.5× OT auto-detection and SHA-256 row-hash idempotency, monthly per-worker timesheet with colour-coded day grid, public holidays CRUD, and five new `hr.attendance.*` / `hr.holiday.*` permissions. Sheet-wins policy (no writeback, no preserve-on-edit). Orphan identifiers downgrade runs to PARTIAL without failing the job.
+**Current version:** `18.1.1` — **Patch:** Attendance sheet parser now targets the correct Overtime-tab rows and columns after the first production probe. Header row moved from 10 → 12, data-start row from 12 → 15, first worker column from E → Q. Also fixes a semantics swap between A/P (regular hours) and O.T (overtime hours) — they were previously reversed, routing regular hours into the overtime field and vice-versa. Renames internal `colIndexA` / `colIndexP` → `colIndexAP` / `colIndexOT` for clarity.
 
 ---
 

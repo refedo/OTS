@@ -30,10 +30,10 @@ export async function GET() {
   if (!canProbe) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
-    // Rows 1..25 — everything above and just below the assumed data-start at row 12.
+    // Rows 1..25 — everything above and just below the data-start at row 15.
     const headerBlock = await readAttendanceRange(`${ATTENDANCE_TAB_NAME}!A1:ZZ25`);
-    // Totals row usually sits near the very top; sample separately for clarity.
-    const firstFiveDataRows = headerBlock.slice(11, 16);
+    // Data starts at 0-based index 14 (sheet row 15) — sample the first 5 rows.
+    const firstFiveDataRows = headerBlock.slice(14, 19);
 
     return NextResponse.json({
       spreadsheetId: ATTENDANCE_SPREADSHEET_ID,
@@ -41,12 +41,15 @@ export async function GET() {
       rowCount: headerBlock.length,
       maxCols: headerBlock.reduce((m, r) => Math.max(m, r.length), 0),
       headerBlockRows1to25: headerBlock,
-      firstFiveDataRowsAssumedFrom12: firstFiveDataRows,
+      firstFiveDataRowsAssumedFrom15: firstFiveDataRows,
       notes: [
-        'Rows 1-11 are reporting/header per Walid',
-        'Data expected to start at row 12',
-        'Employees: 2 columns each (A/P = Absence/Presence)',
-        'Manpower slots: 1 column each (no overtime)',
+        'Rows 1-11: reporting / role / category header block',
+        'Row 12: worker name row (e.g. "25-Mustafa Ibrahim", "SH-W1")',
+        'Row 13: monthly totals per worker (ignored)',
+        'Row 14: "Date / Month / Total / …" column labels (ignored)',
+        'Row 15+: daily data',
+        'Col A: date · Col B: month label · Col C-P: daily breakdowns (ignored)',
+        'Col Q+: worker cells — employees 2 cols (A/P + O.T), slots 1 col',
       ],
     });
   } catch (error) {
