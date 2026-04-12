@@ -222,7 +222,7 @@ export function TimesheetClient({
                 const title =
                   (holiday ? `${holiday.nameEn}\n` : '') +
                   (rec
-                    ? `${status}\nRegular: ${rec.regularHours}h\nOT: ${rec.overtimeHours}h (×${rec.otMultiplier})${rec.rawCellP ? `\nP: ${rec.rawCellP}` : ''}${rec.rawCellA ? `\nA: ${rec.rawCellA}` : ''}`
+                    ? `${status}\nRegular: ${rec.regularHours}h\nOT: ${rec.overtimeHours}h (×${rec.otMultiplier})${rec.rawCellA ? `\nA/P: ${rec.rawCellA}` : ''}${rec.rawCellP ? `\nO.T: ${rec.rawCellP}` : ''}`
                     : 'No record');
                 return (
                   <div

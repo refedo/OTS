@@ -5,18 +5,20 @@
  * of the Hexa attendance workbook into OTS `AttendanceRecord`. Triggered
  * manually via the sync UI; idempotent.
  *
- * Sheet layout (per Walid, 2026-04-12):
- *   - Rows 1-11: reporting / designation header block (ignored by sync)
- *   - Row 12+  : one row per date
- *   - Col A    : date (e.g. "Sat-01-11-25")
- *   - Col B    : month (e.g. "11-2025")
- *   - Col C/D  : daily totals (ignored — we re-compute)
- *   - From col E onwards:
- *       * Employees — 2 columns each, labeled A/P (Absence/Presence)
- *       * Manpower slots — 1 column each (no overtime entitlement)
- *   - Header row above each employee/slot pair contains:
- *       "<employmentId>-<Name>" for employees
- *       "<slotCode>" or "<slotCode>-<name>" for manpower slots
+ * Sheet layout (observed from the Overtime tab probe, 2026-04-12):
+ *   - Rows 1-11 : reporting / designation / role header block (ignored)
+ *   - Row 12    : worker-name header row
+ *                   "<employmentId>-<Name>" for employees (2 identical cells — A/P + O.T)
+ *                   "<slotCode>" or "<slotCode>-<name>" for manpower slots (1 cell)
+ *   - Row 13    : per-worker monthly totals (ignored — we re-compute)
+ *   - Row 14    : "Date / Month / Total / …" column labels (ignored)
+ *   - Row 15+   : one row per date
+ *   - Col A     : date (e.g. "Wed-01-1-25")
+ *   - Col B     : month label (e.g. "Wed 1/01", "8-2025")
+ *   - Col C-P   : daily totals / breakdowns (ignored)
+ *   - Col Q+    : per-worker columns
+ *       * Employees — 2 columns each (A/P + O.T)
+ *       * Manpower slots — 1 column each
  *
  * Cell semantics:
  *   - Numeric value → hours worked that slot/day
@@ -27,9 +29,9 @@
  *   - Empty / 0 on a Friday → WEEKEND
  *   - Empty / 0 on any other day → UNKNOWN (soft warning)
  *
- * For employees the two cells (A, P) are combined into a single record:
- *   - P cell holds regular hours worked
- *   - A cell holds overtime hours (OT is logged on top of regular)
+ * For employees the two cells per day are combined into a single record:
+ *   - colIndexAP (first of pair, sheet label "A/P") → regular hours worked
+ *   - colIndexOT (second of pair, sheet label "O.T") → overtime hours on top
  *   - If either cell is an absence code, the row is an absence and hours = 0
  *   - Friday with any positive hours → isFriday=true, otMultiplier=1.5
  *
@@ -52,11 +54,11 @@ import {
 // CONSTANTS
 // ============================================================================
 
-const HEADER_ID_NAME_ROW_INDEX = 9; // 0-based — "25-Mustafa Ibrahim" style row
-const DATA_START_ROW_INDEX = 11;   // 0-based — first daily row (row 12 in sheet)
-const DATE_COL_INDEX = 0;          // col A
-const MONTH_COL_INDEX = 1;         // col B
-const FIRST_WORKER_COL_INDEX = 4;  // col E
+const HEADER_ID_NAME_ROW_INDEX = 11; // 0-based — sheet row 12 ("25-Mustafa Ibrahim")
+const DATA_START_ROW_INDEX = 14;     // 0-based — sheet row 15 (first daily row)
+const DATE_COL_INDEX = 0;            // col A
+const MONTH_COL_INDEX = 1;           // col B
+const FIRST_WORKER_COL_INDEX = 16;   // col Q
 
 // Absence codes the sheet uses. Case-insensitive match on trim.
 const ABSENCE_CODES = new Map<string, AttendanceStatusLiteral>([
@@ -88,8 +90,8 @@ interface WorkerColumn {
   manpowerSlotId: string | null;   // OTS ManpowerSlot.id if resolved
   identifier: string;               // raw identifier from header ("25", "SH-W01", etc.)
   displayName: string;              // raw header text
-  colIndexA: number;                // column index of the "A" cell (or the only cell for slots)
-  colIndexP: number | null;         // column index of the "P" cell (null for manpower slots)
+  colIndexAP: number;               // "A/P" column (regular hours) — the only cell for slots
+  colIndexOT: number | null;        // "O.T" column (overtime hours) — null for manpower slots
   orphan: boolean;                  // true if identifier did not resolve
 }
 
@@ -170,8 +172,8 @@ async function parseWorkerColumns(headerRow: string[]): Promise<WorkerColumn[]> 
         manpowerSlotId: null,
         identifier: employmentId,
         displayName,
-        colIndexA: col,
-        colIndexP: col + 1,
+        colIndexAP: col,
+        colIndexOT: col + 1,
         orphan: !resolved,
       });
       col += 2;
@@ -189,8 +191,8 @@ async function parseWorkerColumns(headerRow: string[]): Promise<WorkerColumn[]> 
         manpowerSlotId: resolved?.id ?? null,
         identifier: slotCode,
         displayName: raw,
-        colIndexA: col,
-        colIndexP: null,
+        colIndexAP: col,
+        colIndexOT: null,
         orphan: !resolved,
       });
       col += 1;
@@ -322,7 +324,7 @@ export async function runAttendanceSync(
       .map((w) => ({
         identifier: w.identifier,
         displayName: w.displayName,
-        headerColumnIndex: w.colIndexA,
+        headerColumnIndex: w.colIndexAP,
       }));
 
     const slotOrphans: Orphan[] = workerColumns
@@ -330,7 +332,7 @@ export async function runAttendanceSync(
       .map((w) => ({
         identifier: w.identifier,
         displayName: w.displayName,
-        headerColumnIndex: w.colIndexA,
+        headerColumnIndex: w.colIndexAP,
       }));
 
     const resolvedColumns = workerColumns.filter((w) => !w.orphan);
@@ -369,11 +371,11 @@ export async function runAttendanceSync(
       const dayIsHoliday = holidaySet.has(isoDate);
 
       for (const worker of resolvedColumns) {
-        const rawA = (row[worker.colIndexA] ?? '').toString();
-        const rawP = worker.colIndexP !== null ? (row[worker.colIndexP] ?? '').toString() : '';
+        const rawAP = (row[worker.colIndexAP] ?? '').toString();
+        const rawOT = worker.colIndexOT !== null ? (row[worker.colIndexOT] ?? '').toString() : '';
 
-        const parsedA = parseCellValue(rawA);
-        const parsedP = worker.colIndexP !== null ? parseCellValue(rawP) : { isNumeric: false, hours: 0, code: null };
+        const parsedAP = parseCellValue(rawAP);
+        const parsedOT = worker.colIndexOT !== null ? parseCellValue(rawOT) : { isNumeric: false, hours: 0, code: null };
 
         // Determine status + hours.
         let status: AttendanceStatusLiteral = 'UNKNOWN';
@@ -382,13 +384,13 @@ export async function runAttendanceSync(
         let otMultiplier = 1.0;
 
         // Any absence code in either cell wins.
-        const absenceCode = parsedA.code ?? parsedP.code ?? null;
+        const absenceCode = parsedAP.code ?? parsedOT.code ?? null;
         if (absenceCode) {
           status = absenceCode;
         } else if (worker.workerType === 'EMPLOYEE') {
-          // Two-cell employee: P = regular hours, A = overtime hours.
-          regularHours = parsedP.isNumeric ? Math.max(0, parsedP.hours) : 0;
-          overtimeHours = parsedA.isNumeric ? Math.max(0, parsedA.hours) : 0;
+          // Two-cell employee: A/P column = regular hours, O.T column = overtime.
+          regularHours = parsedAP.isNumeric ? Math.max(0, parsedAP.hours) : 0;
+          overtimeHours = parsedOT.isNumeric ? Math.max(0, parsedOT.hours) : 0;
           if (regularHours + overtimeHours > 0) {
             status = 'PRESENT';
             if (dayIsFriday) otMultiplier = 1.5;
@@ -400,13 +402,13 @@ export async function runAttendanceSync(
             status = 'UNKNOWN';
             softWarnings.push({
               row: r + 1,
-              column: worker.colIndexA + 1,
+              column: worker.colIndexAP + 1,
               message: `Empty cells for employee ${worker.identifier} on non-Friday ${isoDate}`,
             });
           }
         } else {
           // Manpower slot: single cell, regular hours only.
-          regularHours = parsedA.isNumeric ? Math.max(0, parsedA.hours) : 0;
+          regularHours = parsedAP.isNumeric ? Math.max(0, parsedAP.hours) : 0;
           if (regularHours > 0) {
             status = 'PRESENT';
           } else if (dayIsHoliday) {
@@ -418,7 +420,7 @@ export async function runAttendanceSync(
           }
         }
 
-        const hash = rowHash([worker.identifier, isoDate, rawA, rawP, status, regularHours, overtimeHours]);
+        const hash = rowHash([worker.identifier, isoDate, rawAP, rawOT, status, regularHours, overtimeHours]);
 
         const whereClause: Prisma.AttendanceRecordWhereInput = {
           workerType: worker.workerType,
@@ -444,8 +446,8 @@ export async function runAttendanceSync(
               otMultiplier,
               isFriday: dayIsFriday,
               isPublicHoliday: dayIsHoliday,
-              rawCellA: rawA || null,
-              rawCellP: rawP || null,
+              rawCellA: rawAP || null,
+              rawCellP: rawOT || null,
               sourceRowHash: hash,
               lastImportBatchId: syncLog.id,
               lastImportedAt,
@@ -465,8 +467,8 @@ export async function runAttendanceSync(
               otMultiplier,
               isFriday: dayIsFriday,
               isPublicHoliday: dayIsHoliday,
-              rawCellA: rawA || null,
-              rawCellP: rawP || null,
+              rawCellA: rawAP || null,
+              rawCellP: rawOT || null,
               sourceRowHash: hash,
               lastImportBatchId: syncLog.id,
               lastImportedAt,
