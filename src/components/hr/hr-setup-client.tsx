@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers } from 'lucide-react';
+import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers, Network, Briefcase } from 'lucide-react';
 
 type Department = {
   id: string;
@@ -24,9 +24,18 @@ type HrSection = {
   archivedAt: string | null;
 };
 
+type ManagedListItem = {
+  id: string;
+  name: string;
+  displayOrder: number;
+  archivedAt: string | null;
+};
+
 type Props = {
   initialDepartments: Department[];
   initialSections: HrSection[];
+  initialDivisions: ManagedListItem[];
+  initialOccupations: ManagedListItem[];
   canManageDepartments: boolean;
   canCreateDepartment: boolean;
   canDeleteDepartment: boolean;
@@ -36,6 +45,8 @@ type Props = {
 export function HrSetupClient({
   initialDepartments,
   initialSections,
+  initialDivisions,
+  initialOccupations,
   canManageDepartments,
   canCreateDepartment,
   canDeleteDepartment,
@@ -194,15 +205,18 @@ export function HrSetupClient({
 
   const activeDeptCount = departments.filter((d) => !d.archivedAt).length;
   const activeSectionCount = sections.filter((s) => !s.archivedAt).length;
+  const activeDivisionCount = initialDivisions.filter((d) => !d.archivedAt).length;
+  const activeOccupationCount = initialOccupations.filter((o) => !o.archivedAt).length;
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">HR Setup</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage the dropdown lists used across HR — departments and sections.
-          Archived entries stay in the database so historical employee records
-          stay intact, but they no longer appear in pickers.
+          Manage the dropdown lists used across HR — departments, sections,
+          divisions, and occupations. Archived entries stay in the database so
+          historical employee records stay intact, but they no longer appear in
+          pickers.
         </p>
       </div>
 
@@ -226,6 +240,20 @@ export function HrSetupClient({
             Sections
             <Badge variant="secondary" className="ml-1">
               {activeSectionCount}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="divisions" className="gap-2">
+            <Network className="h-4 w-4" />
+            Divisions
+            <Badge variant="secondary" className="ml-1">
+              {activeDivisionCount}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="occupations" className="gap-2">
+            <Briefcase className="h-4 w-4" />
+            Occupations
+            <Badge variant="secondary" className="ml-1">
+              {activeOccupationCount}
             </Badge>
           </TabsTrigger>
         </TabsList>
@@ -522,7 +550,275 @@ export function HrSetupClient({
             referenced the old name, so existing data stays consistent.
           </p>
         </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* Divisions                                                     */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="divisions" className="space-y-4">
+          <ManagedListTab
+            label="division"
+            pluralLabel="divisions"
+            placeholder="e.g. Production"
+            endpoint="/api/hr/divisions"
+            initialItems={initialDivisions}
+            canManage={canManageSections}
+            onError={setError}
+          />
+        </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* Occupations                                                   */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="occupations" className="space-y-4">
+          <ManagedListTab
+            label="occupation"
+            pluralLabel="occupations"
+            placeholder="e.g. Welder, Fitter"
+            endpoint="/api/hr/occupations"
+            initialItems={initialOccupations}
+            canManage={canManageSections}
+            onError={setError}
+          />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+type ManagedListTabProps = {
+  label: string;
+  pluralLabel: string;
+  placeholder: string;
+  endpoint: string;
+  initialItems: ManagedListItem[];
+  canManage: boolean;
+  onError: (msg: string | null) => void;
+};
+
+function ManagedListTab({
+  label,
+  pluralLabel,
+  placeholder,
+  endpoint,
+  initialItems,
+  canManage,
+  onError,
+}: ManagedListTabProps) {
+  const router = useRouter();
+  const [items, setItems] = useState<ManagedListItem[]>(initialItems);
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editOrder, setEditOrder] = useState(0);
+
+  async function handleApi(fn: () => Promise<Response>, onOk: () => void) {
+    onError(null);
+    try {
+      const res = await fn();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      onOk();
+      router.refresh();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Request failed');
+    }
+  }
+
+  async function refetch() {
+    const res = await fetch(`${endpoint}?includeArchived=true`);
+    if (res.ok) setItems(await res.json());
+  }
+
+  async function createItem() {
+    if (!newName.trim()) return;
+    setCreating(true);
+    await handleApi(
+      () =>
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName.trim() }),
+        }),
+      () => {
+        setNewName('');
+        refetch();
+      },
+    );
+    setCreating(false);
+  }
+
+  async function saveItem(id: string) {
+    await handleApi(
+      () =>
+        fetch(`${endpoint}/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: editName.trim(), displayOrder: editOrder }),
+        }),
+      () => {
+        setEditId(null);
+        refetch();
+      },
+    );
+  }
+
+  async function toggleArchive(id: string, archived: boolean) {
+    await handleApi(
+      () =>
+        fetch(`${endpoint}/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ archived }),
+        }),
+      refetch,
+    );
+  }
+
+  return (
+    <>
+      {canManage && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Add a {label}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex-1 w-full">
+              <Label htmlFor={`new-${label}-name`}>Name</Label>
+              <Input
+                id={`new-${label}-name`}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder={placeholder}
+              />
+            </div>
+            <Button onClick={createItem} disabled={creating || !newName.trim()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="p-3 font-medium">Name</th>
+                <th className="p-3 font-medium w-28">Order</th>
+                <th className="p-3 font-medium w-24">Status</th>
+                <th className="p-3 font-medium w-52 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                    No {pluralLabel} yet.
+                  </td>
+                </tr>
+              )}
+              {items.map((it) => {
+                const isEditing = editId === it.id;
+                const isArchived = !!it.archivedAt;
+                return (
+                  <tr key={it.id} className="border-b last:border-b-0">
+                    <td className="p-3 font-medium">
+                      {isEditing ? (
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
+                      ) : (
+                        <span className={isArchived ? 'text-muted-foreground line-through' : ''}>
+                          {it.name}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-muted-foreground">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          value={editOrder}
+                          onChange={(e) => setEditOrder(Number(e.target.value))}
+                        />
+                      ) : (
+                        it.displayOrder
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {isArchived ? (
+                        <Badge variant="outline" className="bg-gray-100">
+                          Archived
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-50 text-green-800 border-green-200">
+                          Active
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="p-3 text-right space-x-2">
+                      {isEditing ? (
+                        <>
+                          <Button size="sm" onClick={() => saveItem(it.id)}>
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        canManage && (
+                          <>
+                            {!isArchived && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditId(it.id);
+                                  setEditName(it.name);
+                                  setEditOrder(it.displayOrder);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!isArchived ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleArchive(it.id, true)}
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleArchive(it.id, false)}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </>
+                        )
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+
+      <p className="text-xs text-muted-foreground">
+        Renaming a {label} automatically updates every employee record that
+        referenced the old name, so existing data stays consistent.
+      </p>
+    </>
   );
 }

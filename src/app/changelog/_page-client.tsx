@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.3.0',
+    version: '18.4.0',
     date: 'April 12, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Division + Occupation Dropdowns, Sortable Employee List',
+    highlights: [
+      'New HrDivision + HrOccupation managed lists (same shape as HrSection). Employee.division column added.',
+      'Employee form: Occupation is now a live Select, new Division Select sits next to Section. Both preserve archived values on edit.',
+      '/hr/setup gains Divisions + Occupations tabs (reuses a new generic ManagedListTab component). All three lists gated by hr.section.manage.',
+      'Renaming a division or occupation cascades to every employee holding the old value, matching the section pattern.',
+      'Employees list: click-to-sort headers on every column + dynamic "Showing X of Y employees" counter that reacts to filters.',
+    ],
+    changes: {
+      added: [
+        'Schema: new HrDivision + HrOccupation models + Employee.division column',
+        'Manual migration prisma/manual_migrations/add_hr_divisions_and_occupations.sql (stored-procedure guarded, CREATE TABLE IF NOT EXISTS, seeds HrOccupation from existing Employee.occupation values)',
+        'API: GET/POST /api/hr/divisions + PUT/DELETE /api/hr/divisions/[id] with rename cascade via transaction',
+        'API: GET/POST /api/hr/occupations + PUT/DELETE /api/hr/occupations/[id] with rename cascade via transaction',
+        'UI: /hr/setup Divisions + Occupations tabs, powered by a new generic ManagedListTab component',
+        'Employee form: Division Select + Occupation Select, both live-fetched from their new endpoints with archived-value preservation',
+        'Employees list: click-to-sort headers (ID, Name, Trade, Department, Status, Joined, Basic Salary, Sync) with asc/desc toggle and directional icons',
+      ],
+      fixed: [],
+      changed: [
+        'Employee [id] API: division added to updateSchema + TRACKED_SYNC_FIELDS so manual edits survive Dolibarr sync',
+        'Employee create API: division added to createSchema + persisted to the new column',
+        'Employees list counter now reads "Showing X of Y employees" when filters are active, otherwise "N employees total"',
+        'Version bumped to 18.4.0',
+      ],
+    },
+  },
+  {
+    version: '18.3.0',
+    date: 'April 12, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'HR Setup + Dashboard / Timesheet Polish',
     highlights: [
       'New /hr/setup page (Departments + Sections tabs) — rename, reorder, archive, with rename cascading to existing employee records',
