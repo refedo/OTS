@@ -64,18 +64,31 @@ export default async function TimesheetPage({
     workerSubLabel = `${slot.agency?.nameEn ?? 'No agency'}${slot.trade ? ` · ${slot.trade}` : ''}`;
   }
 
-  const records = await prisma.attendanceRecord.findMany({
-    where: {
-      workerType,
-      ...(workerType === 'EMPLOYEE' ? { employeeId: id } : { manpowerSlotId: id }),
-      date: { gte: start, lt: end },
-    },
-    orderBy: { date: 'asc' },
-  });
-
-  const holidays = await prisma.publicHoliday.findMany({
-    where: { deletedAt: null, date: { gte: start, lt: end } },
-  });
+  const [records, holidays, employeePickerList] = await Promise.all([
+    prisma.attendanceRecord.findMany({
+      where: {
+        workerType,
+        ...(workerType === 'EMPLOYEE' ? { employeeId: id } : { manpowerSlotId: id }),
+        date: { gte: start, lt: end },
+      },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.publicHoliday.findMany({
+      where: { deletedAt: null, date: { gte: start, lt: end } },
+    }),
+    prisma.employee.findMany({
+      where: { deletedAt: null, status: 'ACTIVE' },
+      select: {
+        id: true,
+        employmentId: true,
+        fullNameEn: true,
+        fullNameAr: true,
+        trade: true,
+        occupation: true,
+      },
+      orderBy: { fullNameEn: 'asc' },
+    }),
+  ]);
 
   const serialized = records.map((r) => ({
     id: r.id,
@@ -106,6 +119,7 @@ export default async function TimesheetPage({
       month={month}
       records={serialized}
       holidays={holidaysSerialized}
+      employees={employeePickerList}
     />
   );
 }

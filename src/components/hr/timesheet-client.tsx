@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight, Languages } from 'lucide-react';
+import { EmployeePicker, type EmployeePickerOption } from '@/components/hr/employee-picker';
 
 type AttendanceRow = {
   id: string;
@@ -31,6 +32,7 @@ type Props = {
   month: string;
   records: AttendanceRow[];
   holidays: Holiday[];
+  employees?: EmployeePickerOption[];
 };
 
 const STATUS_COLOURS: Record<string, string> = {
@@ -78,6 +80,7 @@ export function TimesheetClient({
   month,
   records,
   holidays,
+  employees = [],
 }: Props) {
   const router = useRouter();
   const [showArabic, setShowArabic] = useState(false);
@@ -121,6 +124,11 @@ export function TimesheetClient({
     router.push(`/hr/attendance/timesheet/${workerType}/${workerId}?month=${next}`);
   };
 
+  const gotoEmployee = (nextEmployeeId: string | null) => {
+    if (!nextEmployeeId || nextEmployeeId === workerId) return;
+    router.push(`/hr/attendance/timesheet/EMPLOYEE/${nextEmployeeId}?month=${month}`);
+  };
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -140,7 +148,16 @@ export function TimesheetClient({
             <p className="text-sm text-muted-foreground">{workerSubLabel}</p>
           </div>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
+          {workerType === 'EMPLOYEE' && employees.length > 0 && (
+            <EmployeePicker
+              employees={employees}
+              value={workerId}
+              onChange={gotoEmployee}
+              placeholder="Jump to employee…"
+              triggerWidth="w-[260px]"
+            />
+          )}
           {workerArLabel && (
             <Button variant="outline" size="sm" onClick={() => setShowArabic((v) => !v)}>
               <Languages className="mr-2 h-4 w-4" />
