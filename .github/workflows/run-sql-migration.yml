@@ -49,7 +49,21 @@ jobs:
             fi
 
             echo "Running migration: $MIGRATION_FILE"
-            source "$APP_DIR/.env"
+
+            # Extract DATABASE_URL directly from .env without sourcing the whole file.
+            # Sourcing fails when .env contains JSON values (e.g. GOOGLE_SERVICE_ACCOUNT_KEY)
+            # because bash tries to interpret the colons/braces as shell syntax.
+            DATABASE_URL=$(grep -E '^DATABASE_URL=' "$APP_DIR/.env" | head -1 | cut -d '=' -f 2-)
+            # Strip surrounding single or double quotes if present
+            DATABASE_URL="${DATABASE_URL%\"}"
+            DATABASE_URL="${DATABASE_URL#\"}"
+            DATABASE_URL="${DATABASE_URL%\'}"
+            DATABASE_URL="${DATABASE_URL#\'}"
+
+            if [ -z "$DATABASE_URL" ]; then
+              echo "ERROR: DATABASE_URL not found in $APP_DIR/.env"
+              exit 1
+            fi
 
             # Extract connection details from DATABASE_URL
             # Expected format: mysql://user:password@host:port/database
