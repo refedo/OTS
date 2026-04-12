@@ -92,7 +92,8 @@ interface WorkerColumn {
   displayName: string;              // raw header text
   colIndexAP: number;               // "A/P" column (regular hours) — the only cell for slots
   colIndexOT: number | null;        // "O.T" column (overtime hours) — null for manpower slots
-  orphan: boolean;                  // true if identifier did not resolve
+  orphan: boolean;                  // true if identifier did not resolve directly or via a RESOLVED candidate
+  candidateStatus: 'NONE' | 'UNMAPPED' | 'RESOLVED' | 'IGNORED';
 }
 
 type HardError = { row: number; column?: number; message: string };
@@ -108,6 +109,9 @@ export interface AttendanceSyncResult {
   rowsUnchanged: number;
   employeeOrphans: Orphan[];
   slotOrphans: Orphan[];
+  candidatesCreated: number;
+  candidatesResolved: number;
+  candidatesIgnored: number;
   hardErrors: HardError[];
   softWarnings: SoftWarning[];
   durationMs: number;
@@ -140,7 +144,7 @@ async function parseWorkerColumns(headerRow: string[]): Promise<WorkerColumn[]> 
   const columns: WorkerColumn[] = [];
 
   // Resolve maps for FK lookups — one DB round-trip each.
-  const [employees, slots] = await Promise.all([
+  const [employees, slots, candidates] = await Promise.all([
     prisma.employee.findMany({
       where: { deletedAt: null },
       select: { id: true, employmentId: true, fullNameEn: true },
@@ -149,9 +153,20 @@ async function parseWorkerColumns(headerRow: string[]): Promise<WorkerColumn[]> 
       where: { deletedAt: null },
       select: { id: true, slotCode: true, trade: true },
     }),
+    prisma.attendanceMappingCandidate.findMany({
+      select: {
+        identifier: true,
+        workerType: true,
+        status: true,
+        resolvedEmployeeId: true,
+      },
+    }),
   ]);
   const employeeByEmploymentId = new Map(employees.map((e) => [e.employmentId, e]));
   const slotBySlotCode = new Map(slots.map((s) => [s.slotCode.toUpperCase(), s]));
+  const candidateByKey = new Map(
+    candidates.map((c) => [`${c.workerType}|${c.identifier}`, c]),
+  );
 
   let col = FIRST_WORKER_COL_INDEX;
   while (col < headerRow.length) {
@@ -166,15 +181,27 @@ async function parseWorkerColumns(headerRow: string[]): Promise<WorkerColumn[]> 
       const employmentId = employeeMatch[1];
       const displayName = raw;
       const resolved = employeeByEmploymentId.get(employmentId);
+      const candidate = candidateByKey.get(`EMPLOYEE|${employmentId}`);
+      // If we can't match the employmentId directly, see if a RESOLVED mapping
+      // candidate points this identifier at an existing Employee.
+      let employeeId: string | null = resolved?.id ?? null;
+      let candidateStatus: WorkerColumn['candidateStatus'] = 'NONE';
+      if (candidate) {
+        candidateStatus = candidate.status as WorkerColumn['candidateStatus'];
+        if (!employeeId && candidate.status === 'RESOLVED' && candidate.resolvedEmployeeId) {
+          employeeId = candidate.resolvedEmployeeId;
+        }
+      }
       columns.push({
         workerType: 'EMPLOYEE',
-        employeeId: resolved?.id ?? null,
+        employeeId,
         manpowerSlotId: null,
         identifier: employmentId,
         displayName,
         colIndexAP: col,
         colIndexOT: col + 1,
-        orphan: !resolved,
+        orphan: !employeeId,
+        candidateStatus,
       });
       col += 2;
       continue;
@@ -185,6 +212,9 @@ async function parseWorkerColumns(headerRow: string[]): Promise<WorkerColumn[]> 
     if (slotMatch) {
       const slotCode = slotMatch[1].toUpperCase();
       const resolved = slotBySlotCode.get(slotCode);
+      const candidate = candidateByKey.get(`MANPOWER_SLOT|${slotCode}`);
+      let candidateStatus: WorkerColumn['candidateStatus'] = 'NONE';
+      if (candidate) candidateStatus = candidate.status as WorkerColumn['candidateStatus'];
       columns.push({
         workerType: 'MANPOWER_SLOT',
         employeeId: null,
@@ -194,6 +224,7 @@ async function parseWorkerColumns(headerRow: string[]): Promise<WorkerColumn[]> 
         colIndexAP: col,
         colIndexOT: null,
         orphan: !resolved,
+        candidateStatus,
       });
       col += 1;
       continue;
@@ -319,8 +350,70 @@ export async function runAttendanceSync(
     const headerRow = rows[HEADER_ID_NAME_ROW_INDEX] ?? [];
     const workerColumns = await parseWorkerColumns(headerRow);
 
+    // ----------------------------------------------------------------
+    // Phase 2.5 mapping candidate accounting.
+    //   - IGNORED: silently skipped, no attendance rows written.
+    //   - RESOLVED: picked up by parseWorkerColumns() via resolvedEmployeeId.
+    //   - UNMAPPED or NONE (never seen before): upsert a candidate row so
+    //     it shows up in /hr/attendance/mapping for a human to link or
+    //     ignore. These columns are NOT processed this run (no FK target).
+    // ----------------------------------------------------------------
+    let candidatesCreated = 0;
+    let candidatesResolved = 0;
+    let candidatesIgnored = 0;
+
+    for (const w of workerColumns) {
+      if (w.candidateStatus === 'IGNORED') {
+        candidatesIgnored += 1;
+      } else if (w.candidateStatus === 'RESOLVED' && !w.orphan) {
+        candidatesResolved += 1;
+      }
+    }
+
+    // Upsert candidates for orphan columns (UNMAPPED or first-seen).
+    const now = new Date();
+    for (const w of workerColumns) {
+      if (!w.orphan) continue;
+      if (w.candidateStatus === 'IGNORED') continue;
+      try {
+        const result = await prisma.attendanceMappingCandidate.upsert({
+          where: {
+            uniq_candidate_identifier: {
+              identifier: w.identifier,
+              workerType: w.workerType,
+            },
+          },
+          create: {
+            identifier: w.identifier,
+            workerType: w.workerType,
+            displayName: w.displayName,
+            status: 'UNMAPPED',
+            firstSeenAt: now,
+            lastSeenAt: now,
+            firstSeenSyncId: syncLog.id,
+            lastSeenSyncId: syncLog.id,
+          },
+          update: {
+            displayName: w.displayName,
+            lastSeenAt: now,
+            lastSeenSyncId: syncLog.id,
+          },
+        });
+        // Prisma upsert doesn't tell us create vs update — compare timestamps.
+        if (result.firstSeenSyncId === syncLog.id && w.candidateStatus === 'NONE') {
+          candidatesCreated += 1;
+        }
+      } catch (err) {
+        softWarnings.push({
+          row: HEADER_ID_NAME_ROW_INDEX + 1,
+          column: w.colIndexAP + 1,
+          message: `Failed to upsert mapping candidate ${w.workerType}/${w.identifier}: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+    }
+
     const employeeOrphans: Orphan[] = workerColumns
-      .filter((w) => w.workerType === 'EMPLOYEE' && w.orphan)
+      .filter((w) => w.workerType === 'EMPLOYEE' && w.orphan && w.candidateStatus !== 'IGNORED')
       .map((w) => ({
         identifier: w.identifier,
         displayName: w.displayName,
@@ -328,14 +421,18 @@ export async function runAttendanceSync(
       }));
 
     const slotOrphans: Orphan[] = workerColumns
-      .filter((w) => w.workerType === 'MANPOWER_SLOT' && w.orphan)
+      .filter((w) => w.workerType === 'MANPOWER_SLOT' && w.orphan && w.candidateStatus !== 'IGNORED')
       .map((w) => ({
         identifier: w.identifier,
         displayName: w.displayName,
         headerColumnIndex: w.colIndexAP,
       }));
 
-    const resolvedColumns = workerColumns.filter((w) => !w.orphan);
+    // Only process resolved columns (direct match or RESOLVED candidate);
+    // IGNORED columns are dropped entirely.
+    const resolvedColumns = workerColumns.filter(
+      (w) => !w.orphan && w.candidateStatus !== 'IGNORED',
+    );
 
     // Load public holidays once and index by ISO date (YYYY-MM-DD).
     const holidays = await prisma.publicHoliday.findMany({
@@ -495,6 +592,9 @@ export async function runAttendanceSync(
         rowsCreated,
         rowsUpdated,
         rowsUnchanged,
+        candidatesCreated,
+        candidatesResolved,
+        candidatesIgnored,
         employeeOrphans: employeeOrphans as unknown as Prisma.InputJsonValue,
         slotOrphans: slotOrphans as unknown as Prisma.InputJsonValue,
         hardErrors: hardErrors as unknown as Prisma.InputJsonValue,
@@ -512,6 +612,9 @@ export async function runAttendanceSync(
         rowsUpdated,
         rowsUnchanged,
         orphans: employeeOrphans.length + slotOrphans.length,
+        candidatesCreated,
+        candidatesResolved,
+        candidatesIgnored,
         durationMs,
       },
       '[Attendance Sync] Completed',
@@ -526,6 +629,9 @@ export async function runAttendanceSync(
       rowsUnchanged,
       employeeOrphans,
       slotOrphans,
+      candidatesCreated,
+      candidatesResolved,
+      candidatesIgnored,
       hardErrors,
       softWarnings,
       durationMs,
@@ -554,6 +660,9 @@ export async function runAttendanceSync(
       rowsUnchanged: 0,
       employeeOrphans: [],
       slotOrphans: [],
+      candidatesCreated: 0,
+      candidatesResolved: 0,
+      candidatesIgnored: 0,
       hardErrors: [{ row: 0, message }],
       softWarnings: [],
       durationMs,
