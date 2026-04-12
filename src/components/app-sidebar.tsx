@@ -254,6 +254,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Manpower Slots', href: '/hr/manpower-slots', icon: UserCheck, newSince: '2026-04-12' },
       { name: 'Public Holidays', href: '/hr/public-holidays', icon: CalendarClock, newSince: '2026-04-12' },
       { name: 'Identity Reconciliation', href: '/admin/identity-reconciliation', icon: Shield, newSince: '2026-04-12' },
+      { name: 'HR Setup', href: '/hr/setup', icon: UserCog, newSince: '2026-04-12' },
     ],
   },
   {

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
@@ -6,16 +6,21 @@ import { verifySession } from '@/lib/jwt';
 
 const createSchema = z.object({ name: z.string().min(2), description: z.string().optional() });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? verifySession(token) : null;
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const includeArchived = req.nextUrl.searchParams.get('includeArchived') === 'true';
+
   const { getCurrentUserPermissions } = await import('@/lib/permission-checker');
   const userPermissions = await getCurrentUserPermissions();
   if (userPermissions.includes('departments.view')) {
-    const items = await prisma.department.findMany({ orderBy: { name: 'asc' } });
+    const items = await prisma.department.findMany({
+      where: includeArchived ? {} : { archivedAt: null },
+      orderBy: { name: 'asc' },
+    });
     return NextResponse.json(items);
   }
 
@@ -23,7 +28,8 @@ export async function GET() {
   const me = await prisma.user.findUnique({ where: { id: session.sub } });
   if (!me?.departmentId) return NextResponse.json([]);
   const dep = await prisma.department.findUnique({ where: { id: me.departmentId } });
-  return NextResponse.json(dep ? [dep] : []);
+  if (!dep || (!includeArchived && dep.archivedAt)) return NextResponse.json([]);
+  return NextResponse.json([dep]);
 }
 
 export async function POST(req: Request) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -75,7 +75,7 @@ type Props = {
   departments?: { id: string; name: string }[];
 };
 
-const SECTION_OPTIONS = ['Preparation', 'Fabrication', 'Other'] as const;
+const SECTION_FALLBACK = ['Preparation', 'Fabrication', 'Other'];
 
 export function EmployeeForm({
   initial,
@@ -88,6 +88,30 @@ export function EmployeeForm({
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sectionOptions, setSectionOptions] = useState<string[]>(SECTION_FALLBACK);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/hr/sections');
+        if (!res.ok) return;
+        const data = (await res.json()) as { name: string; archivedAt: string | null }[];
+        if (cancelled) return;
+        const active = data.filter((s) => !s.archivedAt).map((s) => s.name);
+        // Preserve the current employee's section even if it's been archived,
+        // so the dropdown doesn't silently drop it on edit.
+        const current = initial?.section;
+        const merged = current && !active.includes(current) ? [...active, current] : active;
+        if (merged.length > 0) setSectionOptions(merged);
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initial?.section]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -300,7 +324,7 @@ export function EmployeeForm({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">— None —</SelectItem>
-                    {SECTION_OPTIONS.map((s) => (
+                    {sectionOptions.map((s) => (
                       <SelectItem key={s} value={s}>
                         {s}
                       </SelectItem>

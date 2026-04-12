@@ -338,6 +338,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.attendance.probe', name: 'Probe Attendance Sheet', description: 'Dump raw Google Sheet rows for debugging the parser', category: 'hr' },
       { id: 'hr.holiday.view', name: 'View Public Holidays', description: 'View the public holiday calendar', category: 'hr' },
       { id: 'hr.holiday.manage', name: 'Manage Public Holidays', description: 'Create, edit, and delete public holiday entries', category: 'hr' },
+      { id: 'hr.section.manage', name: 'Manage HR Sections', description: 'Create, rename, reorder, and archive HR section dropdown options (Preparation / Fabrication / Other)', category: 'hr' },
     ],
   },
   {
@@ -412,6 +413,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.attendance.probe',
     'hr.holiday.view',
     'hr.holiday.manage',
+    'hr.section.manage',
   ],
   Manager: [
     // User Management
