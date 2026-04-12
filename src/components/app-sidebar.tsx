@@ -61,6 +61,7 @@ import {
   Briefcase,
   CalendarDays,
   GitMerge,
+  Banknote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -253,6 +254,8 @@ const navigationSections: NavigationSection[] = [
       { name: 'Agencies', href: '/hr/agencies', icon: Briefcase, newSince: '2026-04-12' },
       { name: 'Manpower Slots', href: '/hr/manpower-slots', icon: UserCheck, newSince: '2026-04-12' },
       { name: 'Public Holidays', href: '/hr/public-holidays', icon: CalendarClock, newSince: '2026-04-12' },
+      { name: 'Leaves', href: '/hr/leaves', icon: CalendarClock, newSince: '2026-04-12' },
+      { name: 'Payroll', href: '/hr/payroll', icon: Banknote, newSince: '2026-04-12' },
       { name: 'Identity Reconciliation', href: '/admin/identity-reconciliation', icon: Shield, newSince: '2026-04-12' },
       { name: 'HR Setup', href: '/hr/setup', icon: UserCog, newSince: '2026-04-12' },
     ],

@@ -67,6 +67,8 @@ export default async function EmployeeDetailPage({
     workWeekDaysCount: employee.workWeekDaysCount,
     bankName: canViewCompensation ? (employee.bankName ?? '') : '',
     bankIban: canViewCompensation ? (employee.bankIban ?? '') : '',
+    isGosiSubject: canViewCompensation ? employee.isGosiSubject : false,
+    gosiSalary: canViewCompensation && employee.gosiSalary ? employee.gosiSalary.toString() : '',
     manuallyEditedFields: Array.isArray(employee.manuallyEditedFields)
       ? (employee.manuallyEditedFields as string[])
       : [],

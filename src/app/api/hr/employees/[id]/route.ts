@@ -27,6 +27,8 @@ const COMPENSATION_FIELDS = [
   'otherAllowances',
   'bankName',
   'bankIban',
+  'gosiSalary',
+  'isGosiSubject',
 ] as const;
 
 function stripCompensation<T extends Record<string, unknown>>(row: T): T {
@@ -67,6 +69,8 @@ const updateSchema = z.object({
     .regex(/^SA\d{22}$/, 'IBAN must be SA + 22 digits')
     .nullable()
     .optional(),
+  isGosiSubject: z.boolean().optional(),
+  gosiSalary: z.union([z.string(), z.number()]).nullable().optional(),
   deleteReason: z.string().max(500).optional(),
 });
 
@@ -88,6 +92,8 @@ const TRACKED_SYNC_FIELDS = [
   'basicSalary',
   'bankName',
   'bankIban',
+  'isGosiSubject',
+  'gosiSalary',
 ] as const;
 
 async function getSessionOrUnauthorized() {
@@ -173,6 +179,8 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
       key === 'otherAllowances'
     ) {
       updateData[key] = String(value);
+    } else if (key === 'gosiSalary') {
+      updateData[key] = value === null ? null : String(value);
     } else {
       updateData[key] = value;
     }
