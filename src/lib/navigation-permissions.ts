@@ -156,6 +156,12 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/employees/sync': ['hr.employee.sync'],
   '/hr/agencies': ['hr.agency.view', 'hr.agency.manage'],
   '/hr/manpower-slots': ['hr.manpowerSlot.view', 'hr.manpowerSlot.manage'],
+
+  // HR Attendance (Phase 2 of OTS-MSS-HR-PAYROLL-v1)
+  '/hr/attendance': ['hr.attendance.view'],
+  '/hr/attendance/sync': ['hr.attendance.view'],
+  '/hr/public-holidays': ['hr.holiday.view', 'hr.holiday.manage'],
+
   '/admin/identity-reconciliation': ['admin.identity.reconcile'],
 
   // Organization

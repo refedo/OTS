@@ -30,6 +30,7 @@ const HR_CEO_ONLY_PERMISSIONS = [
 // HR section is visible in the sidebar (sidebar visibility uses the role's
 // navPermissions JSON directly, not the isAdmin-expanded permission set).
 const HR_BASE_PERMISSIONS = [
+  // Phase 1 — Master data
   'hr.employee.view',
   'hr.employee.create',
   'hr.employee.edit',
@@ -40,6 +41,12 @@ const HR_BASE_PERMISSIONS = [
   'hr.agency.manage',
   'hr.manpowerSlot.view',
   'hr.manpowerSlot.manage',
+  // Phase 2 — Attendance / Leaves / Overtime
+  'hr.attendance.view',
+  'hr.attendance.sync',
+  'hr.attendance.probe',
+  'hr.holiday.view',
+  'hr.holiday.manage',
 ];
 
 function mergePermissions(existing: unknown, additions: string[]): string[] {

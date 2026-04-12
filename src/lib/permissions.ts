@@ -333,6 +333,11 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.agency.manage', name: 'Manage Agencies', description: 'Create, edit, and soft-delete manpower agencies', category: 'hr' },
       { id: 'hr.manpowerSlot.view', name: 'View Manpower Slots', description: 'View manpower slot list (agency card codes, hourly rates)', category: 'hr' },
       { id: 'hr.manpowerSlot.manage', name: 'Manage Manpower Slots', description: 'Create, edit, bulk-create, and soft-delete manpower slots', category: 'hr' },
+      { id: 'hr.attendance.view', name: 'View Attendance', description: 'View attendance records for all workers', category: 'hr' },
+      { id: 'hr.attendance.sync', name: 'Sync Attendance from Google Sheet', description: 'Trigger the Google Sheet → OTS attendance mirror', category: 'hr' },
+      { id: 'hr.attendance.probe', name: 'Probe Attendance Sheet', description: 'Dump raw Google Sheet rows for debugging the parser', category: 'hr' },
+      { id: 'hr.holiday.view', name: 'View Public Holidays', description: 'View the public holiday calendar', category: 'hr' },
+      { id: 'hr.holiday.manage', name: 'Manage Public Holidays', description: 'Create, edit, and delete public holiday entries', category: 'hr' },
     ],
   },
   {
@@ -401,6 +406,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.agency.manage',
     'hr.manpowerSlot.view',
     'hr.manpowerSlot.manage',
+    // Phase 2 — Attendance / Leaves / Overtime
+    'hr.attendance.view',
+    'hr.attendance.sync',
+    'hr.attendance.probe',
+    'hr.holiday.view',
+    'hr.holiday.manage',
   ],
   Manager: [
     // User Management
