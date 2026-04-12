@@ -29,6 +29,11 @@ export default async function EmployeeDetailPage({
   });
   if (!employee) notFound();
 
+  const departments = await prisma.department.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
   const initial = {
     id: employee.id,
     employmentId: employee.employmentId,
@@ -46,6 +51,9 @@ export default async function EmployeeDetailPage({
     status: employee.status,
     trade: employee.trade ?? '',
     department: employee.department ?? '',
+    departmentId: employee.departmentId ?? '',
+    occupation: employee.occupation ?? '',
+    section: employee.section ?? '',
     jobTitleEn: employee.jobTitleEn ?? '',
     jobTitleAr: employee.jobTitleAr ?? '',
     basicSalary: canViewCompensation ? employee.basicSalary.toString() : '',
@@ -78,6 +86,7 @@ export default async function EmployeeDetailPage({
         initial={initial}
         canViewCompensation={canViewCompensation}
         canResetToDolibarr={canResetToDolibarr}
+        departments={departments}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect } from 'next/navigation';
+import prisma from '@/lib/db';
 import { checkPermission, getCurrentUserPermissions } from '@/lib/permission-checker';
 import { EmployeeForm } from '@/components/hr/employee-form';
 
@@ -17,6 +18,11 @@ export default async function NewEmployeePage() {
   const permissions = await getCurrentUserPermissions();
   const canViewCompensation = permissions.includes('hr.employee.viewCompensation');
 
+  const departments = await prisma.department.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-4">
       <h1 className="text-2xl font-semibold">New Employee</h1>
@@ -24,6 +30,7 @@ export default async function NewEmployeePage() {
         initial={null}
         canViewCompensation={canViewCompensation}
         canResetToDolibarr={false}
+        departments={departments}
       />
     </div>
   );
