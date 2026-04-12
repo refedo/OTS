@@ -237,7 +237,7 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
-    name: 'HR Foundation',
+    name: 'HR',
     icon: UserCog,
     items: [
       { name: 'Employees', href: '/hr/employees', icon: Users, newSince: '2026-04-12' },
