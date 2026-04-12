@@ -14,7 +14,7 @@
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1. Employee.occupation + Employee.section
+-- 1. Employee.occupation + Employee.section + Employee.departmentId (FK)
 -- ---------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS add_hr_phase_2_5_employee;
 DELIMITER $$
@@ -38,6 +38,22 @@ BEGIN
   ) THEN
     ALTER TABLE `Employee` ADD COLUMN `section` VARCHAR(60) NULL;
     ALTER TABLE `Employee` ADD INDEX `idx_employee_section` (`section`);
+  END IF;
+
+  -- departmentId FK → Department.id. The legacy free-text `department`
+  -- column is kept for audit of Dolibarr's `options_department` extrafield.
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'Employee'
+      AND COLUMN_NAME = 'departmentId'
+  ) THEN
+    ALTER TABLE `Employee` ADD COLUMN `departmentId` CHAR(36) NULL;
+    ALTER TABLE `Employee` ADD INDEX `idx_employee_department_id` (`departmentId`);
+    ALTER TABLE `Employee`
+      ADD CONSTRAINT `fk_employee_department`
+      FOREIGN KEY (`departmentId`) REFERENCES `Department`(`id`)
+      ON DELETE SET NULL ON UPDATE CASCADE;
   END IF;
 END$$
 DELIMITER ;

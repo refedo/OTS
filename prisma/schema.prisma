@@ -33,6 +33,7 @@ model Department {
   managerId         String?            @unique @db.Char(36)
   manager           User?              @relation("DepartmentManager", fields: [managerId], references: [id])
   users             User[]
+  employees         Employee[]         @relation("EmployeeDepartment")
   tasks             Task[]
   initiatives       Initiative[]       @relation("InitiativeDepartment")
   departmentPlans   DepartmentPlan[]   @relation("DepartmentPlanDept")
@@ -3906,13 +3907,18 @@ model Employee {
   status        EmployeeStatus @default(ACTIVE)
   trade         String?        @db.VarChar(120) // Welder, Fabricator, Painter, Engineer, Admin, etc.
   // Phase 2.5 (18.2.0): occupation / section / department grouping for the
-  // HR dashboard. `occupation` is seeded from row 10 of the attendance sheet
-  // on sync. `section` is restricted to a dropdown ("Preparation" / "Fabrication" / "Other").
-  // `department` is restricted to a dropdown ("Production" / "Other"). All
-  // three are preserved by `manuallyEditedFields` once a user edits them.
+  // HR dashboard. All three are maintained manually in OTS (no sheet sync).
+  // `occupation` is free-text per employee (e.g. "Welder Grade 2"). `section`
+  // is a UI dropdown ("Preparation" / "Fabrication" / "Other"). `department`
+  // is an FK to the existing `Department` model (same catalogue used by
+  // `User.departmentId`) — e.g. "Production". The legacy free-text
+  // `department` column is retained for audit of the Dolibarr `options_department`
+  // extrafield; new UI writes `departmentId`.
   occupation    String?        @db.VarChar(120)
   section       String?        @db.VarChar(60)
-  department    String?        @db.VarChar(120)
+  department    String?        @db.VarChar(120) // legacy — Dolibarr extrafield label, retained for audit
+  departmentId  String?        @db.Char(36)
+  departmentRef Department?    @relation("EmployeeDepartment", fields: [departmentId], references: [id])
   jobTitleEn    String?        @db.VarChar(200)
   jobTitleAr    String?        @db.VarChar(200)
 
@@ -3968,6 +3974,7 @@ model Employee {
   @@index([status])
   @@index([trade])
   @@index([department])
+  @@index([departmentId])
   @@index([section])
   @@index([occupation])
   @@index([deletedAt])
