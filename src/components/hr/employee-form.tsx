@@ -40,6 +40,9 @@ const schema = z.object({
   status: z.enum(['ACTIVE', 'ON_LEAVE', 'SUSPENDED', 'TERMINATED', 'RESIGNED']),
   trade: z.string().max(120).optional().or(z.literal('')),
   department: z.string().max(120).optional().or(z.literal('')),
+  departmentId: z.string().optional().or(z.literal('')),
+  occupation: z.string().max(120).optional().or(z.literal('')),
+  section: z.string().max(60).optional().or(z.literal('')),
   jobTitleEn: z.string().max(200).optional().or(z.literal('')),
   jobTitleAr: z.string().max(200).optional().or(z.literal('')),
   basicSalary: z.string().optional().or(z.literal('')),
@@ -69,9 +72,17 @@ type Props = {
   initial?: EmployeeFormInitial | null;
   canViewCompensation: boolean;
   canResetToDolibarr: boolean;
+  departments?: { id: string; name: string }[];
 };
 
-export function EmployeeForm({ initial, canViewCompensation, canResetToDolibarr }: Props) {
+const SECTION_OPTIONS = ['Preparation', 'Fabrication', 'Other'] as const;
+
+export function EmployeeForm({
+  initial,
+  canViewCompensation,
+  canResetToDolibarr,
+  departments = [],
+}: Props) {
   const router = useRouter();
   const isEdit = !!initial?.id;
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +103,9 @@ export function EmployeeForm({ initial, canViewCompensation, canResetToDolibarr 
       status: (initial?.status as FormValues['status']) ?? 'ACTIVE',
       trade: initial?.trade ?? '',
       department: initial?.department ?? '',
+      departmentId: initial?.departmentId ?? '',
+      occupation: initial?.occupation ?? '',
+      section: initial?.section ?? '',
       jobTitleEn: initial?.jobTitleEn ?? '',
       jobTitleAr: initial?.jobTitleAr ?? '',
       basicSalary: initial?.basicSalary ?? '',
@@ -267,8 +281,53 @@ export function EmployeeForm({ initial, canViewCompensation, canResetToDolibarr 
                 <Input {...form.register('trade')} />
               </div>
               <div>
+                <Label>Occupation</Label>
+                <Input
+                  {...form.register('occupation')}
+                  placeholder="e.g. Welder, Fitter"
+                />
+              </div>
+              <div>
+                <Label>Section</Label>
+                <Select
+                  value={form.watch('section') || '__none__'}
+                  onValueChange={(v) =>
+                    form.setValue('section', v === '__none__' ? '' : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None —</SelectItem>
+                    {SECTION_OPTIONS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Department</Label>
-                <Input {...form.register('department')} />
+                <Select
+                  value={form.watch('departmentId') || '__none__'}
+                  onValueChange={(v) =>
+                    form.setValue('departmentId', v === '__none__' ? '' : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None —</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Job title (English)</Label>
