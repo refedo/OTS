@@ -23,10 +23,51 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.0.0',
+    date: 'April 12, 2026',
+    type: 'major',
+    status: 'current',
+    mainTitle: 'HR / Payroll Module Launch — Phase 1: HR Foundation & Master Data',
+    highlights: [
+      'First-ever native HR schema — Employee, Agency, ManpowerSlot, DolibarrEmployeeSyncLog, SystemConfig — with full UUID + audit pattern',
+      'One-way read-only Dolibarr employee mirror with preserve-on-edit policy (manuallyEditedFields skip-list)',
+      'One-time identity reconciliation wizard at /admin/identity-reconciliation links existing OTS users to Dolibarr llx_user before the first sync runs',
+      'HR CRUD UI under /hr/* with bilingual EN/AR paired fields, SA IBAN validation, and compensation-field gating',
+      'Breaking change: POST /api/users now requires an employeeId linking every new user to an unlinked Employee row',
+      'New hr.* permission family (11 IDs) plus admin.identity.reconcile, merged into the runtime HR role via one-shot patch script',
+      'Major version bump marks the transition from steel-fabrication-only ERP to a unified fabrication + workforce platform',
+    ],
+    changes: {
+      added: [
+        'Schema: Employee, Agency, ManpowerSlot, DolibarrEmployeeSyncLog, SystemConfig models with UUID Char(36) PKs and AssemblyPart audit pattern',
+        'Schema: User extended with employeeId, dolibarrUserId, reconciledAt, reconciledById',
+        'Manual migration prisma/manual_migrations/add_hr_foundation.sql using stored-procedure information_schema guard (idempotent)',
+        'Dolibarr client: getUsers, getUserById, getAllUsers methods and typed DolibarrUser interface',
+        'Sync service src/lib/services/hr/sync-dolibarr-employees.ts with preserve-on-edit, reconciliation gate, and full run logging',
+        'HR API routes: /api/hr/employees, /api/hr/employees/[id], /api/hr/employees/sync, /api/hr/employees/[id]/reset-to-dolibarr',
+        'HR API routes: /api/hr/agencies (+ [id]) full CRUD',
+        'HR API routes: /api/hr/manpower-slots (+ [id]) + /api/hr/manpower-slots/bulk for bulk slot generation by prefix + start number',
+        'Identity reconciliation API: /api/admin/identity-reconciliation (+ /dolibarr-users, /[userId], /complete)',
+        'HR UI: /hr/employees list + create/edit form (tabbed Personal/Employment/Compensation/Banking) with React-Hook-Form + Zod',
+        'HR UI: /hr/employees/sync page with sync button + history, hidden until reconciliation complete',
+        'HR UI: /hr/agencies (+ new + [id]) and /hr/manpower-slots with bulk-create dialog',
+        'HR UI: /admin/identity-reconciliation one-time wizard with per-row Dolibarr user dropdown and progress counter',
+        'Permissions: hr.employee.view/create/edit/delete, hr.employee.viewCompensation, hr.employee.sync, hr.employee.resetToDolibarr, hr.agency.view/manage, hr.manpowerSlot.view/manage, admin.identity.reconcile',
+        'scripts/update-hr-role-permissions.ts: one-shot patch script merging the new permissions into the existing runtime HR role and granting super-admin escape hatches to CEO',
+        'User creation form: unlinked-Employee dropdown — every new User must link to an Employee row',
+      ],
+      fixed: [],
+      changed: [
+        'POST /api/users now requires an employeeId — validates the target Employee exists and has no existing linked User, or rejects with 400 EMPLOYEE_NOT_FOUND / 409 EMPLOYEE_ALREADY_LINKED',
+        'User creation form now surfaces an unlinked-Employee dropdown and blocks submission until one is selected',
+      ],
+    },
+  },
+  {
     version: '17.27.0',
     date: 'April 11, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Password Strength & Financial Report Fixes',
     highlights: [
       'User create/edit forms now show password strength indicator with real-time validation (uppercase, lowercase, number, special character)',

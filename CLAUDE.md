@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `17.28.0` — Add: HR Foundation module (Phase 1 of OTS-MSS-HR-PAYROLL-v1) — Employee, Agency, ManpowerSlot, SystemConfig models; Dolibarr → OTS one-way read-only employee mirror with preserve-on-edit; one-time identity reconciliation wizard linking OTS Users to Dolibarr llx_user; HR permissions + CRUD API & UI
+**Current version:** `18.0.0` — **Major:** HR / Payroll Module launch (Phase 1 — HR Foundation & Master Data) shipping as the first milestone of OTS-MSS-HR-PAYROLL-v1. Introduces the native Employee, Agency, ManpowerSlot, and SystemConfig schema; a one-way read-only Dolibarr → OTS employee mirror with preserve-on-edit policy; a one-time identity reconciliation wizard linking existing OTS Users to Dolibarr llx_user; full hr.* permission family; and HR CRUD API + UI. Marks the transition from fabrication-only ERP to unified fabrication + workforce platform — warranting the major-version bump.
 
 ---
 

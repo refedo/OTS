@@ -23,6 +23,7 @@ import {
   Clock,
   Database,
   Plug,
+  UserCog,
 } from 'lucide-react';
 
 const modules = [
@@ -146,6 +147,20 @@ const modules = [
     color: 'bg-rose-500',
   },
   {
+    name: 'HR Foundation (Phase 1)',
+    icon: UserCog,
+    description: 'Native employee master data with a one-way read-only Dolibarr mirror. Phase 1 of the HR / Payroll module — makes OTS the single source of truth for the employee master, with preserve-on-edit policy and a one-time identity reconciliation wizard linking existing OTS users to Dolibarr llx_user.',
+    features: [
+      'Employee CRUD (bilingual EN/AR)',
+      'Agencies & Manpower Slots',
+      'Dolibarr employee sync (preserve-on-edit)',
+      'Identity reconciliation wizard',
+      'SA IBAN validation',
+      'Compensation-field gating',
+    ],
+    color: 'bg-fuchsia-600',
+  },
+  {
     name: 'External Integrations',
     icon: Plug,
     description: 'Bidirectional integrations with open-audit, Nextcloud, and Libre MES for ISO compliance, document management, and manufacturing execution.',
@@ -180,16 +195,20 @@ export default function AboutOTSPage() {
           <p className="text-muted-foreground">
             <strong>Hexa Steel® OTS™</strong> is a comprehensive Operations Tracking System designed specifically
             for Hexa Steel®. It provides end-to-end project management, production tracking,
-            quality control, and business intelligence capabilities. Features include smart navigation
-            with Recent Links &amp; Bookmarks, Production Trend analytics with Day/Week/Month views,
-            LCR procurement analytics, enhanced task filtering across all activity types, a
-            Payment Schedule Report for consolidated cross-project financial collection tracking, and
-            external service integrations with open-audit (ISO compliance mirror), Nextcloud (ISO 9001 §7.5
-            document management via WebDAV), and Libre MES (bidirectional manufacturing execution sync with OEE metrics).
+            quality control, and business intelligence capabilities. As of v18.0.0 it also ships the
+            first phase of the native HR / Payroll module — making OTS the single source of truth for the
+            employee master, with a one-way read-only Dolibarr mirror, a one-time identity reconciliation
+            wizard, and full bilingual EN/AR CRUD for employees, agencies, and manpower slots. Other
+            features include smart navigation with Recent Links &amp; Bookmarks, Production Trend analytics
+            with Day/Week/Month views, LCR procurement analytics, enhanced task filtering across all
+            activity types, a Payment Schedule Report for consolidated cross-project financial collection
+            tracking, and external service integrations with open-audit (ISO compliance mirror), Nextcloud
+            (ISO 9001 §7.5 document management via WebDAV), and Libre MES (bidirectional manufacturing
+            execution sync with OEE metrics).
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="text-center p-4 bg-muted rounded-lg">
-              <p className="text-3xl font-bold text-primary">18+</p>
+              <p className="text-3xl font-bold text-primary">19+</p>
               <p className="text-sm text-muted-foreground">Integrated Modules</p>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
