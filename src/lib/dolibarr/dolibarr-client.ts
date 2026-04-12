@@ -284,6 +284,32 @@ export interface DolibarrPurchaseOrder {
   [key: string]: any;
 }
 
+/**
+ * Dolibarr llx_user record (subset of fields relevant to the OTS HR module).
+ * Mirrored one-way into OTS `Employee` via `syncDolibarrEmployees`.
+ * Field mapping documented in OTS-MSS-HR-PAYROLL-v1 §1.4.
+ */
+export interface DolibarrUser {
+  id: number | string;           // llx_user.rowid — used as Employee.employmentId
+  firstname: string | null;
+  lastname: string | null;
+  login?: string | null;
+  email?: string | null;
+  job?: string | null;           // maps to Employee.trade
+  statut?: string | number;      // "1"=active, "0"=disabled/terminated
+  salary?: string | number | null;       // basic salary
+  salaryextra?: string | number | null;  // extra allowances (sometimes present)
+  national_registration_number?: string | null; // Iqama / National ID
+  birth?: number | string | null;        // Unix timestamp
+  datec?: number | string | null;        // creation
+  dateemployment?: number | string | null;    // joining
+  dateemploymentend?: number | string | null; // leaving
+  // Dolibarr "array_options" holds extrafields keyed by "options_<fieldname>".
+  // Hexa Steel uses these for Arabic name, IBAN, bank name, Iqama, etc.
+  array_options?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
 export interface DolibarrConnectionInfo {
   success: boolean;
   version?: string;
@@ -803,6 +829,57 @@ export class DolibarrClient {
       const batch = await this.getPurchaseOrders({ limit: batchSize, page });
       all.push(...batch);
       console.log(`[Dolibarr] Got ${batch.length} purchase orders (total: ${all.length})`);
+      hasMore = batch.length >= batchSize;
+      page++;
+    }
+
+    return all;
+  }
+
+  // ============================================
+  // USER API METHODS (HR module — read-only mirror)
+  // ============================================
+
+  /**
+   * Fetch llx_user records with pagination.
+   */
+  async getUsers(params?: DolibarrPaginationParams): Promise<DolibarrUser[]> {
+    const result = await this.request<DolibarrUser[]>('users', {
+      limit: params?.limit ?? 100,
+      page: params?.page ?? 0,
+      sortfield: params?.sortfield ?? 't.rowid',
+      sortorder: params?.sortorder ?? 'ASC',
+      sqlfilters: params?.sqlfilters,
+    });
+    return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Fetch a single llx_user record by rowid.
+   */
+  async getUserById(userId: number | string): Promise<DolibarrUser | null> {
+    try {
+      const result = await this.request<DolibarrUser>(`users/${userId}`);
+      return result;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('404')) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Auto-paginate to fetch ALL llx_user records. Returns every Dolibarr user
+   * regardless of status — the HR sync decides how to interpret them.
+   */
+  async getAllUsers(batchSize: number = 100): Promise<DolibarrUser[]> {
+    const all: DolibarrUser[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await this.getUsers({ limit: batchSize, page });
+      all.push(...batch);
       hasMore = batch.length >= batchSize;
       page++;
     }

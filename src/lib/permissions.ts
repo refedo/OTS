@@ -318,6 +318,30 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'backups.restore', name: 'Restore from Backup', description: 'Restore the database from a backup file', category: 'backups' },
     ],
   },
+  {
+    id: 'hr',
+    name: 'HR & Employee Management',
+    permissions: [
+      { id: 'hr.employee.view', name: 'View Employees', description: 'View employee master data', category: 'hr' },
+      { id: 'hr.employee.create', name: 'Create Employees', description: 'Add new employee records', category: 'hr' },
+      { id: 'hr.employee.edit', name: 'Edit Employees', description: 'Modify employee records', category: 'hr' },
+      { id: 'hr.employee.delete', name: 'Delete Employees', description: 'Soft-delete employee records', category: 'hr' },
+      { id: 'hr.employee.viewCompensation', name: 'View Compensation', description: 'See employee salary and allowance fields', category: 'hr' },
+      { id: 'hr.employee.sync', name: 'Sync Employees from Dolibarr', description: 'Trigger the Dolibarr → OTS employee mirror', category: 'hr' },
+      { id: 'hr.employee.resetToDolibarr', name: 'Reset Employee to Dolibarr', description: 'Discard manual edits and re-pull an employee from Dolibarr on next sync', category: 'hr' },
+      { id: 'hr.agency.view', name: 'View Agencies', description: 'View manpower agency list and details', category: 'hr' },
+      { id: 'hr.agency.manage', name: 'Manage Agencies', description: 'Create, edit, and soft-delete manpower agencies', category: 'hr' },
+      { id: 'hr.manpowerSlot.view', name: 'View Manpower Slots', description: 'View manpower slot list (agency card codes, hourly rates)', category: 'hr' },
+      { id: 'hr.manpowerSlot.manage', name: 'Manage Manpower Slots', description: 'Create, edit, bulk-create, and soft-delete manpower slots', category: 'hr' },
+    ],
+  },
+  {
+    id: 'admin',
+    name: 'System Administration',
+    permissions: [
+      { id: 'admin.identity.reconcile', name: 'Identity Reconciliation', description: 'Run the one-time wizard linking OTS users to their Dolibarr llx_user identity. CEO-only.', category: 'admin' },
+    ],
+  },
 ];
 
 // Flatten all permissions for easy lookup
@@ -351,7 +375,33 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 
 // Default role permissions (for seeding)
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-  Admin: ALL_PERMISSIONS.map(p => p.id), // Admin has all permissions (includes financial, dolibarr)
+  Admin: ALL_PERMISSIONS.map(p => p.id), // Admin has all permissions (includes financial, dolibarr, hr, admin)
+  // CEO retains every permission including the admin.identity.reconcile gate
+  CEO: ALL_PERMISSIONS.map(p => p.id),
+  // HR role — created at runtime in OTS (not in prisma/seed.ts). Walid runs
+  // `scripts/update-hr-role-permissions.ts` to patch the existing role's
+  // permissions JSON. HR Admin can manage employees/agencies/slots, view
+  // compensation, and trigger the Dolibarr sync — but cannot reset manual
+  // edits (that's CEO-only) or run identity reconciliation.
+  HR: [
+    // Basic OTS access to find users and departments
+    'users.view',
+    'departments.view',
+    'notifications.view',
+    'events.view',
+    'ai.use',
+    // Full HR module
+    'hr.employee.view',
+    'hr.employee.create',
+    'hr.employee.edit',
+    'hr.employee.delete',
+    'hr.employee.viewCompensation',
+    'hr.employee.sync',
+    'hr.agency.view',
+    'hr.agency.manage',
+    'hr.manpowerSlot.view',
+    'hr.manpowerSlot.manage',
+  ],
   Manager: [
     // User Management
     'users.view',

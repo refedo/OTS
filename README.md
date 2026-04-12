@@ -1,13 +1,16 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 17.4.3 | **Release Date:** April 3, 2026
+**Version:** 18.0.0 | **Release Date:** April 12, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 17.4.3
-- **Event Bus** — Typed Node.js EventEmitter (`OTSEventEmitter`) decouples core services from integration side-effects; listeners registered once at startup via `instrumentation.ts`
-- **Event Bus UI** — `/settings/integrations#event-bus` card shows live listener counts per event with a Refresh button
-- **Changelog overflow fix** — Highlights no longer render as single-line badges that overflow the card border; replaced with a wrapped bullet list
+### What's New in 18.0.0 — HR / Payroll Module Launch (Phase 1)
+- **Native HR schema** — new `Employee`, `Agency`, `ManpowerSlot`, `DolibarrEmployeeSyncLog`, and `SystemConfig` models; every OTS `User` is now linked to an `Employee` row
+- **Dolibarr employee mirror** — one-way read-only sync from `llx_user` with preserve-on-edit policy (`manuallyEditedFields` skip-list) and per-run audit in `DolibarrEmployeeSyncLog`
+- **Identity reconciliation wizard** — one-time `/admin/identity-reconciliation` flow links existing OTS users to their Dolibarr counterparts; first sync is blocked until the gate flips
+- **HR CRUD** — employees, agencies, and manpower slots under `/hr/*` with bilingual EN/AR paired fields, SA IBAN validation (`^SA\d{22}$`), compensation-field gating, and per-employee Reset-to-Dolibarr escape hatch
+- **Permissions** — 11 new `hr.*` permission IDs plus `admin.identity.reconcile`, merged into the existing HR role via a one-shot patch script without overwriting runtime customisations
+- **Major version bump** — marks the transition from steel-fabrication-only ERP to a unified fabrication + workforce platform; Phases 2–4 (Attendance, Payroll + WPS, Manpower Billing) will follow after Phase 1 ships to staging
 
 
 

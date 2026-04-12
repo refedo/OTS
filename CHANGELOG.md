@@ -7,6 +7,152 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.0.0] - 2026-04-12
+
+### HR / Payroll Module Launch — Phase 1: HR Foundation & Master Data (Major)
+
+First major-version bump since `17.x`. Marks the transition from steel-fabrication-only
+ERP to a unified fabrication + workforce platform. Phase 1 of `OTS-MSS-HR-PAYROLL-v1`
+ships the HR Foundation layer in full; Phases 2–4 (Attendance, Payroll + WPS, Manpower
+Billing) will follow in subsequent releases once Phase 1 has stabilised in production.
+
+#### Why a major version?
+
+Everything that was previously a `17.28.0` pre-release is being promoted to `18.0.0`
+because:
+
+1. **First-ever HR schema** — OTS had no employee master, no agency, and no manpower
+   concepts before today. The addition of `Employee`, `Agency`, `ManpowerSlot`, and
+   the supporting `DolibarrEmployeeSyncLog` / `SystemConfig` tables fundamentally
+   expands the domain model.
+2. **Breaking change to `User` creation** — `POST /api/users` now requires an
+   `employeeId` linking every new user to an unlinked `Employee` row. Callers that
+   previously created users without this field will receive a `400 Invalid input`
+   until they either pass the field or complete the identity reconciliation wizard.
+3. **New operational gate** — until the one-time identity reconciliation wizard is
+   completed by an authorised super-admin, the Dolibarr employee sync endpoint will
+   reject all calls with `409 RECONCILIATION_REQUIRED`. This is an intentional
+   guard-rail, not a bug.
+4. **Cross-cutting permissions** — 11 new `hr.*` permission IDs plus
+   `admin.identity.reconcile` are added to the permission catalogue and merged into
+   the runtime-created HR role.
+
+#### Added
+
+- **Schema** — new `Employee`, `Agency`, `ManpowerSlot`, `DolibarrEmployeeSyncLog`,
+  and `SystemConfig` models. Extended `User` with `employeeId`, `dolibarrUserId`,
+  `reconciledAt`, and `reconciledById`. All new models use the existing OTS UUID
+  `Char(36)` PK + `AssemblyPart` audit pattern (no `siteId`, matching single-tenant).
+- **Manual migration** — `prisma/manual_migrations/add_hr_foundation.sql` is
+  idempotent via the stored-procedure `information_schema.COLUMNS` pattern
+  (MySQL rejects `ADD COLUMN IF NOT EXISTS`). Seeds
+  `SystemConfig.identityReconciliationComplete = "false"` so the gate starts closed.
+- **Permissions** — 11 new `hr.*` permission IDs plus `admin.identity.reconcile`.
+  Patch script `scripts/update-hr-role-permissions.ts` merges the defaults into
+  the existing HR role without overwriting anything the role already had, and
+  adds the two super-admin escape hatches (`admin.identity.reconcile` and
+  `hr.employee.resetToDolibarr`) to the CEO role.
+- **Dolibarr client** — new `getUsers`, `getUserById`, `getAllUsers` methods and
+  typed `DolibarrUser` interface matching the field-mapping table in the spec.
+- **Sync service** — `src/lib/services/hr/sync-dolibarr-employees.ts` does a
+  one-way upsert by `employmentId`, honours the `manuallyEditedFields` skip-list
+  (preserve-on-edit policy), back-fills `User.employeeId` when a user was
+  reconciled to a matching `dolibarrUserId`, and records every run in
+  `DolibarrEmployeeSyncLog` with counts, errors, and soft warnings. Aborts with
+  a friendly error if identity reconciliation has not been completed.
+- **HR API routes** — CRUD for employees / agencies / manpower slots, bulk slot
+  creation (`/api/hr/manpower-slots/bulk`), per-employee reset-to-dolibarr
+  endpoint, and sync trigger + history endpoints. Compensation columns are
+  stripped server-side for callers lacking `hr.employee.viewCompensation`.
+- **Identity reconciliation API** — one-time wizard endpoints at
+  `/api/admin/identity-reconciliation/*` that list OTS users, proxy Dolibarr
+  users for the dropdown, set/clear per-user links with duplicate-claim
+  detection, and finalise the wizard by flipping the `SystemConfig` gate flag.
+  The wizard becomes read-only once completed.
+- **UI** — new pages under `/hr/employees`, `/hr/agencies`, `/hr/manpower-slots`,
+  `/hr/employees/sync`, and `/admin/identity-reconciliation`. Employee form has
+  tabbed layout (Personal / Employment / Compensation / Banking) with
+  React-Hook-Form + Zod resolver, SA IBAN validation (`^SA\d{22}$`), and
+  bilingual EN/AR paired fields with `dir="rtl"` on Arabic inputs.
+- **User creation guard** — `POST /api/users` now requires `employeeId`, rejects
+  requests whose target employee is missing or already linked (400
+  `EMPLOYEE_NOT_FOUND` / 409 `EMPLOYEE_ALREADY_LINKED`), and the create form
+  surfaces a dropdown of unlinked employees only.
+
+#### Changed
+
+- **Version bump** — previously-planned `17.28.0` release contents promoted to
+  `18.0.0` to reflect the magnitude of the domain-model expansion and the
+  breaking user-creation contract change. Per the project's versioning policy,
+  major bumps are reserved for changes at this scale.
+
+#### Migration notes
+
+1. Run `prisma migrate deploy` (or equivalent) to pick up the new schema, then
+   execute `prisma/manual_migrations/add_hr_foundation.sql` to cover the
+   idempotent column additions and SystemConfig seed.
+2. Run `tsx scripts/update-hr-role-permissions.ts` to merge the new `hr.*`
+   permission IDs into the existing runtime HR role and grant the super-admin
+   escape hatches to the CEO role.
+3. Log in as CEO, navigate to `/admin/identity-reconciliation`, and complete the
+   one-time wizard — link every existing OTS user to their Dolibarr `llx_user`
+   counterpart, then click **Complete reconciliation** to flip the gate.
+4. Only then will `POST /api/hr/employees/sync` (and the UI sync button) become
+   available; the first sync back-fills `User.employeeId` for reconciled users.
+
+---
+
+## [17.28.0] - 2026-04-12 — superseded by 18.0.0
+
+### HR Foundation Module — Phase 1 of OTS-MSS-HR-PAYROLL-v1 (Minor)
+
+The first phase of the native HR / Payroll module. Makes OTS the single source of
+truth for the employee master, with a one-way read-only mirror from Dolibarr
+`llx_user` for new joiners. Phases 2–4 (Attendance, Payroll+WPS, Manpower
+Billing) will follow only after Phase 1 ships to staging and merges.
+
+#### Added
+- **Schema** — new `Employee`, `Agency`, `ManpowerSlot`, `DolibarrEmployeeSyncLog`,
+  and `SystemConfig` models. Extended `User` with `employeeId`, `dolibarrUserId`,
+  `reconciledAt`, and `reconciledById`. All new models use the existing OTS UUID
+  `Char(36)` PK + `AssemblyPart` audit pattern (no `siteId`, matching single-tenant).
+- **Manual migration** — `prisma/manual_migrations/add_hr_foundation.sql` is
+  idempotent via the stored-procedure `information_schema.COLUMNS` pattern
+  (MySQL rejects `ADD COLUMN IF NOT EXISTS`). Seeds
+  `SystemConfig.identityReconciliationComplete = "false"`.
+- **Permissions** — 11 new `hr.*` permission IDs plus `admin.identity.reconcile`.
+  Patch script `scripts/update-hr-role-permissions.ts` merges the defaults into
+  the existing HR role without overwriting anything the role already had, and
+  adds the two super-admin escape hatches (`admin.identity.reconcile` and
+  `hr.employee.resetToDolibarr`) to the CEO role.
+- **Dolibarr client** — new `getUsers`, `getUserById`, `getAllUsers` methods and
+  typed `DolibarrUser` interface.
+- **Sync service** — `src/lib/services/hr/sync-dolibarr-employees.ts` does a
+  one-way upsert by `employmentId`, honours the `manuallyEditedFields` skip-list
+  (preserve-on-edit policy), back-fills `User.employeeId` when a user was
+  reconciled to a matching `dolibarrUserId`, and records every run in
+  `DolibarrEmployeeSyncLog` with counts, errors, and soft warnings. Aborts with
+  a friendly error if identity reconciliation has not been completed.
+- **HR API routes** — CRUD for employees / agencies / manpower slots, bulk slot
+  creation (`/api/hr/manpower-slots/bulk`), reset-to-dolibarr endpoint, and
+  sync trigger + history endpoints. Compensation columns are stripped server-side
+  for callers lacking `hr.employee.viewCompensation`.
+- **Identity reconciliation API** — one-time wizard endpoints at
+  `/api/admin/identity-reconciliation/*` that list OTS users, proxy Dolibarr
+  users for the dropdown, set/clear per-user links with duplicate-claim
+  detection, and finalise the wizard by flipping the SystemConfig gate flag.
+  The wizard becomes read-only once completed.
+- **UI** — new pages under `/hr/employees`, `/hr/agencies`, `/hr/manpower-slots`,
+  `/hr/employees/sync`, and `/admin/identity-reconciliation`. Employee form has
+  tabbed layout (Personal / Employment / Compensation / Banking) with
+  React-Hook-Form + Zod resolver, SA IBAN validation (`^SA\d{22}$`), and
+  bilingual EN/AR paired fields with `dir="rtl"` on Arabic inputs.
+- **User creation guard** — `POST /api/users` now requires `employeeId`, rejects
+  requests whose target employee is missing or already linked, and the create
+  form surfaces a dropdown of unlinked employees only.
+
+---
+
 ## [17.26.5] - 2026-04-11
 
 ### Project Tracker: Building Designation & Over-100% Indicator (Patch)
