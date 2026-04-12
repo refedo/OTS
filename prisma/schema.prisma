@@ -4102,8 +4102,8 @@ model AttendanceRecord {
   isPublicHoliday Boolean          @default(false)
 
   // Raw cell values — kept verbatim for audit and re-parsing on schema changes.
-  rawCellA String? @db.VarChar(32) // Absence column (code or hours)
-  rawCellP String? @db.VarChar(32) // Presence column (hours); null for manpower slots (1 col)
+  rawCellA String? @db.Text // A/P column raw cell (code, hours, or comment)
+  rawCellP String? @db.Text // O.T column raw cell (hours); null for manpower slots (1 col)
 
   // sha256(employmentId|date|rawCellA|rawCellP) — lets the sync skip unchanged rows.
   sourceRowHash String @db.Char(64)

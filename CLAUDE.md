@@ -3,7 +3,7 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `18.1.1` — **Patch:** Attendance sheet parser now targets the correct Overtime-tab rows and columns after the first production probe. Header row moved from 10 → 12, data-start row from 12 → 15, first worker column from E → Q. Also fixes a semantics swap between A/P (regular hours) and O.T (overtime hours) — they were previously reversed, routing regular hours into the overtime field and vice-versa. Renames internal `colIndexA` / `colIndexP` → `colIndexAP` / `colIndexOT` for clarity.
+**Current version:** `18.1.2` — **Patch:** Widen `AttendanceRecord.rawCellA` / `rawCellP` from `VARCHAR(32)` to `TEXT`. The Overtime tab contains AP cells with embedded Arabic+English explanation text (e.g. `"AP (لم تسجل لان علنظام ظهر رسالة Your leave request does not contain working day.)"`), which overflowed the 32-char bound and caused every sync to fail with `The provided value for the column is too long for the column's type. Column: rawCellA`. Schema widened to `@db.Text` + idempotent manual migration `widen_attendance_raw_cells.sql` guarded by `information_schema.COLUMNS.DATA_TYPE`.
 
 ---
 
