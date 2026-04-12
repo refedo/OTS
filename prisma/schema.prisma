@@ -204,6 +204,10 @@ model User {
   deletedPublicHolidays    PublicHoliday[]                @relation("PublicHolidayDeletedBy")
   triggeredAttendanceSyncs GoogleSheetAttendanceSyncLog[] @relation("GoogleSheetAttendanceSyncLogTriggeredBy")
 
+  // HR Phase 2.5 — Attendance mapping candidate audit back-relations
+  resolvedAttendanceCandidates AttendanceMappingCandidate[] @relation("AttendanceCandidateResolvedBy")
+  ignoredAttendanceCandidates  AttendanceMappingCandidate[] @relation("AttendanceCandidateIgnoredBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3901,6 +3905,13 @@ model Employee {
   dateOfLeaving DateTime?      @db.Date
   status        EmployeeStatus @default(ACTIVE)
   trade         String?        @db.VarChar(120) // Welder, Fabricator, Painter, Engineer, Admin, etc.
+  // Phase 2.5 (18.2.0): occupation / section / department grouping for the
+  // HR dashboard. `occupation` is seeded from row 10 of the attendance sheet
+  // on sync. `section` is restricted to a dropdown ("Preparation" / "Fabrication" / "Other").
+  // `department` is restricted to a dropdown ("Production" / "Other"). All
+  // three are preserved by `manuallyEditedFields` once a user edits them.
+  occupation    String?        @db.VarChar(120)
+  section       String?        @db.VarChar(60)
   department    String?        @db.VarChar(120)
   jobTitleEn    String?        @db.VarChar(200)
   jobTitleAr    String?        @db.VarChar(200)
@@ -3939,6 +3950,9 @@ model Employee {
   // Phase 2: attendance / leaves / overtime from Google Sheet
   attendanceRecords AttendanceRecord[]
 
+  // Phase 2.5: attendance candidates resolved onto this employee
+  resolvedAttendanceCandidates AttendanceMappingCandidate[] @relation("resolvedAttendanceCandidates")
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -3954,6 +3968,8 @@ model Employee {
   @@index([status])
   @@index([trade])
   @@index([department])
+  @@index([section])
+  @@index([occupation])
   @@index([deletedAt])
 }
 
@@ -4158,12 +4174,62 @@ model GoogleSheetAttendanceSyncLog {
   rowsCreated     Int                  @default(0)
   rowsUpdated     Int                  @default(0)
   rowsUnchanged   Int                  @default(0)
-  employeeOrphans Json? // [{ identifier, name, firstRowIndex }]
-  slotOrphans     Json? // [{ identifier, name, firstRowIndex }]
+  // Phase 2.5 — Employee attribute sync counters (occupation/section/department
+  // pulled from sheet header rows, honoring manuallyEditedFields).
+  occupationsUpdated  Int              @default(0)
+  sectionsUpdated     Int              @default(0)
+  departmentsUpdated  Int              @default(0)
+  preservedFieldSkips Int              @default(0) // field-level skips due to manuallyEditedFields
+  // Phase 2.5 — mapping candidate counters
+  candidatesCreated   Int              @default(0)
+  candidatesResolved  Int              @default(0) // existing RESOLVED candidates that matched this run
+  candidatesIgnored   Int              @default(0) // existing IGNORED candidates silently skipped
+  employeeOrphans Json? // [{ identifier, name, firstRowIndex }] — kept for audit
+  slotOrphans     Json? // [{ identifier, name, firstRowIndex }] — kept for audit
   hardErrors      Json? // [{ row, column, message }]
   softWarnings    Json? // [{ row, column, message }]
   durationMs      Int?
 
   @@index([status])
   @@index([startedAt])
+}
+
+/// HR Phase 2.5 — mapping candidates for attendance rows that cannot be
+/// resolved to a known Employee/ManpowerSlot. Each row represents a unique
+/// (identifier, workerType) pair encountered in the Google Sheet. Users can
+/// link the candidate to an existing Employee or permanently ignore it.
+enum AttendanceMappingStatus {
+  UNMAPPED
+  RESOLVED
+  IGNORED
+}
+
+model AttendanceMappingCandidate {
+  id                  String                  @id @default(uuid()) @db.Char(36)
+  identifier          String                  @db.VarChar(64)
+  workerType          WorkerType
+  displayName         String                  @db.VarChar(200)
+  occupationFromSheet String?                 @db.VarChar(120)
+  sectionFromSheet    String?                 @db.VarChar(60)
+  departmentFromSheet String?                 @db.VarChar(120)
+  status              AttendanceMappingStatus @default(UNMAPPED)
+  resolvedEmployeeId  String?                 @db.Char(36)
+  resolvedEmployee    Employee?               @relation("resolvedAttendanceCandidates", fields: [resolvedEmployeeId], references: [id])
+  resolvedAt          DateTime?
+  resolvedById        String?                 @db.Char(36)
+  resolvedBy          User?                   @relation("AttendanceCandidateResolvedBy", fields: [resolvedById], references: [id])
+  ignoredAt           DateTime?
+  ignoredById         String?                 @db.Char(36)
+  ignoredBy           User?                   @relation("AttendanceCandidateIgnoredBy", fields: [ignoredById], references: [id])
+  ignoreReason        String?                 @db.VarChar(200)
+  firstSeenAt         DateTime                @default(now())
+  lastSeenAt          DateTime                @default(now())
+  firstSeenSyncId     String?                 @db.Char(36)
+  lastSeenSyncId      String?                 @db.Char(36)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@unique([identifier, workerType], name: "uniq_candidate_identifier")
+  @@index([status])
+  @@index([resolvedEmployeeId])
 }
