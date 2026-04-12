@@ -59,6 +59,8 @@ import {
   UserCog,
   UserCheck,
   Briefcase,
+  CalendarDays,
+  GitMerge,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -240,13 +242,16 @@ const navigationSections: NavigationSection[] = [
     name: 'HR',
     icon: UserCog,
     items: [
+      { name: 'HR Dashboard', href: '/hr/dashboard', icon: BarChart3, newSince: '2026-04-12' },
       { name: 'Employees', href: '/hr/employees', icon: Users, newSince: '2026-04-12' },
       { name: 'New Employee', href: '/hr/employees/new', icon: Plus, newSince: '2026-04-12' },
+      { name: 'Employee Timesheet', href: '/hr/attendance/timesheet', icon: CalendarDays, newSince: '2026-04-12' },
+      { name: 'Attendance', href: '/hr/attendance', icon: Calendar, newSince: '2026-04-12' },
+      { name: 'Attendance Sync', href: '/hr/attendance/sync', icon: RefreshCw, newSince: '2026-04-12' },
+      { name: 'Attendance Mapping', href: '/hr/attendance/mapping', icon: GitMerge, newSince: '2026-04-12' },
       { name: 'Dolibarr Sync', href: '/hr/employees/sync', icon: RefreshCw, newSince: '2026-04-12' },
       { name: 'Agencies', href: '/hr/agencies', icon: Briefcase, newSince: '2026-04-12' },
       { name: 'Manpower Slots', href: '/hr/manpower-slots', icon: UserCheck, newSince: '2026-04-12' },
-      { name: 'Attendance', href: '/hr/attendance', icon: Calendar, newSince: '2026-04-12' },
-      { name: 'Attendance Sync', href: '/hr/attendance/sync', icon: RefreshCw, newSince: '2026-04-12' },
       { name: 'Public Holidays', href: '/hr/public-holidays', icon: CalendarClock, newSince: '2026-04-12' },
       { name: 'Identity Reconciliation', href: '/admin/identity-reconciliation', icon: Shield, newSince: '2026-04-12' },
     ],

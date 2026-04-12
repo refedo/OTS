@@ -23,10 +23,45 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.1.0',
+    version: '18.2.0',
     date: 'April 12, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'HR / Payroll Module — Phase 2.5: Dashboard, Timesheet Navigation, Attendance Mapping',
+    highlights: [
+      'New /hr/dashboard with KPIs, stacked bar + daily trend + absence-mix charts, and occupation/section/department grouping',
+      'Employee timesheet is now navigable from the sidebar — landing redirect + embedded searchable employee picker in the header',
+      '/hr/attendance/mapping resolves unknown worker columns from Google Sheets — link to an employee or mark as ignored',
+      'Employee master gained occupation, section (Preparation / Fabrication / Other), and department (FK to existing Department catalogue)',
+    ],
+    changes: {
+      added: [
+        'Schema: Employee.occupation, Employee.section, Employee.departmentId (FK to Department), AttendanceMappingCandidate + AttendanceMappingStatus enum',
+        'Schema: 7 new counters on GoogleSheetAttendanceSyncLog (candidatesCreated, candidatesResolved, candidatesIgnored, etc.)',
+        'Manual migration prisma/manual_migrations/add_hr_phase_2_5.sql (idempotent, stored-procedure guarded)',
+        'Service: src/lib/services/hr/hr-dashboard-stats.ts aggregates attendance over any date range with in-memory grouping by occupation / section / department',
+        'API: GET /api/hr/dashboard with start/end/occupation/section/departmentId/groupBy query params — gated by hr.employee.view',
+        'API: /api/hr/attendance/mapping (list) + [id]/link + [id]/ignore routes for candidate resolution',
+        'UI: /hr/dashboard page with KPI cards, filters, stacked bar chart, daily trend line, pie chart, and group breakdown table',
+        'UI: /hr/attendance/timesheet landing page that redirects to the first active employee',
+        'UI: /hr/attendance/mapping tabbed page (Unmapped / Resolved / Ignored) with link + ignore + restore actions',
+        'Component: EmployeePicker cmdk-powered searchable combobox used by the mapping page and the timesheet header',
+        'Sync service: writes AttendanceMappingCandidate rows for orphan columns, short-circuits RESOLVED, skips IGNORED entirely',
+        'Employee form: occupation text input, section dropdown (Preparation / Fabrication / Other), department dropdown (from Department catalogue)',
+        'Sidebar: HR section now leads with HR Dashboard, followed by Employee Timesheet and Attendance Mapping',
+      ],
+      fixed: [],
+      changed: [
+        'Employee department is now a FK to the existing Department model (same catalogue as Users / Tasks / Initiatives) rather than a parallel free-text column — legacy Employee.department string retained for Dolibarr audit only',
+        'Version bumped to 18.2.0 — minor bump reflecting Phase 2.5 feature additions',
+      ],
+    },
+  },
+  {
+    version: '18.1.0',
+    date: 'April 12, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'HR / Payroll Module — Phase 2: Attendance, Leaves & Overtime Ingestion',
     highlights: [
       'Google Sheet → OTS one-way attendance mirror reads the shared Overtime tab (same workbook used by PTS sync)',
