@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.7.5',
+    version: '18.7.6',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Plan B — Leaves Sync Removed From Payroll Entirely',
+    highlights: [
+      'Walid confirmed the Leave Request Management module is enabled in the Dolibarr admin UI AND llxvv_const has MAIN_MODULE_HOLIDAY=1, entity=1 (the table prefix on this install is llxvv_ not llx_, which is why earlier SELECTs came back empty). Despite that, /api/index.php/holidays still returns HTTP 200 + text/html + body "API not found (failed to include API file)" with x-proxy-cache: MISS — so the 18.7.4 cache-buster IS working, this is genuinely PHP reaching the line-402 Dolibarr fallback, and the underlying cause is something we cannot debug from the OTS side.',
+      'After four consecutive diagnosis attempts (18.7.1 PHP output buffer → 18.7.2 module off → 18.7.3 payroll decouple → 18.7.4 edge proxy cache → 18.7.5 UI warning text) Walid said "lets do plan B — we need to move forward". So we are.',
+      'Plan B: cut the leaves sync from the payroll flow entirely. runSync() in payroll-periods-client.tsx now calls /api/hr/employees/sync only. The whole /api/hr/leave-requests/sync call, the soft-fail try/catch, the leaveSyncWarning state, the amber warning panel, the "Leaves" row in the sync status strip, the LeaveSyncLog type, lastLeaveSync state, and the parallel fetch in loadLastSync() are all removed.',
+      'Payroll behaves exactly like pre-18.6.0 now: calculates from Employee + AttendanceRecord sheet codes only. With one exception — native OTS LeaveRequest rows (if HR ever creates any through /hr/leaves) are still honored by the calculator because the dedup logic from 18.6.0 keys on status=APPROVED regardless of source.',
+      'The underlying /api/hr/leave-requests/sync endpoint, the DolibarrLeavesSyncScheduler cron, and the /hr/leaves page\'s own sync button are all untouched — they still exist for whenever the Dolibarr-side issue is eventually resolved. They just don\'t block payroll anymore.',
+      'Hero description updated from "Sync fresh employee & leave data from Dolibarr" to "Sync fresh employee data from Dolibarr, then run a calc — leaves are read from the attendance sheet."',
+    ],
+    changes: {
+      added: [],
+      fixed: [],
+      changed: [
+        'payroll-periods-client.tsx: runSync() now calls /api/hr/employees/sync only — no more leaves sync call, no more soft-fail catch, no more leaveSyncWarning state, no more amber warning panel',
+        'payroll-periods-client.tsx: loadLastSync() no longer fetches /api/hr/leave-requests/sync history in parallel, only employees',
+        'payroll-periods-client.tsx: sync status strip no longer renders the "Leaves" row; LeaveSyncLog type and lastLeaveSync state removed',
+        '/hr/payroll hero description updated to make clear that leaves come from the attendance sheet, not Dolibarr',
+      ],
+    },
+  },
+  {
+    version: '18.7.5',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Payroll Leaves-Sync Warning No Longer Dumps a Paragraph at the User',
     highlights: [
       'Walid reported: "payroll is showing an error and it loads salaries in nowhere" with a screenshot of the amber warning strip on /hr/payroll displaying the entire verbose DolibarrHolidaysNotAvailableError paragraph (the 18.7.4 three-paragraph technical description with proxy-cache purge advice, module-enable steps, everything) as user-facing text. That diagnostic copy is meant for admins reading server logs, not for whoever clicks Sync from Dolibarr.',
