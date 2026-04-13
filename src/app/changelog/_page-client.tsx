@@ -23,10 +23,43 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.7.0',
+    date: 'April 13, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Drop Employee.trade — Rename "Occupation" → "Position Title" Everywhere',
+    highlights: [
+      'Walid: "take all the values in employee \'trade\' and put it as \'occupation\' — i was preferring occupation to be position title (more elite and more professional) — and then we can safely remove \'trade\' as i really don\'t know what trade is!"',
+      'Idempotent SQL migration prisma/manual_migrations/migrate_trade_to_occupation.sql copies Employee.trade → Employee.occupation (only where occupation is empty), drops the Employee_trade_idx index, then drops the column. Each step is guarded by an information_schema check so the migration replays cleanly.',
+      'The DB column name stays `occupation`, the catalogue model stays `HrOccupation`, and the API stays `/api/hr/occupations` — only the UI labels change to "Position Title". This keeps existing dropdown sources, historical employee records and the Phase-2.5 grouping intact.',
+      'ManpowerSlot.trade is preserved (it\'s a different concept — the agency slot\'s worker template, not the employee\'s job).',
+    ],
+    changes: {
+      added: [
+        'prisma/manual_migrations/migrate_trade_to_occupation.sql — three-step idempotent migration: copy values, drop index, drop column; each step guarded by information_schema (NOT using ADD/DROP COLUMN IF EXISTS, which MySQL rejects)',
+      ],
+      fixed: [],
+      changed: [
+        'prisma/schema.prisma: removed Employee.trade field + @@index([trade])',
+        'sync-dolibarr-employees.ts: projection writes apiUser.job into Employee.occupation instead of Employee.trade; TRACKED_SYNC_FIELDS / update loop / create payload all switched',
+        'employee-form.tsx: removed the free-text Trade <Input>; the Occupation <Select> is relabeled "Position Title" with placeholder "Select position title"',
+        'employees-client.tsx (HR list): removed Trade column / Trade filter / trade SortKey; added Position Title column reading from `occupation` with sort + filter on `occupation`',
+        'hr-setup-client.tsx: "Occupations" tab → "Position Titles"; ManagedListTab labels updated to "position title" / "position titles"; description text + placeholder updated',
+        '/api/hr/employees route + [id] route: removed `trade` from createSchema/updateSchema; the GET ?trade= filter param is now ?occupation=; POST/PUT no longer write the field; TRACKED_SYNC_FIELDS array drops `trade`',
+        '/api/hr/attendance route: employee select now pulls `occupation` instead of `trade`',
+        'employee-picker.tsx: dropped the `trade` field from EmployeePickerOption; search placeholder now "Search by ID, name, or position title…"',
+        'user-create-form.tsx + dashboard/users/create + users/create: EmployeeOption.trade → EmployeeOption.occupation; the dropdown subtitle reads from occupation',
+        'hr/employees page select + hr/employees/[id] initial: dropped `trade`',
+        'hr/attendance/timesheet/[workerType]/[id]: emp.trade → emp.occupation in worker subtitle; employeePickerList select dropped `trade`',
+        'hr/attendance/mapping page select: dropped `trade`',
+      ],
+    },
+  },
+  {
     version: '18.6.3',
     date: 'April 13, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Revert Dolibarr Direct-MySQL Holidays Fallback — REST Pattern Only',
     highlights: [
       'Reverts 18.6.2\'s DOLIBARR_DB_* MySQL fallback per Walid: "the API works perfectly for products, third parties, POs and financial sync — there\'s no need for direct DB access. Look up how the existing integrations work and do the same."',

@@ -295,7 +295,7 @@ export interface DolibarrUser {
   lastname: string | null;
   login?: string | null;
   email?: string | null;
-  job?: string | null;           // maps to Employee.trade
+  job?: string | null;           // maps to Employee.occupation (UI label "Position Title")
   statut?: string | number;      // "1"=active, "0"=disabled/terminated
   salary?: string | number | null;       // basic salary
   salaryextra?: string | number | null;  // extra allowances (sometimes present)

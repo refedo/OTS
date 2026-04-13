@@ -32,7 +32,6 @@ export type EmployeePickerOption = {
   employmentId: string;
   fullNameEn: string;
   fullNameAr?: string | null;
-  trade?: string | null;
   occupation?: string | null;
 };
 
@@ -84,14 +83,14 @@ export function EmployeePicker({
       <PopoverContent className={cn(triggerWidth, 'p-0')} align="start">
         <Command
           filter={(itemValue, search) => {
-            // itemValue is a lowercased string built from "id|employmentId|nameEn|nameAr|trade"
-            // we want substring match on any of the components.
+            // itemValue is a lowercased string built from
+            // "id|employmentId|nameEn|nameAr|occupation"; substring match on any.
             const needle = search.trim().toLowerCase();
             if (!needle) return 1;
             return itemValue.includes(needle) ? 1 : 0;
           }}
         >
-          <CommandInput placeholder="Search by ID, name, or trade…" />
+          <CommandInput placeholder="Search by ID, name, or position title…" />
           <CommandList>
             <CommandEmpty>No employee found.</CommandEmpty>
             <CommandGroup>
@@ -101,7 +100,6 @@ export function EmployeePicker({
                   e.employmentId,
                   e.fullNameEn,
                   e.fullNameAr ?? '',
-                  e.trade ?? '',
                   e.occupation ?? '',
                 ]
                   .join('|')
@@ -128,9 +126,9 @@ export function EmployeePicker({
                         </span>
                         {e.fullNameEn}
                       </span>
-                      {(e.trade || e.occupation) && (
+                      {e.occupation && (
                         <span className="text-[11px] text-muted-foreground">
-                          {[e.trade, e.occupation].filter(Boolean).join(' · ')}
+                          {e.occupation}
                         </span>
                       )}
                     </div>

@@ -248,20 +248,20 @@ model User {
   ignoredAttendanceCandidates  AttendanceMappingCandidate[] @relation("AttendanceCandidateIgnoredBy")
 
   // HR Phase 3 — Leaves / Payroll audit back-relations
-  createdLeaveRequests       LeaveRequest[]       @relation("LeaveRequestCreatedBy")
-  updatedLeaveRequests       LeaveRequest[]       @relation("LeaveRequestUpdatedBy")
-  managerApprovedLeaves      LeaveRequest[]       @relation("LeaveRequestManagerApprover")
-  hrApprovedLeaves           LeaveRequest[]       @relation("LeaveRequestHrApprover")
-  ceoApprovedLeaves          LeaveRequest[]       @relation("LeaveRequestCeoApprover")
-  rejectedLeaves             LeaveRequest[]       @relation("LeaveRequestRejectedBy")
-  createdPayrollPeriods      PayrollPeriod[]      @relation("PayrollPeriodCreatedBy")
-  calculatedPayrollPeriods   PayrollPeriod[]      @relation("PayrollPeriodCalculatedBy")
-  approvedPayrollPeriods     PayrollPeriod[]      @relation("PayrollPeriodApprovedBy")
-  lockedPayrollPeriods       PayrollPeriod[]      @relation("PayrollPeriodLockedBy")
-  createdPayrollAdjustments  PayrollAdjustment[]  @relation("PayrollAdjustmentCreatedBy")
-  generatedWpsExports        WpsExport[]          @relation("WpsExportGeneratedBy")
-  calculatedEosAwards        EndOfServiceAward[]  @relation("EndOfServiceCalculatedBy")
-  paidEosAwards              EndOfServiceAward[]  @relation("EndOfServicePaidBy")
+  createdLeaveRequests      LeaveRequest[]      @relation("LeaveRequestCreatedBy")
+  updatedLeaveRequests      LeaveRequest[]      @relation("LeaveRequestUpdatedBy")
+  managerApprovedLeaves     LeaveRequest[]      @relation("LeaveRequestManagerApprover")
+  hrApprovedLeaves          LeaveRequest[]      @relation("LeaveRequestHrApprover")
+  ceoApprovedLeaves         LeaveRequest[]      @relation("LeaveRequestCeoApprover")
+  rejectedLeaves            LeaveRequest[]      @relation("LeaveRequestRejectedBy")
+  createdPayrollPeriods     PayrollPeriod[]     @relation("PayrollPeriodCreatedBy")
+  calculatedPayrollPeriods  PayrollPeriod[]     @relation("PayrollPeriodCalculatedBy")
+  approvedPayrollPeriods    PayrollPeriod[]     @relation("PayrollPeriodApprovedBy")
+  lockedPayrollPeriods      PayrollPeriod[]     @relation("PayrollPeriodLockedBy")
+  createdPayrollAdjustments PayrollAdjustment[] @relation("PayrollAdjustmentCreatedBy")
+  generatedWpsExports       WpsExport[]         @relation("WpsExportGeneratedBy")
+  calculatedEosAwards       EndOfServiceAward[] @relation("EndOfServiceCalculatedBy")
+  paidEosAwards             EndOfServiceAward[] @relation("EndOfServicePaidBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3959,15 +3959,18 @@ model Employee {
   dateOfJoining DateTime       @db.Date
   dateOfLeaving DateTime?      @db.Date
   status        EmployeeStatus @default(ACTIVE)
-  trade         String?        @db.VarChar(120) // Welder, Fabricator, Painter, Engineer, Admin, etc.
-  // Phase 2.5 (18.2.0): occupation / section / department grouping for the
-  // HR dashboard. All three are maintained manually in OTS (no sheet sync).
-  // `occupation` is free-text per employee (e.g. "Welder Grade 2"). `section`
-  // is a UI dropdown ("Preparation" / "Fabrication" / "Other"). `department`
-  // is an FK to the existing `Department` model (same catalogue used by
-  // `User.departmentId`) — e.g. "Production". The legacy free-text
-  // `department` column is retained for audit of the Dolibarr `options_department`
-  // extrafield; new UI writes `departmentId`.
+  // 18.7.0 — `occupation` is the canonical "Position Title" field. It is
+  // surfaced in the UI as "Position Title" but the column name stays
+  // `occupation` so the existing HrOccupation catalogue + its API
+  // (/api/hr/occupations) stay stable. The legacy free-text `trade` column
+  // was dropped in 18.7.0 (its values were copied into `occupation` first
+  // by prisma/manual_migrations/migrate_trade_to_occupation.sql) and the
+  // Dolibarr sync now writes `apiUser.job` straight into `occupation`.
+  // `section` is a UI dropdown ("Preparation" / "Fabrication" / "Other").
+  // `department` is an FK to the existing `Department` model (same catalogue
+  // used by `User.departmentId`). The legacy free-text `department` column
+  // is retained for audit of the Dolibarr `options_department` extrafield;
+  // new UI writes `departmentId`.
   occupation    String?        @db.VarChar(120)
   section       String?        @db.VarChar(60)
   division      String?        @db.VarChar(80) // 18.4.0 — managed via HrDivision
@@ -4043,7 +4046,6 @@ model Employee {
   deleteReason String?   @db.VarChar(500)
 
   @@index([status])
-  @@index([trade])
   @@index([department])
   @@index([departmentId])
   @@index([section])
@@ -4136,23 +4138,23 @@ model DolibarrEmployeeSyncLog {
 // mirror. One row per sync invocation, whether triggered manually from
 // /hr/leaves or automatically by the scheduler.
 model DolibarrLeaveSyncLog {
-  id                     String                  @id @default(uuid()) @db.Char(36)
-  startedAt              DateTime                @default(now())
-  finishedAt             DateTime?
-  triggeredById          String                  @db.Char(36)
-  triggeredBy            User                    @relation("DolibarrLeaveSyncLogTriggeredBy", fields: [triggeredById], references: [id])
-  triggerSource          String                  @default("manual") @db.VarChar(20) // "manual" | "cron"
-  status                 DolibarrLeaveSyncStatus
-  rowsRead               Int                     @default(0)
-  rowsCreated            Int                     @default(0)
-  rowsUpdated            Int                     @default(0)
-  rowsSkipped            Int                     @default(0)
-  employeesNotFound      Int                     @default(0) // fk_user not matched to an Employee
-  typesNotMapped         Int                     @default(0) // fk_type had no OTS LeaveType.code mapping
-  attendanceDaysOverridden Int                   @default(0) // sheet attendance days covered by a Dolibarr leave
-  hardErrors             Json? // [{ dolibarrId, message }]
-  softWarnings           Json? // [{ dolibarrId, field, message }]
-  apiResponseMs          Int?
+  id                       String                  @id @default(uuid()) @db.Char(36)
+  startedAt                DateTime                @default(now())
+  finishedAt               DateTime?
+  triggeredById            String                  @db.Char(36)
+  triggeredBy              User                    @relation("DolibarrLeaveSyncLogTriggeredBy", fields: [triggeredById], references: [id])
+  triggerSource            String                  @default("manual") @db.VarChar(20) // "manual" | "cron"
+  status                   DolibarrLeaveSyncStatus
+  rowsRead                 Int                     @default(0)
+  rowsCreated              Int                     @default(0)
+  rowsUpdated              Int                     @default(0)
+  rowsSkipped              Int                     @default(0)
+  employeesNotFound        Int                     @default(0) // fk_user not matched to an Employee
+  typesNotMapped           Int                     @default(0) // fk_type had no OTS LeaveType.code mapping
+  attendanceDaysOverridden Int                     @default(0) // sheet attendance days covered by a Dolibarr leave
+  hardErrors               Json? // [{ dolibarrId, message }]
+  softWarnings             Json? // [{ dolibarrId, field, message }]
+  apiResponseMs            Int?
 
   @@index([status])
   @@index([startedAt])
@@ -4206,12 +4208,12 @@ enum AttendanceSyncStatus {
 // One row per (worker, date). Mirrors the Google Sheet attendance tab.
 // Uniqueness is enforced per worker per day — re-sync updates in place.
 model AttendanceRecord {
-  id             String           @id @default(uuid()) @db.Char(36)
+  id             String        @id @default(uuid()) @db.Char(36)
   workerType     WorkerType
-  employeeId     String?          @db.Char(36)
-  employee       Employee?        @relation(fields: [employeeId], references: [id])
-  manpowerSlotId String?          @db.Char(36)
-  manpowerSlot   ManpowerSlot?    @relation(fields: [manpowerSlotId], references: [id])
+  employeeId     String?       @db.Char(36)
+  employee       Employee?     @relation(fields: [employeeId], references: [id])
+  manpowerSlotId String?       @db.Char(36)
+  manpowerSlot   ManpowerSlot? @relation(fields: [manpowerSlotId], references: [id])
 
   date            DateTime         @db.Date
   status          AttendanceStatus
@@ -4228,7 +4230,7 @@ model AttendanceRecord {
   // sha256(employmentId|date|rawCellA|rawCellP) — lets the sync skip unchanged rows.
   sourceRowHash String @db.Char(64)
 
-  lastImportBatchId String? @db.Char(36)
+  lastImportBatchId String?  @db.Char(36)
   lastImportedAt    DateTime
 
   createdAt DateTime @default(now())
@@ -4245,54 +4247,54 @@ model AttendanceRecord {
 
 // KSA public holidays. Manual CRUD for now; Phase 3 may pull from a feed.
 model PublicHoliday {
-  id          String  @id @default(uuid()) @db.Char(36)
+  id          String   @id @default(uuid()) @db.Char(36)
   date        DateTime @unique @db.Date
   nameEn      String   @db.VarChar(200)
   nameAr      String?  @db.VarChar(200)
   isRecurring Boolean  @default(false) // annual holiday (e.g. National Day) vs one-off
 
-  createdById String   @db.Char(36)
-  createdBy   User     @relation("PublicHolidayCreatedBy", fields: [createdById], references: [id])
-  updatedById String?  @db.Char(36)
-  updatedBy   User?    @relation("PublicHolidayUpdatedBy", fields: [updatedById], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdById String    @db.Char(36)
+  createdBy   User      @relation("PublicHolidayCreatedBy", fields: [createdById], references: [id])
+  updatedById String?   @db.Char(36)
+  updatedBy   User?     @relation("PublicHolidayUpdatedBy", fields: [updatedById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
-  deletedById String?  @db.Char(36)
-  deletedBy   User?    @relation("PublicHolidayDeletedBy", fields: [deletedById], references: [id])
+  deletedById String?   @db.Char(36)
+  deletedBy   User?     @relation("PublicHolidayDeletedBy", fields: [deletedById], references: [id])
 
   @@index([deletedAt])
 }
 
 // Per-run log for the Google Sheet attendance sync. Mirrors DolibarrEmployeeSyncLog.
 model GoogleSheetAttendanceSyncLog {
-  id              String               @id @default(uuid()) @db.Char(36)
-  startedAt       DateTime             @default(now())
-  finishedAt      DateTime?
-  triggeredById   String               @db.Char(36)
-  triggeredBy     User                 @relation("GoogleSheetAttendanceSyncLogTriggeredBy", fields: [triggeredById], references: [id])
-  status          AttendanceSyncStatus
-  spreadsheetId   String               @db.VarChar(100)
-  tabName         String               @db.VarChar(100)
-  rowsRead        Int                  @default(0)
-  rowsCreated     Int                  @default(0)
-  rowsUpdated     Int                  @default(0)
-  rowsUnchanged   Int                  @default(0)
+  id                  String               @id @default(uuid()) @db.Char(36)
+  startedAt           DateTime             @default(now())
+  finishedAt          DateTime?
+  triggeredById       String               @db.Char(36)
+  triggeredBy         User                 @relation("GoogleSheetAttendanceSyncLogTriggeredBy", fields: [triggeredById], references: [id])
+  status              AttendanceSyncStatus
+  spreadsheetId       String               @db.VarChar(100)
+  tabName             String               @db.VarChar(100)
+  rowsRead            Int                  @default(0)
+  rowsCreated         Int                  @default(0)
+  rowsUpdated         Int                  @default(0)
+  rowsUnchanged       Int                  @default(0)
   // Phase 2.5 — Employee attribute sync counters (occupation/section/department
   // pulled from sheet header rows, honoring manuallyEditedFields).
-  occupationsUpdated  Int              @default(0)
-  sectionsUpdated     Int              @default(0)
-  departmentsUpdated  Int              @default(0)
-  preservedFieldSkips Int              @default(0) // field-level skips due to manuallyEditedFields
+  occupationsUpdated  Int                  @default(0)
+  sectionsUpdated     Int                  @default(0)
+  departmentsUpdated  Int                  @default(0)
+  preservedFieldSkips Int                  @default(0) // field-level skips due to manuallyEditedFields
   // Phase 2.5 — mapping candidate counters
-  candidatesCreated   Int              @default(0)
-  candidatesResolved  Int              @default(0) // existing RESOLVED candidates that matched this run
-  candidatesIgnored   Int              @default(0) // existing IGNORED candidates silently skipped
-  employeeOrphans Json? // [{ identifier, name, firstRowIndex }] — kept for audit
-  slotOrphans     Json? // [{ identifier, name, firstRowIndex }] — kept for audit
-  hardErrors      Json? // [{ row, column, message }]
-  softWarnings    Json? // [{ row, column, message }]
-  durationMs      Int?
+  candidatesCreated   Int                  @default(0)
+  candidatesResolved  Int                  @default(0) // existing RESOLVED candidates that matched this run
+  candidatesIgnored   Int                  @default(0) // existing IGNORED candidates silently skipped
+  employeeOrphans     Json? // [{ identifier, name, firstRowIndex }] — kept for audit
+  slotOrphans         Json? // [{ identifier, name, firstRowIndex }] — kept for audit
+  hardErrors          Json? // [{ row, column, message }]
+  softWarnings        Json? // [{ row, column, message }]
+  durationMs          Int?
 
   @@index([status])
   @@index([startedAt])
@@ -4420,39 +4422,39 @@ model LeaveType {
 // (`leaves.approvalChain`). Each approver is stamped on the row so the whole
 // trail is auditable.
 model LeaveRequest {
-  id           String             @id @default(uuid()) @db.Char(36)
-  employeeId   String             @db.Char(36)
-  employee     Employee           @relation("EmployeeLeaveRequests", fields: [employeeId], references: [id])
-  leaveTypeId  String             @db.Char(36)
-  leaveType    LeaveType          @relation(fields: [leaveTypeId], references: [id])
-  startDate    DateTime           @db.Date
-  endDate      DateTime           @db.Date
-  calendarDays Int
-  workingDays  Decimal            @db.Decimal(6, 2)
-  reason       String?            @db.VarChar(1000)
-  status       LeaveRequestStatus @default(DRAFT)
-  attachmentUrl String?           @db.VarChar(500)
+  id            String             @id @default(uuid()) @db.Char(36)
+  employeeId    String             @db.Char(36)
+  employee      Employee           @relation("EmployeeLeaveRequests", fields: [employeeId], references: [id])
+  leaveTypeId   String             @db.Char(36)
+  leaveType     LeaveType          @relation(fields: [leaveTypeId], references: [id])
+  startDate     DateTime           @db.Date
+  endDate       DateTime           @db.Date
+  calendarDays  Int
+  workingDays   Decimal            @db.Decimal(6, 2)
+  reason        String?            @db.VarChar(1000)
+  status        LeaveRequestStatus @default(DRAFT)
+  attachmentUrl String?            @db.VarChar(500)
 
   // Approval trail
-  submittedAt        DateTime?
-  managerApprovedAt  DateTime?
-  managerApprovedById String?  @db.Char(36)
-  managerApprover    User?     @relation("LeaveRequestManagerApprover", fields: [managerApprovedById], references: [id])
-  hrApprovedAt       DateTime?
-  hrApprovedById     String?  @db.Char(36)
-  hrApprover         User?     @relation("LeaveRequestHrApprover", fields: [hrApprovedById], references: [id])
-  ceoApprovedAt      DateTime?
-  ceoApprovedById    String?  @db.Char(36)
-  ceoApprover        User?     @relation("LeaveRequestCeoApprover", fields: [ceoApprovedById], references: [id])
-  rejectedAt         DateTime?
-  rejectedById       String?  @db.Char(36)
-  rejectedBy         User?     @relation("LeaveRequestRejectedBy", fields: [rejectedById], references: [id])
-  rejectReason       String?   @db.VarChar(500)
+  submittedAt         DateTime?
+  managerApprovedAt   DateTime?
+  managerApprovedById String?   @db.Char(36)
+  managerApprover     User?     @relation("LeaveRequestManagerApprover", fields: [managerApprovedById], references: [id])
+  hrApprovedAt        DateTime?
+  hrApprovedById      String?   @db.Char(36)
+  hrApprover          User?     @relation("LeaveRequestHrApprover", fields: [hrApprovedById], references: [id])
+  ceoApprovedAt       DateTime?
+  ceoApprovedById     String?   @db.Char(36)
+  ceoApprover         User?     @relation("LeaveRequestCeoApprover", fields: [ceoApprovedById], references: [id])
+  rejectedAt          DateTime?
+  rejectedById        String?   @db.Char(36)
+  rejectedBy          User?     @relation("LeaveRequestRejectedBy", fields: [rejectedById], references: [id])
+  rejectReason        String?   @db.VarChar(500)
 
   // Balance snapshot at submission time — so reviewing an old request shows
   // the accurate state at the time it was asked for, not today's state.
-  balanceAtRequest   Decimal?  @db.Decimal(8, 2)
-  wasOverBalance     Boolean   @default(false)
+  balanceAtRequest Decimal? @db.Decimal(8, 2)
+  wasOverBalance   Boolean  @default(false)
 
   // 18.6.0 — origin of the row. NATIVE rows are editable via the OTS UI;
   // DOLIBARR rows are synced read-only from llx_holiday and land with
@@ -4479,21 +4481,21 @@ model LeaveRequest {
 // the balance service from LeaveRequest rows + the leave type's accrual
 // rule + any manual adjustments. Cached here for fast dashboard lookups.
 model LeaveBalance {
-  id                 String   @id @default(uuid()) @db.Char(36)
-  employeeId         String   @db.Char(36)
-  employee           Employee @relation("EmployeeLeaveBalances", fields: [employeeId], references: [id])
-  leaveTypeId        String   @db.Char(36)
-  leaveType          LeaveType @relation("LeaveTypeBalances", fields: [leaveTypeId], references: [id])
-  year               Int
-  openingBalance     Decimal  @default(0) @db.Decimal(8, 2)
-  accruedYtd         Decimal  @default(0) @db.Decimal(8, 2)
-  usedYtd            Decimal  @default(0) @db.Decimal(8, 2)
-  carriedOver        Decimal  @default(0) @db.Decimal(8, 2)
-  manualAdjustment   Decimal  @default(0) @db.Decimal(8, 2)
-  adjustmentReason   String?  @db.VarChar(500)
-  asOfDate           DateTime @db.Date
-  updatedAt          DateTime @updatedAt
-  createdAt          DateTime @default(now())
+  id               String    @id @default(uuid()) @db.Char(36)
+  employeeId       String    @db.Char(36)
+  employee         Employee  @relation("EmployeeLeaveBalances", fields: [employeeId], references: [id])
+  leaveTypeId      String    @db.Char(36)
+  leaveType        LeaveType @relation("LeaveTypeBalances", fields: [leaveTypeId], references: [id])
+  year             Int
+  openingBalance   Decimal   @default(0) @db.Decimal(8, 2)
+  accruedYtd       Decimal   @default(0) @db.Decimal(8, 2)
+  usedYtd          Decimal   @default(0) @db.Decimal(8, 2)
+  carriedOver      Decimal   @default(0) @db.Decimal(8, 2)
+  manualAdjustment Decimal   @default(0) @db.Decimal(8, 2)
+  adjustmentReason String?   @db.VarChar(500)
+  asOfDate         DateTime  @db.Date
+  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
 
   @@unique([employeeId, leaveTypeId, year])
   @@index([year])
@@ -4505,32 +4507,32 @@ model LeaveBalance {
 
 // One period per month. Status gates what can be edited; LOCKED is terminal.
 model PayrollPeriod {
-  id              String              @id @default(uuid()) @db.Char(36)
-  year            Int
-  month           Int // 1..12
-  status          PayrollPeriodStatus @default(DRAFT)
-  cutoffDate      DateTime            @db.Date
-  payDate         DateTime            @db.Date
-  notes           String?             @db.VarChar(1000)
+  id         String              @id @default(uuid()) @db.Char(36)
+  year       Int
+  month      Int // 1..12
+  status     PayrollPeriodStatus @default(DRAFT)
+  cutoffDate DateTime            @db.Date
+  payDate    DateTime            @db.Date
+  notes      String?             @db.VarChar(1000)
 
-  lines           PayrollLine[]
-  adjustments     PayrollAdjustment[]
-  wpsExports      WpsExport[]
+  lines       PayrollLine[]
+  adjustments PayrollAdjustment[]
+  wpsExports  WpsExport[]
 
-  calculatedAt    DateTime?
-  calculatedById  String?             @db.Char(36)
-  calculatedBy    User?               @relation("PayrollPeriodCalculatedBy", fields: [calculatedById], references: [id])
-  approvedAt      DateTime?
-  approvedById    String?             @db.Char(36)
-  approvedBy      User?               @relation("PayrollPeriodApprovedBy", fields: [approvedById], references: [id])
-  lockedAt        DateTime?
-  lockedById      String?             @db.Char(36)
-  lockedBy        User?               @relation("PayrollPeriodLockedBy", fields: [lockedById], references: [id])
+  calculatedAt   DateTime?
+  calculatedById String?   @db.Char(36)
+  calculatedBy   User?     @relation("PayrollPeriodCalculatedBy", fields: [calculatedById], references: [id])
+  approvedAt     DateTime?
+  approvedById   String?   @db.Char(36)
+  approvedBy     User?     @relation("PayrollPeriodApprovedBy", fields: [approvedById], references: [id])
+  lockedAt       DateTime?
+  lockedById     String?   @db.Char(36)
+  lockedBy       User?     @relation("PayrollPeriodLockedBy", fields: [lockedById], references: [id])
 
-  createdById     String              @db.Char(36)
-  createdBy       User                @relation("PayrollPeriodCreatedBy", fields: [createdById], references: [id])
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("PayrollPeriodCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([year, month])
   @@index([status])
@@ -4538,11 +4540,11 @@ model PayrollPeriod {
 
 // One row per (period, employee). Stores the fully-computed payslip.
 model PayrollLine {
-  id          String        @id @default(uuid()) @db.Char(36)
-  periodId    String        @db.Char(36)
-  period      PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  employeeId  String        @db.Char(36)
-  employee    Employee      @relation("EmployeePayrollLines", fields: [employeeId], references: [id])
+  id         String        @id @default(uuid()) @db.Char(36)
+  periodId   String        @db.Char(36)
+  period     PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  employeeId String        @db.Char(36)
+  employee   Employee      @relation("EmployeePayrollLines", fields: [employeeId], references: [id])
 
   // Snapshot of employee compensation at the time of calculation
   basicSalary        Decimal @db.Decimal(12, 2)
@@ -4553,20 +4555,20 @@ model PayrollLine {
   otherAllowances    Decimal @default(0) @db.Decimal(12, 2)
 
   // Computed day / hour counters
-  calendarDays       Int
-  workingDays        Int
-  workedDays         Decimal @default(0) @db.Decimal(6, 2)
-  paidLeaveDays      Decimal @default(0) @db.Decimal(6, 2)
-  halfPaidLeaveDays  Decimal @default(0) @db.Decimal(6, 2)
-  unpaidLeaveDays    Decimal @default(0) @db.Decimal(6, 2)
+  calendarDays                Int
+  workingDays                 Int
+  workedDays                  Decimal @default(0) @db.Decimal(6, 2)
+  paidLeaveDays               Decimal @default(0) @db.Decimal(6, 2)
+  halfPaidLeaveDays           Decimal @default(0) @db.Decimal(6, 2)
+  unpaidLeaveDays             Decimal @default(0) @db.Decimal(6, 2)
   absentDaysWithPermission    Decimal @default(0) @db.Decimal(6, 2)
   absentDaysWithoutPermission Decimal @default(0) @db.Decimal(6, 2)
-  publicHolidayDays  Decimal @default(0) @db.Decimal(6, 2)
-  overtimeHours      Decimal @default(0) @db.Decimal(8, 2)
+  publicHolidayDays           Decimal @default(0) @db.Decimal(6, 2)
+  overtimeHours               Decimal @default(0) @db.Decimal(8, 2)
 
-  dailyRate          Decimal @default(0) @db.Decimal(12, 4)
-  hourlyRate         Decimal @default(0) @db.Decimal(12, 4)
-  overtimePay        Decimal @default(0) @db.Decimal(12, 2)
+  dailyRate   Decimal @default(0) @db.Decimal(12, 4)
+  hourlyRate  Decimal @default(0) @db.Decimal(12, 4)
+  overtimePay Decimal @default(0) @db.Decimal(12, 2)
 
   // Deductions
   unpaidLeaveDeduction Decimal @default(0) @db.Decimal(12, 2)
@@ -4576,24 +4578,24 @@ model PayrollLine {
   otherDeductions      Decimal @default(0) @db.Decimal(12, 2)
 
   // Additions
-  bonuses             Decimal @default(0) @db.Decimal(12, 2)
-  otherAdditions      Decimal @default(0) @db.Decimal(12, 2)
+  bonuses        Decimal @default(0) @db.Decimal(12, 2)
+  otherAdditions Decimal @default(0) @db.Decimal(12, 2)
 
   // Totals
-  grossPay           Decimal @default(0) @db.Decimal(12, 2)
-  totalDeductions    Decimal @default(0) @db.Decimal(12, 2)
-  totalAdditions     Decimal @default(0) @db.Decimal(12, 2)
-  netPay             Decimal @default(0) @db.Decimal(12, 2)
+  grossPay        Decimal @default(0) @db.Decimal(12, 2)
+  totalDeductions Decimal @default(0) @db.Decimal(12, 2)
+  totalAdditions  Decimal @default(0) @db.Decimal(12, 2)
+  netPay          Decimal @default(0) @db.Decimal(12, 2)
 
   // Snapshot of banking for the WPS file
-  bankName           String? @db.VarChar(200)
-  bankIban           String? @db.VarChar(34)
+  bankName String? @db.VarChar(200)
+  bankIban String? @db.VarChar(34)
 
   // Payslip PDF cache — filled when generated
-  payslipPdfPath     String? @db.VarChar(500)
+  payslipPdfPath     String?   @db.VarChar(500)
   payslipGeneratedAt DateTime?
 
-  notes              String? @db.VarChar(1000)
+  notes String? @db.VarChar(1000)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4629,22 +4631,22 @@ model PayrollAdjustment {
 // One WPS file per approved payroll period. Alinma Bank uses a standard
 // SAMA-compliant CSV; the file path stores the rendered file on disk.
 model WpsExport {
-  id           String          @id @default(uuid()) @db.Char(36)
-  periodId     String          @db.Char(36)
-  period       PayrollPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  bankCode     String          @db.VarChar(20) // ALINMA
-  fileFormat   String          @db.VarChar(20) // CSV
-  filename     String          @db.VarChar(255)
-  filePath     String          @db.VarChar(500)
+  id             String          @id @default(uuid()) @db.Char(36)
+  periodId       String          @db.Char(36)
+  period         PayrollPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  bankCode       String          @db.VarChar(20) // ALINMA
+  fileFormat     String          @db.VarChar(20) // CSV
+  filename       String          @db.VarChar(255)
+  filePath       String          @db.VarChar(500)
   totalEmployees Int
-  totalNet     Decimal         @db.Decimal(14, 2)
-  status       WpsExportStatus @default(GENERATED)
+  totalNet       Decimal         @db.Decimal(14, 2)
+  status         WpsExportStatus @default(GENERATED)
 
-  generatedById String         @db.Char(36)
-  generatedBy   User           @relation("WpsExportGeneratedBy", fields: [generatedById], references: [id])
-  generatedAt   DateTime       @default(now())
-  downloadedAt  DateTime?
-  downloadedById String?       @db.Char(36)
+  generatedById  String    @db.Char(36)
+  generatedBy    User      @relation("WpsExportGeneratedBy", fields: [generatedById], references: [id])
+  generatedAt    DateTime  @default(now())
+  downloadedAt   DateTime?
+  downloadedById String?   @db.Char(36)
 
   @@index([periodId])
   @@index([status])
@@ -4654,26 +4656,26 @@ model WpsExport {
 // Saudi labour law formula: 0.5 month per year of the first 5 years, then
 // 1 month per year thereafter. A partial year is prorated.
 model EndOfServiceAward {
-  id                 String    @id @default(uuid()) @db.Char(36)
-  employeeId         String    @unique @db.Char(36)
-  employee           Employee  @relation("EmployeeEosAward", fields: [employeeId], references: [id])
-  serviceStartDate   DateTime  @db.Date
-  serviceEndDate     DateTime  @db.Date
-  serviceYears       Decimal   @db.Decimal(6, 3)
-  lastMonthlyWage    Decimal   @db.Decimal(12, 2)
-  firstTierMonths    Decimal   @db.Decimal(8, 3) // up-to 2.5 (0.5 × 5 years)
-  secondTierMonths   Decimal   @db.Decimal(8, 3)
-  grossAward         Decimal   @db.Decimal(14, 2)
-  deductions         Decimal   @default(0) @db.Decimal(14, 2)
-  netAward           Decimal   @db.Decimal(14, 2)
-  notes              String?   @db.VarChar(1000)
+  id               String   @id @default(uuid()) @db.Char(36)
+  employeeId       String   @unique @db.Char(36)
+  employee         Employee @relation("EmployeeEosAward", fields: [employeeId], references: [id])
+  serviceStartDate DateTime @db.Date
+  serviceEndDate   DateTime @db.Date
+  serviceYears     Decimal  @db.Decimal(6, 3)
+  lastMonthlyWage  Decimal  @db.Decimal(12, 2)
+  firstTierMonths  Decimal  @db.Decimal(8, 3) // up-to 2.5 (0.5 × 5 years)
+  secondTierMonths Decimal  @db.Decimal(8, 3)
+  grossAward       Decimal  @db.Decimal(14, 2)
+  deductions       Decimal  @default(0) @db.Decimal(14, 2)
+  netAward         Decimal  @db.Decimal(14, 2)
+  notes            String?  @db.VarChar(1000)
 
-  calculatedById     String    @db.Char(36)
-  calculatedBy       User      @relation("EndOfServiceCalculatedBy", fields: [calculatedById], references: [id])
-  calculatedAt       DateTime  @default(now())
-  paidAt             DateTime?
-  paidById           String?   @db.Char(36)
-  paidBy             User?     @relation("EndOfServicePaidBy", fields: [paidById], references: [id])
+  calculatedById String    @db.Char(36)
+  calculatedBy   User      @relation("EndOfServiceCalculatedBy", fields: [calculatedById], references: [id])
+  calculatedAt   DateTime  @default(now())
+  paidAt         DateTime?
+  paidById       String?   @db.Char(36)
+  paidBy         User?     @relation("EndOfServicePaidBy", fields: [paidById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

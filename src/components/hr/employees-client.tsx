@@ -23,7 +23,6 @@ type EmployeeRow = {
   fullNameAr: string | null;
   nationalId: string | null;
   status: string;
-  trade: string | null;
   department: string | null;
   section: string | null;
   division: string | null;
@@ -38,7 +37,7 @@ type EmployeeRow = {
 type SortKey =
   | 'employmentId'
   | 'name'
-  | 'trade'
+  | 'occupation'
   | 'department'
   | 'status'
   | 'dateOfJoining'
@@ -73,7 +72,7 @@ export function EmployeesClient({
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [tradeFilter, setTradeFilter] = useState<string>('all');
+  const [occupationFilter, setOccupationFilter] = useState<string>('all');
   const [showArabic, setShowArabic] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('employmentId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -87,9 +86,9 @@ export function EmployeesClient({
     }
   };
 
-  const trades = useMemo(() => {
+  const occupations = useMemo(() => {
     const set = new Set<string>();
-    for (const e of employees) if (e.trade) set.add(e.trade);
+    for (const e of employees) if (e.occupation) set.add(e.occupation);
     return Array.from(set).sort();
   }, [employees]);
 
@@ -97,7 +96,7 @@ export function EmployeesClient({
     const q = search.trim().toLowerCase();
     const matches = employees.filter((e) => {
       if (statusFilter !== 'all' && e.status !== statusFilter) return false;
-      if (tradeFilter !== 'all' && e.trade !== tradeFilter) return false;
+      if (occupationFilter !== 'all' && e.occupation !== occupationFilter) return false;
       if (!q) return true;
       return (
         e.fullNameEn.toLowerCase().includes(q) ||
@@ -120,8 +119,8 @@ export function EmployeesClient({
           }
         case 'name':
           return (showArabic && e.fullNameAr ? e.fullNameAr : e.fullNameEn).toLowerCase();
-        case 'trade':
-          return (e.trade ?? '').toLowerCase();
+        case 'occupation':
+          return (e.occupation ?? '').toLowerCase();
         case 'department':
           return (e.department ?? '').toLowerCase();
         case 'status':
@@ -142,7 +141,7 @@ export function EmployeesClient({
       if (av > bv) return 1 * dir;
       return 0;
     });
-  }, [employees, search, statusFilter, tradeFilter, sortKey, sortDir, showArabic]);
+  }, [employees, search, statusFilter, occupationFilter, sortKey, sortDir, showArabic]);
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
@@ -216,15 +215,15 @@ export function EmployeesClient({
                 <SelectItem value="RESIGNED">Resigned</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={tradeFilter} onValueChange={setTradeFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Trade" />
+            <Select value={occupationFilter} onValueChange={setOccupationFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Position Title" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All trades</SelectItem>
-                {trades.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
+                <SelectItem value="all">All position titles</SelectItem>
+                {occupations.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {o}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -251,10 +250,10 @@ export function EmployeesClient({
                   </th>
                   <th
                     className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
-                    onClick={() => toggleSort('trade')}
+                    onClick={() => toggleSort('occupation')}
                   >
-                    Trade
-                    <SortIcon col="trade" />
+                    Position Title
+                    <SortIcon col="occupation" />
                   </th>
                   <th
                     className="p-2 font-medium cursor-pointer select-none hover:text-foreground"
@@ -325,7 +324,7 @@ export function EmployeesClient({
                           </Badge>
                         )}
                       </td>
-                      <td className="p-2">{e.trade ?? '—'}</td>
+                      <td className="p-2">{e.occupation ?? '—'}</td>
                       <td className="p-2">{e.department ?? '—'}</td>
                       <td className="p-2">
                         <span

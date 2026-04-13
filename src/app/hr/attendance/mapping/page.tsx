@@ -40,7 +40,6 @@ export default async function AttendanceMappingPage() {
         employmentId: true,
         fullNameEn: true,
         fullNameAr: true,
-        trade: true,
         occupation: true,
       },
       orderBy: { fullNameEn: 'asc' },
