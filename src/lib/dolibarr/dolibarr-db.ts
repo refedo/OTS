@@ -42,20 +42,23 @@ export class DolibarrDbNotConfiguredError extends Error {
   }
 }
 
-/** Row shape returned by `fetchApprovedDolibarrHolidays()`. */
+/** Row shape returned by `fetchApprovedDolibarrHolidays()`.
+ *
+ *  Intentionally minimal — only the columns OTS actually reads. Older
+ *  Dolibarr schemas (like Walid's install) are missing `nb_open_day` and
+ *  `date_approval`, and selecting them blows up the whole sync with
+ *  "Unknown column … in 'field list'". So we stick to the columns that
+ *  have existed in every Dolibarr release we care about. */
 export interface DolibarrHolidayDbRow {
   rowid: number;
   fk_user: number;
-  fk_type: number;
   type_code: string | null;
   type_label: string | null;
   date_debut: Date;
   date_fin: Date;
-  halfday: number | null;
   statut: number;
   description: string | null;
   date_create: Date;
-  date_approval: Date | null;
 }
 
 const TABLE_PREFIX_PATTERN = /^[a-z][a-z0-9_]*_$/;
@@ -181,24 +184,25 @@ export async function fetchApprovedDolibarrHolidays(): Promise<DolibarrHolidayDb
   const p = getDolibarrDbPool();
   const prefix = getDolibarrTablePrefix();
   const [rows] = await p.query<mysql.RowDataPacket[]>(
-    // NOTE: `nb_open_day` exists in newer Dolibarr schemas but NOT in
-    // Walid's install (confirmed 13 April 2026 — sync returned
-    // "Unknown column 'h.nb_open_day' in 'field list'"), so it's dropped
-    // from the SELECT. OTS computes calendar/working days from
-    // date_debut/date_fin anyway, so we never actually needed it.
+    // NOTE: the SELECT is intentionally minimal — only columns OTS
+    // actually reads. Walid's install (Dolibarr on erp.hexametals.com)
+    // is missing `nb_open_day` AND `date_approval` — both return
+    // "Unknown column … in 'field list'" when selected. Both are unread
+    // in sync-dolibarr-leaves.ts anyway (calendar/working days are
+    // computed from date_debut/date_fin, and approval timestamp is
+    // unused), so they're dropped here to make the query portable
+    // across Dolibarr versions. `halfday` and `fk_type` are also
+    // dropped for the same reason (unused post-JOIN).
     `SELECT
        h.rowid,
        h.fk_user,
-       h.fk_type,
        t.code  AS type_code,
        t.label AS type_label,
        h.date_debut,
        h.date_fin,
-       h.halfday,
        h.statut,
        h.description,
-       h.date_create,
-       h.date_approval
+       h.date_create
      FROM \`${prefix}holiday\` AS h
      LEFT JOIN \`${prefix}c_holiday_types\` AS t ON t.rowid = h.fk_type
      WHERE h.statut = 3

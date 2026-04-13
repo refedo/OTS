@@ -23,10 +23,31 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.8.1',
+    version: '18.8.2',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Trim Dolibarr Holidays SELECT To Portable Minimum',
+    highlights: [
+      'Second live run of 18.8.1 hit "Unknown column \'h.date_approval\' in \'field list\'" — same Dolibarr-version-mismatch as h.nb_open_day in 18.8.1, just a different column.',
+      'Instead of playing whack-a-mole one column at a time, the SELECT is now trimmed down to only the columns OTS actually reads in sync-dolibarr-leaves.ts: rowid, fk_user, date_debut, date_fin, statut, description, date_create, plus the JOINed t.code / t.label.',
+      'halfday, fk_type, date_approval and nb_open_day are all dropped from both the query and the DolibarrHolidayDbRow interface. None of them were read anywhere in the sync service. The query should now work on every Dolibarr release we care about.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Dolibarr holidays sync no longer crashes on older schemas missing h.date_approval',
+      ],
+      changed: [
+        'src/lib/dolibarr/dolibarr-db.ts: SELECT trimmed to portable minimum; DolibarrHolidayDbRow slimmed to match',
+      ],
+    },
+  },
+  {
+    version: '18.8.1',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Drop h.nb_open_day From Dolibarr Holidays Query — Column Missing On Walid\'s Install',
     highlights: [
       'First live run of 18.8.0 against Walid\'s llxvv_holiday table returned "Unknown column \'h.nb_open_day\' in \'field list\'" on /hr/leaves. The column exists in newer Dolibarr schemas but not on this install.',
