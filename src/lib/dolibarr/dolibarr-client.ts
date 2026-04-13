@@ -1026,23 +1026,33 @@ export class DolibarrClient {
  * The OTS client hits this endpoint the same way it hits products,
  * thirdparties, invoices, salaries, purchase orders and users — all of
  * which work. So when this error fires the root cause is on the Dolibarr
- * server, not in OTS. Common fixes:
+ * server, not in OTS.
+ *
+ * Paths below are RELATIVE TO THE DOLIBARR ROOT — i.e. the directory that
+ * contains `api/`, `holiday/`, `accountancy/`, etc. (Dolibarr's source
+ * convention is `htdocs/` but on a real install the root may be wherever
+ * the admin put it — e.g. `public_html/erp/` on Hexa Steel's cPanel
+ * install. The relative layout inside Dolibarr is the same regardless.)
+ *
+ * Common fixes:
  *   1. Grant the API-key user the "Read holidays" (`holiday/read`)
  *      permission under Users & Groups → permissions.
- *   2. Delete the Dolibarr API route cache at `htdocs/api/temp/routes.php`
+ *   2. Delete the Dolibarr API route cache at `<dolibarr-root>/api/temp/routes.php`
  *      (Dolibarr caches the loaded APIs there; a stale cache from before
  *      the Leaves module was enabled will keep returning "API not found").
- *   3. Verify `htdocs/holiday/class/api_holidays.class.php` exists and is
- *      readable by the PHP process — some slimmed-down builds omit it.
+ *   3. Verify `<dolibarr-root>/holiday/class/api_holidays.class.php` exists
+ *      and is readable by the PHP process — some slimmed-down builds omit it.
  */
 export class DolibarrHolidaysNotAvailableError extends Error {
   constructor(detail: string) {
     super(
       `Dolibarr holidays REST endpoint is not reachable. OTS calls ` +
         `/api/index.php/holidays the same way it calls /products, /thirdparties and /salaries, ` +
-        `so the fix is on the Dolibarr server: (1) grant the API-key user the "holiday/read" permission, ` +
-        `(2) delete htdocs/api/temp/routes.php to clear Dolibarr's stale API cache, ` +
-        `and (3) verify htdocs/holiday/class/api_holidays.class.php exists and is readable. (${detail})`,
+        `so the fix is on the Dolibarr server. Paths below are relative to your Dolibarr root ` +
+        `(the directory that contains api/, holiday/, accountancy/ — e.g. public_html/erp on cPanel): ` +
+        `(1) grant the API-key user the "holiday/read" permission under Users & Groups → permissions, ` +
+        `(2) delete <dolibarr-root>/api/temp/routes.php to clear Dolibarr's stale API-route cache, ` +
+        `and (3) verify <dolibarr-root>/holiday/class/api_holidays.class.php exists and is readable. (${detail})`,
     );
     this.name = 'DolibarrHolidaysNotAvailableError';
   }
