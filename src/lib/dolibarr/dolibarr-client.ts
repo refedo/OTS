@@ -1020,15 +1020,29 @@ export class DolibarrClient {
 
 /**
  * Thrown when the Dolibarr `holidays` REST endpoint isn't reachable —
- * either because the module is disabled, the Dolibarr API doesn't expose
- * it, or the server returned a non-JSON "API not found" page. The sync
- * service catches this specifically and surfaces a user-friendly error.
+ * either because the module is disabled, the API class file can't be
+ * loaded by the REST router, or the API-key user lacks `holiday/read`.
+ *
+ * The OTS client hits this endpoint the same way it hits products,
+ * thirdparties, invoices, salaries, purchase orders and users — all of
+ * which work. So when this error fires the root cause is on the Dolibarr
+ * server, not in OTS. Common fixes:
+ *   1. Grant the API-key user the "Read holidays" (`holiday/read`)
+ *      permission under Users & Groups → permissions.
+ *   2. Delete the Dolibarr API route cache at `htdocs/api/temp/routes.php`
+ *      (Dolibarr caches the loaded APIs there; a stale cache from before
+ *      the Leaves module was enabled will keep returning "API not found").
+ *   3. Verify `htdocs/holiday/class/api_holidays.class.php` exists and is
+ *      readable by the PHP process — some slimmed-down builds omit it.
  */
 export class DolibarrHolidaysNotAvailableError extends Error {
   constructor(detail: string) {
     super(
-      `Dolibarr does not expose the holidays REST endpoint on this server. ` +
-        `Enable the Leaves module in Dolibarr and ensure REST API access, or check that the API key has "holiday" permissions. (${detail})`,
+      `Dolibarr holidays REST endpoint is not reachable. OTS calls ` +
+        `/api/index.php/holidays the same way it calls /products, /thirdparties and /salaries, ` +
+        `so the fix is on the Dolibarr server: (1) grant the API-key user the "holiday/read" permission, ` +
+        `(2) delete htdocs/api/temp/routes.php to clear Dolibarr's stale API cache, ` +
+        `and (3) verify htdocs/holiday/class/api_holidays.class.php exists and is readable. (${detail})`,
     );
     this.name = 'DolibarrHolidaysNotAvailableError';
   }

@@ -23,29 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.6.2',
+    version: '18.6.3',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
-    mainTitle: 'Dolibarr Direct-MySQL Fallback for Holidays + Employee SN Natural Sort',
+    mainTitle: 'Revert Dolibarr Direct-MySQL Holidays Fallback — REST Pattern Only',
     highlights: [
-      'Dolibarr REST endpoint /api/index.php/holidays returns "API not found (failed to include API file)" on many Dolibarr builds even when the Leaves module is enabled in the UI — OTS now bypasses the broken REST endpoint by reading llx_holiday directly via MySQL when the new DOLIBARR_DB_* env vars are set.',
-      'Sync probes the Dolibarr DB once per run, attempts the REST call first, and on DolibarrHolidaysNotAvailableError automatically falls back to the direct MySQL read with a soft-warning entry in the sync log.',
-      '/hr/employees SN column now sorts by natural numeric value (1, 2, 10, 100) instead of lexicographically (1, 10, 100, 2).',
+      'Reverts 18.6.2\'s DOLIBARR_DB_* MySQL fallback per Walid: "the API works perfectly for products, third parties, POs and financial sync — there\'s no need for direct DB access. Look up how the existing integrations work and do the same."',
+      'OTS already calls /api/index.php/holidays the same way it calls /products, /thirdparties, /invoices, /salaries, /projects, /supplierorders and /users — same DolibarrPaginationParams, same t.rowid sortfield, same request<T>() plumbing. So when getHolidays() fails the root cause is on the Dolibarr server, not in OTS.',
+      'DolibarrHolidaysNotAvailableError now spells out the three concrete server-side fixes admins should apply: grant the API-key user "holiday/read", delete htdocs/api/temp/routes.php (Dolibarr\'s stale API-route cache), and verify htdocs/holiday/class/api_holidays.class.php exists and is readable by the PHP process.',
     ],
     changes: {
-      added: [
-        'src/lib/dolibarr/dolibarr-db.ts — small read-only mysql2 pool against the Dolibarr database, with isDolibarrDbConfigured() / pingDolibarrDb() / getAllHolidaysFromDb() / getHolidayTypesFromDb()',
-        'env.ts: DOLIBARR_DB_HOST / DOLIBARR_DB_PORT / DOLIBARR_DB_USER / DOLIBARR_DB_PASSWORD / DOLIBARR_DB_DATABASE (all optional)',
-        'sync-dolibarr-leaves.ts: REST→MySQL fallback for both holidays and the holiday type catalogue, gated by env-var presence + a SELECT 1 connectivity probe',
-      ],
+      added: [],
       fixed: [
-        '/hr/employees SN column natural-numeric sort (strips non-digit prefixes like "SH-W04", parses the remainder as an integer)',
-        '/api/hr/leave-requests/sync 503 response now tells admins exactly which DOLIBARR_DB_* env vars to set when REST is missing and the fallback isn\'t configured yet',
+        'DolibarrHolidaysNotAvailableError message rewritten with the three concrete server-side fixes (holiday/read permission, clear api/temp/routes.php cache, verify api_holidays.class.php), and /api/hr/leave-requests/sync 503 surfaces it verbatim',
       ],
       changed: [
-        'sync-dolibarr-leaves.ts: buildTypeMap() takes a useDbFallback flag; main run probes DB once at the top and uses the result for both type catalogue and holidays fetch',
+        'src/lib/dolibarr/dolibarr-db.ts — DELETED. Replaced with the existing REST-only path that mirrors every other working Dolibarr integration in OTS.',
+        'env.ts — removed DOLIBARR_DB_HOST / DOLIBARR_DB_PORT / DOLIBARR_DB_USER / DOLIBARR_DB_PASSWORD / DOLIBARR_DB_DATABASE; the only Dolibarr env vars are the existing DOLIBARR_API_URL / DOLIBARR_API_KEY / DOLIBARR_API_TIMEOUT / DOLIBARR_API_RETRIES used by every other sync',
+        'sync-dolibarr-leaves.ts: buildTypeMap() drops the useDbFallback parameter, runDolibarrLeaveSync() calls client.getAllHolidays() directly with no DB probe and no fallback branch — exact same shape as the products / thirdparties / invoices / salaries / users syncs',
+        '/api/hr/leave-requests/sync: 503 response no longer mentions DB env vars; surfaces the new actionable Dolibarr-side error message',
       ],
+    },
+  },
+  {
+    version: '18.6.2',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Dolibarr Direct-MySQL Fallback for Holidays + Employee SN Natural Sort (Reverted in 18.6.3)',
+    highlights: [
+      'Added a direct MySQL readthrough for llx_holiday as a fallback when the Dolibarr REST holidays endpoint returned "API not found".',
+      '/hr/employees SN column now sorts by natural numeric value (1, 2, 10, 100) instead of lexicographically (1, 10, 100, 2). This part is preserved in 18.6.3.',
+      'NOTE: the MySQL fallback was reverted in 18.6.3 — kept this entry for history only.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        '/hr/employees SN column natural-numeric sort (strips non-digit prefixes like "SH-W04", parses the remainder as an integer) — preserved in 18.6.3',
+      ],
+      changed: [],
     },
   },
   {
