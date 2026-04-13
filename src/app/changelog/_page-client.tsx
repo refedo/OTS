@@ -23,10 +23,30 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.7.4',
+    version: '18.7.5',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Payroll Leaves-Sync Warning No Longer Dumps a Paragraph at the User',
+    highlights: [
+      'Walid reported: "payroll is showing an error and it loads salaries in nowhere" with a screenshot of the amber warning strip on /hr/payroll displaying the entire verbose DolibarrHolidaysNotAvailableError paragraph (the 18.7.4 three-paragraph technical description with proxy-cache purge advice, module-enable steps, everything) as user-facing text. That diagnostic copy is meant for admins reading server logs, not for whoever clicks Sync from Dolibarr.',
+      'Root cause: the 18.7.3 soft-fail path called setLeaveSyncWarning(body.error ?? body.message ?? fallback) and body.error was literally the full server error message. So the moment the leaves sync failed for any reason, the UI surfaced the whole paragraph verbatim.',
+      'Fix: both setLeaveSyncWarning() call sites in payroll-periods-client.tsx runSync() now use a single short user-friendly line — "Dolibarr leaves sync unavailable — payroll will use attendance-sheet codes only." — and the raw body.error / e.message is pushed to console.warn("[payroll] Dolibarr leaves sync failed:", ...) so browser DevTools retains the technical detail for anyone actually debugging.',
+      'The amber-panel chrome around the message (title "Leaves sync skipped — employee sync succeeded" + the fine-print hint "Payroll calculation will still run using attendance-sheet codes only. Fix the Dolibarr /holidays endpoint at your leisure.") is unchanged — only the middle line was leaking. No schema, sync or route logic touched.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'payroll-periods-client.tsx runSync(): both leaves-sync failure paths now set a short user-friendly leaveSyncWarning instead of passing through the full verbose server error message, with the technical detail captured via console.warn for admins',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '18.7.4',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Dolibarr /holidays Root Cause Found — Stale Edge-Proxy Cache, Not Dolibarr',
     highlights: [
       'Walid ran two direct curls against the live Dolibarr instance and the response headers were definitive. /api/index.php/users?limit=1 came back HTTP 200 + application/json + x-powered-by: Luracast Restler v3.1.0 + x-proxy-cache: MISS. /api/index.php/holidays?limit=1 came back HTTP 200 + text/html + NO x-powered-by: Restler header at all + x-proxy-cache: HIT + body "API not found (failed to include API file)".',

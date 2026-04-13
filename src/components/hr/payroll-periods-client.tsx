@@ -151,18 +151,25 @@ export function PayrollPeriodsClient({
       try {
         const leaveRes = await fetch('/api/hr/leave-requests/sync', { method: 'POST' });
         if (!leaveRes.ok) {
+          // 18.7.5 — Don't leak the server's verbose DolibarrHolidaysNotAvailableError
+          // paragraph into the UI. Log the technical detail to the browser console
+          // for admins who need it, show a short friendly line to everyone else.
           const body = await leaveRes.json().catch(() => ({}));
+          if (body?.error) {
+            // eslint-disable-next-line no-console
+            console.warn('[payroll] Dolibarr leaves sync failed:', body.error);
+          }
           setLeaveSyncWarning(
-            body.error ??
-              body.message ??
-              'Leaves sync failed — payroll will fall back to attendance-sheet codes.',
+            'Dolibarr leaves sync unavailable — payroll will use attendance-sheet codes only.',
           );
         }
       } catch (e) {
+        if (e instanceof Error) {
+          // eslint-disable-next-line no-console
+          console.warn('[payroll] Dolibarr leaves sync failed:', e.message);
+        }
         setLeaveSyncWarning(
-          e instanceof Error
-            ? `${e.message} — payroll will fall back to attendance-sheet codes.`
-            : 'Leaves sync failed — payroll will fall back to attendance-sheet codes.',
+          'Dolibarr leaves sync unavailable — payroll will use attendance-sheet codes only.',
         );
       }
       await loadLastSync();
