@@ -50,13 +50,14 @@ jobs:
 
             echo "Running migration: $MIGRATION_FILE"
 
-            # Run as MySQL root (no password) against ots_db. The ots_user
-            # account in .env only has application-level privileges and
-            # cannot execute DDL like CREATE PROCEDURE / ALTER TABLE.
+            # Connect as MySQL root with no password. The ots_user account
+            # in .env only has application-level privileges and cannot
+            # execute the DDL (CREATE PROCEDURE / ALTER TABLE) that our
+            # manual migrations require.
             DB_NAME=ots_db
             echo "Database: localhost/$DB_NAME (as root)"
             echo "Running SQL file..."
 
-            sudo mysql -u root "$DB_NAME" < "$APP_DIR/$MIGRATION_FILE"
+            mysql -u root "$DB_NAME" < "$APP_DIR/$MIGRATION_FILE"
 
             echo "Migration completed successfully!"
