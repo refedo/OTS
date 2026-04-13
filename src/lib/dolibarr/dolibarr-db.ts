@@ -54,7 +54,6 @@ export interface DolibarrHolidayDbRow {
   halfday: number | null;
   statut: number;
   description: string | null;
-  nb_open_day: number | null;
   date_create: Date;
   date_approval: Date | null;
 }
@@ -182,6 +181,11 @@ export async function fetchApprovedDolibarrHolidays(): Promise<DolibarrHolidayDb
   const p = getDolibarrDbPool();
   const prefix = getDolibarrTablePrefix();
   const [rows] = await p.query<mysql.RowDataPacket[]>(
+    // NOTE: `nb_open_day` exists in newer Dolibarr schemas but NOT in
+    // Walid's install (confirmed 13 April 2026 — sync returned
+    // "Unknown column 'h.nb_open_day' in 'field list'"), so it's dropped
+    // from the SELECT. OTS computes calendar/working days from
+    // date_debut/date_fin anyway, so we never actually needed it.
     `SELECT
        h.rowid,
        h.fk_user,
@@ -193,7 +197,6 @@ export async function fetchApprovedDolibarrHolidays(): Promise<DolibarrHolidayDb
        h.halfday,
        h.statut,
        h.description,
-       h.nb_open_day,
        h.date_create,
        h.date_approval
      FROM \`${prefix}holiday\` AS h

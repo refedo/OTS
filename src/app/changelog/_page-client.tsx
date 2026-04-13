@@ -23,10 +23,30 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.8.1',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Drop h.nb_open_day From Dolibarr Holidays Query — Column Missing On Walid\'s Install',
+    highlights: [
+      'First live run of 18.8.0 against Walid\'s llxvv_holiday table returned "Unknown column \'h.nb_open_day\' in \'field list\'" on /hr/leaves. The column exists in newer Dolibarr schemas but not on this install.',
+      'OTS never actually used it — calendar days and working days are computed directly from date_debut and date_fin inside runDolibarrLeaveSync(). So it is dropped from the SELECT and from the DolibarrHolidayDbRow interface. No logic change, just a safer query.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'src/lib/dolibarr/dolibarr-db.ts: remove h.nb_open_day from the fetchApprovedDolibarrHolidays() query so the leaves sync no longer crashes on Dolibarr installs that predate that column',
+      ],
+      changed: [
+        'DolibarrHolidayDbRow no longer exposes nb_open_day (it was unread anyway)',
+      ],
+    },
+  },
+  {
     version: '18.8.0',
     date: 'April 13, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Dolibarr Leaves Sync via Direct MySQL — Bypassing the Broken /holidays REST Endpoint',
     highlights: [
       'Plan B turned out to be "use the database directly". The Dolibarr /api/index.php/holidays REST endpoint has been unfixable from the OTS side across five consecutive diagnostic attempts (18.7.1 → 18.7.6) even though the Holiday module is enabled, the class file is present, the API key user has holiday/read, and the edge proxy has been cache-busted. Walid confirmed the underlying Dolibarr database is fully populated — SELECT COUNT(*) FROM llxvv_holiday WHERE statut=3 returns 46 approved rows — so we now read them directly.',
