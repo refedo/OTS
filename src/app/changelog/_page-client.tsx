@@ -23,10 +23,34 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.7.2',
+    version: '18.7.3',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Payroll No Longer Blocked by Broken /holidays — Leaves Sync Is Now Soft-Fail',
+    highlights: [
+      'Walid asked: "why is the payroll failing while we already have a salaries sync working perfectly in financial module?" The answer is they are not the same endpoint. Financial → Salaries calls Dolibarr /api/index.php/salaries (the llx_salary / llx_payment_salary payment tables) and works fine. The payroll page has its OWN sync button that chains /api/hr/employees/sync (→ Dolibarr /users, works) then /api/hr/leave-requests/sync (→ Dolibarr /holidays, broken on this install). The second call\'s failure was being thrown as a hard error, breaking the whole flow and hiding the successful employee sync.',
+      'But the Dolibarr leaves sync from 18.6.0 was an ENHANCEMENT, not a hard dependency. OTS has always calculated payroll from Employee + AttendanceRecord sheet data since before 18.6.0; the leaves sync just dedupes sheet codes against approved Dolibarr holidays when present. So a broken /holidays endpoint must never block payroll calculation.',
+      'Fix: runSync() in payroll-periods-client.tsx now fails hard ONLY on employee sync (the real dependency). Leaves-sync failures are caught into a new leaveSyncWarning state so the employee sync still reports success. The status strip shows the warning as an amber panel explaining that payroll will fall back to attendance-sheet codes only. The canSync gate in /hr/payroll page.tsx no longer requires hr.leaves.sync permission — hr.employee.sync alone is enough.',
+      'Net effect: Walid can run payroll calculation today. The broken /holidays endpoint becomes a non-blocking warning until Dolibarr\'s module path resolution is fixed.',
+    ],
+    changes: {
+      added: [
+        'leaveSyncWarning state in payroll-periods-client.tsx + amber warning panel in the sync status strip explaining that payroll falls back to sheet codes',
+      ],
+      fixed: [
+        'payroll-periods-client.tsx runSync(): leaves-sync failures are now soft-caught into leaveSyncWarning instead of thrown as syncError, so a broken Dolibarr /holidays endpoint no longer blocks the employee sync or the payroll calculation',
+      ],
+      changed: [
+        '/hr/payroll page.tsx: canSync prop no longer requires hr.leaves.sync permission — hr.employee.sync alone unlocks the Sync button since leaves is optional',
+      ],
+    },
+  },
+  {
+    version: '18.7.2',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Dolibarr Holidays Diagnosis Corrected — The Leave Requests Module Is Off',
     highlights: [
       'Walid shared a screenshot of the actual api/index.php lines 397-406 on erp.hexametals.com, which proved 18.7.1\'s "set display_errors = Off" advice WRONG. Line 402 is not a PHP notice banner — it is literally Dolibarr\'s own fallback code: `print \'API not found (failed to include API file)\';` immediately before `header(\'HTTP/1.1 501 ...\');` on line 403.',

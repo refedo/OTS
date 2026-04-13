@@ -24,9 +24,7 @@ export default async function PayrollPage() {
       canApprove={perms.includes('hr.payroll.approve')}
       canLock={perms.includes('hr.payroll.lock')}
       canExport={perms.includes('hr.payroll.export')}
-      canSync={
-        perms.includes('hr.employee.sync') && perms.includes('hr.leaves.sync')
-      }
+      canSync={perms.includes('hr.employee.sync')}
     />
   );
 }

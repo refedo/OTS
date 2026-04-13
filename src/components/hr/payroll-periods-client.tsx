@@ -91,6 +91,7 @@ export function PayrollPeriodsClient({
   // Dolibarr sync (18.6.1)
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [leaveSyncWarning, setLeaveSyncWarning] = useState<string | null>(null);
   const [lastLeaveSync, setLastLeaveSync] = useState<LeaveSyncLog | null>(null);
   const [lastEmployeeSync, setLastEmployeeSync] = useState<EmployeeSyncLog | null>(null);
 
@@ -134,18 +135,35 @@ export function PayrollPeriodsClient({
   async function runSync() {
     setSyncing(true);
     setSyncError(null);
+    setLeaveSyncWarning(null);
     try {
-      // Run employee sync first so freshly-added employees land before leaves
-      // try to resolve fk_user. Both are idempotent.
+      // 18.7.3 — Employee sync is the hard dependency for payroll (names,
+      // base pay, banking). Leaves sync is an enhancement: without it,
+      // payroll still calculates from the sheet/attendance data exactly
+      // like it did pre-18.6.0. So we fail hard on employee sync but
+      // soft-fail on leaves — a broken /holidays endpoint on Dolibarr
+      // must not block payroll calculation.
       const empRes = await fetch('/api/hr/employees/sync', { method: 'POST' });
       if (!empRes.ok) {
         const body = await empRes.json().catch(() => ({}));
         throw new Error(body.error ?? body.message ?? 'Employee sync failed');
       }
-      const leaveRes = await fetch('/api/hr/leave-requests/sync', { method: 'POST' });
-      if (!leaveRes.ok) {
-        const body = await leaveRes.json().catch(() => ({}));
-        throw new Error(body.error ?? body.message ?? 'Leaves sync failed');
+      try {
+        const leaveRes = await fetch('/api/hr/leave-requests/sync', { method: 'POST' });
+        if (!leaveRes.ok) {
+          const body = await leaveRes.json().catch(() => ({}));
+          setLeaveSyncWarning(
+            body.error ??
+              body.message ??
+              'Leaves sync failed — payroll will fall back to attendance-sheet codes.',
+          );
+        }
+      } catch (e) {
+        setLeaveSyncWarning(
+          e instanceof Error
+            ? `${e.message} — payroll will fall back to attendance-sheet codes.`
+            : 'Leaves sync failed — payroll will fall back to attendance-sheet codes.',
+        );
       }
       await loadLastSync();
       await refresh();
@@ -239,7 +257,7 @@ export function PayrollPeriodsClient({
         </div>
 
         {/* Sync status strip */}
-        {canSync && (lastLeaveSync || lastEmployeeSync || syncError) && (
+        {canSync && (lastLeaveSync || lastEmployeeSync || syncError || leaveSyncWarning) && (
           <Card className="border-slate-200">
             <CardContent className="py-4 space-y-2">
               {syncError && (
@@ -248,6 +266,21 @@ export function PayrollPeriodsClient({
                   <div>
                     <div className="font-medium">Sync failed</div>
                     <div className="text-sm text-red-600/90">{syncError}</div>
+                  </div>
+                </div>
+              )}
+              {leaveSyncWarning && (
+                <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                  <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-medium">
+                      Leaves sync skipped — employee sync succeeded
+                    </div>
+                    <div className="text-sm text-amber-700/90">{leaveSyncWarning}</div>
+                    <div className="text-xs text-amber-700/70 mt-1">
+                      Payroll calculation will still run using attendance-sheet codes
+                      only. Fix the Dolibarr /holidays endpoint at your leisure.
+                    </div>
                   </div>
                 </div>
               )}
