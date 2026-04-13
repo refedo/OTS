@@ -23,10 +23,30 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.7.1',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Dolibarr Holidays Error Message — Real Root Cause (PHP Output-Buffer Violation)',
+    highlights: [
+      'Walid retried /hr/leaves sync on erp.hexametals.com and the Dolibarr PHP error log revealed the real root cause: "PHP Warning: Cannot modify header information - headers already sent by (output started at api/index.php:402) in api/index.php on line 403". No api/temp/ folder exists on the install, so 18.6.3\'s "delete the stale routes.php cache" advice was wrong for this case.',
+      'That warning is a classic output-buffer violation — something on line 402 prints bytes before Restler can set Content-Type on line 403 — so the /holidays response arrives corrupted and OTS\'s typed DolibarrHolidaysNotAvailableError kicks in. The holidays module itself is fine.',
+      'Rewrote DolibarrHolidaysNotAvailableError with the real fixes in probability order: (1) set display_errors=Off + log_errors=On in php.ini via cPanel → MultiPHP INI Editor (PHP notices printed inline on shared hosting are the most common cause, and are a standard production setting anyway); (2) re-upload <dolibarr-root>/holiday/class/api_holidays.class.php from the official release zip in case a BOM/whitespace crept in before <?php; (3) inspect <dolibarr-root>/api/index.php around line 402 for any echo/print/stray HTML; (4) verify the API-key user has the holiday/read permission.',
+      'Pure diagnostic copy fix — no schema, sync or route logic changed. The next administrator who hits this wall sees the right actions in the OTS error banner instead of 18.6.3\'s misleading cache-file advice.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'DolibarrHolidaysNotAvailableError message + docstring rewritten around the output-buffer-violation diagnosis; /api/hr/leave-requests/sync 503 now surfaces the display_errors=Off fix first',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '18.7.0',
     date: 'April 13, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Drop Employee.trade — Rename "Occupation" → "Position Title" Everywhere',
     highlights: [
       'Walid: "take all the values in employee \'trade\' and put it as \'occupation\' — i was preferring occupation to be position title (more elite and more professional) — and then we can safely remove \'trade\' as i really don\'t know what trade is!"',

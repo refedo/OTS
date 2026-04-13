@@ -1019,40 +1019,73 @@ export class DolibarrClient {
 }
 
 /**
- * Thrown when the Dolibarr `holidays` REST endpoint isn't reachable —
- * either because the module is disabled, the API class file can't be
- * loaded by the REST router, or the API-key user lacks `holiday/read`.
+ * Thrown when the Dolibarr `holidays` REST endpoint isn't reachable.
  *
  * The OTS client hits this endpoint the same way it hits products,
  * thirdparties, invoices, salaries, purchase orders and users — all of
  * which work. So when this error fires the root cause is on the Dolibarr
  * server, not in OTS.
  *
- * Paths below are RELATIVE TO THE DOLIBARR ROOT — i.e. the directory that
- * contains `api/`, `holiday/`, `accountancy/`, etc. (Dolibarr's source
- * convention is `htdocs/` but on a real install the root may be wherever
- * the admin put it — e.g. `public_html/erp/` on Hexa Steel's cPanel
- * install. The relative layout inside Dolibarr is the same regardless.)
+ * ## Real-world root cause seen on erp.hexametals.com (April 2026)
  *
- * Common fixes:
- *   1. Grant the API-key user the "Read holidays" (`holiday/read`)
- *      permission under Users & Groups → permissions.
- *   2. Delete the Dolibarr API route cache at `<dolibarr-root>/api/temp/routes.php`
- *      (Dolibarr caches the loaded APIs there; a stale cache from before
- *      the Leaves module was enabled will keep returning "API not found").
- *   3. Verify `<dolibarr-root>/holiday/class/api_holidays.class.php` exists
- *      and is readable by the PHP process — some slimmed-down builds omit it.
+ * Dolibarr's PHP error log showed:
+ *
+ *   PHP Warning: Cannot modify header information - headers already sent
+ *     by (output started at .../api/index.php:402)
+ *     in .../api/index.php on line 403
+ *
+ * That is an output-buffer violation: something on line 402 is emitting
+ * bytes to stdout *before* line 403 tries to set the HTTP response
+ * headers. Restler can no longer send `Content-Type: application/json`,
+ * so its fallback "API not found" text lands in an already-corrupted
+ * response — which is exactly the garbage OTS sees. The holidays module
+ * itself is fine; the API class file is fine; the problem is that
+ * something is printing before headers.
+ *
+ * ## Fixes, ordered by probability
+ *
+ *   1. `display_errors = On` in php.ini (most common on shared cPanel).
+ *      When any prior require/include triggers a PHP notice, PHP prints
+ *      the HTML warning banner inline — that's the "output" at line 402.
+ *      The /holidays endpoint fails while /products etc. work because the
+ *      holidays module pulls in one extra file that triggers a notice on
+ *      your PHP version. Fix: set `display_errors = Off` and
+ *      `log_errors = On` via cPanel → MultiPHP INI Editor (standard
+ *      production setting anyway).
+ *
+ *   2. A stray BOM or whitespace in a file `require`'d from the holidays
+ *      path. Re-upload `holiday/class/api_holidays.class.php` (and any
+ *      files it requires) from Dolibarr's official release zip matching
+ *      your exact Dolibarr version.
+ *
+ *   3. An `echo`/`print`/stray HTML at the reported line of your own
+ *      `api/index.php`. Rare — only if the file was hand-edited. Inspect
+ *      with `sed -n '395,410p' <dolibarr-root>/api/index.php`.
+ *
+ *   4. The API-key user lacks the `holiday/read` permission (Users &
+ *      Groups → permissions). Usually produces a 403 rather than this
+ *      error, but worth verifying.
+ *
+ * Paths below are RELATIVE TO THE DOLIBARR ROOT — the directory that
+ * contains `api/`, `holiday/`, `accountancy/`, etc. On a cPanel install
+ * that is typically `public_html/erp/` or similar (Dolibarr's source
+ * convention calls it `htdocs/` but the relative layout is the same).
  */
 export class DolibarrHolidaysNotAvailableError extends Error {
   constructor(detail: string) {
     super(
       `Dolibarr holidays REST endpoint is not reachable. OTS calls ` +
         `/api/index.php/holidays the same way it calls /products, /thirdparties and /salaries, ` +
-        `so the fix is on the Dolibarr server. Paths below are relative to your Dolibarr root ` +
-        `(the directory that contains api/, holiday/, accountancy/ — e.g. public_html/erp on cPanel): ` +
-        `(1) grant the API-key user the "holiday/read" permission under Users & Groups → permissions, ` +
-        `(2) delete <dolibarr-root>/api/temp/routes.php to clear Dolibarr's stale API-route cache, ` +
-        `and (3) verify <dolibarr-root>/holiday/class/api_holidays.class.php exists and is readable. (${detail})`,
+        `so the fix is on the Dolibarr server. Most common cause (seen on erp.hexametals.com): ` +
+        `the Dolibarr PHP error log shows "Cannot modify header information - headers already sent ` +
+        `by (output started at api/index.php:402)". That's an output-buffer violation, not a missing ` +
+        `module. Fixes in order of probability: ` +
+        `(1) set display_errors=Off + log_errors=On in php.ini (cPanel → MultiPHP INI Editor) — PHP ` +
+        `notices printed inline are corrupting the REST response before Restler can set headers; ` +
+        `(2) re-upload <dolibarr-root>/holiday/class/api_holidays.class.php from the official ` +
+        `Dolibarr release zip in case it has a BOM/whitespace before <?php; ` +
+        `(3) inspect <dolibarr-root>/api/index.php around line 402 for any echo/print/stray HTML; ` +
+        `(4) verify the API-key user has the holiday/read permission. (${detail})`,
     );
     this.name = 'DolibarrHolidaysNotAvailableError';
   }
