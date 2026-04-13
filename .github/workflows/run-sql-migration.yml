@@ -21,8 +21,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate migration file exists
+        env:
+          MIGRATION_INPUT: ${{ github.event.inputs.migration_file }}
         run: |
-          FILE="prisma/manual_migrations/${{ github.event.inputs.migration_file }}"
+          # Trim leading/trailing whitespace from the input — copy-paste often drags a trailing space.
+          MIGRATION_NAME=$(echo "$MIGRATION_INPUT" | xargs)
+          echo "MIGRATION_NAME=$MIGRATION_NAME" >> $GITHUB_ENV
+          FILE="prisma/manual_migrations/$MIGRATION_NAME"
           if [ ! -f "$FILE" ]; then
             echo "ERROR: Migration file '$FILE' not found"
             exit 1
@@ -38,10 +43,11 @@ jobs:
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
           port: ${{ secrets.DO_PORT }}
+          envs: MIGRATION_NAME
           script: |
             set -e
             APP_DIR=/var/www/hexasteel.sa/ots
-            MIGRATION_FILE="prisma/manual_migrations/${{ github.event.inputs.migration_file }}"
+            MIGRATION_FILE="prisma/manual_migrations/$MIGRATION_NAME"
 
             if [ ! -f "$APP_DIR/$MIGRATION_FILE" ]; then
               echo "ERROR: File not found on server: $APP_DIR/$MIGRATION_FILE"
