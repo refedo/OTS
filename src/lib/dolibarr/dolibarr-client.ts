@@ -1019,73 +1019,102 @@ export class DolibarrClient {
 }
 
 /**
- * Thrown when the Dolibarr `holidays` REST endpoint isn't reachable.
+ * Thrown when Dolibarr's REST router cannot load the holidays API class.
  *
- * The OTS client hits this endpoint the same way it hits products,
- * thirdparties, invoices, salaries, purchase orders and users — all of
- * which work. So when this error fires the root cause is on the Dolibarr
- * server, not in OTS.
+ * The OTS client hits `/api/index.php/holidays` the same way it hits
+ * products, thirdparties, invoices, salaries, purchase orders and users —
+ * all of which work on the same Dolibarr instance. So when this error
+ * fires the root cause is on the Dolibarr server, not in OTS.
  *
- * ## Real-world root cause seen on erp.hexametals.com (April 2026)
+ * ## What's actually happening (confirmed by Walid's screenshot of
+ * `public_html/erp/api/index.php` lines 397-406 on erp.hexametals.com,
+ * April 2026)
  *
- * Dolibarr's PHP error log showed:
+ * ```php
+ * 397: if ($dir_part_file) {
+ * 398:     $res = include_once $dir_part_file;
+ * 399: }
+ * 400: if (!$res) {
+ * 401:     dol_syslog('Failed to make include_once '.$dir_part_file, LOG_WARNING);
+ * 402:     print 'API not found (failed to include API file)';
+ * 403:     header('HTTP/1.1 501 API not found (failed to include API file)');
+ * 404:     //session_destroy();
+ * 405:     exit(0);
+ * 406: }
+ * ```
  *
- *   PHP Warning: Cannot modify header information - headers already sent
- *     by (output started at .../api/index.php:402)
- *     in .../api/index.php on line 403
+ * The PHP error log's "Cannot modify header information - headers already
+ * sent by (output started at api/index.php:402) in api/index.php on line
+ * 403" is a **secondary** symptom — Dolibarr's own error-handling code
+ * has a buglet where line 402 calls `print` before line 403 calls
+ * `header()`. The **primary** cause is that `include_once $dir_part_file`
+ * on line 398 failed for the holidays API class — OR `$dir_part_file`
+ * came back empty because the router couldn't resolve the holidays
+ * module to a file path at all.
  *
- * That is an output-buffer violation: something on line 402 is emitting
- * bytes to stdout *before* line 403 tries to set the HTTP response
- * headers. Restler can no longer send `Content-Type: application/json`,
- * so its fallback "API not found" text lands in an already-corrupted
- * response — which is exactly the garbage OTS sees. The holidays module
- * itself is fine; the API class file is fine; the problem is that
- * something is printing before headers.
+ * So the real question is: *why can't Dolibarr locate/load
+ * `holiday/class/api_holidays.class.php` specifically, while it loads
+ * `product/class/api_products.class.php`, `societe/class/api_thirdparties.class.php`
+ * etc. just fine?*
  *
  * ## Fixes, ordered by probability
  *
- *   1. `display_errors = On` in php.ini (most common on shared cPanel).
- *      When any prior require/include triggers a PHP notice, PHP prints
- *      the HTML warning banner inline — that's the "output" at line 402.
- *      The /holidays endpoint fails while /products etc. work because the
- *      holidays module pulls in one extra file that triggers a notice on
- *      your PHP version. Fix: set `display_errors = Off` and
- *      `log_errors = On` via cPanel → MultiPHP INI Editor (standard
- *      production setting anyway).
+ *   1. **The Leave Requests (Holiday) module is disabled at the Dolibarr
+ *      instance level.** Top-right gear ⚙ → Modules / Applications → search
+ *      "Leave" or "Holiday" → enable the toggle. The API-key user having
+ *      `holiday/read` does NOT help if the module itself is off — the
+ *      router only scans enabled modules when resolving `$dir_part_file`,
+ *      so an off module produces an empty path and we hit line 402 with
+ *      `$res` still undefined. **This is the #1 cause of this exact
+ *      symptom.**
  *
- *   2. A stray BOM or whitespace in a file `require`'d from the holidays
- *      path. Re-upload `holiday/class/api_holidays.class.php` (and any
- *      files it requires) from Dolibarr's official release zip matching
- *      your exact Dolibarr version.
+ *   2. **The file is missing or unreadable.** Check in cPanel File Manager
+ *      that `<dolibarr-root>/holiday/class/api_holidays.class.php` exists
+ *      and is readable by the PHP process owner. On trimmed Dolibarr builds
+ *      or partial uploads it can be absent. If missing, re-upload the
+ *      entire `holiday/` directory from the matching Dolibarr release zip.
  *
- *   3. An `echo`/`print`/stray HTML at the reported line of your own
- *      `api/index.php`. Rare — only if the file was hand-edited. Inspect
- *      with `sed -n '395,410p' <dolibarr-root>/api/index.php`.
+ *   3. **A PHP parse / fatal error inside `api_holidays.class.php` or a
+ *      file it requires.** `include_once` silently returns false on parse
+ *      failure, which triggers the same line-402 path. Check the line
+ *      **immediately before** the "headers already sent" warning in
+ *      `<dolibarr-root>/api/php_errorlog` — any `PHP Parse error` or
+ *      `PHP Fatal error` mentioning `holiday/class/` names the real file.
+ *      Fix: re-upload just that file from the official release zip
+ *      matching your Dolibarr version.
  *
- *   4. The API-key user lacks the `holiday/read` permission (Users &
- *      Groups → permissions). Usually produces a 403 rather than this
- *      error, but worth verifying.
+ *   4. **The API-key user lacks `holiday/read`.** Usually produces a 403
+ *      rather than this specific symptom, but Users & Groups → pick the
+ *      API user → Permissions → tick "Read holidays" is worth verifying
+ *      as a sanity check.
  *
- * Paths below are RELATIVE TO THE DOLIBARR ROOT — the directory that
+ * Paths above are relative to the Dolibarr root — the directory that
  * contains `api/`, `holiday/`, `accountancy/`, etc. On a cPanel install
- * that is typically `public_html/erp/` or similar (Dolibarr's source
- * convention calls it `htdocs/` but the relative layout is the same).
+ * that is typically `public_html/erp/` (Dolibarr's source convention
+ * calls it `htdocs/` but the relative layout is the same).
  */
 export class DolibarrHolidaysNotAvailableError extends Error {
   constructor(detail: string) {
     super(
-      `Dolibarr holidays REST endpoint is not reachable. OTS calls ` +
-        `/api/index.php/holidays the same way it calls /products, /thirdparties and /salaries, ` +
-        `so the fix is on the Dolibarr server. Most common cause (seen on erp.hexametals.com): ` +
-        `the Dolibarr PHP error log shows "Cannot modify header information - headers already sent ` +
-        `by (output started at api/index.php:402)". That's an output-buffer violation, not a missing ` +
-        `module. Fixes in order of probability: ` +
-        `(1) set display_errors=Off + log_errors=On in php.ini (cPanel → MultiPHP INI Editor) — PHP ` +
-        `notices printed inline are corrupting the REST response before Restler can set headers; ` +
-        `(2) re-upload <dolibarr-root>/holiday/class/api_holidays.class.php from the official ` +
-        `Dolibarr release zip in case it has a BOM/whitespace before <?php; ` +
-        `(3) inspect <dolibarr-root>/api/index.php around line 402 for any echo/print/stray HTML; ` +
-        `(4) verify the API-key user has the holiday/read permission. (${detail})`,
+      `Dolibarr's REST router cannot load the holidays API class, so ` +
+        `/api/index.php/holidays hits the line-402 "API not found (failed to include API file)" ` +
+        `fallback inside Dolibarr's own api/index.php. The "headers already sent" warning in your ` +
+        `PHP error log is a secondary symptom of that fallback (Dolibarr's line 402 calls print ` +
+        `before line 403 calls header) — the real question is why include_once failed for the ` +
+        `holidays class but works for products, thirdparties, salaries, users etc. ` +
+        `Fixes in order of probability: ` +
+        `(1) enable the Leave Requests / Holiday module at the Dolibarr instance level ` +
+        `(top-right ⚙ → Modules / Applications → search "Leave" → turn ON). The API-key user having ` +
+        `"holiday/read" does NOT help if the module itself is off — an off module produces an empty ` +
+        `path and $res stays undefined. This is the #1 cause of this symptom. ` +
+        `(2) verify <dolibarr-root>/holiday/class/api_holidays.class.php exists and is readable by the ` +
+        `PHP process owner; if missing, re-upload the holiday/ folder from the matching Dolibarr ` +
+        `release zip. ` +
+        `(3) check the line in <dolibarr-root>/api/php_errorlog IMMEDIATELY BEFORE the "headers already ` +
+        `sent" warning — any PHP Parse error / Fatal error mentioning holiday/class/ names the broken ` +
+        `file; re-upload just that file. ` +
+        `(4) sanity-check that the API-key user has "holiday/read" under Users & Groups → Permissions. ` +
+        `(${detail})`,
     );
     this.name = 'DolibarrHolidaysNotAvailableError';
   }

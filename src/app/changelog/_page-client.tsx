@@ -23,11 +23,31 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.7.1',
+    version: '18.7.2',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
-    mainTitle: 'Dolibarr Holidays Error Message — Real Root Cause (PHP Output-Buffer Violation)',
+    mainTitle: 'Dolibarr Holidays Diagnosis Corrected — The Leave Requests Module Is Off',
+    highlights: [
+      'Walid shared a screenshot of the actual api/index.php lines 397-406 on erp.hexametals.com, which proved 18.7.1\'s "set display_errors = Off" advice WRONG. Line 402 is not a PHP notice banner — it is literally Dolibarr\'s own fallback code: `print \'API not found (failed to include API file)\';` immediately before `header(\'HTTP/1.1 501 ...\');` on line 403.',
+      'So the "headers already sent" warning is a SECONDARY symptom of Dolibarr\'s own buggy error-handling path. The PRIMARY cause is that `include_once $dir_part_file` on line 398 failed for the holidays class specifically, while products / thirdparties / salaries / users all load fine on the same instance.',
+      'Rewrote DolibarrHolidaysNotAvailableError with the real fixes in probability order: (1) the Leave Requests (Holiday) module is OFF at the Dolibarr instance level — top-right ⚙ → Modules / Applications → search "Leave" → turn ON. The API-key user having holiday/read does NOT help if the module itself is disabled, because the router only scans enabled modules when resolving $dir_part_file. THIS IS THE #1 CAUSE. (2) verify <dolibarr-root>/holiday/class/api_holidays.class.php exists + is readable by the PHP process owner. (3) check api/php_errorlog for a PHP Parse / Fatal error IMMEDIATELY BEFORE the headers-already-sent warning — that names the broken file. (4) sanity-check holiday/read permission.',
+      'Pure diagnostic copy fix — no schema, sync or route logic changed. The previous 18.7.1 advice is explicitly retracted in the docstring so the next administrator does not waste time flipping php.ini settings.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'DolibarrHolidaysNotAvailableError docstring + runtime message corrected — now blames the disabled Leave Requests module as #1 cause, retracts the incorrect 18.7.1 display_errors advice, and spells out the real symptom chain with an inline quote of Dolibarr\'s own line 397-406',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '18.7.1',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Dolibarr Holidays Error Message — PHP Output-Buffer Violation (superseded by 18.7.2)',
     highlights: [
       'Walid retried /hr/leaves sync on erp.hexametals.com and the Dolibarr PHP error log revealed the real root cause: "PHP Warning: Cannot modify header information - headers already sent by (output started at api/index.php:402) in api/index.php on line 403". No api/temp/ folder exists on the install, so 18.6.3\'s "delete the stale routes.php cache" advice was wrong for this case.',
       'That warning is a classic output-buffer violation — something on line 402 prints bytes before Restler can set Content-Type on line 403 — so the /holidays response arrives corrupted and OTS\'s typed DolibarrHolidaysNotAvailableError kicks in. The holidays module itself is fine.',
