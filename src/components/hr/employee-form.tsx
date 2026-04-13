@@ -60,6 +60,8 @@ const schema = z.object({
     .optional()
     .or(z.literal(''))
     .refine((v) => !v || /^SA\d{22}$/.test(v), 'IBAN must be SA + 22 digits'),
+  isGosiSubject: z.boolean().optional(),
+  gosiSalary: z.string().optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -190,6 +192,8 @@ export function EmployeeForm({
       workWeekDaysCount: initial?.workWeekDaysCount ?? 6,
       bankName: initial?.bankName ?? '',
       bankIban: initial?.bankIban ?? '',
+      isGosiSubject: initial?.isGosiSubject ?? false,
+      gosiSalary: initial?.gosiSalary ?? '',
     },
   });
 
@@ -483,6 +487,27 @@ export function EmployeeForm({
                 <div>
                   <Label>Other allowances</Label>
                   <Input {...form.register('otherAllowances')} />
+                </div>
+                <div className="col-span-2 border-t pt-4 mt-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      type="checkbox"
+                      id="isGosiSubject"
+                      {...form.register('isGosiSubject')}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="isGosiSubject" className="cursor-pointer">
+                      Subject to GOSI (General Organization for Social Insurance)
+                    </Label>
+                  </div>
+                  <div>
+                    <Label>GOSI salary (SAR) — leave blank to use basic + housing</Label>
+                    <Input {...form.register('gosiSalary')} placeholder="0.00" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The wage GOSI contributions are calculated on. Many employees have a
+                      GOSI salary different from their basic salary.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -27,6 +27,8 @@ const COMPENSATION_FIELDS = [
   'otherAllowances',
   'bankName',
   'bankIban',
+  'gosiSalary',
+  'isGosiSubject',
 ] as const;
 
 function stripCompensation<T extends Record<string, unknown>>(row: T): T {
@@ -68,6 +70,8 @@ const createSchema = z.object({
     .regex(/^SA\d{22}$/, 'IBAN must be SA + 22 digits')
     .nullable()
     .optional(),
+  isGosiSubject: z.boolean().optional(),
+  gosiSalary: z.union([z.string(), z.number()]).nullable().optional(),
 });
 
 export async function GET(req: Request) {
@@ -174,6 +178,8 @@ export async function POST(req: Request) {
         workWeekDaysCount: data.workWeekDaysCount ?? 6,
         bankName: data.bankName ?? null,
         bankIban: data.bankIban ?? null,
+        isGosiSubject: data.isGosiSubject ?? false,
+        gosiSalary: data.gosiSalary !== undefined && data.gosiSalary !== null ? String(data.gosiSalary) : null,
         manuallyEditedFields: [],
         createdById: session.sub,
       },

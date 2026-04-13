@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers, Network, Briefcase } from 'lucide-react';
+import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers, Network, Briefcase, CalendarClock, Banknote } from 'lucide-react';
 
 type Department = {
   id: string;
@@ -31,15 +31,34 @@ type ManagedListItem = {
   archivedAt: string | null;
 };
 
+type LeaveTypeItem = {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string | null;
+  payType: 'FULLY_PAID' | 'HALF_PAID' | 'UNPAID';
+  monthlyAccrualDays: number;
+  annualAccrualDays: number;
+  maxCarryOverDays: number;
+  requiresMedicalCertificate: boolean;
+  allowNegativeBalance: boolean;
+  countPublicHolidays: boolean;
+  displayOrder: number;
+  archivedAt: string | null;
+};
+
 type Props = {
   initialDepartments: Department[];
   initialSections: HrSection[];
   initialDivisions: ManagedListItem[];
   initialOccupations: ManagedListItem[];
+  initialLeaveTypes: LeaveTypeItem[];
   canManageDepartments: boolean;
   canCreateDepartment: boolean;
   canDeleteDepartment: boolean;
   canManageSections: boolean;
+  canManageLeaveTypes: boolean;
+  canManagePayrollSettings: boolean;
 };
 
 export function HrSetupClient({
@@ -47,10 +66,13 @@ export function HrSetupClient({
   initialSections,
   initialDivisions,
   initialOccupations,
+  initialLeaveTypes,
   canManageDepartments,
   canCreateDepartment,
   canDeleteDepartment,
   canManageSections,
+  canManageLeaveTypes,
+  canManagePayrollSettings,
 }: Props) {
   const router = useRouter();
   const [departments, setDepartments] = useState<Department[]>(initialDepartments);
@@ -255,6 +277,17 @@ export function HrSetupClient({
             <Badge variant="secondary" className="ml-1">
               {activeOccupationCount}
             </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="leaveTypes" className="gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Leave Types
+            <Badge variant="secondary" className="ml-1">
+              {initialLeaveTypes.filter((lt) => !lt.archivedAt).length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="payrollSettings" className="gap-2">
+            <Banknote className="h-4 w-4" />
+            Payroll
           </TabsTrigger>
         </TabsList>
 
@@ -580,6 +613,24 @@ export function HrSetupClient({
             onError={setError}
           />
         </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* Leave Types                                                   */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="leaveTypes" className="space-y-4">
+          <LeaveTypesTab
+            initialItems={initialLeaveTypes}
+            canManage={canManageLeaveTypes}
+            onError={setError}
+          />
+        </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* Payroll Settings                                              */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="payrollSettings" className="space-y-4">
+          <PayrollSettingsTab canManage={canManagePayrollSettings} onError={setError} />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -820,5 +871,435 @@ function ManagedListTab({
         referenced the old name, so existing data stays consistent.
       </p>
     </>
+  );
+}
+
+// ============================================================================
+// Leave Types Tab
+// ============================================================================
+
+type LeaveTypesTabProps = {
+  initialItems: LeaveTypeItem[];
+  canManage: boolean;
+  onError: (msg: string | null) => void;
+};
+
+function LeaveTypesTab({ initialItems, canManage, onError }: LeaveTypesTabProps) {
+  const router = useRouter();
+  const [items, setItems] = useState<LeaveTypeItem[]>(initialItems);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    code: '',
+    nameEn: '',
+    nameAr: '',
+    payType: 'FULLY_PAID' as 'FULLY_PAID' | 'HALF_PAID' | 'UNPAID',
+    monthlyAccrualDays: 1.75,
+    annualAccrualDays: 21,
+    maxCarryOverDays: 30,
+    requiresMedicalCertificate: false,
+    allowNegativeBalance: true,
+    countPublicHolidays: false,
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function createType() {
+    setSaving(true);
+    onError(null);
+    try {
+      const res = await fetch('/api/hr/leave-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed');
+      const created = (await res.json()) as LeaveTypeItem;
+      setItems([...items, created]);
+      setForm({
+        code: '',
+        nameEn: '',
+        nameAr: '',
+        payType: 'FULLY_PAID',
+        monthlyAccrualDays: 1.75,
+        annualAccrualDays: 21,
+        maxCarryOverDays: 30,
+        requiresMedicalCertificate: false,
+        allowNegativeBalance: true,
+        countPublicHolidays: false,
+      });
+      setShowForm(false);
+      router.refresh();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Failed to create leave type');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archive(id: string, archived: boolean) {
+    onError(null);
+    try {
+      const res = await fetch(`/api/hr/leave-types/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed');
+      const updated = (await res.json()) as LeaveTypeItem;
+      setItems(items.map((it) => (it.id === id ? updated : it)));
+      router.refresh();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Failed to update leave type');
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Leave Types</CardTitle>
+          {canManage && !showForm && (
+            <Button size="sm" onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add leave type
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {showForm && (
+          <div className="grid grid-cols-2 gap-3 p-4 border rounded-md bg-muted/30">
+            <div>
+              <Label>Code (e.g. ANNUAL)</Label>
+              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+            </div>
+            <div>
+              <Label>Name (English)</Label>
+              <Input value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} />
+            </div>
+            <div>
+              <Label>Name (Arabic)</Label>
+              <Input dir="rtl" value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })} />
+            </div>
+            <div>
+              <Label>Pay type</Label>
+              <select
+                className="w-full border rounded-md h-10 px-3"
+                value={form.payType}
+                onChange={(e) => setForm({ ...form, payType: e.target.value as 'FULLY_PAID' | 'HALF_PAID' | 'UNPAID' })}
+              >
+                <option value="FULLY_PAID">Fully Paid</option>
+                <option value="HALF_PAID">Half Paid</option>
+                <option value="UNPAID">Unpaid</option>
+              </select>
+            </div>
+            <div>
+              <Label>Monthly accrual (days)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.monthlyAccrualDays}
+                onChange={(e) => setForm({ ...form, monthlyAccrualDays: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <Label>Annual cap (days)</Label>
+              <Input
+                type="number"
+                value={form.annualAccrualDays}
+                onChange={(e) => setForm({ ...form, annualAccrualDays: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <Label>Max carry-over (days)</Label>
+              <Input
+                type="number"
+                value={form.maxCarryOverDays}
+                onChange={(e) => setForm({ ...form, maxCarryOverDays: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.requiresMedicalCertificate}
+                  onChange={(e) => setForm({ ...form, requiresMedicalCertificate: e.target.checked })}
+                />
+                Requires medical certificate
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.allowNegativeBalance}
+                  onChange={(e) => setForm({ ...form, allowNegativeBalance: e.target.checked })}
+                />
+                Allow advance (negative balance) with warning
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.countPublicHolidays}
+                  onChange={(e) => setForm({ ...form, countPublicHolidays: e.target.checked })}
+                />
+                Count public holidays as leave days
+              </label>
+            </div>
+            <div className="col-span-2 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={createType} disabled={saving || !form.code || !form.nameEn}>
+                <Save className="h-4 w-4 mr-1" />
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-muted-foreground border-b">
+            <tr>
+              <th className="py-2">Code</th>
+              <th>Name</th>
+              <th>Pay</th>
+              <th className="text-right">Monthly</th>
+              <th className="text-right">Annual</th>
+              <th className="text-right">Carry-over</th>
+              <th>Status</th>
+              {canManage && <th className="w-16"></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((lt) => (
+              <tr key={lt.id} className={lt.archivedAt ? 'opacity-50' : ''}>
+                <td className="py-2 font-mono text-xs">{lt.code}</td>
+                <td>
+                  {lt.nameEn}
+                  {lt.nameAr && <span className="text-muted-foreground ml-2">({lt.nameAr})</span>}
+                </td>
+                <td>
+                  <Badge variant={lt.payType === 'UNPAID' ? 'destructive' : 'secondary'}>
+                    {lt.payType.replace('_', ' ')}
+                  </Badge>
+                </td>
+                <td className="text-right">{lt.monthlyAccrualDays}</td>
+                <td className="text-right">{lt.annualAccrualDays}</td>
+                <td className="text-right">{lt.maxCarryOverDays}</td>
+                <td>{lt.archivedAt ? 'Archived' : 'Active'}</td>
+                {canManage && (
+                  <td>
+                    {lt.archivedAt ? (
+                      <Button size="sm" variant="ghost" onClick={() => archive(lt.id, false)}>
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => archive(lt.id, true)}>
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
+// Payroll Settings Tab
+// ============================================================================
+
+type PayrollSettingsState = {
+  payroll: {
+    dailyRateBasis: 'THIRTY' | 'WORKING_DAYS_IN_MONTH' | 'WEEKLY_AVERAGE';
+    gosiEmployeeRate: number;
+    gosiEmployerRate: number;
+    overtimeMultiplier: number;
+    wpsBankCode: string;
+  };
+  leaves: {
+    approvalChain: 'MANAGER_HR_CEO' | 'MANAGER_HR' | 'HR_ONLY';
+    autoApproveUnderDays: number;
+  };
+};
+
+function PayrollSettingsTab({ canManage, onError }: { canManage: boolean; onError: (msg: string | null) => void }) {
+  const [settings, setSettings] = useState<PayrollSettingsState | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/hr/settings')
+      .then((r) => r.json())
+      .then((d) => setSettings(d as PayrollSettingsState))
+      .catch(() => onError('Failed to load settings'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!settings) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent>
+      </Card>
+    );
+  }
+
+  async function save() {
+    if (!settings) return;
+    setSaving(true);
+    onError(null);
+    try {
+      const res = await fetch('/api/hr/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed');
+      const updated = (await res.json()) as PayrollSettingsState;
+      setSettings(updated);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Payroll & Leave Settings</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div>
+          <h4 className="font-semibold mb-3">Payroll calculation</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <Label>Daily rate basis</Label>
+              <select
+                className="w-full border rounded-md h-10 px-3"
+                disabled={!canManage}
+                value={settings.payroll.dailyRateBasis}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    payroll: { ...settings.payroll, dailyRateBasis: e.target.value as PayrollSettingsState['payroll']['dailyRateBasis'] },
+                  })
+                }
+              >
+                <option value="THIRTY">Fixed 30 days (monthly ÷ 30)</option>
+                <option value="WORKING_DAYS_IN_MONTH">Working days in month</option>
+                <option value="WEEKLY_AVERAGE">Weekly average (÷ 26)</option>
+              </select>
+            </div>
+            <div>
+              <Label>GOSI employee rate (0.10 = 10%)</Label>
+              <Input
+                type="number"
+                step="0.001"
+                disabled={!canManage}
+                value={settings.payroll.gosiEmployeeRate}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    payroll: { ...settings.payroll, gosiEmployeeRate: parseFloat(e.target.value) || 0 },
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label>GOSI employer rate (0.12 = 12%)</Label>
+              <Input
+                type="number"
+                step="0.001"
+                disabled={!canManage}
+                value={settings.payroll.gosiEmployerRate}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    payroll: { ...settings.payroll, gosiEmployerRate: parseFloat(e.target.value) || 0 },
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label>Overtime multiplier</Label>
+              <Input
+                type="number"
+                step="0.1"
+                disabled={!canManage}
+                value={settings.payroll.overtimeMultiplier}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    payroll: { ...settings.payroll, overtimeMultiplier: parseFloat(e.target.value) || 0 },
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label>WPS bank code</Label>
+              <Input
+                disabled={!canManage}
+                value={settings.payroll.wpsBankCode}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    payroll: { ...settings.payroll, wpsBankCode: e.target.value },
+                  })
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <h4 className="font-semibold mb-3">Leave approvals</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Approval chain</Label>
+              <select
+                className="w-full border rounded-md h-10 px-3"
+                disabled={!canManage}
+                value={settings.leaves.approvalChain}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    leaves: { ...settings.leaves, approvalChain: e.target.value as PayrollSettingsState['leaves']['approvalChain'] },
+                  })
+                }
+              >
+                <option value="MANAGER_HR_CEO">Line Manager → HR → CEO</option>
+                <option value="MANAGER_HR">Line Manager → HR</option>
+                <option value="HR_ONLY">HR Only</option>
+              </select>
+            </div>
+            <div>
+              <Label>Auto-approve under (days)</Label>
+              <Input
+                type="number"
+                disabled={!canManage}
+                value={settings.leaves.autoApproveUnderDays}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    leaves: { ...settings.leaves, autoApproveUnderDays: parseFloat(e.target.value) || 0 },
+                  })
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        {canManage && (
+          <div className="flex justify-end">
+            <Button onClick={save} disabled={saving}>
+              <Save className="h-4 w-4 mr-1" />
+              Save settings
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

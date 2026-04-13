@@ -339,6 +339,26 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.holiday.view', name: 'View Public Holidays', description: 'View the public holiday calendar', category: 'hr' },
       { id: 'hr.holiday.manage', name: 'Manage Public Holidays', description: 'Create, edit, and delete public holiday entries', category: 'hr' },
       { id: 'hr.section.manage', name: 'Manage HR Sections', description: 'Create, rename, reorder, and archive HR section dropdown options (Preparation / Fabrication / Other)', category: 'hr' },
+      // Phase 3 — Leaves
+      { id: 'hr.leaves.request', name: 'Request Leaves', description: 'Submit personal leave requests', category: 'hr' },
+      { id: 'hr.leaves.view', name: 'View Own Leaves', description: 'View own leave history and balances', category: 'hr' },
+      { id: 'hr.leaves.viewAll', name: 'View All Leaves', description: 'View leave requests and balances for every employee', category: 'hr' },
+      { id: 'hr.leaves.approve', name: 'Approve Leaves', description: 'Approve or reject leave requests at any stage of the chain', category: 'hr' },
+      { id: 'hr.leaves.adjust', name: 'Adjust Leave Balances', description: 'Manually adjust leave balances with an audit reason', category: 'hr' },
+      { id: 'hr.leaves.manageTypes', name: 'Manage Leave Types', description: 'Create, rename, archive leave types and set accrual/carry-over rules', category: 'hr' },
+      // Phase 3 — Payroll
+      { id: 'hr.payroll.view', name: 'View Payroll', description: 'View payroll periods and payslips for all employees', category: 'hr' },
+      { id: 'hr.payroll.viewOwn', name: 'View Own Payslip', description: 'View and download own payslips', category: 'hr' },
+      { id: 'hr.payroll.calculate', name: 'Calculate Payroll', description: 'Run or rerun payroll calculation for a period', category: 'hr' },
+      { id: 'hr.payroll.approve', name: 'Approve Payroll', description: 'Approve or reject a calculated payroll period', category: 'hr' },
+      { id: 'hr.payroll.lock', name: 'Lock Payroll', description: 'Lock an approved payroll period (terminal)', category: 'hr' },
+      { id: 'hr.payroll.adjust', name: 'Adjust Payroll', description: 'Add bonuses, deductions, or advance repayments to a period', category: 'hr' },
+      { id: 'hr.payroll.export', name: 'Export WPS File', description: 'Generate and download the Alinma Bank WPS file for a period', category: 'hr' },
+      { id: 'hr.payroll.settings', name: 'Manage Payroll Settings', description: 'Edit GOSI rates, daily-rate basis, OT multiplier, WPS bank and approval chain', category: 'hr' },
+      // Phase 3 — End-of-Service
+      { id: 'hr.eos.view', name: 'View End-of-Service Awards', description: 'View EOS gratuity records', category: 'hr' },
+      { id: 'hr.eos.calculate', name: 'Calculate End-of-Service', description: 'Run EOS gratuity calculation for a terminated employee', category: 'hr' },
+      { id: 'hr.eos.pay', name: 'Mark EOS Paid', description: 'Mark an EOS award as paid', category: 'hr' },
     ],
   },
   {
