@@ -1,43 +1,42 @@
 /**
- * Dolibarr → OTS Leaves Sync Service (18.6.0).
+ * Dolibarr → OTS Leaves Sync Service (18.8.0 — direct MySQL).
  *
- * One-way read-only mirror from Dolibarr `llx_holiday` into OTS `LeaveRequest`.
- * Mirrors the shape of `sync-dolibarr-employees.ts`.
+ * One-way read-only mirror from Dolibarr `<prefix>holiday` into OTS
+ * `LeaveRequest`. Reads the Dolibarr database directly via a mysql2 pool
+ * because the Dolibarr REST `/api/index.php/holidays` endpoint is
+ * unreliable on Walid's install — see 18.7.1 → 18.7.6 changelog for the
+ * full diagnostic saga that forced us to bypass REST for this one
+ * endpoint specifically.
  *
- * Rules (confirmed with Walid):
+ * Rules (unchanged from 18.6.0):
  *  - Pull ALL historic holidays, not just recent ones.
- *  - Only Dolibarr statut=3 (APPROVED) rows land in OTS. Draft / pending /
- *    refused / cancelled are skipped (counted in rowsSkipped).
+ *  - Only Dolibarr statut=3 (APPROVED) rows land in OTS. The SQL query
+ *    filters them upstream, not this code.
  *  - Rows land as `status=APPROVED` with `source=DOLIBARR`, bypassing the
  *    native approval chain. All approver columns remain null.
  *  - Idempotency key is `dolibarrHolidayId`. Re-runs update in place.
- *  - Employee match is by `Employee.employmentId = String(llx_holiday.fk_user)`.
+ *  - Employee match is `Employee.employmentId = String(<prefix>holiday.fk_user)`.
  *    Unmatched rows are counted in `employeesNotFound` and skipped.
- *  - Leave type match is `fk_type` label → OTS `LeaveType.code` via an
- *    explicit map (the Dolibarr catalogue is small and stable). Unmatched
- *    types bump `typesNotMapped` and fall back to a permissive default so
- *    the row still lands — the warning is surfaced in soft warnings.
+ *  - Leave type match is Dolibarr `<prefix>c_holiday_types.code` →
+ *    OTS `LeaveType.code` via a direct map (below). The code is read
+ *    directly from the JOIN so we don't need a second round-trip to the
+ *    type catalogue like the pre-18.8.0 REST path did.
  *  - Dedup with Google-Sheet attendance: for each synced leave, count
- *    overlapping `AttendanceRecord` days within the leave window and
- *    increment `attendanceDaysOverridden`. The payroll calculator uses this
- *    same logic at calc time to make Dolibarr leaves "win" over sheet codes.
- *
- * Authentication: the Dolibarr client is created from env at call time unless
- * the caller passes one in (useful for tests + cron).
+ *    overlapping `AttendanceRecord` days and increment
+ *    `attendanceDaysOverridden`. The payroll calculator uses the same
+ *    logic at calc time so Dolibarr leaves "win" over sheet codes.
  */
 
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import type { Prisma } from '@prisma/client';
 import {
-  DolibarrClient,
-  DolibarrHoliday,
-  DolibarrHolidayType,
-  DolibarrHolidaysNotAvailableError,
-  createDolibarrClient,
-} from '@/lib/dolibarr/dolibarr-client';
+  fetchApprovedDolibarrHolidays,
+  DolibarrDbNotConfiguredError,
+  type DolibarrHolidayDbRow,
+} from '@/lib/dolibarr/dolibarr-db';
 
-export { DolibarrHolidaysNotAvailableError };
+export { DolibarrDbNotConfiguredError };
 
 // ============================================================================
 // TYPES
@@ -62,35 +61,42 @@ export interface LeaveSyncResult {
 }
 
 // ============================================================================
-// FIELD MAPPING
+// LEAVE TYPE MAPPING
 // ============================================================================
 
-/** Convert a Dolibarr Unix timestamp (seconds) to JS Date. Null-safe. */
-function tsToDate(value: unknown): Date | null {
-  if (value === null || value === undefined || value === '') return null;
-  const n = typeof value === 'number' ? value : parseInt(String(value), 10);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return new Date(n * 1000);
-}
-
 /**
- * Dolibarr holiday type labels (from llx_c_holiday_types) → OTS LeaveType.code.
- * Source: Walid's screenshot of the Dolibarr config screen, 18.6.0 kickoff.
+ * Primary path: Dolibarr `c_holiday_types.code` → OTS `LeaveType.code`.
+ * These five codes are everything HR actually uses on Walid's install
+ * (confirmed 13 April 2026 against the live catalogue). The rest of the
+ * Dolibarr catalogue — the ~30 Greek defaults like 5D1Y, 6D2Y etc. — is
+ * intentionally NOT mapped; any holiday row pointing at one of those
+ * falls through to the label-based fallback and then to the default
+ * leave type, each with a soft warning.
  *
- * Both label and code are matched case-insensitively, with leading numbering
- * like "01-", "02-" stripped, because Dolibarr UI labels change often but
- * the internal codes are what the API returns.
+ * Note on `LEAVE_WITHOUT_PE`: Dolibarr's `c_holiday_types.code` column is
+ * `varchar(16)`, so `LEAVE_WITHOUT_PERMISSION` is truncated to
+ * `LEAVE_WITHOUT_PE` on most installs. Both forms are mapped for safety.
  */
-const DOLIBARR_TYPE_LABEL_TO_CODE: Record<string, string> = {
+const DOLIBARR_CODE_TO_OTS_CODE: Record<string, string> = {
+  LEAVE_SICK: 'SICK',
+  LEAVE_PERMISSION: 'PERMITTED',
+  LEAVE_ANNUAL: 'ANNUAL',
+  LEAVE_FAMILY: 'URGENT',
+  LEAVE_WITHOUT_PE: 'UNPERMITTED',
+  LEAVE_WITHOUT_PERMISSION: 'UNPERMITTED',
+};
+
+/** Fallback label-based map for installs that use non-standard codes
+ *  but recognisable labels. Preserved from the 18.6.0 REST path. */
+const DOLIBARR_LABEL_TO_OTS_CODE: Record<string, string> = {
   'leave with permission': 'PERMITTED',
   'permitted leave': 'PERMITTED',
   'leave without permission': 'UNPERMITTED',
   'unpermitted leave': 'UNPERMITTED',
   'unpaid leave': 'UNPERMITTED',
   'sick leave': 'SICK',
-  'sickness': 'SICK',
+  sickness: 'SICK',
   'annual leave': 'ANNUAL',
-  'annual leave (notice period: 30 days)': 'ANNUAL',
   'paid leave': 'ANNUAL',
   'urgent leave': 'URGENT',
 };
@@ -99,36 +105,21 @@ function normaliseLabel(raw: string | null | undefined): string {
   if (!raw) return '';
   return raw
     .toLowerCase()
-    .replace(/^\d+\s*[-.)]\s*/, '') // strip leading "01-", "02)" etc.
+    .replace(/^\d+\s*[-.)]\s*/, '') // strip leading "01-", "02)", etc.
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * Build a fk_type → LeaveType.code map by reading the Dolibarr holiday types
- * catalogue and matching labels against DOLIBARR_TYPE_LABEL_TO_CODE. Called
- * once per sync run.
- */
-async function buildTypeMap(
-  client: DolibarrClient,
-): Promise<Map<string, string>> {
-  const result = new Map<string, string>();
-  let types: DolibarrHolidayType[] = [];
-  try {
-    types = await client.getHolidayTypes();
-  } catch (err) {
-    logger.warn({ err }, '[Dolibarr Leaves Sync] REST holiday type catalogue unavailable');
+function resolveOtsLeaveCode(row: DolibarrHolidayDbRow): string | undefined {
+  if (row.type_code) {
+    const direct = DOLIBARR_CODE_TO_OTS_CODE[row.type_code.toUpperCase()];
+    if (direct) return direct;
   }
-  for (const t of types) {
-    const id = t.id ?? t.rowid;
-    if (id === undefined || id === null) continue;
-    const label = normaliseLabel(typeof t.label === 'string' ? t.label : null);
-    const code = DOLIBARR_TYPE_LABEL_TO_CODE[label];
-    if (code) {
-      result.set(String(id), code);
-    }
+  if (row.type_label) {
+    const fromLabel = DOLIBARR_LABEL_TO_OTS_CODE[normaliseLabel(row.type_label)];
+    if (fromLabel) return fromLabel;
   }
-  return result;
+  return undefined;
 }
 
 // ============================================================================
@@ -138,14 +129,12 @@ async function buildTypeMap(
 export interface RunLeaveSyncOptions {
   triggeredById: string;
   triggerSource?: 'manual' | 'cron';
-  client?: DolibarrClient;
 }
 
 export async function runDolibarrLeaveSync(
   opts: RunLeaveSyncOptions,
 ): Promise<LeaveSyncResult> {
   const start = Date.now();
-  const client = opts.client ?? createDolibarrClient();
 
   // -- Start sync log row (status = RUNNING) --
   const syncLog = await prisma.dolibarrLeaveSyncLog.create({
@@ -168,7 +157,7 @@ export async function runDolibarrLeaveSync(
   let apiResponseMs: number | null = null;
 
   try {
-    // -- Preload LeaveType catalogue (code → id) for fast lookup --
+    // -- Preload OTS LeaveType catalogue (code → id) for fast lookup --
     const leaveTypes = await prisma.leaveType.findMany({
       where: { archivedAt: null },
       select: { id: true, code: true },
@@ -185,28 +174,23 @@ export async function runDolibarrLeaveSync(
       throw new Error('No LeaveType rows exist — cannot land Dolibarr leaves.');
     }
 
-    // -- Build Dolibarr fk_type → code map --
-    const dolibarrTypeMap = await buildTypeMap(client);
-
-    // -- Fetch all holidays via the Dolibarr REST API --
-    const apiStart = Date.now();
-    const holidays: DolibarrHoliday[] = await client.getAllHolidays();
-    apiResponseMs = Date.now() - apiStart;
+    // -- Fetch holidays from Dolibarr MySQL directly (18.8.0) --
+    const fetchStart = Date.now();
+    const holidays = await fetchApprovedDolibarrHolidays();
+    apiResponseMs = Date.now() - fetchStart;
     rowsRead = holidays.length;
 
-    for (const apiHoliday of holidays) {
-      const dolibarrHolidayIdStr = String(apiHoliday.id ?? '');
+    for (const row of holidays) {
+      const dolibarrHolidayIdStr = String(row.rowid);
       try {
-        // -- Skip non-approved statuses --
-        const statut = String(apiHoliday.statut ?? '');
-        if (statut !== '3') {
+        // SQL already filters statut=3, but belt-and-braces.
+        if (row.statut !== 3) {
           rowsSkipped++;
           continue;
         }
 
         // -- Resolve employee by fk_user → employmentId --
-        const fkUser = apiHoliday.fk_user;
-        if (fkUser === undefined || fkUser === null || fkUser === '') {
+        if (!row.fk_user || row.fk_user <= 0) {
           employeesNotFound++;
           softWarnings.push({
             dolibarrHolidayId: dolibarrHolidayIdStr,
@@ -215,7 +199,7 @@ export async function runDolibarrLeaveSync(
           });
           continue;
         }
-        const employmentId = String(fkUser);
+        const employmentId = String(row.fk_user);
         const employee = await prisma.employee.findUnique({
           where: { employmentId },
           select: { id: true },
@@ -230,16 +214,23 @@ export async function runDolibarrLeaveSync(
           continue;
         }
 
-        // -- Resolve dates --
-        const startDate = tsToDate(apiHoliday.date_debut);
-        const endDate = tsToDate(apiHoliday.date_fin);
-        if (!startDate || !endDate) {
+        // -- Validate dates (mysql2 returns native JS Dates) --
+        if (!(row.date_debut instanceof Date) || Number.isNaN(row.date_debut.getTime())) {
           hardErrors.push({
             dolibarrHolidayId: dolibarrHolidayIdStr,
-            message: 'Missing date_debut or date_fin',
+            message: 'Missing or invalid date_debut',
           });
           continue;
         }
+        if (!(row.date_fin instanceof Date) || Number.isNaN(row.date_fin.getTime())) {
+          hardErrors.push({
+            dolibarrHolidayId: dolibarrHolidayIdStr,
+            message: 'Missing or invalid date_fin',
+          });
+          continue;
+        }
+        const startDate = row.date_debut;
+        const endDate = row.date_fin;
         if (endDate < startDate) {
           hardErrors.push({
             dolibarrHolidayId: dolibarrHolidayIdStr,
@@ -248,28 +239,25 @@ export async function runDolibarrLeaveSync(
           continue;
         }
 
-        // -- Resolve leave type --
-        const fkType = apiHoliday.fk_type !== undefined && apiHoliday.fk_type !== null ? String(apiHoliday.fk_type) : '';
-        let leaveTypeCode: string | undefined;
-        if (fkType) leaveTypeCode = dolibarrTypeMap.get(fkType);
+        // -- Resolve leave type via code (preferred) or label (fallback) --
+        const otsCode = resolveOtsLeaveCode(row);
         let leaveTypeId: string | undefined;
-        if (leaveTypeCode) leaveTypeId = leaveTypeByCode.get(leaveTypeCode);
+        if (otsCode) leaveTypeId = leaveTypeByCode.get(otsCode);
         if (!leaveTypeId) {
           leaveTypeId = fallbackLeaveTypeId;
           typesNotMapped++;
           softWarnings.push({
             dolibarrHolidayId: dolibarrHolidayIdStr,
             field: 'fk_type',
-            message: `Dolibarr fk_type=${fkType || '(null)'} did not map to any OTS LeaveType; used fallback`,
+            message: `Dolibarr code=${row.type_code ?? '(null)'} label=${row.type_label ?? '(null)'} did not map to any OTS LeaveType; used fallback`,
           });
         }
 
-        // -- Compute calendar / working days --
+        // -- Compute calendar / working days (exclude Fridays only) --
         const calendarDays =
-          Math.floor((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-        // Working days: same as native flow — exclude Fridays only. Public
-        // holidays are NOT excluded here because Dolibarr's own export
-        // already accounts for the employee's requested working range.
+          Math.floor(
+            (endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000),
+          ) + 1;
         let workingDays = 0;
         const cur = new Date(startDate);
         while (cur <= endDate) {
@@ -278,23 +266,13 @@ export async function runDolibarrLeaveSync(
         }
 
         const description =
-          typeof apiHoliday.description === 'string' && apiHoliday.description.trim() !== ''
-            ? apiHoliday.description.trim().slice(0, 1000)
+          typeof row.description === 'string' && row.description.trim() !== ''
+            ? row.description.trim().slice(0, 1000)
             : null;
-
-        const dolibarrIdNum =
-          typeof apiHoliday.id === 'number' ? apiHoliday.id : parseInt(dolibarrHolidayIdStr, 10);
-        if (!Number.isFinite(dolibarrIdNum)) {
-          hardErrors.push({
-            dolibarrHolidayId: dolibarrHolidayIdStr,
-            message: 'Cannot parse holiday id as integer',
-          });
-          continue;
-        }
 
         // -- Upsert by dolibarrHolidayId --
         const existing = await prisma.leaveRequest.findUnique({
-          where: { dolibarrHolidayId: dolibarrIdNum },
+          where: { dolibarrHolidayId: row.rowid },
           select: { id: true },
         });
 
@@ -309,9 +287,9 @@ export async function runDolibarrLeaveSync(
               workingDays: workingDays.toString(),
               reason: description,
               status: 'APPROVED',
-              submittedAt: tsToDate(apiHoliday.date_create) ?? new Date(),
+              submittedAt: row.date_create instanceof Date ? row.date_create : new Date(),
               source: 'DOLIBARR',
-              dolibarrHolidayId: dolibarrIdNum,
+              dolibarrHolidayId: row.rowid,
               balanceAtRequest: null,
               wasOverBalance: false,
               createdById: opts.triggeredById,
@@ -336,10 +314,8 @@ export async function runDolibarrLeaveSync(
           rowsUpdated++;
         }
 
-        // -- Attendance dedup counter --
-        // How many days in [startDate, endDate] have an AttendanceRecord
-        // for this employee? The payroll calculator will use the leave as
-        // source of truth; here we just record the overlap for visibility.
+        // -- Attendance dedup counter (visibility only; calculator uses
+        //    the leave as source of truth at calc time) --
         const overlap = await prisma.attendanceRecord.count({
           where: {
             employeeId: employee.id,
@@ -371,8 +347,14 @@ export async function runDolibarrLeaveSync(
         employeesNotFound,
         typesNotMapped,
         attendanceDaysOverridden,
-        hardErrors: hardErrors.length > 0 ? (hardErrors as unknown as Prisma.InputJsonValue) : undefined,
-        softWarnings: softWarnings.length > 0 ? (softWarnings as unknown as Prisma.InputJsonValue) : undefined,
+        hardErrors:
+          hardErrors.length > 0
+            ? (hardErrors as unknown as Prisma.InputJsonValue)
+            : undefined,
+        softWarnings:
+          softWarnings.length > 0
+            ? (softWarnings as unknown as Prisma.InputJsonValue)
+            : undefined,
         apiResponseMs,
       },
     });
@@ -421,8 +403,13 @@ export async function runDolibarrLeaveSync(
         employeesNotFound,
         typesNotMapped,
         attendanceDaysOverridden,
-        hardErrors: [{ dolibarrHolidayId: 'SYNC', message: msg }] as unknown as Prisma.InputJsonValue,
-        softWarnings: softWarnings.length > 0 ? (softWarnings as unknown as Prisma.InputJsonValue) : undefined,
+        hardErrors: [
+          { dolibarrHolidayId: 'SYNC', message: msg },
+        ] as unknown as Prisma.InputJsonValue,
+        softWarnings:
+          softWarnings.length > 0
+            ? (softWarnings as unknown as Prisma.InputJsonValue)
+            : undefined,
         apiResponseMs,
       },
     });

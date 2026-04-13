@@ -23,10 +23,45 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.8.0',
+    date: 'April 13, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Dolibarr Leaves Sync via Direct MySQL — Bypassing the Broken /holidays REST Endpoint',
+    highlights: [
+      'Plan B turned out to be "use the database directly". The Dolibarr /api/index.php/holidays REST endpoint has been unfixable from the OTS side across five consecutive diagnostic attempts (18.7.1 → 18.7.6) even though the Holiday module is enabled, the class file is present, the API key user has holiday/read, and the edge proxy has been cache-busted. Walid confirmed the underlying Dolibarr database is fully populated — SELECT COUNT(*) FROM llxvv_holiday WHERE statut=3 returns 46 approved rows — so we now read them directly.',
+      'New src/lib/dolibarr/dolibarr-db.ts: mysql2/promise read-only pool (cap 3 connections, keep-alive, UTC timezone forced via timezone:"Z", multipleStatements off). Table prefix is read from DOLIBARR_DB_TABLE_PREFIX (default llx_, validated against /^[a-z][a-z0-9_]*_$/ before interpolation because mysql2 cannot parameterise table names). Walid\'s install uses llxvv_ which passes the regex. Exports pingDolibarrDb() + fetchApprovedDolibarrHolidays() + DolibarrDbNotConfiguredError.',
+      'Six new env vars: DOLIBARR_DB_HOST / PORT / USER / PASSWORD / DATABASE / TABLE_PREFIX. Four non-port values are required — any missing one throws DolibarrDbNotConfiguredError on pool init and the API surfaces that as a clean 503, never a crash.',
+      'runDolibarrLeaveSync() in src/lib/services/hr/sync-dolibarr-leaves.ts rewritten: dropped all REST / DolibarrClient / DolibarrHoliday / Unix-timestamp conversion code. Now calls fetchApprovedDolibarrHolidays() directly — the query is a single LEFT JOIN between <prefix>holiday and <prefix>c_holiday_types so type_code and type_label are read in the same round-trip that used to need a second /holiday/types call. mysql2 returns native JS Date objects so the date handling is simpler.',
+      'Leave type mapping is now a hardcoded Record<string, string> against the five codes HR actually uses on Walid\'s install: LEAVE_SICK→SICK, LEAVE_PERMISSION→PERMITTED, LEAVE_ANNUAL→ANNUAL, LEAVE_FAMILY→URGENT, LEAVE_WITHOUT_PE→UNPERMITTED (Dolibarr\'s code column is varchar(16) so LEAVE_WITHOUT_PERMISSION truncates to LEAVE_WITHOUT_PE — both forms mapped for safety). The ~30 Greek default holiday types (5D1Y, 6D2Y, etc.) fall through to the label-based fallback and then the default leave type, each with a soft warning in the sync log.',
+      'New GET /api/hr/leave-requests/db-ping endpoint: gated by hr.leaves.sync, runs SELECT VERSION() + COUNT of approved holidays, returns server version + table prefix + latency + holiday count so admins can verify end-to-end reachability from the browser before firing a real sync.',
+      '/hr/payroll page reverts the 18.7.6 amputation: the Sync from Dolibarr button runs employees THEN leaves (leaves as a soft-fail — any failure keeps the amber warning + console.warn pattern from 18.7.5, but the employee sync and the payroll calc carry on). The "Leaves" row is back in the sync status strip with created/updated/skipped/no-emp/dedup pills. Hero subtitle restored to "Sync fresh employee & leave data from Dolibarr".',
+      'No schema changes. Existing LeaveRequest.source + dolibarrHolidayId fields (from 18.6.0) are reused as-is, so idempotency and the payroll calculator\'s dedup logic keep working without any migration.',
+    ],
+    changes: {
+      added: [
+        'src/lib/dolibarr/dolibarr-db.ts — mysql2 pool, getDolibarrTablePrefix() with regex validation, pingDolibarrDb(), fetchApprovedDolibarrHolidays(), DolibarrDbNotConfiguredError',
+        'DOLIBARR_DB_HOST / PORT / USER / PASSWORD / DATABASE / TABLE_PREFIX env vars in src/lib/env.ts',
+        'GET /api/hr/leave-requests/db-ping — lightweight connectivity probe (SELECT VERSION() + COUNT of approved holidays), gated by hr.leaves.sync',
+      ],
+      fixed: [
+        'Dolibarr leaves sync no longer depends on the broken /api/index.php/holidays REST endpoint — reads llxvv_holiday directly',
+        'Leave type resolution for LEAVE_WITHOUT_PERMISSION: both the full form and the varchar(16)-truncated LEAVE_WITHOUT_PE code now map to UNPERMITTED',
+      ],
+      changed: [
+        'runDolibarrLeaveSync() swapped from REST client to direct mysql2 pool — single JOIN query reads holidays + type codes/labels in one round-trip',
+        'Leave type code mapping is now a hardcoded Record over the five codes Walid\'s HR team actually uses, with label-based fallback preserved from 18.6.0',
+        '/hr/payroll Sync from Dolibarr button runs employees THEN leaves again (soft-fail on leaves) — reverting the 18.7.6 amputation now that the direct-DB path actually works',
+        '/hr/payroll sync status strip shows the "Leaves" row again with created/updated/skipped/no-emp/dedup pills',
+        'src/app/api/hr/leave-requests/sync/route.ts catches DolibarrDbNotConfiguredError and returns 503 with a clean configuration-hint message',
+      ],
+    },
+  },
+  {
     version: '18.7.6',
     date: 'April 13, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Plan B — Leaves Sync Removed From Payroll Entirely',
     highlights: [
       'Walid confirmed the Leave Request Management module is enabled in the Dolibarr admin UI AND llxvv_const has MAIN_MODULE_HOLIDAY=1, entity=1 (the table prefix on this install is llxvv_ not llx_, which is why earlier SELECTs came back empty). Despite that, /api/index.php/holidays still returns HTTP 200 + text/html + body "API not found (failed to include API file)" with x-proxy-cache: MISS — so the 18.7.4 cache-buster IS working, this is genuinely PHP reaching the line-402 Dolibarr fallback, and the underlying cause is something we cannot debug from the OTS side.',

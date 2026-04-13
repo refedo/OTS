@@ -44,6 +44,19 @@ type EmployeeSyncLog = {
   triggeredBy?: { id: string; name: string | null; email: string | null } | null;
 };
 
+type LeaveSyncLog = {
+  id: string;
+  startedAt: string;
+  status: string;
+  rowsCreated: number;
+  rowsUpdated: number;
+  rowsSkipped: number;
+  employeesNotFound: number;
+  typesNotMapped: number;
+  attendanceDaysOverridden: number;
+  triggeredBy?: { id: string; name: string | null; email: string | null } | null;
+};
+
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -75,10 +88,15 @@ export function PayrollPeriodsClient({
   });
   const [creating, setCreating] = useState(false);
 
-  // Dolibarr sync — employees only (18.7.6: leaves sync removed entirely)
+  // Dolibarr sync — employees + leaves (18.8.0: leaves back via direct MySQL,
+  // the REST /holidays endpoint proved unreliable on this instance so
+  // `runDolibarrLeaveSync()` now reads `llxvv_holiday` straight from the
+  // Dolibarr DB pool in `src/lib/dolibarr/dolibarr-db.ts`).
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [leaveSyncWarning, setLeaveSyncWarning] = useState<string | null>(null);
   const [lastEmployeeSync, setLastEmployeeSync] = useState<EmployeeSyncLog | null>(null);
+  const [lastLeaveSync, setLastLeaveSync] = useState<LeaveSyncLog | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -95,10 +113,17 @@ export function PayrollPeriodsClient({
   const loadLastSync = useCallback(async () => {
     if (!canSync) return;
     try {
-      const employeesRes = await fetch('/api/hr/employees/sync');
+      const [employeesRes, leavesRes] = await Promise.all([
+        fetch('/api/hr/employees/sync'),
+        fetch('/api/hr/leave-requests/sync'),
+      ]);
       if (employeesRes.ok) {
         const logs: EmployeeSyncLog[] = await employeesRes.json();
         setLastEmployeeSync(Array.isArray(logs) ? logs[0] ?? null : null);
+      }
+      if (leavesRes.ok) {
+        const logs: LeaveSyncLog[] = await leavesRes.json();
+        setLastLeaveSync(Array.isArray(logs) ? logs[0] ?? null : null);
       }
     } catch {
       // non-fatal
@@ -113,20 +138,32 @@ export function PayrollPeriodsClient({
   async function runSync() {
     setSyncing(true);
     setSyncError(null);
+    setLeaveSyncWarning(null);
     try {
-      // 18.7.6 — Payroll sync is now employees-only. The Dolibarr /holidays
-      // endpoint proved unreliable on this instance despite the module being
-      // enabled in llxvv_const, so the leaves sync path is removed from
-      // payroll entirely. Payroll always calculated from Employee +
-      // AttendanceRecord (sheet codes), the Dolibarr leaves mirror was only
-      // ever an optional dedup — native OTS LeaveRequest rows (if any) are
-      // still honored by the calculator. Fall back path now matches the
-      // pre-18.6.0 baseline.
+      // 18.8.0 — employees sync is a hard dependency. Leaves sync is nice to
+      // have (it dedups sheet codes against Dolibarr approvals) but shouldn't
+      // block payroll calculation if it soft-fails — the calculator still
+      // works on Employee + AttendanceRecord alone.
       const empRes = await fetch('/api/hr/employees/sync', { method: 'POST' });
       if (!empRes.ok) {
         const body = await empRes.json().catch(() => ({}));
         throw new Error(body.error ?? body.message ?? 'Employee sync failed');
       }
+
+      try {
+        const leavesRes = await fetch('/api/hr/leave-requests/sync', { method: 'POST' });
+        if (!leavesRes.ok) {
+          const body = await leavesRes.json().catch(() => ({}));
+          // eslint-disable-next-line no-console
+          console.warn('[payroll] Dolibarr leaves sync failed:', body);
+          setLeaveSyncWarning('Dolibarr leaves sync unavailable — payroll will use attendance-sheet codes only.');
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('[payroll] Dolibarr leaves sync failed:', e);
+        setLeaveSyncWarning('Dolibarr leaves sync unavailable — payroll will use attendance-sheet codes only.');
+      }
+
       await loadLastSync();
       await refresh();
     } catch (e) {
@@ -177,8 +214,8 @@ export function PayrollPeriodsClient({
               </div>
               <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">Payroll Periods</h1>
               <p className="mt-1 text-indigo-100 text-sm md:text-base">
-                Calculate, approve and lock monthly payroll. Sync fresh employee data from Dolibarr, then run a
-                calc — leaves are read from the attendance sheet.
+                Calculate, approve and lock monthly payroll. Sync fresh employee & leave data from Dolibarr,
+                then run a calc.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -219,7 +256,7 @@ export function PayrollPeriodsClient({
         </div>
 
         {/* Sync status strip */}
-        {canSync && (lastEmployeeSync || syncError) && (
+        {canSync && (lastEmployeeSync || lastLeaveSync || syncError || leaveSyncWarning) && (
           <Card className="border-slate-200">
             <CardContent className="py-4 space-y-2">
               {syncError && (
@@ -228,6 +265,18 @@ export function PayrollPeriodsClient({
                   <div>
                     <div className="font-medium">Sync failed</div>
                     <div className="text-sm text-red-600/90">{syncError}</div>
+                  </div>
+                </div>
+              )}
+              {!syncError && leaveSyncWarning && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-medium text-sm">Leaves sync skipped — employee sync succeeded</div>
+                    <div className="text-xs">{leaveSyncWarning}</div>
+                    <div className="text-[11px] text-amber-700/80 mt-0.5">
+                      Payroll calculation will still run. Check the browser console for technical details.
+                    </div>
                   </div>
                 </div>
               )}
@@ -255,6 +304,39 @@ export function PayrollPeriodsClient({
                     <Pill label="created" value={lastEmployeeSync.rowsCreated} tone="emerald" />
                     <Pill label="updated" value={lastEmployeeSync.rowsUpdated} tone="sky" />
                     <Pill label="skipped" value={lastEmployeeSync.rowsSkipped} />
+                  </div>
+                </div>
+              )}
+              {!syncError && lastLeaveSync && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <div className="flex items-center gap-2 min-w-[140px]">
+                    <SyncIcon status={lastLeaveSync.status} />
+                    <span className="font-medium text-slate-700">Leaves</span>
+                    <Badge
+                      variant={
+                        lastLeaveSync.status === 'SUCCESS'
+                          ? 'default'
+                          : lastLeaveSync.status === 'FAILED'
+                            ? 'destructive'
+                            : 'secondary'
+                      }
+                    >
+                      {lastLeaveSync.status}
+                    </Badge>
+                  </div>
+                  <span className="text-muted-foreground text-xs">
+                    {new Date(lastLeaveSync.startedAt).toLocaleString()}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <Pill label="created" value={lastLeaveSync.rowsCreated} tone="emerald" />
+                    <Pill label="updated" value={lastLeaveSync.rowsUpdated} tone="sky" />
+                    <Pill label="skipped" value={lastLeaveSync.rowsSkipped} />
+                    {lastLeaveSync.employeesNotFound > 0 && (
+                      <Pill label="no-emp" value={lastLeaveSync.employeesNotFound} tone="amber" />
+                    )}
+                    {lastLeaveSync.attendanceDaysOverridden > 0 && (
+                      <Pill label="dedup" value={lastLeaveSync.attendanceDaysOverridden} tone="violet" />
+                    )}
                   </div>
                 </div>
               )}
