@@ -166,6 +166,10 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/public-holidays': ['hr.holiday.view', 'hr.holiday.manage'],
   '/hr/setup': ['departments.create', 'departments.edit', 'hr.section.manage'],
 
+  // HR Leaves & Payroll (Phase 3 of OTS-MSS-HR-PAYROLL-v1)
+  '/hr/leaves': ['hr.leaves.view', 'hr.leaves.request', 'hr.leaves.viewAll', 'hr.leaves.approve'],
+  '/hr/payroll': ['hr.payroll.view', 'hr.payroll.viewOwn'],
+
   '/admin/identity-reconciliation': ['admin.identity.reconcile'],
 
   // Organization
