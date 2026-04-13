@@ -38,7 +38,6 @@ const schema = z.object({
   dateOfJoining: z.string().min(1, 'Required'),
   dateOfLeaving: z.string().optional().or(z.literal('')),
   status: z.enum(['ACTIVE', 'ON_LEAVE', 'SUSPENDED', 'TERMINATED', 'RESIGNED']),
-  trade: z.string().max(120).optional().or(z.literal('')),
   department: z.string().max(120).optional().or(z.literal('')),
   departmentId: z.string().optional().or(z.literal('')),
   occupation: z.string().max(120).optional().or(z.literal('')),
@@ -174,7 +173,6 @@ export function EmployeeForm({
       dateOfJoining: initial?.dateOfJoining ?? '',
       dateOfLeaving: initial?.dateOfLeaving ?? '',
       status: (initial?.status as FormValues['status']) ?? 'ACTIVE',
-      trade: initial?.trade ?? '',
       department: initial?.department ?? '',
       departmentId: initial?.departmentId ?? '',
       occupation: initial?.occupation ?? '',
@@ -353,11 +351,7 @@ export function EmployeeForm({
                 </Select>
               </div>
               <div>
-                <Label>Trade</Label>
-                <Input {...form.register('trade')} />
-              </div>
-              <div>
-                <Label>Occupation</Label>
+                <Label>Position Title</Label>
                 <Select
                   value={form.watch('occupation') || '__none__'}
                   onValueChange={(v) =>
@@ -365,7 +359,7 @@ export function EmployeeForm({
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select occupation" />
+                    <SelectValue placeholder="Select position title" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">— None —</SelectItem>

@@ -23,29 +23,79 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.6.2',
+    version: '18.7.0',
     date: 'April 13, 2026',
-    type: 'patch',
+    type: 'minor',
     status: 'current',
-    mainTitle: 'Dolibarr Direct-MySQL Fallback for Holidays + Employee SN Natural Sort',
+    mainTitle: 'Drop Employee.trade — Rename "Occupation" → "Position Title" Everywhere',
     highlights: [
-      'Dolibarr REST endpoint /api/index.php/holidays returns "API not found (failed to include API file)" on many Dolibarr builds even when the Leaves module is enabled in the UI — OTS now bypasses the broken REST endpoint by reading llx_holiday directly via MySQL when the new DOLIBARR_DB_* env vars are set.',
-      'Sync probes the Dolibarr DB once per run, attempts the REST call first, and on DolibarrHolidaysNotAvailableError automatically falls back to the direct MySQL read with a soft-warning entry in the sync log.',
-      '/hr/employees SN column now sorts by natural numeric value (1, 2, 10, 100) instead of lexicographically (1, 10, 100, 2).',
+      'Walid: "take all the values in employee \'trade\' and put it as \'occupation\' — i was preferring occupation to be position title (more elite and more professional) — and then we can safely remove \'trade\' as i really don\'t know what trade is!"',
+      'Idempotent SQL migration prisma/manual_migrations/migrate_trade_to_occupation.sql copies Employee.trade → Employee.occupation (only where occupation is empty), drops the Employee_trade_idx index, then drops the column. Each step is guarded by an information_schema check so the migration replays cleanly.',
+      'The DB column name stays `occupation`, the catalogue model stays `HrOccupation`, and the API stays `/api/hr/occupations` — only the UI labels change to "Position Title". This keeps existing dropdown sources, historical employee records and the Phase-2.5 grouping intact.',
+      'ManpowerSlot.trade is preserved (it\'s a different concept — the agency slot\'s worker template, not the employee\'s job).',
     ],
     changes: {
       added: [
-        'src/lib/dolibarr/dolibarr-db.ts — small read-only mysql2 pool against the Dolibarr database, with isDolibarrDbConfigured() / pingDolibarrDb() / getAllHolidaysFromDb() / getHolidayTypesFromDb()',
-        'env.ts: DOLIBARR_DB_HOST / DOLIBARR_DB_PORT / DOLIBARR_DB_USER / DOLIBARR_DB_PASSWORD / DOLIBARR_DB_DATABASE (all optional)',
-        'sync-dolibarr-leaves.ts: REST→MySQL fallback for both holidays and the holiday type catalogue, gated by env-var presence + a SELECT 1 connectivity probe',
+        'prisma/manual_migrations/migrate_trade_to_occupation.sql — three-step idempotent migration: copy values, drop index, drop column; each step guarded by information_schema (NOT using ADD/DROP COLUMN IF EXISTS, which MySQL rejects)',
       ],
+      fixed: [],
+      changed: [
+        'prisma/schema.prisma: removed Employee.trade field + @@index([trade])',
+        'sync-dolibarr-employees.ts: projection writes apiUser.job into Employee.occupation instead of Employee.trade; TRACKED_SYNC_FIELDS / update loop / create payload all switched',
+        'employee-form.tsx: removed the free-text Trade <Input>; the Occupation <Select> is relabeled "Position Title" with placeholder "Select position title"',
+        'employees-client.tsx (HR list): removed Trade column / Trade filter / trade SortKey; added Position Title column reading from `occupation` with sort + filter on `occupation`',
+        'hr-setup-client.tsx: "Occupations" tab → "Position Titles"; ManagedListTab labels updated to "position title" / "position titles"; description text + placeholder updated',
+        '/api/hr/employees route + [id] route: removed `trade` from createSchema/updateSchema; the GET ?trade= filter param is now ?occupation=; POST/PUT no longer write the field; TRACKED_SYNC_FIELDS array drops `trade`',
+        '/api/hr/attendance route: employee select now pulls `occupation` instead of `trade`',
+        'employee-picker.tsx: dropped the `trade` field from EmployeePickerOption; search placeholder now "Search by ID, name, or position title…"',
+        'user-create-form.tsx + dashboard/users/create + users/create: EmployeeOption.trade → EmployeeOption.occupation; the dropdown subtitle reads from occupation',
+        'hr/employees page select + hr/employees/[id] initial: dropped `trade`',
+        'hr/attendance/timesheet/[workerType]/[id]: emp.trade → emp.occupation in worker subtitle; employeePickerList select dropped `trade`',
+        'hr/attendance/mapping page select: dropped `trade`',
+      ],
+    },
+  },
+  {
+    version: '18.6.3',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Revert Dolibarr Direct-MySQL Holidays Fallback — REST Pattern Only',
+    highlights: [
+      'Reverts 18.6.2\'s DOLIBARR_DB_* MySQL fallback per Walid: "the API works perfectly for products, third parties, POs and financial sync — there\'s no need for direct DB access. Look up how the existing integrations work and do the same."',
+      'OTS already calls /api/index.php/holidays the same way it calls /products, /thirdparties, /invoices, /salaries, /projects, /supplierorders and /users — same DolibarrPaginationParams, same t.rowid sortfield, same request<T>() plumbing. So when getHolidays() fails the root cause is on the Dolibarr server, not in OTS.',
+      'DolibarrHolidaysNotAvailableError now spells out the three concrete server-side fixes admins should apply: grant the API-key user "holiday/read", delete htdocs/api/temp/routes.php (Dolibarr\'s stale API-route cache), and verify htdocs/holiday/class/api_holidays.class.php exists and is readable by the PHP process.',
+    ],
+    changes: {
+      added: [],
       fixed: [
-        '/hr/employees SN column natural-numeric sort (strips non-digit prefixes like "SH-W04", parses the remainder as an integer)',
-        '/api/hr/leave-requests/sync 503 response now tells admins exactly which DOLIBARR_DB_* env vars to set when REST is missing and the fallback isn\'t configured yet',
+        'DolibarrHolidaysNotAvailableError message rewritten with the three concrete server-side fixes (holiday/read permission, clear api/temp/routes.php cache, verify api_holidays.class.php), and /api/hr/leave-requests/sync 503 surfaces it verbatim',
       ],
       changed: [
-        'sync-dolibarr-leaves.ts: buildTypeMap() takes a useDbFallback flag; main run probes DB once at the top and uses the result for both type catalogue and holidays fetch',
+        'src/lib/dolibarr/dolibarr-db.ts — DELETED. Replaced with the existing REST-only path that mirrors every other working Dolibarr integration in OTS.',
+        'env.ts — removed DOLIBARR_DB_HOST / DOLIBARR_DB_PORT / DOLIBARR_DB_USER / DOLIBARR_DB_PASSWORD / DOLIBARR_DB_DATABASE; the only Dolibarr env vars are the existing DOLIBARR_API_URL / DOLIBARR_API_KEY / DOLIBARR_API_TIMEOUT / DOLIBARR_API_RETRIES used by every other sync',
+        'sync-dolibarr-leaves.ts: buildTypeMap() drops the useDbFallback parameter, runDolibarrLeaveSync() calls client.getAllHolidays() directly with no DB probe and no fallback branch — exact same shape as the products / thirdparties / invoices / salaries / users syncs',
+        '/api/hr/leave-requests/sync: 503 response no longer mentions DB env vars; surfaces the new actionable Dolibarr-side error message',
       ],
+    },
+  },
+  {
+    version: '18.6.2',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Dolibarr Direct-MySQL Fallback for Holidays + Employee SN Natural Sort (Reverted in 18.6.3)',
+    highlights: [
+      'Added a direct MySQL readthrough for llx_holiday as a fallback when the Dolibarr REST holidays endpoint returned "API not found".',
+      '/hr/employees SN column now sorts by natural numeric value (1, 2, 10, 100) instead of lexicographically (1, 10, 100, 2). This part is preserved in 18.6.3.',
+      'NOTE: the MySQL fallback was reverted in 18.6.3 — kept this entry for history only.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        '/hr/employees SN column natural-numeric sort (strips non-digit prefixes like "SH-W04", parses the remainder as an integer) — preserved in 18.6.3',
+      ],
+      changed: [],
     },
   },
   {

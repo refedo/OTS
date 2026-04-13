@@ -48,12 +48,12 @@ export default async function TimesheetPage({
   if (workerType === 'EMPLOYEE') {
     const emp = await prisma.employee.findUnique({
       where: { id },
-      select: { id: true, employmentId: true, fullNameEn: true, fullNameAr: true, trade: true },
+      select: { id: true, employmentId: true, fullNameEn: true, fullNameAr: true, occupation: true },
     });
     if (!emp) notFound();
     workerLabel = emp.fullNameEn;
     workerArLabel = emp.fullNameAr;
-    workerSubLabel = `${emp.employmentId}${emp.trade ? ` · ${emp.trade}` : ''}`;
+    workerSubLabel = `${emp.employmentId}${emp.occupation ? ` · ${emp.occupation}` : ''}`;
   } else {
     const slot = await prisma.manpowerSlot.findUnique({
       where: { id },
@@ -83,7 +83,6 @@ export default async function TimesheetPage({
         employmentId: true,
         fullNameEn: true,
         fullNameAr: true,
-        trade: true,
         occupation: true,
       },
       orderBy: { fullNameEn: 'asc' },

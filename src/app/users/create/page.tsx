@@ -52,7 +52,7 @@ export default async function CreateUserPage() {
         employmentId: true,
         fullNameEn: true,
         fullNameAr: true,
-        trade: true,
+        occupation: true,
       },
       orderBy: { fullNameEn: 'asc' },
     }),

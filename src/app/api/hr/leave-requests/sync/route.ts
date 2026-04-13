@@ -13,7 +13,6 @@ import { verifySession } from '@/lib/jwt';
 import { checkPermission } from '@/lib/permission-checker';
 import { runDolibarrLeaveSync } from '@/lib/services/hr/sync-dolibarr-leaves';
 import { DolibarrHolidaysNotAvailableError } from '@/lib/dolibarr/dolibarr-client';
-import { isDolibarrDbConfigured } from '@/lib/dolibarr/dolibarr-db';
 
 export async function POST() {
   const store = await cookies();
@@ -33,11 +32,7 @@ export async function POST() {
   } catch (error) {
     logger.error({ error }, '[Dolibarr Leaves Sync API] Sync run failed');
     if (error instanceof DolibarrHolidaysNotAvailableError) {
-      const dbConfigured = isDolibarrDbConfigured();
-      const message = dbConfigured
-        ? `${error.message} The MySQL fallback is configured but the Dolibarr database could not be reached — verify DOLIBARR_DB_HOST / port / credentials.`
-        : `${error.message} As a workaround, configure the direct MySQL fallback by setting DOLIBARR_DB_HOST, DOLIBARR_DB_PORT, DOLIBARR_DB_USER, DOLIBARR_DB_PASSWORD and DOLIBARR_DB_DATABASE in the OTS environment — the sync will then read llx_holiday directly.`;
-      return NextResponse.json({ error: message }, { status: 503 });
+      return NextResponse.json({ error: error.message }, { status: 503 });
     }
     const msg = error instanceof Error ? error.message : 'Sync failed';
     return NextResponse.json({ error: msg }, { status: 500 });

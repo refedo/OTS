@@ -49,7 +49,6 @@ export default async function EmployeeDetailPage({
       ? employee.dateOfLeaving.toISOString().slice(0, 10)
       : '',
     status: employee.status,
-    trade: employee.trade ?? '',
     department: employee.department ?? '',
     departmentId: employee.departmentId ?? '',
     occupation: employee.occupation ?? '',

@@ -42,7 +42,7 @@ type EmployeeOption = {
   employmentId: string;
   fullNameEn: string;
   fullNameAr: string | null;
-  trade: string | null;
+  occupation: string | null;
 };
 
 type UserCreateFormProps = {
@@ -328,7 +328,7 @@ export function UserCreateForm({ roles, departments: initialDepartments, manager
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.fullNameEn} · {emp.employmentId}
-                {emp.trade ? ` · ${emp.trade}` : ''}
+                {emp.occupation ? ` · ${emp.occupation}` : ''}
               </option>
             ))}
           </select>

@@ -47,7 +47,6 @@ const createSchema = z.object({
   dateOfJoining: z.string().min(1),
   dateOfLeaving: z.string().nullable().optional(),
   status: z.enum(['ACTIVE', 'ON_LEAVE', 'SUSPENDED', 'TERMINATED', 'RESIGNED']).optional(),
-  trade: z.string().max(120).nullable().optional(),
   department: z.string().max(120).nullable().optional(),
   departmentId: z.string().uuid().nullable().optional(),
   occupation: z.string().max(120).nullable().optional(),
@@ -90,13 +89,13 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
-  const trade = searchParams.get('trade');
+  const occupation = searchParams.get('occupation');
   const department = searchParams.get('department');
   const search = searchParams.get('search');
 
   const where: Record<string, unknown> = { deletedAt: null };
   if (status) where.status = status;
-  if (trade) where.trade = trade;
+  if (occupation) where.occupation = occupation;
   if (department) where.department = department;
   if (search && search.trim() !== '') {
     where.OR = [
@@ -159,7 +158,6 @@ export async function POST(req: Request) {
         dateOfJoining: new Date(data.dateOfJoining),
         dateOfLeaving: data.dateOfLeaving ? new Date(data.dateOfLeaving) : null,
         status: data.status ?? 'ACTIVE',
-        trade: data.trade ?? null,
         department: data.department ?? null,
         departmentId: data.departmentId ?? null,
         occupation: data.occupation ?? null,

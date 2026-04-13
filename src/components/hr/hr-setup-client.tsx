@@ -236,7 +236,7 @@ export function HrSetupClient({
         <h1 className="text-2xl font-semibold tracking-tight">HR Setup</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage the dropdown lists used across HR — departments, sections,
-          divisions, and occupations. Archived entries stay in the database so
+          divisions, and position titles. Archived entries stay in the database so
           historical employee records stay intact, but they no longer appear in
           pickers.
         </p>
@@ -273,7 +273,7 @@ export function HrSetupClient({
           </TabsTrigger>
           <TabsTrigger value="occupations" className="gap-2">
             <Briefcase className="h-4 w-4" />
-            Occupations
+            Position Titles
             <Badge variant="secondary" className="ml-1">
               {activeOccupationCount}
             </Badge>
@@ -600,13 +600,13 @@ export function HrSetupClient({
         </TabsContent>
 
         {/* ------------------------------------------------------------- */}
-        {/* Occupations                                                   */}
+        {/* Position Titles (stored in the legacy `occupation` column)    */}
         {/* ------------------------------------------------------------- */}
         <TabsContent value="occupations" className="space-y-4">
           <ManagedListTab
-            label="occupation"
-            pluralLabel="occupations"
-            placeholder="e.g. Welder, Fitter"
+            label="position title"
+            pluralLabel="position titles"
+            placeholder="e.g. Welder, Fitter, Foreman"
             endpoint="/api/hr/occupations"
             initialItems={initialOccupations}
             canManage={canManageSections}

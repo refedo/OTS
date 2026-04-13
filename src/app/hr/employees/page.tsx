@@ -37,7 +37,6 @@ export default async function EmployeesPage() {
       fullNameAr: true,
       nationalId: true,
       status: true,
-      trade: true,
       department: true,
       section: true,
       division: true,

@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     take: 5000,
     orderBy: [{ date: 'asc' }, { employeeId: 'asc' }, { manpowerSlotId: 'asc' }],
     include: {
-      employee: { select: { id: true, employmentId: true, fullNameEn: true, fullNameAr: true, trade: true } },
+      employee: { select: { id: true, employmentId: true, fullNameEn: true, fullNameAr: true, occupation: true } },
       manpowerSlot: {
         select: {
           id: true,

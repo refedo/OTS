@@ -125,7 +125,7 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
   dateOfJoining: Date;
   dateOfLeaving: Date | null;
   status: EmployeeStatus;
-  trade: string | null;
+  occupation: string | null;
   department: string | null;
   basicSalary: string;
   bankName: string | null;
@@ -144,7 +144,10 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
     dateOfJoining: tsToDate(apiUser.dateemployment) ?? tsToDate(apiUser.datec) ?? new Date(),
     dateOfLeaving: tsToDate(apiUser.dateemploymentend),
     status: mapStatus(apiUser),
-    trade: typeof apiUser.job === 'string' && apiUser.job.trim() !== '' ? apiUser.job.trim() : null,
+    // 18.7.0 — Dolibarr `job` (the worker's position title in llx_user.job)
+    // now maps to OTS Employee.occupation. The legacy `trade` column was
+    // dropped, see prisma/manual_migrations/migrate_trade_to_occupation.sql.
+    occupation: typeof apiUser.job === 'string' && apiUser.job.trim() !== '' ? apiUser.job.trim() : null,
     department: extra(apiUser, 'options_department'),
     basicSalary: basic,
     bankName: extra(apiUser, 'options_bank_name', 'options_bank'),
@@ -219,7 +222,7 @@ export async function runDolibarrEmployeeSync(
               dateOfJoining: projection.dateOfJoining,
               dateOfLeaving: projection.dateOfLeaving,
               status: projection.status,
-              trade: projection.trade,
+              occupation: projection.occupation,
               department: projection.department,
               basicSalary: projection.basicSalary,
               bankName: projection.bankName,
@@ -246,7 +249,7 @@ export async function runDolibarrEmployeeSync(
             'dateOfJoining',
             'dateOfLeaving',
             'status',
-            'trade',
+            'occupation',
             'department',
             'basicSalary',
             'bankName',
