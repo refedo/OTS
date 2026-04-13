@@ -23,10 +23,35 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.7.3',
+    version: '18.7.4',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Dolibarr /holidays Root Cause Found — Stale Edge-Proxy Cache, Not Dolibarr',
+    highlights: [
+      'Walid ran two direct curls against the live Dolibarr instance and the response headers were definitive. /api/index.php/users?limit=1 came back HTTP 200 + application/json + x-powered-by: Luracast Restler v3.1.0 + x-proxy-cache: MISS. /api/index.php/holidays?limit=1 came back HTTP 200 + text/html + NO x-powered-by: Restler header at all + x-proxy-cache: HIT + body "API not found (failed to include API file)".',
+      'The failing response is being served from an nginx/LiteSpeed/Cloudflare edge cache without ever reaching PHP. That is why the Dolibarr php_errorlog and documents/dolibarr.log showed no recent entries: PHP never ran. Every previous diagnosis chasing "the holidays module is off" / "the class file is missing" / "there is a parse error" was hunting a ghost.',
+      'Likely history: Dolibarr returned the line-402 fallback (when the endpoint really was broken at some earlier point), the edge cached that HTTP 200 + HTML body, and has been serving it stale ever since — including after the underlying Dolibarr issue was already fixed.',
+      'Fix (a) — OTS client: DolibarrClient.request() now appends _ts=<ms> to every request URL and sends Cache-Control: no-cache, no-store, must-revalidate + Pragma: no-cache request headers. Any proxy along the way is forced to bypass its cache. Dolibarr Restler ignores unknown query params so _ts is harmless upstream. This alone should unbreak Walid\'s leave sync immediately after pm2 restart.',
+      'Fix (b) — DolibarrHolidaysNotAvailableError message rewritten: "purge the host-level cache (LiteSpeed / Cloudflare / nginx) and add a bypass rule for <domain>/erp/api/*" is now the #1 action. Server-side diagnoses (module off / missing class file / parse error) are demoted to #2 "only if #1 doesn\'t fix it".',
+      'Fix (c) — The generic non-JSON parse error in request() now inspects x-proxy-cache and x-powered-by on the response headers and appends "[proxy cache HIT — edge proxy is serving a stale cached response without hitting PHP; purge the host cache and add a bypass rule for /api/index.php/*]" when it detects the signature. Any future admin who hits this will see the right diagnosis in the OTS error banner without digging through logs.',
+    ],
+    changes: {
+      added: [
+        'Client-side cache-busting in DolibarrClient.request(): _ts=<ms> query param + Cache-Control/Pragma no-cache request headers on every request',
+        'Proxy-cache-HIT detection in the non-JSON response error: inspects x-proxy-cache and x-powered-by response headers and appends an explicit "purge the host cache" hint to the error message',
+      ],
+      fixed: [
+        'DolibarrHolidaysNotAvailableError message + docstring rewritten around the real root cause (stale edge cache) with the proof points from Walid\'s two curl tests inline; server-side fixes demoted to a secondary fallback only if the cache purge doesn\'t work',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '18.7.3',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Payroll No Longer Blocked by Broken /holidays — Leaves Sync Is Now Soft-Fail',
     highlights: [
       'Walid asked: "why is the payroll failing while we already have a salaries sync working perfectly in financial module?" The answer is they are not the same endpoint. Financial → Salaries calls Dolibarr /api/index.php/salaries (the llx_salary / llx_payment_salary payment tables) and works fine. The payroll page has its OWN sync button that chains /api/hr/employees/sync (→ Dolibarr /users, works) then /api/hr/leave-requests/sync (→ Dolibarr /holidays, broken on this install). The second call\'s failure was being thrown as a hard error, breaking the whole flow and hiding the successful employee sync.',

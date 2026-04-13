@@ -381,7 +381,7 @@ export class DolibarrClient {
     params?: Record<string, string | number | undefined>
   ): Promise<T> {
     const url = new URL(`${this.config.apiUrl}/${endpoint}`);
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -389,6 +389,19 @@ export class DolibarrClient {
         }
       });
     }
+
+    // 18.7.4 — Defeat edge-proxy caches (LiteSpeed / Cloudflare / nginx
+    // reverse proxies) that can cache a stale Dolibarr REST response and
+    // serve it indefinitely without ever hitting PHP. We hit this on
+    // erp.hexametals.com: /api/index.php/holidays returned HTTP 200 with
+    // body "API not found (failed to include API file)" and response
+    // header `x-proxy-cache: HIT`, even though the module was healthy —
+    // the edge had cached an old broken response. Appending a unique
+    // timestamp param forces a cache miss on every request, and the
+    // Cache-Control/Pragma request headers ask any intermediate proxy to
+    // bypass its cache. Dolibarr's Restler endpoint ignores unknown
+    // query params so the _ts is harmless upstream.
+    url.searchParams.set('_ts', Date.now().toString());
 
     let lastError: Error | null = null;
 
@@ -402,6 +415,8 @@ export class DolibarrClient {
           headers: {
             'DOLAPIKEY': this.config.apiKey,
             'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
           },
           signal: controller.signal,
         });
@@ -431,8 +446,14 @@ export class DolibarrClient {
           return JSON.parse(rawText) as T;
         } catch {
           const preview = rawText.trim().slice(0, 200);
+          const proxyCache = response.headers.get('x-proxy-cache');
+          const poweredBy = response.headers.get('x-powered-by');
+          const cacheHint =
+            proxyCache === 'HIT' || (poweredBy && !poweredBy.toLowerCase().includes('restler'))
+              ? ' [proxy cache HIT — edge proxy is serving a stale cached response without hitting PHP; purge the host cache (LiteSpeed / Cloudflare) and add a bypass rule for /api/index.php/*]'
+              : '';
           throw new Error(
-            `Dolibarr returned a non-JSON response for "${endpoint}" (HTTP ${response.status}): ${preview}`,
+            `Dolibarr returned a non-JSON response for "${endpoint}" (HTTP ${response.status}): ${preview}${cacheHint}`,
           );
         }
       } catch (error: any) {
@@ -1019,102 +1040,80 @@ export class DolibarrClient {
 }
 
 /**
- * Thrown when Dolibarr's REST router cannot load the holidays API class.
+ * Thrown when Dolibarr's `/holidays` REST endpoint returns a non-JSON
+ * body containing "API not found (failed to include API file)".
  *
- * The OTS client hits `/api/index.php/holidays` the same way it hits
- * products, thirdparties, invoices, salaries, purchase orders and users —
- * all of which work on the same Dolibarr instance. So when this error
- * fires the root cause is on the Dolibarr server, not in OTS.
+ * ## What this actually is (confirmed on erp.hexametals.com, April 2026)
  *
- * ## What's actually happening (confirmed by Walid's screenshot of
- * `public_html/erp/api/index.php` lines 397-406 on erp.hexametals.com,
- * April 2026)
+ * Walid ran the exact same curl twice against the live Dolibarr instance:
  *
- * ```php
- * 397: if ($dir_part_file) {
- * 398:     $res = include_once $dir_part_file;
- * 399: }
- * 400: if (!$res) {
- * 401:     dol_syslog('Failed to make include_once '.$dir_part_file, LOG_WARNING);
- * 402:     print 'API not found (failed to include API file)';
- * 403:     header('HTTP/1.1 501 API not found (failed to include API file)');
- * 404:     //session_destroy();
- * 405:     exit(0);
- * 406: }
- * ```
+ *   GET /api/index.php/users?limit=1
+ *     HTTP/2 200
+ *     content-type: application/json; charset=utf-8
+ *     x-powered-by: Luracast Restler v3.1.0
+ *     x-proxy-cache: MISS
+ *     [{...valid user JSON...}]
  *
- * The PHP error log's "Cannot modify header information - headers already
- * sent by (output started at api/index.php:402) in api/index.php on line
- * 403" is a **secondary** symptom — Dolibarr's own error-handling code
- * has a buglet where line 402 calls `print` before line 403 calls
- * `header()`. The **primary** cause is that `include_once $dir_part_file`
- * on line 398 failed for the holidays API class — OR `$dir_part_file`
- * came back empty because the router couldn't resolve the holidays
- * module to a file path at all.
+ *   GET /api/index.php/holidays?limit=1
+ *     HTTP/2 200
+ *     content-type: text/html; charset=UTF-8
+ *     x-proxy-cache: HIT                        ← SMOKING GUN
+ *     (no x-powered-by: Restler header at all)
+ *     API not found (failed to include API file)
  *
- * So the real question is: *why can't Dolibarr locate/load
- * `holiday/class/api_holidays.class.php` specifically, while it loads
- * `product/class/api_products.class.php`, `societe/class/api_thirdparties.class.php`
- * etc. just fine?*
+ * The failing response is served **from an edge proxy cache**, never
+ * reaches PHP, and therefore never reaches Dolibarr. At some point in
+ * the past (probably during a transient misconfiguration) Dolibarr
+ * returned the line-402 fallback from its own `api/index.php`; the
+ * nginx/LiteSpeed layer in front of cPanel cached that HTTP 200 + HTML
+ * body; and every `/holidays` request since has been served from that
+ * stale cache. Evidence:
+ *   - `x-proxy-cache: HIT` on failing response, `MISS` on working one
+ *   - `x-powered-by: Restler` header absent from failing response
+ *     (Restler never ran)
+ *   - Dolibarr's `php_errorlog` has no recent entries (PHP never ran)
+ *   - `documents/dolibarr.log` has no recent holiday entries (same)
+ *   - Different `host-header` hashes between the two URLs (routed
+ *     through different cache shards)
  *
- * ## Fixes, ordered by probability
+ * ## The fix is on the cache layer, not on Dolibarr
  *
- *   1. **The Leave Requests (Holiday) module is disabled at the Dolibarr
- *      instance level.** Top-right gear ⚙ → Modules / Applications → search
- *      "Leave" or "Holiday" → enable the toggle. The API-key user having
- *      `holiday/read` does NOT help if the module itself is off — the
- *      router only scans enabled modules when resolving `$dir_part_file`,
- *      so an off module produces an empty path and we hit line 402 with
- *      `$res` still undefined. **This is the #1 cause of this exact
- *      symptom.**
+ *   1. **Purge the host-level cache.** cPanel → LiteSpeed Web Cache
+ *      Manager → Purge All. If behind Cloudflare, Cloudflare → Caching
+ *      → Configuration → Purge Everything, and add a Page Rule for
+ *      `<your-domain>/erp/api/*` → Cache Level: Bypass. APIs must never
+ *      be cached at the edge.
  *
- *   2. **The file is missing or unreadable.** Check in cPanel File Manager
- *      that `<dolibarr-root>/holiday/class/api_holidays.class.php` exists
- *      and is readable by the PHP process owner. On trimmed Dolibarr builds
- *      or partial uploads it can be absent. If missing, re-upload the
- *      entire `holiday/` directory from the matching Dolibarr release zip.
+ *   2. **OTS client-side cache-busting** (shipped in 18.7.4): every
+ *      DolibarrClient.request() call appends a `_ts=<ms>` query param
+ *      and sends `Cache-Control: no-cache, no-store, must-revalidate`
+ *      + `Pragma: no-cache` headers so any intermediate proxy is told
+ *      to bypass its cache. Dolibarr's Restler endpoint ignores unknown
+ *      query params, so this is harmless upstream.
  *
- *   3. **A PHP parse / fatal error inside `api_holidays.class.php` or a
- *      file it requires.** `include_once` silently returns false on parse
- *      failure, which triggers the same line-402 path. Check the line
- *      **immediately before** the "headers already sent" warning in
- *      `<dolibarr-root>/api/php_errorlog` — any `PHP Parse error` or
- *      `PHP Fatal error` mentioning `holiday/class/` names the real file.
- *      Fix: re-upload just that file from the official release zip
- *      matching your Dolibarr version.
- *
- *   4. **The API-key user lacks `holiday/read`.** Usually produces a 403
- *      rather than this specific symptom, but Users & Groups → pick the
- *      API user → Permissions → tick "Read holidays" is worth verifying
- *      as a sanity check.
- *
- * Paths above are relative to the Dolibarr root — the directory that
- * contains `api/`, `holiday/`, `accountancy/`, etc. On a cPanel install
- * that is typically `public_html/erp/` (Dolibarr's source convention
- * calls it `htdocs/` but the relative layout is the same).
+ * If after doing #1 and upgrading to 18.7.4 the call still fails, then
+ * the issue really is on the Dolibarr side (Leave Requests module
+ * disabled, missing class file, PHP parse error). Check those in order.
  */
 export class DolibarrHolidaysNotAvailableError extends Error {
   constructor(detail: string) {
     super(
-      `Dolibarr's REST router cannot load the holidays API class, so ` +
-        `/api/index.php/holidays hits the line-402 "API not found (failed to include API file)" ` +
-        `fallback inside Dolibarr's own api/index.php. The "headers already sent" warning in your ` +
-        `PHP error log is a secondary symptom of that fallback (Dolibarr's line 402 calls print ` +
-        `before line 403 calls header) — the real question is why include_once failed for the ` +
-        `holidays class but works for products, thirdparties, salaries, users etc. ` +
-        `Fixes in order of probability: ` +
-        `(1) enable the Leave Requests / Holiday module at the Dolibarr instance level ` +
-        `(top-right ⚙ → Modules / Applications → search "Leave" → turn ON). The API-key user having ` +
-        `"holiday/read" does NOT help if the module itself is off — an off module produces an empty ` +
-        `path and $res stays undefined. This is the #1 cause of this symptom. ` +
-        `(2) verify <dolibarr-root>/holiday/class/api_holidays.class.php exists and is readable by the ` +
-        `PHP process owner; if missing, re-upload the holiday/ folder from the matching Dolibarr ` +
-        `release zip. ` +
-        `(3) check the line in <dolibarr-root>/api/php_errorlog IMMEDIATELY BEFORE the "headers already ` +
-        `sent" warning — any PHP Parse error / Fatal error mentioning holiday/class/ names the broken ` +
-        `file; re-upload just that file. ` +
-        `(4) sanity-check that the API-key user has "holiday/read" under Users & Groups → Permissions. ` +
-        `(${detail})`,
+      `Dolibarr /holidays returned a non-JSON body. On erp.hexametals.com (April 2026) ` +
+        `this was confirmed to be a stale edge-proxy cache hit: a direct curl of ` +
+        `/api/index.php/holidays returned HTTP 200 + body "API not found (failed to include API ` +
+        `file)" with response header "x-proxy-cache: HIT" and NO "x-powered-by: Restler" header — ` +
+        `meaning the response came from a cache layer (LiteSpeed / nginx / Cloudflare) without ` +
+        `ever hitting Dolibarr. OTS 18.7.4 defeats this on the client side by appending _ts=<ms> ` +
+        `to every Dolibarr request + sending Cache-Control/Pragma no-cache headers. If you still ` +
+        `see this error, fix the cache layer: ` +
+        `(1) purge the host cache — cPanel → LiteSpeed Web Cache Manager → Purge All; if behind ` +
+        `Cloudflare, Cloudflare → Caching → Purge Everything, and add a Page Rule for ` +
+        `<domain>/erp/api/* → Cache Level: Bypass. APIs must never be cached at the edge. ` +
+        `(2) only if #1 doesn't fix it, the issue is genuinely server-side: verify the Leave ` +
+        `Requests module is ON at Dolibarr instance level (top-right ⚙ → Modules / Applications), ` +
+        `verify <dolibarr-root>/holiday/class/api_holidays.class.php exists and is readable by the ` +
+        `PHP process owner, and check <dolibarr-root>/documents/dolibarr.log for a "Failed to make ` +
+        `include_once" line naming the broken file. (${detail})`,
     );
     this.name = 'DolibarrHolidaysNotAvailableError';
   }
