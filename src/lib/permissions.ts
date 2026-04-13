@@ -346,6 +346,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.leaves.approve', name: 'Approve Leaves', description: 'Approve or reject leave requests at any stage of the chain', category: 'hr' },
       { id: 'hr.leaves.adjust', name: 'Adjust Leave Balances', description: 'Manually adjust leave balances with an audit reason', category: 'hr' },
       { id: 'hr.leaves.manageTypes', name: 'Manage Leave Types', description: 'Create, rename, archive leave types and set accrual/carry-over rules', category: 'hr' },
+      { id: 'hr.leaves.sync', name: 'Sync Leaves from Dolibarr', description: 'Trigger the Dolibarr → OTS leaves mirror and view sync history', category: 'hr' },
       // Phase 3 — Payroll
       { id: 'hr.payroll.view', name: 'View Payroll', description: 'View payroll periods and payslips for all employees', category: 'hr' },
       { id: 'hr.payroll.viewOwn', name: 'View Own Payslip', description: 'View and download own payslips', category: 'hr' },
@@ -434,6 +435,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.holiday.view',
     'hr.holiday.manage',
     'hr.section.manage',
+    'hr.leaves.sync',
   ],
   Manager: [
     // User Management

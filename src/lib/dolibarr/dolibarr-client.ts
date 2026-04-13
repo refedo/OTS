@@ -310,6 +310,47 @@ export interface DolibarrUser {
   [key: string]: unknown;
 }
 
+/**
+ * Dolibarr llx_holiday record (leave request).
+ * Mirrored one-way into OTS `LeaveRequest` via `syncDolibarrLeaves`.
+ *
+ * Dolibarr holiday statuses (llx_holiday.statut):
+ *   1 = Draft
+ *   2 = Pending approval
+ *   3 = Approved
+ *   4 = Refused
+ *   5 = Cancelled
+ *
+ * OTS mirrors statut=3 as APPROVED and ignores every other state
+ * (per Walid 18.6.0 — "make it land as approved").
+ */
+export interface DolibarrHoliday {
+  id: number | string;           // llx_holiday.rowid
+  fk_user?: number | string;     // llx_user.rowid of the employee taking leave
+  fk_type?: number | string;     // llx_c_holiday_types.rowid
+  date_debut?: number | string;  // Unix timestamp
+  date_fin?: number | string;    // Unix timestamp
+  statut?: number | string;      // status code (see above)
+  description?: string | null;
+  date_create?: number | string;
+  date_approval?: number | string | null;
+  fk_validator?: number | string | null;
+  [key: string]: unknown;
+}
+
+/**
+ * Dolibarr llx_c_holiday_types record (leave type catalogue).
+ * Used to map fk_type on a holiday back to an OTS LeaveType.code.
+ */
+export interface DolibarrHolidayType {
+  id?: number | string;
+  rowid?: number | string;
+  code?: string | null;
+  label?: string | null;
+  affect?: number | string;
+  [key: string]: unknown;
+}
+
 export interface DolibarrConnectionInfo {
   success: boolean;
   version?: string;
@@ -885,6 +926,62 @@ export class DolibarrClient {
     }
 
     return all;
+  }
+
+  // ============================================
+  // HOLIDAY API METHODS (HR Phase 3 — Dolibarr leave mirror)
+  // ============================================
+
+  /**
+   * Fetch llx_holiday records with pagination.
+   */
+  async getHolidays(params?: DolibarrPaginationParams): Promise<DolibarrHoliday[]> {
+    const result = await this.request<DolibarrHoliday[] | { message?: string }>('holidays', {
+      limit: params?.limit ?? 100,
+      page: params?.page ?? 0,
+      sortfield: params?.sortfield ?? 't.rowid',
+      sortorder: params?.sortorder ?? 'ASC',
+      sqlfilters: params?.sqlfilters,
+    });
+    // Dolibarr returns { message: "No records found" } on empty pages instead of []
+    if (Array.isArray(result)) return result;
+    return [];
+  }
+
+  /**
+   * Auto-paginate to fetch ALL llx_holiday records.
+   */
+  async getAllHolidays(batchSize: number = 100): Promise<DolibarrHoliday[]> {
+    const all: DolibarrHoliday[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await this.getHolidays({ limit: batchSize, page });
+      all.push(...batch);
+      hasMore = batch.length >= batchSize;
+      page++;
+      // Safety valve — Dolibarr history is bounded, don't loop forever.
+      if (page > 500) break;
+    }
+
+    return all;
+  }
+
+  /**
+   * Fetch the holiday type catalogue (llx_c_holiday_types).
+   * Used to build the fk_type → OTS LeaveType.code mapping at runtime.
+   * Endpoint is not in every Dolibarr build; on 404 we return [].
+   */
+  async getHolidayTypes(): Promise<DolibarrHolidayType[]> {
+    try {
+      const result = await this.request<DolibarrHolidayType[]>('holidays/types');
+      return Array.isArray(result) ? result : [];
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('404')) return [];
+      throw error;
+    }
   }
 }
 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle } from 'lucide-react';
+import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, RefreshCw } from 'lucide-react';
 
 type LeaveType = {
   id: string;
@@ -48,14 +48,32 @@ type LeaveRequest = {
   employee?: { id: string; employmentId: string; fullNameEn: string; fullNameAr: string | null };
 };
 
+type LeaveSyncLog = {
+  id: string;
+  startedAt: string;
+  finishedAt: string | null;
+  status: 'RUNNING' | 'SUCCESS' | 'PARTIAL' | 'FAILED';
+  triggerSource: string;
+  rowsRead: number;
+  rowsCreated: number;
+  rowsUpdated: number;
+  rowsSkipped: number;
+  employeesNotFound: number;
+  typesNotMapped: number;
+  attendanceDaysOverridden: number;
+  triggeredBy?: { id: string; name: string | null; email: string | null };
+};
+
 export function LeavesClient({
   canApprove,
   canViewAll,
   canRequest,
+  canSync,
 }: {
   canApprove: boolean;
   canViewAll: boolean;
   canRequest: boolean;
+  canSync: boolean;
 }) {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
@@ -64,6 +82,11 @@ export function LeavesClient({
   const [allRequests, setAllRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Dolibarr leaves sync (18.6.0)
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<LeaveSyncLog | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Request form
   const [showForm, setShowForm] = useState(false);
@@ -96,9 +119,41 @@ export function LeavesClient({
     }
   }, [canApprove, canViewAll]);
 
+  const loadLastSync = useCallback(async () => {
+    if (!canSync) return;
+    try {
+      const res = await fetch('/api/hr/leave-requests/sync');
+      if (res.ok) {
+        const logs: LeaveSyncLog[] = await res.json();
+        setLastSync(logs[0] ?? null);
+      }
+    } catch {
+      // non-fatal
+    }
+  }, [canSync]);
+
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    loadLastSync();
+  }, [refresh, loadLastSync]);
+
+  async function runSync() {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const res = await fetch('/api/hr/leave-requests/sync', { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Sync failed');
+      }
+      await loadLastSync();
+      await refresh();
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function submit(kind: 'draft' | 'submit') {
     setSubmitting(true);
@@ -159,13 +214,57 @@ export function LeavesClient({
           <CalendarClock className="h-6 w-6" />
           Leaves
         </h1>
-        {canRequest && !showForm && (
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Request leave
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canSync && (
+            <Button variant="outline" onClick={runSync} disabled={syncing}>
+              {syncing ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              Sync from Dolibarr
+            </Button>
+          )}
+          {canRequest && !showForm && (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Request leave
+            </Button>
+          )}
+        </div>
       </div>
+
+      {canSync && (lastSync || syncError) && (
+        <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm space-y-1">
+          {syncError && (
+            <div className="text-red-700">Sync failed: {syncError}</div>
+          )}
+          {lastSync && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="font-medium">Last Dolibarr sync:</span>
+              <Badge variant={lastSync.status === 'SUCCESS' ? 'default' : lastSync.status === 'FAILED' ? 'destructive' : 'secondary'}>
+                {lastSync.status}
+              </Badge>
+              <span className="text-muted-foreground">
+                {new Date(lastSync.startedAt).toLocaleString()}
+                {' · '}
+                by {lastSync.triggeredBy?.name ?? '—'} ({lastSync.triggerSource})
+              </span>
+              <span className="text-muted-foreground">
+                read {lastSync.rowsRead}, created {lastSync.rowsCreated}, updated {lastSync.rowsUpdated}, skipped {lastSync.rowsSkipped}
+              </span>
+              {lastSync.employeesNotFound > 0 && (
+                <span className="text-amber-700">{lastSync.employeesNotFound} employees not matched</span>
+              )}
+              {lastSync.attendanceDaysOverridden > 0 && (
+                <span className="text-muted-foreground">
+                  {lastSync.attendanceDaysOverridden} attendance day(s) overridden
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

@@ -26,9 +26,6 @@ import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { countWorkingDays } from './leave-balance-calculator';
 import { getPayrollSettings, type PayrollSettings } from './system-config';
-import { Prisma } from '@prisma/client';
-
-type EmployeeRow = Awaited<ReturnType<typeof prisma.employee.findMany>>[number];
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
@@ -93,57 +90,47 @@ async function countEmployeeLeavesInPeriod(
   return { fullyPaid, halfPaid, unpaid };
 }
 
-async function sumOvertimeHours(
+/**
+ * Pull all AttendanceRecord rows for the employee in the period, excluding
+ * any day that's already covered by an APPROVED LeaveRequest (regardless of
+ * source). This is the single "Dolibarr wins" dedup point per Walid, 18.6.0.
+ */
+async function getAttendanceRows(
   employeeId: string,
   periodStart: Date,
   periodEnd: Date,
-): Promise<number> {
-  // Phase 2 stored attendance records on `Attendance`. If a row has
-  // overtimeHours we sum it; otherwise this returns 0.
-  try {
-    const rows = await prisma.$queryRaw<Array<{ total: number | null }>>(
-      Prisma.sql`
-        SELECT COALESCE(SUM(overtimeHours), 0) AS total
-        FROM Attendance
-        WHERE employeeId = ${employeeId}
-          AND date >= ${periodStart}
-          AND date <= ${periodEnd}
-      `,
-    );
-    const val = rows[0]?.total ?? 0;
-    return Number(val);
-  } catch {
-    return 0;
-  }
+  leaveDateSet: Set<string>,
+) {
+  const rows = await prisma.attendanceRecord.findMany({
+    where: {
+      employeeId,
+      date: { gte: periodStart, lte: periodEnd },
+    },
+    select: {
+      date: true,
+      status: true,
+      overtimeHours: true,
+    },
+  });
+  return rows.filter((r) => !leaveDateSet.has(r.date.toISOString().slice(0, 10)));
 }
 
-async function sumAbsencesInPeriod(
-  employeeId: string,
-  periodStart: Date,
-  periodEnd: Date,
-): Promise<{ withPermission: number; withoutPermission: number }> {
-  try {
-    const rows = await prisma.$queryRaw<Array<{ code: string | null; count: bigint | number }>>(
-      Prisma.sql`
-        SELECT code, COUNT(*) AS count
-        FROM Attendance
-        WHERE employeeId = ${employeeId}
-          AND date >= ${periodStart}
-          AND date <= ${periodEnd}
-        GROUP BY code
-      `,
-    );
-    let withPermission = 0;
-    let withoutPermission = 0;
-    for (const r of rows) {
-      const c = Number(r.count);
-      if (r.code === 'ABSENT_WITH_PERMISSION' || r.code === 'AWP') withPermission += c;
-      else if (r.code === 'ABSENT' || r.code === 'A') withoutPermission += c;
-    }
-    return { withPermission, withoutPermission };
-  } catch {
-    return { withPermission: 0, withoutPermission: 0 };
+function sumOvertime(rows: Array<{ overtimeHours: { toString(): string } }>): number {
+  let total = 0;
+  for (const r of rows) total += Number(r.overtimeHours.toString());
+  return total;
+}
+
+function sumAbsences(
+  rows: Array<{ status: string }>,
+): { withPermission: number; withoutPermission: number } {
+  let withPermission = 0;
+  let withoutPermission = 0;
+  for (const r of rows) {
+    if (r.status === 'ABSENT_WITH_PERMISSION') withPermission++;
+    else if (r.status === 'ABSENT_NO_PERMISSION') withoutPermission++;
   }
+  return { withPermission, withoutPermission };
 }
 
 export type PayrollCalcResult = {
@@ -204,8 +191,34 @@ export async function calculatePayrollPeriod(
     const monthlyGross = basic + housing + transport + mobile + food + other;
 
     const leaves = await countEmployeeLeavesInPeriod(emp.id, periodStart, periodEnd);
-    const overtimeHours = await sumOvertimeHours(emp.id, periodStart, periodEnd);
-    const { withPermission, withoutPermission } = await sumAbsencesInPeriod(emp.id, periodStart, periodEnd);
+
+    // Build a Set of ISO dates covered by any APPROVED leave (any source).
+    // Attendance rows on these dates are skipped so Dolibarr-sourced leaves
+    // take precedence over Google-Sheet attendance codes.
+    const leaveDateSet = new Set<string>();
+    const approvedLeaves = await prisma.leaveRequest.findMany({
+      where: {
+        employeeId: emp.id,
+        status: 'APPROVED',
+        deletedAt: null,
+        startDate: { lte: periodEnd },
+        endDate: { gte: periodStart },
+      },
+      select: { startDate: true, endDate: true },
+    });
+    for (const lr of approvedLeaves) {
+      const start = lr.startDate > periodStart ? lr.startDate : periodStart;
+      const end = lr.endDate < periodEnd ? lr.endDate : periodEnd;
+      const cur = new Date(start);
+      while (cur <= end) {
+        leaveDateSet.add(cur.toISOString().slice(0, 10));
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+    }
+
+    const attendanceRows = await getAttendanceRows(emp.id, periodStart, periodEnd, leaveDateSet);
+    const overtimeHours = sumOvertime(attendanceRows);
+    const { withPermission, withoutPermission } = sumAbsences(attendanceRows);
 
     const dailyRate = computeDailyRate(monthlyGross, settings, calendarDays, workingDaysInMonth);
     const hourlyRate = emp.standardDailyHours > 0 ? dailyRate / emp.standardDailyHours : 0;

@@ -23,10 +23,42 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.6.0',
+    date: 'April 13, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Dolibarr Leaves Sync + Payroll Calculator Fix',
+    highlights: [
+      'One-way read-only mirror of Dolibarr llx_holiday into OTS LeaveRequest: all historic holidays, approved-only, land as status=APPROVED with source=DOLIBARR (native approval chain bypassed).',
+      'Dedup against Google-Sheet attendance: any day covered by an APPROVED leave (any source) is excluded from attendance absence + overtime summation during payroll calculation — Dolibarr wins.',
+      'Nightly 03:00 Riyadh cron (DolibarrLeavesSyncScheduler) + manual "Sync from Dolibarr" button on /hr/leaves with last-run summary.',
+      'Fixes a silent-zero bug in the Phase 3 payroll calculator where raw SQL queried a non-existent `Attendance` table with a non-existent `code` column — now uses prisma.attendanceRecord.findMany() against the real AttendanceRecord model.',
+    ],
+    changes: {
+      added: [
+        'Schema: LeaveRequest.source (NATIVE | DOLIBARR) + LeaveRequest.dolibarrHolidayId (unique Int) + DolibarrLeaveSyncLog model',
+        'Manual migration prisma/manual_migrations/add_dolibarr_leaves_sync.sql — idempotent DDL for the new columns + DolibarrLeaveSyncLog table + three seed LeaveType rows (PERMITTED, UNPERMITTED, URGENT) matching the Dolibarr catalogue',
+        'DolibarrClient: DolibarrHoliday and DolibarrHolidayType interfaces + getHolidays() / getAllHolidays() / getHolidayTypes() methods',
+        'Service: runDolibarrLeaveSync() — maps fk_type → LeaveType.code by label, upserts by dolibarrHolidayId, counts overlap against AttendanceRecord for visibility, writes per-run log to DolibarrLeaveSyncLog',
+        'API: POST /api/hr/leave-requests/sync (manual trigger) + GET (last 50 sync logs), both gated by hr.leaves.sync',
+        'Scheduler: DolibarrLeavesSyncScheduler — daily at 03:00 Asia/Riyadh, toggled by ENABLE_DOLIBARR_LEAVES_SYNC_SCHEDULER (default on in production), registered in src/instrumentation.ts',
+        'Permission: hr.leaves.sync (added to HR role by default)',
+        'UI: /hr/leaves gets a "Sync from Dolibarr" button + last-run status strip showing created/updated/skipped/unmatched counters',
+      ],
+      fixed: [
+        'Payroll calculator: replaced broken raw SQL (`SELECT ... FROM Attendance`) with prisma.attendanceRecord.findMany() — overtime hours and absent-with/without-permission counters now populate correctly',
+        'Payroll calculator: absence dedup now skips any day covered by an APPROVED LeaveRequest so leaves synced from Dolibarr take precedence over Google-Sheet absence codes',
+      ],
+      changed: [
+        'LeaveRequest rows created by the Dolibarr sync carry source=DOLIBARR and bypass the approval chain (all approver columns null, submittedAt stamped to Dolibarr date_create)',
+      ],
+    },
+  },
+  {
     version: '18.5.0',
     date: 'April 12, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'HR Phase 3 — Leaves, Payroll, WPS, Payslips & End-of-Service',
     highlights: [
       'Leaves module: managed leave types, accrual balances, configurable approval chain (Manager → HR → CEO), over-balance advance warnings, per-pay-type usage counters.',

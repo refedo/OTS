@@ -13,6 +13,7 @@ export async function register() {
     // Dynamically import to avoid client-side bundling
     const { EarlyWarningScheduler } = await import('@/lib/scheduler/early-warning.scheduler');
     const { LcrSyncScheduler } = await import('@/lib/scheduler/lcr-sync.scheduler');
+    const { DolibarrLeavesSyncScheduler } = await import('@/lib/scheduler/dolibarr-leaves-sync.scheduler');
     const { registerIntegrationListeners } = await import('@/lib/events/integration-listeners');
 
     // Initialize the Early Warning Engine scheduler
@@ -20,6 +21,9 @@ export async function register() {
 
     // Initialize the LCR Sync scheduler (Supply Chain module)
     LcrSyncScheduler.initialize();
+
+    // Initialize the nightly Dolibarr Leaves Sync scheduler (HR module, 18.6.0)
+    DolibarrLeavesSyncScheduler.initialize();
 
     // Register integration event listeners (open-audit, Libre MES, …)
     registerIntegrationListeners();

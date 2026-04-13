@@ -235,6 +235,7 @@ model User {
   updatedManpowerSlots   ManpowerSlot[]            @relation("ManpowerSlotUpdatedBy")
   deletedManpowerSlots   ManpowerSlot[]            @relation("ManpowerSlotDeletedBy")
   triggeredEmployeeSyncs DolibarrEmployeeSyncLog[] @relation("DolibarrEmployeeSyncLogTriggeredBy")
+  triggeredLeaveSyncs    DolibarrLeaveSyncLog[]    @relation("DolibarrLeaveSyncLogTriggeredBy")
 
   // HR Phase 2 — Attendance / Public Holiday audit back-relations
   createdPublicHolidays    PublicHoliday[]                @relation("PublicHolidayCreatedBy")
@@ -4131,6 +4132,32 @@ model DolibarrEmployeeSyncLog {
   @@index([startedAt])
 }
 
+// 18.6.0 — per-run audit log for the Dolibarr `holidays` → OTS LeaveRequest
+// mirror. One row per sync invocation, whether triggered manually from
+// /hr/leaves or automatically by the scheduler.
+model DolibarrLeaveSyncLog {
+  id                     String                  @id @default(uuid()) @db.Char(36)
+  startedAt              DateTime                @default(now())
+  finishedAt             DateTime?
+  triggeredById          String                  @db.Char(36)
+  triggeredBy            User                    @relation("DolibarrLeaveSyncLogTriggeredBy", fields: [triggeredById], references: [id])
+  triggerSource          String                  @default("manual") @db.VarChar(20) // "manual" | "cron"
+  status                 DolibarrLeaveSyncStatus
+  rowsRead               Int                     @default(0)
+  rowsCreated            Int                     @default(0)
+  rowsUpdated            Int                     @default(0)
+  rowsSkipped            Int                     @default(0)
+  employeesNotFound      Int                     @default(0) // fk_user not matched to an Employee
+  typesNotMapped         Int                     @default(0) // fk_type had no OTS LeaveType.code mapping
+  attendanceDaysOverridden Int                   @default(0) // sheet attendance days covered by a Dolibarr leave
+  hardErrors             Json? // [{ dolibarrId, message }]
+  softWarnings           Json? // [{ dolibarrId, field, message }]
+  apiResponseMs          Int?
+
+  @@index([status])
+  @@index([startedAt])
+}
+
 // Simple key/value system configuration store. Separate from the legacy
 // single-row `SystemSettings` model which holds strongly-typed application
 // settings. Used for feature flags and gate flags that don't deserve their
@@ -4325,6 +4352,21 @@ enum LeaveRequestStatus {
   CANCELLED
 }
 
+// 18.6.0 — origin of a leave request. NATIVE = submitted through OTS;
+// DOLIBARR = mirrored from the Dolibarr `holidays` module via
+// syncDolibarrLeaves. DOLIBARR rows are read-only in OTS.
+enum LeaveRequestSource {
+  NATIVE
+  DOLIBARR
+}
+
+enum DolibarrLeaveSyncStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
 enum LeavePayType {
   FULLY_PAID
   HALF_PAID
@@ -4411,6 +4453,13 @@ model LeaveRequest {
   // the accurate state at the time it was asked for, not today's state.
   balanceAtRequest   Decimal?  @db.Decimal(8, 2)
   wasOverBalance     Boolean   @default(false)
+
+  // 18.6.0 — origin of the row. NATIVE rows are editable via the OTS UI;
+  // DOLIBARR rows are synced read-only from llx_holiday and land with
+  // status=APPROVED, all approver columns null. `dolibarrHolidayId` is
+  // unique so the sync is idempotent.
+  source            LeaveRequestSource @default(NATIVE)
+  dolibarrHolidayId Int?               @unique
 
   createdById String    @db.Char(36)
   createdBy   User      @relation("LeaveRequestCreatedBy", fields: [createdById], references: [id])

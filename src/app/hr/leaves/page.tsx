@@ -23,6 +23,7 @@ export default async function LeavesPage() {
       canApprove={perms.includes('hr.leaves.approve')}
       canViewAll={perms.includes('hr.leaves.viewAll')}
       canRequest={perms.includes('hr.leaves.request')}
+      canSync={perms.includes('hr.leaves.sync')}
     />
   );
 }
