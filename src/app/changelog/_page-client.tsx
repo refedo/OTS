@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.6.1',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'HR UI Polish + Payroll Sync Button + Dolibarr Holidays Fallback',
+    highlights: [
+      'Redesigned /hr/leaves and /hr/payroll pages with gradient hero headers, KPI tiles, cleaner status strips, sticky table styling and proper empty states.',
+      '/hr/payroll now has its own "Sync from Dolibarr" button — runs both the employee and leaves sync sequentially so the data feeding payroll calculations is fresh before a period is calculated.',
+      'Fixes "Sync failed: Unexpected token \'A\', \'API not fo\'... is not valid JSON" — Dolibarr returns "API not found" as a plain-text 200 body when the holidays REST module is disabled; the client now surfaces a typed DolibarrHolidaysNotAvailableError and the API route returns 503 with a user-friendly message.',
+    ],
+    changes: {
+      added: [
+        'DolibarrClient: DolibarrHolidaysNotAvailableError exported class — thrown by getHolidays() / getAllHolidays() when the holidays REST endpoint is unreachable (disabled module, missing API permission, or 404)',
+        'DolibarrClient.request: non-JSON responses now produce a clean preview error instead of crashing with a raw JSON.parse error',
+        'API /api/hr/leave-requests/sync: returns HTTP 503 with a dedicated message when Dolibarr does not expose the holidays endpoint (was bubbling up the raw parse error before)',
+        '/hr/payroll: "Sync from Dolibarr" button (gated by both hr.employee.sync + hr.leaves.sync) + dual status strip showing last employee sync + last leaves sync with colored pills',
+        '/hr/payroll: 4 KPI tiles (Draft / Calculated / Approved / Locked) + gradient hero header + ArrowRight CTA on period rows + empty-state illustration',
+        '/hr/leaves: 4 KPI tiles (Available / Accrued YTD / Used YTD / Pending) + gradient hero header + polished balances grid + empty-state card on the requests tables',
+      ],
+      fixed: [
+        'Leave sync no longer shows the raw JSON.parse error when Dolibarr holidays endpoint is missing — it now says "Dolibarr does not expose the holidays REST endpoint on this server. Enable the Leaves module in Dolibarr and ensure REST API access..."',
+      ],
+      changed: [
+        'payroll-periods-client.tsx + leaves-client.tsx rewritten to share a common design language: slate-50 → white background gradient, rounded-2xl gradient hero, slate-200 cards with hover transitions, rounded-xl KPI tiles with colored gradients, Pill helpers for sync counters',
+      ],
+    },
+  },
+  {
     version: '18.6.0',
     date: 'April 13, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Dolibarr Leaves Sync + Payroll Calculator Fix',
     highlights: [
       'One-way read-only mirror of Dolibarr llx_holiday into OTS LeaveRequest: all historic holidays, approved-only, land as status=APPROVED with source=DOLIBARR (native approval chain bypassed).',

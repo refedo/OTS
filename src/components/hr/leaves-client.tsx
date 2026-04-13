@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 
 type LeaveType = {
   id: string;
@@ -207,77 +207,160 @@ export function LeavesClient({
   const selectedType = leaveTypes.find((t) => t.id === form.leaveTypeId);
   const selectedBalance = balances.find((b) => b.leaveTypeId === form.leaveTypeId);
 
-  return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <CalendarClock className="h-6 w-6" />
-          Leaves
-        </h1>
-        <div className="flex items-center gap-2">
-          {canSync && (
-            <Button variant="outline" onClick={runSync} disabled={syncing}>
-              {syncing ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-1" />
-              )}
-              Sync from Dolibarr
-            </Button>
-          )}
-          {canRequest && !showForm && (
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Request leave
-            </Button>
-          )}
-        </div>
-      </div>
+  const totalAvailable = balances.reduce((sum, b) => sum + Number(b.available || 0), 0);
+  const totalAccrued = balances.reduce((sum, b) => sum + Number(b.accruedYtd || 0), 0);
+  const totalUsed = balances.reduce((sum, b) => sum + Number(b.usedYtd || 0), 0);
+  const pendingCount = myRequests.filter((r) => r.status.startsWith('PENDING_')).length;
 
-      {canSync && (lastSync || syncError) && (
-        <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm space-y-1">
-          {syncError && (
-            <div className="text-red-700">Sync failed: {syncError}</div>
-          )}
-          {lastSync && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="font-medium">Last Dolibarr sync:</span>
-              <Badge variant={lastSync.status === 'SUCCESS' ? 'default' : lastSync.status === 'FAILED' ? 'destructive' : 'secondary'}>
-                {lastSync.status}
-              </Badge>
-              <span className="text-muted-foreground">
-                {new Date(lastSync.startedAt).toLocaleString()}
-                {' · '}
-                by {lastSync.triggeredBy?.name ?? '—'} ({lastSync.triggerSource})
-              </span>
-              <span className="text-muted-foreground">
-                read {lastSync.rowsRead}, created {lastSync.rowsCreated}, updated {lastSync.rowsUpdated}, skipped {lastSync.rowsSkipped}
-              </span>
-              {lastSync.employeesNotFound > 0 && (
-                <span className="text-amber-700">{lastSync.employeesNotFound} employees not matched</span>
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+        {/* Hero header */}
+        <div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10 pointer-events-none">
+            <CalendarClock className="absolute -right-8 -top-8 h-48 w-48" />
+          </div>
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+                <CalendarClock className="h-3.5 w-3.5" />
+                HR · Leaves
+              </div>
+              <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">Leave Management</h1>
+              <p className="mt-1 text-sky-100 text-sm md:text-base">
+                Request, approve and track leaves. Dolibarr leaves mirror in read-only and always win over sheet codes.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {canSync && (
+                <Button
+                  variant="secondary"
+                  onClick={runSync}
+                  disabled={syncing}
+                  className="bg-white text-sky-700 hover:bg-sky-50 border-0 shadow-sm"
+                >
+                  {syncing ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <CloudDownload className="h-4 w-4 mr-1.5" />
+                  )}
+                  Sync from Dolibarr
+                </Button>
               )}
-              {lastSync.attendanceDaysOverridden > 0 && (
-                <span className="text-muted-foreground">
-                  {lastSync.attendanceDaysOverridden} attendance day(s) overridden
-                </span>
+              {canRequest && !showForm && (
+                <Button
+                  onClick={() => setShowForm(true)}
+                  className="bg-white text-sky-700 hover:bg-sky-50 border-0 shadow-sm"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Request leave
+                </Button>
               )}
             </div>
-          )}
+          </div>
         </div>
-      )}
 
-      {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error}
+        {/* KPI tiles */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <KpiTile
+            label="Available balance"
+            value={totalAvailable.toFixed(1)}
+            hint="days across all types"
+            tone="emerald"
+          />
+          <KpiTile
+            label="Accrued this year"
+            value={totalAccrued.toFixed(1)}
+            hint="days earned YTD"
+            tone="sky"
+          />
+          <KpiTile
+            label="Used this year"
+            value={totalUsed.toFixed(1)}
+            hint="days consumed YTD"
+            tone="violet"
+          />
+          <KpiTile
+            label="Pending approvals"
+            value={String(pendingCount)}
+            hint="from your requests"
+            tone="amber"
+          />
         </div>
-      )}
+
+        {/* Sync status strip */}
+        {canSync && (lastSync || syncError) && (
+          <Card className="border-slate-200">
+            <CardContent className="py-4">
+              {syncError && (
+                <div className="flex items-start gap-2 text-red-700">
+                  <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-medium">Sync failed</div>
+                    <div className="text-sm text-red-600/90">{syncError}</div>
+                  </div>
+                </div>
+              )}
+              {lastSync && !syncError && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    {lastSync.status === 'SUCCESS' ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : lastSync.status === 'FAILED' ? (
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                    )}
+                    <span className="font-medium">Last Dolibarr sync</span>
+                    <Badge
+                      variant={
+                        lastSync.status === 'SUCCESS'
+                          ? 'default'
+                          : lastSync.status === 'FAILED'
+                            ? 'destructive'
+                            : 'secondary'
+                      }
+                    >
+                      {lastSync.status}
+                    </Badge>
+                  </div>
+                  <span className="text-muted-foreground">
+                    {new Date(lastSync.startedAt).toLocaleString()} · by {lastSync.triggeredBy?.name ?? '—'} (
+                    {lastSync.triggerSource})
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <Pill label="read" value={lastSync.rowsRead} />
+                    <Pill label="created" value={lastSync.rowsCreated} tone="emerald" />
+                    <Pill label="updated" value={lastSync.rowsUpdated} tone="sky" />
+                    <Pill label="skipped" value={lastSync.rowsSkipped} />
+                    {lastSync.employeesNotFound > 0 && (
+                      <Pill label="not matched" value={lastSync.employeesNotFound} tone="amber" />
+                    )}
+                    {lastSync.attendanceDaysOverridden > 0 && (
+                      <Pill label="attendance overridden" value={lastSync.attendanceDaysOverridden} tone="violet" />
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start gap-2">
+            <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
       {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>New leave request</CardTitle>
+        <Card className="border-sky-200 shadow-sm">
+          <CardHeader className="bg-sky-50/50">
+            <CardTitle className="flex items-center gap-2 text-sky-900">
+              <Plus className="h-5 w-5" /> New leave request
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <Label>Leave type</Label>
@@ -348,27 +431,38 @@ export function LeavesClient({
       )}
 
       {/* Balances */}
-      <Card>
-        <CardHeader>
-          <CardTitle>My balances — {new Date().getFullYear()}</CardTitle>
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50">
+          <CardTitle className="text-base font-semibold text-slate-800">
+            My balances · {new Date().getFullYear()}
+          </CardTitle>
+          <span className="text-xs text-muted-foreground">updated live</span>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-5">
           {loading ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            <div className="flex items-center gap-2 text-muted-foreground py-6">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading balances…
             </div>
           ) : balances.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Your account is not linked to an employee. Contact HR.
-            </p>
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-sm text-muted-foreground">
+              Your account is not linked to an employee. Contact HR to link your user to an employee record.
+            </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {balances.map((b) => (
-                <div key={b.leaveTypeId} className="rounded-md border p-3">
-                  <div className="text-sm font-semibold">{b.leaveType.nameEn}</div>
-                  <div className="text-2xl font-bold">{b.available.toFixed(1)}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Opening {b.openingBalance.toFixed(1)} · Accrued {b.accruedYtd.toFixed(1)} · Used {b.usedYtd.toFixed(1)}
+                <div
+                  key={b.leaveTypeId}
+                  className="rounded-xl border border-slate-200 bg-white p-4 hover:border-sky-300 hover:shadow-sm transition"
+                >
+                  <div className="text-xs uppercase tracking-wide text-slate-500 font-medium">
+                    {b.leaveType.nameEn}
+                  </div>
+                  <div className="mt-1 text-3xl font-bold text-slate-900 tabular-nums">
+                    {Number(b.available).toFixed(1)}
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground space-y-0.5">
+                    <div>Opening {Number(b.openingBalance).toFixed(1)}</div>
+                    <div>Accrued {Number(b.accruedYtd).toFixed(1)} · Used {Number(b.usedYtd).toFixed(1)}</div>
                   </div>
                 </div>
               ))}
@@ -377,8 +471,8 @@ export function LeavesClient({
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="mine">
-        <TabsList>
+      <Tabs defaultValue="mine" className="space-y-4">
+        <TabsList className="bg-slate-100">
           <TabsTrigger value="mine" className="gap-2">
             <CalendarClock className="h-4 w-4" />
             My requests ({myRequests.length})
@@ -386,13 +480,13 @@ export function LeavesClient({
           {canApprove && (
             <TabsTrigger value="inbox" className="gap-2">
               <Inbox className="h-4 w-4" />
-              Approvals inbox ({inbox.length})
+              Inbox ({inbox.length})
             </TabsTrigger>
           )}
           {canViewAll && (
             <TabsTrigger value="all" className="gap-2">
               <Users className="h-4 w-4" />
-              All requests ({allRequests.length})
+              All ({allRequests.length})
             </TabsTrigger>
           )}
         </TabsList>
@@ -430,8 +524,62 @@ export function LeavesClient({
             />
           </TabsContent>
         )}
-      </Tabs>
+        </Tabs>
+      </div>
     </div>
+  );
+}
+
+const TONE_CLASSES: Record<string, string> = {
+  emerald: 'from-emerald-50 to-white border-emerald-200 text-emerald-700',
+  sky: 'from-sky-50 to-white border-sky-200 text-sky-700',
+  violet: 'from-violet-50 to-white border-violet-200 text-violet-700',
+  amber: 'from-amber-50 to-white border-amber-200 text-amber-700',
+};
+
+function KpiTile({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  tone: 'emerald' | 'sky' | 'violet' | 'amber';
+}) {
+  return (
+    <div
+      className={`rounded-xl border bg-gradient-to-b p-4 shadow-sm ${TONE_CLASSES[tone]}`}
+    >
+      <div className="text-xs font-medium uppercase tracking-wide opacity-80">{label}</div>
+      <div className="mt-1 text-3xl font-bold text-slate-900 tabular-nums">{value}</div>
+      <div className="mt-0.5 text-[11px] text-slate-500">{hint}</div>
+    </div>
+  );
+}
+
+function Pill({
+  label,
+  value,
+  tone = 'slate',
+}: {
+  label: string;
+  value: number;
+  tone?: 'slate' | 'emerald' | 'sky' | 'amber' | 'violet';
+}) {
+  const classes: Record<string, string> = {
+    slate: 'bg-slate-100 text-slate-700',
+    emerald: 'bg-emerald-100 text-emerald-700',
+    sky: 'bg-sky-100 text-sky-700',
+    amber: 'bg-amber-100 text-amber-700',
+    violet: 'bg-violet-100 text-violet-700',
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${classes[tone]}`}>
+      {label}
+      <span className="tabular-nums">{value}</span>
+    </span>
   );
 }
 
@@ -449,76 +597,86 @@ function RequestTable({
   showEmployee: boolean;
 }) {
   if (requests.length === 0) {
-    return <p className="text-sm text-muted-foreground">No requests.</p>;
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-12 text-center">
+          <Inbox className="mx-auto h-10 w-10 text-slate-300" />
+          <p className="mt-3 text-sm text-muted-foreground">No requests to show.</p>
+        </CardContent>
+      </Card>
+    );
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="text-left text-xs text-muted-foreground border-b">
-          <tr>
-            {showEmployee && <th className="py-2">Employee</th>}
-            <th>Type</th>
-            <th>From</th>
-            <th>To</th>
-            <th className="text-right">Days</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {requests.map((r) => (
-            <tr key={r.id} className="border-b">
-              {showEmployee && (
-                <td className="py-2">
-                  {r.employee?.employmentId} — {r.employee?.fullNameEn}
-                </td>
-              )}
-              <td>{r.leaveType.nameEn}</td>
-              <td>{new Date(r.startDate).toLocaleDateString()}</td>
-              <td>{new Date(r.endDate).toLocaleDateString()}</td>
-              <td className="text-right">{Number(r.workingDays).toFixed(1)}</td>
-              <td>
-                <StatusBadge status={r.status} />
-                {r.wasOverBalance && (
-                  <Badge variant="outline" className="ml-1 text-amber-700 border-amber-400">
-                    Advance
-                  </Badge>
-                )}
-              </td>
-              <td className="text-right space-x-1">
-                {r.status === 'DRAFT' && (
-                  <>
-                    <Button size="sm" variant="secondary" onClick={() => onAct(r.id, 'submit')}>
-                      Submit
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => onCancel(r.id)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                {canApprove && r.status.startsWith('PENDING_') && (
-                  <>
-                    <Button size="sm" variant="default" onClick={() => onAct(r.id, 'approve')}>
-                      <Check className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => {
-                        const reason = prompt('Reason for rejection?') ?? undefined;
-                        if (reason !== undefined) onAct(r.id, 'reject', reason);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-              </td>
+    <Card className="border-slate-200 shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b">
+            <tr>
+              {showEmployee && <th className="py-3 px-4 font-medium">Employee</th>}
+              <th className="py-3 px-4 font-medium">Type</th>
+              <th className="py-3 px-4 font-medium">From</th>
+              <th className="py-3 px-4 font-medium">To</th>
+              <th className="py-3 px-4 font-medium text-right">Days</th>
+              <th className="py-3 px-4 font-medium">Status</th>
+              <th className="py-3 px-4"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {requests.map((r) => (
+              <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50/60 transition">
+                {showEmployee && (
+                  <td className="py-3 px-4">
+                    <div className="font-medium text-slate-900">{r.employee?.fullNameEn}</div>
+                    <div className="text-xs text-muted-foreground">{r.employee?.employmentId}</div>
+                  </td>
+                )}
+                <td className="py-3 px-4">{r.leaveType.nameEn}</td>
+                <td className="py-3 px-4 text-muted-foreground">{new Date(r.startDate).toLocaleDateString()}</td>
+                <td className="py-3 px-4 text-muted-foreground">{new Date(r.endDate).toLocaleDateString()}</td>
+                <td className="py-3 px-4 text-right font-semibold tabular-nums">{Number(r.workingDays).toFixed(1)}</td>
+                <td className="py-3 px-4 space-x-1">
+                  <StatusBadge status={r.status} />
+                  {r.wasOverBalance && (
+                    <Badge variant="outline" className="text-amber-700 border-amber-400">
+                      Advance
+                    </Badge>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                  {r.status === 'DRAFT' && (
+                    <>
+                      <Button size="sm" variant="secondary" onClick={() => onAct(r.id, 'submit')}>
+                        Submit
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => onCancel(r.id)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  {canApprove && r.status.startsWith('PENDING_') && (
+                    <>
+                      <Button size="sm" variant="default" onClick={() => onAct(r.id, 'approve')}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          const reason = prompt('Reason for rejection?') ?? undefined;
+                          if (reason !== undefined) onAct(r.id, 'reject', reason);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 

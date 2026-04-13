@@ -410,17 +410,31 @@ export class DolibarrClient {
 
         if (!response.ok) {
           const errorText = await response.text().catch(() => 'Unknown error');
-          
+
           // Don't retry on 4xx errors (except 429)
           if (response.status >= 400 && response.status < 500 && response.status !== 429) {
             throw new Error(`Dolibarr API error ${response.status}: ${errorText}`);
           }
-          
+
           throw new Error(`Dolibarr API error ${response.status}: ${errorText}`);
         }
 
-        const data = await response.json();
-        return data as T;
+        // Read the body as text first so we can produce a helpful error
+        // if Dolibarr returns a non-JSON payload (e.g. plain "API not
+        // found" when a module isn't installed, which some versions serve
+        // with a 200 status).
+        const rawText = await response.text();
+        if (!rawText || rawText.trim() === '') {
+          return [] as unknown as T;
+        }
+        try {
+          return JSON.parse(rawText) as T;
+        } catch {
+          const preview = rawText.trim().slice(0, 200);
+          throw new Error(
+            `Dolibarr returned a non-JSON response for "${endpoint}" (HTTP ${response.status}): ${preview}`,
+          );
+        }
       } catch (error: any) {
         lastError = error;
         
@@ -934,18 +948,35 @@ export class DolibarrClient {
 
   /**
    * Fetch llx_holiday records with pagination.
+   *
+   * The Dolibarr REST endpoint is `/api/index.php/holidays` when the
+   * module is enabled. On older / unmodified installs the module is
+   * named differently (or not exposed over REST) and the API returns
+   * either a 404 or — worse — a 200 with a plain-text "API not found"
+   * body that fails JSON parsing. This method swallows *missing module*
+   * errors and throws a clean `DolibarrHolidaysNotAvailableError` so
+   * the sync service can surface a specific message to the UI.
    */
   async getHolidays(params?: DolibarrPaginationParams): Promise<DolibarrHoliday[]> {
-    const result = await this.request<DolibarrHoliday[] | { message?: string }>('holidays', {
-      limit: params?.limit ?? 100,
-      page: params?.page ?? 0,
-      sortfield: params?.sortfield ?? 't.rowid',
-      sortorder: params?.sortorder ?? 'ASC',
-      sqlfilters: params?.sqlfilters,
-    });
-    // Dolibarr returns { message: "No records found" } on empty pages instead of []
-    if (Array.isArray(result)) return result;
-    return [];
+    try {
+      const result = await this.request<DolibarrHoliday[] | { message?: string }>('holidays', {
+        limit: params?.limit ?? 100,
+        page: params?.page ?? 0,
+        sortfield: params?.sortfield ?? 't.rowid',
+        sortorder: params?.sortorder ?? 'ASC',
+        sqlfilters: params?.sqlfilters,
+      });
+      // Dolibarr returns { message: "No records found" } on empty pages instead of []
+      if (Array.isArray(result)) return result;
+      return [];
+    } catch (error: unknown) {
+      if (isHolidaysModuleMissingError(error)) {
+        throw new DolibarrHolidaysNotAvailableError(
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      throw error;
+    }
   }
 
   /**
@@ -971,18 +1002,46 @@ export class DolibarrClient {
   /**
    * Fetch the holiday type catalogue (llx_c_holiday_types).
    * Used to build the fk_type → OTS LeaveType.code mapping at runtime.
-   * Endpoint is not in every Dolibarr build; on 404 we return [].
+   * Endpoint is absent in many Dolibarr builds — we fall back to an
+   * empty list so the caller uses the default mapping.
    */
   async getHolidayTypes(): Promise<DolibarrHolidayType[]> {
     try {
       const result = await this.request<DolibarrHolidayType[]>('holidays/types');
       return Array.isArray(result) ? result : [];
     } catch (error: unknown) {
+      if (isHolidaysModuleMissingError(error)) return [];
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes('404')) return [];
       throw error;
     }
   }
+}
+
+/**
+ * Thrown when the Dolibarr `holidays` REST endpoint isn't reachable —
+ * either because the module is disabled, the Dolibarr API doesn't expose
+ * it, or the server returned a non-JSON "API not found" page. The sync
+ * service catches this specifically and surfaces a user-friendly error.
+ */
+export class DolibarrHolidaysNotAvailableError extends Error {
+  constructor(detail: string) {
+    super(
+      `Dolibarr does not expose the holidays REST endpoint on this server. ` +
+        `Enable the Leaves module in Dolibarr and ensure REST API access, or check that the API key has "holiday" permissions. (${detail})`,
+    );
+    this.name = 'DolibarrHolidaysNotAvailableError';
+  }
+}
+
+function isHolidaysModuleMissingError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (!msg) return false;
+  return (
+    msg.includes('non-JSON response') ||
+    msg.toLowerCase().includes('api not found') ||
+    msg.includes('404')
+  );
 }
 
 // ============================================

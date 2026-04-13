@@ -31,9 +31,11 @@ import { logger } from '@/lib/logger';
 import type { Prisma } from '@prisma/client';
 import {
   DolibarrClient,
-  DolibarrHoliday,
+  DolibarrHolidaysNotAvailableError,
   createDolibarrClient,
 } from '@/lib/dolibarr/dolibarr-client';
+
+export { DolibarrHolidaysNotAvailableError };
 
 // ============================================================================
 // TYPES

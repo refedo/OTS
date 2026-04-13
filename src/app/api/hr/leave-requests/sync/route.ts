@@ -12,6 +12,7 @@ import { logger } from '@/lib/logger';
 import { verifySession } from '@/lib/jwt';
 import { checkPermission } from '@/lib/permission-checker';
 import { runDolibarrLeaveSync } from '@/lib/services/hr/sync-dolibarr-leaves';
+import { DolibarrHolidaysNotAvailableError } from '@/lib/dolibarr/dolibarr-client';
 
 export async function POST() {
   const store = await cookies();
@@ -30,6 +31,9 @@ export async function POST() {
     return NextResponse.json(result);
   } catch (error) {
     logger.error({ error }, '[Dolibarr Leaves Sync API] Sync run failed');
+    if (error instanceof DolibarrHolidaysNotAvailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     const msg = error instanceof Error ? error.message : 'Sync failed';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
