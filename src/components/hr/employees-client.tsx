@@ -111,7 +111,13 @@ export function EmployeesClient({
     const getValue = (e: EmployeeRow): string | number => {
       switch (sortKey) {
         case 'employmentId':
-          return e.employmentId.toLowerCase();
+          // Natural numeric sort so "1, 2, 10, 100" doesn't become "1, 10, 100, 2".
+          // Strip non-digit prefixes (e.g. "SH-W04") before parsing.
+          {
+            const digits = e.employmentId.replace(/[^0-9]/g, '');
+            const n = digits ? parseInt(digits, 10) : NaN;
+            return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+          }
         case 'name':
           return (showArabic && e.fullNameAr ? e.fullNameAr : e.fullNameEn).toLowerCase();
         case 'trade':

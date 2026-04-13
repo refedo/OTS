@@ -23,10 +23,36 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.6.1',
+    version: '18.6.2',
     date: 'April 13, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Dolibarr Direct-MySQL Fallback for Holidays + Employee SN Natural Sort',
+    highlights: [
+      'Dolibarr REST endpoint /api/index.php/holidays returns "API not found (failed to include API file)" on many Dolibarr builds even when the Leaves module is enabled in the UI — OTS now bypasses the broken REST endpoint by reading llx_holiday directly via MySQL when the new DOLIBARR_DB_* env vars are set.',
+      'Sync probes the Dolibarr DB once per run, attempts the REST call first, and on DolibarrHolidaysNotAvailableError automatically falls back to the direct MySQL read with a soft-warning entry in the sync log.',
+      '/hr/employees SN column now sorts by natural numeric value (1, 2, 10, 100) instead of lexicographically (1, 10, 100, 2).',
+    ],
+    changes: {
+      added: [
+        'src/lib/dolibarr/dolibarr-db.ts — small read-only mysql2 pool against the Dolibarr database, with isDolibarrDbConfigured() / pingDolibarrDb() / getAllHolidaysFromDb() / getHolidayTypesFromDb()',
+        'env.ts: DOLIBARR_DB_HOST / DOLIBARR_DB_PORT / DOLIBARR_DB_USER / DOLIBARR_DB_PASSWORD / DOLIBARR_DB_DATABASE (all optional)',
+        'sync-dolibarr-leaves.ts: REST→MySQL fallback for both holidays and the holiday type catalogue, gated by env-var presence + a SELECT 1 connectivity probe',
+      ],
+      fixed: [
+        '/hr/employees SN column natural-numeric sort (strips non-digit prefixes like "SH-W04", parses the remainder as an integer)',
+        '/api/hr/leave-requests/sync 503 response now tells admins exactly which DOLIBARR_DB_* env vars to set when REST is missing and the fallback isn\'t configured yet',
+      ],
+      changed: [
+        'sync-dolibarr-leaves.ts: buildTypeMap() takes a useDbFallback flag; main run probes DB once at the top and uses the result for both type catalogue and holidays fetch',
+      ],
+    },
+  },
+  {
+    version: '18.6.1',
+    date: 'April 13, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'HR UI Polish + Payroll Sync Button + Dolibarr Holidays Fallback',
     highlights: [
       'Redesigned /hr/leaves and /hr/payroll pages with gradient hero headers, KPI tiles, cleaner status strips, sticky table styling and proper empty states.',

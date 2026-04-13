@@ -26,6 +26,14 @@ interface EnvConfig {
   DOLIBARR_API_KEY: string | undefined;
   DOLIBARR_API_TIMEOUT: string | undefined;
   DOLIBARR_API_RETRIES: string | undefined;
+  // Direct MySQL readthrough to the Dolibarr database — optional fallback
+  // used when the Dolibarr REST API does not expose certain tables (e.g. the
+  // Holiday module's REST endpoint is absent on some Dolibarr builds).
+  DOLIBARR_DB_HOST: string | undefined;
+  DOLIBARR_DB_PORT: string | undefined;
+  DOLIBARR_DB_USER: string | undefined;
+  DOLIBARR_DB_PASSWORD: string | undefined;
+  DOLIBARR_DB_DATABASE: string | undefined;
   CRON_SECRET: string | undefined;
   NEXT_PUBLIC_BASE_PATH: string | undefined;
   ENABLE_RISK_SCHEDULER: string | undefined;
@@ -92,6 +100,11 @@ function validateEnv(): EnvConfig {
     DOLIBARR_API_KEY: process.env.DOLIBARR_API_KEY,
     DOLIBARR_API_TIMEOUT: process.env.DOLIBARR_API_TIMEOUT,
     DOLIBARR_API_RETRIES: process.env.DOLIBARR_API_RETRIES,
+    DOLIBARR_DB_HOST: process.env.DOLIBARR_DB_HOST,
+    DOLIBARR_DB_PORT: process.env.DOLIBARR_DB_PORT,
+    DOLIBARR_DB_USER: process.env.DOLIBARR_DB_USER,
+    DOLIBARR_DB_PASSWORD: process.env.DOLIBARR_DB_PASSWORD,
+    DOLIBARR_DB_DATABASE: process.env.DOLIBARR_DB_DATABASE,
     CRON_SECRET: process.env.CRON_SECRET,
     NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,
     ENABLE_RISK_SCHEDULER: process.env.ENABLE_RISK_SCHEDULER,

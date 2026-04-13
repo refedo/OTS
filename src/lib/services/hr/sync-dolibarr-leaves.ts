@@ -31,9 +31,17 @@ import { logger } from '@/lib/logger';
 import type { Prisma } from '@prisma/client';
 import {
   DolibarrClient,
+  DolibarrHoliday,
+  DolibarrHolidayType,
   DolibarrHolidaysNotAvailableError,
   createDolibarrClient,
 } from '@/lib/dolibarr/dolibarr-client';
+import {
+  isDolibarrDbConfigured,
+  getAllHolidaysFromDb,
+  getHolidayTypesFromDb,
+  pingDolibarrDb,
+} from '@/lib/dolibarr/dolibarr-db';
 
 export { DolibarrHolidaysNotAvailableError };
 
@@ -109,21 +117,34 @@ function normaliseLabel(raw: string | null | undefined): string {
  */
 async function buildTypeMap(
   client: DolibarrClient,
+  useDbFallback: boolean,
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
+  let types: DolibarrHolidayType[] = [];
   try {
-    const types = await client.getHolidayTypes();
-    for (const t of types) {
-      const id = t.id ?? t.rowid;
-      if (id === undefined || id === null) continue;
-      const label = normaliseLabel(typeof t.label === 'string' ? t.label : null);
-      const code = DOLIBARR_TYPE_LABEL_TO_CODE[label];
-      if (code) {
-        result.set(String(id), code);
-      }
-    }
+    types = await client.getHolidayTypes();
   } catch (err) {
-    logger.warn({ err }, '[Dolibarr Leaves Sync] Could not fetch holiday type catalogue; will fall back by description');
+    logger.warn({ err }, '[Dolibarr Leaves Sync] REST holiday type catalogue unavailable');
+  }
+  if (types.length === 0 && useDbFallback) {
+    try {
+      types = await getHolidayTypesFromDb();
+      logger.info(
+        { count: types.length },
+        '[Dolibarr Leaves Sync] Holiday type catalogue loaded via MySQL fallback',
+      );
+    } catch (err) {
+      logger.warn({ err }, '[Dolibarr Leaves Sync] MySQL holiday type catalogue read failed');
+    }
+  }
+  for (const t of types) {
+    const id = t.id ?? t.rowid;
+    if (id === undefined || id === null) continue;
+    const label = normaliseLabel(typeof t.label === 'string' ? t.label : null);
+    const code = DOLIBARR_TYPE_LABEL_TO_CODE[label];
+    if (code) {
+      result.set(String(id), code);
+    }
   }
   return result;
 }
@@ -182,14 +203,48 @@ export async function runDolibarrLeaveSync(
       throw new Error('No LeaveType rows exist — cannot land Dolibarr leaves.');
     }
 
-    // -- Build Dolibarr fk_type → code map --
-    const dolibarrTypeMap = await buildTypeMap(client);
+    // -- Decide whether MySQL fallback is available --
+    // Many Dolibarr builds do not expose `api_holidays.class.php`, even
+    // when the Leaves module is enabled and the user has the right
+    // permissions in the UI. We probe the DB once up front so the rest
+    // of the run can use the fallback consistently.
+    const dbConfigured = isDolibarrDbConfigured();
+    const useDbFallback = dbConfigured ? await pingDolibarrDb() : false;
+    if (dbConfigured && !useDbFallback) {
+      logger.warn({}, '[Dolibarr Leaves Sync] DOLIBARR_DB_* configured but ping failed; will rely on REST');
+    }
 
-    // -- Fetch all holidays --
+    // -- Build Dolibarr fk_type → code map --
+    const dolibarrTypeMap = await buildTypeMap(client, useDbFallback);
+
+    // -- Fetch all holidays (REST first, then DB fallback) --
     const apiStart = Date.now();
-    const holidays = await client.getAllHolidays();
+    let holidays: DolibarrHoliday[] = [];
+    let usedDbFallback = false;
+    try {
+      holidays = await client.getAllHolidays();
+    } catch (err) {
+      if (err instanceof DolibarrHolidaysNotAvailableError && useDbFallback) {
+        logger.info(
+          {},
+          '[Dolibarr Leaves Sync] REST holidays endpoint unavailable; falling back to direct MySQL read of llx_holiday',
+        );
+        holidays = await getAllHolidaysFromDb();
+        usedDbFallback = true;
+        softWarnings.push({
+          dolibarrHolidayId: 'SYNC',
+          message:
+            'Dolibarr REST holidays endpoint is not available on this server — used direct MySQL fallback (llx_holiday).',
+        });
+      } else {
+        throw err;
+      }
+    }
     apiResponseMs = Date.now() - apiStart;
     rowsRead = holidays.length;
+    if (usedDbFallback) {
+      logger.info({ rowsRead }, '[Dolibarr Leaves Sync] MySQL fallback returned rows');
+    }
 
     for (const apiHoliday of holidays) {
       const dolibarrHolidayIdStr = String(apiHoliday.id ?? '');
