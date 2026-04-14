@@ -90,7 +90,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         reason: d.reason ?? null,
         exceedsYearWarning: d.exceedsYearWarning,
         warningReason: d.warningReason ?? null,
-        createdById: session!.sub,
+        createdById: session!.userId,
       },
     });
     logger.info({ loanId: loan.id, employeeId: d.employeeId }, '[Loans] Created');

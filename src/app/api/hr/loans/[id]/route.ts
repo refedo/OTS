@@ -35,7 +35,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, context) => 
   try {
     const updated = await prisma.loan.update({
       where: { id },
-      data: { ...parsed.data, updatedById: session!.sub },
+      data: { ...parsed.data, updatedById: session!.userId },
     });
     logger.info({ loanId: id }, '[Loans] Updated');
     return NextResponse.json(updated);
@@ -61,7 +61,7 @@ export const DELETE = withApiContext(async (req: NextRequest, session, context) 
       where: { id },
       data: {
         deletedAt: new Date(),
-        deletedById: session!.sub,
+        deletedById: session!.userId,
         deleteReason: parsed.data.deleteReason,
         status: 'CANCELLED',
       },

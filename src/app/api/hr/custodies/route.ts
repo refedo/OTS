@@ -74,7 +74,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         deductionAmount: d.deductionAmount.toString(),
         status: 'OPEN',
         notes: d.notes ?? null,
-        createdById: session!.sub,
+        createdById: session!.userId,
       },
     });
     logger.info({ custodyId: custody.id, employeeId: d.employeeId }, '[Custodies] Created');
