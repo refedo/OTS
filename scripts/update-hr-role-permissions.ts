@@ -24,6 +24,8 @@ const prisma = new PrismaClient();
 const HR_CEO_ONLY_PERMISSIONS = [
   'admin.identity.reconcile',
   'hr.employee.resetToDolibarr',
+  // 18.9.0 — final sign-off on raises belongs only to CEO.
+  'hr.employee.salaryHistory.approveCeo',
 ];
 
 // Regular HR permissions (non-escape-hatch). CEO gets these too so the
@@ -37,6 +39,12 @@ const HR_BASE_PERMISSIONS = [
   'hr.employee.delete',
   'hr.employee.viewCompensation',
   'hr.employee.sync',
+  // 18.9.0 — Employment & salary history
+  'hr.employee.positionHistory.view',
+  'hr.employee.positionHistory.manage',
+  'hr.employee.salaryHistory.view',
+  'hr.employee.salaryHistory.manage',
+  'hr.employee.salaryHistory.approveHr',
   'hr.agency.view',
   'hr.agency.manage',
   'hr.manpowerSlot.view',

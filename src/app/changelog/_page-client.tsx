@@ -23,10 +23,45 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.9.0',
+    date: 'April 14, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'HR/Payroll Redesign Phase 1 — Employment & Salary History Foundation',
+    highlights: [
+      'Per Walid\'s requirement "HR knows that this employee was a fabricator from date x to date y with a basic of xxx, and then he got promoted and become a foreman from date z, with a basic of nnn", OTS now tracks each employee\'s position and compensation as two independent timelines with contiguous date ranges and a single "open" row (effectiveTo=null) at a time.',
+      'Two new Prisma models: EmployeePositionHistory (positionTitle, section, division, departmentId, reason enum HIRED/PROMOTED/TRANSFERRED/DEMOTED/ROLE_CHANGE/RESIGNED/TERMINATED/REHIRED) and EmployeeSalaryHistory (basicSalary + housing/transport/mobile/food/other allowances, reason enum HIRED/ANNUAL_INCREMENT/PROMOTION/ADJUSTMENT/COLA/CORRECTION/DEMOTION).',
+      'Salary changes go through a CEO-signed approval cycle: DRAFT → PENDING_HR → PENDING_CEO → APPROVED (or REJECTED). Per Walid\'s explicit rule "only CEO approves a raise — it goes in a cycle approval but the final approval belongs only to a CEO", the new hr.employee.salaryHistory.approveCeo permission is CEO-only; HR gets approveHr (forwards to CEO) plus manage (draft/submit).',
+      'New History tab on /hr/employees/[id] renders both timelines with status badges, full comp breakdown, submitter/approver audit, and context-aware action buttons (Submit to HR / HR approve / CEO approve / Reject) that only appear when the current user holds the matching permission.',
+      'Only the final CEO approval step mutates the live timeline — it closes the prior open row, sets the new row\'s effectiveTo=null, and mirrors the new comp onto Employee.basicSalary + allowances so the existing payroll page keeps working unchanged. Phases 2–4 (payroll calculator rewrite, loans/custody/commissions, SOA + payslip PDF) depend on this foundation but land in separate releases.',
+      'Idempotent manual SQL migration at prisma/manual_migrations/add_employee_history.sql plus a backfill script scripts/backfill-employee-history.ts that seeds one open HIRED row per existing Employee dated from dateOfJoining so the payroll calculator always has an anchor to resolve against.',
+    ],
+    changes: {
+      added: [
+        'prisma/schema.prisma: EmployeePositionHistory + EmployeeSalaryHistory models and their reason/status enums; back-relations on User, Department, Employee',
+        'prisma/manual_migrations/add_employee_history.sql: CREATE TABLE IF NOT EXISTS for both tables with full FK constraints (Employee CASCADE, Department SET NULL, User audit FKs SET NULL)',
+        'scripts/backfill-employee-history.ts: one-shot script seeding an open HIRED row per existing Employee with current occupation + comp snapshot',
+        'src/lib/permissions.ts: six new permission IDs under hr.employee.positionHistory.{view,manage} and hr.employee.salaryHistory.{view,manage,approveHr,approveCeo}; HR bundle gets everything except approveCeo',
+        'src/app/api/hr/employees/[id]/position-history/route.ts: GET list, POST insert (auto-closes prior open row and mirrors onto Employee.occupation)',
+        'src/app/api/hr/employees/[id]/position-history/[historyId]/route.ts: PUT edit, DELETE soft-delete with auto-reopen-prior behaviour',
+        'src/app/api/hr/employees/[id]/salary-history/route.ts: GET list, POST draft (with optional submit:true to push straight to PENDING_HR)',
+        'src/app/api/hr/employees/[id]/salary-history/[historyId]/route.ts: PUT (DRAFT-only), DELETE',
+        'src/app/api/hr/employees/[id]/salary-history/[historyId]/status/route.ts: POST action route enforcing DRAFT→PENDING_HR→PENDING_CEO→APPROVED transitions and mirroring new comp onto Employee on final CEO approval',
+        'src/components/hr/employee-history-tab.tsx: dual-timeline UI with permission-gated action buttons and a raise-draft dialog',
+        'src/components/hr/employee-detail-tabs.tsx: thin client wrapper giving /hr/employees/[id] a Record / History top-level tab split',
+      ],
+      fixed: [],
+      changed: [
+        'src/app/hr/employees/[id]/page.tsx: wraps the existing EmployeeForm in the new EmployeeDetailTabs; users without either history view permission still see the form inline exactly as before',
+        'scripts/update-hr-role-permissions.ts: merges the new history perms into the runtime HR role and grants approveCeo to CEO (idempotent, safe to re-run)',
+      ],
+    },
+  },
+  {
     version: '18.8.2',
     date: 'April 13, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Trim Dolibarr Holidays SELECT To Portable Minimum',
     highlights: [
       'Second live run of 18.8.1 hit "Unknown column \'h.date_approval\' in \'field list\'" — same Dolibarr-version-mismatch as h.nb_open_day in 18.8.1, just a different column.',

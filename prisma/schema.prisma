@@ -35,6 +35,7 @@ model Department {
   manager           User?              @relation("DepartmentManager", fields: [managerId], references: [id])
   users             User[]
   employees         Employee[]         @relation("EmployeeDepartment")
+  employeePositionHistory EmployeePositionHistory[] @relation("EmployeePositionHistoryDepartment")
   tasks             Task[]
   initiatives       Initiative[]       @relation("InitiativeDepartment")
   departmentPlans   DepartmentPlan[]   @relation("DepartmentPlanDept")
@@ -228,6 +229,16 @@ model User {
   createdEmployees       Employee[]                @relation("EmployeeCreatedBy")
   updatedEmployees       Employee[]                @relation("EmployeeUpdatedBy")
   deletedEmployees       Employee[]                @relation("EmployeeDeletedBy")
+  createdPositionHistory EmployeePositionHistory[] @relation("EmployeePositionHistoryCreatedBy")
+  updatedPositionHistory EmployeePositionHistory[] @relation("EmployeePositionHistoryUpdatedBy")
+  deletedPositionHistory EmployeePositionHistory[] @relation("EmployeePositionHistoryDeletedBy")
+  createdSalaryHistory   EmployeeSalaryHistory[]   @relation("EmployeeSalaryHistoryCreatedBy")
+  updatedSalaryHistory   EmployeeSalaryHistory[]   @relation("EmployeeSalaryHistoryUpdatedBy")
+  deletedSalaryHistory   EmployeeSalaryHistory[]   @relation("EmployeeSalaryHistoryDeletedBy")
+  submittedSalaryHistory EmployeeSalaryHistory[]   @relation("EmployeeSalaryHistorySubmittedBy")
+  hrApprovedSalaryHistory  EmployeeSalaryHistory[] @relation("EmployeeSalaryHistoryHrApprover")
+  ceoApprovedSalaryHistory EmployeeSalaryHistory[] @relation("EmployeeSalaryHistoryCeoApprover")
+  rejectedSalaryHistory  EmployeeSalaryHistory[]   @relation("EmployeeSalaryHistoryRejectedBy")
   createdAgencies        Agency[]                  @relation("AgencyCreatedBy")
   updatedAgencies        Agency[]                  @relation("AgencyUpdatedBy")
   deletedAgencies        Agency[]                  @relation("AgencyDeletedBy")
@@ -4033,6 +4044,10 @@ model Employee {
   payrollAdjustments PayrollAdjustment[] @relation("EmployeePayrollAdjustments")
   endOfServiceAward  EndOfServiceAward?  @relation("EmployeeEosAward")
 
+  // 18.9.0 — Employment & compensation history (redesign Phase 1)
+  positionHistory EmployeePositionHistory[] @relation("EmployeePositionHistoryEmployee")
+  salaryHistory   EmployeeSalaryHistory[]   @relation("EmployeeSalaryHistoryEmployee")
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -4050,6 +4065,141 @@ model Employee {
   @@index([departmentId])
   @@index([section])
   @@index([occupation])
+  @@index([deletedAt])
+}
+
+// 18.9.0 — Employment & compensation history (HR/Payroll Phase 1)
+// One "open" row (effectiveTo = null) per employee at a time per history type.
+// Earlier rows have effectiveTo set to the day before the successor's
+// effectiveFrom so the timeline is contiguous.
+
+enum EmployeePositionChangeReason {
+  HIRED
+  PROMOTED
+  TRANSFERRED
+  DEMOTED
+  ROLE_CHANGE
+  RESIGNED
+  TERMINATED
+  REHIRED
+}
+
+model EmployeePositionHistory {
+  id         String   @id @default(uuid()) @db.Char(36)
+  employeeId String   @db.Char(36)
+  employee   Employee @relation("EmployeePositionHistoryEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  effectiveFrom DateTime  @db.Date
+  effectiveTo   DateTime? @db.Date // null = currently active
+
+  positionTitle String  @db.VarChar(200) // "Fabricator", "Foreman", etc.
+  section       String? @db.VarChar(60)
+  division      String? @db.VarChar(80)
+  departmentId  String? @db.Char(36)
+  department    Department? @relation("EmployeePositionHistoryDepartment", fields: [departmentId], references: [id])
+
+  reason EmployeePositionChangeReason
+  notes  String? @db.VarChar(1000)
+
+  // 1:many — a position change may anchor one or more salary changes
+  // happening on the same date (e.g. promotion + raise).
+  salaryHistory EmployeeSalaryHistory[] @relation("EmployeeSalaryHistoryPosition")
+
+  // Audit (AssemblyPart pattern)
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("EmployeePositionHistoryCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("EmployeePositionHistoryUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("EmployeePositionHistoryDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([employeeId])
+  @@index([employeeId, effectiveFrom])
+  @@index([effectiveTo])
+  @@index([deletedAt])
+}
+
+enum EmployeeSalaryChangeReason {
+  HIRED
+  ANNUAL_INCREMENT
+  PROMOTION
+  ADJUSTMENT
+  COLA
+  CORRECTION
+  DEMOTION
+}
+
+// Raises follow a cycle: DRAFT → PENDING_HR → PENDING_CEO → APPROVED (or REJECTED).
+// Only an APPROVED row is considered "effective" by the payroll calculator.
+// A HIRED row is seeded as APPROVED directly by the backfill script.
+enum EmployeeSalaryApprovalStatus {
+  DRAFT
+  PENDING_HR
+  PENDING_CEO
+  APPROVED
+  REJECTED
+}
+
+model EmployeeSalaryHistory {
+  id         String   @id @default(uuid()) @db.Char(36)
+  employeeId String   @db.Char(36)
+  employee   Employee @relation("EmployeeSalaryHistoryEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Optional FK tying a raise to a position change that happened at the same
+  // time (e.g. promoted from Fabricator → Foreman with a basic bump).
+  positionHistoryId String?                  @db.Char(36)
+  positionHistory   EmployeePositionHistory? @relation("EmployeeSalaryHistoryPosition", fields: [positionHistoryId], references: [id], onDelete: SetNull)
+
+  effectiveFrom DateTime  @db.Date
+  effectiveTo   DateTime? @db.Date // null = currently active (and APPROVED)
+
+  // Compensation snapshot — mirrors Employee.* but frozen at the effective date.
+  basicSalary        Decimal @db.Decimal(12, 2)
+  housingAllowance   Decimal @default(0) @db.Decimal(12, 2)
+  transportAllowance Decimal @default(0) @db.Decimal(12, 2)
+  mobileAllowance    Decimal @default(0) @db.Decimal(12, 2)
+  foodAllowance      Decimal @default(0) @db.Decimal(12, 2)
+  otherAllowances    Decimal @default(0) @db.Decimal(12, 2)
+
+  reason EmployeeSalaryChangeReason
+  notes  String? @db.VarChar(1000)
+
+  // Approval workflow — CEO is the final signer for every raise.
+  status        EmployeeSalaryApprovalStatus @default(DRAFT)
+  submittedAt   DateTime?
+  submittedById String?                      @db.Char(36)
+  submittedBy   User?                        @relation("EmployeeSalaryHistorySubmittedBy", fields: [submittedById], references: [id])
+  hrApprovedAt  DateTime?
+  hrApprovedById String?                     @db.Char(36)
+  hrApprovedBy  User?                        @relation("EmployeeSalaryHistoryHrApprover", fields: [hrApprovedById], references: [id])
+  ceoApprovedAt DateTime?
+  ceoApprovedById String?                    @db.Char(36)
+  ceoApprovedBy User?                        @relation("EmployeeSalaryHistoryCeoApprover", fields: [ceoApprovedById], references: [id])
+  rejectedAt    DateTime?
+  rejectedById  String?                      @db.Char(36)
+  rejectedBy    User?                        @relation("EmployeeSalaryHistoryRejectedBy", fields: [rejectedById], references: [id])
+  rejectReason  String?                      @db.VarChar(1000)
+
+  // Audit (AssemblyPart pattern)
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("EmployeeSalaryHistoryCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("EmployeeSalaryHistoryUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("EmployeeSalaryHistoryDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([employeeId])
+  @@index([employeeId, effectiveFrom])
+  @@index([status])
+  @@index([effectiveTo])
   @@index([deletedAt])
 }
 

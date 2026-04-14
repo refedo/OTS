@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import prisma from '@/lib/db';
 import { checkPermission, getCurrentUserPermissions } from '@/lib/permission-checker';
 import { EmployeeForm } from '@/components/hr/employee-form';
+import { EmployeeDetailTabs } from '@/components/hr/employee-detail-tabs';
 
 export default async function EmployeeDetailPage({
   params,
@@ -22,6 +23,12 @@ export default async function EmployeeDetailPage({
   const permissions = await getCurrentUserPermissions();
   const canViewCompensation = permissions.includes('hr.employee.viewCompensation');
   const canResetToDolibarr = permissions.includes('hr.employee.resetToDolibarr');
+  const canViewPositionHistory = permissions.includes('hr.employee.positionHistory.view');
+  const canViewSalaryHistory = permissions.includes('hr.employee.salaryHistory.view');
+  const canManagePositionHistory = permissions.includes('hr.employee.positionHistory.manage');
+  const canManageSalaryHistory = permissions.includes('hr.employee.salaryHistory.manage');
+  const canApproveHr = permissions.includes('hr.employee.salaryHistory.approveHr');
+  const canApproveCeo = permissions.includes('hr.employee.salaryHistory.approveCeo');
 
   const { id } = await params;
   const employee = await prisma.employee.findFirst({
@@ -84,11 +91,22 @@ export default async function EmployeeDetailPage({
             : 'never'}
         </p>
       </div>
-      <EmployeeForm
-        initial={initial}
-        canViewCompensation={canViewCompensation}
-        canResetToDolibarr={canResetToDolibarr}
+      <EmployeeDetailTabs
+        showHistory={canViewPositionHistory || canViewSalaryHistory}
+        recordTab={
+          <EmployeeForm
+            initial={initial}
+            canViewCompensation={canViewCompensation}
+            canResetToDolibarr={canResetToDolibarr}
+            departments={departments}
+          />
+        }
+        employeeId={employee.id}
         departments={departments}
+        canManagePosition={canManagePositionHistory}
+        canManageSalary={canManageSalaryHistory}
+        canApproveHr={canApproveHr}
+        canApproveCeo={canApproveCeo}
       />
     </div>
   );
