@@ -228,6 +228,41 @@ export async function calculatePayrollPeriod(
     // Absences without permission deducted; with permission are not.
     const absenceDeduction = round2(withoutPermission * dailyRate);
 
+    // 18.10.0 — Loan deductions: sum installmentAmount for all ACTIVE loans
+    // whose startDate <= period end AND installmentsPaid < installmentsTotal.
+    const activeLoans = await prisma.loan.findMany({
+      where: {
+        employeeId: emp.id,
+        status: 'ACTIVE',
+        deletedAt: null,
+        startDate: { lte: periodEnd },
+      },
+      select: { installmentAmount: true, installmentsPaid: true, installmentsTotal: true },
+    });
+    const loanDeduction = round2(
+      activeLoans
+        .filter((l) => l.installmentsPaid < l.installmentsTotal)
+        .reduce((sum, l) => sum + Number(l.installmentAmount), 0),
+    );
+
+    // 18.10.0 — Custody deductions: sum deductionAmount for OPEN/PARTIALLY_SETTLED
+    // custodies where deductionAmount > 0.
+    const openCustodies = await prisma.custody.findMany({
+      where: {
+        employeeId: emp.id,
+        status: { in: ['OPEN', 'PARTIALLY_SETTLED'] },
+        deletedAt: null,
+        deductionAmount: { gt: 0 },
+      },
+      select: { id: true, amount: true, settledAmount: true, deductionAmount: true },
+    });
+    const custodyDeduction = round2(
+      openCustodies.reduce((sum, c) => {
+        const remaining = Number(c.amount) - Number(c.settledAmount);
+        return sum + Math.min(Number(c.deductionAmount), remaining);
+      }, 0),
+    );
+
     const overtimePay = round2(overtimeHours * hourlyRate * settings.overtimeMultiplier);
 
     // GOSI — only if the employee is subject. Based on gosiSalary, else basic+housing.
@@ -253,7 +288,8 @@ export async function calculatePayrollPeriod(
 
     const totalAdditions = round2(bonuses + otherAdditions + overtimePay);
     const totalDeductions = round2(
-      unpaidLeaveDeduction + halfPaidDeduction + absenceDeduction + gosiEmployee + otherDeductions,
+      unpaidLeaveDeduction + halfPaidDeduction + absenceDeduction +
+      gosiEmployee + loanDeduction + custodyDeduction + otherDeductions,
     );
     const grossPay = round2(monthlyGross);
     const netPay = round2(grossPay + totalAdditions - totalDeductions);
@@ -295,6 +331,8 @@ export async function calculatePayrollPeriod(
         absenceDeduction: absenceDeduction.toString(),
         gosiEmployee: gosiEmployee.toString(),
         gosiEmployer: gosiEmployer.toString(),
+        loanDeduction: loanDeduction.toString(),
+        custodyDeduction: custodyDeduction.toString(),
         otherDeductions: otherDeductions.toString(),
         bonuses: bonuses.toString(),
         otherAdditions: otherAdditions.toString(),

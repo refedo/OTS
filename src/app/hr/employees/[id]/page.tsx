@@ -29,6 +29,10 @@ export default async function EmployeeDetailPage({
   const canManageSalaryHistory = permissions.includes('hr.employee.salaryHistory.manage');
   const canApproveHr = permissions.includes('hr.employee.salaryHistory.approveHr');
   const canApproveCeo = permissions.includes('hr.employee.salaryHistory.approveCeo');
+  const canViewLoans = permissions.includes('hr.loans.view');
+  const canManageLoans = permissions.includes('hr.loans.manage');
+  const canViewCustodies = permissions.includes('hr.custodies.view');
+  const canManageCustodies = permissions.includes('hr.custodies.manage');
 
   const { id } = await params;
   const employee = await prisma.employee.findFirst({
@@ -93,6 +97,7 @@ export default async function EmployeeDetailPage({
       </div>
       <EmployeeDetailTabs
         showHistory={canViewPositionHistory || canViewSalaryHistory}
+        showFinance={canViewLoans || canViewCustodies}
         recordTab={
           <EmployeeForm
             initial={initial}
@@ -107,6 +112,8 @@ export default async function EmployeeDetailPage({
         canManageSalary={canManageSalaryHistory}
         canApproveHr={canApproveHr}
         canApproveCeo={canApproveCeo}
+        canManageLoans={canManageLoans}
+        canManageCustodies={canManageCustodies}
       />
     </div>
   );

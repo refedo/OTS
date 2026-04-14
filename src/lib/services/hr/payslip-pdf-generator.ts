@@ -88,7 +88,7 @@ export async function generatePayslipPdf(lineId: string): Promise<PayslipResult>
   doc.text(`Bank: ${line.bankName ?? '—'}`, 320, 184);
 
   // Earnings vs Deductions table
-  const earnings = [
+  const earnings: (string | number)[][] = [
     ['Basic salary', money(line.basicSalary)],
     ['Housing allowance', money(line.housingAllowance)],
     ['Transport allowance', money(line.transportAllowance)],
@@ -99,12 +99,18 @@ export async function generatePayslipPdf(lineId: string): Promise<PayslipResult>
     ['Bonuses', money(line.bonuses)],
     ['Other additions', money(line.otherAdditions)],
   ];
-  const deductions = [
+  const deductions: (string | number)[][] = [
     ['GOSI (employee)', money(line.gosiEmployee)],
     ['Unpaid leave', money(line.unpaidLeaveDeduction)],
     ['Absence deduction', money(line.absenceDeduction)],
-    ['Other deductions', money(line.otherDeductions)],
   ];
+  if (Number(line.loanDeduction) > 0) {
+    deductions.push(['Loan deduction', money(line.loanDeduction)]);
+  }
+  if (Number(line.custodyDeduction) > 0) {
+    deductions.push(['Custody deduction', money(line.custodyDeduction)]);
+  }
+  deductions.push(['Other deductions', money(line.otherDeductions)]);
 
   const maxRows = Math.max(earnings.length, deductions.length);
   const tableRows: (string | number)[][] = [];

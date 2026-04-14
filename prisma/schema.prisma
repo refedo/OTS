@@ -273,6 +273,13 @@ model User {
   generatedWpsExports       WpsExport[]         @relation("WpsExportGeneratedBy")
   calculatedEosAwards       EndOfServiceAward[] @relation("EndOfServiceCalculatedBy")
   paidEosAwards             EndOfServiceAward[] @relation("EndOfServicePaidBy")
+  // 18.10.0 — Loans & Custodies
+  createdLoans    Loan[]    @relation("LoanCreatedBy")
+  updatedLoans    Loan[]    @relation("LoanUpdatedBy")
+  deletedLoans    Loan[]    @relation("LoanDeletedBy")
+  createdCustodies Custody[] @relation("CustodyCreatedBy")
+  updatedCustodies Custody[] @relation("CustodyUpdatedBy")
+  deletedCustodies Custody[] @relation("CustodyDeletedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4048,6 +4055,10 @@ model Employee {
   positionHistory EmployeePositionHistory[] @relation("EmployeePositionHistoryEmployee")
   salaryHistory   EmployeeSalaryHistory[]   @relation("EmployeeSalaryHistoryEmployee")
 
+  // 18.10.0 — Loans & Custodies
+  loans     Loan[]    @relation("EmployeeLoans")
+  custodies Custody[] @relation("EmployeeCustodies")
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -4725,6 +4736,8 @@ model PayrollLine {
   absenceDeduction     Decimal @default(0) @db.Decimal(12, 2)
   gosiEmployee         Decimal @default(0) @db.Decimal(12, 2)
   gosiEmployer         Decimal @default(0) @db.Decimal(12, 2)
+  loanDeduction        Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of active loan installments
+  custodyDeduction     Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of custody deduction amounts
   otherDeductions      Decimal @default(0) @db.Decimal(12, 2)
 
   // Additions
@@ -4800,6 +4813,86 @@ model WpsExport {
 
   @@index([periodId])
   @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// 18.10.0 — Loans & Custodies (Phase 3 — Payroll Engine)
+// ---------------------------------------------------------------------------
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CustodyStatus {
+  OPEN
+  PARTIALLY_SETTLED
+  SETTLED
+}
+
+// Employee loan. Deducted from payroll in equal monthly installments.
+// Warning flag required when installmentsTotal > 12 (HR policy).
+model Loan {
+  id                String     @id @default(uuid()) @db.Char(36)
+  employeeId        String     @db.Char(36)
+  employee          Employee   @relation("EmployeeLoans", fields: [employeeId], references: [id])
+  principal         Decimal    @db.Decimal(12, 2)
+  installmentAmount Decimal    @db.Decimal(12, 2)
+  installmentsTotal Int
+  installmentsPaid  Int        @default(0)
+  startDate         DateTime   @db.Date
+  status            LoanStatus @default(ACTIVE)
+  reason            String?    @db.VarChar(500)
+
+  // HR policy: loans spanning > 12 months require an explicit warning + reason
+  exceedsYearWarning Boolean @default(false)
+  warningReason      String? @db.VarChar(500)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("LoanCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("LoanUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("LoanDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([employeeId, status])
+  @@index([deletedAt])
+}
+
+// Employee custody (cash advance / company asset). Finance can set
+// `deductionAmount` on the row to trigger a deduction in the next payroll
+// run. Setting it to 0 pauses deduction. Status auto-updates from OPEN →
+// PARTIALLY_SETTLED → SETTLED as settledAmount reaches amount.
+model Custody {
+  id              String        @id @default(uuid()) @db.Char(36)
+  employeeId      String        @db.Char(36)
+  employee        Employee      @relation("EmployeeCustodies", fields: [employeeId], references: [id])
+  amount          Decimal       @db.Decimal(12, 2)
+  issuedDate      DateTime      @db.Date
+  reason          String        @db.VarChar(500)
+  settledAmount   Decimal       @default(0) @db.Decimal(12, 2)
+  deductionAmount Decimal       @default(0) @db.Decimal(12, 2) // amount to deduct per payroll run; 0 = paused
+  status          CustodyStatus @default(OPEN)
+  notes           String?       @db.VarChar(500)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("CustodyCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("CustodyUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("CustodyDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([employeeId, status])
+  @@index([deletedAt])
 }
 
 // Recorded snapshot of the End-of-Service gratuity for a terminated employee.

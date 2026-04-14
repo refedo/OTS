@@ -167,7 +167,13 @@ export function PayrollPeriodDetailClient({
         {canExportNow && (
           <Button variant="outline" onClick={() => run('wps', `/api/hr/payroll-periods/${period.id}/wps`)} disabled={busy !== null}>
             <Download className="h-4 w-4 mr-1" />
-            Generate Alinma WPS
+            Alinma WPS (CSV)
+          </Button>
+        )}
+        {canExportNow && (
+          <Button variant="outline" onClick={() => run('wps-sif', `/api/hr/payroll-periods/${period.id}/wps-sif`)} disabled={busy !== null}>
+            <Download className="h-4 w-4 mr-1" />
+            WPS SIF (SAMA)
           </Button>
         )}
         {canGenPayslips && (
