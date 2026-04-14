@@ -33,7 +33,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, context) => 
   const custody = await prisma.custody.findUnique({ where: { id, deletedAt: null } });
   if (!custody) return NextResponse.json({ error: 'Custody not found' }, { status: 404 });
 
-  const updateData: Record<string, unknown> = { updatedById: session!.sub };
+  const updateData: Record<string, unknown> = { updatedById: session!.userId };
   if (parsed.data.deductionAmount !== undefined) updateData.deductionAmount = parsed.data.deductionAmount.toString();
   if (parsed.data.settledAmount !== undefined) {
     const settled = parsed.data.settledAmount;
@@ -72,7 +72,7 @@ export const DELETE = withApiContext(async (req: NextRequest, session, context) 
       where: { id },
       data: {
         deletedAt: new Date(),
-        deletedById: session!.sub,
+        deletedById: session!.userId,
         deleteReason: parsed.data.deleteReason,
       },
     });
