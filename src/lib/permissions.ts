@@ -367,6 +367,11 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.eos.view', name: 'View End-of-Service Awards', description: 'View EOS gratuity records', category: 'hr' },
       { id: 'hr.eos.calculate', name: 'Calculate End-of-Service', description: 'Run EOS gratuity calculation for a terminated employee', category: 'hr' },
       { id: 'hr.eos.pay', name: 'Mark EOS Paid', description: 'Mark an EOS award as paid', category: 'hr' },
+      // 18.10.0 — Loans & Custodies
+      { id: 'hr.loans.view', name: 'View Employee Loans', description: 'View loan records for all employees', category: 'hr' },
+      { id: 'hr.loans.manage', name: 'Manage Employee Loans', description: 'Create, edit, and cancel employee loans', category: 'hr' },
+      { id: 'hr.custodies.view', name: 'View Employee Custodies', description: 'View custody (cash advance / asset) records for all employees', category: 'hr' },
+      { id: 'hr.custodies.manage', name: 'Manage Employee Custodies', description: 'Create, edit, settle, and cancel employee custodies', category: 'hr' },
     ],
   },
   {
@@ -436,6 +441,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.employee.salaryHistory.view',
     'hr.employee.salaryHistory.manage',
     'hr.employee.salaryHistory.approveHr',
+    'hr.loans.view',
+    'hr.loans.manage',
+    'hr.custodies.view',
+    'hr.custodies.manage',
     'hr.agency.view',
     'hr.agency.manage',
     'hr.manpowerSlot.view',

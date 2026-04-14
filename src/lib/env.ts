@@ -35,6 +35,9 @@ interface EnvConfig {
   DOLIBARR_DB_PASSWORD: string | undefined;
   DOLIBARR_DB_DATABASE: string | undefined;
   DOLIBARR_DB_TABLE_PREFIX: string | undefined;
+  // 18.10.0 — WPS SIF generator
+  WPS_EMPLOYER_ID: string | undefined; // MOL Employer Identification Number (10 digits)
+  WPS_BANK_ID: string | undefined;     // Bank short code (e.g. ALINMA)
   CRON_SECRET: string | undefined;
   NEXT_PUBLIC_BASE_PATH: string | undefined;
   ENABLE_RISK_SCHEDULER: string | undefined;
@@ -108,6 +111,8 @@ function validateEnv(): EnvConfig {
     DOLIBARR_DB_PASSWORD: process.env.DOLIBARR_DB_PASSWORD,
     DOLIBARR_DB_DATABASE: process.env.DOLIBARR_DB_DATABASE,
     DOLIBARR_DB_TABLE_PREFIX: process.env.DOLIBARR_DB_TABLE_PREFIX,
+    WPS_EMPLOYER_ID: process.env.WPS_EMPLOYER_ID,
+    WPS_BANK_ID: process.env.WPS_BANK_ID,
     CRON_SECRET: process.env.CRON_SECRET,
     NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,
     ENABLE_RISK_SCHEDULER: process.env.ENABLE_RISK_SCHEDULER,

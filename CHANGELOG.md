@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.10.0] - 2026-04-14
+
+### Payroll Engine Phase 3 — Loans, Custodies & WPS SIF (Minor)
+
+#### Added
+
+- **Schema:** `Loan` and `Custody` models with `LoanStatus` / `CustodyStatus` enums.
+  `Loan` tracks principal, installment amount, total / paid installments, start date,
+  status, optional reason, and a `exceedsYearWarning` flag (required + `warningReason`
+  when `installmentsTotal > 12` per HR policy).
+  `Custody` tracks amount, issued date, reason, `settledAmount`, and a `deductionAmount`
+  that finance sets to control per-payroll recovery. Both follow the AssemblyPart
+  audit pattern (createdById / updatedById / deletedAt / deletedById / deleteReason).
+- **Migration:** `prisma/manual_migrations/add_loans_custodies.sql` — idempotent
+  `CREATE TABLE IF NOT EXISTS` for both tables + stored-procedure pattern to add
+  `loanDeduction` and `custodyDeduction` columns to `PayrollLine`.
+- **Payroll calculator:** `loanDeduction` = sum of `installmentAmount` for ACTIVE loans
+  with remaining installments. `custodyDeduction` = sum of `deductionAmount` for
+  OPEN/PARTIALLY_SETTLED custodies, capped at outstanding balance. Both added to
+  `totalDeductions` and persisted on `PayrollLine`.
+- **Payroll approval:** On CALCULATED → APPROVED transition, the approve route now
+  advances `installmentsPaid` on each active loan (auto-completing when fully paid)
+  and increments `settledAmount` on custodies (auto-settling when balance reaches zero).
+- **API routes:**
+  - `GET/POST /api/hr/loans` — list/create loans (`employeeId` query param required for GET)
+  - `PUT/DELETE /api/hr/loans/[id]` — update status/reason or soft-cancel
+  - `GET/POST /api/hr/custodies` — list/create custodies
+  - `PUT/DELETE /api/hr/custodies/[id]` — update deductionAmount/settledAmount or soft-delete
+  - `GET /api/hr/payroll-periods/[id]/wps-sif` — SIF validation report
+  - `POST /api/hr/payroll-periods/[id]/wps-sif` — generate SAMA WPS SIF file
+- **WPS SIF generator:** `src/lib/services/hr/wps-sif-generator.ts` outputs a
+  pipe-delimited `.sif` file (EH employer header + ED per employee) per the Saudi
+  Wage Protection System / Mudad spec. Validates IBANs (24 chars, `SA` prefix) and
+  National IDs before generation; returns a structured error report on failure.
+  File saved under `public/outputs/wps/sif/WPS_HEXA_YYYYMM_RUN<id>.sif`.
+  Tracked in the existing `WpsExport` table with `fileFormat = 'SIF'`.
+- **Payslip PDF:** Loan and Custody deduction rows now appear conditionally in the
+  deductions column when the amounts are non-zero.
+- **UI:** New "Finance" tab on `/hr/employees/[id]` (gated by `hr.loans.view` or
+  `hr.custodies.view`). Shows 4 KPI tiles + vertical loan cards (with progress bar,
+  installment breakdown, cancel button) + custody cards (with settlement progress bar,
+  inline deduction-amount editor). "Alinma WPS (CSV)" and "WPS SIF (SAMA)" buttons
+  added to the payroll period detail page.
+- **Permissions:** `hr.loans.{view,manage}` and `hr.custodies.{view,manage}` —
+  all four added to the HR role bundle.
+- **Env vars:** `WPS_EMPLOYER_ID` (MOL EIN, 10 digits) and `WPS_BANK_ID` (bank
+  short code) added to `src/lib/env.ts` — required for SIF generation, ignored
+  otherwise.
+
+---
+
+## [18.9.1] - 2026-04-14
+
+### Employee History Tab — UI Polish (Patch)
+
+#### Changed
+
+- **`src/components/hr/employee-history-tab.tsx`** — Complete visual overhaul of
+  the dual position + salary timeline on `/hr/employees/[id]`:
+  - **Position timeline** now renders as a vertical timeline with colored dot
+    connectors. Current row (open `effectiveTo`) gets a filled sky-blue dot;
+    historical rows get a hollow slate dot. Each entry has a color-coded reason
+    badge (emerald for promotions, sky for transfers, rose for exits), date range
+    with arrow, department/section meta, and a "Current" emerald badge.
+  - **Salary cards** show a clean 2-column allowance breakdown (Basic / Housing /
+    Transport / Mobile / Food / Other) with `SAR` labels, plus a bordered total
+    package line in bold. Active salary rows use an emerald tint. Status badges
+    are now icon-equipped and color-coded per state (emerald APPROVED, amber
+    PENDING_HR, orange PENDING_CEO, rose REJECTED, slate DRAFT).
+  - **Add Salary dialog** gains a live total-package preview tile that updates as
+    the user types, and the "Submit immediately" checkbox is styled as a sky
+    info-box instead of a bare checkbox.
+  - Loading state uses a centred spinner; error state uses a rose alert box.
+  - Empty states use a dashed-border placeholder with a ghost icon.
+- **`CLAUDE.md`** — Added "Frontend Design Guidelines" section documenting the
+  OTS page shell, hero banner, KPI tile, content card, timeline row, status badge,
+  salary breakdown, typography, and responsive-grid patterns that all HR/admin
+  pages must follow.
+
+---
+
 ## [18.1.0] - 2026-04-12
 
 ### HR / Payroll Module — Phase 2: Attendance, Leaves & Overtime Ingestion (Minor)

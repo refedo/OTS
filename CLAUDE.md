@@ -3,7 +3,11 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `18.9.0` — **Minor:** HR/Payroll module redesign — **Phase 1: employment + salary history foundation**. Per Walid's requirement that "HR knows that this employee was a fabricator from date x to date y with a basic of xxx, and then he got promoted and become a foreman from date z, with a basic of nnn", OTS now tracks each employee's position and compensation as two independent timelines with contiguous date ranges and a single open row at a time. Ships two new Prisma models: (a) `EmployeePositionHistory` with `effectiveFrom` / `effectiveTo` date range, `positionTitle`, optional section/division/`departmentId`, and a `EmployeePositionChangeReason` enum covering HIRED / PROMOTED / TRANSFERRED / DEMOTED / ROLE_CHANGE / RESIGNED / TERMINATED / REHIRED; (b) `EmployeeSalaryHistory` with snapshot columns for `basicSalary` + housing / transport / mobile / food / other allowances (all Decimal(12,2)), an `EmployeeSalaryChangeReason` enum (HIRED / ANNUAL_INCREMENT / PROMOTION / ADJUSTMENT / COLA / CORRECTION / DEMOTION), and a full CEO-signed approval cycle — `EmployeeSalaryApprovalStatus` (DRAFT → PENDING_HR → PENDING_CEO → APPROVED / REJECTED) with dedicated submittedBy / hrApprovedBy / ceoApprovedBy / rejectedBy audit fields. Per Walid's explicit rule "only CEO approves a raise — it goes in a cycle approval but the final approval belongs only to a CEO", the new permission `hr.employee.salaryHistory.approveCeo` is CEO-only; HR gets `approveHr` (forwards to CEO) plus the `manage` permissions to draft and submit. Both models use `char(36)` UUIDs, the AssemblyPart audit pattern (createdById / updatedById / deletedAt / deletedById / deleteReason), and have back-relations wired on `User`, `Department`, and `Employee`. Idempotent manual migration at `prisma/manual_migrations/add_employee_history.sql` uses `CREATE TABLE IF NOT EXISTS` for both tables with full FK constraints to `Employee(id)` (CASCADE), `Department(id)` (SET NULL), and `User(id)` (SET NULL on audit FKs). Backfill script `scripts/backfill-employee-history.ts` seeds one open HIRED row per existing Employee dated from `dateOfJoining`, mirroring the current `occupation` + section + division + departmentId + compensation as the "anchor" the payroll calculator will resolve against. Six new permission IDs in `src/lib/permissions.ts` under the HR category: `hr.employee.positionHistory.{view,manage}`, `hr.employee.salaryHistory.{view,manage,approveHr,approveCeo}`; HR bundle gets everything except `approveCeo`, CEO role gets all via `ALL_PERMISSIONS.map`. `scripts/update-hr-role-permissions.ts` is extended to merge the new perms into Walid's existing runtime HR role and to grant `approveCeo` to CEO — idempotent, safe to re-run. Seven new API routes: `GET/POST /api/hr/employees/[id]/position-history`, `PUT/DELETE .../position-history/[historyId]`, `GET/POST /api/hr/employees/[id]/salary-history`, `PUT/DELETE .../salary-history/[historyId]`, and the action route `POST .../salary-history/[historyId]/status` which enforces the valid state transitions server-side and — on the final `approveCeo` step only — closes the prior open row, sets the new row's `effectiveTo` to null, and mirrors the new comp onto `Employee.basicSalary` + allowances so the legacy payroll page keeps working unchanged. Position-history `POST` also mirrors the new position onto `Employee.occupation` / section / division / departmentId unless `syncEmployeeMaster: false` is passed. DRAFT salary rows are the only mutable state — once PENDING they are frozen except through the /status route (reject + re-draft to correct). New UI: `src/components/hr/employee-history-tab.tsx` renders a dual timeline inside a new "History" tab on `/hr/employees/[id]`, gated by `hr.employee.{position,salary}History.view`. Each row shows the effective date range, full comp breakdown, status badge, linked position change, submitter/approver audit trail, and context-aware action buttons (Submit to HR / HR approve / CEO approve / Reject) that appear only when the current user holds the matching permission. Draft dialog lets HR record a raise with an optional "Submit for HR approval immediately" checkbox that pushes it straight to PENDING_HR on save. `src/app/hr/employees/[id]/page.tsx` wraps the existing `EmployeeForm` in a new client component `EmployeeDetailTabs` with two top-level tabs (Record / History); users without either history-view permission see the form inline exactly as before. Pure foundation release — the payroll calculator rewrite (Phase 2), loans / custody / commissions tables (Phase 3), and per-employee SOA + payslip PDF export (Phase 4) depend on this but land in separate releases. No changes to existing payroll or leaves code paths; Walid's ongoing 18.8.2 Dolibarr leaves sync fix is unaffected.
+**Current version:** `18.10.0` — **Minor:** Payroll Engine Phase 3 — **Loans, Custodies, WPS SIF generator**. Ships two new Prisma models (`Loan`, `Custody`) with full CRUD APIs and a Finance tab on the employee detail page. `Loan` tracks monthly installment deductions with a year-warning flag (required when `installmentsTotal > 12`). `Custody` tracks cash advances / company assets with a per-custody `deductionAmount` that finance sets to control per-payroll recovery. Both integrate into the payroll calculator: `loanDeduction` sums `installmentAmount` for all ACTIVE loans with remaining installments; `custodyDeduction` sums `deductionAmount` for OPEN/PARTIALLY_SETTLED custodies capped at the outstanding balance. Two new `Decimal(12,2)` columns (`loanDeduction`, `custodyDeduction`) added to `PayrollLine` via idempotent stored-procedure migration (`prisma/manual_migrations/add_loans_custodies.sql`). Payroll period approval now advances `installmentsPaid` on loans and `settledAmount` on custodies, auto-completing loans and auto-settling custodies when the balance reaches zero. Payslip PDF updated to conditionally render Loan/Custody deduction rows. New `src/lib/services/hr/wps-sif-generator.ts` generates a SAMA WPS SIF file (pipe-delimited, EH header + ED records per employee) alongside the existing Alinma CSV; exposed via `POST /api/hr/payroll-periods/[id]/wps-sif` with a `GET` validation endpoint that reports missing IBANs / National IDs before generation. Both `WPS_EMPLOYER_ID` and `WPS_BANK_ID` env vars added to `src/lib/env.ts`. Four new permissions: `hr.loans.{view,manage}` and `hr.custodies.{view,manage}` — all four added to the HR role bundle. Employee detail page gains a "Finance" tab (gated by `hr.loans.view || hr.custodies.view`) showing KPI tiles for active loan count, loan balance, open custody count, and outstanding custody balance, plus vertical cards for each loan (with progress bar + cancel) and custody (with inline deduction-amount editor).
+
+**Previous version:** `18.9.1` — **Patch:** Employee history tab UI beautification + Frontend Design Guidelines in CLAUDE.md.
+
+**Previous version:** `18.9.0` — **Minor:** HR/Payroll module redesign — **Phase 1: employment + salary history foundation**. Per Walid's requirement that "HR knows that this employee was a fabricator from date x to date y with a basic of xxx, and then he got promoted and become a foreman from date z, with a basic of nnn", OTS now tracks each employee's position and compensation as two independent timelines with contiguous date ranges and a single open row at a time. Ships two new Prisma models: (a) `EmployeePositionHistory` with `effectiveFrom` / `effectiveTo` date range, `positionTitle`, optional section/division/`departmentId`, and a `EmployeePositionChangeReason` enum covering HIRED / PROMOTED / TRANSFERRED / DEMOTED / ROLE_CHANGE / RESIGNED / TERMINATED / REHIRED; (b) `EmployeeSalaryHistory` with snapshot columns for `basicSalary` + housing / transport / mobile / food / other allowances (all Decimal(12,2)), an `EmployeeSalaryChangeReason` enum (HIRED / ANNUAL_INCREMENT / PROMOTION / ADJUSTMENT / COLA / CORRECTION / DEMOTION), and a full CEO-signed approval cycle — `EmployeeSalaryApprovalStatus` (DRAFT → PENDING_HR → PENDING_CEO → APPROVED / REJECTED) with dedicated submittedBy / hrApprovedBy / ceoApprovedBy / rejectedBy audit fields. Per Walid's explicit rule "only CEO approves a raise — it goes in a cycle approval but the final approval belongs only to a CEO", the new permission `hr.employee.salaryHistory.approveCeo` is CEO-only; HR gets `approveHr` (forwards to CEO) plus the `manage` permissions to draft and submit. Both models use `char(36)` UUIDs, the AssemblyPart audit pattern (createdById / updatedById / deletedAt / deletedById / deleteReason), and have back-relations wired on `User`, `Department`, and `Employee`. Idempotent manual migration at `prisma/manual_migrations/add_employee_history.sql` uses `CREATE TABLE IF NOT EXISTS` for both tables with full FK constraints to `Employee(id)` (CASCADE), `Department(id)` (SET NULL), and `User(id)` (SET NULL on audit FKs). Backfill script `scripts/backfill-employee-history.ts` seeds one open HIRED row per existing Employee dated from `dateOfJoining`, mirroring the current `occupation` + section + division + departmentId + compensation as the "anchor" the payroll calculator will resolve against. Six new permission IDs in `src/lib/permissions.ts` under the HR category: `hr.employee.positionHistory.{view,manage}`, `hr.employee.salaryHistory.{view,manage,approveHr,approveCeo}`; HR bundle gets everything except `approveCeo`, CEO role gets all via `ALL_PERMISSIONS.map`. `scripts/update-hr-role-permissions.ts` is extended to merge the new perms into Walid's existing runtime HR role and to grant `approveCeo` to CEO — idempotent, safe to re-run. Seven new API routes: `GET/POST /api/hr/employees/[id]/position-history`, `PUT/DELETE .../position-history/[historyId]`, `GET/POST /api/hr/employees/[id]/salary-history`, `PUT/DELETE .../salary-history/[historyId]`, and the action route `POST .../salary-history/[historyId]/status` which enforces the valid state transitions server-side and — on the final `approveCeo` step only — closes the prior open row, sets the new row's `effectiveTo` to null, and mirrors the new comp onto `Employee.basicSalary` + allowances so the legacy payroll page keeps working unchanged. Position-history `POST` also mirrors the new position onto `Employee.occupation` / section / division / departmentId unless `syncEmployeeMaster: false` is passed. DRAFT salary rows are the only mutable state — once PENDING they are frozen except through the /status route (reject + re-draft to correct). New UI: `src/components/hr/employee-history-tab.tsx` renders a dual timeline inside a new "History" tab on `/hr/employees/[id]`, gated by `hr.employee.{position,salary}History.view`. Each row shows the effective date range, full comp breakdown, status badge, linked position change, submitter/approver audit trail, and context-aware action buttons (Submit to HR / HR approve / CEO approve / Reject) that appear only when the current user holds the matching permission. Draft dialog lets HR record a raise with an optional "Submit for HR approval immediately" checkbox that pushes it straight to PENDING_HR on save. `src/app/hr/employees/[id]/page.tsx` wraps the existing `EmployeeForm` in a new client component `EmployeeDetailTabs` with two top-level tabs (Record / History); users without either history-view permission see the form inline exactly as before. Pure foundation release — the payroll calculator rewrite (Phase 2), loans / custody / commissions tables (Phase 3), and per-employee SOA + payslip PDF export (Phase 4) depend on this but land in separate releases. No changes to existing payroll or leaves code paths; Walid's ongoing 18.8.2 Dolibarr leaves sync fix is unaffected.
 
 **Previous version:** `18.8.2` — **Patch:** Trim the Dolibarr holidays SELECT to only the columns OTS actually reads. 18.8.1 dropped `h.nb_open_day` after the first live run; the second live run then hit `Unknown column 'h.date_approval' in 'field list'` for the same reason — older Dolibarr schema. Instead of playing whack-a-mole one column at a time, `fetchApprovedDolibarrHolidays()` now selects only `rowid`, `fk_user`, `date_debut`, `date_fin`, `statut`, `description`, `date_create` plus the JOINed `t.code` / `t.label`. `halfday`, `fk_type`, `date_approval` and `nb_open_day` are all dropped — none were read anywhere in `sync-dolibarr-leaves.ts`. `DolibarrHolidayDbRow` is slimmed down to match. The query should now be portable across every Dolibarr release we care about.
 
@@ -192,6 +196,77 @@ Always filter: `where: { deletedAt: null }` in queries on soft-deletable models.
 - Add `'use client'` only when needed (event handlers, hooks, browser APIs)
 - shadcn/ui components live in `src/components/ui/` — never modify them directly
 - Use `cn()` from `@/lib/utils` for conditional classnames
+
+---
+
+## Frontend Design Guidelines
+Every HR/admin page must follow the established OTS design language. When building or beautifying a page, apply all of the following patterns:
+
+### Page Shell
+```tsx
+<div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    {/* Hero → KPI strip → content cards */}
+  </div>
+</div>
+```
+
+### Hero Banner
+Gradient banner at the top of every major page. Use a domain-appropriate color (sky/blue for HR, emerald for payroll, violet for manpower, amber for projects):
+```tsx
+<div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+  {/* decorative blobs */}
+  <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+  <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+  <div className="relative z-10">
+    <div className="flex items-center gap-3 mb-2">
+      <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+        <Icon className="h-5 w-5" />
+      </div>
+      <h1 className="text-2xl font-bold">Page Title</h1>
+    </div>
+    <p className="text-sky-100 text-sm">Subtitle</p>
+  </div>
+</div>
+```
+
+### KPI Tiles
+Row of 3–5 stat tiles below the hero. Use tone colors: `sky`, `emerald`, `amber`, `rose`, `violet`:
+```tsx
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+  <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+    <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Label</p>
+    <p className="text-2xl font-bold text-sky-700 mt-1">42</p>
+    <p className="text-xs text-sky-500 mt-0.5">sub-label</p>
+  </div>
+</div>
+```
+
+### Content Cards
+Use `rounded-2xl border bg-white shadow-sm` for main content cards. Card headers: `flex items-center justify-between px-6 py-4 border-b`.
+
+### Timeline Rows (position/history lists)
+Each timeline entry: left-side colored dot + vertical connector line, right-side content block. Current row (no `effectiveTo`) gets a filled dot in the brand color + "Current" badge in green. Historical rows get a hollow dot in `slate-300`.
+
+### Status Badges
+- `APPROVED` / `CURRENT` → `bg-emerald-100 text-emerald-700 border-emerald-200`
+- `PENDING_HR` / `PENDING_CEO` → `bg-amber-100 text-amber-700 border-amber-200`
+- `DRAFT` → `bg-slate-100 text-slate-600 border-slate-200`
+- `REJECTED` → `bg-rose-100 text-rose-700 border-rose-200`
+
+### Salary Breakdown Card
+Show allowances in a compact 2-col grid with SAR labels. Always render the total package as a larger bold number below the grid with a subtle top-border separator.
+
+### Typography
+- Section titles inside cards: `text-sm font-semibold text-slate-700`
+- Meta text (dates, authors): `text-xs text-slate-400`
+- Money amounts: always formatted `toLocaleString('en-US', {minimumFractionDigits:2})` with `SAR` prefix or suffix
+
+### Responsive
+All grids go single-column on mobile (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`). Tables switch to card stacks on `< sm`.
+
+### Trigger: when to apply this guide
+Apply these patterns any time you create a new page, add a new section to an existing page, or are asked to "beautify" or "polish" a component. The `/hr/leaves` and `/hr/payroll` pages are the canonical references — read them before starting UI work on any HR module page.
 
 ---
 
