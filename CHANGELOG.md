@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.9.1] - 2026-04-14
+
+### Employee History Tab — UI Polish (Patch)
+
+#### Changed
+
+- **`src/components/hr/employee-history-tab.tsx`** — Complete visual overhaul of
+  the dual position + salary timeline on `/hr/employees/[id]`:
+  - **Position timeline** now renders as a vertical timeline with colored dot
+    connectors. Current row (open `effectiveTo`) gets a filled sky-blue dot;
+    historical rows get a hollow slate dot. Each entry has a color-coded reason
+    badge (emerald for promotions, sky for transfers, rose for exits), date range
+    with arrow, department/section meta, and a "Current" emerald badge.
+  - **Salary cards** show a clean 2-column allowance breakdown (Basic / Housing /
+    Transport / Mobile / Food / Other) with `SAR` labels, plus a bordered total
+    package line in bold. Active salary rows use an emerald tint. Status badges
+    are now icon-equipped and color-coded per state (emerald APPROVED, amber
+    PENDING_HR, orange PENDING_CEO, rose REJECTED, slate DRAFT).
+  - **Add Salary dialog** gains a live total-package preview tile that updates as
+    the user types, and the "Submit immediately" checkbox is styled as a sky
+    info-box instead of a bare checkbox.
+  - Loading state uses a centred spinner; error state uses a rose alert box.
+  - Empty states use a dashed-border placeholder with a ghost icon.
+- **`CLAUDE.md`** — Added "Frontend Design Guidelines" section documenting the
+  OTS page shell, hero banner, KPI tile, content card, timeline row, status badge,
+  salary breakdown, typography, and responsive-grid patterns that all HR/admin
+  pages must follow.
+
+---
+
 ## [18.1.0] - 2026-04-12
 
 ### HR / Payroll Module — Phase 2: Attendance, Leaves & Overtime Ingestion (Minor)

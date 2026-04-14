@@ -1,18 +1,12 @@
 'use client';
 
 /**
- * 18.9.0 — Employment + salary history timeline for a single employee.
- * Rendered inside a tab on /hr/employees/[id]. Two stacked sections:
- *   (1) Position timeline  — promotions, transfers, role changes
- *   (2) Salary timeline    — basic + allowances, CEO-approval cycle
- *
- * All mutations are gated at the API level; this component just shows/hides
- * buttons to avoid giving users false hope on clicks they can't make.
+ * 18.9.1 — Beautified dual timeline for position + salary history.
+ * Rendered inside the "History" tab on /hr/employees/[id].
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -31,8 +25,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Check, X, Send } from 'lucide-react';
+import {
+  Loader2,
+  Plus,
+  Check,
+  X,
+  Send,
+  Briefcase,
+  TrendingUp,
+  ArrowRight,
+  Calendar,
+  Building2,
+  User,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  FileEdit,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 type PositionReason =
   | 'HIRED'
@@ -102,6 +115,8 @@ interface Props {
   canApproveCeo: boolean;
 }
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 const POSITION_REASONS: PositionReason[] = [
   'HIRED',
   'PROMOTED',
@@ -123,29 +138,98 @@ const SALARY_REASONS: SalaryReason[] = [
   'DEMOTION',
 ];
 
+const POSITION_REASON_LABELS: Record<PositionReason, string> = {
+  HIRED: 'Hired',
+  PROMOTED: 'Promoted',
+  TRANSFERRED: 'Transferred',
+  DEMOTED: 'Demoted',
+  ROLE_CHANGE: 'Role Change',
+  RESIGNED: 'Resigned',
+  TERMINATED: 'Terminated',
+  REHIRED: 'Re-hired',
+};
+
+const SALARY_REASON_LABELS: Record<SalaryReason, string> = {
+  HIRED: 'Hired',
+  ANNUAL_INCREMENT: 'Annual Increment',
+  PROMOTION: 'Promotion',
+  ADJUSTMENT: 'Adjustment',
+  COLA: 'Cost of Living',
+  CORRECTION: 'Correction',
+  DEMOTION: 'Demotion',
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function formatDate(s: string | null): string {
-  if (!s) return '—';
-  return new Date(s).toISOString().slice(0, 10);
+  if (!s) return 'Present';
+  const d = new Date(s);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function statusBadgeVariant(status: SalaryStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+function money(v: string | number): string {
+  const n = typeof v === 'string' ? parseFloat(v) : v;
+  if (Number.isNaN(n)) return '0.00';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function statusConfig(status: SalaryStatus): {
+  label: string;
+  icon: React.ReactNode;
+  classes: string;
+} {
   switch (status) {
     case 'APPROVED':
-      return 'default';
+      return {
+        label: 'Approved',
+        icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+        classes: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      };
     case 'REJECTED':
-      return 'destructive';
-    case 'DRAFT':
-      return 'outline';
+      return {
+        label: 'Rejected',
+        icon: <XCircle className="h-3.5 w-3.5" />,
+        classes: 'bg-rose-50 text-rose-700 border-rose-200',
+      };
+    case 'PENDING_HR':
+      return {
+        label: 'Pending HR',
+        icon: <Clock className="h-3.5 w-3.5" />,
+        classes: 'bg-amber-50 text-amber-700 border-amber-200',
+      };
+    case 'PENDING_CEO':
+      return {
+        label: 'Pending CEO',
+        icon: <AlertCircle className="h-3.5 w-3.5" />,
+        classes: 'bg-orange-50 text-orange-700 border-orange-200',
+      };
     default:
-      return 'secondary';
+      return {
+        label: 'Draft',
+        icon: <FileEdit className="h-3.5 w-3.5" />,
+        classes: 'bg-slate-50 text-slate-600 border-slate-200',
+      };
   }
 }
 
-function money(v: string): string {
-  const n = parseFloat(v);
-  if (Number.isNaN(n)) return v;
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function positionReasonColor(reason: PositionReason): string {
+  switch (reason) {
+    case 'PROMOTED':
+    case 'REHIRED':
+      return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    case 'TRANSFERRED':
+    case 'ROLE_CHANGE':
+      return 'bg-sky-100 text-sky-700 border-sky-200';
+    case 'DEMOTED':
+    case 'TERMINATED':
+    case 'RESIGNED':
+      return 'bg-rose-100 text-rose-700 border-rose-200';
+    default:
+      return 'bg-slate-100 text-slate-600 border-slate-200';
+  }
 }
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function EmployeeHistoryTab({
   employeeId,
@@ -183,17 +267,37 @@ export function EmployeeHistoryTab({
     void load();
   }, [load]);
 
-  return (
-    <div className="space-y-6">
-      {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-          Failed to load history: {error}
-        </div>
-      )}
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span className="text-sm">Loading history…</span>
+      </div>
+    );
+  }
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-base">Position history</CardTitle>
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        Failed to load history: {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* ── Position Timeline ── */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-sky-100">
+              <Briefcase className="h-4 w-4 text-sky-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">Position History</h3>
+              <p className="text-xs text-slate-400">{positionRows.length} record{positionRows.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
           {canManagePosition && (
             <AddPositionDialog
               employeeId={employeeId}
@@ -201,45 +305,113 @@ export function EmployeeHistoryTab({
               onSaved={() => void load()}
             />
           )}
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : positionRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No position history recorded yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {positionRows.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex flex-col gap-1 rounded-md border p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{r.positionTitle}</span>
-                      <Badge variant="outline">{r.reason}</Badge>
-                      {r.effectiveTo === null && <Badge>Current</Badge>}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDate(r.effectiveFrom)} → {formatDate(r.effectiveTo)}
-                      {r.department && <> · {r.department.name}</>}
-                      {r.section && <> · {r.section}</>}
-                      {r.division && <> · {r.division}</>}
-                    </div>
-                    {r.notes && <div className="text-xs italic">{r.notes}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-base">Salary history</CardTitle>
+        {positionRows.length === 0 ? (
+          <EmptyState icon={<Briefcase className="h-8 w-8" />} message="No position history recorded yet." />
+        ) : (
+          <div className="relative">
+            {/* Vertical connector */}
+            {positionRows.length > 1 && (
+              <div className="absolute left-[19px] top-6 bottom-6 w-px bg-slate-200" />
+            )}
+            <div className="space-y-3">
+              {positionRows.map((r, idx) => {
+                const isCurrent = r.effectiveTo === null;
+                return (
+                  <div key={r.id} className="flex gap-4">
+                    {/* Timeline dot */}
+                    <div className="relative flex-shrink-0 mt-1">
+                      <div
+                        className={cn(
+                          'w-9 h-9 rounded-full border-2 flex items-center justify-center z-10 relative',
+                          isCurrent
+                            ? 'bg-sky-500 border-sky-600 text-white shadow-md shadow-sky-200'
+                            : 'bg-white border-slate-300 text-slate-400',
+                        )}
+                      >
+                        <Briefcase className="h-4 w-4" />
+                      </div>
+                      {idx < positionRows.length - 1 && (
+                        <div className="absolute top-9 left-1/2 -translate-x-1/2 w-px h-3 bg-slate-200" />
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div
+                      className={cn(
+                        'flex-1 rounded-xl border p-4 transition-colors',
+                        isCurrent
+                          ? 'bg-sky-50/60 border-sky-200'
+                          : 'bg-white border-slate-200',
+                      )}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-slate-800 text-sm">{r.positionTitle}</span>
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border',
+                                positionReasonColor(r.reason),
+                              )}
+                            >
+                              {POSITION_REASON_LABELS[r.reason]}
+                            </span>
+                            {isCurrent && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="h-3 w-3" /> Current
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(r.effectiveFrom)}
+                              <ArrowRight className="h-3 w-3" />
+                              {formatDate(r.effectiveTo)}
+                            </span>
+                            {r.department && (
+                              <span className="flex items-center gap-1">
+                                <Building2 className="h-3 w-3" />
+                                {r.department.name}
+                              </span>
+                            )}
+                            {r.section && <span>{r.section}</span>}
+                            {r.division && <span>· {r.division}</span>}
+                          </div>
+                          {r.notes && (
+                            <p className="text-xs text-slate-500 italic mt-1">{r.notes}</p>
+                          )}
+                        </div>
+                        {r.createdBy && (
+                          <span className="flex items-center gap-1 text-xs text-slate-400 shrink-0">
+                            <User className="h-3 w-3" />
+                            {r.createdBy.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── Salary Timeline ── */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-100">
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">Salary History</h3>
+              <p className="text-xs text-slate-400">{salaryRows.length} record{salaryRows.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
           {canManageSalary && (
             <AddSalaryDialog
               employeeId={employeeId}
@@ -247,34 +419,252 @@ export function EmployeeHistoryTab({
               onSaved={() => void load()}
             />
           )}
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : salaryRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No salary history recorded yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {salaryRows.map((r) => (
-                <SalaryRowCard
-                  key={r.id}
-                  row={r}
-                  employeeId={employeeId}
-                  canManage={canManageSalary}
-                  canApproveHr={canApproveHr}
-                  canApproveCeo={canApproveCeo}
-                  onAction={() => void load()}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {salaryRows.length === 0 ? (
+          <EmptyState icon={<TrendingUp className="h-8 w-8" />} message="No salary history recorded yet." />
+        ) : (
+          <div className="space-y-3">
+            {salaryRows.map((r) => (
+              <SalaryRowCard
+                key={r.id}
+                row={r}
+                employeeId={employeeId}
+                canManage={canManageSalary}
+                canApproveHr={canApproveHr}
+                canApproveCeo={canApproveCeo}
+                onAction={() => void load()}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function EmptyState({ icon, message }: { icon: React.ReactNode; message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 text-slate-400">
+      <div className="opacity-30">{icon}</div>
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+// ─── Salary row card ──────────────────────────────────────────────────────────
+
+function SalaryRowCard({
+  row,
+  employeeId,
+  canManage,
+  canApproveHr,
+  canApproveCeo,
+  onAction,
+}: {
+  row: SalaryRow;
+  employeeId: string;
+  canManage: boolean;
+  canApproveHr: boolean;
+  canApproveCeo: boolean;
+  onAction: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function act(action: 'submit' | 'approveHr' | 'approveCeo' | 'reject') {
+    setBusy(action);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/hr/employees/${employeeId}/salary-history/${row.id}/status`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      onAction();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const isCurrent = row.effectiveTo === null && row.status === 'APPROVED';
+  const sc = statusConfig(row.status);
+
+  const basic = parseFloat(row.basicSalary || '0');
+  const housing = parseFloat(row.housingAllowance || '0');
+  const transport = parseFloat(row.transportAllowance || '0');
+  const mobile = parseFloat(row.mobileAllowance || '0');
+  const food = parseFloat(row.foodAllowance || '0');
+  const other = parseFloat(row.otherAllowances || '0');
+  const total = basic + housing + transport + mobile + food + other;
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border transition-colors',
+        isCurrent ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200',
+      )}
+    >
+      {/* Header row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
+              sc.classes,
+            )}
+          >
+            {sc.icon}
+            {sc.label}
+          </span>
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+            {SALARY_REASON_LABELS[row.reason]}
+          </span>
+          {isCurrent && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+              <CheckCircle2 className="h-3 w-3" /> Active
+            </span>
+          )}
+        </div>
+        <span className="flex items-center gap-1 text-xs text-slate-400">
+          <Calendar className="h-3 w-3" />
+          {formatDate(row.effectiveFrom)}
+          <ArrowRight className="h-3 w-3" />
+          {formatDate(row.effectiveTo)}
+        </span>
+      </div>
+
+      {/* Comp breakdown */}
+      <div className="px-4 pb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
+          {[
+            { label: 'Basic', value: basic },
+            { label: 'Housing', value: housing },
+            { label: 'Transport', value: transport },
+            { label: 'Mobile', value: mobile },
+            { label: 'Food', value: food },
+            { label: 'Other', value: other },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">{label}</span>
+              <span className="font-medium text-slate-700 tabular-nums">
+                SAR {money(value)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Package</span>
+          <span className={cn(
+            'text-base font-bold tabular-nums',
+            isCurrent ? 'text-emerald-700' : 'text-slate-800',
+          )}>
+            SAR {money(total)}
+          </span>
+        </div>
+      </div>
+
+      {/* Linked position */}
+      {row.positionHistory && (
+        <div className="mx-4 mb-3 flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-1.5 border border-slate-100">
+          <Briefcase className="h-3 w-3 text-slate-400" />
+          Linked to: <span className="font-medium">{row.positionHistory.positionTitle}</span>
+        </div>
+      )}
+
+      {/* Notes + reject reason */}
+      {row.notes && (
+        <p className="mx-4 mb-2 text-xs text-slate-500 italic">{row.notes}</p>
+      )}
+      {row.rejectReason && (
+        <div className="mx-4 mb-3 flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-1.5 border border-rose-100">
+          <XCircle className="h-3 w-3" /> Rejected: {row.rejectReason}
+        </div>
+      )}
+
+      {/* Approval trail + actions */}
+      <div className="px-4 pb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+          {row.submittedBy && (
+            <span className="flex items-center gap-1">
+              <User className="h-3 w-3" /> Submitted by {row.submittedBy.name}
+            </span>
+          )}
+          {row.hrApprovedBy && (
+            <span className="flex items-center gap-1">
+              <Check className="h-3 w-3 text-emerald-500" /> HR: {row.hrApprovedBy.name}
+            </span>
+          )}
+          {row.ceoApprovedBy && (
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> CEO: {row.ceoApprovedBy.name}
+            </span>
+          )}
+          {row.rejectedBy && (
+            <span className="flex items-center gap-1">
+              <XCircle className="h-3 w-3 text-rose-500" /> Rejected by {row.rejectedBy.name}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {row.status === 'DRAFT' && canManage && (
+            <Button size="sm" variant="outline" onClick={() => act('submit')} disabled={busy !== null}
+              className="text-xs h-8">
+              {busy === 'submit' ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Send className="mr-1 h-3 w-3" />}
+              Submit to HR
+            </Button>
+          )}
+          {row.status === 'PENDING_HR' && canApproveHr && (
+            <>
+              <Button size="sm" onClick={() => act('approveHr')} disabled={busy !== null}
+                className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
+                {busy === 'approveHr' ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Check className="mr-1 h-3 w-3" />}
+                HR Approve
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => act('reject')} disabled={busy !== null}
+                className="text-xs h-8">
+                <X className="mr-1 h-3 w-3" /> Reject
+              </Button>
+            </>
+          )}
+          {row.status === 'PENDING_CEO' && canApproveCeo && (
+            <>
+              <Button size="sm" onClick={() => act('approveCeo')} disabled={busy !== null}
+                className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700">
+                {busy === 'approveCeo' ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle2 className="mr-1 h-3 w-3" />}
+                CEO Approve
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => act('reject')} disabled={busy !== null}
+                className="text-xs h-8">
+                <X className="mr-1 h-3 w-3" /> Reject
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="mx-4 mb-4 text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-1.5 border border-rose-100">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Add Position Dialog ──────────────────────────────────────────────────────
 
 function AddPositionDialog({
   employeeId,
@@ -328,50 +718,50 @@ function AddPositionDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Plus className="mr-1 h-4 w-4" /> Record change
+        <Button size="sm" variant="outline" className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Record change
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New position change</DialogTitle>
           <DialogDescription>
-            Records a promotion, transfer, or role change. The previous open row is closed
-            automatically.
+            Records a promotion, transfer, or role change. The previous open row is closed automatically.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <Label>Effective from</Label>
-            <Input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+            <Label className="text-xs font-medium text-slate-600">Effective from</Label>
+            <Input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className="mt-1" />
           </div>
           <div className="col-span-2">
-            <Label>Position title</Label>
+            <Label className="text-xs font-medium text-slate-600">Position title</Label>
             <Input
               value={positionTitle}
               onChange={(e) => setPositionTitle(e.target.value)}
               placeholder="Fabricator, Foreman, …"
+              className="mt-1"
             />
           </div>
           <div>
-            <Label>Reason</Label>
+            <Label className="text-xs font-medium text-slate-600">Reason</Label>
             <Select value={reason} onValueChange={(v) => setReason(v as PositionReason)}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {POSITION_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>
-                    {r}
+                    {POSITION_REASON_LABELS[r]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label>Department</Label>
+            <Label className="text-xs font-medium text-slate-600">Department</Label>
             <Select value={departmentId || 'none'} onValueChange={(v) => setDepartmentId(v === 'none' ? '' : v)}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue placeholder="—" />
               </SelectTrigger>
               <SelectContent>
@@ -385,10 +775,14 @@ function AddPositionDialog({
             </Select>
           </div>
           <div className="col-span-2">
-            <Label>Notes</Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Label className="text-xs font-medium text-slate-600">Notes</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" />
           </div>
-          {error && <div className="col-span-2 text-sm text-destructive">{error}</div>}
+          {error && (
+            <div className="col-span-2 text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 border border-rose-100">
+              {error}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
@@ -403,6 +797,8 @@ function AddPositionDialog({
     </Dialog>
   );
 }
+
+// ─── Add Salary Dialog ────────────────────────────────────────────────────────
 
 function AddSalaryDialog({
   employeeId,
@@ -427,6 +823,14 @@ function AddSalaryDialog({
   const [notes, setNotes] = useState('');
   const [submitNow, setSubmitNow] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const previewTotal =
+    (parseFloat(basicSalary) || 0) +
+    (parseFloat(housing) || 0) +
+    (parseFloat(transport) || 0) +
+    (parseFloat(mobile) || 0) +
+    (parseFloat(food) || 0) +
+    (parseFloat(other) || 0);
 
   async function submit() {
     setSaving(true);
@@ -473,69 +877,81 @@ function AddSalaryDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Plus className="mr-1 h-4 w-4" /> Record raise
+        <Button size="sm" variant="outline" className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Record raise
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>New salary change</DialogTitle>
           <DialogDescription>
-            Drafts a raise, increment, or adjustment. Submitting it kicks off the approval cycle
-            (HR → CEO). Only a final CEO sign-off applies the new amounts.
+            Drafts a raise, increment, or adjustment. Final approval requires CEO sign-off.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Effective from</Label>
-            <Input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+            <Label className="text-xs font-medium text-slate-600">Effective from</Label>
+            <Input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label>Reason</Label>
+            <Label className="text-xs font-medium text-slate-600">Reason</Label>
             <Select value={reason} onValueChange={(v) => setReason(v as SalaryReason)}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {SALARY_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>
-                    {r}
+                    {SALARY_REASON_LABELS[r]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          <div className="col-span-2">
+            <Label className="text-xs font-medium text-slate-600">Basic salary (SAR)</Label>
+            <Input value={basicSalary} onChange={(e) => setBasicSalary(e.target.value)} placeholder="0.00" className="mt-1" />
+          </div>
+
           <div>
-            <Label>Basic salary</Label>
-            <Input value={basicSalary} onChange={(e) => setBasicSalary(e.target.value)} placeholder="0.00" />
+            <Label className="text-xs font-medium text-slate-600">Housing (SAR)</Label>
+            <Input value={housing} onChange={(e) => setHousing(e.target.value)} placeholder="0.00" className="mt-1" />
           </div>
           <div>
-            <Label>Housing</Label>
-            <Input value={housing} onChange={(e) => setHousing(e.target.value)} placeholder="0.00" />
+            <Label className="text-xs font-medium text-slate-600">Transport (SAR)</Label>
+            <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="0.00" className="mt-1" />
           </div>
           <div>
-            <Label>Transport</Label>
-            <Input value={transport} onChange={(e) => setTransport(e.target.value)} placeholder="0.00" />
+            <Label className="text-xs font-medium text-slate-600">Mobile (SAR)</Label>
+            <Input value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="0.00" className="mt-1" />
           </div>
           <div>
-            <Label>Mobile</Label>
-            <Input value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="0.00" />
-          </div>
-          <div>
-            <Label>Food</Label>
-            <Input value={food} onChange={(e) => setFood(e.target.value)} placeholder="0.00" />
-          </div>
-          <div>
-            <Label>Other</Label>
-            <Input value={other} onChange={(e) => setOther(e.target.value)} placeholder="0.00" />
+            <Label className="text-xs font-medium text-slate-600">Food (SAR)</Label>
+            <Input value={food} onChange={(e) => setFood(e.target.value)} placeholder="0.00" className="mt-1" />
           </div>
           <div className="col-span-2">
-            <Label>Link to a position change (optional)</Label>
+            <Label className="text-xs font-medium text-slate-600">Other (SAR)</Label>
+            <Input value={other} onChange={(e) => setOther(e.target.value)} placeholder="0.00" className="mt-1" />
+          </div>
+
+          {/* Live total preview */}
+          {previewTotal > 0 && (
+            <div className="col-span-2 flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-2.5">
+              <span className="text-xs font-medium text-emerald-700">Total package</span>
+              <span className="text-sm font-bold text-emerald-800 tabular-nums">
+                SAR {money(previewTotal)}
+              </span>
+            </div>
+          )}
+
+          <div className="col-span-2">
+            <Label className="text-xs font-medium text-slate-600">Link to a position change (optional)</Label>
             <Select
               value={positionHistoryId || 'none'}
               onValueChange={(v) => setPositionHistoryId(v === 'none' ? '' : v)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue placeholder="—" />
               </SelectTrigger>
               <SelectContent>
@@ -548,20 +964,30 @@ function AddSalaryDialog({
               </SelectContent>
             </Select>
           </div>
+
           <div className="col-span-2">
-            <Label>Notes</Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Label className="text-xs font-medium text-slate-600">Notes</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" />
           </div>
-          <div className="col-span-2 flex items-center gap-2 text-sm">
+
+          <div className="col-span-2 flex items-center gap-2.5 rounded-lg bg-sky-50 border border-sky-100 px-4 py-3">
             <input
               id="submit-now"
               type="checkbox"
               checked={submitNow}
               onChange={(e) => setSubmitNow(e.target.checked)}
+              className="h-4 w-4 rounded border-sky-300 text-sky-600"
             />
-            <label htmlFor="submit-now">Submit for HR approval immediately</label>
+            <label htmlFor="submit-now" className="text-sm text-sky-700 cursor-pointer">
+              Submit for HR approval immediately
+            </label>
           </div>
-          {error && <div className="col-span-2 text-sm text-destructive">{error}</div>}
+
+          {error && (
+            <div className="col-span-2 text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 border border-rose-100">
+              {error}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
@@ -574,159 +1000,5 @@ function AddSalaryDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function SalaryRowCard({
-  row,
-  employeeId,
-  canManage,
-  canApproveHr,
-  canApproveCeo,
-  onAction,
-}: {
-  row: SalaryRow;
-  employeeId: string;
-  canManage: boolean;
-  canApproveHr: boolean;
-  canApproveCeo: boolean;
-  onAction: () => void;
-}) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function act(action: 'submit' | 'approveHr' | 'approveCeo' | 'reject') {
-    setBusy(action);
-    setError(null);
-    try {
-      const res = await fetch(
-        `/api/hr/employees/${employeeId}/salary-history/${row.id}/status`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action }),
-        },
-      );
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      onAction();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const total =
-    parseFloat(row.basicSalary || '0') +
-    parseFloat(row.housingAllowance || '0') +
-    parseFloat(row.transportAllowance || '0') +
-    parseFloat(row.mobileAllowance || '0') +
-    parseFloat(row.foodAllowance || '0') +
-    parseFloat(row.otherAllowances || '0');
-
-  return (
-    <div className="rounded-md border p-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Badge variant={statusBadgeVariant(row.status)}>{row.status.replace('_', ' ')}</Badge>
-          <Badge variant="outline">{row.reason}</Badge>
-          {row.effectiveTo === null && row.status === 'APPROVED' && <Badge>Current</Badge>}
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {formatDate(row.effectiveFrom)} → {formatDate(row.effectiveTo)}
-        </div>
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
-        <div>
-          <span className="text-muted-foreground">Basic</span> {money(row.basicSalary)}
-        </div>
-        <div>
-          <span className="text-muted-foreground">Housing</span> {money(row.housingAllowance)}
-        </div>
-        <div>
-          <span className="text-muted-foreground">Transport</span> {money(row.transportAllowance)}
-        </div>
-        <div>
-          <span className="text-muted-foreground">Mobile</span> {money(row.mobileAllowance)}
-        </div>
-        <div>
-          <span className="text-muted-foreground">Food</span> {money(row.foodAllowance)}
-        </div>
-        <div>
-          <span className="text-muted-foreground">Other</span> {money(row.otherAllowances)}
-        </div>
-        <div className="col-span-2 sm:col-span-3">
-          <span className="text-muted-foreground">Total package</span>{' '}
-          <span className="font-medium">{money(total.toString())}</span>
-        </div>
-      </div>
-      {row.notes && <div className="mt-1 text-xs italic text-muted-foreground">{row.notes}</div>}
-      {row.rejectReason && (
-        <div className="mt-1 text-xs text-destructive">Rejected: {row.rejectReason}</div>
-      )}
-      <div className="mt-2 flex flex-wrap gap-1 text-xs text-muted-foreground">
-        {row.submittedBy && <span>Submitted by {row.submittedBy.name}</span>}
-        {row.hrApprovedBy && <span>· HR: {row.hrApprovedBy.name}</span>}
-        {row.ceoApprovedBy && <span>· CEO: {row.ceoApprovedBy.name}</span>}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {row.status === 'DRAFT' && canManage && (
-          <Button size="sm" variant="outline" onClick={() => act('submit')} disabled={busy !== null}>
-            {busy === 'submit' ? (
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-            ) : (
-              <Send className="mr-1 h-3 w-3" />
-            )}
-            Submit to HR
-          </Button>
-        )}
-        {row.status === 'PENDING_HR' && canApproveHr && (
-          <>
-            <Button size="sm" onClick={() => act('approveHr')} disabled={busy !== null}>
-              {busy === 'approveHr' ? (
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-              ) : (
-                <Check className="mr-1 h-3 w-3" />
-              )}
-              HR approve
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => act('reject')}
-              disabled={busy !== null}
-            >
-              <X className="mr-1 h-3 w-3" />
-              Reject
-            </Button>
-          </>
-        )}
-        {row.status === 'PENDING_CEO' && canApproveCeo && (
-          <>
-            <Button size="sm" onClick={() => act('approveCeo')} disabled={busy !== null}>
-              {busy === 'approveCeo' ? (
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-              ) : (
-                <Check className="mr-1 h-3 w-3" />
-              )}
-              CEO approve (final)
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => act('reject')}
-              disabled={busy !== null}
-            >
-              <X className="mr-1 h-3 w-3" />
-              Reject
-            </Button>
-          </>
-        )}
-      </div>
-      {error && <div className="mt-1 text-xs text-destructive">{error}</div>}
-    </div>
   );
 }
