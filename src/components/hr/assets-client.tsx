@@ -614,6 +614,14 @@ export function AssetsClient({ canManage }: Props) {
   const [assignAsset, setAssignAsset] = useState<AssetRow | null>(null);
   const [returnAsset, setReturnAsset] = useState<AssetRow | null>(null);
   const [deleteAsset, setDeleteAsset] = useState<AssetRow | null>(null);
+  const [tipDismissed, setTipDismissed] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('ots-assets-tip-v1') === '1'
+  );
+
+  function dismissTip() {
+    localStorage.setItem('ots-assets-tip-v1', '1');
+    setTipDismissed(true);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -689,6 +697,27 @@ export function AssetsClient({ canManage }: Props) {
             </div>
           ))}
         </div>
+
+        {/* How-to tip */}
+        {!tipDismissed && (
+          <div className="rounded-xl border border-violet-200 bg-violet-50 px-5 py-4 flex items-start gap-4">
+            <div className="shrink-0 mt-0.5 p-1.5 bg-violet-100 rounded-lg">
+              <ArrowRight className="h-4 w-4 text-violet-600" />
+            </div>
+            <div className="flex-1 text-sm text-violet-800 space-y-1">
+              <p className="font-semibold text-violet-900">How to assign an asset to an employee</p>
+              <ol className="list-decimal list-inside space-y-0.5 text-violet-700">
+                <li>Click <strong>Register Asset</strong> to add the asset to the registry.</li>
+                <li>On the asset card, click the <strong>Assign</strong> button and choose an employee.</li>
+                <li>When the asset is returned, click <strong>Return</strong> on the same card and select a reason.</li>
+              </ol>
+              <p className="text-xs text-violet-500 pt-0.5">You can also see all assets assigned to a specific employee from their Employee File → Assets tab.</p>
+            </div>
+            <button onClick={dismissTip} className="shrink-0 text-violet-400 hover:text-violet-700 transition-colors" aria-label="Dismiss tip">
+              <XCircle className="h-5 w-5" />
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
