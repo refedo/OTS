@@ -477,10 +477,10 @@ export function CarMaintenanceClient({ canManage }: Props) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input className="pl-9" placeholder="Search description, vehicle, center..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <Select value={filterCar} onValueChange={setFilterCar}>
+          <Select value={filterCar || '__all__'} onValueChange={v => setFilterCar(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-[220px]"><SelectValue placeholder="All vehicles" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All vehicles</SelectItem>
+              <SelectItem value="__all__">All vehicles</SelectItem>
               {cars.map(c => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}{c.plateNumber ? ` · ${c.plateNumber}` : ''}
@@ -488,10 +488,10 @@ export function CarMaintenanceClient({ canManage }: Props) {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterType} onValueChange={setFilterType}>
+          <Select value={filterType || '__all__'} onValueChange={v => setFilterType(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-[200px]"><SelectValue placeholder="All types" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All types</SelectItem>
+              <SelectItem value="__all__">All types</SelectItem>
               {MAINTENANCE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
             </SelectContent>
           </Select>

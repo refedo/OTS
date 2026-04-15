@@ -701,21 +701,21 @@ export function AssetsClient({ canManage }: Props) {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <Select value={filterCategory || '__all__'} onValueChange={v => setFilterCategory(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All categories</SelectItem>
+              <SelectItem value="__all__">All categories</SelectItem>
               {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <Select value={filterStatus || '__all__'} onValueChange={v => setFilterStatus(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All statuses</SelectItem>
+              <SelectItem value="__all__">All statuses</SelectItem>
               <SelectItem value="AVAILABLE">Available</SelectItem>
               <SelectItem value="ASSIGNED">Assigned</SelectItem>
               <SelectItem value="UNDER_MAINTENANCE">In Maintenance</SelectItem>

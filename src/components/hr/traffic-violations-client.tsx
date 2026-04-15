@@ -192,10 +192,10 @@ function ViolationFormDialog({
           {/* Linked Car */}
           <div className="space-y-1">
             <Label>Linked Vehicle (optional)</Label>
-            <Select value={form.assetId} onValueChange={v => set('assetId', v)}>
+            <Select value={form.assetId || '__none__'} onValueChange={v => set('assetId', v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Select company vehicle..." /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None</SelectItem>
                 {cars.map(c => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}{c.plateNumber ? ` · ${c.plateNumber}` : ''} ({c.assetCode})
@@ -400,10 +400,10 @@ export function TrafficViolationsClient({ canManage }: Props) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input className="pl-9" placeholder="Search by employee or violation type..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <Select value={filterStatus || '__all__'} onValueChange={v => setFilterStatus(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-[200px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All statuses</SelectItem>
+              <SelectItem value="__all__">All statuses</SelectItem>
               <SelectItem value="PENDING">Pending</SelectItem>
               <SelectItem value="PAID_BY_EMPLOYEE">Paid by Employee</SelectItem>
               <SelectItem value="PAID_BY_COMPANY">Paid by Company</SelectItem>
