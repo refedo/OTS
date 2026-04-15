@@ -1,0 +1,153 @@
+/**
+ * GET  /api/hr/assets          — list all assets (filterable by category, status, search)
+ * POST /api/hr/assets          — create a new asset
+ *
+ * 18.12.0
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import prisma from '@/lib/db';
+import { withApiContext } from '@/lib/api-utils';
+import { logger } from '@/lib/logger';
+
+const createSchema = z.object({
+  assetCode: z.string().min(1).max(50),
+  name: z.string().min(1).max(200),
+  category: z.enum(['CAR', 'SIM_CARD', 'LAPTOP', 'TABLET', 'PHONE', 'KEY', 'TOOL', 'EQUIPMENT', 'OTHER']),
+  // Car-specific
+  plateNumber: z.string().max(30).optional(),
+  vehicleMake: z.string().max(100).optional(),
+  vehicleModel: z.string().max(100).optional(),
+  vehicleYear: z.coerce.number().int().min(1900).max(2100).optional(),
+  vehicleColor: z.string().max(50).optional(),
+  vin: z.string().max(50).optional(),
+  currentOdometer: z.coerce.number().int().min(0).optional(),
+  // SIM-specific
+  simNumber: z.string().max(30).optional(),
+  mobileNumber: z.string().max(30).optional(),
+  carrier: z.string().max(100).optional(),
+  // General
+  serialNumber: z.string().max(100).optional(),
+  make: z.string().max(100).optional(),
+  model: z.string().max(100).optional(),
+  purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  purchasePrice: z.coerce.number().min(0).optional(),
+  notes: z.string().optional(),
+});
+
+export const GET = withApiContext(async (req: NextRequest) => {
+  const { searchParams } = new URL(req.url);
+  const category = searchParams.get('category');
+  const status = searchParams.get('status');
+  const search = searchParams.get('search');
+
+  try {
+    const assets = await prisma.asset.findMany({
+      where: {
+        deletedAt: null,
+        ...(category ? { category: category as never } : {}),
+        ...(status ? { status: status as never } : {}),
+        ...(search
+          ? {
+              OR: [
+                { assetCode: { contains: search } },
+                { name: { contains: search } },
+                { plateNumber: { contains: search } },
+                { serialNumber: { contains: search } },
+                { vehicleMake: { contains: search } },
+                { vehicleModel: { contains: search } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        assetCode: true,
+        name: true,
+        category: true,
+        status: true,
+        plateNumber: true,
+        vehicleMake: true,
+        vehicleModel: true,
+        vehicleYear: true,
+        vehicleColor: true,
+        vin: true,
+        currentOdometer: true,
+        simNumber: true,
+        mobileNumber: true,
+        carrier: true,
+        serialNumber: true,
+        make: true,
+        model: true,
+        purchaseDate: true,
+        purchasePrice: true,
+        notes: true,
+        createdAt: true,
+        createdBy: { select: { id: true, name: true } },
+        assignments: {
+          where: { status: 'ACTIVE', deletedAt: null },
+          select: {
+            id: true,
+            assignedDate: true,
+            employee: { select: { id: true, fullNameEn: true, employmentId: true } },
+          },
+          take: 1,
+        },
+      },
+    });
+    return NextResponse.json(assets);
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch assets');
+    return NextResponse.json({ error: 'Failed to fetch assets' }, { status: 500 });
+  }
+});
+
+export const POST = withApiContext(async (req: NextRequest, session) => {
+  const body: unknown = await req.json();
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const d = parsed.data;
+
+  const existing = await prisma.asset.findFirst({ where: { assetCode: d.assetCode, deletedAt: null } });
+  if (existing) {
+    return NextResponse.json({ error: `Asset code "${d.assetCode}" is already in use` }, { status: 409 });
+  }
+
+  try {
+    const asset = await prisma.asset.create({
+      data: {
+        assetCode: d.assetCode,
+        name: d.name,
+        category: d.category,
+        status: 'AVAILABLE',
+        plateNumber: d.plateNumber ?? null,
+        vehicleMake: d.vehicleMake ?? null,
+        vehicleModel: d.vehicleModel ?? null,
+        vehicleYear: d.vehicleYear ?? null,
+        vehicleColor: d.vehicleColor ?? null,
+        vin: d.vin ?? null,
+        currentOdometer: d.currentOdometer ?? null,
+        simNumber: d.simNumber ?? null,
+        mobileNumber: d.mobileNumber ?? null,
+        carrier: d.carrier ?? null,
+        serialNumber: d.serialNumber ?? null,
+        make: d.make ?? null,
+        model: d.model ?? null,
+        purchaseDate: d.purchaseDate ? new Date(d.purchaseDate) : null,
+        purchasePrice: d.purchasePrice != null ? d.purchasePrice.toString() : null,
+        notes: d.notes ?? null,
+        createdById: session!.userId,
+      },
+    });
+    logger.info({ assetId: asset.id, assetCode: d.assetCode }, '[Assets] Created');
+    return NextResponse.json(asset, { status: 201 });
+  } catch (error) {
+    logger.error({ error }, 'Failed to create asset');
+    return NextResponse.json({ error: 'Failed to create asset' }, { status: 500 });
+  }
+});
