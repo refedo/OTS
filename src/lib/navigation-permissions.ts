@@ -171,6 +171,11 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/leaves': ['hr.leaves.view', 'hr.leaves.request', 'hr.leaves.viewAll', 'hr.leaves.approve'],
   '/hr/payroll': ['hr.payroll.view', 'hr.payroll.viewOwn'],
 
+  // HR Asset Management (18.12.0)
+  '/hr/assets': ['hr.assets.view', 'hr.assets.manage'],
+  '/hr/traffic-violations': ['hr.violations.view', 'hr.violations.manage'],
+  '/hr/car-maintenance': ['hr.carMaintenance.view', 'hr.carMaintenance.manage'],
+
   '/admin/identity-reconciliation': ['admin.identity.reconcile'],
 
   // Organization

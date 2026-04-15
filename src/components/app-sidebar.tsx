@@ -63,6 +63,10 @@ import {
   GitMerge,
   Banknote,
   Megaphone,
+  Car,
+  Wrench,
+  AlertOctagon,
+  PackageSearch,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -258,6 +262,9 @@ const navigationSections: NavigationSection[] = [
       { name: 'Public Holidays', href: '/hr/public-holidays', icon: CalendarClock, newSince: '2026-04-12' },
       { name: 'Leaves', href: '/hr/leaves', icon: CalendarClock, newSince: '2026-04-12' },
       { name: 'Payroll', href: '/hr/payroll', icon: Banknote, newSince: '2026-04-12' },
+      { name: 'Assets', href: '/hr/assets', icon: PackageSearch, newSince: '2026-04-15' },
+      { name: 'Traffic Violations', href: '/hr/traffic-violations', icon: AlertOctagon, newSince: '2026-04-15' },
+      { name: 'Car Maintenance', href: '/hr/car-maintenance', icon: Wrench, newSince: '2026-04-15' },
       { name: 'Identity Reconciliation', href: '/admin/identity-reconciliation', icon: Shield, newSince: '2026-04-12' },
       { name: 'HR Setup', href: '/hr/setup', icon: UserCog, newSince: '2026-04-12' },
     ],

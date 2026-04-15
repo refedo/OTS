@@ -376,6 +376,13 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.loans.manage', name: 'Manage Employee Loans', description: 'Create, edit, and cancel employee loans', category: 'hr' },
       { id: 'hr.custodies.view', name: 'View Employee Custodies', description: 'View custody (cash advance / asset) records for all employees', category: 'hr' },
       { id: 'hr.custodies.manage', name: 'Manage Employee Custodies', description: 'Create, edit, settle, and cancel employee custodies', category: 'hr' },
+      // 18.12.0 — Asset Management
+      { id: 'hr.assets.view', name: 'View Assets', description: 'View company asset registry and employee assignments', category: 'hr' },
+      { id: 'hr.assets.manage', name: 'Manage Assets', description: 'Create, edit, assign, return, and retire company assets', category: 'hr' },
+      { id: 'hr.violations.view', name: 'View Traffic Violations', description: 'View traffic violations and infractions for employees', category: 'hr' },
+      { id: 'hr.violations.manage', name: 'Manage Traffic Violations', description: 'Record, update, and close traffic violations and infractions', category: 'hr' },
+      { id: 'hr.carMaintenance.view', name: 'View Car Maintenance', description: 'View vehicle maintenance records and service history', category: 'hr' },
+      { id: 'hr.carMaintenance.manage', name: 'Manage Car Maintenance', description: 'Create and update vehicle maintenance and service records', category: 'hr' },
     ],
   },
   {

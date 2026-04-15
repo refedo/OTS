@@ -281,6 +281,20 @@ model User {
   updatedCustodies Custody[] @relation("CustodyUpdatedBy")
   deletedCustodies Custody[] @relation("CustodyDeletedBy")
 
+  // 18.12.0 — Asset Management
+  createdAssets              Asset[]                @relation("AssetCreatedBy")
+  updatedAssets              Asset[]                @relation("AssetUpdatedBy")
+  deletedAssets              Asset[]                @relation("AssetDeletedBy")
+  createdAssetAssignments    AssetAssignment[]      @relation("AssetAssignmentCreatedBy")
+  updatedAssetAssignments    AssetAssignment[]      @relation("AssetAssignmentUpdatedBy")
+  deletedAssetAssignments    AssetAssignment[]      @relation("AssetAssignmentDeletedBy")
+  createdViolations          TrafficViolation[]     @relation("ViolationCreatedBy")
+  updatedViolations          TrafficViolation[]     @relation("ViolationUpdatedBy")
+  deletedViolations          TrafficViolation[]     @relation("ViolationDeletedBy")
+  createdMaintenanceRecords  CarMaintenanceRecord[] @relation("MaintenanceCreatedBy")
+  updatedMaintenanceRecords  CarMaintenanceRecord[] @relation("MaintenanceUpdatedBy")
+  deletedMaintenanceRecords  CarMaintenanceRecord[] @relation("MaintenanceDeletedBy")
+
   // 18.11.0 — Announcements
   createdAnnouncements  Announcement[]         @relation("AnnouncementCreatedBy")
   updatedAnnouncements  Announcement[]         @relation("AnnouncementUpdatedBy")
@@ -4137,6 +4151,10 @@ model Employee {
   loans     Loan[]    @relation("EmployeeLoans")
   custodies Custody[] @relation("EmployeeCustodies")
 
+  // 18.12.0 — Asset Management
+  assetAssignments AssetAssignment[]  @relation("EmployeeAssetAssignments")
+  violations       TrafficViolation[] @relation("EmployeeViolations")
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -4970,6 +4988,217 @@ model Custody {
   deleteReason String?   @db.VarChar(500)
 
   @@index([employeeId, status])
+  @@index([deletedAt])
+}
+
+// ─── Asset Management (18.12.0) ──────────────────────────────────────────────
+
+enum AssetCategory {
+  CAR
+  SIM_CARD
+  LAPTOP
+  TABLET
+  PHONE
+  KEY
+  TOOL
+  EQUIPMENT
+  OTHER
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  UNDER_MAINTENANCE
+  RETIRED
+  DAMAGED
+  LOST
+}
+
+enum AssetAssignmentStatus {
+  ACTIVE
+  RETURNED
+}
+
+enum AssetReturnReason {
+  VACATION
+  RESIGNATION
+  TERMINATION
+  TRANSFER
+  MAINTENANCE
+  EXPIRED
+  PROJECT_END
+  OTHER
+}
+
+enum ViolationStatus {
+  PENDING
+  PAID_BY_EMPLOYEE
+  PAID_BY_COMPANY
+  DEDUCTED_FROM_PAYROLL
+}
+
+enum MaintenanceType {
+  OIL_CHANGE
+  BRAKE_SERVICE
+  TIRE_ROTATION
+  TIRE_REPLACEMENT
+  BATTERY_REPLACEMENT
+  AC_SERVICE
+  GENERAL_SERVICE
+  INSPECTION
+  REPAIR
+  ACCIDENT_REPAIR
+  FILTER_REPLACEMENT
+  SPARK_PLUGS
+  TRANSMISSION_SERVICE
+  COOLANT_FLUSH
+  OTHER
+}
+
+// Master asset registry. Each physical item (car, SIM card, laptop, key, etc.)
+// gets a single Asset row. Assignments track who holds it and when.
+model Asset {
+  id       String        @id @default(uuid()) @db.Char(36)
+  assetCode String       @unique @db.VarChar(50)
+  name     String        @db.VarChar(200)
+  category AssetCategory
+  status   AssetStatus   @default(AVAILABLE)
+
+  // Car-specific fields
+  plateNumber   String? @db.VarChar(30)
+  vehicleMake   String? @db.VarChar(100)
+  vehicleModel  String? @db.VarChar(100)
+  vehicleYear   Int?
+  vehicleColor  String? @db.VarChar(50)
+  vin           String? @db.VarChar(50)
+  currentOdometer Int?  // km
+
+  // SIM-specific
+  simNumber    String? @db.VarChar(30)
+  mobileNumber String? @db.VarChar(30)
+  carrier      String? @db.VarChar(100)
+
+  // General fields (all categories)
+  serialNumber  String?  @db.VarChar(100)
+  make          String?  @db.VarChar(100)
+  model         String?  @db.VarChar(100)
+  purchaseDate  DateTime? @db.Date
+  purchasePrice Decimal?  @db.Decimal(12, 2)
+  notes         String?   @db.Text
+
+  assignments        AssetAssignment[]      @relation("AssetAssignments")
+  maintenanceRecords CarMaintenanceRecord[] @relation("AssetMaintenanceRecords")
+  violations         TrafficViolation[]     @relation("AssetViolations")
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("AssetCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("AssetUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("AssetDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([category, status])
+  @@index([deletedAt])
+}
+
+// Time-range assignment of an Asset to an Employee.
+// returnedDate=null means the employee currently holds the asset.
+model AssetAssignment {
+  id           String                @id @default(uuid()) @db.Char(36)
+  assetId      String                @db.Char(36)
+  asset        Asset                 @relation("AssetAssignments", fields: [assetId], references: [id])
+  employeeId   String                @db.Char(36)
+  employee     Employee              @relation("EmployeeAssetAssignments", fields: [employeeId], references: [id])
+  assignedDate DateTime              @db.Date
+  returnedDate DateTime?             @db.Date
+  status       AssetAssignmentStatus @default(ACTIVE)
+  returnReason AssetReturnReason?
+  notes        String?               @db.VarChar(500)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("AssetAssignmentCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("AssetAssignmentUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("AssetAssignmentDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([assetId, status])
+  @@index([employeeId, status])
+  @@index([deletedAt])
+}
+
+// Traffic violation / fine linked to an employee and optionally a company car.
+// When deductFromPayroll=true the payroll calculator will deduct violationAmount
+// from the employee's next payslip once status=PAID_BY_COMPANY.
+model TrafficViolation {
+  id               String          @id @default(uuid()) @db.Char(36)
+  employeeId       String          @db.Char(36)
+  employee         Employee        @relation("EmployeeViolations", fields: [employeeId], references: [id])
+  assetId          String?         @db.Char(36)
+  asset            Asset?          @relation("AssetViolations", fields: [assetId], references: [id])
+  violationDate    DateTime        @db.Date
+  violationType    String          @db.VarChar(200)
+  violationAmount  Decimal         @db.Decimal(12, 2)
+  status           ViolationStatus @default(PENDING)
+  referenceNumber  String?         @db.VarChar(100)
+  issuingAuthority String?         @db.VarChar(200)
+  deductFromPayroll Boolean        @default(false)
+  notes            String?         @db.VarChar(500)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("ViolationCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("ViolationUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("ViolationDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([employeeId, violationDate])
+  @@index([assetId])
+  @@index([deletedAt])
+}
+
+// Comprehensive maintenance log for company vehicles.
+model CarMaintenanceRecord {
+  id                  String          @id @default(uuid()) @db.Char(36)
+  assetId             String          @db.Char(36)
+  asset               Asset           @relation("AssetMaintenanceRecords", fields: [assetId], references: [id])
+  maintenanceDate     DateTime        @db.Date
+  maintenanceType     MaintenanceType
+  description         String          @db.VarChar(500)
+  serviceCenter       String?         @db.VarChar(200)
+  odometer            Int?            // km at time of service
+  cost                Decimal?        @db.Decimal(12, 2)
+  nextServiceDate     DateTime?       @db.Date
+  nextServiceOdometer Int?            // km for next service
+  partsReplaced       String?         @db.VarChar(500)
+  invoiceNumber       String?         @db.VarChar(100)
+  technician          String?         @db.VarChar(200)
+  notes               String?         @db.Text
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("MaintenanceCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("MaintenanceUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("MaintenanceDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([assetId, maintenanceDate])
   @@index([deletedAt])
 }
 
