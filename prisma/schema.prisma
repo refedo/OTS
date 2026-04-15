@@ -302,6 +302,11 @@ model User {
   announcementTargets   AnnouncementTarget[]   @relation("AnnouncementTargets")
   announcementDismissals AnnouncementDismissal[] @relation("AnnouncementDismissals")
 
+  // Phase 4 — Manpower Billing
+  createdManpowerInvoiceDrafts ManpowerInvoiceDraft[] @relation("ManpowerInvoiceDraftCreatedBy")
+  updatedManpowerInvoiceDrafts ManpowerInvoiceDraft[] @relation("ManpowerInvoiceDraftUpdatedBy")
+  deletedManpowerInvoiceDrafts ManpowerInvoiceDraft[] @relation("ManpowerInvoiceDraftDeletedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
