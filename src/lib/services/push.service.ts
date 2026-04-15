@@ -71,6 +71,11 @@ function getNotificationActions(type: NotificationType, relatedEntityType?: stri
 function getNotificationUrl(type: NotificationType, relatedEntityType?: string | null, relatedEntityId?: string | null): string {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
+  // Announcement notifications go to the announcements page
+  if (type === 'ANNOUNCEMENT') {
+    return `${basePath}/notifications/announcements`;
+  }
+
   if (!relatedEntityType || !relatedEntityId) return `${basePath}/notifications`;
 
   // Conversation messages open the conversation thread directly
@@ -85,6 +90,7 @@ function getNotificationUrl(type: NotificationType, relatedEntityType?: string |
     rfi: '/rfi',
     ncr: '/ncr',
     document: '/documents',
+    announcement: '/notifications/announcements',
   };
 
   const route = entityRoutes[relatedEntityType];

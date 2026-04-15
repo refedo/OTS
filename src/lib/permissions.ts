@@ -233,6 +233,10 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'events.view', name: 'View System Events', description: 'View system events log', category: 'notifications' },
       { id: 'events.manage', name: 'Manage Events', description: 'Manage system events', category: 'notifications' },
       { id: 'governance.view', name: 'View Governance', description: 'Access governance center', category: 'notifications' },
+      // 18.11.0 — Announcements
+      { id: 'announcements.view', name: 'View Announcements', description: 'View company-wide and targeted announcements', category: 'notifications' },
+      { id: 'announcements.create', name: 'Create Announcements', description: 'Draft and publish new announcements (HR team)', category: 'notifications' },
+      { id: 'announcements.manage', name: 'Manage Announcements', description: 'Edit, deactivate, and delete any announcement', category: 'notifications' },
     ],
   },
   {

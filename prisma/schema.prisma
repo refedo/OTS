@@ -281,6 +281,13 @@ model User {
   updatedCustodies Custody[] @relation("CustodyUpdatedBy")
   deletedCustodies Custody[] @relation("CustodyDeletedBy")
 
+  // 18.11.0 — Announcements
+  createdAnnouncements  Announcement[]         @relation("AnnouncementCreatedBy")
+  updatedAnnouncements  Announcement[]         @relation("AnnouncementUpdatedBy")
+  deletedAnnouncements  Announcement[]         @relation("AnnouncementDeletedBy")
+  announcementTargets   AnnouncementTarget[]   @relation("AnnouncementTargets")
+  announcementDismissals AnnouncementDismissal[] @relation("AnnouncementDismissals")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -2620,6 +2627,12 @@ enum NotificationType {
   REJECTED
   SYSTEM
   TASK_MESSAGE
+  ANNOUNCEMENT
+}
+
+enum AnnouncementTargetType {
+  ALL
+  SPECIFIC
 }
 
 model Notification {
@@ -2695,6 +2708,71 @@ model UserNotificationPreference {
   @@unique([userId, notificationType])
   @@index([userId])
   @@map("user_notification_preferences")
+}
+
+// ============================================
+// ANNOUNCEMENTS MODULE
+// ============================================
+
+model Announcement {
+  id           String                 @id @default(uuid()) @db.Char(36)
+  serialNumber String                 @unique @db.VarChar(20) // ANN-26-001
+  subject      String                 @db.VarChar(255)
+  content      String                 @db.Text
+  startDate    DateTime
+  endDate      DateTime
+  bannerEnabled Boolean               @default(false)
+  targetType   AnnouncementTargetType @default(ALL)
+  isActive     Boolean                @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String    @db.Char(36)
+  updatedById String?   @db.Char(36)
+  deletedAt   DateTime?
+  deletedById String?   @db.Char(36)
+  deleteReason String?  @db.VarChar(255)
+
+  createdBy  User  @relation("AnnouncementCreatedBy", fields: [createdById], references: [id])
+  updatedBy  User? @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id])
+  deletedBy  User? @relation("AnnouncementDeletedBy", fields: [deletedById], references: [id])
+
+  targets    AnnouncementTarget[]
+  dismissals AnnouncementDismissal[]
+
+  @@index([isActive])
+  @@index([startDate, endDate])
+  @@index([createdById])
+  @@map("announcements")
+}
+
+model AnnouncementTarget {
+  id             String @id @default(uuid()) @db.Char(36)
+  announcementId String @db.Char(36)
+  userId         String @db.Char(36)
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation("AnnouncementTargets", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+  @@map("announcement_targets")
+}
+
+model AnnouncementDismissal {
+  id             String   @id @default(uuid()) @db.Char(36)
+  announcementId String   @db.Char(36)
+  userId         String   @db.Char(36)
+  dismissedAt    DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation("AnnouncementDismissals", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+  @@map("announcement_dismissals")
 }
 
 // ============================================

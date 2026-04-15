@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.11.0] - 2026-04-15
+
+### Notification & Announcement System (Minor)
+
+#### Added
+
+- **Schema:** Three new Prisma models — `Announcement`, `AnnouncementTarget`, `AnnouncementDismissal` with a new `AnnouncementTargetType` enum (`ALL` / `SPECIFIC`). `ANNOUNCEMENT` added to `NotificationType` enum.
+- **Migration:** `prisma/manual_migrations/add_announcements.sql` — idempotent stored-procedure pattern creates all three tables and extends the `NotificationType` enum on `notifications` and `user_notification_preferences`.
+- **Serial numbers:** Auto-generated `ANN-YY-NNN` format (e.g. `ANN-26-001`), year-aware and auto-incrementing per year.
+- **API routes:**
+  - `GET/POST /api/announcements` — list (permission-filtered) / create announcements
+  - `GET/PUT/DELETE /api/announcements/[id]` — single announcement CRUD
+  - `GET /api/announcements/active` — returns active, in-window announcements for the current user with dismissal state
+  - `POST /api/announcements/[id]/dismiss` — records user dismissal of a banner (idempotent)
+- **Permissions:** Three new permissions under `notifications` category: `announcements.view`, `announcements.create`, `announcements.manage`
+- **Announcements page:** `/notifications/announcements` with violet hero banner, 4 KPI tiles (Live / Upcoming / Banners / Total), search + status filter, expandable card list with left-border color coding per status, and a full create/edit dialog
+- **Create/Edit dialog:** Subject, content (multi-line), start/end datetime pickers, banner toggle, target audience (`All Employees` or `Specific Employees` with inline searchable employee picker)
+- **Status badges:** Active (emerald), Upcoming (sky), Expired (slate), Inactive (rose) with icons
+- **AnnouncementBanner component:** Floating bottom-right card (violet gradient) polling `/api/announcements/active` on mount and every 5 min; paginated when multiple active banners; per-banner dismiss; "View All" link; injected into `ResponsiveLayout` so it appears site-wide
+- **Sidebar:** "Announcements" entry (Megaphone icon, `newSince` badge) under the Notifications section
+- **Navigation permissions:** `/notifications/announcements` route added to `NAVIGATION_PERMISSIONS`
+- **Push routing:** `getNotificationUrl()` now routes `ANNOUNCEMENT` type and `announcement` entity type to `/notifications/announcements`
+
+---
+
 ## [18.10.0] - 2026-04-14
 
 ### Payroll Engine Phase 3 — Loans, Custodies & WPS SIF (Minor)

@@ -6,6 +6,7 @@ import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 import { RouteGuard } from '@/components/RouteGuard';
 import TopBar from '@/components/TopBar';
+import { AnnouncementBanner } from '@/components/announcements/AnnouncementBanner';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
@@ -17,6 +18,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <main className={`flex-1 transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} pt-14 print:!ml-0 print:!pt-0`}>
         <RouteGuard>{children}</RouteGuard>
       </main>
+      <AnnouncementBanner />
     </div>
   );
 }
