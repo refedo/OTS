@@ -601,6 +601,134 @@ function DeleteDialog({ open, asset, onClose, onDeleted }: {
   );
 }
 
+// ─── Assignment History Dialog ────────────────────────────────────────────────
+
+interface AssignmentEntry {
+  id: string;
+  assignedDate: string;
+  returnedDate: string | null;
+  returnReason: string | null;
+  status: 'ACTIVE' | 'RETURNED';
+  notes: string | null;
+  employee: { id: string; fullNameEn: string; employmentId: string; occupation: string | null };
+  createdBy: { id: string; name: string } | null;
+}
+
+function AssetHistoryDialog({ open, asset, onClose }: {
+  open: boolean; asset: AssetRow | null; onClose: () => void;
+}) {
+  const [entries, setEntries] = useState<AssignmentEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (!open || !asset) return;
+    setLoadingHistory(true);
+    fetch(`/api/hr/assets/${asset.id}`)
+      .then(r => r.json())
+      .then(d => setEntries(Array.isArray(d.assignments) ? d.assignments : []))
+      .catch(() => setEntries([]))
+      .finally(() => setLoadingHistory(false));
+  }, [open, asset]);
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="text-violet-500">{asset && categoryIcon(asset.category, 'h-4 w-4')}</span>
+            Assignment Log — {asset?.name}
+          </DialogTitle>
+          <DialogDescription>
+            Full history of who held <strong>{asset?.assetCode}</strong> and when.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loadingHistory ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="text-center py-10 space-y-2">
+            <Clock className="h-10 w-10 text-slate-200 mx-auto" />
+            <p className="text-slate-400 text-sm">No assignment history yet.</p>
+          </div>
+        ) : (
+          <div className="relative mt-1">
+            {/* vertical timeline spine */}
+            <div className="absolute left-[10px] top-1 bottom-4 w-px bg-slate-200" />
+
+            <div className="space-y-3">
+              {entries.map(a => {
+                const isCurrent = a.status === 'ACTIVE';
+                const returnLabel = RETURN_REASONS.find(r => r.value === a.returnReason)?.label;
+                return (
+                  <div key={a.id} className="relative pl-8">
+                    {/* timeline dot */}
+                    <div className={cn(
+                      'absolute left-0 top-2 h-5 w-5 rounded-full border-2 flex items-center justify-center',
+                      isCurrent
+                        ? 'bg-sky-500 border-sky-500'
+                        : 'bg-white border-slate-300'
+                    )}>
+                      {isCurrent && <div className="h-2 w-2 rounded-full bg-white" />}
+                    </div>
+
+                    <div className={cn(
+                      'rounded-xl border p-3.5 space-y-2',
+                      isCurrent ? 'bg-sky-50 border-sky-200' : 'bg-white border-slate-200'
+                    )}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {a.employee.fullNameEn}
+                            <span className="ml-1.5 text-xs font-mono text-slate-400">{a.employee.employmentId}</span>
+                          </p>
+                          {a.employee.occupation && (
+                            <p className="text-xs text-slate-500 mt-0.5">{a.employee.occupation}</p>
+                          )}
+                        </div>
+                        {isCurrent ? (
+                          <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700 border border-sky-200">
+                            Currently Assigned
+                          </span>
+                        ) : (
+                          <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                            Returned
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-slate-400" />
+                          Assigned {fmtDate(a.assignedDate)}
+                        </span>
+                        {a.returnedDate && (
+                          <span className="flex items-center gap-1">
+                            <RotateCcw className="h-3 w-3 text-slate-400" />
+                            Returned {fmtDate(a.returnedDate)}
+                          </span>
+                        )}
+                      </div>
+
+                      {returnLabel && (
+                        <p className="text-xs text-slate-400">
+                          Return reason: <span className="text-slate-600 font-medium">{returnLabel}</span>
+                        </p>
+                      )}
+                      {a.notes && <p className="text-xs text-slate-400 italic">"{a.notes}"</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AssetsClient({ canManage }: Props) {
@@ -614,6 +742,7 @@ export function AssetsClient({ canManage }: Props) {
   const [assignAsset, setAssignAsset] = useState<AssetRow | null>(null);
   const [returnAsset, setReturnAsset] = useState<AssetRow | null>(null);
   const [deleteAsset, setDeleteAsset] = useState<AssetRow | null>(null);
+  const [historyAsset, setHistoryAsset] = useState<AssetRow | null>(null);
   const [tipDismissed, setTipDismissed] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('ots-assets-tip-v1') === '1'
   );
@@ -841,26 +970,31 @@ export function AssetsClient({ canManage }: Props) {
                   </div>
 
                   {/* Card Actions */}
-                  {canManage && (
-                    <div className="px-4 py-2.5 border-t bg-slate-50 flex gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditAsset(asset)}>
-                        <Edit2 className="h-3 w-3 mr-1" />Edit
-                      </Button>
-                      {asset.status === 'AVAILABLE' && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-sky-600 border-sky-200 hover:bg-sky-50" onClick={() => setAssignAsset(asset)}>
-                          <User className="h-3 w-3 mr-1" />Assign
+                  <div className="px-4 py-2.5 border-t bg-slate-50 flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50" onClick={() => setHistoryAsset(asset)}>
+                      <Clock className="h-3 w-3 mr-1" />Log
+                    </Button>
+                    {canManage && (
+                      <>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditAsset(asset)}>
+                          <Edit2 className="h-3 w-3 mr-1" />Edit
                         </Button>
-                      )}
-                      {asset.status === 'ASSIGNED' && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => setReturnAsset(asset)}>
-                          <RotateCcw className="h-3 w-3 mr-1" />Return
+                        {asset.status === 'AVAILABLE' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-sky-600 border-sky-200 hover:bg-sky-50" onClick={() => setAssignAsset(asset)}>
+                            <User className="h-3 w-3 mr-1" />Assign
+                          </Button>
+                        )}
+                        {asset.status === 'ASSIGNED' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => setReturnAsset(asset)}>
+                            <RotateCcw className="h-3 w-3 mr-1" />Return
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-rose-600 border-rose-200 hover:bg-rose-50" onClick={() => setDeleteAsset(asset)}>
+                          <Trash2 className="h-3 w-3 mr-1" />Remove
                         </Button>
-                      )}
-                      <Button size="sm" variant="outline" className="h-7 text-xs text-rose-600 border-rose-200 hover:bg-rose-50" onClick={() => setDeleteAsset(asset)}>
-                        <Trash2 className="h-3 w-3 mr-1" />Remove
-                      </Button>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -900,6 +1034,11 @@ export function AssetsClient({ canManage }: Props) {
         asset={deleteAsset}
         onClose={() => setDeleteAsset(null)}
         onDeleted={load}
+      />
+      <AssetHistoryDialog
+        open={!!historyAsset}
+        asset={historyAsset}
+        onClose={() => setHistoryAsset(null)}
       />
     </div>
   );
