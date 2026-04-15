@@ -387,6 +387,9 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.billing.view', name: 'View Manpower Invoices', description: 'View agency invoice drafts generated from manpower attendance', category: 'hr' },
       { id: 'hr.billing.manage', name: 'Manage Manpower Invoices', description: 'Review, adjust, confirm, and mark manpower invoice drafts as paid', category: 'hr' },
       { id: 'hr.billing.push', name: 'Push Invoices to Dolibarr', description: 'Push confirmed manpower invoice drafts as vendor invoices in Dolibarr', category: 'hr' },
+      // 18.14.0 — Contracts & Documents Management
+      { id: 'hr.contracts.view', name: 'View Contracts', description: 'View company contracts, Iqamas, insurance policies, and legal documents', category: 'hr' },
+      { id: 'hr.contracts.manage', name: 'Manage Contracts', description: 'Create, edit, and delete contracts and documents; receive expiry notifications', category: 'hr' },
     ],
   },
   {
@@ -484,6 +487,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.billing.view',
     'hr.billing.manage',
     'hr.billing.push',
+    // 18.14.0 — Contracts & Documents
+    'hr.contracts.view',
+    'hr.contracts.manage',
   ],
   Manager: [
     // User Management

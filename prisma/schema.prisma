@@ -307,6 +307,11 @@ model User {
   updatedManpowerInvoiceDrafts ManpowerInvoiceDraft[] @relation("ManpowerInvoiceDraftUpdatedBy")
   deletedManpowerInvoiceDrafts ManpowerInvoiceDraft[] @relation("ManpowerInvoiceDraftDeletedBy")
 
+  // 18.14.0 — Contracts & Documents
+  createdContracts Contract[] @relation("ContractCreatedBy")
+  updatedContracts Contract[] @relation("ContractUpdatedBy")
+  deletedContracts Contract[] @relation("ContractDeletedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -4160,6 +4165,9 @@ model Employee {
   assetAssignments AssetAssignment[]  @relation("EmployeeAssetAssignments")
   violations       TrafficViolation[] @relation("EmployeeViolations")
 
+  // 18.14.0 — Contracts & Documents
+  contracts Contract[] @relation("EmployeeContracts")
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -5296,6 +5304,62 @@ model ManpowerInvoiceDraft {
   @@index([payrollPeriodId])
   @@index([status])
   @@index([deletedAt])
+}
+
+// 18.14.0 — Contracts & Documents Management
+
+enum ContractType {
+  HEALTH_INSURANCE
+  MEDICAL_INSURANCE
+  IQAMA
+  CAR_REGISTRATION
+  VEHICLE_LICENSE
+  PROFESSIONAL_LICENSE
+  COMMERCIAL_REGISTRATION
+  LEGAL_DOCUMENT
+  OTHER
+}
+
+enum ContractStatus {
+  ACTIVE
+  EXPIRED
+  PENDING_RENEWAL
+  CANCELLED
+}
+
+model Contract {
+  id               String         @id @default(uuid()) @db.Char(36)
+  contractNumber   String         @unique @db.VarChar(30)
+  title            String         @db.VarChar(300)
+  type             ContractType
+  employeeId       String?        @db.Char(36)
+  employee         Employee?      @relation("EmployeeContracts", fields: [employeeId], references: [id])
+  issuingAuthority String?        @db.VarChar(200)
+  referenceNumber  String?        @db.VarChar(100)
+  issueDate        DateTime?      @db.Date
+  expiryDate       DateTime?      @db.Date
+  expiryDateHijri  String?        @db.VarChar(20)
+  status           ContractStatus @default(ACTIVE)
+  notifyDaysBefore Int            @default(30)
+  description      String?        @db.Text
+  filePath         String?        @db.VarChar(500)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("ContractCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("ContractUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("ContractDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([type, status])
+  @@index([employeeId])
+  @@index([expiryDate])
+  @@index([deletedAt])
+  @@map("Contract")
 }
 
 // One line per manpower slot in the draft invoice

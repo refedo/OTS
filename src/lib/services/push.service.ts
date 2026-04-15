@@ -91,6 +91,7 @@ function getNotificationUrl(type: NotificationType, relatedEntityType?: string |
     ncr: '/ncr',
     document: '/documents',
     announcement: '/notifications/announcements',
+    contract: '/hr/contracts',
   };
 
   const route = entityRoutes[relatedEntityType];

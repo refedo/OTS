@@ -23,7 +23,12 @@ export default async function HrDashboardPage() {
   const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
 
-  const [initialStats, departments, occupationRows, sectionRows] = await Promise.all([
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const in7Days = new Date(today.getTime() + 7 * 86400000);
+  const in30Days = new Date(today.getTime() + 30 * 86400000);
+
+  const [initialStats, departments, occupationRows, sectionRows, contractCounts] = await Promise.all([
     getHrDashboardStats({ startDate, endDate, groupBy: 'occupation' }),
     prisma.department.findMany({
       select: { id: true, name: true },
@@ -39,6 +44,12 @@ export default async function HrDashboardPage() {
       select: { section: true },
       distinct: ['section'],
     }),
+    Promise.all([
+      prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
+      prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE', expiryDate: { gte: today, lte: in7Days } } }),
+      prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE', expiryDate: { gte: today, lte: in30Days } } }),
+      prisma.contract.count({ where: { deletedAt: null, status: 'EXPIRED' } }),
+    ]),
   ]);
 
   const occupations = occupationRows
@@ -50,12 +61,15 @@ export default async function HrDashboardPage() {
     .filter((v): v is string => !!v)
     .sort((a, b) => a.localeCompare(b));
 
+  const [totalActive, expiringIn7, expiringIn30, expired] = contractCounts;
+
   return (
     <HrDashboardClient
       initialStats={initialStats}
       departments={departments}
       occupations={occupations}
       sections={sections}
+      contractStats={{ totalActive, expiringIn7, expiringIn30, expired }}
     />
   );
 }

@@ -267,6 +267,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Traffic Violations', href: '/hr/traffic-violations', icon: AlertOctagon, newSince: '2026-04-15' },
       { name: 'Car Maintenance', href: '/hr/car-maintenance', icon: Wrench, newSince: '2026-04-15' },
       { name: 'Manpower Invoices', href: '/hr/manpower-invoices', icon: Receipt, newSince: '2026-04-15' },
+      { name: 'Contracts & Docs', href: '/hr/contracts', icon: FileText, newSince: '2026-04-15' },
       { name: 'Identity Reconciliation', href: '/admin/identity-reconciliation', icon: Shield, newSince: '2026-04-12' },
       { name: 'HR Setup', href: '/hr/setup', icon: UserCog, newSince: '2026-04-12' },
     ],

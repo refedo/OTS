@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ import {
   Edit2,
   Trash2,
   Loader2,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -729,6 +731,171 @@ function AssetHistoryDialog({ open, asset, onClose }: {
   );
 }
 
+// ─── Assignment Log Tab ────────────────────────────────────────────────────────
+
+interface LogEntry {
+  id: string;
+  assignedDate: string;
+  returnedDate: string | null;
+  returnReason: string | null;
+  status: 'ACTIVE' | 'RETURNED';
+  notes: string | null;
+  asset: {
+    id: string; assetCode: string; name: string; category: AssetCategory;
+    plateNumber: string | null;
+  };
+  employee: { id: string; fullNameEn: string; employmentId: string } | null;
+  createdBy: { id: string; name: string } | null;
+}
+
+function calcDuration(assigned: string, returned: string | null): string {
+  if (!returned) return 'Ongoing';
+  const days = Math.round((new Date(returned).getTime() - new Date(assigned).getTime()) / 86400000);
+  return `${days} day${days !== 1 ? 's' : ''}`;
+}
+
+function AssignmentLogTab({ active }: { active: boolean }) {
+  const [entries, setEntries] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [logSearch, setLogSearch] = useState('');
+  const [logStatus, setLogStatus] = useState('__all__');
+  const [logCategory, setLogCategory] = useState('__all__');
+
+  const loadLog = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (logSearch) params.set('search', logSearch);
+      if (logStatus !== '__all__') params.set('status', logStatus);
+      if (logCategory !== '__all__') params.set('category', logCategory);
+      const res = await fetch(`/api/hr/asset-assignments?${params}`);
+      const data = await res.json();
+      setEntries(Array.isArray(data) ? data : []);
+      setLoaded(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [logSearch, logStatus, logCategory]);
+
+  // Lazy-load on first activation, then re-fetch when filters change
+  useEffect(() => {
+    if (active && !loaded) loadLog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  useEffect(() => {
+    if (loaded) loadLog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logSearch, logStatus, logCategory]);
+
+  return (
+    <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-6 py-4 border-b bg-slate-50/50">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search employee, asset code, asset name…"
+            className="pl-9"
+            value={logSearch}
+            onChange={e => setLogSearch(e.target.value)}
+          />
+        </div>
+        <Select value={logStatus} onValueChange={setLogStatus}>
+          <SelectTrigger className="w-36 shrink-0">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Statuses</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="RETURNED">Returned</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={logCategory} onValueChange={setLogCategory}>
+          <SelectTrigger className="w-40 shrink-0">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Categories</SelectItem>
+            {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />}
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        {!loading && entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+            <Clock className="h-12 w-12 mb-3 opacity-30" />
+            <p className="font-medium">No assignment records found</p>
+            <p className="text-sm mt-1">Assign an asset to an employee to start the log.</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Asset</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Employee</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Assigned</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Returned</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Duration</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Return Reason</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {entries.map((e) => (
+                <tr key={e.id} className="hover:bg-violet-50/20 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 bg-violet-100 rounded text-violet-600 shrink-0">
+                        {categoryIcon(e.asset.category, 'h-3.5 w-3.5')}
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-800">{e.asset.name}</p>
+                        <p className="text-xs font-mono text-slate-400">{e.asset.assetCode}</p>
+                        {e.asset.plateNumber && (
+                          <p className="text-xs text-amber-600">{e.asset.plateNumber}</p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {e.employee ? (
+                      <div>
+                        <p className="text-slate-700">{e.employee.fullNameEn}</p>
+                        <p className="text-xs text-slate-400">{e.employee.employmentId}</p>
+                      </div>
+                    ) : <span className="text-slate-400 text-xs">—</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={cn(
+                      'text-xs font-medium px-2 py-0.5 rounded-full border',
+                      e.status === 'ACTIVE'
+                        ? 'bg-sky-100 text-sky-700 border-sky-200'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    )}>
+                      {e.status === 'ACTIVE' ? 'Active' : 'Returned'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDate(e.assignedDate)}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{e.returnedDate ? fmtDate(e.returnedDate) : '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{calcDuration(e.assignedDate, e.returnedDate)}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {e.returnReason ? RETURN_REASONS.find(r => r.value === e.returnReason)?.label ?? e.returnReason : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AssetsClient({ canManage }: Props) {
@@ -746,6 +913,7 @@ export function AssetsClient({ canManage }: Props) {
   const [tipDismissed, setTipDismissed] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('ots-assets-tip-v1') === '1'
   );
+  const [activeTab, setActiveTab] = useState('registry');
 
   function dismissTip() {
     localStorage.setItem('ots-assets-tip-v1', '1');
@@ -848,158 +1016,178 @@ export function AssetsClient({ canManage }: Props) {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              className="pl-9"
-              placeholder="Search by code, name, plate, serial..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <Select value={filterCategory || '__all__'} onValueChange={v => setFilterCategory(v === '__all__' ? '' : v)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All categories</SelectItem>
-              {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterStatus || '__all__'} onValueChange={v => setFilterStatus(v === '__all__' ? '' : v)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All statuses</SelectItem>
-              <SelectItem value="AVAILABLE">Available</SelectItem>
-              <SelectItem value="ASSIGNED">Assigned</SelectItem>
-              <SelectItem value="UNDER_MAINTENANCE">In Maintenance</SelectItem>
-              <SelectItem value="RETIRED">Retired</SelectItem>
-              <SelectItem value="DAMAGED">Damaged</SelectItem>
-              <SelectItem value="LOST">Lost</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Registry / Assignment Log tabs */}
+        <Tabs defaultValue="registry" onValueChange={setActiveTab}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="registry" className="flex items-center gap-1.5">
+              <PackageSearch className="h-4 w-4" />
+              Registry
+            </TabsTrigger>
+            <TabsTrigger value="log" className="flex items-center gap-1.5">
+              <BookOpen className="h-4 w-4" />
+              Assignment Log
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Asset Cards */}
-        {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-          </div>
-        ) : assets.length === 0 ? (
-          <div className="rounded-2xl border bg-white shadow-sm p-12 text-center">
-            <PackageSearch className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 font-medium">No assets found</p>
-            <p className="text-slate-400 text-sm mt-1">
-              {canManage ? 'Click "Register Asset" to add one.' : 'Assets will appear here once added.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {assets.map(asset => {
-              const activeAssignment = asset.assignments?.[0];
-              return (
-                <div key={asset.id} className="rounded-2xl border bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                  {/* Card Header */}
-                  <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-violet-100 rounded-lg text-violet-600">
-                        {categoryIcon(asset.category)}
+          <TabsContent value="registry">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 items-center mb-6">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search by code, name, plate, serial..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+              <Select value={filterCategory || '__all__'} onValueChange={v => setFilterCategory(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All categories</SelectItem>
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus || '__all__'} onValueChange={v => setFilterStatus(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All statuses</SelectItem>
+                  <SelectItem value="AVAILABLE">Available</SelectItem>
+                  <SelectItem value="ASSIGNED">Assigned</SelectItem>
+                  <SelectItem value="UNDER_MAINTENANCE">In Maintenance</SelectItem>
+                  <SelectItem value="RETIRED">Retired</SelectItem>
+                  <SelectItem value="DAMAGED">Damaged</SelectItem>
+                  <SelectItem value="LOST">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Asset Cards */}
+            {loading ? (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+              </div>
+            ) : assets.length === 0 ? (
+              <div className="rounded-2xl border bg-white shadow-sm p-12 text-center">
+                <PackageSearch className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">No assets found</p>
+                <p className="text-slate-400 text-sm mt-1">
+                  {canManage ? 'Click "Register Asset" to add one.' : 'Assets will appear here once added.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {assets.map(asset => {
+                  const activeAssignment = asset.assignments?.[0];
+                  return (
+                    <div key={asset.id} className="rounded-2xl border bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                      {/* Card Header */}
+                      <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-violet-100 rounded-lg text-violet-600">
+                            {categoryIcon(asset.category)}
+                          </div>
+                          <div>
+                            <p className="text-xs font-mono text-slate-500">{asset.assetCode}</p>
+                            <p className="text-sm font-semibold text-slate-800 leading-tight">{asset.name}</p>
+                          </div>
+                        </div>
+                        {statusBadge(asset.status)}
                       </div>
-                      <div>
-                        <p className="text-xs font-mono text-slate-500">{asset.assetCode}</p>
-                        <p className="text-sm font-semibold text-slate-800 leading-tight">{asset.name}</p>
+
+                      {/* Card Body */}
+                      <div className="px-4 py-3 space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">
+                            {categoryLabel(asset.category)}
+                          </span>
+                          {asset.category === 'CAR' && asset.plateNumber && (
+                            <span className="font-mono bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
+                              {asset.plateNumber}
+                            </span>
+                          )}
+                        </div>
+
+                        {asset.category === 'CAR' && (
+                          <div className="text-xs text-slate-600 space-y-0.5">
+                            {(asset.vehicleMake || asset.vehicleModel) && (
+                              <p>{[asset.vehicleMake, asset.vehicleModel, asset.vehicleYear].filter(Boolean).join(' ')}</p>
+                            )}
+                            {asset.currentOdometer != null && (
+                              <p className="text-slate-400">{asset.currentOdometer.toLocaleString()} km</p>
+                            )}
+                          </div>
+                        )}
+
+                        {asset.category === 'SIM_CARD' && asset.mobileNumber && (
+                          <p className="text-xs text-slate-600">{asset.mobileNumber}{asset.carrier ? ` · ${asset.carrier}` : ''}</p>
+                        )}
+
+                        {!['CAR','SIM_CARD'].includes(asset.category) && (asset.make || asset.model || asset.serialNumber) && (
+                          <p className="text-xs text-slate-600">
+                            {[asset.make, asset.model].filter(Boolean).join(' ')}
+                            {asset.serialNumber && <span className="text-slate-400"> · S/N: {asset.serialNumber}</span>}
+                          </p>
+                        )}
+
+                        {/* Assignment Info */}
+                        {activeAssignment ? (
+                          <div className="flex items-center gap-1.5 text-xs bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 mt-1">
+                            <User className="h-3 w-3 text-sky-500 shrink-0" />
+                            <span className="text-sky-700 font-medium">{activeAssignment.employee.fullNameEn}</span>
+                            <ArrowRight className="h-3 w-3 text-sky-400" />
+                            <Calendar className="h-3 w-3 text-sky-400" />
+                            <span className="text-sky-500">{fmtDate(activeAssignment.assignedDate)}</span>
+                          </div>
+                        ) : asset.status === 'AVAILABLE' ? (
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-600 mt-1">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>Ready to assign</span>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* Card Actions */}
+                      <div className="px-4 py-2.5 border-t bg-slate-50 flex gap-2 flex-wrap">
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50" onClick={() => setHistoryAsset(asset)}>
+                          <Clock className="h-3 w-3 mr-1" />Log
+                        </Button>
+                        {canManage && (
+                          <>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditAsset(asset)}>
+                              <Edit2 className="h-3 w-3 mr-1" />Edit
+                            </Button>
+                            {asset.status === 'AVAILABLE' && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs text-sky-600 border-sky-200 hover:bg-sky-50" onClick={() => setAssignAsset(asset)}>
+                                <User className="h-3 w-3 mr-1" />Assign
+                              </Button>
+                            )}
+                            {asset.status === 'ASSIGNED' && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => setReturnAsset(asset)}>
+                                <RotateCcw className="h-3 w-3 mr-1" />Return
+                              </Button>
+                            )}
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-rose-600 border-rose-200 hover:bg-rose-50" onClick={() => setDeleteAsset(asset)}>
+                              <Trash2 className="h-3 w-3 mr-1" />Remove
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-                    {statusBadge(asset.status)}
-                  </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
 
-                  {/* Card Body */}
-                  <div className="px-4 py-3 space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">
-                        {categoryLabel(asset.category)}
-                      </span>
-                      {asset.category === 'CAR' && asset.plateNumber && (
-                        <span className="font-mono bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">
-                          {asset.plateNumber}
-                        </span>
-                      )}
-                    </div>
-
-                    {asset.category === 'CAR' && (
-                      <div className="text-xs text-slate-600 space-y-0.5">
-                        {(asset.vehicleMake || asset.vehicleModel) && (
-                          <p>{[asset.vehicleMake, asset.vehicleModel, asset.vehicleYear].filter(Boolean).join(' ')}</p>
-                        )}
-                        {asset.currentOdometer != null && (
-                          <p className="text-slate-400">{asset.currentOdometer.toLocaleString()} km</p>
-                        )}
-                      </div>
-                    )}
-
-                    {asset.category === 'SIM_CARD' && asset.mobileNumber && (
-                      <p className="text-xs text-slate-600">{asset.mobileNumber}{asset.carrier ? ` · ${asset.carrier}` : ''}</p>
-                    )}
-
-                    {!['CAR','SIM_CARD'].includes(asset.category) && (asset.make || asset.model || asset.serialNumber) && (
-                      <p className="text-xs text-slate-600">
-                        {[asset.make, asset.model].filter(Boolean).join(' ')}
-                        {asset.serialNumber && <span className="text-slate-400"> · S/N: {asset.serialNumber}</span>}
-                      </p>
-                    )}
-
-                    {/* Assignment Info */}
-                    {activeAssignment ? (
-                      <div className="flex items-center gap-1.5 text-xs bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 mt-1">
-                        <User className="h-3 w-3 text-sky-500 shrink-0" />
-                        <span className="text-sky-700 font-medium">{activeAssignment.employee.fullNameEn}</span>
-                        <ArrowRight className="h-3 w-3 text-sky-400" />
-                        <Calendar className="h-3 w-3 text-sky-400" />
-                        <span className="text-sky-500">{fmtDate(activeAssignment.assignedDate)}</span>
-                      </div>
-                    ) : asset.status === 'AVAILABLE' ? (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 mt-1">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Ready to assign</span>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Card Actions */}
-                  <div className="px-4 py-2.5 border-t bg-slate-50 flex gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50" onClick={() => setHistoryAsset(asset)}>
-                      <Clock className="h-3 w-3 mr-1" />Log
-                    </Button>
-                    {canManage && (
-                      <>
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditAsset(asset)}>
-                          <Edit2 className="h-3 w-3 mr-1" />Edit
-                        </Button>
-                        {asset.status === 'AVAILABLE' && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-sky-600 border-sky-200 hover:bg-sky-50" onClick={() => setAssignAsset(asset)}>
-                            <User className="h-3 w-3 mr-1" />Assign
-                          </Button>
-                        )}
-                        {asset.status === 'ASSIGNED' && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => setReturnAsset(asset)}>
-                            <RotateCcw className="h-3 w-3 mr-1" />Return
-                          </Button>
-                        )}
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-rose-600 border-rose-200 hover:bg-rose-50" onClick={() => setDeleteAsset(asset)}>
-                          <Trash2 className="h-3 w-3 mr-1" />Remove
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+          <TabsContent value="log">
+            <AssignmentLogTab active={activeTab === 'log'} />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Dialogs */}

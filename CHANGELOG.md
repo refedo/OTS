@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.14.0] - 2026-04-15
+
+### Unified Asset Log + Contracts & Documents Management (Minor)
+
+#### Added
+
+- **Unified Asset Assignment Log tab:** `/hr/assets` is now tab-split into "Registry" (existing card grid) and "Assignment Log" — a new table showing every assign/return event across all assets, filterable by status, category, and search.
+- **Asset-assignments API extended:** `GET /api/hr/asset-assignments` no longer requires `employeeId`; new optional query params: `status`, `category`, `search` (matches employee name, ID, asset code, asset name). `employeeId` still works for the employee detail Assets tab.
+- **Contract model:** New `Contract` Prisma model with `ContractType` enum (HEALTH_INSURANCE, MEDICAL_INSURANCE, IQAMA, CAR_REGISTRATION, VEHICLE_LICENSE, PROFESSIONAL_LICENSE, COMMERCIAL_REGISTRATION, LEGAL_DOCUMENT, OTHER) and `ContractStatus` enum (ACTIVE, EXPIRED, PENDING_RENEWAL, CANCELLED). Auto-number `CNT-YY-NNNN` generated server-side. Optional `employeeId` (company-level or personal). `expiryDateHijri` stored as a string display value. `notifyDaysBefore` default 30.
+- **Migration:** `prisma/manual_migrations/add_contracts.sql` — idempotent `CREATE TABLE IF NOT EXISTS` with all fields, FKs, and indexes. Added to `STARTUP_MIGRATIONS` in `startup-migrations.ts`.
+- **Hijri utility:** `src/lib/utils/hijri.ts` — `gregorianToHijri(date)` and `hijriToGregorian(str)` using Umm al-Qura algorithm (no npm package). Accurate for 1400–1500 AH range.
+- **Permissions:** `hr.contracts.view` + `hr.contracts.manage` — both added to HR role bundle.
+- **Navigation:** `/hr/contracts` added to `NAVIGATION_PERMISSIONS`. "Contracts & Docs" entry (FileText icon, `newSince: '2026-04-15'`) added to HR sidebar section.
+- **API routes:** `GET/POST /api/hr/contracts` + `GET/PUT/DELETE /api/hr/contracts/[id]`. GET lazily marks past-expiry ACTIVE contracts as EXPIRED and returns `daysUntilExpiry` in each row. POST validates with Zod; all nullable fields use `.nullish()`.
+- **Contracts page:** `/hr/contracts` — amber/orange gradient hero, 4 KPI tiles (Total Active, Expiring in 7 days, Expiring in 30 days, Expired), filterable table with type badge, employee/company column, expiry dates (Gregorian + Hijri), color-coded days-left indicator, status badge, and actions.
+- **Create/Edit dialog:** Title, type, optional employee picker, issuing authority, reference number, issue date, expiry date (Gregorian), expiry date Hijri with Gregorian↔Hijri convert buttons, status, notify-days-before, description.
+- **Delete dialog:** Reason required (soft delete).
+- **Cron endpoint:** `POST /api/cron/contract-reminders` (Bearer CRON_SECRET) — finds ACTIVE contracts within their `notifyDaysBefore` window, deduplicates against today's notifications, sends `DEADLINE_WARNING` to all users with `hr.contracts.manage`.
+- **Scheduler:** `ContractRemindersScheduler` — daily at 08:00 Asia/Riyadh; toggled by `ENABLE_CONTRACT_REMINDERS_SCHEDULER` (default on in production); registered in `src/instrumentation.ts`.
+- **HR Dashboard widget:** New "Contracts & Documents" 4-tile row added to HR dashboard (Total Active, Expiring in 7d, Expiring in 30d, Expired) computed server-side from the Contract table. Contract stats passed as `contractStats` prop to `HrDashboardClient`.
+- **Push routing:** `contract → /hr/contracts` added to `entityRoutes` in `push.service.ts`.
+
+---
+
 ## [18.11.0] - 2026-04-15
 
 ### Notification & Announcement System (Minor)

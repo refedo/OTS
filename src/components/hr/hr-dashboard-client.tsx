@@ -39,14 +39,23 @@ import {
   Plane,
   Stethoscope,
   CalendarDays,
+  FileText,
 } from 'lucide-react';
 import type { HrDashboardResult, HrDashboardGroupBy } from '@/lib/services/hr/hr-dashboard-stats';
+
+type ContractStats = {
+  totalActive: number;
+  expiringIn7: number;
+  expiringIn30: number;
+  expired: number;
+};
 
 type Props = {
   initialStats: HrDashboardResult;
   departments: { id: string; name: string }[];
   occupations: string[];
   sections: string[];
+  contractStats?: ContractStats;
 };
 
 const ABSENCE_COLORS: Record<string, string> = {
@@ -87,6 +96,7 @@ export function HrDashboardClient({
   departments,
   occupations,
   sections,
+  contractStats,
 }: Props) {
   const { start: defStart, end: defEnd } = defaultRange();
   const [startDate, setStartDate] = useState<string>(defStart);
@@ -628,6 +638,42 @@ export function HrDashboardClient({
                   ))}
                 </tbody>
               </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Contracts & Documents widget */}
+      {contractStats && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-amber-600" />
+              Contracts &amp; Documents
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <a href="/hr/contracts" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Active</p>
+                <p className="text-2xl font-bold text-amber-700 mt-1">{contractStats.totalActive}</p>
+                <p className="text-xs text-amber-500 mt-0.5">active contracts</p>
+              </a>
+              <a href="/hr/contracts?status=ACTIVE" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Expiring in 7 days</p>
+                <p className="text-2xl font-bold text-rose-700 mt-1">{contractStats.expiringIn7}</p>
+                <p className="text-xs text-rose-500 mt-0.5">urgent attention</p>
+              </a>
+              <a href="/hr/contracts?status=ACTIVE" className="rounded-xl border bg-gradient-to-b from-orange-50 to-white border-orange-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-orange-600 font-medium uppercase tracking-wide">Expiring in 30 days</p>
+                <p className="text-2xl font-bold text-orange-700 mt-1">{contractStats.expiringIn30}</p>
+                <p className="text-xs text-orange-500 mt-0.5">plan for renewal</p>
+              </a>
+              <a href="/hr/contracts?status=EXPIRED" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Expired</p>
+                <p className="text-2xl font-bold text-slate-700 mt-1">{contractStats.expired}</p>
+                <p className="text-xs text-slate-400 mt-0.5">require renewal</p>
+              </a>
             </div>
           </CardContent>
         </Card>
