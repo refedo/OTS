@@ -70,6 +70,13 @@ const HR_BASE_PERMISSIONS = [
   'hr.loans.manage',
   'hr.custodies.view',
   'hr.custodies.manage',
+  // 18.13.0 — Manpower Billing
+  'hr.billing.view',
+  'hr.billing.manage',
+  'hr.billing.push',
+  // 18.14.0 — Contracts & Documents
+  'hr.contracts.view',
+  'hr.contracts.manage',
 ];
 
 function mergePermissions(existing: unknown, additions: string[]): string[] {

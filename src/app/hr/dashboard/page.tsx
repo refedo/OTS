@@ -44,12 +44,13 @@ export default async function HrDashboardPage() {
       select: { section: true },
       distinct: ['section'],
     }),
+    // Graceful fallback: returns null if the Contract table doesn't exist yet (pre-migration)
     Promise.all([
       prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
       prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE', expiryDate: { gte: today, lte: in7Days } } }),
       prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE', expiryDate: { gte: today, lte: in30Days } } }),
       prisma.contract.count({ where: { deletedAt: null, status: 'EXPIRED' } }),
-    ]),
+    ]).catch(() => null),
   ]);
 
   const occupations = occupationRows
@@ -61,7 +62,9 @@ export default async function HrDashboardPage() {
     .filter((v): v is string => !!v)
     .sort((a, b) => a.localeCompare(b));
 
-  const [totalActive, expiringIn7, expiringIn30, expired] = contractCounts;
+  const contractStats = contractCounts
+    ? { totalActive: contractCounts[0], expiringIn7: contractCounts[1], expiringIn30: contractCounts[2], expired: contractCounts[3] }
+    : undefined;
 
   return (
     <HrDashboardClient
@@ -69,7 +72,7 @@ export default async function HrDashboardPage() {
       departments={departments}
       occupations={occupations}
       sections={sections}
-      contractStats={{ totalActive, expiringIn7, expiringIn30, expired }}
+      contractStats={contractStats}
     />
   );
 }

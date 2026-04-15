@@ -34,3 +34,53 @@ CREATE TABLE IF NOT EXISTS `Contract` (
   CONSTRAINT `Contract_updatedById_fkey` FOREIGN KEY (`updatedById`) REFERENCES `User` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `Contract_deletedById_fkey` FOREIGN KEY (`deletedById`) REFERENCES `User` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Seed hr.contracts.view + hr.contracts.manage into HR and CEO roles ───────
+-- Idempotent: JSON_SEARCH guard prevents duplicate entries.
+
+DROP PROCEDURE IF EXISTS add_contracts_permissions;
+DELIMITER $$
+CREATE PROCEDURE add_contracts_permissions()
+BEGIN
+  -- HR role: view
+  IF EXISTS (SELECT 1 FROM `Role` WHERE `name` = 'HR') THEN
+    UPDATE `Role`
+    SET `permissions` = JSON_ARRAY_APPEND(IFNULL(`permissions`, JSON_ARRAY()), '$', 'hr.contracts.view')
+    WHERE `name` = 'HR'
+      AND JSON_SEARCH(IFNULL(`permissions`, JSON_ARRAY()), 'one', 'hr.contracts.view') IS NULL;
+    -- HR role: manage
+    UPDATE `Role`
+    SET `permissions` = JSON_ARRAY_APPEND(IFNULL(`permissions`, JSON_ARRAY()), '$', 'hr.contracts.manage')
+    WHERE `name` = 'HR'
+      AND JSON_SEARCH(IFNULL(`permissions`, JSON_ARRAY()), 'one', 'hr.contracts.manage') IS NULL;
+  END IF;
+
+  -- CEO role: view
+  IF EXISTS (SELECT 1 FROM `Role` WHERE `name` = 'CEO') THEN
+    UPDATE `Role`
+    SET `permissions` = JSON_ARRAY_APPEND(IFNULL(`permissions`, JSON_ARRAY()), '$', 'hr.contracts.view')
+    WHERE `name` = 'CEO'
+      AND JSON_SEARCH(IFNULL(`permissions`, JSON_ARRAY()), 'one', 'hr.contracts.view') IS NULL;
+    -- CEO role: manage
+    UPDATE `Role`
+    SET `permissions` = JSON_ARRAY_APPEND(IFNULL(`permissions`, JSON_ARRAY()), '$', 'hr.contracts.manage')
+    WHERE `name` = 'CEO'
+      AND JSON_SEARCH(IFNULL(`permissions`, JSON_ARRAY()), 'one', 'hr.contracts.manage') IS NULL;
+  END IF;
+
+  -- Admin role: view
+  IF EXISTS (SELECT 1 FROM `Role` WHERE `name` = 'Admin') THEN
+    UPDATE `Role`
+    SET `permissions` = JSON_ARRAY_APPEND(IFNULL(`permissions`, JSON_ARRAY()), '$', 'hr.contracts.view')
+    WHERE `name` = 'Admin'
+      AND JSON_SEARCH(IFNULL(`permissions`, JSON_ARRAY()), 'one', 'hr.contracts.view') IS NULL;
+    -- Admin role: manage
+    UPDATE `Role`
+    SET `permissions` = JSON_ARRAY_APPEND(IFNULL(`permissions`, JSON_ARRAY()), '$', 'hr.contracts.manage')
+    WHERE `name` = 'Admin'
+      AND JSON_SEARCH(IFNULL(`permissions`, JSON_ARRAY()), 'one', 'hr.contracts.manage') IS NULL;
+  END IF;
+END$$
+DELIMITER ;
+CALL add_contracts_permissions();
+DROP PROCEDURE IF EXISTS add_contracts_permissions;
