@@ -383,6 +383,10 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.violations.manage', name: 'Manage Traffic Violations', description: 'Record, update, and close traffic violations and infractions', category: 'hr' },
       { id: 'hr.carMaintenance.view', name: 'View Car Maintenance', description: 'View vehicle maintenance records and service history', category: 'hr' },
       { id: 'hr.carMaintenance.manage', name: 'Manage Car Maintenance', description: 'Create and update vehicle maintenance and service records', category: 'hr' },
+      // Phase 4 — Manpower Billing
+      { id: 'hr.billing.view', name: 'View Manpower Invoices', description: 'View agency invoice drafts generated from manpower attendance', category: 'hr' },
+      { id: 'hr.billing.manage', name: 'Manage Manpower Invoices', description: 'Review, adjust, confirm, and mark manpower invoice drafts as paid', category: 'hr' },
+      { id: 'hr.billing.push', name: 'Push Invoices to Dolibarr', description: 'Push confirmed manpower invoice drafts as vendor invoices in Dolibarr', category: 'hr' },
     ],
   },
   {
@@ -476,6 +480,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.payroll.adjust',
     'hr.payroll.export',
     'hr.payroll.settings',
+    // Phase 4 — Manpower Billing
+    'hr.billing.view',
+    'hr.billing.manage',
+    'hr.billing.push',
   ],
   Manager: [
     // User Management

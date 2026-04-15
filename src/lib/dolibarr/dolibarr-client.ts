@@ -175,6 +175,21 @@ export interface DolibarrPayment {
   [key: string]: any;
 }
 
+// Phase 4 — params for creating a vendor invoice outbound to Dolibarr
+export interface DolibarrCreateSupplierInvoiceLine {
+  label: string;
+  qty: number;
+  unitPrice: number; // HT per unit
+}
+
+export interface DolibarrCreateSupplierInvoiceParams {
+  thirdPartyId: string | number; // Dolibarr socid of the supplier
+  refSupplier: string;           // our reference (OTS invoice ref)
+  date: Date;
+  lines: DolibarrCreateSupplierInvoiceLine[];
+  note?: string;
+}
+
 export interface DolibarrSalary {
   id: number | string;
   ref: string;
@@ -371,6 +386,68 @@ export class DolibarrClient {
 
   constructor(config: DolibarrClientConfig) {
     this.config = config;
+  }
+
+  /**
+   * Make an authenticated POST request to the Dolibarr API
+   */
+  private async post<T>(endpoint: string, body: unknown): Promise<T> {
+    const url = new URL(`${this.config.apiUrl}/${endpoint}`);
+    url.searchParams.set('_ts', Date.now().toString());
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+        const response = await fetch(url.toString(), {
+          method: 'POST',
+          headers: {
+            'DOLAPIKEY': this.config.apiKey,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            throw new Error(`Dolibarr API error ${response.status}: ${errorText}`);
+          }
+          throw new Error(`Dolibarr API error ${response.status}: ${errorText}`);
+        }
+
+        const rawText = await response.text();
+        if (!rawText || rawText.trim() === '') {
+          return null as unknown as T;
+        }
+        try {
+          return JSON.parse(rawText) as T;
+        } catch {
+          const preview = rawText.trim().slice(0, 200);
+          throw new Error(
+            `Dolibarr returned a non-JSON POST response for "${endpoint}" (HTTP ${response.status}): ${preview}`,
+          );
+        }
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const msg = lastError.message;
+        if (msg?.includes('API error 4') && !msg?.includes('429')) throw lastError;
+        if (attempt < this.config.maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        }
+      }
+    }
+
+    throw lastError || new Error('POST request failed after all retries');
   }
 
   /**
@@ -1036,6 +1113,38 @@ export class DolibarrClient {
       if (msg.includes('404')) return [];
       throw error;
     }
+  }
+
+  /**
+   * Create a supplier (vendor) invoice in Dolibarr.
+   * Returns the new Dolibarr invoice ID as a string.
+   *
+   * @param params.thirdPartyId  Dolibarr fournisseur socid
+   * @param params.refSupplier   Our OTS invoice reference (e.g. "MPOWER-2026-04-ABC")
+   * @param params.date          Invoice date (JS Date — converted to Unix timestamp)
+   * @param params.lines         Line items
+   * @param params.note          Optional free-text note on the invoice
+   */
+  async createSupplierInvoice(params: DolibarrCreateSupplierInvoiceParams): Promise<string> {
+    const unixDate = Math.floor(params.date.getTime() / 1000);
+    const body = {
+      socid: params.thirdPartyId,
+      ref_supplier: params.refSupplier,
+      type: 0, // standard invoice
+      date: unixDate,
+      note_public: params.note ?? '',
+      lines: params.lines.map(l => ({
+        label: l.label,
+        qty: l.qty.toString(),
+        subprice: l.unitPrice.toFixed(4),
+        tva_tx: '0', // VAT handled externally
+        product_type: 1, // service
+        fk_product: null,
+      })),
+    };
+    // Dolibarr POST /supplierinvoices returns the new invoice ID as a JSON number
+    const result = await this.post<number | string>('supplierinvoices', body);
+    return String(result);
   }
 }
 
