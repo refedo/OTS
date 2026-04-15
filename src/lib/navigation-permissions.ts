@@ -33,6 +33,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/notifications?tab=delayed-tasks': ['notifications.view'],
   '/notifications?tab=approvals': ['notifications.view'],
   '/notifications?tab=deadlines': ['notifications.view'],
+  '/notifications/announcements': ['announcements.view', 'announcements.create', 'announcements.manage'],
   '/events': ['events.view'],
   '/governance': ['governance.view'],
   

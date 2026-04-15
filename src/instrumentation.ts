@@ -15,6 +15,10 @@ export async function register() {
     const { LcrSyncScheduler } = await import('@/lib/scheduler/lcr-sync.scheduler');
     const { DolibarrLeavesSyncScheduler } = await import('@/lib/scheduler/dolibarr-leaves-sync.scheduler');
     const { registerIntegrationListeners } = await import('@/lib/events/integration-listeners');
+    const { runStartupMigrations } = await import('@/lib/startup-migrations');
+
+    // Run idempotent SQL migrations (18.11.0+)
+    await runStartupMigrations();
 
     // Initialize the Early Warning Engine scheduler
     EarlyWarningScheduler.initialize();

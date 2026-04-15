@@ -23,10 +23,44 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.11.0',
+    date: 'April 15, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Notification & Announcement System',
+    highlights: [
+      'Company-wide announcement system: HR creates announcements with serial numbers (ANN-YY-NNN), subject, content, start/end date window, and an audience — either all employees or a targeted list of specific employees.',
+      'Show as Banner: when enabled, a dismissible floating violet banner appears on every page until the end date or until the employee taps Dismiss.',
+      'Active announcements page under Notifications → Announcements with live KPI tiles, search, status filtering (Active / Upcoming / Expired / Inactive), and expandable cards.',
+      'Mobile push deep links: tapping an announcement push notification navigates directly to the announcements page. Task due-date reminders (DEADLINE_WARNING) already wired via the daily cron at POST /api/cron/deadline-reminders.',
+      'Three new permissions: announcements.view, announcements.create (HR), announcements.manage (edit/delete any announcement).',
+    ],
+    changes: {
+      added: [
+        'prisma/schema.prisma: Announcement, AnnouncementTarget, AnnouncementDismissal models; AnnouncementTargetType enum; ANNOUNCEMENT added to NotificationType enum',
+        'prisma/manual_migrations/add_announcements.sql: idempotent stored-procedure migration creating all three tables and extending the NotificationType enum',
+        'src/app/api/announcements/route.ts: GET (list, permission-filtered) / POST (create with auto serial)',
+        'src/app/api/announcements/[id]/route.ts: GET / PUT / DELETE (soft-delete)',
+        'src/app/api/announcements/active/route.ts: GET active in-window announcements for current user with dismissal state',
+        'src/app/api/announcements/[id]/dismiss/route.ts: POST to record per-user banner dismissal (idempotent upsert)',
+        'src/app/notifications/announcements/page.tsx + _page-client.tsx: full CRUD management page with violet hero, 4 KPI tiles, filter bar, expandable card list, and create/edit dialog with employee picker',
+        'src/components/announcements/AnnouncementBanner.tsx: floating bottom-right dismissible banner; polls every 5 min; paginated when multiple banners are active',
+        'src/lib/permissions.ts: announcements.view / .create / .manage under notifications category',
+      ],
+      fixed: [],
+      changed: [
+        'src/components/ResponsiveLayout.tsx: AnnouncementBanner injected into the shared layout so it appears on every page',
+        'src/components/app-sidebar.tsx: Announcements (Megaphone icon, newSince badge) added under Notifications section',
+        'src/lib/navigation-permissions.ts: /notifications/announcements route registered',
+        'src/lib/services/push.service.ts: ANNOUNCEMENT type and announcement entity type now routed to /notifications/announcements',
+      ],
+    },
+  },
+  {
     version: '18.9.0',
     date: 'April 14, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'HR/Payroll Redesign Phase 1 — Employment & Salary History Foundation',
     highlights: [
       'Per Walid\'s requirement "HR knows that this employee was a fabricator from date x to date y with a basic of xxx, and then he got promoted and become a foreman from date z, with a basic of nnn", OTS now tracks each employee\'s position and compensation as two independent timelines with contiguous date ranges and a single "open" row (effectiveTo=null) at a time.',

@@ -62,6 +62,7 @@ import {
   CalendarDays,
   GitMerge,
   Banknote,
+  Megaphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -128,6 +129,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Delayed Tasks', href: '/notifications?tab=delayed-tasks', icon: AlertTriangle },
       { name: 'Approvals', href: '/notifications?tab=approvals', icon: CheckCircle },
       { name: 'Deadlines', href: '/notifications?tab=deadlines', icon: Clock },
+      { name: 'Announcements', href: '/notifications/announcements', icon: Megaphone, newSince: '2026-04-15' },
     ],
   },
   {
