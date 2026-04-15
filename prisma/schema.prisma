@@ -4321,7 +4321,11 @@ model Agency {
   contractEnd   DateTime?    @db.Date
   status        AgencyStatus @default(ACTIVE)
 
-  slots ManpowerSlot[]
+  slots          ManpowerSlot[]
+  invoiceDrafts  ManpowerInvoiceDraft[]
+
+  // Dolibarr third-party ID (fournisseur) for pushing vendor invoices
+  dolibarrThirdPartyId String? @db.VarChar(40)
 
   createdById  String    @db.Char(36)
   createdBy    User      @relation("AgencyCreatedBy", fields: [createdById], references: [id])
@@ -4351,6 +4355,9 @@ model ManpowerSlot {
 
   // Phase 2: attendance / leaves / overtime from Google Sheet
   attendanceRecords AttendanceRecord[]
+
+  // Phase 4: billing invoice lines
+  invoiceLines ManpowerInvoiceLine[]
 
   createdById  String    @db.Char(36)
   createdBy    User      @relation("ManpowerSlotCreatedBy", fields: [createdById], references: [id])
@@ -4772,9 +4779,10 @@ model PayrollPeriod {
   payDate    DateTime            @db.Date
   notes      String?             @db.VarChar(1000)
 
-  lines       PayrollLine[]
-  adjustments PayrollAdjustment[]
-  wpsExports  WpsExport[]
+  lines          PayrollLine[]
+  adjustments    PayrollAdjustment[]
+  wpsExports     WpsExport[]
+  invoiceDrafts  ManpowerInvoiceDraft[]
 
   calculatedAt   DateTime?
   calculatedById String?   @db.Char(36)
@@ -5229,4 +5237,77 @@ model EndOfServiceAward {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ============================================================================
+// Phase 4 — Manpower Billing & Attendance Archive Integration
+// Auto-generate one vendor invoice draft per agency when a payroll period is
+// approved. HR reviews/adjusts before pushing to Dolibarr as a supplier invoice.
+// ============================================================================
+
+enum InvoiceDraftStatus {
+  DRAFT     // generated, awaiting HR review
+  CONFIRMED // HR approved — ready to push
+  PUSHED    // Dolibarr supplier invoice created (dolibarrInvoiceId populated)
+  PAID      // marked paid (reconciled)
+}
+
+// One draft invoice per agency per payroll period
+model ManpowerInvoiceDraft {
+  id              String             @id @default(uuid()) @db.Char(36)
+  agencyId        String             @db.Char(36)
+  agency          Agency             @relation(fields: [agencyId], references: [id])
+  payrollPeriodId String             @db.Char(36)
+  payrollPeriod   PayrollPeriod      @relation(fields: [payrollPeriodId], references: [id])
+  periodStart     DateTime           @db.Date
+  periodEnd       DateTime           @db.Date
+  status          InvoiceDraftStatus @default(DRAFT)
+
+  totalHours  Decimal @db.Decimal(10, 2)
+  totalAmount Decimal @db.Decimal(14, 2)
+
+  // Populated when pushed to Dolibarr (supplier invoice ref)
+  dolibarrInvoiceId  String?   @db.VarChar(40)
+  dolibarrInvoiceRef String?   @db.VarChar(80) // Dolibarr's human-readable ref
+  pushedAt           DateTime?
+
+  notes String? @db.VarChar(1000)
+
+  lines ManpowerInvoiceLine[]
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("ManpowerInvoiceDraftCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("ManpowerInvoiceDraftUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("ManpowerInvoiceDraftDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@unique([agencyId, payrollPeriodId]) // one draft per agency per period
+  @@index([agencyId, status])
+  @@index([payrollPeriodId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+// One line per manpower slot in the draft invoice
+model ManpowerInvoiceLine {
+  id             String               @id @default(uuid()) @db.Char(36)
+  invoiceDraftId String               @db.Char(36)
+  invoiceDraft   ManpowerInvoiceDraft @relation(fields: [invoiceDraftId], references: [id], onDelete: Cascade)
+  manpowerSlotId String               @db.Char(36)
+  manpowerSlot   ManpowerSlot         @relation(fields: [manpowerSlotId], references: [id])
+
+  totalHours Decimal @db.Decimal(8, 2)
+  hourlyRate Decimal @db.Decimal(10, 2)
+  lineTotal  Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceDraftId])
+  @@index([manpowerSlotId])
 }

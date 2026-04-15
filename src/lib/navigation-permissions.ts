@@ -175,6 +175,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/assets': ['hr.assets.view', 'hr.assets.manage'],
   '/hr/traffic-violations': ['hr.violations.view', 'hr.violations.manage'],
   '/hr/car-maintenance': ['hr.carMaintenance.view', 'hr.carMaintenance.manage'],
+  '/hr/manpower-invoices': ['hr.billing.view', 'hr.billing.manage', 'hr.billing.push'],
 
   '/admin/identity-reconciliation': ['admin.identity.reconcile'],
 

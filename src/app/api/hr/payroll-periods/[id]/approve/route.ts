@@ -8,6 +8,7 @@ import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { verifySession } from '@/lib/jwt';
 import { checkPermission } from '@/lib/permission-checker';
+import { generateManpowerInvoicesForPeriod } from '@/lib/services/hr/manpower-invoice-generator';
 
 async function getSession() {
   const store = await cookies();
@@ -102,6 +103,17 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
     }
   } catch (loopErr) {
     logger.warn({ error: loopErr, periodId: id }, '[Payroll] Loan/custody advancement had errors (non-fatal)');
+  }
+
+  // Phase 4 — Auto-generate manpower invoice drafts (non-fatal best-effort)
+  try {
+    const billingResult = await generateManpowerInvoicesForPeriod(id, session.sub);
+    logger.info(
+      { periodId: id, ...billingResult },
+      '[ManpowerBilling] Invoice drafts auto-generated on period approval',
+    );
+  } catch (billingErr) {
+    logger.warn({ error: billingErr, periodId: id }, '[ManpowerBilling] Auto-generation had errors (non-fatal)');
   }
 
   logger.info({ id }, '[Payroll] Period approved');

@@ -23,10 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '18.11.0',
+    version: '18.13.0',
     date: 'April 15, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Phase 4 — Manpower Billing & Attendance Archive Integration',
+    highlights: [
+      'Auto-generates one ManpowerInvoiceDraft per agency when a payroll period is approved — aggregates MANPOWER_SLOT attendance hours × hourlyRate, grouped by agency, one line per active slot.',
+      'HR reviews the draft, adjusts individual line hours if needed, confirms, then pushes directly to Dolibarr as a supplier (vendor) invoice via the new outbound DolibarrClient.createSupplierInvoice() REST call.',
+      'Reconciliation report per draft: compares raw attendance hours vs invoice hours for every slot — highlights any manual adjustments with a delta column.',
+      'Three new permissions: hr.billing.view (read drafts), hr.billing.manage (review, confirm, adjust, delete), hr.billing.push (send to Dolibarr) — all added to the HR role bundle.',
+      'New Manpower Invoices page at /hr/manpower-invoices with violet hero, five KPI tiles, status + period filters, expandable draft cards with inline reconciliation, and a manual re-generate dialog.',
+    ],
+    changes: {
+      added: [
+        'prisma/schema.prisma: ManpowerInvoiceDraft + ManpowerInvoiceLine models; InvoiceDraftStatus enum (DRAFT/CONFIRMED/PUSHED/PAID); dolibarrThirdPartyId field on Agency; invoiceDrafts back-relation on Agency and PayrollPeriod; invoiceLines back-relation on ManpowerSlot',
+        'prisma/manual_migrations/add_manpower_billing.sql: idempotent stored-procedure migration for ManpowerInvoiceDraft and ManpowerInvoiceLine tables + Agency.dolibarrThirdPartyId column',
+        'src/lib/services/hr/manpower-invoice-generator.ts: generateManpowerInvoicesForPeriod() — aggregates AttendanceRecord by slot, groups by agency, upserts drafts; idempotent (DRAFT re-calculated, CONFIRMED/PUSHED/PAID skipped)',
+        'src/lib/dolibarr/dolibarr-client.ts: private post<T>() method for outbound REST calls; createSupplierInvoice() wrapping POST /supplierinvoices; DolibarrCreateSupplierInvoiceParams + DolibarrCreateSupplierInvoiceLine types',
+        'src/app/api/hr/manpower-invoices/route.ts: GET (list, filter by status/period/agency) + POST (manual generation trigger)',
+        'src/app/api/hr/manpower-invoices/[id]/route.ts: GET (detail with lines) + PUT (edit notes/lines, DRAFT only) + DELETE (soft-delete)',
+        'src/app/api/hr/manpower-invoices/[id]/confirm/route.ts: POST DRAFT → CONFIRMED',
+        'src/app/api/hr/manpower-invoices/[id]/push/route.ts: POST CONFIRMED → PUSHED + Dolibarr supplier invoice creation',
+        'src/app/api/hr/manpower-invoices/[id]/reconcile/route.ts: GET per-slot attendance vs invoice hours delta report',
+        'src/app/hr/manpower-invoices/page.tsx: server component fetching drafts + approved periods + KPI',
+        'src/components/hr/manpower-invoices-client.tsx: full client UI (hero, KPI strip, filter bar, draft cards, reconciliation table, confirm/push dialogs)',
+        'src/lib/permissions.ts: hr.billing.{view,manage,push} under HR category',
+        'src/lib/navigation-permissions.ts: /hr/manpower-invoices route registered',
+      ],
+      fixed: [],
+      changed: [
+        'src/app/api/hr/payroll-periods/[id]/approve/route.ts: calls generateManpowerInvoicesForPeriod() as non-fatal best-effort side-effect after period → APPROVED',
+        'src/components/app-sidebar.tsx: Manpower Invoices (Receipt icon, newSince badge) added to HR section',
+      ],
+    },
+  },
+  {
+    version: '18.11.0',
+    date: 'April 15, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Notification & Announcement System',
     highlights: [
       'Company-wide announcement system: HR creates announcements with serial numbers (ANN-YY-NNN), subject, content, start/end date window, and an audience — either all employees or a targeted list of specific employees.',
