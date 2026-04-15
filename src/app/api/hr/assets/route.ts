@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { AssetCategory, AssetStatus } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
@@ -46,8 +47,8 @@ export const GET = withApiContext(async (req: NextRequest) => {
     const assets = await prisma.asset.findMany({
       where: {
         deletedAt: null,
-        ...(category ? { category: category as never } : {}),
-        ...(status ? { status: status as never } : {}),
+        ...(category ? { category: category as AssetCategory } : {}),
+        ...(status ? { status: status as AssetStatus } : {}),
         ...(search
           ? {
               OR: [
