@@ -468,6 +468,14 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.holiday.manage',
     'hr.section.manage',
     'hr.leaves.sync',
+    // Phase 3 — Payroll
+    'hr.payroll.view',
+    'hr.payroll.calculate',
+    'hr.payroll.approve',
+    'hr.payroll.lock',
+    'hr.payroll.adjust',
+    'hr.payroll.export',
+    'hr.payroll.settings',
   ],
   Manager: [
     // User Management

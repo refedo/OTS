@@ -55,6 +55,21 @@ const HR_BASE_PERMISSIONS = [
   'hr.attendance.probe',
   'hr.holiday.view',
   'hr.holiday.manage',
+  'hr.section.manage',
+  'hr.leaves.sync',
+  // Phase 3 — Payroll
+  'hr.payroll.view',
+  'hr.payroll.calculate',
+  'hr.payroll.approve',
+  'hr.payroll.lock',
+  'hr.payroll.adjust',
+  'hr.payroll.export',
+  'hr.payroll.settings',
+  // 18.10.0 — Loans & Custodies
+  'hr.loans.view',
+  'hr.loans.manage',
+  'hr.custodies.view',
+  'hr.custodies.manage',
 ];
 
 function mergePermissions(existing: unknown, additions: string[]): string[] {
