@@ -5,6 +5,7 @@ import prisma from '@/lib/db';
 import { checkPermission, getCurrentUserPermissions } from '@/lib/permission-checker';
 import { EmployeeForm } from '@/components/hr/employee-form';
 import { EmployeeDetailTabs } from '@/components/hr/employee-detail-tabs';
+import { UserCircle2 } from 'lucide-react';
 
 export default async function EmployeeDetailPage({
   params,
@@ -88,18 +89,50 @@ export default async function EmployeeDetailPage({
       : [],
   };
 
+  const statusConfig: Record<string, { label: string; cls: string }> = {
+    ACTIVE:     { label: 'Active',     cls: 'bg-emerald-100/80 text-emerald-200 border-emerald-300/50' },
+    ON_LEAVE:   { label: 'On Leave',   cls: 'bg-amber-100/80 text-amber-200 border-amber-300/50' },
+    SUSPENDED:  { label: 'Suspended',  cls: 'bg-orange-100/80 text-orange-200 border-orange-300/50' },
+    TERMINATED: { label: 'Terminated', cls: 'bg-rose-100/80 text-rose-200 border-rose-300/50' },
+    RESIGNED:   { label: 'Resigned',   cls: 'bg-slate-100/80 text-slate-200 border-slate-300/50' },
+  };
+  const sc = statusConfig[employee.status] ?? { label: employee.status, cls: 'bg-slate-100/80 text-slate-200 border-slate-300/50' };
+
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">{employee.fullNameEn}</h1>
-        <p className="text-sm text-muted-foreground">
-          {employee.employmentId} · Last synced{' '}
-          {employee.lastSyncedFromDolibarrAt
-            ? new Date(employee.lastSyncedFromDolibarrAt).toLocaleString()
-            : 'never'}
-        </p>
-      </div>
-      <EmployeeDetailTabs
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* Hero */}
+        <div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+          <div className="relative z-10 flex items-start gap-4">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm shrink-0">
+              <UserCircle2 className="h-8 w-8" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap mb-1">
+                <h1 className="text-2xl font-bold truncate">{employee.fullNameEn}</h1>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${sc.cls}`}>
+                  {sc.label}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap text-sky-100 text-sm">
+                <span className="font-mono">{employee.employmentId}</span>
+                {employee.department && <span>· {employee.department}</span>}
+                {employee.occupation && <span>· {employee.occupation}</span>}
+              </div>
+              <p className="text-sky-200 text-xs mt-2">
+                Last synced:{' '}
+                {employee.lastSyncedFromDolibarrAt
+                  ? new Date(employee.lastSyncedFromDolibarrAt).toLocaleString('en-SA', { dateStyle: 'medium', timeStyle: 'short' })
+                  : 'never'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <EmployeeDetailTabs
         showHistory={canViewPositionHistory || canViewSalaryHistory}
         showFinance={canViewLoans || canViewCustodies}
         showAssets={canViewAssets || canViewViolations}
@@ -122,6 +155,7 @@ export default async function EmployeeDetailPage({
         canManageAssets={canManageAssets}
         canManageViolations={canManageViolations}
       />
+      </div>
     </div>
   );
 }

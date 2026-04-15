@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { MaintenanceType } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
@@ -42,7 +43,7 @@ export const GET = withApiContext(async (req: NextRequest) => {
       where: {
         deletedAt: null,
         ...(assetId ? { assetId } : {}),
-        ...(type ? { maintenanceType: type as never } : {}),
+        ...(type ? { maintenanceType: type as MaintenanceType } : {}),
       },
       orderBy: { maintenanceDate: 'desc' },
       include: {
@@ -86,32 +87,33 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
   }
 
   try {
-    const record = await prisma.carMaintenanceRecord.create({
-      data: {
-        assetId: d.assetId,
-        maintenanceDate: new Date(d.maintenanceDate),
-        maintenanceType: d.maintenanceType,
-        description: d.description,
-        serviceCenter: d.serviceCenter ?? null,
-        odometer: d.odometer ?? null,
-        cost: d.cost != null ? d.cost.toString() : null,
-        nextServiceDate: d.nextServiceDate ? new Date(d.nextServiceDate) : null,
-        nextServiceOdometer: d.nextServiceOdometer ?? null,
-        partsReplaced: d.partsReplaced ?? null,
-        invoiceNumber: d.invoiceNumber ?? null,
-        technician: d.technician ?? null,
-        notes: d.notes ?? null,
-        createdById: session!.userId,
-      },
-    });
-
-    // Update asset odometer if provided
-    if (d.odometer != null) {
-      await prisma.asset.update({
-        where: { id: d.assetId },
-        data: { currentOdometer: d.odometer, updatedById: session!.userId },
+    const record = await prisma.$transaction(async (tx) => {
+      const r = await tx.carMaintenanceRecord.create({
+        data: {
+          assetId: d.assetId,
+          maintenanceDate: new Date(d.maintenanceDate),
+          maintenanceType: d.maintenanceType,
+          description: d.description,
+          serviceCenter: d.serviceCenter ?? null,
+          odometer: d.odometer ?? null,
+          cost: d.cost != null ? d.cost.toString() : null,
+          nextServiceDate: d.nextServiceDate ? new Date(d.nextServiceDate) : null,
+          nextServiceOdometer: d.nextServiceOdometer ?? null,
+          partsReplaced: d.partsReplaced ?? null,
+          invoiceNumber: d.invoiceNumber ?? null,
+          technician: d.technician ?? null,
+          notes: d.notes ?? null,
+          createdById: session!.userId,
+        },
       });
-    }
+      if (d.odometer != null) {
+        await tx.asset.update({
+          where: { id: d.assetId },
+          data: { currentOdometer: d.odometer, updatedById: session!.userId },
+        });
+      }
+      return r;
+    });
 
     logger.info({ recordId: record.id, assetId: d.assetId }, '[CarMaintenance] Created');
     return NextResponse.json(record, { status: 201 });
