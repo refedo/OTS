@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.17.0] - 2026-04-16
+
+### HR Module Enhancements — Letters, Vacation Balance & Date Fixes (Minor)
+
+#### Added
+
+- **Letters & Correspondence system:** New `HrLetter` model with `HrLetterType` enum (16 types: QUESTIONING, ATTENTION, FIRST_WARNING, FINAL_WARNING, NON_RENEWAL_NOTICE, DISMISSAL, CIRCULATION, WORK_COMMENCEMENT, SALARY_CERTIFICATE, LEAVE_NOTICE, RETURN_FROM_LEAVE, PROBATION_EVALUATION, PERFORMANCE_APPRAISAL, CLEARANCE_FORM, SALARY_NON_DISCLOSURE, OTHER) and `HrLetterClass` enum (INTERNAL/EXTERNAL).
+- **Auto-numbering:** Letters auto-number as `INT-YY-NNNN` or `EXT-YY-NNNN` with a 5-attempt retry loop catching Prisma P2002 unique-constraint violations for race-condition safety.
+- **Migration:** `prisma/manual_migrations/add_hr_letters.sql` — idempotent stored-procedure pattern.
+- **API routes:** `GET/POST /api/hr/letters` (list with optional `?employeeId=`, `?type=`, `?classification=` filters + create) and `GET/PUT/DELETE /api/hr/letters/[id]` (soft delete).
+- **Letters page:** `/hr/letters` with indigo/blue gradient hero, 4 KPI tiles (Total Issued, Internal, External, This Month), full letter table, create/edit dialog (inline write or PDF attachment toggle), and view dialog.
+- **Permissions:** `hr.letters.view` + `hr.letters.manage` — both added to HR role bundle.
+- **Sidebar:** "Letters & Correspondence" entry (FileText icon) added to HR section.
+- **Vacation Balance API:** `GET /api/hr/vacation-entitlement` returns per-employee entitled days (1.75 days/month × months since `dateOfJoining`) and consumed days per leave type from all approved leave requests.
+- **Vacation Balance tab:** New "Vacation Balance" tab in `/hr/leaves` (visible to `canViewAll` users) — 4 KPI tiles (Employees, Total Entitled, Total Consumed, Total Remaining), searchable table with one column per leave type showing consumed days, entitled total, and remaining (negative balance highlighted in rose).
+
+#### Fixed
+
+- **Hijri dates in assets:** `fmtDate` in `assets-client.tsx` used `en-SA` locale which renders the Islamic (Hijri) calendar on Saudi devices. Changed to `en-GB` for consistent Gregorian output everywhere.
+- **Hijri dates in contracts table:** Removed the `{expiryDateHijri} AH` sub-line from the expiry date column — only Gregorian date shown in the table; Hijri input field still available in create/edit dialog.
+- **Payroll empty state on API error:** `payroll-periods-client.tsx` refresh now throws on non-OK HTTP status and surfaces the error message to the user instead of silently showing an empty "No payroll periods yet" state.
+
+#### Changed
+
+- **Asset view toggle:** Asset list gains grid/table view toggle (LayoutGrid/LayoutList icons); preference persisted to `localStorage` under `hr-assets-view-mode`.
+- **Sidebar cleanup:** Attendance Sync, Dolibarr Sync, and Identity Reconciliation removed from sidebar navigation — accessible via their dedicated tabs inside HR Setup.
+- **Sidebar order page:** `HR` added to `DEFAULT_SECTIONS` array in the sidebar order page.
+
+---
+
+## [18.16.0] - 2026-04-15
+
+### HR Module Enhancements & HR Setup Consolidation (Minor)
+
+#### Added
+
+- **HR Setup redesign:** Gradient sky/blue hero banner, 4 KPI tiles (departments, sections, position titles, leave types), and 3 new integration tabs: Attendance Sync (Google Sheet sync with probe + run history), Dolibarr Sync (employee sync with reconciliation gate), and Identity Reconciliation (OTS↔Dolibarr user linking).
+- **Asset assignment inline edit:** `PATCH /api/hr/asset-assignments/[id]` — edit return date, notes, or condition on existing assignment rows directly from the Assignment Log table.
+- **Clickable links in Assignment Log:** Asset code/name and employee name in the log table are now clickable links navigating to the asset or employee detail page.
+- **Backlog Delete action:** Soft-delete backlog items via `DELETE /api/backlog/[id]`; Delete button added to the backlog card actions row.
+- **Traffic violation car auto-populate:** On employee selection in the violation form, the employee's currently assigned car asset is auto-populated in the vehicle field.
+- **GitHub issue auto-close:** When a backlog item status is set to COMPLETED or DROPPED and a GitHub issue URL is linked, the issue is automatically closed via the GitHub API.
+
+---
+
+## [18.15.0] - 2026-04-15
+
+### UI Enhancements & Schema Extensions (Minor)
+
+#### Added
+
+- **Traffic violations dropdowns:** Issuing authority and violation type fields converted from free-text to dropdowns with predefined options plus "Other" free-text fallback.
+- **Backlog description inline + edit/delete:** Backlog tasks now show description inline beneath the title; edit and delete actions added to every backlog card.
+- **Backlog tag-input for modules:** Affected modules field replaced with a comma/Enter tag-input component.
+- **Backlog reference link:** Optional `linkUrl` field added to backlog items for linking external issues, PRs, or specs.
+- **Backlog HR category:** New `HR` value added to `BacklogCategory` enum.
+- **Holiday redesign:** Public holidays page redesigned with gradient hero, KPI tiles, multi-day range support (start + end date), auto-calculated total days, and `endDate` field on `PublicHoliday`.
+- **Asset file attachments:** `Asset.attachments` (JSON array of file URLs) + `Asset.licenseExpiryDate` for car assets. Car asset cards show a "License" upload button and expiry date badge.
+- **Contracts Vehicle Licenses section:** `/hr/contracts` gains a Vehicle Licenses section listing all car assets with license expiry color-coding and a Renew License dialog (new date + evidence upload → `PUT /api/hr/assets/[id]`).
+- **Migration:** `prisma/manual_migrations/add_holiday_enddate_asset_attachments_backlog_hr.sql` — idempotent; covers `PublicHoliday.endDate`, `Asset.licenseExpiryDate`, `Asset.attachments`, `ProductBacklogItem.linkUrl`, `BacklogCategory.HR`.
+
+---
+
 ## [18.14.0] - 2026-04-15
 
 ### Unified Asset Log + Contracts & Documents Management (Minor)

@@ -100,9 +100,14 @@ export function PayrollPeriodsClient({
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/hr/payroll-periods');
-      if (res.ok) setPeriods(await res.json());
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Failed to load payroll periods (${res.status})`);
+      }
+      setPeriods(await res.json());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
