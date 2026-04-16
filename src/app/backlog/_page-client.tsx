@@ -19,7 +19,7 @@ import {
   Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown,
   MoreHorizontal, Eye, CheckCircle, XCircle, Layers,
   AlertTriangle, TrendingUp, ShieldCheck, ListTodo,
-  Github, Loader2,
+  Github, Loader2, Trash2,
 } from 'lucide-react';
 
 interface BacklogItem {
@@ -458,6 +458,28 @@ export default function BacklogBoard() {
                                 <XCircle className="size-4 mr-2" /> Drop
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              onClick={() => showConfirmation({
+                                type: 'error',
+                                title: 'Delete Backlog Item',
+                                message: `Are you sure you want to permanently delete "${item.title}"? This action cannot be undone.`,
+                                confirmText: 'Delete',
+                                onConfirm: async () => {
+                                  const res = await fetch(`/api/backlog/${item.id}`, { method: 'DELETE' });
+                                  if (res.ok) {
+                                    showConfirmation({ type: 'success', title: 'Deleted', message: 'Backlog item deleted successfully.' });
+                                    fetchBacklogItems();
+                                  } else {
+                                    const err = await res.json();
+                                    showConfirmation({ type: 'error', title: 'Delete Failed', message: err.error || 'Could not delete the item.' });
+                                  }
+                                },
+                              })}
+                            >
+                              <Trash2 className="size-4 mr-2" /> Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>

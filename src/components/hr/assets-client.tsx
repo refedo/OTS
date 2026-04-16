@@ -59,7 +59,9 @@ import {
   X,
   Eye,
   ShieldCheck,
+  Pencil,
 } from 'lucide-react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -888,13 +890,19 @@ function calcDuration(assigned: string, returned: string | null): string {
   return `${days} day${days !== 1 ? 's' : ''}`;
 }
 
-function AssignmentLogTab({ active }: { active: boolean }) {
+function AssignmentLogTab({ active, canManage }: { active: boolean; canManage: boolean }) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [logSearch, setLogSearch] = useState('');
   const [logStatus, setLogStatus] = useState('__all__');
   const [logCategory, setLogCategory] = useState('__all__');
+
+  // Inline edit state
+  const [editingEntry, setEditingEntry] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   const loadLog = useCallback(async () => {
     setLoading(true);
@@ -911,6 +919,23 @@ function AssignmentLogTab({ active }: { active: boolean }) {
       setLoading(false);
     }
   }, [logSearch, logStatus, logCategory]);
+
+  const handleEditSave = async () => {
+    if (!editingEntry) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/hr/asset-assignments/${editingEntry}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignedDate: editDate, notes: editNotes || null }),
+      });
+      if (!res.ok) return;
+      setEditingEntry(null);
+      await loadLog();
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   // Lazy-load on first activation, then re-fetch when filters change
   useEffect(() => {
@@ -977,50 +1002,119 @@ function AssignmentLogTab({ active }: { active: boolean }) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Returned</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Duration</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Return Reason</th>
+                {canManage && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {entries.map((e) => (
-                <tr key={e.id} className="hover:bg-violet-50/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1 bg-violet-100 rounded text-violet-600 shrink-0">
-                        {categoryIcon(e.asset.category, 'h-3.5 w-3.5')}
+                <>
+                  <tr key={e.id} className="hover:bg-violet-50/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 bg-violet-100 rounded text-violet-600 shrink-0">
+                          {categoryIcon(e.asset.category, 'h-3.5 w-3.5')}
+                        </div>
+                        <div>
+                          <Link href="/hr/assets" className="font-medium text-slate-800 hover:text-violet-600 hover:underline">
+                            {e.asset.name}
+                          </Link>
+                          <p className="text-xs font-mono text-slate-400">{e.asset.assetCode}</p>
+                          {e.asset.plateNumber && (
+                            <p className="text-xs text-amber-600">{e.asset.plateNumber}</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-800">{e.asset.name}</p>
-                        <p className="text-xs font-mono text-slate-400">{e.asset.assetCode}</p>
-                        {e.asset.plateNumber && (
-                          <p className="text-xs text-amber-600">{e.asset.plateNumber}</p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {e.employee ? (
-                      <div>
-                        <p className="text-slate-700">{e.employee.fullNameEn}</p>
-                        <p className="text-xs text-slate-400">{e.employee.employmentId}</p>
-                      </div>
-                    ) : <span className="text-slate-400 text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn(
-                      'text-xs font-medium px-2 py-0.5 rounded-full border',
-                      e.status === 'ACTIVE'
-                        ? 'bg-sky-100 text-sky-700 border-sky-200'
-                        : 'bg-slate-100 text-slate-600 border-slate-200'
-                    )}>
-                      {e.status === 'ACTIVE' ? 'Active' : 'Returned'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDate(e.assignedDate)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{e.returnedDate ? fmtDate(e.returnedDate) : '—'}</td>
-                  <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{calcDuration(e.assignedDate, e.returnedDate)}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500">
-                    {e.returnReason ? RETURN_REASONS.find(r => r.value === e.returnReason)?.label ?? e.returnReason : '—'}
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-4 py-3">
+                      {e.employee ? (
+                        <div>
+                          <Link href={`/hr/employees/${e.employee.id}`} className="text-slate-700 hover:text-violet-600 hover:underline">
+                            {e.employee.fullNameEn}
+                          </Link>
+                          <p className="text-xs text-slate-400">{e.employee.employmentId}</p>
+                        </div>
+                      ) : <span className="text-slate-400 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={cn(
+                        'text-xs font-medium px-2 py-0.5 rounded-full border',
+                        e.status === 'ACTIVE'
+                          ? 'bg-sky-100 text-sky-700 border-sky-200'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                      )}>
+                        {e.status === 'ACTIVE' ? 'Active' : 'Returned'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtDate(e.assignedDate)}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{e.returnedDate ? fmtDate(e.returnedDate) : '—'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{calcDuration(e.assignedDate, e.returnedDate)}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      {e.returnReason ? RETURN_REASONS.find(r => r.value === e.returnReason)?.label ?? e.returnReason : '—'}
+                    </td>
+                    {canManage && (
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-violet-600"
+                          onClick={() => {
+                            setEditingEntry(e.id);
+                            setEditDate(e.assignedDate.slice(0, 10));
+                            setEditNotes(e.notes ?? '');
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                  {editingEntry === e.id && (
+                    <tr key={`${e.id}-edit`} className="bg-violet-50/40 border-b border-violet-100">
+                      <td colSpan={canManage ? 8 : 7} className="px-4 py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-slate-600">Assigned Date</label>
+                            <input
+                              type="date"
+                              className="h-8 rounded-md border border-slate-200 px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                              value={editDate}
+                              onChange={ev => setEditDate(ev.target.value)}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1 flex-1 min-w-0">
+                            <label className="text-xs font-medium text-slate-600">Notes</label>
+                            <input
+                              type="text"
+                              className="h-8 rounded-md border border-slate-200 px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-400 w-full"
+                              placeholder="Optional notes…"
+                              value={editNotes}
+                              onChange={ev => setEditNotes(ev.target.value)}
+                            />
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              className="h-8 bg-violet-600 hover:bg-violet-700 text-white"
+                              onClick={handleEditSave}
+                              disabled={editSaving}
+                            >
+                              {editSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              onClick={() => setEditingEntry(null)}
+                              disabled={editSaving}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
@@ -1334,7 +1428,7 @@ export function AssetsClient({ canManage }: Props) {
           </TabsContent>
 
           <TabsContent value="log">
-            <AssignmentLogTab active={activeTab === 'log'} />
+            <AssignmentLogTab active={activeTab === 'log'} canManage={canManage} />
           </TabsContent>
         </Tabs>
       </div>

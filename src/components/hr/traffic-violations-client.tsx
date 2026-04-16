@@ -140,6 +140,7 @@ function ViolationFormDialog({
   const [empSearch, setEmpSearch] = useState(initial?.employee?.fullNameEn ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [autoLoadingCar, setAutoLoadingCar] = useState(false);
 
   const resolveAuthority = (val: string | null | undefined): string => {
     if (!val) return '';
@@ -214,12 +215,34 @@ function ViolationFormDialog({
           {/* Employee picker */}
           <div className="space-y-1">
             <Label>Employee *</Label>
-            <Input placeholder="Search employee..." value={empSearch} onChange={e => setEmpSearch(e.target.value)} />
+            <Input
+              placeholder="Search employee..."
+              value={empSearch}
+              onChange={e => {
+                setEmpSearch(e.target.value);
+                if (form.employeeId) {
+                  set('employeeId', '');
+                  set('assetId', '');
+                }
+              }}
+            />
             {empSearch && !form.employeeId && (
               <div className="max-h-40 overflow-y-auto border rounded-lg divide-y">
                 {filteredEmps.slice(0, 15).map(emp => (
                   <button key={emp.id} type="button"
-                    onClick={() => { set('employeeId', emp.id); setEmpSearch(emp.fullNameEn); }}
+                    onClick={async () => {
+                      set('employeeId', emp.id);
+                      setEmpSearch(emp.fullNameEn);
+                      setAutoLoadingCar(true);
+                      try {
+                        const res = await fetch(`/api/hr/asset-assignments?employeeId=${emp.id}&status=ACTIVE&category=CAR`);
+                        const data: Array<{ asset: { id: string; assetCode: string; name: string; plateNumber: string | null; category: string } }> = await res.json();
+                        const carAssignment = Array.isArray(data) ? data.find(a => a.asset?.category === 'CAR') : undefined;
+                        if (carAssignment) set('assetId', carAssignment.asset.id);
+                      } catch { /* silently skip — manual selection still available */ } finally {
+                        setAutoLoadingCar(false);
+                      }
+                    }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between"
                   >
                     <span>{emp.fullNameEn}</span>
@@ -232,7 +255,10 @@ function ViolationFormDialog({
 
           {/* Linked Car */}
           <div className="space-y-1">
-            <Label>Linked Vehicle (optional)</Label>
+            <div className="flex items-center gap-2">
+              <Label>Linked Vehicle (optional)</Label>
+              {autoLoadingCar && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
+            </div>
             <Select value={form.assetId || '__none__'} onValueChange={v => set('assetId', v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Select company vehicle..." /></SelectTrigger>
               <SelectContent>

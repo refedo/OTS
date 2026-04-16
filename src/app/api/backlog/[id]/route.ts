@@ -177,6 +177,40 @@ export async function PATCH(
       },
     });
 
+    // Auto-sync to GitHub when status changes to COMPLETED or DROPPED
+    if (
+      (body.status === 'COMPLETED' || body.status === 'DROPPED') &&
+      item.githubIssueNumber
+    ) {
+      try {
+        const settings = await prisma.systemSettings.findFirst({
+          select: { githubToken: true, githubDefaultRepo: true },
+        });
+        if (settings?.githubToken && settings?.githubDefaultRepo) {
+          const { updateGitHubIssue } = await import('@/lib/services/github.service');
+          const repo = (item as { githubRepo?: string | null }).githubRepo ?? settings.githubDefaultRepo;
+          await updateGitHubIssue(settings.githubToken, repo, item.githubIssueNumber, {
+            code: item.code,
+            title: item.title,
+            description: item.description,
+            type: item.type,
+            category: item.category,
+            priority: item.priority,
+            status: item.status,
+            businessReason: item.businessReason,
+            expectedValue: item.expectedValue,
+            affectedModules: item.affectedModules as string[],
+            riskLevel: item.riskLevel,
+            complianceFlag: item.complianceFlag,
+            tasks: item.tasks,
+          });
+          logger.info({ itemId: item.id, issueNumber: item.githubIssueNumber, newStatus: item.status }, 'Auto-synced backlog item status to GitHub');
+        }
+      } catch (ghErr) {
+        logger.error({ ghErr, itemId: item.id }, 'Failed to auto-sync backlog status to GitHub (non-fatal)');
+      }
+    }
+
     // Notify the creator when status changes
     if (body.status && body.status !== existingItem.status && existingItem.createdById !== session.sub) {
       const STATUS_LABELS: Record<string, string> = {
