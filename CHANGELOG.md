@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.18.0] - 2026-04-16
+
+### Payroll Revert, Attendance Consolidation, Global Search Expansion & Quick Task (Minor)
+
+#### Added
+
+- **Payroll approval revert:** `POST /api/hr/payroll-periods/[id]/unapprove` reverts APPROVED → CALCULATED. Requires `hr.payroll.approve`. Blocked on LOCKED/PAID. Note: loan/custody advances applied during approval are NOT auto-reversed.
+- **"Revert Approval" button:** Amber-outlined button in payroll period detail page — visible only when status === APPROVED and user has `hr.payroll.approve`.
+- **Attendance page tabs:** New `AttendanceTabsClient` wraps `/hr/attendance` with three tabs: Records (existing list), Mapping (with unmapped badge count), Timesheet (launch card linking to the per-employee timesheet).
+- **Quick task button:** `+` button added to TopBar (next to global search). Keyboard shortcut `Ctrl+Shift+T`. Opens a dialog with title, priority (Low/Medium/High/Critical), and optional due date — submits to `POST /api/tasks`.
+- **Global search HR entities:** Employees (name, ID, occupation), Assets (code, name, plate, serial), Contracts (title, number, reference), HR Letters (number, subject) added to `/api/search` and `GlobalSearch` component.
+- **Startup migrations:** `add_hr_letters.sql` added to `STARTUP_MIGRATIONS` in `startup-migrations.ts`.
+
+#### Fixed
+
+- **Agencies page:** Added `export const dynamic = 'force-dynamic'` to prevent stale static rendering causing apparent refresh loop when navigating to the page.
+
+#### Changed
+
+- **Sidebar cleanup:** "Employee Timesheet" and "Attendance Mapping" entries removed from sidebar — content accessible via Attendance page tabs.
+- **Version bumped to 18.18.0.**
+
+---
+
 ## [18.17.0] - 2026-04-16
 
 ### HR Module Enhancements — Letters, Vacation Balance & Date Fixes (Minor)

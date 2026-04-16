@@ -15,6 +15,7 @@ const MIGRATIONS_DIR = join(process.cwd(), 'prisma', 'manual_migrations');
 const STARTUP_MIGRATIONS = [
   'add_announcements.sql',
   'add_contracts.sql',
+  'add_hr_letters.sql',
 ];
 
 /**

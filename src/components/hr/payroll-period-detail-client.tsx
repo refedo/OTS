@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Calculator, CheckCircle2, Lock, Download, FileText } from 'lucide-react';
+import { Loader2, Calculator, CheckCircle2, Lock, Download, FileText, RotateCcw } from 'lucide-react';
 
 type Line = {
   id: string;
@@ -89,6 +89,7 @@ export function PayrollPeriodDetailClient({
 
   const canRecalc = (period.status === 'DRAFT' || period.status === 'CALCULATED') && canCalculate;
   const canApproveNow = period.status === 'CALCULATED' && canApprove;
+  const canUnapproveNow = period.status === 'APPROVED' && canApprove;
   const canLockNow = (period.status === 'APPROVED' || period.status === 'PAID') && canLock;
   const canExportNow =
     (period.status === 'APPROVED' || period.status === 'PAID' || period.status === 'LOCKED') && canExport;
@@ -156,6 +157,21 @@ export function PayrollPeriodDetailClient({
           <Button variant="secondary" onClick={() => run('approve', `/api/hr/payroll-periods/${period.id}/approve`)} disabled={busy !== null}>
             <CheckCircle2 className="h-4 w-4 mr-1" />
             Approve
+          </Button>
+        )}
+        {canUnapproveNow && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (confirm('Revert this period from APPROVED back to CALCULATED? Loan/custody advances applied during approval will NOT be reversed automatically.')) {
+                run('unapprove', `/api/hr/payroll-periods/${period.id}/unapprove`);
+              }
+            }}
+            disabled={busy !== null}
+            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            {busy === 'unapprove' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-1" />}
+            Revert Approval
           </Button>
         )}
         {canLockNow && (

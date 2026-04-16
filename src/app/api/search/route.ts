@@ -23,7 +23,7 @@ export const GET = withApiContext(async (req) => {
   }
 
   try {
-    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries, buildings, users] =
+    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries, buildings, users, employees, assets, contracts, hrLetters] =
       await Promise.all([
         safe(() => prisma.task.findMany({
           where: {
@@ -181,6 +181,66 @@ export const GET = withApiContext(async (req) => {
           take: MAX_PER_CATEGORY,
           orderBy: { name: 'asc' },
         })),
+
+        safe(() => prisma.employee.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { fullNameEn: { contains: q } },
+              { fullNameAr: { contains: q } },
+              { employmentId: { contains: q } },
+              { occupation: { contains: q } },
+            ],
+          },
+          select: { id: true, fullNameEn: true, employmentId: true, occupation: true, status: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { fullNameEn: 'asc' },
+        })),
+
+        safe(() => prisma.asset.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { assetCode: { contains: q } },
+              { name: { contains: q } },
+              { vehicleMake: { contains: q } },
+              { vehicleModel: { contains: q } },
+              { plateNumber: { contains: q } },
+              { serialNumber: { contains: q } },
+            ],
+          },
+          select: { id: true, assetCode: true, name: true, category: true, status: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { updatedAt: 'desc' },
+        })),
+
+        safe(() => prisma.contract.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { title: { contains: q } },
+              { contractNumber: { contains: q } },
+              { referenceNumber: { contains: q } },
+              { issuingAuthority: { contains: q } },
+            ],
+          },
+          select: { id: true, contractNumber: true, title: true, type: true, status: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { updatedAt: 'desc' },
+        })),
+
+        safe(() => prisma.hrLetter.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { letterNumber: { contains: q } },
+              { subject: { contains: q } },
+            ],
+          },
+          select: { id: true, letterNumber: true, subject: true, letterType: true, classification: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { issuedAt: 'desc' },
+        })),
       ]);
 
     const taskArr = Array.isArray(tasks) ? tasks : [];
@@ -194,6 +254,10 @@ export const GET = withApiContext(async (req) => {
     const lcrArr = Array.isArray(lcrEntries) ? lcrEntries : [];
     const buildingArr = Array.isArray(buildings) ? buildings : [];
     const userArr = Array.isArray(users) ? users : [];
+    const employeeArr = Array.isArray(employees) ? employees : [];
+    const assetArr = Array.isArray(assets) ? assets : [];
+    const contractArr = Array.isArray(contracts) ? contracts : [];
+    const hrLetterArr = Array.isArray(hrLetters) ? hrLetters : [];
 
     return NextResponse.json({
       results: {
@@ -284,6 +348,38 @@ export const GET = withApiContext(async (req) => {
           badge: 'User',
           url: `/settings/users/${u.id}`,
           type: 'User',
+        })),
+        employees: employeeArr.map((e) => ({
+          id: e.id,
+          title: e.fullNameEn,
+          subtitle: `${e.employmentId}${e.occupation ? ` · ${e.occupation}` : ''}`,
+          badge: e.status,
+          url: `/hr/employees/${e.id}`,
+          type: 'Employee',
+        })),
+        assets: assetArr.map((a) => ({
+          id: a.id,
+          title: a.name,
+          subtitle: `${a.assetCode} · ${a.category}`,
+          badge: a.status,
+          url: `/hr/assets`,
+          type: 'Asset',
+        })),
+        contracts: contractArr.map((c) => ({
+          id: c.id,
+          title: c.title,
+          subtitle: `${c.contractNumber} · ${c.type.replace(/_/g, ' ')}`,
+          badge: c.status,
+          url: `/hr/contracts`,
+          type: 'Contract',
+        })),
+        hrLetters: hrLetterArr.map((l) => ({
+          id: l.id,
+          title: l.subject,
+          subtitle: `${l.letterNumber} · ${l.letterType.replace(/_/g, ' ')}`,
+          badge: l.classification,
+          url: `/hr/letters`,
+          type: 'Letter',
         })),
       },
     });

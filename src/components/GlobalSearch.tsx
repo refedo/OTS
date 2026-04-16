@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type ComponentType, type SVGProps, type KeyboardEvent } from 'react';
 import Link from 'next/link';
-import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package, Building2, Users } from 'lucide-react';
+import { Search, X, Loader2, ClipboardList, FolderKanban, Lightbulb, AlertCircle, BookOpen, FileWarning, FileSearch, Wrench, Package, Building2, Users, UserCircle, PackageSearch, FileText, ScrollText } from 'lucide-react';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,10 @@ interface SearchResults {
   lcrEntries: SearchResult[];
   buildings: SearchResult[];
   users: SearchResult[];
+  employees: SearchResult[];
+  assets: SearchResult[];
+  contracts: SearchResult[];
+  hrLetters: SearchResult[];
 }
 
 const CATEGORY_META: Record<
@@ -50,6 +54,10 @@ const CATEGORY_META: Record<
   lcrEntries: { label: 'LCR Items', icon: Package, color: 'text-indigo-500' },
   buildings: { label: 'Buildings', icon: Building2, color: 'text-cyan-500' },
   users: { label: 'People', icon: Users, color: 'text-violet-500' },
+  employees: { label: 'Employees', icon: UserCircle, color: 'text-sky-600' },
+  assets: { label: 'Assets', icon: PackageSearch, color: 'text-amber-600' },
+  contracts: { label: 'Contracts', icon: FileText, color: 'text-rose-500' },
+  hrLetters: { label: 'HR Letters', icon: ScrollText, color: 'text-indigo-600' },
 };
 
 const EMPTY_RESULTS: SearchResults = {
@@ -64,6 +72,10 @@ const EMPTY_RESULTS: SearchResults = {
   lcrEntries: [],
   buildings: [],
   users: [],
+  employees: [],
+  assets: [],
+  contracts: [],
+  hrLetters: [],
 };
 
 function statusBadgeVariant(badge: string): 'default' | 'secondary' | 'destructive' | 'outline' {
