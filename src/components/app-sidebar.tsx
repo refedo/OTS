@@ -68,6 +68,7 @@ import {
   AlertOctagon,
   PackageSearch,
   Receipt,
+  Radar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -95,6 +96,7 @@ type NavigationSection = {
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'CEO Dashboard', href: '/executive', icon: Crown },
+  { name: 'Ops Agent', href: '/ops-agent', icon: Radar, newSince: '2026-04-16' },
   { name: 'Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },

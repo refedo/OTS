@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.0.0] - 2026-04-16
+
+### OTS™ Operations Agent — Autonomous AI Sweep Engine (Major)
+
+First autonomous AI agent module in OTS. A Claude-powered sweep across Tasks, Projects, HR/Manpower, and Pipeline that produces a structured **Ops Brief** with RED / AMBER / GREEN early warning signals and writes back risk flags, follow-up tasks, and escalations based on the configured mode.
+
+#### Added
+
+- **OpsAgentConfig model:** Stores agent mode (READ_ONLY / ANNOTATE / FULL_ACTOR), configurable thresholds (`taskStaleDays`, `projectStaleDays`, `otApprovalHours`), enabled module flags, and schedule config. Seeded automatically on server boot.
+- **OpsAgentRun model:** Tracks every run with status, structured `brief` JSON, `inputTokens`, `outputTokens`, `durationMs`, Claude session ID, and trigger type (cron / manual / event).
+- **OpsRiskFlag model:** Entity-level risk flags raised by the agent — severity (RED/AMBER/GREEN), entity type/label, agent note, module tag, and resolution tracking (resolvedAt/resolvedById).
+- **Idempotent SQL migration:** `prisma/manual_migrations/add_ops_agent_module.sql` — stored-procedure pattern with `IF NOT EXISTS` guards; seeds default config row.
+- **Anthropic SDK client:** `src/lib/agents/anthropic-client.ts` — single client with `managed-agents-2026-04-01` beta header.
+- **9 agent tool definitions** (`src/lib/agents/ops-agent-tools.ts`):
+  - Read tools: `get_stale_tasks`, `get_project_health`, `get_pipeline_stalls`, `get_hr_flags`, `get_project_status`, `get_recent_system_events`
+  - Write tools (mode-gated): `flag_record` (ANNOTATE+), `create_followup_task` (ANNOTATE+), `trigger_escalation` (FULL_ACTOR only)
+- **Agent harness** (`src/lib/agents/ops-agent-harness.ts`): mode enforcement, tool→endpoint routing, `x-ots-agent-secret` authentication for internal calls.
+- **Full session loop** (`src/lib/agents/ops-agent.ts`): streams events, handles `agent.custom_tool_use`, sends `user.custom_tool_result`, parses structured brief, updates run record.
+- **Internal agent routes** (`/api/agent/` — `x-ots-agent-secret` auth, no user session):
+  - `GET /api/agent/tasks/stale` — stale/overdue tasks
+  - `GET /api/agent/projects/health` — active projects with delivery dates
+  - `GET /api/agent/pipeline/stalls` — buildings with no activity above threshold
+  - `GET /api/agent/hr/flags` — pending leave approvals + unreconciled agency invoices
+  - `GET /api/agent/projects/status` — stale projects by status
+  - `GET /api/agent/events/recent` — recent system events
+  - `POST /api/agent/actions/flag-record` — create OpsRiskFlag
+  - `POST /api/agent/actions/create-task` — create follow-up Task
+  - `POST /api/agent/actions/trigger-escalation` — trigger escalation (FULL_ACTOR)
+- **Management API** (session auth):
+  - `POST /api/ops-agent/run` — fire-and-forget trigger, returns 202
+  - `GET /api/ops-agent/run/[runId]` — run detail with risk flags
+  - `GET /api/ops-agent/runs?limit=N` — paginated run list with `_count`
+  - `GET|PATCH /api/ops-agent/config` — read and update config/thresholds/mode
+  - `POST /api/ops-agent/cron` — cron endpoint (dual-secret: `OTS_INTERNAL_API_SECRET` or `CRON_SECRET`)
+  - `PATCH /api/ops-agent/flags/[flagId]/resolve` — mark flag as resolved
+- **OpsAgentScheduler:** Saturday–Wednesday 07:00 Riyadh cron; ENABLE_OPS_AGENT_SCHEDULER env var controls activation; registered in `cron-registry.ts` and initialized in `instrumentation.ts`.
+- **Permission category `ops_agent`:** `ops_agent.view`, `ops_agent.run`, `ops_agent.configure`, `ops_agent.resolve_flags`.
+- **Navigation guard:** `/ops-agent` added to `navigation-permissions.ts`.
+- **10 new event types** in `system-events.ts` under `OPS_AGENT` category: `OPS_AGENT_RUN_STARTED`, `OPS_AGENT_RUN_COMPLETED`, `OPS_AGENT_RUN_FAILED`, `OPS_AGENT_CONFIG_UPDATED`, `OPS_AGENT_MODE_CHANGED`, `OPS_RISK_FLAG_CREATED`, `OPS_RISK_FLAG_RESOLVED`, `OPS_AGENT_ACTION_BLOCKED`, `OPS_AGENT_TASK_CREATED`, `OPS_AGENT_ESCALATION_TRIGGERED`.
+- **`/ops-agent` page** (server component, gated by `ops_agent.view`):
+  - `OpsAgentLayout` — 2-column responsive layout with live 3-second polling during active runs
+  - `RunTriggerCard` — Run Now button, live status messages, token/duration display
+  - `OpsBriefView` — RED/AMBER/GREEN severity cards, expandable module breakdowns, recommended actions
+  - `RiskFlagList` — open/resolved flag table with severity icons and Resolve button
+  - `RunHistoryList` — last 10 runs (status icon, timestamp, mode, token count, flag count)
+  - `ModeSwitcher` — READ_ONLY / ANNOTATE / FULL_ACTOR toggle (FULL_ACTOR requires confirmation)
+  - `ThresholdEditor` — numeric inputs for thresholds, module enable/disable checkboxes
+  - `ComparisonBanner` — dismissible info strip about EWS comparison mode
+- **Sidebar entry:** "Ops Agent" (Radar icon, `newSince: '2026-04-16'`) added between CEO Dashboard and Early Warning.
+- **Push notifications:** dispatched to all `ops_agent.view` users after each completed run when RED or AMBER flags are raised.
+- **New env vars:** `ANTHROPIC_API_KEY`, `OTS_OPS_AGENT_ID`, `OTS_OPS_AGENT_ENVIRONMENT_ID`, `OTS_INTERNAL_API_SECRET`, `ENABLE_OPS_AGENT_SCHEDULER`, `OPS_AGENT_CRON_SCHEDULE`.
+
+#### Changed
+
+- **Version bumped to 19.0.0** (first major release — autonomous AI agent capability).
 ## [18.18.2] - 2026-04-16
 
 ### Asset SN Auto-Counter, Backlog GitHub Sync Fix, Global Search Enhancements & Sortable Tables (Patch)
@@ -26,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - **Version bumped to 18.18.2.**
+
 
 ---
 

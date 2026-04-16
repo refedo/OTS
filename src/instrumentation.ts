@@ -15,6 +15,8 @@ export async function register() {
     const { LcrSyncScheduler } = await import('@/lib/scheduler/lcr-sync.scheduler');
     const { DolibarrLeavesSyncScheduler } = await import('@/lib/scheduler/dolibarr-leaves-sync.scheduler');
     const { ContractRemindersScheduler } = await import('@/lib/scheduler/contract-reminders.scheduler');
+    const { OpsAgentScheduler } = await import('@/lib/scheduler/ops-agent.scheduler');
+    const { ensureOpsAgentConfig } = await import('@/lib/ops-agent/seeder');
     const { registerIntegrationListeners } = await import('@/lib/events/integration-listeners');
     const { runStartupMigrations } = await import('@/lib/startup-migrations');
 
@@ -32,6 +34,12 @@ export async function register() {
 
     // Initialize the daily Contract Reminders scheduler (HR module, 18.14.0)
     ContractRemindersScheduler.initialize();
+
+    // Seed default OpsAgentConfig if missing (18.19.0)
+    await ensureOpsAgentConfig();
+
+    // Initialize the Ops Agent scheduler (18.19.0) — Sat–Wed 07:00 Riyadh
+    OpsAgentScheduler.initialize();
 
     // Register integration event listeners (open-audit, Libre MES, …)
     registerIntegrationListeners();

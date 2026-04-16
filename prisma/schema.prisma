@@ -5450,3 +5450,81 @@ model HrLetter {
   @@index([deletedAt])
   @@map("HrLetter")
 }
+
+// ============================================================================
+// Ops Agent Module (18.19.0)
+// ============================================================================
+
+enum OpsAgentMode {
+  READ_ONLY
+  ANNOTATE
+  FULL_ACTOR
+}
+
+enum OpsRiskSeverity {
+  RED
+  AMBER
+  GREEN
+}
+
+enum OpsAgentRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model OpsAgentConfig {
+  id             String       @id @default(uuid()) @db.Char(36)
+  mode           OpsAgentMode @default(READ_ONLY)
+  enabledModules Json
+  thresholds     Json
+  cronSchedule   String       @default("0 7 * * 0-4")
+  notifyWhatsApp Boolean      @default(true)
+  notifyPush     Boolean      @default(true)
+  updatedAt      DateTime     @updatedAt
+  updatedBy      String?
+
+  @@map("ops_agent_config")
+}
+
+model OpsAgentRun {
+  id              String            @id @default(uuid()) @db.Char(36)
+  triggeredBy     String
+  triggerType     String
+  mode            OpsAgentMode
+  status          OpsAgentRunStatus @default(RUNNING)
+  brief           Json?
+  actionsExecuted Json?
+  errorMessage    String?           @db.Text
+  sessionId       String?
+  inputTokens     Int?
+  outputTokens    Int?
+  durationMs      Int?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  riskFlags       OpsRiskFlag[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("ops_agent_runs")
+}
+
+model OpsRiskFlag {
+  id          String          @id @default(uuid()) @db.Char(36)
+  runId       String          @db.Char(36)
+  entityType  String
+  entityId    String
+  entityLabel String
+  severity    OpsRiskSeverity
+  agentNote   String          @db.Text
+  module      String
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime        @default(now())
+  run         OpsAgentRun     @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+  @@index([severity])
+  @@index([module])
+  @@map("ops_risk_flags")
+}

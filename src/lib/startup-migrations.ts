@@ -18,6 +18,7 @@ const STARTUP_MIGRATIONS = [
   'add_hr_letters.sql',
   'add_asset_location.sql',
   'add_asset_sn.sql',
+  'add_ops_agent_module.sql',
 ];
 
 /**

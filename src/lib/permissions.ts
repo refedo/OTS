@@ -402,6 +402,16 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'admin.identity.reconcile', name: 'Identity Reconciliation', description: 'Run the one-time wizard linking OTS users to their Dolibarr llx_user identity. CEO-only.', category: 'admin' },
     ],
   },
+  {
+    id: 'ops_agent',
+    name: 'Ops Agent',
+    permissions: [
+      { id: 'ops_agent.view', name: 'View Ops Agent', description: 'View the Ops Agent dashboard, run history, and risk flags', category: 'ops_agent' },
+      { id: 'ops_agent.run', name: 'Trigger Ops Agent Run', description: 'Manually trigger an Ops Agent sweep', category: 'ops_agent' },
+      { id: 'ops_agent.configure', name: 'Configure Ops Agent', description: 'Change agent mode, thresholds, and module settings', category: 'ops_agent' },
+      { id: 'ops_agent.resolve_flags', name: 'Resolve Risk Flags', description: 'Mark Ops Agent risk flags as resolved', category: 'ops_agent' },
+    ],
+  },
 ];
 
 // Flatten all permissions for easy lookup
