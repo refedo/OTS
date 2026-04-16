@@ -24,6 +24,8 @@ export default async function LeavesPage() {
       canViewAll={perms.includes('hr.leaves.viewAll')}
       canRequest={perms.includes('hr.leaves.request')}
       canSync={perms.includes('hr.leaves.sync')}
+      canViewHolidays={perms.includes('hr.holiday.view') || perms.includes('hr.holiday.manage')}
+      canManageHolidays={perms.includes('hr.holiday.manage')}
     />
   );
 }

@@ -16,6 +16,7 @@ const STARTUP_MIGRATIONS = [
   'add_announcements.sql',
   'add_contracts.sql',
   'add_hr_letters.sql',
+  'add_asset_location.sql',
 ];
 
 /**

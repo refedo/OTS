@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [18.18.1] - 2026-04-16
+
+### HR Sidebar Cleanup, Loans/Custodies Pages, Employee Dashboard & Quick Task Improvements (Patch)
+
+#### Added
+
+- **`/hr/loans` standalone page:** Lists all employee loans for HR/admin/CEO; own loans only for regular users. Sky gradient hero, KPI tiles, searchable table with progress bars.
+- **`/hr/custodies` standalone page:** Same role-based scoping. Violet gradient hero, KPI tiles, searchable table.
+- **`GET /api/hr/loans/all`** and **`GET /api/hr/custodies/all`:** New endpoints serving scoped data (all or own based on `hr.loans.view` / `hr.custodies.view` permissions).
+- **`EmployeeOverviewTab` component:** New default tab on employee detail page — 4 KPI tiles (active loans, open custodies, assigned assets, expiring docs), summary cards for loans/custodies/assets/contracts with expiry badges, urgency warning strip, "Edit Record" shortcut button.
+- **Public Holidays tab in `/hr/leaves`:** Full CRUD embedded as a fourth tab — replaces standalone sidebar entry. Shows KPI tiles (total, this year, upcoming, total days), date table, create/edit/delete dialog.
+- **`Asset.location` field:** VarChar(200) column added via idempotent `add_asset_location.sql` startup migration.
+- **Quick Task "Assigned To":** User dropdown added to Quick Task dialog; "Continue in full form" button carries all entered data to `/tasks/new` via URL params.
+- **Roles list search bar:** Search input above the roles grid in `RolesClient`.
+- **Second Save button at top of permissions page:** Duplicate Save/Cancel button group added above Quick Actions in `PermissionMatrix`.
+- **Sidebar entries:** Loans (Banknote icon) and Custodies (PackageSearch icon) added to HR section.
+
+#### Fixed
+
+- **`/hr/letters` missing from `NAVIGATION_PERMISSIONS`:** The letters page was inaccessible even after granting role permissions — `hasAccessToRoute` returned false for unmapped paths. Entry added: `'/hr/letters': ['hr.letters.view', 'hr.letters.manage']`.
+- Same fix applied for `/hr/loans` and `/hr/custodies` (also added to map).
+
+#### Changed
+
+- **Employee detail default tab:** Changed from Record to new Overview dashboard tab.
+- **`EmployeeDetailTabs`:** New props `canViewLoans`, `canViewCustodies`, `canViewContracts`, `employee` summary object; tab order is now Overview | Record | History | Finance | Assets.
+- **Sidebar cleanup:** New Employee, Manpower Slots, and Public Holidays entries removed from sidebar.
+- **Add New Employee page beautified:** Gradient hero banner (sky→blue), pill badge, form wrapped in white card.
+- **Version bumped to 18.18.1.**
+
+---
+
 ## [18.18.0] - 2026-04-16
 
 ### Payroll Revert, Attendance Consolidation, Global Search Expansion & Quick Task (Minor)

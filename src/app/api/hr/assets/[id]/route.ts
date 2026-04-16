@@ -30,6 +30,7 @@ const updateSchema = z.object({
   model: z.string().max(100).nullable().optional(),
   purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   purchasePrice: z.coerce.number().min(0).nullable().optional(),
+  location: z.string().max(200).nullable().optional(),
   notes: z.string().nullable().optional(),
   licenseExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   attachments: z.array(z.object({
@@ -117,6 +118,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx) => {
         ...(d.model !== undefined ? { model: d.model } : {}),
         ...(d.purchaseDate !== undefined ? { purchaseDate: d.purchaseDate ? new Date(d.purchaseDate) : null } : {}),
         ...(d.purchasePrice !== undefined ? { purchasePrice: d.purchasePrice != null ? d.purchasePrice.toString() : null } : {}),
+        ...(d.location !== undefined ? { location: d.location } : {}),
         ...(d.notes !== undefined ? { notes: d.notes } : {}),
         ...(d.licenseExpiryDate !== undefined ? { licenseExpiryDate: d.licenseExpiryDate ? new Date(d.licenseExpiryDate) : null } : {}),
         ...(d.attachments !== undefined ? { attachments: d.attachments } : {}),

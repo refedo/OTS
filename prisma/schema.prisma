@@ -5116,6 +5116,7 @@ model Asset {
   model             String?   @db.VarChar(100)
   purchaseDate      DateTime? @db.Date
   purchasePrice     Decimal?  @db.Decimal(12, 2)
+  location          String?   @db.VarChar(200) // Physical location / storage / site (18.18.1)
   notes             String?   @db.Text
   licenseExpiryDate DateTime? @db.Date // car registration/license expiry
   attachments       Json?     // Array of {fileName, filePath, fileType, fileSize, uploadedAt, label?}

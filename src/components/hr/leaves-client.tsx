@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3 } from 'lucide-react';
+import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3, Sun, Trash2, Edit2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type LeaveType = {
   id: string;
@@ -66,6 +68,15 @@ type LeaveSyncLog = {
 
 type EntitlementLeaveType = { id: string; code: string; nameEn: string };
 
+type PublicHolidayEntry = {
+  id: string;
+  date: string;
+  endDate: string | null;
+  nameEn: string;
+  nameAr: string | null;
+  isRecurring: boolean;
+};
+
 type EntitlementRow = {
   id: string;
   fullNameEn: string;
@@ -83,11 +94,15 @@ export function LeavesClient({
   canViewAll,
   canRequest,
   canSync,
+  canViewHolidays,
+  canManageHolidays,
 }: {
   canApprove: boolean;
   canViewAll: boolean;
   canRequest: boolean;
   canSync: boolean;
+  canViewHolidays: boolean;
+  canManageHolidays: boolean;
 }) {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
@@ -102,6 +117,10 @@ export function LeavesClient({
   const [entitlementTypes, setEntitlementTypes] = useState<EntitlementLeaveType[]>([]);
   const [entitlementLoading, setEntitlementLoading] = useState(false);
   const [entitlementSearch, setEntitlementSearch] = useState('');
+
+  // Public holidays (18.18.1)
+  const [holidays, setHolidays] = useState<PublicHolidayEntry[]>([]);
+  const [holidaysLoading, setHolidaysLoading] = useState(false);
 
   // Dolibarr leaves sync (18.6.0)
   const [syncing, setSyncing] = useState(false);
@@ -169,11 +188,25 @@ export function LeavesClient({
     }
   }, [canViewAll]);
 
+  const loadHolidays = useCallback(async () => {
+    if (!canViewHolidays) return;
+    setHolidaysLoading(true);
+    try {
+      const res = await fetch('/api/hr/public-holidays');
+      if (res.ok) setHolidays(await res.json());
+    } catch {
+      // non-fatal
+    } finally {
+      setHolidaysLoading(false);
+    }
+  }, [canViewHolidays]);
+
   useEffect(() => {
     refresh();
     loadLastSync();
     loadEntitlement();
-  }, [refresh, loadLastSync, loadEntitlement]);
+    loadHolidays();
+  }, [refresh, loadLastSync, loadEntitlement, loadHolidays]);
 
   async function runSync() {
     setSyncing(true);
@@ -533,6 +566,12 @@ export function LeavesClient({
               Vacation Balance
             </TabsTrigger>
           )}
+          {canViewHolidays && (
+            <TabsTrigger value="holidays" className="gap-2">
+              <Sun className="h-4 w-4" />
+              Public Holidays
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="mine" className="space-y-3 mt-4">
@@ -577,6 +616,17 @@ export function LeavesClient({
               loading={entitlementLoading}
               search={entitlementSearch}
               onSearchChange={setEntitlementSearch}
+            />
+          </TabsContent>
+        )}
+
+        {canViewHolidays && (
+          <TabsContent value="holidays" className="space-y-4 mt-4">
+            <PublicHolidaysTab
+              holidays={holidays}
+              loading={holidaysLoading}
+              canManage={canManageHolidays}
+              onRefresh={loadHolidays}
             />
           </TabsContent>
         )}
@@ -733,6 +783,230 @@ function RequestTable({
         </table>
       </div>
     </Card>
+  );
+}
+
+function calcHolidayDays(start: string, end: string | null): number {
+  if (!end) return 1;
+  const s = new Date(start);
+  const e = new Date(end);
+  if (e < s) return 1;
+  return Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+}
+
+function PublicHolidaysTab({
+  holidays,
+  loading,
+  canManage,
+  onRefresh,
+}: {
+  holidays: PublicHolidayEntry[];
+  loading: boolean;
+  canManage: boolean;
+  onRefresh: () => void;
+}) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ date: '', endDate: '', nameEn: '', nameAr: '', isRecurring: false });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const thisYear = new Date().getFullYear();
+
+  const upcoming = holidays.filter((h) => h.date >= today);
+  const thisYearCount = holidays.filter((h) => h.date.startsWith(String(thisYear))).length;
+  const totalDays = holidays.reduce((s, h) => s + calcHolidayDays(h.date, h.endDate), 0);
+
+  function openCreate() {
+    setEditingId(null);
+    setForm({ date: '', endDate: '', nameEn: '', nameAr: '', isRecurring: false });
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(h: PublicHolidayEntry) {
+    setEditingId(h.id);
+    setForm({ date: h.date, endDate: h.endDate ?? '', nameEn: h.nameEn, nameAr: h.nameAr ?? '', isRecurring: h.isRecurring });
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  async function handleSave() {
+    if (!form.nameEn.trim() || !form.date) { setFormError('Date and name are required.'); return; }
+    setSaving(true);
+    setFormError(null);
+    try {
+      const body = { date: form.date, endDate: form.endDate || null, nameEn: form.nameEn.trim(), nameAr: form.nameAr.trim() || null, isRecurring: form.isRecurring };
+      const res = editingId
+        ? await fetch(`/api/hr/public-holidays/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        : await fetch('/api/hr/public-holidays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? 'Failed'); }
+      setDialogOpen(false);
+      onRefresh();
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete "${name}"?`)) return;
+    await fetch(`/api/hr/public-holidays/${id}`, { method: 'DELETE' });
+    onRefresh();
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm">
+          <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Holidays</p>
+          <p className="text-2xl font-bold text-amber-700 mt-1">{holidays.length}</p>
+          <p className="text-xs text-amber-500 mt-0.5">on record</p>
+        </div>
+        <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+          <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">This Year</p>
+          <p className="text-2xl font-bold text-sky-700 mt-1">{thisYearCount}</p>
+          <p className="text-xs text-sky-500 mt-0.5">in {thisYear}</p>
+        </div>
+        <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
+          <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Upcoming</p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">{upcoming.length}</p>
+          <p className="text-xs text-emerald-500 mt-0.5">from today</p>
+        </div>
+        <div className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm">
+          <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Total Days</p>
+          <p className="text-2xl font-bold text-violet-700 mt-1">{totalDays}</p>
+          <p className="text-xs text-violet-500 mt-0.5">calendar days</p>
+        </div>
+      </div>
+
+      <Card className="border-slate-200 shadow-sm overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 gap-3 flex-wrap">
+          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <Sun className="h-4 w-4 text-amber-500" />
+            Public Holidays
+          </CardTitle>
+          {canManage && (
+            <Button size="sm" onClick={openCreate} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Add Holiday
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground p-6">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading holidays…
+            </div>
+          ) : holidays.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">No public holidays defined yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b">
+                  <tr>
+                    <th className="py-3 px-4 font-medium">Date</th>
+                    <th className="py-3 px-4 font-medium">End Date</th>
+                    <th className="py-3 px-4 font-medium">Name (EN)</th>
+                    <th className="py-3 px-4 font-medium">Name (AR)</th>
+                    <th className="py-3 px-4 font-medium text-right">Days</th>
+                    <th className="py-3 px-4 font-medium">Recurring</th>
+                    {canManage && <th className="py-3 px-4"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {holidays.map((h) => {
+                    const isPast = h.date < today;
+                    return (
+                      <tr key={h.id} className={`border-b last:border-0 hover:bg-slate-50/60 transition ${isPast ? 'opacity-60' : ''}`}>
+                        <td className="py-3 px-4 font-medium text-slate-800">
+                          {new Date(h.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {h.endDate ? new Date(h.endDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </td>
+                        <td className="py-3 px-4">{h.nameEn}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{h.nameAr || '—'}</td>
+                        <td className="py-3 px-4 text-right tabular-nums font-semibold text-slate-700">
+                          {calcHolidayDays(h.date, h.endDate)}
+                        </td>
+                        <td className="py-3 px-4">
+                          {h.isRecurring ? (
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">Yearly</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-500">Once</span>
+                          )}
+                        </td>
+                        {canManage && (
+                          <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                            <Button size="sm" variant="ghost" onClick={() => openEdit(h)} className="h-7 w-7 p-0">
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDelete(h.id, h.nameEn)} className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {canManage && (
+        <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) setDialogOpen(false); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{editingId ? 'Edit Holiday' : 'Add Public Holiday'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Start Date</Label>
+                  <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                </div>
+                <div>
+                  <Label>End Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label>Name (English)</Label>
+                <Input value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} placeholder="e.g. National Day" />
+              </div>
+              <div>
+                <Label>Name (Arabic) <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })} placeholder="اليوم الوطني" dir="rtl" />
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  id="hol-recurring"
+                  type="checkbox"
+                  checked={form.isRecurring}
+                  onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
+                  className="rounded border-slate-300 h-4 w-4"
+                />
+                <Label htmlFor="hol-recurring" className="cursor-pointer font-normal">Recurring every year</Label>
+              </div>
+              {formError && <p className="text-xs text-red-600 rounded border border-red-200 bg-red-50 px-3 py-2">{formError}</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
   );
 }
 

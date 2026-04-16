@@ -1,8 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { LogOut, Star, Plus, Loader2, ClipboardList } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { LogOut, Star, Plus, Loader2, ClipboardList, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,12 +22,33 @@ interface UserPoints {
   rank: number | null;
 }
 
+type UserOption = { id: string; name: string | null; email: string | null };
+
 function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [dueDate, setDueDate] = useState('');
+  const [assignedToId, setAssignedToId] = useState('');
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/users?limit=200');
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(Array.isArray(data) ? data : (data.users ?? []));
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { if (open) loadUsers(); }, [open, loadUsers]);
+
+  function reset() {
+    setTitle(''); setPriority('Medium'); setDueDate(''); setAssignedToId(''); setError(null);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,6 +63,7 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
           title: title.trim(),
           priority,
           dueDate: dueDate || null,
+          assignedToId: assignedToId || null,
           status: 'Pending',
         }),
       });
@@ -49,9 +71,7 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? 'Failed to create task');
       }
-      setTitle('');
-      setPriority('Medium');
-      setDueDate('');
+      reset();
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed');
@@ -60,15 +80,26 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
     }
   }
 
+  function handleContinueInFullForm() {
+    const params = new URLSearchParams();
+    if (title.trim()) params.set('title', title.trim());
+    if (priority) params.set('priority', priority);
+    if (dueDate) params.set('dueDate', dueDate);
+    if (assignedToId) params.set('assignedToId', assignedToId);
+    reset();
+    onClose();
+    router.push(`/tasks/new?${params.toString()}`);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
       <DialogContent className="max-w-md">
         <DialogTitle className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-blue-600" />
           Quick Task
         </DialogTitle>
         <DialogDescription className="text-xs text-slate-500">
-          Create a task quickly. You can add details later.
+          Create a task quickly or continue in the full form.
         </DialogDescription>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div>
@@ -107,17 +138,43 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
               />
             </div>
           </div>
+          <div>
+            <Label htmlFor="qt-assigned">Assigned to <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <select
+              id="qt-assigned"
+              value={assignedToId}
+              onChange={(e) => setAssignedToId(e.target.value)}
+              className="w-full border rounded-md h-10 px-3 text-sm bg-white"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.name || u.email}</option>
+              ))}
+            </select>
+          </div>
           {error && (
             <p className="text-xs text-red-600 rounded border border-red-200 bg-red-50 px-3 py-2">{error}</p>
           )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleContinueInFullForm}
+              className="text-muted-foreground hover:text-foreground gap-1.5"
+            >
+              Continue in full form
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
-            <Button type="submit" disabled={saving || !title.trim()}>
-              {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              Create Task
-            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !title.trim()}>
+                {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Create Task
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

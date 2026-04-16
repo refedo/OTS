@@ -23,10 +23,48 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.18.1',
+    date: 'April 16, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'HR Sidebar Cleanup, Loans/Custodies Pages, Employee Dashboard & Quick Task Improvements',
+    highlights: [
+      'Employee detail page redesigned: opens to an Overview dashboard tab with KPI tiles for active loans, open custodies, assigned assets, and expiring documents — edit form moved to Record tab.',
+      'New standalone /hr/loans and /hr/custodies pages: HR/admin sees all employees\' records; regular users see only their own.',
+      'Public Holidays embedded as a tab inside the Leaves page — standalone Public Holidays entry removed from sidebar. New Employee and Manpower Slots also removed from sidebar. Loans and Custodies added.',
+      'HR Letters page navigation bug fixed: /hr/letters was missing from NAVIGATION_PERMISSIONS, preventing the page from appearing even after role permissions were granted.',
+      'Quick Task dialog improved: Assigned To user picker added; "Continue in full form" button carries entered data to /tasks/new.',
+      'Asset location field added. Roles list search bar added. Permissions page gets a second Save button at the top.',
+    ],
+    changes: {
+      added: [
+        '/hr/loans standalone page: all employees\' loans for HR/admin/CEO; own loans for regular users',
+        '/hr/custodies standalone page: same role-based scoping as loans',
+        'GET /api/hr/loans/all and GET /api/hr/custodies/all endpoints serving scoped data',
+        'EmployeeOverviewTab component: default tab on employee detail — KPI tiles, loan/custody/asset/contract summary cards, expiry alerts',
+        'Public Holidays tab embedded in /hr/leaves with full create/edit/delete (if canManage)',
+        'Asset.location field: VarChar(200) column added via add_asset_location.sql startup migration',
+        'Quick Task dialog: "Assigned To" user dropdown; "Continue in full form" button pre-fills /tasks/new via URL params',
+        'Search bar in Roles list (RolesClient)',
+        'Second Save Permissions button at top of PermissionMatrix (above Quick Actions)',
+        'Loans and Custodies sidebar entries added to HR section',
+      ],
+      fixed: [
+        '/hr/letters missing from NAVIGATION_PERMISSIONS map — page was inaccessible even with role permissions granted',
+      ],
+      changed: [
+        'Employee detail default tab changed from Record to Overview dashboard',
+        'EmployeeDetailTabs: new canViewLoans, canViewCustodies, canViewContracts props; employee summary passed for Overview tab',
+        'Sidebar: New Employee, Manpower Slots, Public Holidays entries removed',
+        'Version bumped to 18.18.1',
+      ],
+    },
+  },
+  {
     version: '18.18.0',
     date: 'April 16, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Payroll Revert, Attendance Consolidation, Global Search Expansion & Quick Task',
     highlights: [
       'Payroll approval can now be reverted: new "Revert Approval" button (APPROVED → CALCULATED) for HR managers who need to re-calculate before locking.',

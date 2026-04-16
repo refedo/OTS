@@ -34,6 +34,7 @@ const createSchema = z.object({
   model: z.string().max(100).nullish(),
   purchaseDate: z.preprocess(v => v == null ? undefined : v, z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   purchasePrice: z.preprocess(v => v == null ? undefined : v, z.coerce.number().min(0)).optional(),
+  location: z.string().max(200).nullish(),
   notes: z.string().nullish(),
   licenseExpiryDate: z.preprocess(v => v == null ? undefined : v, z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   attachments: z.array(z.object({
@@ -93,6 +94,7 @@ export const GET = withApiContext(async (req: NextRequest) => {
         model: true,
         purchaseDate: true,
         purchasePrice: true,
+        location: true,
         notes: true,
         licenseExpiryDate: true,
         attachments: true,
@@ -152,6 +154,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         model: d.model ?? null,
         purchaseDate: d.purchaseDate ? new Date(d.purchaseDate) : null,
         purchasePrice: d.purchasePrice != null ? d.purchasePrice.toString() : null,
+        location: d.location ?? null,
         notes: d.notes ?? null,
         licenseExpiryDate: d.licenseExpiryDate ? new Date(d.licenseExpiryDate) : null,
         attachments: d.attachments ?? null,
