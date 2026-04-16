@@ -273,10 +273,10 @@ function ViolationFormDialog({
             </div>
             <div className="space-y-1">
               <Label>Issuing Authority</Label>
-              <Select value={form.issuingAuthoritySelect} onValueChange={v => set('issuingAuthoritySelect', v)}>
+              <Select value={form.issuingAuthoritySelect || '__none__'} onValueChange={v => set('issuingAuthoritySelect', v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Select authority..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {ISSUING_AUTHORITIES.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                 </SelectContent>
               </Select>
