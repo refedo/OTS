@@ -63,6 +63,34 @@ const hardcodedVersions: ChangelogVersion[] = [
       ],
     },
   },
+    version: '18.18.2',
+    date: 'April 16, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Asset SN Auto-Counter, Backlog GitHub Sync Fix, Global Search & Sortable Tables',
+    highlights: [
+      'Asset registry: auto-generated sequential SN column (continuous across all asset types); Asset Code is now editable in the edit form for type-prefixed naming (CAR-001, LAP-001, etc.).',
+      'Backlog "Push All to GitHub" now syncs ALL items — creates new issues AND closes GitHub issues for COMPLETED/DROPPED backlog items.',
+      'Global search: assets now show plate number and assigned employee name in results.',
+      'Sortable table headers added to Assets registry, Loans, Custodies, and Contracts tables.',
+    ],
+    changes: {
+      added: [
+        'Asset.assetSn: auto-increment integer (continuous SN across all asset types); backfilled via add_asset_sn.sql startup migration',
+        'Sortable table headers (click-to-sort) in Assets registry, Loans, Custodies, Contracts tables',
+        'Asset Code editable in asset edit form; PUT route validates uniqueness excluding current record',
+        'SN column added to assets registry table view',
+      ],
+      fixed: [
+        'Backlog "Push All to GitHub" now closes GitHub issues for COMPLETED/DROPPED items — previously left them open',
+        'Global search asset subtitle now includes plate number and assigned employee name',
+        '/api/hr/loans/all and /api/hr/custodies/all now use resolveUserPermissions() — fixes wrong scoping for custom-permission users',
+      ],
+      changed: [
+        'Version bumped to 18.18.2',
+      ],
+    },
+  },
   {
     version: '18.18.1',
     date: 'April 16, 2026',

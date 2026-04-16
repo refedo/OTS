@@ -114,24 +114,30 @@ export default function BacklogBoard() {
   };
 
   const handleBulkGitHubSync = () => {
-    const unsynced = sorted.filter(i => !i.githubIssueNumber);
-    if (unsynced.length === 0) {
-      showConfirmation({ type: 'success', title: 'All synced', message: 'All visible items are already linked to GitHub issues.' });
+    const unsynced = items.filter(i => !i.githubIssueNumber);
+    const needsClose = items.filter(i => i.githubIssueNumber && (i.status === 'COMPLETED' || i.status === 'DROPPED'));
+    const total = unsynced.length + needsClose.length;
+    if (total === 0) {
+      showConfirmation({ type: 'success', title: 'All synced', message: 'All backlog items are already up to date on GitHub.' });
       return;
     }
+    const parts = [];
+    if (unsynced.length > 0) parts.push(`create ${unsynced.length} new issue${unsynced.length !== 1 ? 's' : ''}`);
+    if (needsClose.length > 0) parts.push(`close ${needsClose.length} completed/dropped issue${needsClose.length !== 1 ? 's' : ''}`);
     showConfirmation({
       type: 'warning',
-      title: 'Push to GitHub',
-      message: `This will create GitHub issues for ${unsynced.length} item${unsynced.length !== 1 ? 's' : ''} that are not yet synced. Continue?`,
-      confirmText: 'Push All',
+      title: 'Sync to GitHub',
+      message: `This will ${parts.join(' and ')} on GitHub. Continue?`,
+      confirmText: 'Sync All',
       onConfirm: async () => {
         setBulkSyncing(true);
-        setBulkProgress({ done: 0, total: unsynced.length, failed: 0 });
+        const syncIds = [...unsynced.map(i => i.id), ...needsClose.map(i => i.id)];
+        setBulkProgress({ done: 0, total: syncIds.length, failed: 0 });
         try {
           const res = await fetch('/api/backlog/github/bulk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: unsynced.map(i => i.id) }),
+            body: JSON.stringify({ ids: syncIds }),
           });
           const data = await res.json();
           if (res.ok) {

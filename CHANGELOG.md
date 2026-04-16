@@ -62,6 +62,26 @@ First autonomous AI agent module in OTS. A Claude-powered sweep across Tasks, Pr
 #### Changed
 
 - **Version bumped to 19.0.0** (first major release — autonomous AI agent capability).
+## [18.18.2] - 2026-04-16
+
+### Asset SN Auto-Counter, Backlog GitHub Sync Fix, Global Search Enhancements & Sortable Tables (Patch)
+
+#### Added
+
+- **`Asset.assetSn` field:** Auto-increment integer (continuous across all asset types). Assigned automatically on create (MAX+1). Backfilled in order of `createdAt` via `add_asset_sn.sql` startup migration. Displayed as zero-padded SN in the assets table.
+- **Sortable table headers:** Click any column header in Assets registry, Loans, Custodies, and Contracts tables to sort ascending/descending. Uses client-side sort state with ChevronUp/Down indicators.
+- **Asset Code editable in edit mode:** `assetCode` field now shown and editable in both create and edit dialogs. PUT route validates uniqueness (excluding current record). Enables type-prefixed naming (CAR-001, LAP-001, etc.).
+
+#### Fixed
+
+- **Backlog "Push All to GitHub":** Now syncs ALL items — creates GitHub issues for unsynced items AND closes issues for COMPLETED/DROPPED items. Previously only pushed open unsynced items, leaving completed items open on GitHub.
+- **Global search asset results:** Subtitle now includes plate number and assigned employee name (e.g. "CAR-001 · CAR · TUD 4556 → Ahmed Hussain").
+- **`/api/hr/loans/all` and `/api/hr/custodies/all`:** Replaced hand-rolled permission array check with `resolveUserPermissions()` — fixes incorrect scoping for users whose permissions include custom grants or revokes.
+
+#### Changed
+
+- **Version bumped to 18.18.2.**
+
 
 ---
 

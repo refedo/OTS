@@ -5090,9 +5090,10 @@ enum MaintenanceType {
 // Master asset registry. Each physical item (car, SIM card, laptop, key, etc.)
 // gets a single Asset row. Assignments track who holds it and when.
 model Asset {
-  id       String        @id @default(uuid()) @db.Char(36)
-  assetCode String       @unique @db.VarChar(50)
-  name     String        @db.VarChar(200)
+  id        String        @id @default(uuid()) @db.Char(36)
+  assetSn   Int?          @unique
+  assetCode String        @unique @db.VarChar(50)
+  name      String        @db.VarChar(200)
   category AssetCategory
   status   AssetStatus   @default(AVAILABLE)
 

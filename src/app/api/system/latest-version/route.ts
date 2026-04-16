@@ -4,7 +4,6 @@ import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
 import { APP_VERSION } from '@/lib/version';
 
-// This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
   mainTitle: '🤖 OTS™ Operations Agent — Autonomous AI Sweep Engine',

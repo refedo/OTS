@@ -7,7 +7,7 @@
  * Added Vehicle Licenses section for car asset license expiry tracking.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ import {
 import {
   FileText, Plus, Search, Loader2, Edit2, Trash2,
   Calendar, Building2, User, RefreshCw, Car, ShieldCheck,
-  Upload, CheckCircle2,
+  Upload, CheckCircle2, ChevronUp, ChevronDown, ChevronsUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { gregorianToHijri, hijriToGregorian } from '@/lib/utils/hijri';
@@ -195,6 +195,23 @@ function licenseBadge(days: number | null) {
   return <span className="text-xs text-emerald-600">{days}d left</span>;
 }
 
+function SortTh({ col, label, sort, onSort, align = 'left' }: {
+  col: string; label: string;
+  sort: { key: string; dir: 'asc' | 'desc' };
+  onSort: (k: string) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.key === col;
+  return (
+    <th className={cn('px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none hover:text-slate-700 hover:bg-slate-100 transition-colors', align === 'right' ? 'text-right' : 'text-left')} onClick={() => onSort(col)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (sort.dir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-30" />}
+      </span>
+    </th>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ContractsClient({ canManage, employees, initialContracts, carAssets }: Props) {
@@ -206,6 +223,22 @@ export function ContractsClient({ canManage, employees, initialContracts, carAss
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('__all__');
   const [filterStatus, setFilterStatus] = useState('__all__');
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'daysUntilExpiry', dir: 'asc' });
+  const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
+
+  const sortedContracts = useMemo(() => [...contracts].sort((a, b) => {
+    let av: string | number = '';
+    let bv: string | number = '';
+    switch (sort.key) {
+      case 'daysUntilExpiry': av = a.daysUntilExpiry ?? 99999; bv = b.daysUntilExpiry ?? 99999; break;
+      case 'title': av = a.title; bv = b.title; break;
+      case 'type': av = a.type; bv = b.type; break;
+      case 'status': av = a.status; bv = b.status; break;
+      default: av = a.daysUntilExpiry ?? 99999; bv = b.daysUntilExpiry ?? 99999;
+    }
+    const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
+    return sort.dir === 'asc' ? cmp : -cmp;
+  }), [contracts, sort]);
 
   // Dialog states
   const [createOpen, setCreateOpen] = useState(false);
@@ -526,19 +559,19 @@ export function ContractsClient({ canManage, employees, initialContracts, carAss
                 <thead className="bg-slate-50 border-b">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">#</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Title</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                    <SortTh col="title" label="Title" sort={sort} onSort={toggleSort} />
+                    <SortTh col="type" label="Type" sort={sort} onSort={toggleSort} />
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Employee / Scope</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Expiry</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Days Left</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                    <SortTh col="daysUntilExpiry" label="Days Left" sort={sort} onSort={toggleSort} />
+                    <SortTh col="status" label="Status" sort={sort} onSort={toggleSort} />
                     {canManage && (
                       <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {contracts.map((c) => (
+                  {sortedContracts.map((c) => (
                     <tr key={c.id} className="hover:bg-amber-50/30 transition-colors">
                       <td className="px-4 py-3">
                         <span className="text-xs font-mono text-slate-400">{c.contractNumber}</span>
