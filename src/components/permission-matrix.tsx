@@ -117,6 +117,23 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
         </div>
       )}
 
+      {/* Top Save Button */}
+      <div className="flex items-center gap-3 pb-4 border-b">
+        <Button onClick={handleSubmit} disabled={loading}>
+          {loading && <Loader2 className="size-4 animate-spin" />}
+          <Save className="size-4" />
+          Save Permissions
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.back()}
+          disabled={loading}
+        >
+          Cancel
+        </Button>
+      </div>
+
       {/* Quick Actions */}
       <div className="flex items-center gap-3 pb-4 border-b">
         <Button

@@ -30,14 +30,15 @@ export default async function EmployeeDetailPage({
   const canManageSalaryHistory = permissions.includes('hr.employee.salaryHistory.manage');
   const canApproveHr = permissions.includes('hr.employee.salaryHistory.approveHr');
   const canApproveCeo = permissions.includes('hr.employee.salaryHistory.approveCeo');
-  const canViewLoans = permissions.includes('hr.loans.view');
+  const canViewLoans = permissions.includes('hr.loans.view') || permissions.includes('hr.loans.manage');
   const canManageLoans = permissions.includes('hr.loans.manage');
-  const canViewCustodies = permissions.includes('hr.custodies.view');
+  const canViewCustodies = permissions.includes('hr.custodies.view') || permissions.includes('hr.custodies.manage');
   const canManageCustodies = permissions.includes('hr.custodies.manage');
   const canViewAssets = permissions.includes('hr.assets.view') || permissions.includes('hr.assets.manage');
   const canManageAssets = permissions.includes('hr.assets.manage');
   const canViewViolations = permissions.includes('hr.violations.view') || permissions.includes('hr.violations.manage');
   const canManageViolations = permissions.includes('hr.violations.manage');
+  const canViewContracts = permissions.includes('hr.contracts.view') || permissions.includes('hr.contracts.manage');
 
   const { id } = await params;
   const employee = await prisma.employee.findFirst({
@@ -133,28 +134,39 @@ export default async function EmployeeDetailPage({
         </div>
 
         <EmployeeDetailTabs
-        showHistory={canViewPositionHistory || canViewSalaryHistory}
-        showFinance={canViewLoans || canViewCustodies}
-        showAssets={canViewAssets || canViewViolations}
-        recordTab={
-          <EmployeeForm
-            initial={initial}
-            canViewCompensation={canViewCompensation}
-            canResetToDolibarr={canResetToDolibarr}
-            departments={departments}
-          />
-        }
-        employeeId={employee.id}
-        departments={departments}
-        canManagePosition={canManagePositionHistory}
-        canManageSalary={canManageSalaryHistory}
-        canApproveHr={canApproveHr}
-        canApproveCeo={canApproveCeo}
-        canManageLoans={canManageLoans}
-        canManageCustodies={canManageCustodies}
-        canManageAssets={canManageAssets}
-        canManageViolations={canManageViolations}
-      />
+          showHistory={canViewPositionHistory || canViewSalaryHistory}
+          showFinance={canViewLoans || canViewCustodies}
+          showAssets={canViewAssets || canViewViolations}
+          recordTab={
+            <EmployeeForm
+              initial={initial}
+              canViewCompensation={canViewCompensation}
+              canResetToDolibarr={canResetToDolibarr}
+              departments={departments}
+            />
+          }
+          employeeId={employee.id}
+          departments={departments}
+          canManagePosition={canManagePositionHistory}
+          canManageSalary={canManageSalaryHistory}
+          canApproveHr={canApproveHr}
+          canApproveCeo={canApproveCeo}
+          canViewLoans={canViewLoans}
+          canManageLoans={canManageLoans}
+          canViewCustodies={canViewCustodies}
+          canManageCustodies={canManageCustodies}
+          canManageAssets={canManageAssets}
+          canManageViolations={canManageViolations}
+          canViewContracts={canViewContracts}
+          employee={{
+            fullNameEn: employee.fullNameEn,
+            dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),
+            dateOfLeaving: employee.dateOfLeaving ? employee.dateOfLeaving.toISOString().slice(0, 10) : null,
+            status: employee.status,
+            occupation: employee.occupation,
+            department: employee.department,
+          }}
+        />
       </div>
     </div>
   );

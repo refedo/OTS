@@ -107,6 +107,7 @@ interface AssetRow {
   model: string | null;
   purchaseDate: string | null;
   purchasePrice: string | null;
+  location: string | null;
   notes: string | null;
   licenseExpiryDate: string | null;
   attachments: AssetAttachment[] | null;
@@ -235,6 +236,7 @@ function AssetFormDialog({
     model: initial?.model ?? '',
     purchaseDate: initial?.purchaseDate ? initial.purchaseDate.slice(0, 10) : '',
     purchasePrice: initial?.purchasePrice ?? '',
+    location: initial?.location ?? '',
     notes: initial?.notes ?? '',
   });
   const [attachments, setAttachments] = useState<AssetAttachment[]>(initial?.attachments ?? []);
@@ -292,6 +294,7 @@ function AssetFormDialog({
         model: form.model || null,
         purchaseDate: form.purchaseDate || null,
         purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
+        location: form.location || null,
         notes: form.notes || null,
         attachments: attachments.length > 0 ? attachments : null,
       };
@@ -416,6 +419,11 @@ function AssetFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><Label>Purchase Date</Label><Input type="date" value={form.purchaseDate} onChange={e => set('purchaseDate', e.target.value)} /></div>
             <div className="space-y-1"><Label>Purchase Price (SAR)</Label><Input type="number" step="0.01" value={form.purchasePrice} onChange={e => set('purchasePrice', e.target.value)} /></div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Location <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Input value={form.location} onChange={e => set('location', e.target.value)} placeholder="e.g. Main Site, Warehouse, Office" />
           </div>
 
           <div className="space-y-1">

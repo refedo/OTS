@@ -11,7 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, MoreVertical, Shield, Users, Edit, Trash2, Key, Copy } from 'lucide-react';
+import { Plus, MoreVertical, Shield, Users, Edit, Trash2, Key, Copy, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ALL_PERMISSIONS } from '@/lib/permissions';
@@ -33,6 +34,7 @@ type RolesClientProps = {
 
 export function RolesClient({ roles }: RolesClientProps) {
   const router = useRouter();
+  const [search, setSearch] = useState('');
 
   const handleAction = async (action: string, roleId: string, roleName?: string) => {
     switch (action) {
@@ -83,6 +85,13 @@ export function RolesClient({ roles }: RolesClientProps) {
     }
   };
 
+  const filteredRoles = search.trim()
+    ? roles.filter((r) =>
+        r.name.toLowerCase().includes(search.toLowerCase()) ||
+        (r.description ?? '').toLowerCase().includes(search.toLowerCase()),
+      )
+    : roles;
+
   const getPermissionCount = (permissions: any): number => {
     if (!permissions) return 0;
     if (Array.isArray(permissions)) return permissions.length;
@@ -108,9 +117,20 @@ export function RolesClient({ roles }: RolesClientProps) {
           </Link>
         </div>
 
+        {/* Search */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search roles…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
         {/* Roles Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {roles.map((role) => (
+          {filteredRoles.map((role) => (
             <Card key={role.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -187,11 +207,11 @@ export function RolesClient({ roles }: RolesClientProps) {
             </Card>
           ))}
 
-          {roles.length === 0 && (
+          {filteredRoles.length === 0 && (
             <Card className="col-span-full">
               <CardContent className="pt-6">
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground mb-4">No roles found</p>
+                  <p className="text-muted-foreground mb-4">{search ? 'No roles match your search.' : 'No roles found'}</p>
                   <Link href="/roles/create">
                     <Button>
                       <Plus className="size-4" />
