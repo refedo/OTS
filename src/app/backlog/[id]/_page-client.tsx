@@ -38,6 +38,7 @@ interface BacklogItem {
   priority: string;
   status: string;
   affectedModules: string[];
+  linkUrl: string | null;
   riskLevel: string;
   complianceFlag: boolean;
   linkedObjectiveId: string | null;
@@ -103,6 +104,9 @@ export default function BacklogItemDetail() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteContent, setEditingNoteContent] = useState('');
   const [savingNoteEdit, setSavingNoteEdit] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTaskData, setEditTaskData] = useState({ title: '', description: '' });
+  const [savingTaskEdit, setSavingTaskEdit] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/session').then(r => r.ok ? r.json() : null).then(d => {
@@ -362,6 +366,26 @@ export default function BacklogItemDetail() {
     }
   };
 
+  const handleSaveTaskEdit = async (taskId: string) => {
+    if (!item || !editTaskData.title.trim() || savingTaskEdit) return;
+    setSavingTaskEdit(true);
+    try {
+      const res = await fetch(`/api/backlog/${item.id}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editTaskData.title.trim(), description: editTaskData.description || null }),
+      });
+      if (res.ok) {
+        setEditingTaskId(null);
+        fetchBacklogItem();
+      } else {
+        showConfirmation({ type: 'error', title: 'Update Failed', message: 'Failed to update task.' });
+      }
+    } finally {
+      setSavingTaskEdit(false);
+    }
+  };
+
   const handleGitHubSync = async () => {
     if (!item) return;
     setGithubSyncing(true);
@@ -483,6 +507,7 @@ export default function BacklogItemDetail() {
       case 'AI': return 'bg-pink-100 text-pink-800 border-pink-300';
       case 'GOVERNANCE': return 'bg-slate-100 text-slate-800 border-slate-300';
       case 'PROJECTS':   return 'bg-teal-100 text-teal-800 border-teal-300';
+      case 'HR':         return 'bg-sky-100 text-sky-800 border-sky-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
@@ -800,58 +825,103 @@ export default function BacklogItemDetail() {
                     {item.tasks.map((task) => {
                       const isLoading = taskActionLoading === task.id;
                       const isCompleted = task.status === 'Completed';
+                      const isEditing = editingTaskId === task.id;
                       return (
                         <div
                           key={task.id}
-                          className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : 'hover:bg-muted/50'}`}
+                          className={`border rounded-lg transition-colors ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white'}`}
                         >
-                          {/* Status toggle button */}
-                          <button
-                            onClick={() => handleTaskStatusChange(task.id, isCompleted ? 'Pending' : 'Completed')}
-                            disabled={isLoading}
-                            className={`shrink-0 size-5 rounded-full border-2 flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-emerald-400'}`}
-                            title={isCompleted ? 'Reopen task' : 'Mark as complete'}
-                          >
-                            {isCompleted && <Check className="size-3" />}
-                          </button>
-
-                          <div className="flex-1 min-w-0">
-                            <div className={`font-medium text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
-                              {task.title}
-                            </div>
-                            {task.assignedTo && (
-                              <div className="text-xs text-muted-foreground mt-0.5">
-                                Assigned to: {task.assignedTo.name}
+                          {isEditing ? (
+                            <div className="p-3 space-y-2">
+                              <Input
+                                value={editTaskData.title}
+                                onChange={e => setEditTaskData(d => ({ ...d, title: e.target.value }))}
+                                placeholder="Task title..."
+                                className="text-sm"
+                              />
+                              <Textarea
+                                value={editTaskData.description}
+                                onChange={e => setEditTaskData(d => ({ ...d, description: e.target.value }))}
+                                placeholder="Description (optional)..."
+                                rows={2}
+                                className="text-sm resize-none"
+                              />
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleSaveTaskEdit(task.id)} disabled={savingTaskEdit || !editTaskData.title.trim()}>
+                                  {savingTaskEdit ? <Loader2 className="size-3 animate-spin mr-1" /> : <Check className="size-3 mr-1" />}Save
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)}>
+                                  <X className="size-3 mr-1" />Cancel
+                                </Button>
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-3 p-3">
+                              {/* Status toggle button */}
+                              <button
+                                onClick={() => handleTaskStatusChange(task.id, isCompleted ? 'Pending' : 'Completed')}
+                                disabled={isLoading}
+                                className={`shrink-0 size-5 rounded-full border-2 flex items-center justify-center transition-colors mt-0.5 ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-emerald-400'}`}
+                                title={isCompleted ? 'Reopen task' : 'Mark as complete'}
+                              >
+                                {isCompleted && <Check className="size-3" />}
+                              </button>
 
-                          {/* Status select */}
-                          <Select
-                            value={task.status}
-                            onValueChange={(val) => handleTaskStatusChange(task.id, val as 'Pending' | 'In Progress' | 'Completed')}
-                            disabled={isLoading}
-                          >
-                            <SelectTrigger className={`h-7 w-32 text-xs border px-2 ${getTaskStatusColor(task.status)}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Pending">Pending</SelectItem>
-                              <SelectItem value="In Progress">In Progress</SelectItem>
-                              <SelectItem value="Completed">Completed</SelectItem>
-                            </SelectContent>
-                          </Select>
+                              <div className="flex-1 min-w-0">
+                                <div className={`font-medium text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                                  {task.title}
+                                </div>
+                                {task.description && (
+                                  <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{task.description}</p>
+                                )}
+                                {task.assignedTo && (
+                                  <div className="text-xs text-muted-foreground mt-0.5">
+                                    Assigned to: {task.assignedTo.name}
+                                  </div>
+                                )}
+                              </div>
 
-                          {/* Delete button */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleTaskDelete(task.id, task.title)}
-                            disabled={isLoading}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
+                              {/* Status select */}
+                              <Select
+                                value={task.status}
+                                onValueChange={(val) => handleTaskStatusChange(task.id, val as 'Pending' | 'In Progress' | 'Completed')}
+                                disabled={isLoading}
+                              >
+                                <SelectTrigger className={`h-7 w-32 text-xs border px-2 shrink-0 ${getTaskStatusColor(task.status)}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Pending">Pending</SelectItem>
+                                  <SelectItem value="In Progress">In Progress</SelectItem>
+                                  <SelectItem value="Completed">Completed</SelectItem>
+                                </SelectContent>
+                              </Select>
+
+                              {/* Edit button */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 shrink-0 text-muted-foreground hover:text-primary"
+                                onClick={() => { setEditingTaskId(task.id); setEditTaskData({ title: task.title, description: task.description ?? '' }); }}
+                                disabled={isLoading}
+                                title="Edit task"
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+
+                              {/* Delete button */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleTaskDelete(task.id, task.title)}
+                                disabled={isLoading}
+                                title="Delete task"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1192,15 +1262,38 @@ export default function BacklogItemDetail() {
                 <CardTitle>Affected Modules</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {item.affectedModules.map((module, index) => (
-                    <Badge key={index} variant="outline">
-                      {module}
-                    </Badge>
-                  ))}
-                </div>
+                {item.affectedModules.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {item.affectedModules.map((module, index) => (
+                      <Badge key={index} variant="outline" className="gap-1">
+                        <Target className="size-2.5" />
+                        {module}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No modules specified.</p>
+                )}
               </CardContent>
             </Card>
+
+            {/* Reference Link */}
+            {item.linkUrl && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ArrowRight className="size-5" />
+                    Reference Link
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <a href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center gap-1.5">
+                    <ArrowRight className="size-3.5 shrink-0" />
+                    {item.linkUrl}
+                  </a>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Progress */}
             <Card>

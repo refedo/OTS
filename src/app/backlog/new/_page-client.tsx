@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Sparkles, Paperclip, X, FileText, Upload, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Sparkles, Paperclip, X, FileText, Upload, ImageIcon, Link2, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
 import {
@@ -27,7 +27,7 @@ interface AttachmentFile {
 }
 
 const backlogTypes = ['FEATURE', 'BUG', 'TECH_DEBT', 'PERFORMANCE', 'REPORTING', 'REFACTOR', 'COMPLIANCE', 'INSIGHT'];
-const backlogCategories = ['CORE_SYSTEM', 'PRODUCTION', 'DESIGN', 'DETAILING', 'PROCUREMENT', 'QC', 'LOGISTICS', 'FINANCE', 'REPORTING', 'AI', 'GOVERNANCE', 'PROJECTS'];
+const backlogCategories = ['CORE_SYSTEM', 'PRODUCTION', 'DESIGN', 'DETAILING', 'PROCUREMENT', 'QC', 'LOGISTICS', 'FINANCE', 'REPORTING', 'AI', 'GOVERNANCE', 'PROJECTS', 'HR'];
 const backlogPriorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 export default function NewBacklogItemPage() {
@@ -39,6 +39,8 @@ export default function NewBacklogItemPage() {
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [moduleTags, setModuleTags] = useState<string[]>([]);
+  const [moduleInput, setModuleInput] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -46,7 +48,7 @@ export default function NewBacklogItemPage() {
     type: 'FEATURE',
     category: 'CORE_SYSTEM',
     priority: 'MEDIUM',
-    affectedModules: '',
+    linkUrl: '',
   });
 
   const generateTitle = async () => {
@@ -147,7 +149,10 @@ export default function NewBacklogItemPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setFormData({ ...formData, affectedModules: data.modules });
+        const generated: string[] = typeof data.modules === 'string'
+          ? data.modules.split(',').map((m: string) => m.trim()).filter(Boolean)
+          : (Array.isArray(data.modules) ? data.modules : []);
+        setModuleTags(prev => [...new Set([...prev, ...generated])]);
       } else {
         showConfirmation({
           type: 'error',
@@ -237,8 +242,9 @@ export default function NewBacklogItemPage() {
           type: formData.type,
           category: formData.category,
           priority: formData.priority,
-          affectedModules: formData.affectedModules.split(',').map(m => m.trim()).filter(Boolean),
+          affectedModules: moduleTags,
           attachments,
+          linkUrl: formData.linkUrl || undefined,
         }),
       });
 
@@ -418,10 +424,10 @@ export default function NewBacklogItemPage() {
                 />
               </div>
 
-              {/* Affected Modules with AI */}
+              {/* Affected Modules with AI — tag input */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="affectedModules">Affected Modules</Label>
+                  <Label>Affected Modules</Label>
                   <Button
                     type="button"
                     variant="outline"
@@ -433,15 +439,49 @@ export default function NewBacklogItemPage() {
                     {generatingModules ? 'Generating...' : 'Generate with AI'}
                   </Button>
                 </div>
+                <div className="flex flex-wrap gap-1.5 min-h-[38px] rounded-md border border-input bg-background px-3 py-2 focus-within:ring-1 focus-within:ring-ring">
+                  {moduleTags.map(tag => (
+                    <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-medium">
+                      <Tag className="size-2.5" />
+                      {tag}
+                      <button type="button" onClick={() => setModuleTags(prev => prev.filter(t => t !== tag))} className="ml-0.5 hover:text-destructive">
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    value={moduleInput}
+                    onChange={e => setModuleInput(e.target.value)}
+                    onKeyDown={e => {
+                      if ((e.key === ',' || e.key === 'Enter') && moduleInput.trim()) {
+                        e.preventDefault();
+                        const tag = moduleInput.trim().replace(/,$/, '');
+                        if (tag && !moduleTags.includes(tag)) setModuleTags(prev => [...prev, tag]);
+                        setModuleInput('');
+                      } else if (e.key === 'Backspace' && !moduleInput && moduleTags.length > 0) {
+                        setModuleTags(prev => prev.slice(0, -1));
+                      }
+                    }}
+                    placeholder={moduleTags.length === 0 ? 'Type a module then press comma or Enter...' : ''}
+                    className="flex-1 min-w-[120px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Type a module name and press comma or Enter to add it as a tag. e.g., HR, Production, QC</p>
+              </div>
+
+              {/* Link URL */}
+              <div className="space-y-2">
+                <Label htmlFor="linkUrl" className="flex items-center gap-1.5">
+                  <Link2 className="size-3.5" />
+                  Reference Link
+                </Label>
                 <Input
-                  id="affectedModules"
-                  value={formData.affectedModules}
-                  onChange={(e) => setFormData({ ...formData, affectedModules: e.target.value })}
-                  placeholder="e.g., Production, QC, Tasks (comma-separated)"
+                  id="linkUrl"
+                  type="url"
+                  value={formData.linkUrl}
+                  onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
+                  placeholder="https://... (optional reference link)"
                 />
-                <p className="text-sm text-muted-foreground">
-                  Enter module names separated by commas
-                </p>
               </div>
 
               {/* Attachments */}

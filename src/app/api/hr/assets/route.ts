@@ -35,6 +35,15 @@ const createSchema = z.object({
   purchaseDate: z.preprocess(v => v == null ? undefined : v, z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   purchasePrice: z.preprocess(v => v == null ? undefined : v, z.coerce.number().min(0)).optional(),
   notes: z.string().nullish(),
+  licenseExpiryDate: z.preprocess(v => v == null ? undefined : v, z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+  attachments: z.array(z.object({
+    fileName: z.string(),
+    filePath: z.string(),
+    fileType: z.string(),
+    fileSize: z.number(),
+    uploadedAt: z.string(),
+    label: z.string().optional(),
+  })).optional(),
 });
 
 export const GET = withApiContext(async (req: NextRequest) => {
@@ -85,6 +94,8 @@ export const GET = withApiContext(async (req: NextRequest) => {
         purchaseDate: true,
         purchasePrice: true,
         notes: true,
+        licenseExpiryDate: true,
+        attachments: true,
         createdAt: true,
         createdBy: { select: { id: true, name: true } },
         assignments: {
@@ -142,6 +153,8 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         purchaseDate: d.purchaseDate ? new Date(d.purchaseDate) : null,
         purchasePrice: d.purchasePrice != null ? d.purchasePrice.toString() : null,
         notes: d.notes ?? null,
+        licenseExpiryDate: d.licenseExpiryDate ? new Date(d.licenseExpiryDate) : null,
+        attachments: d.attachments ?? null,
         createdById: session!.userId,
       },
     });

@@ -6,7 +6,7 @@
  * assign them to employees, and track assignment history.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,6 +52,13 @@ import {
   Trash2,
   Loader2,
   BookOpen,
+  Paperclip,
+  Upload,
+  FileText,
+  ImageIcon,
+  X,
+  Eye,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -64,6 +71,15 @@ interface ActiveAssignment {
   id: string;
   assignedDate: string;
   employee: { id: string; fullNameEn: string; employmentId: string };
+}
+
+interface AssetAttachment {
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: string;
+  label?: string;
 }
 
 interface AssetRow {
@@ -88,6 +104,8 @@ interface AssetRow {
   purchaseDate: string | null;
   purchasePrice: string | null;
   notes: string | null;
+  licenseExpiryDate: string | null;
+  attachments: AssetAttachment[] | null;
   createdAt: string;
   createdBy: { id: string; name: string } | null;
   assignments: ActiveAssignment[];
@@ -190,6 +208,8 @@ function AssetFormDialog({
   const isEdit = !!initial?.id;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     assetCode: initial?.assetCode ?? '',
@@ -202,6 +222,7 @@ function AssetFormDialog({
     vehicleColor: initial?.vehicleColor ?? '',
     vin: initial?.vin ?? '',
     currentOdometer: initial?.currentOdometer?.toString() ?? '',
+    licenseExpiryDate: initial?.licenseExpiryDate ? initial.licenseExpiryDate.slice(0, 10) : '',
     simNumber: initial?.simNumber ?? '',
     mobileNumber: initial?.mobileNumber ?? '',
     carrier: initial?.carrier ?? '',
@@ -212,8 +233,36 @@ function AssetFormDialog({
     purchasePrice: initial?.purchasePrice ?? '',
     notes: initial?.notes ?? '',
   });
+  const [attachments, setAttachments] = useState<AssetAttachment[]>(initial?.attachments ?? []);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>, label?: string) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+        if (res.ok) {
+          const data = await res.json();
+          setAttachments(prev => [...prev, {
+            fileName: data.originalName,
+            filePath: data.filePath,
+            fileType: data.fileType,
+            fileSize: data.fileSize,
+            uploadedAt: new Date().toISOString(),
+            label: label || undefined,
+          }]);
+        }
+      }
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -230,6 +279,7 @@ function AssetFormDialog({
         vehicleColor: form.vehicleColor || null,
         vin: form.vin || null,
         currentOdometer: form.currentOdometer ? parseInt(form.currentOdometer) : null,
+        licenseExpiryDate: form.licenseExpiryDate || null,
         simNumber: form.simNumber || null,
         mobileNumber: form.mobileNumber || null,
         carrier: form.carrier || null,
@@ -239,6 +289,7 @@ function AssetFormDialog({
         purchaseDate: form.purchaseDate || null,
         purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
         notes: form.notes || null,
+        attachments: attachments.length > 0 ? attachments : null,
       };
       if (!isEdit) payload.assetCode = form.assetCode;
 
@@ -306,7 +357,35 @@ function AssetFormDialog({
                 <div className="space-y-1"><Label>Year</Label><Input type="number" value={form.vehicleYear} onChange={e => set('vehicleYear', e.target.value)} placeholder="2023" /></div>
                 <div className="space-y-1"><Label>Color</Label><Input value={form.vehicleColor} onChange={e => set('vehicleColor', e.target.value)} placeholder="White" /></div>
                 <div className="space-y-1"><Label>VIN</Label><Input value={form.vin} onChange={e => set('vin', e.target.value)} placeholder="Chassis / VIN" /></div>
-                <div className="space-y-1 col-span-2"><Label>Current Odometer (km)</Label><Input type="number" value={form.currentOdometer} onChange={e => set('currentOdometer', e.target.value)} placeholder="0" /></div>
+                <div className="space-y-1"><Label>Current Odometer (km)</Label><Input type="number" value={form.currentOdometer} onChange={e => set('currentOdometer', e.target.value)} placeholder="0" /></div>
+                <div className="space-y-1">
+                  <Label className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-sky-600" />License Expiry Date</Label>
+                  <Input type="date" value={form.licenseExpiryDate} onChange={e => set('licenseExpiryDate', e.target.value)} />
+                </div>
+              </div>
+              {/* License image upload */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-sky-700">License Image</p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-sky-200 text-sky-700 hover:bg-sky-100"
+                    disabled={uploading}
+                    onClick={() => {
+                      const inp = document.createElement('input');
+                      inp.type = 'file';
+                      inp.accept = 'image/*,.pdf';
+                      inp.onchange = (ev) => handleFileUpload(ev as React.ChangeEvent<HTMLInputElement>, 'License Image');
+                      inp.click();
+                    }}
+                  >
+                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    Upload License Image
+                  </Button>
+                  <span className="text-xs text-slate-400">{attachments.filter(a => a.label === 'License Image').length} uploaded</span>
+                </div>
               </div>
             </div>
           )}
@@ -340,11 +419,61 @@ function AssetFormDialog({
             <Textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} />
           </div>
 
+          {/* General Attachments */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5"><Paperclip className="h-3.5 w-3.5" />Attachments ({attachments.length})</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                Add File
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
+                onChange={e => handleFileUpload(e)}
+              />
+            </div>
+            {attachments.length > 0 && (
+              <div className="space-y-1.5">
+                {attachments.map((f, i) => {
+                  const isImg = f.fileType?.startsWith('image/');
+                  const fileUrl = `/api/files?path=${encodeURIComponent(f.filePath)}`;
+                  return (
+                    <div key={i} className="flex items-center gap-2 p-2 border rounded-lg bg-slate-50">
+                      {isImg ? <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" /> : <FileText className="h-4 w-4 text-slate-400 shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{f.fileName}</p>
+                        {f.label && <p className="text-xs text-slate-400">{f.label}</p>}
+                      </div>
+                      <a href={fileUrl} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6"><Eye className="h-3 w-3" /></Button>
+                      </a>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-rose-500 hover:text-rose-700"
+                        onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-sm text-rose-600">{error}</p>}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || uploading}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isEdit ? 'Save Changes' : 'Register Asset'}
             </Button>
@@ -1120,6 +1249,21 @@ export function AssetsClient({ canManage }: Props) {
                             {asset.currentOdometer != null && (
                               <p className="text-slate-400">{asset.currentOdometer.toLocaleString()} km</p>
                             )}
+                            {asset.licenseExpiryDate && (() => {
+                              const exp = new Date(asset.licenseExpiryDate);
+                              const days = Math.round((exp.getTime() - Date.now()) / 86400000);
+                              const cls = days < 0 ? 'text-rose-700 bg-rose-50 border-rose-200'
+                                : days <= 7 ? 'text-rose-600 bg-rose-50 border-rose-200'
+                                : days <= 30 ? 'text-amber-600 bg-amber-50 border-amber-200'
+                                : 'text-emerald-600 bg-emerald-50 border-emerald-200';
+                              return (
+                                <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-xs font-medium', cls)}>
+                                  <ShieldCheck className="h-3 w-3" />
+                                  License: {fmtDate(asset.licenseExpiryDate)}
+                                  {days < 0 ? ' (Expired)' : days <= 30 ? ` (${days}d)` : ''}
+                                </span>
+                              );
+                            })()}
                           </div>
                         )}
 

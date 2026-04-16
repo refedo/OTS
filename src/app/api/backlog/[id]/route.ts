@@ -33,6 +33,7 @@ export async function GET(
               title: true,
               status: true,
               priority: true,
+              description: true,
               dueDate: true,
               assignedTo: { select: { id: true, name: true, email: true } },
             },
@@ -121,6 +122,7 @@ export async function PATCH(
     if (body.complianceFlag !== undefined) updateData.complianceFlag = body.complianceFlag;
     if (body.linkedObjectiveId !== undefined) updateData.linkedObjectiveId = body.linkedObjectiveId;
     if (body.linkedKpiId !== undefined) updateData.linkedKpiId = body.linkedKpiId;
+    if (body.linkUrl !== undefined) updateData.linkUrl = body.linkUrl;
 
     // Priority changes allowed for CEO/Admin only
     if (body.priority !== undefined && isCEOOrAdmin) {
@@ -167,6 +169,7 @@ export async function PATCH(
             title: true,
             status: true,
             priority: true,
+            description: true,
             dueDate: true,
             assignedTo: { select: { id: true, name: true, email: true } },
           },

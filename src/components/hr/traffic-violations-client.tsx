@@ -45,6 +45,34 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const ISSUING_AUTHORITIES = [
+  'Traffic Department',
+  'Najm',
+  'Riyadh Municipality',
+  'Jeddah Municipality',
+  'ZATCA (Zakat, Tax & Customs)',
+  'Ministry of Interior',
+  'Other',
+];
+
+const VIOLATION_TYPES = [
+  'Speeding',
+  'Red Light Violation',
+  'Mobile Phone Usage While Driving',
+  'Safety Belt Violation',
+  'Wrong Parking',
+  'No Registration / Expired Registration',
+  'Expired Insurance',
+  'Reckless Driving',
+  'Wrong Way / U-Turn Violation',
+  'Running Stop Sign',
+  'Overloading',
+  'Tinted Windows',
+  'Other',
+];
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ViolationStatus = 'PENDING' | 'PAID_BY_EMPLOYEE' | 'PAID_BY_COMPANY' | 'DEDUCTED_FROM_PAYROLL';
@@ -113,15 +141,26 @@ function ViolationFormDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const resolveAuthority = (val: string | null | undefined): string => {
+    if (!val) return '';
+    return ISSUING_AUTHORITIES.includes(val) ? val : 'Other';
+  };
+  const resolveViolationType = (val: string | null | undefined): string => {
+    if (!val) return '';
+    return VIOLATION_TYPES.includes(val) ? val : 'Other';
+  };
+
   const [form, setForm] = useState({
     employeeId: initial?.employeeId ?? '',
     assetId: initial?.assetId ?? '',
     violationDate: initial?.violationDate ? initial.violationDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
-    violationType: initial?.violationType ?? '',
+    violationTypeSelect: resolveViolationType(initial?.violationType),
+    violationTypeCustom: initial?.violationType && !VIOLATION_TYPES.includes(initial.violationType) ? initial.violationType : '',
     violationAmount: initial?.violationAmount ?? '',
     status: (initial?.status ?? 'PENDING') as ViolationStatus,
     referenceNumber: initial?.referenceNumber ?? '',
-    issuingAuthority: initial?.issuingAuthority ?? '',
+    issuingAuthoritySelect: resolveAuthority(initial?.issuingAuthority),
+    issuingAuthorityCustom: initial?.issuingAuthority && !ISSUING_AUTHORITIES.includes(initial.issuingAuthority) ? initial.issuingAuthority : '',
     deductFromPayroll: initial?.deductFromPayroll ?? false,
     notes: initial?.notes ?? '',
   });
@@ -142,15 +181,17 @@ function ViolationFormDialog({
     e.preventDefault();
     setSaving(true); setError('');
     try {
+      const violationType = form.violationTypeSelect === 'Other' ? form.violationTypeCustom : form.violationTypeSelect;
+      const issuingAuthority = form.issuingAuthoritySelect === 'Other' ? form.issuingAuthorityCustom : form.issuingAuthoritySelect;
       const payload = {
         employeeId: form.employeeId,
         assetId: form.assetId || undefined,
         violationDate: form.violationDate,
-        violationType: form.violationType,
+        violationType,
         violationAmount: parseFloat(form.violationAmount),
         status: form.status,
         referenceNumber: form.referenceNumber || undefined,
-        issuingAuthority: form.issuingAuthority || undefined,
+        issuingAuthority: issuingAuthority || undefined,
         deductFromPayroll: form.deductFromPayroll,
         notes: form.notes || undefined,
       };
@@ -216,7 +257,15 @@ function ViolationFormDialog({
             </div>
             <div className="space-y-1 col-span-2">
               <Label>Violation Type *</Label>
-              <Input value={form.violationType} onChange={e => set('violationType', e.target.value)} placeholder="e.g. Speeding, Red light, Parking..." required />
+              <Select value={form.violationTypeSelect} onValueChange={v => set('violationTypeSelect', v)}>
+                <SelectTrigger><SelectValue placeholder="Select violation type..." /></SelectTrigger>
+                <SelectContent>
+                  {VIOLATION_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {form.violationTypeSelect === 'Other' && (
+                <Input className="mt-2" value={form.violationTypeCustom} onChange={e => set('violationTypeCustom', e.target.value)} placeholder="Describe the violation..." required />
+              )}
             </div>
             <div className="space-y-1">
               <Label>Reference / Fine Number</Label>
@@ -224,7 +273,16 @@ function ViolationFormDialog({
             </div>
             <div className="space-y-1">
               <Label>Issuing Authority</Label>
-              <Input value={form.issuingAuthority} onChange={e => set('issuingAuthority', e.target.value)} placeholder="e.g. Muroor, Traffic Police" />
+              <Select value={form.issuingAuthoritySelect} onValueChange={v => set('issuingAuthoritySelect', v)}>
+                <SelectTrigger><SelectValue placeholder="Select authority..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {ISSUING_AUTHORITIES.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {form.issuingAuthoritySelect === 'Other' && (
+                <Input className="mt-2" value={form.issuingAuthorityCustom} onChange={e => set('issuingAuthorityCustom', e.target.value)} placeholder="Enter authority name..." />
+              )}
             </div>
             <div className="space-y-1 col-span-2">
               <Label>Status</Label>
@@ -255,7 +313,7 @@ function ViolationFormDialog({
           {error && <p className="text-sm text-rose-600">{error}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving || !form.employeeId}>
+            <Button type="submit" disabled={saving || !form.employeeId || !form.violationTypeSelect || (form.violationTypeSelect === 'Other' && !form.violationTypeCustom)}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isEdit ? 'Save Changes' : 'Record Violation'}
             </Button>
