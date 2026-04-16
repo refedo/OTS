@@ -148,6 +148,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Executive Command Center
   '/executive': ['executive.view'],
 
+  // Ops Agent
+  '/ops-agent': ['ops_agent.view', 'ops_agent.run', 'ops_agent.configure'],
+
   // Dolibarr Integration
   '/dolibarr': ['dolibarr.view'],
 

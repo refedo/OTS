@@ -25,7 +25,8 @@ export type EventCategory =
   | 'SYSTEM'
   | 'RISK'
   | 'KNOWLEDGE'
-  | 'EXPORT';
+  | 'EXPORT'
+  | 'OPS_AGENT';
 
 // ============================================================================
 // EVENT TYPES BY CATEGORY
@@ -312,6 +313,19 @@ export type ExportEventType =
   | 'DATA_BULK_DELETE'
   | 'DATA_BULK_UPDATE';
 
+// Ops Agent Events
+export type OpsAgentEventType =
+  | 'OPS_AGENT_RUN_STARTED'
+  | 'OPS_AGENT_RUN_COMPLETED'
+  | 'OPS_AGENT_RUN_FAILED'
+  | 'OPS_AGENT_CONFIG_UPDATED'
+  | 'OPS_AGENT_MODE_CHANGED'
+  | 'OPS_RISK_FLAG_CREATED'
+  | 'OPS_RISK_FLAG_RESOLVED'
+  | 'OPS_AGENT_ACTION_BLOCKED'
+  | 'OPS_AGENT_TASK_CREATED'
+  | 'OPS_AGENT_ESCALATION_TRIGGERED';
+
 // Combined Event Type
 export type EventType =
   | AuthEventType
@@ -329,7 +343,8 @@ export type EventType =
   | SystemEventType
   | RiskEventType
   | KnowledgeEventType
-  | ExportEventType;
+  | ExportEventType
+  | OpsAgentEventType;
 
 // ============================================================================
 // SEVERITY LEVELS
@@ -681,6 +696,18 @@ export const EVENT_TYPE_TO_CATEGORY: Record<string, EventCategory> = {
   EXPORT_CSV_GENERATED: 'EXPORT',
   DATA_BULK_DELETE: 'EXPORT',
   DATA_BULK_UPDATE: 'EXPORT',
+
+  // Ops Agent events
+  OPS_AGENT_RUN_STARTED: 'OPS_AGENT',
+  OPS_AGENT_RUN_COMPLETED: 'OPS_AGENT',
+  OPS_AGENT_RUN_FAILED: 'OPS_AGENT',
+  OPS_AGENT_CONFIG_UPDATED: 'OPS_AGENT',
+  OPS_AGENT_MODE_CHANGED: 'OPS_AGENT',
+  OPS_RISK_FLAG_CREATED: 'OPS_AGENT',
+  OPS_RISK_FLAG_RESOLVED: 'OPS_AGENT',
+  OPS_AGENT_ACTION_BLOCKED: 'OPS_AGENT',
+  OPS_AGENT_TASK_CREATED: 'OPS_AGENT',
+  OPS_AGENT_ESCALATION_TRIGGERED: 'OPS_AGENT',
 };
 
 // ============================================================================
@@ -711,6 +738,7 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
   RISK: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
   KNOWLEDGE: 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300',
   EXPORT: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-300',
+  OPS_AGENT: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
 };
 
 export const EVENT_TYPE_COLORS: Record<string, string> = {

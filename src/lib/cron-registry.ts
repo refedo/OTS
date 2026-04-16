@@ -3,7 +3,8 @@ export type CronJobId =
   | 'dolibarr-sync'
   | 'financial-sync'
   | 'deadline-reminders'
-  | 'early-warning';
+  | 'early-warning'
+  | 'ops-agent';
 
 export interface CronJobDef {
   id: CronJobId;
@@ -76,6 +77,18 @@ export const CRON_JOB_REGISTRY: CronJobDef[] = [
     endpoint: null as unknown as string,
     authMode: 'bearer',
     enabledEnvVar: 'ENABLE_RISK_SCHEDULER',
+    intervalEnvVar: null,
+    category: 'analysis',
+  },
+  {
+    id: 'ops-agent',
+    name: 'Ops Agent Sweep',
+    description: 'Claude-powered autonomous sweep across Tasks, Projects, HR, and Pipeline — produces a structured Ops Brief with RED/AMBER/GREEN risk signals.',
+    scheduleExpression: process.env.OPS_AGENT_CRON_SCHEDULE ?? '0 7 * * 0-4',
+    scheduleHuman: 'Daily at 07:00 Sat–Wed (Saudi work week)',
+    endpoint: '/api/ops-agent/cron',
+    authMode: 'bearer',
+    enabledEnvVar: 'ENABLE_OPS_AGENT_SCHEDULER',
     intervalEnvVar: null,
     category: 'analysis',
   },
