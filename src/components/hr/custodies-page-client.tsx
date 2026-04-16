@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Wallet, Search, Clock, CheckCircle2, MinusCircle, User } from 'lucide-react';
+import { Loader2, Wallet, Search, Clock, CheckCircle2, MinusCircle, User, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 type CustodyStatus = 'OPEN' | 'PARTIALLY_SETTLED' | 'SETTLED';
@@ -33,10 +34,29 @@ function custodyStatusBadge(status: CustodyStatus) {
   return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border"><CheckCircle2 className="h-3 w-3 mr-1" />Settled</Badge>;
 }
 
+function SortTh({ col, label, sort, onSort, align = 'left' }: {
+  col: string; label: string;
+  sort: { key: string; dir: 'asc' | 'desc' };
+  onSort: (k: string) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.key === col;
+  return (
+    <th className={cn('py-3 px-4 font-medium cursor-pointer select-none hover:text-slate-700 hover:bg-slate-100 transition-colors', align === 'right' ? 'text-right' : 'text-left')} onClick={() => onSort(col)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (sort.dir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-30" />}
+      </span>
+    </th>
+  );
+}
+
 export function CustodiesPageClient({ canViewAll }: { canViewAll: boolean }) {
   const [custodies, setCustodies] = useState<CustodyEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'createdAt', dir: 'desc' });
+  const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,14 +69,29 @@ export function CustodiesPageClient({ canViewAll }: { canViewAll: boolean }) {
   useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return custodies;
-    const q = search.toLowerCase();
-    return custodies.filter((c) =>
-      (c.employee?.fullNameEn ?? '').toLowerCase().includes(q) ||
-      (c.employee?.employmentId ?? '').toLowerCase().includes(q) ||
-      c.reason.toLowerCase().includes(q),
-    );
-  }, [custodies, search]);
+    const searched = search.trim()
+      ? custodies.filter((c) => {
+          const q = search.toLowerCase();
+          return (c.employee?.fullNameEn ?? '').toLowerCase().includes(q) ||
+            (c.employee?.employmentId ?? '').toLowerCase().includes(q) ||
+            c.reason.toLowerCase().includes(q);
+        })
+      : custodies;
+    return [...searched].sort((a, b) => {
+      let av: string | number = '';
+      let bv: string | number = '';
+      switch (sort.key) {
+        case 'employee': av = a.employee?.fullNameEn ?? ''; bv = b.employee?.fullNameEn ?? ''; break;
+        case 'amount': av = Number(a.amount); bv = Number(b.amount); break;
+        case 'outstanding': av = Number(a.amount) - Number(a.settledAmount); bv = Number(b.amount) - Number(b.settledAmount); break;
+        case 'issuedDate': av = a.issuedDate; bv = b.issuedDate; break;
+        case 'status': av = a.status; bv = b.status; break;
+        default: av = a.createdAt; bv = b.createdAt;
+      }
+      const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [custodies, search, sort]);
 
   const openCustodies = useMemo(() => custodies.filter((c) => c.status === 'OPEN' || c.status === 'PARTIALLY_SETTLED'), [custodies]);
   const totalOutstanding = useMemo(() => openCustodies.reduce((s, c) => s + (Number(c.amount) - Number(c.settledAmount)), 0), [openCustodies]);
@@ -134,13 +169,13 @@ export function CustodiesPageClient({ canViewAll }: { canViewAll: boolean }) {
                 <table className="w-full text-sm">
                   <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b">
                     <tr>
-                      {canViewAll && <th className="py-3 px-4 font-medium">Employee</th>}
+                      {canViewAll && <SortTh col="employee" label="Employee" sort={sort} onSort={toggleSort} />}
                       <th className="py-3 px-4 font-medium">Reason</th>
-                      <th className="py-3 px-4 font-medium">Amount</th>
+                      <SortTh col="amount" label="Amount" sort={sort} onSort={toggleSort} />
                       <th className="py-3 px-4 font-medium text-right">Settled</th>
-                      <th className="py-3 px-4 font-medium text-right">Outstanding</th>
-                      <th className="py-3 px-4 font-medium">Issued</th>
-                      <th className="py-3 px-4 font-medium">Status</th>
+                      <SortTh col="outstanding" label="Outstanding" sort={sort} onSort={toggleSort} align="right" />
+                      <SortTh col="issuedDate" label="Issued" sort={sort} onSort={toggleSort} />
+                      <SortTh col="status" label="Status" sort={sort} onSort={toggleSort} />
                       {canViewAll && <th className="py-3 px-4 font-medium">Action</th>}
                     </tr>
                   </thead>

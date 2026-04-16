@@ -4,37 +4,30 @@ import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
 import { APP_VERSION } from '@/lib/version';
 
-// This should match the latest version in changelog
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🛠️ HR Sidebar Cleanup, Loans/Custodies Pages, Employee Dashboard & Quick Task Improvements',
+  mainTitle: 'Asset SN Auto-Counter, Backlog GitHub Sync Fix, Global Search Enhancements & Sortable Tables',
   highlights: [
-    'Employee detail page redesigned: opens to a beautiful Overview tab with KPI tiles for loans, custodies, assets, and expiry alerts — edit form is now under the Record tab.',
-    'Standalone /hr/loans and /hr/custodies pages: HR/admin sees all employees, regular users see their own.',
-    'Public Holidays now embedded as a tab inside Leaves — removed from sidebar. Manpower Slots, New Employee removed from sidebar.',
-    'HR Letters page navigation bug fixed: /hr/letters was missing from NAVIGATION_PERMISSIONS map.',
-    'Quick Task dialog improved: "Assigned To" user picker + "Continue in Full Form" button carries data to /tasks/new.',
-    'Asset location field added to asset form and schema. Roles list search bar added. Permissions page gets a second Save button at the top.',
+    'Asset registry: auto-generated sequential SN (continuous across all asset types); Asset Code is now editable in edit mode for type-prefixed naming (CAR-001, LAP-001, etc.).',
+    'Backlog "Push to GitHub" now syncs ALL items — creates new issues AND closes GitHub issues for COMPLETED/DROPPED items.',
+    'Global search: assets now show plate number and assigned employee name in results.',
+    'Sortable table headers added to Assets registry, Loans, Custodies, and Contracts tables.',
+    'Permission resolution in /api/hr/loans/all and /api/hr/custodies/all upgraded to use resolveUserPermissions() (fixes scoping for users with custom grants/revokes).',
   ],
   changes: {
     added: [
-      '/hr/loans page: lists all employee loans for HR/admin; own loans for regular users',
-      '/hr/custodies page: lists all custodies for HR/admin; own for regular users',
-      'GET /api/hr/loans/all and GET /api/hr/custodies/all endpoints for standalone pages',
-      'EmployeeOverviewTab: dashboard view with KPI tiles, loans/custodies/assets summary, expiry alerts',
-      'Public Holidays tab embedded in /hr/leaves (replaces standalone sidebar entry)',
-      'Asset location field: Prisma schema + add_asset_location.sql migration + form UI',
-      'Quick Task dialog: "Assigned To" user picker and "Continue in Full Form" button',
-      'Search bar in Roles list page',
-      'Second Save button at top of role permissions page',
+      'Asset.assetSn: auto-increment integer field (continuous SN across all asset types); add_asset_sn.sql migration with backfill',
+      'Sortable table headers (SortTh) in Assets registry, Loans, Custodies, and Contracts tables',
+      'Asset Code (assetCode) now editable in asset edit form; uniqueness enforced server-side',
+      'SN column added to assets registry table view',
     ],
     fixed: [
-      '/hr/letters missing from NAVIGATION_PERMISSIONS — caused letters page to be inaccessible after adding permissions',
+      'Backlog "Push All to GitHub" now includes COMPLETED/DROPPED items (closes their GitHub issues) — previously only pushed unsynced open items',
+      'Global search asset subtitle now includes plate number and assigned employee name',
+      'loans/all and custodies/all routes now use resolveUserPermissions() — fixes wrong scoping for users with custom permission grants/revokes',
     ],
     changed: [
-      'Employee detail page default tab changed from Record to Overview dashboard',
-      'Sidebar: New Employee, Manpower Slots, and Public Holidays entries removed; Loans and Custodies added',
-      'Version bumped to 18.18.1',
+      'Version bumped to 18.18.2',
     ],
   },
 };

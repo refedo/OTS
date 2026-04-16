@@ -6,7 +6,7 @@
  * assign them to employees, and track assignment history.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -62,6 +62,9 @@ import {
   Pencil,
   LayoutGrid,
   LayoutList,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -88,6 +91,7 @@ interface AssetAttachment {
 
 interface AssetRow {
   id: string;
+  assetSn: number | null;
   assetCode: string;
   name: string;
   category: AssetCategory;
@@ -197,6 +201,26 @@ function fmtDate(d: string | null) {
   return new Date(d).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function SortTh({ col, label, sort, onSort, align = 'left' }: {
+  col: string; label: string;
+  sort: { key: string; dir: 'asc' | 'desc' };
+  onSort: (k: string) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.key === col;
+  return (
+    <th
+      className={cn('px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none hover:text-slate-700 hover:bg-slate-100 transition-colors', align === 'right' ? 'text-right' : 'text-left')}
+      onClick={() => onSort(col)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (sort.dir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-30" />}
+      </span>
+    </th>
+  );
+}
+
 // ─── Create / Edit Dialog ────────────────────────────────────────────────────
 
 function AssetFormDialog({
@@ -298,7 +322,7 @@ function AssetFormDialog({
         notes: form.notes || null,
         attachments: attachments.length > 0 ? attachments : null,
       };
-      if (!isEdit) payload.assetCode = form.assetCode;
+      payload.assetCode = form.assetCode;
 
       const url = isEdit ? `/api/hr/assets/${initial!.id}` : '/api/hr/assets';
       const res = await fetch(url, {
@@ -331,13 +355,11 @@ function AssetFormDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {!isEdit && (
-              <div className="space-y-1">
-                <Label>Asset Code *</Label>
-                <Input value={form.assetCode} onChange={e => set('assetCode', e.target.value)} placeholder="e.g. CAR-001" required />
-              </div>
-            )}
-            <div className={cn('space-y-1', !isEdit ? '' : 'col-span-2')}>
+            <div className="space-y-1">
+              <Label>Asset Code *</Label>
+              <Input value={form.assetCode} onChange={e => set('assetCode', e.target.value)} placeholder="e.g. CAR-001" required />
+            </div>
+            <div className="space-y-1">
               <Label>Name / Description *</Label>
               <Input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Toyota Hilux White" required />
             </div>
@@ -1148,6 +1170,30 @@ export function AssetsClient({ canManage }: Props) {
   const [returnAsset, setReturnAsset] = useState<AssetRow | null>(null);
   const [deleteAsset, setDeleteAsset] = useState<AssetRow | null>(null);
   const [historyAsset, setHistoryAsset] = useState<AssetRow | null>(null);
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'assetSn', dir: 'asc' });
+
+  const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
+
+  const sortedAssets = useMemo(() => {
+    return [...assets].sort((a, b) => {
+      let av: string | number | null = null;
+      let bv: string | number | null = null;
+      switch (sort.key) {
+        case 'assetSn': av = a.assetSn ?? 999999; bv = b.assetSn ?? 999999; break;
+        case 'assetCode': av = a.assetCode; bv = b.assetCode; break;
+        case 'name': av = a.name; bv = b.name; break;
+        case 'category': av = a.category; bv = b.category; break;
+        case 'status': av = a.status; bv = b.status; break;
+        case 'assignedTo': av = a.assignments?.[0]?.employee?.fullNameEn ?? ''; bv = b.assignments?.[0]?.employee?.fullNameEn ?? ''; break;
+        default: av = a.assetSn ?? 999999; bv = b.assetSn ?? 999999;
+      }
+      const cmp = typeof av === 'number' && typeof bv === 'number'
+        ? av - bv
+        : String(av ?? '').localeCompare(String(bv ?? ''));
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [assets, sort]);
+
   const [tipDismissed, setTipDismissed] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('ots-assets-tip-v1') === '1'
   );
@@ -1366,18 +1412,19 @@ export function AssetsClient({ canManage }: Props) {
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b">
                       <tr>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Code</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Category</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Name / Make / Model</th>
+                        <SortTh col="assetSn" label="SN" sort={sort} onSort={toggleSort} />
+                        <SortTh col="assetCode" label="Code" sort={sort} onSort={toggleSort} />
+                        <SortTh col="category" label="Category" sort={sort} onSort={toggleSort} />
+                        <SortTh col="name" label="Name / Make / Model" sort={sort} onSort={toggleSort} />
                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Plate / Serial</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Assigned To</th>
+                        <SortTh col="status" label="Status" sort={sort} onSort={toggleSort} />
+                        <SortTh col="assignedTo" label="Assigned To" sort={sort} onSort={toggleSort} />
                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Assign Date</th>
                         <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {assets.map(asset => {
+                      {sortedAssets.map(asset => {
                         const activeAssignment = asset.assignments?.[0];
                         const plateOrSerial = asset.plateNumber
                           ?? (asset.serialNumber ? `S/N: ${asset.serialNumber}` : null)
@@ -1387,6 +1434,9 @@ export function AssetsClient({ canManage }: Props) {
                           : [asset.make, asset.model].filter(Boolean).join(' ');
                         return (
                           <tr key={asset.id} className="hover:bg-violet-50/20 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-mono text-slate-400">{asset.assetSn != null ? String(asset.assetSn).padStart(3, '0') : '—'}</span>
+                            </td>
                             <td className="px-4 py-3">
                               <span className="text-xs font-mono text-slate-500">{asset.assetCode}</span>
                             </td>

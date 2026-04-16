@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Landmark, Search, Clock, CheckCircle2, MinusCircle, User } from 'lucide-react';
+import { Loader2, Landmark, Search, Clock, CheckCircle2, MinusCircle, User, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 type LoanStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
@@ -34,10 +35,29 @@ function loanStatusBadge(status: LoanStatus) {
   return <Badge className="bg-slate-100 text-slate-500 border-slate-200 border"><MinusCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
 }
 
+function SortTh({ col, label, sort, onSort, align = 'left' }: {
+  col: string; label: string;
+  sort: { key: string; dir: 'asc' | 'desc' };
+  onSort: (k: string) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.key === col;
+  return (
+    <th className={cn('py-3 px-4 font-medium cursor-pointer select-none hover:text-slate-700 hover:bg-slate-100 transition-colors', align === 'right' ? 'text-right' : 'text-left')} onClick={() => onSort(col)}>
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (sort.dir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-30" />}
+      </span>
+    </th>
+  );
+}
+
 export function LoansPageClient({ canViewAll }: { canViewAll: boolean }) {
   const [loans, setLoans] = useState<LoanEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'createdAt', dir: 'desc' });
+  const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,14 +70,29 @@ export function LoansPageClient({ canViewAll }: { canViewAll: boolean }) {
   useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return loans;
-    const q = search.toLowerCase();
-    return loans.filter((l) =>
-      (l.employee?.fullNameEn ?? '').toLowerCase().includes(q) ||
-      (l.employee?.employmentId ?? '').toLowerCase().includes(q) ||
-      (l.reason ?? '').toLowerCase().includes(q),
-    );
-  }, [loans, search]);
+    const searched = search.trim()
+      ? loans.filter((l) => {
+          const q = search.toLowerCase();
+          return (l.employee?.fullNameEn ?? '').toLowerCase().includes(q) ||
+            (l.employee?.employmentId ?? '').toLowerCase().includes(q) ||
+            (l.reason ?? '').toLowerCase().includes(q);
+        })
+      : loans;
+    return [...searched].sort((a, b) => {
+      let av: string | number = '';
+      let bv: string | number = '';
+      switch (sort.key) {
+        case 'employee': av = a.employee?.fullNameEn ?? ''; bv = b.employee?.fullNameEn ?? ''; break;
+        case 'principal': av = Number(a.principal); bv = Number(b.principal); break;
+        case 'balance': av = (a.installmentsTotal - a.installmentsPaid) * Number(a.installmentAmount); bv = (b.installmentsTotal - b.installmentsPaid) * Number(b.installmentAmount); break;
+        case 'startDate': av = a.startDate; bv = b.startDate; break;
+        case 'status': av = a.status; bv = b.status; break;
+        default: av = a.createdAt; bv = b.createdAt;
+      }
+      const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [loans, search, sort]);
 
   const totalPrincipal = useMemo(() => loans.reduce((s, l) => s + Number(l.principal), 0), [loans]);
   const activeLoans = useMemo(() => loans.filter((l) => l.status === 'ACTIVE'), [loans]);
@@ -137,13 +172,13 @@ export function LoansPageClient({ canViewAll }: { canViewAll: boolean }) {
                 <table className="w-full text-sm">
                   <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b">
                     <tr>
-                      {canViewAll && <th className="py-3 px-4 font-medium">Employee</th>}
-                      <th className="py-3 px-4 font-medium">Principal</th>
+                      {canViewAll && <SortTh col="employee" label="Employee" sort={sort} onSort={toggleSort} />}
+                      <SortTh col="principal" label="Principal" sort={sort} onSort={toggleSort} />
                       <th className="py-3 px-4 font-medium">Installment</th>
                       <th className="py-3 px-4 font-medium text-right">Progress</th>
-                      <th className="py-3 px-4 font-medium text-right">Balance</th>
-                      <th className="py-3 px-4 font-medium">Start</th>
-                      <th className="py-3 px-4 font-medium">Status</th>
+                      <SortTh col="balance" label="Balance" sort={sort} onSort={toggleSort} align="right" />
+                      <SortTh col="startDate" label="Start" sort={sort} onSort={toggleSort} />
+                      <SortTh col="status" label="Status" sort={sort} onSort={toggleSort} />
                       {canViewAll && <th className="py-3 px-4 font-medium">Action</th>}
                     </tr>
                   </thead>

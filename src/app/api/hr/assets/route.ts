@@ -75,6 +75,7 @@ export const GET = withApiContext(async (req: NextRequest) => {
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
       select: {
         id: true,
+        assetSn: true,
         assetCode: true,
         name: true,
         category: true,
@@ -132,9 +133,18 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
     return NextResponse.json({ error: `Asset code "${d.assetCode}" is already in use` }, { status: 409 });
   }
 
+  // Auto-assign sequential SN (continuous across all asset types)
+  const maxSnRow = await prisma.asset.findFirst({
+    where: { assetSn: { not: null } },
+    orderBy: { assetSn: 'desc' },
+    select: { assetSn: true },
+  });
+  const nextSn = (maxSnRow?.assetSn ?? 0) + 1;
+
   try {
     const asset = await prisma.asset.create({
       data: {
+        assetSn: nextSn,
         assetCode: d.assetCode,
         name: d.name,
         category: d.category,
