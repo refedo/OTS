@@ -13,6 +13,7 @@ import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
 const updateSchema = z.object({
+  assetCode: z.string().min(1).max(50).optional(),
   name: z.string().min(1).max(200).optional(),
   status: z.enum(['AVAILABLE', 'ASSIGNED', 'UNDER_MAINTENANCE', 'RETIRED', 'DAMAGED', 'LOST']).optional(),
   plateNumber: z.string().max(30).nullable().optional(),
@@ -97,10 +98,18 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx) => {
   if (!asset) return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
 
   const d = parsed.data;
+
+  // If assetCode is changing, check uniqueness
+  if (d.assetCode && d.assetCode !== asset.assetCode) {
+    const conflict = await prisma.asset.findFirst({ where: { assetCode: d.assetCode, deletedAt: null, id: { not: id } } });
+    if (conflict) return NextResponse.json({ error: `Asset code "${d.assetCode}" is already in use` }, { status: 409 });
+  }
+
   try {
     const updated = await prisma.asset.update({
       where: { id },
       data: {
+        ...(d.assetCode !== undefined ? { assetCode: d.assetCode } : {}),
         ...(d.name !== undefined ? { name: d.name } : {}),
         ...(d.status !== undefined ? { status: d.status } : {}),
         ...(d.plateNumber !== undefined ? { plateNumber: d.plateNumber } : {}),

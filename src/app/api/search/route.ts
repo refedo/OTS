@@ -209,7 +209,14 @@ export const GET = withApiContext(async (req) => {
               { serialNumber: { contains: q } },
             ],
           },
-          select: { id: true, assetCode: true, name: true, category: true, status: true },
+          select: {
+            id: true, assetSn: true, assetCode: true, name: true, category: true, status: true, plateNumber: true,
+            assignments: {
+              where: { status: 'ACTIVE', deletedAt: null },
+              select: { employee: { select: { fullNameEn: true } } },
+              take: 1,
+            },
+          },
           take: MAX_PER_CATEGORY,
           orderBy: { updatedAt: 'desc' },
         })),
@@ -357,14 +364,20 @@ export const GET = withApiContext(async (req) => {
           url: `/hr/employees/${e.id}`,
           type: 'Employee',
         })),
-        assets: assetArr.map((a) => ({
-          id: a.id,
-          title: a.name,
-          subtitle: `${a.assetCode} · ${a.category}`,
-          badge: a.status,
-          url: `/hr/assets`,
-          type: 'Asset',
-        })),
+        assets: assetArr.map((a) => {
+          const assignedTo = (a as { assignments?: Array<{ employee: { fullNameEn: string } }> }).assignments?.[0]?.employee?.fullNameEn;
+          const parts = [a.assetCode, a.category.replace(/_/g, ' ')];
+          if (a.plateNumber) parts.push(a.plateNumber);
+          if (assignedTo) parts.push(`→ ${assignedTo}`);
+          return {
+            id: a.id,
+            title: a.name,
+            subtitle: parts.join(' · '),
+            badge: a.status,
+            url: `/hr/assets`,
+            type: 'Asset',
+          };
+        }),
         contracts: contractArr.map((c) => ({
           id: c.id,
           title: c.title,
