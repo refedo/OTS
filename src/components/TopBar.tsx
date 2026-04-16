@@ -2,8 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { LogOut, Star } from 'lucide-react';
+import { LogOut, Star, Plus, Loader2, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import NotificationBell from '@/components/NotificationBell';
 import GlobalSearch from '@/components/GlobalSearch';
 import RecentLinksPanel from '@/components/RecentLinksPanel';
@@ -14,15 +22,131 @@ interface UserPoints {
   rank: number | null;
 }
 
+function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [title, setTitle] = useState('');
+  const [priority, setPriority] = useState('Medium');
+  const [dueDate, setDueDate] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim(),
+          priority,
+          dueDate: dueDate || null,
+          status: 'Pending',
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Failed to create task');
+      }
+      setTitle('');
+      setPriority('Medium');
+      setDueDate('');
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogTitle className="flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-blue-600" />
+          Quick Task
+        </DialogTitle>
+        <DialogDescription className="text-xs text-slate-500">
+          Create a task quickly. You can add details later.
+        </DialogDescription>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div>
+            <Label htmlFor="qt-title">Title</Label>
+            <Input
+              id="qt-title"
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="What needs to be done?"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="qt-priority">Priority</Label>
+              <select
+                id="qt-priority"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="w-full border rounded-md h-10 px-3 text-sm bg-white"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="CRITICAL">Critical</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="qt-due">Due date</Label>
+              <Input
+                id="qt-due"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+          </div>
+          {error && (
+            <p className="text-xs text-red-600 rounded border border-red-200 bg-red-50 px-3 py-2">{error}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving || !title.trim()}>
+              {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              Create Task
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function TopBar() {
   const router = useRouter();
   const [points, setPoints] = useState<UserPoints | null>(null);
+  const [quickTaskOpen, setQuickTaskOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/points/me', { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (data) setPoints(data); })
       .catch(() => {});
+  }, []);
+
+  // Global keyboard shortcut: Ctrl+Shift+T / Cmd+Shift+T for quick task
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
+        e.preventDefault();
+        setQuickTaskOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
   }, []);
 
   const handleLogout = async () => {
@@ -58,6 +182,15 @@ export default function TopBar() {
 
   return (
     <div className="fixed top-0 right-0 z-50 flex items-center gap-1 p-2 lg:p-3 print:hidden">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setQuickTaskOpen(true)}
+        title="Quick task (Ctrl+Shift+T)"
+        className="text-muted-foreground hover:text-foreground hover:bg-accent"
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
       <GlobalSearch />
       <RecentLinksPanel />
       {points !== null && (
@@ -83,6 +216,8 @@ export default function TopBar() {
       >
         <LogOut className="h-5 w-5" />
       </Button>
+
+      <QuickTaskDialog open={quickTaskOpen} onClose={() => { setQuickTaskOpen(false); router.refresh(); }} />
     </div>
   );
 }

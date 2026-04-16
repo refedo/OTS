@@ -5,6 +5,8 @@ import prisma from '@/lib/db';
 import { checkPermission, getCurrentUserPermissions } from '@/lib/permission-checker';
 import { AgenciesClient } from '@/components/hr/agencies-client';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AgenciesPage() {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
