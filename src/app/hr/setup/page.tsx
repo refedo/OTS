@@ -6,6 +6,7 @@ import { verifySession } from '@/lib/jwt';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { HrSetupClient } from '@/components/hr/hr-setup-client';
 
+export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'HR Setup' };
 
 export default async function HrSetupPage() {
@@ -21,17 +22,66 @@ export default async function HrSetupPage() {
   const canManageSections = permissions.includes('hr.section.manage');
   const canManageLeaveTypes = permissions.includes('hr.leaves.manageTypes');
   const canManagePayrollSettings = permissions.includes('hr.payroll.settings');
+  const canAttendanceSync = permissions.includes('hr.attendance.sync');
+  const canAttendanceProbe = permissions.includes('hr.attendance.probe');
+  const canEmployeeSync = permissions.includes('hr.employee.sync');
+  const canIdentityReconcile = permissions.includes('admin.identity.reconcile');
 
-  if (!canManageDepartments && !canManageSections && !canManageLeaveTypes && !canManagePayrollSettings) {
+  const canViewAny =
+    canManageDepartments ||
+    canManageSections ||
+    canManageLeaveTypes ||
+    canManagePayrollSettings ||
+    canAttendanceSync ||
+    canAttendanceProbe ||
+    canEmployeeSync ||
+    canIdentityReconcile;
+
+  if (!canViewAny) {
     redirect('/unauthorized?from=/hr/setup');
   }
 
-  const [departments, sections, divisions, occupations, leaveTypes] = await Promise.all([
+  const [
+    departments,
+    sections,
+    divisions,
+    occupations,
+    leaveTypes,
+    attendanceLogs,
+    employeeSyncLogs,
+    identityUsersRaw,
+    reconciliationGate,
+  ] = await Promise.all([
     prisma.department.findMany({ orderBy: { name: 'asc' } }),
     prisma.hrSection.findMany({ orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }] }),
     prisma.hrDivision.findMany({ orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }] }),
     prisma.hrOccupation.findMany({ orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }] }),
     prisma.leaveType.findMany({ orderBy: [{ displayOrder: 'asc' }, { nameEn: 'asc' }] }),
+    prisma.googleSheetAttendanceSyncLog.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: 20,
+      include: { triggeredBy: { select: { id: true, name: true, email: true } } },
+    }),
+    prisma.dolibarrEmployeeSyncLog.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: 20,
+      include: { triggeredBy: { select: { id: true, name: true, email: true } } },
+    }),
+    prisma.user.findMany({
+      where: { status: 'active' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        position: true,
+        dolibarrUserId: true,
+        employeeId: true,
+        reconciledAt: true,
+        role: { select: { id: true, name: true } },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.systemConfig.findUnique({ where: { key: 'identityReconciliationComplete' } }),
   ]);
 
   const serializedLeaveTypes = leaveTypes.map((lt) => ({
@@ -78,6 +128,47 @@ export default async function HrSetupPage() {
     archivedAt: o.archivedAt ? o.archivedAt.toISOString() : null,
   }));
 
+  const serializedAttendanceLogs = attendanceLogs.map((l) => ({
+    id: l.id,
+    startedAt: l.startedAt.toISOString(),
+    finishedAt: l.finishedAt ? l.finishedAt.toISOString() : null,
+    status: l.status,
+    spreadsheetId: l.spreadsheetId,
+    tabName: l.tabName,
+    rowsRead: l.rowsRead,
+    rowsCreated: l.rowsCreated,
+    rowsUpdated: l.rowsUpdated,
+    rowsUnchanged: l.rowsUnchanged,
+    employeeOrphans: l.employeeOrphans,
+    slotOrphans: l.slotOrphans,
+    hardErrors: l.hardErrors,
+    softWarnings: l.softWarnings,
+    durationMs: l.durationMs,
+    triggeredBy: l.triggeredBy,
+  }));
+
+  const serializedEmployeeSyncLogs = employeeSyncLogs.map((l) => ({
+    id: l.id,
+    startedAt: l.startedAt.toISOString(),
+    finishedAt: l.finishedAt ? l.finishedAt.toISOString() : null,
+    status: l.status,
+    rowsRead: l.rowsRead,
+    rowsCreated: l.rowsCreated,
+    rowsUpdated: l.rowsUpdated,
+    rowsSkipped: l.rowsSkipped,
+    fieldsPreserved: l.fieldsPreserved,
+    linksEstablished: l.linksEstablished,
+    hardErrors: l.hardErrors,
+    softWarnings: l.softWarnings,
+    apiResponseMs: l.apiResponseMs,
+    triggeredBy: l.triggeredBy,
+  }));
+
+  const serializedIdentityUsers = identityUsersRaw.map((u) => ({
+    ...u,
+    reconciledAt: u.reconciledAt ? u.reconciledAt.toISOString() : null,
+  }));
+
   return (
     <HrSetupClient
       initialDepartments={serializedDepartments}
@@ -91,6 +182,14 @@ export default async function HrSetupPage() {
       canManageSections={canManageSections}
       canManageLeaveTypes={canManageLeaveTypes}
       canManagePayrollSettings={canManagePayrollSettings}
+      attendanceLogs={serializedAttendanceLogs}
+      canAttendanceSync={canAttendanceSync}
+      canAttendanceProbe={canAttendanceProbe}
+      employeeSyncLogs={serializedEmployeeSyncLogs}
+      canEmployeeSync={canEmployeeSync}
+      reconciliationComplete={reconciliationGate?.value === 'true'}
+      identityUsers={serializedIdentityUsers}
+      canIdentityReconcile={canIdentityReconcile}
     />
   );
 }
