@@ -1,26 +1,15 @@
-/**
- * GET /api/hr/loans/all
- * Returns all loans (for HR: hr.loans.view) or own loans (for linked employees).
- * 18.18.1
- */
-
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
+import { resolveUserPermissions } from '@/lib/services/permission-resolution.service';
 import { logger } from '@/lib/logger';
 
 export const GET = withApiContext(async (_req, session) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: session!.sub },
-      select: { customPermissions: true, employeeId: true, role: { select: { permissions: true } } },
-    });
-
-    const perms: string[] = Array.isArray(user?.customPermissions)
-      ? (user!.customPermissions as string[])
-      : Array.isArray(user?.role?.permissions)
-        ? (user!.role!.permissions as string[])
-        : [];
+    const [perms, user] = await Promise.all([
+      resolveUserPermissions(session!.sub),
+      prisma.user.findUnique({ where: { id: session!.sub }, select: { employeeId: true } }),
+    ]);
 
     const canViewAll = perms.includes('hr.loans.view') || perms.includes('hr.loans.manage');
 

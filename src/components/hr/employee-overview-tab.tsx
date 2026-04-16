@@ -1,11 +1,6 @@
 'use client';
 
-/**
- * 18.18.1 — Employee overview/dashboard tab
- * Shows a quick summary: loans, custodies, assets, expiry alerts.
- */
-
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -136,7 +131,7 @@ export function EmployeeOverviewTab({
         fetches.push(
           fetch(`/api/hr/contracts?employeeId=${employeeId}`)
             .then(r => r.ok ? r.json() : [])
-            .then((data: unknown) => setContracts(Array.isArray(data) ? data : (data as any)?.contracts ?? [])),
+            .then((data: unknown) => setContracts(Array.isArray(data) ? data : (data as { contracts?: ContractRow[] })?.contracts ?? [])),
         );
       }
       await Promise.allSettled(fetches);
@@ -147,12 +142,13 @@ export function EmployeeOverviewTab({
 
   useEffect(() => { load(); }, [load]);
 
-  const activeLoans = loans.filter(l => l.status === 'ACTIVE');
-  const loanBalance = activeLoans.reduce((s, l) => s + (l.installmentsTotal - l.installmentsPaid) * Number(l.installmentAmount), 0);
-  const openCustodies = custodies.filter(c => c.status !== 'SETTLED');
-  const custodyBalance = openCustodies.reduce((s, c) => s + (Number(c.amount) - Number(c.settledAmount)), 0);
-
-  const expiringContracts = contracts.filter(c => c.expiryDate && c.status === 'ACTIVE');
+  const activeLoans = useMemo(() => loans.filter(l => l.status === 'ACTIVE'), [loans]);
+  const loanBalance = useMemo(() => activeLoans.reduce((s, l) => s + (l.installmentsTotal - l.installmentsPaid) * Number(l.installmentAmount), 0), [activeLoans]);
+  const openCustodies = useMemo(() => custodies.filter(c => c.status !== 'SETTLED'), [custodies]);
+  const custodyBalance = useMemo(() => openCustodies.reduce((s, c) => s + (Number(c.amount) - Number(c.settledAmount)), 0), [openCustodies]);
+  const expiringContracts = useMemo(() => contracts.filter(c => c.expiryDate && c.status === 'ACTIVE'), [contracts]);
+  const urgentContracts = useMemo(() => expiringContracts.filter(c => c.expiryDate && daysUntil(c.expiryDate) <= 7), [expiringContracts]);
+  const soonContracts = useMemo(() => expiringContracts.filter(c => daysUntil(c.expiryDate!) <= 30), [expiringContracts]);
 
   const contractEndDays = employee.dateOfLeaving ? daysUntil(employee.dateOfLeaving) : null;
 
@@ -208,7 +204,7 @@ export function EmployeeOverviewTab({
         <div className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm">
           <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Expiring Docs</p>
           <p className="text-2xl font-bold text-rose-700 mt-1">
-            {expiringContracts.filter(c => daysUntil(c.expiryDate!) <= 30).length}
+            {soonContracts.length}
           </p>
           <p className="text-xs text-rose-500 mt-0.5">within 30 days</p>
         </div>
@@ -380,12 +376,11 @@ export function EmployeeOverviewTab({
         )}
       </div>
 
-      {/* Warning strip for urgently expiring items */}
-      {expiringContracts.filter(c => c.expiryDate && daysUntil(c.expiryDate) <= 7).length > 0 && (
+      {urgentContracts.length > 0 && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-start gap-3">
           <AlertTriangle className="h-4 w-4 text-rose-600 mt-0.5 shrink-0" />
           <div className="text-sm text-rose-800">
-            <strong>Urgent:</strong> {expiringContracts.filter(c => c.expiryDate && daysUntil(c.expiryDate) <= 7).length} document(s) expire within 7 days.
+            <strong>Urgent:</strong> {urgentContracts.length} document(s) expire within 7 days.
             <Link href="/hr/contracts" className="ml-1 underline">Review contracts</Link>
           </div>
         </div>

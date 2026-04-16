@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Wallet, Search, AlertCircle, CheckCircle2, MinusCircle, User } from 'lucide-react';
+import { Loader2, Wallet, Search, Clock, CheckCircle2, MinusCircle, User } from 'lucide-react';
 import Link from 'next/link';
 
 type CustodyStatus = 'OPEN' | 'PARTIALLY_SETTLED' | 'SETTLED';
@@ -28,7 +28,7 @@ function money(v: string | number) {
 }
 
 function custodyStatusBadge(status: CustodyStatus) {
-  if (status === 'OPEN') return <Badge className="bg-amber-100 text-amber-700 border-amber-200 border"><AlertCircle className="h-3 w-3 mr-1" />Open</Badge>;
+  if (status === 'OPEN') return <Badge className="bg-amber-100 text-amber-700 border-amber-200 border"><Clock className="h-3 w-3 mr-1" />Open</Badge>;
   if (status === 'PARTIALLY_SETTLED') return <Badge className="bg-sky-100 text-sky-700 border-sky-200 border"><MinusCircle className="h-3 w-3 mr-1" />Partial</Badge>;
   return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border"><CheckCircle2 className="h-3 w-3 mr-1" />Settled</Badge>;
 }
@@ -48,17 +48,19 @@ export function CustodiesPageClient({ canViewAll }: { canViewAll: boolean }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = search.trim()
-    ? custodies.filter((c) =>
-        (c.employee?.fullNameEn ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (c.employee?.employmentId ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        c.reason.toLowerCase().includes(search.toLowerCase()),
-      )
-    : custodies;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return custodies;
+    const q = search.toLowerCase();
+    return custodies.filter((c) =>
+      (c.employee?.fullNameEn ?? '').toLowerCase().includes(q) ||
+      (c.employee?.employmentId ?? '').toLowerCase().includes(q) ||
+      c.reason.toLowerCase().includes(q),
+    );
+  }, [custodies, search]);
 
-  const openCustodies = custodies.filter((c) => c.status === 'OPEN' || c.status === 'PARTIALLY_SETTLED');
-  const totalOutstanding = openCustodies.reduce((s, c) => s + (Number(c.amount) - Number(c.settledAmount)), 0);
-  const totalIssued = custodies.reduce((s, c) => s + Number(c.amount), 0);
+  const openCustodies = useMemo(() => custodies.filter((c) => c.status === 'OPEN' || c.status === 'PARTIALLY_SETTLED'), [custodies]);
+  const totalOutstanding = useMemo(() => openCustodies.reduce((s, c) => s + (Number(c.amount) - Number(c.settledAmount)), 0), [openCustodies]);
+  const totalIssued = useMemo(() => custodies.reduce((s, c) => s + Number(c.amount), 0), [custodies]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
