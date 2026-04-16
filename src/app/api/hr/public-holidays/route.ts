@@ -16,6 +16,7 @@ import { checkPermission } from '@/lib/permission-checker';
 
 const createSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD').optional().nullable(),
   nameEn: z.string().min(1).max(200),
   nameAr: z.string().max(200).optional().nullable(),
   isRecurring: z.boolean().optional(),
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     const holiday = await prisma.publicHoliday.create({
       data: {
         date: new Date(parsed.data.date + 'T00:00:00.000Z'),
+        endDate: parsed.data.endDate ? new Date(parsed.data.endDate + 'T00:00:00.000Z') : null,
         nameEn: parsed.data.nameEn,
         nameAr: parsed.data.nameAr ?? null,
         isRecurring: parsed.data.isRecurring ?? false,

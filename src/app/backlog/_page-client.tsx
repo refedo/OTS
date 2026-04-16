@@ -325,7 +325,7 @@ export default function BacklogBoard() {
                 { key: 'type', options: [['', 'All Types'], ['FEATURE', 'Feature'], ['BUG', 'Bug'], ['TECH_DEBT', 'Tech Debt'], ['PERFORMANCE', 'Performance'], ['REPORTING', 'Reporting'], ['REFACTOR', 'Refactor'], ['COMPLIANCE', 'Compliance'], ['INSIGHT', 'Insight']] },
                 { key: 'priority', options: [['', 'All Priorities'], ['CRITICAL', 'Critical'], ['HIGH', 'High'], ['MEDIUM', 'Medium'], ['LOW', 'Low']] },
                 { key: 'status', options: [['', 'All Statuses'], ['OPEN', 'Open'], ['IDEA', 'Idea'], ['UNDER_REVIEW', 'Under Review'], ['APPROVED', 'Approved'], ['PLANNED', 'Planned'], ['IN_PROGRESS', 'In Progress'], ['BLOCKED', 'Blocked'], ['COMPLETED', 'Completed'], ['DROPPED', 'Dropped']] },
-                { key: 'category', options: [['', 'All Categories'], ['CORE_SYSTEM', 'Core System'], ['PRODUCTION', 'Production'], ['DESIGN', 'Design'], ['DETAILING', 'Detailing'], ['PROCUREMENT', 'Procurement'], ['QC', 'QC'], ['LOGISTICS', 'Logistics'], ['FINANCE', 'Finance'], ['REPORTING', 'Reporting'], ['AI', 'AI'], ['GOVERNANCE', 'Governance'], ['PROJECTS', 'Projects']] },
+                { key: 'category', options: [['', 'All Categories'], ['CORE_SYSTEM', 'Core System'], ['PRODUCTION', 'Production'], ['DESIGN', 'Design'], ['DETAILING', 'Detailing'], ['PROCUREMENT', 'Procurement'], ['QC', 'QC'], ['LOGISTICS', 'Logistics'], ['FINANCE', 'Finance'], ['REPORTING', 'Reporting'], ['AI', 'AI'], ['GOVERNANCE', 'Governance'], ['PROJECTS', 'Projects'], ['HR', 'HR']] },
               ].map(({ key, options }) => (
                 <select
                   key={key}

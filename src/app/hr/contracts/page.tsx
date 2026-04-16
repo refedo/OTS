@@ -23,7 +23,7 @@ export default async function ContractsPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [contractsRaw, employees] = await Promise.all([
+  const [contractsRaw, employees, carAssets] = await Promise.all([
     prisma.contract.findMany({
       where: { deletedAt: null },
       include: {
@@ -36,6 +36,22 @@ export default async function ContractsPage() {
       where: { deletedAt: null, status: 'ACTIVE' },
       select: { id: true, fullNameEn: true, employmentId: true },
       orderBy: { fullNameEn: 'asc' },
+    }),
+    prisma.asset.findMany({
+      where: { deletedAt: null, category: 'CAR' },
+      select: {
+        id: true,
+        assetCode: true,
+        name: true,
+        plateNumber: true,
+        vehicleMake: true,
+        vehicleModel: true,
+        vehicleYear: true,
+        licenseExpiryDate: true,
+        attachments: true,
+        status: true,
+      },
+      orderBy: { name: 'asc' },
     }),
   ]);
 
@@ -55,6 +71,7 @@ export default async function ContractsPage() {
       canManage={canManage}
       employees={employees}
       initialContracts={contracts as Parameters<typeof ContractsClient>[0]['initialContracts']}
+      carAssets={carAssets as Parameters<typeof ContractsClient>[0]['carAssets']}
     />
   );
 }

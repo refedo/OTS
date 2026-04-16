@@ -1,12 +1,13 @@
 'use client';
 
 /**
- * 18.14.0 — Contracts & Documents Management
+ * 18.15.0 — Contracts & Documents Management
  * Health insurance, medical insurance, Iqamas, car registrations,
  * legal documents, etc. with Hijri date support and expiry notifications.
+ * Added Vehicle Licenses section for car asset license expiry tracking.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +19,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  FileText, Plus, Search, Loader2, Edit2, Trash2, AlertCircle,
-  Calendar, Building2, User, Clock, CheckCircle2, XCircle, RefreshCw,
+  FileText, Plus, Search, Loader2, Edit2, Trash2,
+  Calendar, Building2, User, RefreshCw, Car, ShieldCheck,
+  Upload, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { gregorianToHijri, hijriToGregorian } from '@/lib/utils/hijri';
@@ -59,10 +61,24 @@ interface EmployeeOption {
   employmentId: string;
 }
 
+interface CarAsset {
+  id: string;
+  assetCode: string;
+  name: string;
+  plateNumber: string | null;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleYear: number | null;
+  licenseExpiryDate: string | null;
+  attachments: unknown;
+  status: string;
+}
+
 interface Props {
   canManage: boolean;
   employees: EmployeeOption[];
   initialContracts: ContractRow[];
+  carAssets: CarAsset[];
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -139,11 +155,31 @@ const EMPTY_FORM = {
   description: '',
 };
 
+// ─── License expiry helpers ───────────────────────────────────────────────────
+
+function licenseDaysLeft(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const exp = new Date(dateStr);
+  exp.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((exp.getTime() - today.getTime()) / 86400000);
+}
+
+function licenseBadge(days: number | null) {
+  if (days === null) return <span className="text-xs text-slate-400">No expiry set</span>;
+  if (days < 0) return <span className="text-xs font-bold text-rose-600">Expired {Math.abs(days)}d ago</span>;
+  if (days <= 7) return <span className="text-xs font-bold text-rose-600">{days}d left</span>;
+  if (days <= 30) return <span className="text-xs font-semibold text-amber-600">{days}d left</span>;
+  return <span className="text-xs text-emerald-600">{days}d left</span>;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ContractsClient({ canManage, employees, initialContracts }: Props) {
+export function ContractsClient({ canManage, employees, initialContracts, carAssets }: Props) {
   const [contracts, setContracts] = useState<ContractRow[]>(initialContracts);
   const [loading, setLoading] = useState(false);
+  const [assets, setAssets] = useState<CarAsset[]>(carAssets);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -156,6 +192,14 @@ export function ContractsClient({ canManage, employees, initialContracts }: Prop
   const [deleteContract, setDeleteContract] = useState<ContractRow | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Vehicle license renewal dialog
+  const [renewAsset, setRenewAsset] = useState<CarAsset | null>(null);
+  const [renewDate, setRenewDate] = useState('');
+  const [renewUploading, setRenewUploading] = useState(false);
+  const [renewSaving, setRenewSaving] = useState(false);
+  const [renewFile, setRenewFile] = useState<{ fileName: string; filePath: string; fileType: string; fileSize: number; uploadedAt: string; label: string } | null>(null);
+  const renewFileRef = useRef<HTMLInputElement>(null);
 
   // Form
   const [form, setForm] = useState({ ...EMPTY_FORM });
@@ -278,6 +322,70 @@ export function ContractsClient({ canManage, employees, initialContracts }: Prop
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ── Vehicle license renewal ────────────────────────────────────────────────
+
+  function openRenew(asset: CarAsset) {
+    setRenewAsset(asset);
+    setRenewDate(asset.licenseExpiryDate ? asset.licenseExpiryDate.split('T')[0] : '');
+    setRenewFile(null);
+  }
+
+  async function handleRenewUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRenewUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        const data = await res.json() as { originalName: string; filePath: string; fileType: string; fileSize: number };
+        setRenewFile({
+          fileName: data.originalName,
+          filePath: data.filePath,
+          fileType: data.fileType,
+          fileSize: data.fileSize,
+          uploadedAt: new Date().toISOString(),
+          label: 'License Image',
+        });
+      }
+    } finally {
+      setRenewUploading(false);
+      if (renewFileRef.current) renewFileRef.current.value = '';
+    }
+  }
+
+  async function handleRenewSave() {
+    if (!renewAsset || !renewDate) return;
+    setRenewSaving(true);
+    try {
+      // Build attachments: merge existing + new file if any
+      const existingAttachments = Array.isArray(renewAsset.attachments) ? renewAsset.attachments as object[] : [];
+      const updatedAttachments = renewFile
+        ? [...existingAttachments, renewFile]
+        : existingAttachments;
+
+      const res = await fetch(`/api/hr/assets/${renewAsset.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          licenseExpiryDate: renewDate,
+          attachments: updatedAttachments,
+        }),
+      });
+      if (res.ok) {
+        // Update local assets state
+        const updated = await res.json() as CarAsset;
+        setAssets(prev => prev.map(a => a.id === renewAsset.id ? { ...a, licenseExpiryDate: updated.licenseExpiryDate } : a));
+        setRenewAsset(null);
+        setRenewDate('');
+        setRenewFile(null);
+      }
+    } finally {
+      setRenewSaving(false);
     }
   }
 
@@ -473,6 +581,106 @@ export function ContractsClient({ canManage, employees, initialContracts }: Prop
             )}
           </div>
         </div>
+
+        {/* Vehicle Licenses section */}
+        {assets.length > 0 && (
+          <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-amber-100 rounded-lg">
+                  <Car className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-700">Vehicle Licenses</h2>
+                  <p className="text-xs text-slate-400">{assets.length} vehicle{assets.length !== 1 ? 's' : ''} — license expiry tracking</p>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Vehicle</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Plate</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">License Expiry</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Days Left</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                    {canManage && (
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {assets.map((asset) => {
+                    const days = licenseDaysLeft(asset.licenseExpiryDate);
+                    const rowCls = days !== null && days < 0
+                      ? 'bg-rose-50/40'
+                      : days !== null && days <= 7
+                      ? 'bg-rose-50/20'
+                      : days !== null && days <= 30
+                      ? 'bg-amber-50/20'
+                      : '';
+                    return (
+                      <tr key={asset.id} className={cn('hover:bg-amber-50/30 transition-colors', rowCls)}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-slate-300 shrink-0" />
+                            <div>
+                              <p className="font-medium text-slate-800">{asset.name}</p>
+                              <p className="text-xs text-slate-400">
+                                {asset.assetCode}
+                                {asset.vehicleMake ? ` · ${asset.vehicleMake}${asset.vehicleModel ? ' ' + asset.vehicleModel : ''}` : ''}
+                                {asset.vehicleYear ? ` (${asset.vehicleYear})` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {asset.plateNumber
+                            ? <span className="font-mono text-sm bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">{asset.plateNumber}</span>
+                            : <span className="text-slate-400 text-xs">—</span>
+                          }
+                        </td>
+                        <td className="px-4 py-3">
+                          {asset.licenseExpiryDate
+                            ? <span className="text-sm text-slate-700">{formatDate(asset.licenseExpiryDate)}</span>
+                            : <span className="text-xs text-slate-400">Not set</span>
+                          }
+                        </td>
+                        <td className="px-4 py-3">{licenseBadge(days)}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            'text-xs font-medium px-2 py-0.5 rounded-full border',
+                            asset.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                            asset.status === 'ASSIGNED' ? 'bg-sky-100 text-sky-700 border-sky-200' :
+                            asset.status === 'UNDER_MAINTENANCE' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                            asset.status === 'RETIRED' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                            'bg-rose-100 text-rose-700 border-rose-200'
+                          )}>
+                            {asset.status.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        {canManage && (
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              variant="outline" size="sm"
+                              className="h-7 text-xs gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                              onClick={() => openRenew(asset)}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              Renew License
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Create / Edit Dialog */}
@@ -685,6 +893,82 @@ export function ContractsClient({ canManage, employees, initialContracts }: Prop
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vehicle License Renewal Dialog */}
+      <Dialog open={!!renewAsset} onOpenChange={(o) => { if (!o) { setRenewAsset(null); setRenewDate(''); setRenewFile(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-amber-600" />
+              Renew Vehicle License
+            </DialogTitle>
+            <DialogDescription>
+              {renewAsset?.name}{renewAsset?.plateNumber ? ` · ${renewAsset.plateNumber}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>New License Expiry Date <span className="text-rose-500">*</span></Label>
+              <Input
+                type="date"
+                value={renewDate}
+                onChange={e => setRenewDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Upload License Image <span className="text-xs text-slate-400">(optional)</span></Label>
+              <input
+                ref={renewFileRef}
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={handleRenewUpload}
+              />
+              {renewFile ? (
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span className="text-sm text-emerald-700 truncate flex-1">{renewFile.fileName}</span>
+                  <Button
+                    type="button" variant="ghost" size="sm"
+                    className="h-6 w-6 p-0 text-slate-400 hover:text-rose-500"
+                    onClick={() => setRenewFile(null)}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button" variant="outline"
+                  className="w-full gap-2 border-dashed"
+                  onClick={() => renewFileRef.current?.click()}
+                  disabled={renewUploading}
+                >
+                  {renewUploading
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                    : <><Upload className="h-4 w-4" /> Upload License Image / PDF</>
+                  }
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRenewAsset(null); setRenewDate(''); setRenewFile(null); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRenewSave}
+              disabled={renewSaving || !renewDate}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {renewSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Save Renewal
             </Button>
           </DialogFooter>
         </DialogContent>

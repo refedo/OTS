@@ -15,6 +15,7 @@ import { checkPermission } from '@/lib/permission-checker';
 
 const updateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   nameEn: z.string().min(1).max(200).optional(),
   nameAr: z.string().max(200).optional().nullable(),
   isRecurring: z.boolean().optional(),
@@ -45,6 +46,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       where: { id },
       data: {
         ...(parsed.data.date && { date: new Date(parsed.data.date + 'T00:00:00.000Z') }),
+        ...(parsed.data.endDate !== undefined && { endDate: parsed.data.endDate ? new Date(parsed.data.endDate + 'T00:00:00.000Z') : null }),
         ...(parsed.data.nameEn !== undefined && { nameEn: parsed.data.nameEn }),
         ...(parsed.data.nameAr !== undefined && { nameAr: parsed.data.nameAr }),
         ...(parsed.data.isRecurring !== undefined && { isRecurring: parsed.data.isRecurring }),

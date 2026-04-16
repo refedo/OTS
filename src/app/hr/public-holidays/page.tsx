@@ -27,6 +27,7 @@ export default async function PublicHolidaysPage() {
   const serialized = holidays.map((h) => ({
     id: h.id,
     date: h.date.toISOString().slice(0, 10),
+    endDate: h.endDate ? h.endDate.toISOString().slice(0, 10) : null,
     nameEn: h.nameEn,
     nameAr: h.nameAr,
     isRecurring: h.isRecurring,

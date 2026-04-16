@@ -31,6 +31,15 @@ const updateSchema = z.object({
   purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   purchasePrice: z.coerce.number().min(0).nullable().optional(),
   notes: z.string().nullable().optional(),
+  licenseExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  attachments: z.array(z.object({
+    fileName: z.string(),
+    filePath: z.string(),
+    fileType: z.string(),
+    fileSize: z.number(),
+    uploadedAt: z.string(),
+    label: z.string().optional(),
+  })).nullable().optional(),
 });
 
 const deleteSchema = z.object({
@@ -109,6 +118,8 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx) => {
         ...(d.purchaseDate !== undefined ? { purchaseDate: d.purchaseDate ? new Date(d.purchaseDate) : null } : {}),
         ...(d.purchasePrice !== undefined ? { purchasePrice: d.purchasePrice != null ? d.purchasePrice.toString() : null } : {}),
         ...(d.notes !== undefined ? { notes: d.notes } : {}),
+        ...(d.licenseExpiryDate !== undefined ? { licenseExpiryDate: d.licenseExpiryDate ? new Date(d.licenseExpiryDate) : null } : {}),
+        ...(d.attachments !== undefined ? { attachments: d.attachments } : {}),
         updatedById: session!.userId,
       },
     });
