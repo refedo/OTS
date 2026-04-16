@@ -312,6 +312,11 @@ model User {
   updatedContracts Contract[] @relation("ContractUpdatedBy")
   deletedContracts Contract[] @relation("ContractDeletedBy")
 
+  // 18.16.0 — Letters & Correspondence
+  createdLetters HrLetter[] @relation("HrLetterCreatedBy")
+  updatedLetters HrLetter[] @relation("HrLetterUpdatedBy")
+  deletedLetters HrLetter[] @relation("HrLetterDeletedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -4170,6 +4175,9 @@ model Employee {
   // 18.14.0 — Contracts & Documents
   contracts Contract[] @relation("EmployeeContracts")
 
+  // 18.16.0 — Letters & Correspondence
+  letters HrLetter[] @relation("EmployeeLetters")
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -5384,4 +5392,59 @@ model ManpowerInvoiceLine {
 
   @@index([invoiceDraftId])
   @@index([manpowerSlotId])
+}
+
+enum HrLetterType {
+  QUESTIONING
+  ATTENTION
+  FIRST_WARNING
+  FINAL_WARNING
+  NON_RENEWAL_NOTICE
+  DISMISSAL
+  CIRCULATION
+  WORK_COMMENCEMENT
+  SALARY_CERTIFICATE
+  LEAVE_NOTICE
+  RETURN_FROM_LEAVE
+  PROBATION_EVALUATION
+  PERFORMANCE_APPRAISAL
+  CLEARANCE_FORM
+  SALARY_NON_DISCLOSURE
+  OTHER
+}
+
+enum HrLetterClass {
+  INTERNAL
+  EXTERNAL
+}
+
+model HrLetter {
+  id            String        @id @default(uuid()) @db.Char(36)
+  letterNumber  String        @unique @db.VarChar(30)
+  letterType    HrLetterType
+  classification HrLetterClass @default(INTERNAL)
+  employeeId    String        @db.Char(36)
+  employee      Employee      @relation("EmployeeLetters", fields: [employeeId], references: [id])
+  subject       String        @db.VarChar(500)
+  content       String?       @db.Text
+  attachmentUrl String?       @db.VarChar(1000)
+  issuedAt      DateTime      @default(now()) @db.Date
+  notes         String?       @db.VarChar(500)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("HrLetterCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("HrLetterUpdatedBy", fields: [updatedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("HrLetterDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+
+  @@index([employeeId])
+  @@index([letterType, classification])
+  @@index([issuedAt])
+  @@index([deletedAt])
+  @@map("HrLetter")
 }
