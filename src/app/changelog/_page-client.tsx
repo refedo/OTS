@@ -23,10 +23,103 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '18.17.0',
+    date: 'April 16, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'HR Module Enhancements — Letters, Vacation Balance & Date Fixes',
+    highlights: [
+      'Letters & Correspondence system: 16 letter types (QUESTIONING, FIRST_WARNING, DISMISSAL, SALARY_CERTIFICATE…), INTERNAL/EXTERNAL classification, auto-numbered INT-YY-NNNN / EXT-YY-NNNN.',
+      'Vacation Balance tab in Leave Management: shows entitled days (1.75/month from contract date) and approved consumed days per leave category for every active employee.',
+      'All Gregorian date fixes: en-SA locale (Hijri on Saudi devices) replaced with en-GB throughout assets, contracts, and HR tables.',
+      'Asset list view toggle: switch between card grid and compact table; preference persisted in localStorage.',
+      'Sidebar cleanup: Attendance Sync, Dolibarr Sync, and Identity Reconciliation removed from sidebar — still accessible via HR Setup tabs.',
+    ],
+    changes: {
+      added: [
+        'HrLetter model + HrLetterType enum (16 types) + HrLetterClass enum (INTERNAL/EXTERNAL); migration: prisma/manual_migrations/add_hr_letters.sql',
+        'GET/POST /api/hr/letters with 5-attempt retry loop for auto-number race conditions',
+        'GET/PUT/DELETE /api/hr/letters/[id] with soft delete',
+        '/hr/letters page: indigo/blue gradient hero, 4 KPI tiles, letter table, create/edit/view dialogs',
+        'hr.letters.view + hr.letters.manage permissions added to HR role bundle',
+        'Letters & Correspondence sidebar entry under HR section',
+        'GET /api/hr/vacation-entitlement: per-employee entitled days (1.75/month × months since dateOfJoining) + consumed by leave type',
+        'Vacation Balance tab in /hr/leaves (canViewAll only): 4 KPI tiles, searchable table with per-type columns, negative balance in rose',
+      ],
+      fixed: [
+        'Asset dates (license expiry, assign date) now render as Gregorian — fmtDate was using en-SA locale which outputs Hijri calendar on Saudi devices',
+        'Payroll periods list now shows error message on API failure instead of silent empty state',
+        'Contracts table: removed Hijri AH sub-line from expiry date column display',
+      ],
+      changed: [
+        'Asset list: grid/table view toggle, view mode stored in localStorage',
+        'Sidebar: Attendance Sync, Dolibarr Sync, Identity Reconciliation entries removed',
+        'Sidebar order page DEFAULT_SECTIONS now includes HR',
+        'Version bumped to 18.17.0',
+      ],
+    },
+  },
+  {
+    version: '18.16.0',
+    date: 'April 15, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'HR Module Enhancements & HR Setup Consolidation',
+    highlights: [
+      'HR Setup page fully redesigned: gradient sky/blue hero, 4 KPI tiles, and 3 new integration tabs — Attendance Sync, Dolibarr Sync, and Identity Reconciliation.',
+      'Assignment log gains inline edit (PATCH /api/hr/asset-assignments/[id]) and clickable asset/employee name links.',
+      'Backlog items gain Delete action (soft-delete via DELETE /api/backlog/[id]).',
+      'Traffic violations form auto-populates the employee current car on selection.',
+      'GitHub issues auto-close when backlog status changes to COMPLETED or DROPPED.',
+    ],
+    changes: {
+      added: [
+        'HR Setup tabs: Attendance Sync (probe + run history), Dolibarr Sync (reconciliation gate), Identity Reconciliation',
+        'PATCH /api/hr/asset-assignments/[id]: inline edit return date, notes, condition',
+        'DELETE /api/backlog/[id]: soft-delete with reason',
+        'GitHub issue auto-close on COMPLETED/DROPPED backlog status change',
+      ],
+      fixed: [
+        'Traffic violations car field now auto-populates from current employee assignment',
+      ],
+      changed: [
+        'HR Setup redesigned with hero banner and KPI tiles',
+        'Assignment Log table links navigate to asset/employee detail pages',
+      ],
+    },
+  },
+  {
+    version: '18.15.0',
+    date: 'April 15, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'UI Enhancements & Schema Extensions',
+    highlights: [
+      'Traffic violations issuing authority and violation type fields converted to dropdowns with "Other" free-text fallback.',
+      'Backlog tasks show description inline and support edit/delete actions; affected modules use tag-input; new Reference Link field; new HR category.',
+      'Holiday setup page redesigned with gradient hero, KPI tiles, multi-day range support, and endDate field.',
+      'Asset management gains file attachment uploads and licenseExpiryDate for cars; Contracts page adds Vehicle Licenses section.',
+    ],
+    changes: {
+      added: [
+        'PublicHoliday.endDate, Asset.licenseExpiryDate, Asset.attachments, ProductBacklogItem.linkUrl, BacklogCategory.HR schema fields',
+        'Migration: prisma/manual_migrations/add_holiday_enddate_asset_attachments_backlog_hr.sql',
+        'Contracts Vehicle Licenses section with Renew License dialog',
+        'Backlog edit/delete actions; tag-input for affected modules; linkUrl reference field',
+      ],
+      fixed: [],
+      changed: [
+        'Traffic violations: issuing authority + violation type → dropdowns',
+        'Holiday setup page redesigned',
+        'Asset car cards: license upload + expiry badge',
+      ],
+    },
+  },
+  {
     version: '18.13.0',
     date: 'April 15, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Phase 4 — Manpower Billing & Attendance Archive Integration',
     highlights: [
       'Auto-generates one ManpowerInvoiceDraft per agency when a payroll period is approved — aggregates MANPOWER_SLOT attendance hours × hourlyRate, grouped by agency, one line per active slot.',

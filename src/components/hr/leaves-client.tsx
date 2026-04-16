@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
+import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3 } from 'lucide-react';
 
 type LeaveType = {
   id: string;
@@ -64,6 +64,20 @@ type LeaveSyncLog = {
   triggeredBy?: { id: string; name: string | null; email: string | null };
 };
 
+type EntitlementLeaveType = { id: string; code: string; nameEn: string };
+
+type EntitlementRow = {
+  id: string;
+  fullNameEn: string;
+  employmentId: string;
+  dateOfJoining: string | null;
+  monthsEmployed: number;
+  entitledDays: number;
+  totalConsumed: number;
+  remaining: number;
+  byType: Record<string, number>;
+};
+
 export function LeavesClient({
   canApprove,
   canViewAll,
@@ -82,6 +96,12 @@ export function LeavesClient({
   const [allRequests, setAllRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Vacation entitlement (18.17.0)
+  const [entitlementRows, setEntitlementRows] = useState<EntitlementRow[]>([]);
+  const [entitlementTypes, setEntitlementTypes] = useState<EntitlementLeaveType[]>([]);
+  const [entitlementLoading, setEntitlementLoading] = useState(false);
+  const [entitlementSearch, setEntitlementSearch] = useState('');
 
   // Dolibarr leaves sync (18.6.0)
   const [syncing, setSyncing] = useState(false);
@@ -132,10 +152,28 @@ export function LeavesClient({
     }
   }, [canSync]);
 
+  const loadEntitlement = useCallback(async () => {
+    if (!canViewAll) return;
+    setEntitlementLoading(true);
+    try {
+      const res = await fetch('/api/hr/vacation-entitlement');
+      if (res.ok) {
+        const data = await res.json();
+        setEntitlementTypes(data.leaveTypes ?? []);
+        setEntitlementRows(data.rows ?? []);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setEntitlementLoading(false);
+    }
+  }, [canViewAll]);
+
   useEffect(() => {
     refresh();
     loadLastSync();
-  }, [refresh, loadLastSync]);
+    loadEntitlement();
+  }, [refresh, loadLastSync, loadEntitlement]);
 
   async function runSync() {
     setSyncing(true);
@@ -489,6 +527,12 @@ export function LeavesClient({
               All ({allRequests.length})
             </TabsTrigger>
           )}
+          {canViewAll && (
+            <TabsTrigger value="balance" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Vacation Balance
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="mine" className="space-y-3 mt-4">
@@ -521,6 +565,18 @@ export function LeavesClient({
               onAct={act}
               onCancel={cancel}
               showEmployee={true}
+            />
+          </TabsContent>
+        )}
+
+        {canViewAll && (
+          <TabsContent value="balance" className="space-y-4 mt-4">
+            <VacationBalanceTab
+              rows={entitlementRows}
+              leaveTypes={entitlementTypes}
+              loading={entitlementLoading}
+              search={entitlementSearch}
+              onSearchChange={setEntitlementSearch}
             />
           </TabsContent>
         )}
@@ -687,4 +743,151 @@ function StatusBadge({ status }: { status: string }) {
     status === 'DRAFT' ? 'outline' :
     'secondary';
   return <Badge variant={variant}>{status.replace('_', ' ')}</Badge>;
+}
+
+function VacationBalanceTab({
+  rows,
+  leaveTypes,
+  loading,
+  search,
+  onSearchChange,
+}: {
+  rows: EntitlementRow[];
+  leaveTypes: EntitlementLeaveType[];
+  loading: boolean;
+  search: string;
+  onSearchChange: (v: string) => void;
+}) {
+  const filtered = search.trim()
+    ? rows.filter(
+        (r) =>
+          r.fullNameEn.toLowerCase().includes(search.toLowerCase()) ||
+          r.employmentId.toLowerCase().includes(search.toLowerCase()),
+      )
+    : rows;
+
+  const totalEntitled = rows.reduce((s, r) => s + r.entitledDays, 0);
+  const totalConsumed = rows.reduce((s, r) => s + r.totalConsumed, 0);
+  const totalRemaining = rows.reduce((s, r) => s + r.remaining, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+          <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Employees</p>
+          <p className="text-2xl font-bold text-sky-700 mt-1">{rows.length}</p>
+          <p className="text-xs text-sky-500 mt-0.5">active</p>
+        </div>
+        <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
+          <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Total Entitled</p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">{totalEntitled.toFixed(1)}</p>
+          <p className="text-xs text-emerald-500 mt-0.5">days @ 1.75/month</p>
+        </div>
+        <div className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm">
+          <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Total Consumed</p>
+          <p className="text-2xl font-bold text-violet-700 mt-1">{totalConsumed.toFixed(1)}</p>
+          <p className="text-xs text-violet-500 mt-0.5">approved leaves</p>
+        </div>
+        <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm">
+          <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Remaining</p>
+          <p className="text-2xl font-bold text-amber-700 mt-1">{totalRemaining.toFixed(1)}</p>
+          <p className="text-xs text-amber-500 mt-0.5">balance days</p>
+        </div>
+      </div>
+
+      <Card className="border-slate-200 shadow-sm overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 gap-3 flex-wrap">
+          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-sky-600" />
+            Vacation Entitlement — All Employees
+          </CardTitle>
+          <Input
+            placeholder="Search by name or ID…"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-56 h-8 text-sm"
+          />
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground p-6">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading entitlement data…
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              {search ? 'No employees match your search.' : 'No active employees found.'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b">
+                  <tr>
+                    <th className="py-3 px-4 font-medium">Employee</th>
+                    <th className="py-3 px-4 font-medium">Contract Date</th>
+                    <th className="py-3 px-4 font-medium text-right">Months</th>
+                    <th className="py-3 px-4 font-medium text-right">Entitled</th>
+                    {leaveTypes.map((lt) => (
+                      <th key={lt.id} className="py-3 px-4 font-medium text-right whitespace-nowrap">
+                        {lt.nameEn}
+                      </th>
+                    ))}
+                    <th className="py-3 px-4 font-medium text-right">Consumed</th>
+                    <th className="py-3 px-4 font-medium text-right">Remaining</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((row) => {
+                    const isNegative = row.remaining < 0;
+                    return (
+                      <tr key={row.id} className="border-b last:border-0 hover:bg-slate-50/60 transition">
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-slate-900">{row.fullNameEn}</div>
+                          <div className="text-xs text-muted-foreground">{row.employmentId}</div>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {row.dateOfJoining
+                            ? new Date(row.dateOfJoining).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            : '—'}
+                        </td>
+                        <td className="py-3 px-4 text-right tabular-nums text-slate-700">
+                          {row.monthsEmployed}
+                        </td>
+                        <td className="py-3 px-4 text-right tabular-nums font-semibold text-emerald-700">
+                          {row.entitledDays.toFixed(1)}
+                        </td>
+                        {leaveTypes.map((lt) => (
+                          <td key={lt.id} className="py-3 px-4 text-right tabular-nums text-slate-600">
+                            {(row.byType[lt.code] ?? 0) > 0
+                              ? (row.byType[lt.code] ?? 0).toFixed(1)
+                              : <span className="text-slate-300">—</span>}
+                          </td>
+                        ))}
+                        <td className="py-3 px-4 text-right tabular-nums font-medium text-violet-700">
+                          {row.totalConsumed.toFixed(1)}
+                        </td>
+                        <td className="py-3 px-4 text-right tabular-nums font-bold">
+                          <span className={isNegative ? 'text-rose-600' : 'text-slate-900'}>
+                            {row.remaining.toFixed(1)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <p className="text-xs text-slate-400 text-center">
+        Entitlement = 1.75 days × months from contract date. Consumed = sum of all approved leave requests.
+        Negative remaining indicates the employee has taken more leave than entitled.
+      </p>
+    </div>
+  );
 }

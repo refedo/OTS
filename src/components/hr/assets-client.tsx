@@ -193,7 +193,7 @@ function categoryLabel(cat: AssetCategory) {
 
 function fmtDate(d: string | null) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-SA', { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 // ─── Create / Edit Dialog ────────────────────────────────────────────────────
