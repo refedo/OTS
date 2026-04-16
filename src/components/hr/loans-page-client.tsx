@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Landmark, Search, AlertCircle, CheckCircle2, MinusCircle, User } from 'lucide-react';
+import { Loader2, Landmark, Search, Clock, CheckCircle2, MinusCircle, User } from 'lucide-react';
 import Link from 'next/link';
 
 type LoanStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
@@ -29,7 +29,7 @@ function money(v: string | number) {
 }
 
 function loanStatusBadge(status: LoanStatus) {
-  if (status === 'ACTIVE') return <Badge className="bg-sky-100 text-sky-700 border-sky-200 border"><AlertCircle className="h-3 w-3 mr-1" />Active</Badge>;
+  if (status === 'ACTIVE') return <Badge className="bg-sky-100 text-sky-700 border-sky-200 border"><Clock className="h-3 w-3 mr-1" />Active</Badge>;
   if (status === 'COMPLETED') return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>;
   return <Badge className="bg-slate-100 text-slate-500 border-slate-200 border"><MinusCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
 }
@@ -49,20 +49,21 @@ export function LoansPageClient({ canViewAll }: { canViewAll: boolean }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = search.trim()
-    ? loans.filter((l) =>
-        (l.employee?.fullNameEn ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (l.employee?.employmentId ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (l.reason ?? '').toLowerCase().includes(search.toLowerCase()),
-      )
-    : loans;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return loans;
+    const q = search.toLowerCase();
+    return loans.filter((l) =>
+      (l.employee?.fullNameEn ?? '').toLowerCase().includes(q) ||
+      (l.employee?.employmentId ?? '').toLowerCase().includes(q) ||
+      (l.reason ?? '').toLowerCase().includes(q),
+    );
+  }, [loans, search]);
 
-  const totalPrincipal = loans.reduce((s, l) => s + Number(l.principal), 0);
-  const activeLoans = loans.filter((l) => l.status === 'ACTIVE');
-  const activeBalance = activeLoans.reduce((s, l) => {
-    const remaining = (l.installmentsTotal - l.installmentsPaid) * Number(l.installmentAmount);
-    return s + remaining;
-  }, 0);
+  const totalPrincipal = useMemo(() => loans.reduce((s, l) => s + Number(l.principal), 0), [loans]);
+  const activeLoans = useMemo(() => loans.filter((l) => l.status === 'ACTIVE'), [loans]);
+  const activeBalance = useMemo(() => activeLoans.reduce((s, l) => {
+    return s + (l.installmentsTotal - l.installmentsPaid) * Number(l.installmentAmount);
+  }, 0), [activeLoans]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
