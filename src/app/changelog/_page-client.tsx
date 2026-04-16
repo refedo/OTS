@@ -63,6 +63,7 @@ const hardcodedVersions: ChangelogVersion[] = [
       ],
     },
   },
+  {
     version: '18.18.2',
     date: 'April 16, 2026',
     type: 'patch',
