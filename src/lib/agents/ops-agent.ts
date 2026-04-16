@@ -34,6 +34,7 @@ export async function runOpsAgent(
   config: OpsAgentConfigData,
   triggeredBy: string,
   triggerType: 'cron' | 'manual' | 'event' = 'manual',
+  existingRunId?: string,
 ): Promise<OpsAgentRun> {
   const agentId = process.env.OTS_OPS_AGENT_ID;
   if (!agentId) {
@@ -43,14 +44,12 @@ export async function runOpsAgent(
   const startedAt = Date.now();
   const date = new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh' });
 
-  const run = await prisma.opsAgentRun.create({
-    data: {
-      triggeredBy,
-      triggerType,
-      mode: config.mode,
-      status: 'RUNNING',
-    },
-  });
+  // Use pre-created run if provided (manual triggers create it first to return real ID)
+  const run = existingRunId
+    ? await prisma.opsAgentRun.findUniqueOrThrow({ where: { id: existingRunId } })
+    : await prisma.opsAgentRun.create({
+        data: { triggeredBy, triggerType, mode: config.mode, status: 'RUNNING' },
+      });
 
   log.info({ runId: run.id, mode: config.mode, triggeredBy }, 'Ops Agent run started');
 

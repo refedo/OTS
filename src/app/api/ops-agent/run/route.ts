@@ -28,7 +28,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ops Agent not configured' }, { status: 503 });
     }
 
-    const runId = `pending-${Date.now()}`;
+    // Create the run record immediately so the UI can poll it
+    const run = await prisma.opsAgentRun.create({
+      data: {
+        triggeredBy: session.sub,
+        triggerType: 'manual',
+        mode: config.mode,
+        status: 'RUNNING',
+      },
+    });
+
     const configData = {
       id: config.id,
       mode: config.mode,
@@ -38,13 +47,14 @@ export async function POST(req: NextRequest) {
       notifyPush: config.notifyPush,
     };
 
+    // Execute in background — run record already exists
     setImmediate(() => {
-      runOpsAgent(configData, session.userId, 'manual').catch((err) => {
-        log.error({ error: err }, 'Background ops agent run failed');
+      runOpsAgent(configData, session.sub, 'manual', run.id).catch((err) => {
+        log.error({ error: err, runId: run.id }, 'Background ops agent run failed');
       });
     });
 
-    return NextResponse.json({ message: 'Ops Agent run triggered', runId }, { status: 202 });
+    return NextResponse.json({ message: 'Ops Agent run triggered', runId: run.id }, { status: 202 });
   } catch (error) {
     log.error({ error }, 'Failed to trigger ops agent run');
     return NextResponse.json({ error: 'Failed to trigger run' }, { status: 500 });
