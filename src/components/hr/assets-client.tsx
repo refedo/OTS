@@ -60,6 +60,8 @@ import {
   Eye,
   ShieldCheck,
   Pencil,
+  LayoutGrid,
+  LayoutList,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -1142,6 +1144,13 @@ export function AssetsClient({ canManage }: Props) {
     typeof window !== 'undefined' && localStorage.getItem('ots-assets-tip-v1') === '1'
   );
   const [activeTab, setActiveTab] = useState('registry');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('hr-assets-view-mode');
+      if (stored === 'table' || stored === 'grid') return stored;
+    }
+    return 'grid';
+  });
 
   function dismissTip() {
     localStorage.setItem('ots-assets-tip-v1', '1');
@@ -1258,7 +1267,7 @@ export function AssetsClient({ canManage }: Props) {
           </TabsList>
 
           <TabsContent value="registry">
-            {/* Filters */}
+            {/* Filters + view toggle */}
             <div className="flex flex-wrap gap-3 items-center mb-6">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1292,9 +1301,44 @@ export function AssetsClient({ canManage }: Props) {
                   <SelectItem value="LOST">Lost</SelectItem>
                 </SelectContent>
               </Select>
+              {/* View mode toggle */}
+              <div className="flex items-center border rounded-lg overflow-hidden shrink-0">
+                <button
+                  type="button"
+                  className={cn(
+                    'p-2 transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-white text-slate-500 hover:bg-slate-50'
+                  )}
+                  onClick={() => {
+                    setViewMode('grid');
+                    localStorage.setItem('hr-assets-view-mode', 'grid');
+                  }}
+                  title="Grid view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'p-2 transition-colors border-l',
+                    viewMode === 'table'
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-white text-slate-500 hover:bg-slate-50'
+                  )}
+                  onClick={() => {
+                    setViewMode('table');
+                    localStorage.setItem('hr-assets-view-mode', 'table');
+                  }}
+                  title="Table view"
+                >
+                  <LayoutList className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Asset Cards */}
+            {/* Asset content */}
             {loading ? (
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
@@ -1307,7 +1351,108 @@ export function AssetsClient({ canManage }: Props) {
                   {canManage ? 'Click "Register Asset" to add one.' : 'Assets will appear here once added.'}
                 </p>
               </div>
+            ) : viewMode === 'table' ? (
+              /* Table view */
+              <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Code</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Category</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Name / Make / Model</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Plate / Serial</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Assigned To</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Assign Date</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {assets.map(asset => {
+                        const activeAssignment = asset.assignments?.[0];
+                        const plateOrSerial = asset.plateNumber
+                          ?? (asset.serialNumber ? `S/N: ${asset.serialNumber}` : null)
+                          ?? (asset.simNumber ? asset.simNumber : null);
+                        const makeModel = asset.category === 'CAR'
+                          ? [asset.vehicleMake, asset.vehicleModel, asset.vehicleYear].filter(Boolean).join(' ')
+                          : [asset.make, asset.model].filter(Boolean).join(' ');
+                        return (
+                          <tr key={asset.id} className="hover:bg-violet-50/20 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-mono text-slate-500">{asset.assetCode}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1 bg-violet-100 rounded text-violet-600 shrink-0">
+                                  {categoryIcon(asset.category, 'h-3.5 w-3.5')}
+                                </div>
+                                <span className="text-xs text-slate-600">{categoryLabel(asset.category)}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 max-w-[200px]">
+                              <p className="font-medium text-slate-800 truncate">{asset.name}</p>
+                              {makeModel && <p className="text-xs text-slate-400 truncate">{makeModel}</p>}
+                            </td>
+                            <td className="px-4 py-3">
+                              {plateOrSerial
+                                ? <span className="font-mono text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">{plateOrSerial}</span>
+                                : <span className="text-slate-300 text-xs">—</span>
+                              }
+                            </td>
+                            <td className="px-4 py-3">{statusBadge(asset.status)}</td>
+                            <td className="px-4 py-3">
+                              {activeAssignment ? (
+                                <div className="flex items-center gap-1.5">
+                                  <User className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                                  <div>
+                                    <p className="text-sm text-slate-700">{activeAssignment.employee.fullNameEn}</p>
+                                    <p className="text-xs text-slate-400">{activeAssignment.employee.employmentId}</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                              {activeAssignment ? fmtDate(activeAssignment.assignedDate) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-violet-500 hover:text-violet-700 hover:bg-violet-50" title="Assignment log" onClick={() => setHistoryAsset(asset)}>
+                                  <Clock className="h-3.5 w-3.5" />
+                                </Button>
+                                {canManage && (
+                                  <>
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700" title="Edit" onClick={() => setEditAsset(asset)}>
+                                      <Edit2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                    {asset.status === 'AVAILABLE' && (
+                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-sky-500 hover:text-sky-700 hover:bg-sky-50" title="Assign" onClick={() => setAssignAsset(asset)}>
+                                        <User className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                    {asset.status === 'ASSIGNED' && (
+                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-amber-500 hover:text-amber-700 hover:bg-amber-50" title="Return" onClick={() => setReturnAsset(asset)}>
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50" title="Remove" onClick={() => setDeleteAsset(asset)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             ) : (
+              /* Grid view */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {assets.map(asset => {
                   const activeAssignment = asset.assignments?.[0];

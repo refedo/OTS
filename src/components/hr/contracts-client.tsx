@@ -568,12 +568,7 @@ export function ContractsClient({ canManage, employees, initialContracts, carAss
                       </td>
                       <td className="px-4 py-3">
                         {c.expiryDate ? (
-                          <div>
-                            <p className="text-sm text-slate-700">{formatDate(c.expiryDate)}</p>
-                            {c.expiryDateHijri && (
-                              <p className="text-xs text-slate-400 mt-0.5">{c.expiryDateHijri} AH</p>
-                            )}
-                          </div>
+                          <p className="text-sm text-slate-700">{formatDate(c.expiryDate)}</p>
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
                         )}

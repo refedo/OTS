@@ -390,6 +390,9 @@ export const PERMISSIONS: PermissionCategory[] = [
       // 18.14.0 — Contracts & Documents Management
       { id: 'hr.contracts.view', name: 'View Contracts', description: 'View company contracts, Iqamas, insurance policies, and legal documents', category: 'hr' },
       { id: 'hr.contracts.manage', name: 'Manage Contracts', description: 'Create, edit, and delete contracts and documents; receive expiry notifications', category: 'hr' },
+      // 18.16.0 — Letters & Correspondence
+      { id: 'hr.letters.view', name: 'View Letters', description: 'View HR letters and correspondence issued to employees', category: 'hr' },
+      { id: 'hr.letters.manage', name: 'Manage Letters', description: 'Create, edit, and delete HR letters and correspondence', category: 'hr' },
     ],
   },
   {
@@ -490,6 +493,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // 18.14.0 — Contracts & Documents
     'hr.contracts.view',
     'hr.contracts.manage',
+    // 18.16.0 — Letters & Correspondence
+    'hr.letters.view',
+    'hr.letters.manage',
   ],
   Manager: [
     // User Management

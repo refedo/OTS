@@ -36,6 +36,7 @@ const DEFAULT_SECTIONS = [
   'Knowledge Center',
   'Supply Chain',
   'Product Backlog',
+  'HR',
   'Organization',
   'Financial Reports',
   'Dolibarr ERP',
