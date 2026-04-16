@@ -507,6 +507,11 @@ function AssignDialog({
 
   useEffect(() => {
     if (!open) return;
+    setSearch('');
+    setSelectedId('');
+    setDate(new Date().toISOString().slice(0, 10));
+    setNotes('');
+    setError('');
     fetch('/api/hr/employees?status=ACTIVE&limit=500')
       .then(r => r.json())
       .then(d => setEmployees(Array.isArray(d) ? d : (d.employees ?? [])))

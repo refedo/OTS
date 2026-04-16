@@ -84,15 +84,29 @@ interface Props {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CONTRACT_TYPES: { value: ContractType; label: string; color: string }[] = [
-  { value: 'HEALTH_INSURANCE',      label: 'Health Insurance',        color: 'emerald' },
-  { value: 'MEDICAL_INSURANCE',     label: 'Medical Insurance',       color: 'sky' },
-  { value: 'IQAMA',                 label: 'Iqama',                   color: 'violet' },
-  { value: 'CAR_REGISTRATION',      label: 'Car Registration',        color: 'amber' },
-  { value: 'VEHICLE_LICENSE',       label: 'Vehicle License',         color: 'orange' },
-  { value: 'PROFESSIONAL_LICENSE',  label: 'Professional License',    color: 'blue' },
-  { value: 'COMMERCIAL_REGISTRATION', label: 'Commercial Registration', color: 'indigo' },
-  { value: 'LEGAL_DOCUMENT',        label: 'Legal Document',          color: 'rose' },
-  { value: 'OTHER',                 label: 'Other',                   color: 'slate' },
+  { value: 'HEALTH_INSURANCE',        label: 'Health Insurance',          color: 'emerald' },
+  { value: 'MEDICAL_INSURANCE',       label: 'Medical Insurance',         color: 'sky' },
+  { value: 'IQAMA',                   label: 'Iqama',                     color: 'violet' },
+  { value: 'CAR_REGISTRATION',        label: 'Car Registration',          color: 'amber' },
+  { value: 'VEHICLE_LICENSE',         label: 'Vehicle License',           color: 'orange' },
+  { value: 'PROFESSIONAL_LICENSE',    label: 'Professional License',      color: 'blue' },
+  { value: 'COMMERCIAL_REGISTRATION', label: 'Commercial Registration',   color: 'indigo' },
+  { value: 'LEGAL_DOCUMENT',          label: 'Legal Document',            color: 'rose' },
+  { value: 'OTHER',                   label: 'Other',                     color: 'slate' },
+];
+
+// Predefined issuing authorities (OTS-BL-077)
+const ISSUING_AUTHORITIES = [
+  'Ministry of Interior',
+  'Ministry of Human Resources',
+  'Ministry of Commerce',
+  'Balady',
+  'Salama',
+  'Chamber of Commerce',
+  'Mudad',
+  'Qiwa',
+  'Muqeem',
+  'Other',
 ];
 
 const STATUS_CONFIG: Record<ContractStatus, { label: string; cls: string }> = {
@@ -145,7 +159,8 @@ const EMPTY_FORM = {
   title: '',
   type: '' as ContractType | '',
   employeeId: '',
-  issuingAuthority: '',
+  issuingAuthoritySelect: '',
+  issuingAuthorityCustom: '',
   referenceNumber: '',
   issueDate: '',
   expiryDate: '',
@@ -154,6 +169,12 @@ const EMPTY_FORM = {
   notifyDaysBefore: 30,
   description: '',
 };
+
+function resolveAuthority(val: string | null | undefined): { select: string; custom: string } {
+  if (!val) return { select: '', custom: '' };
+  if (ISSUING_AUTHORITIES.includes(val)) return { select: val, custom: '' };
+  return { select: 'Other', custom: val };
+}
 
 // ─── License expiry helpers ───────────────────────────────────────────────────
 
@@ -253,11 +274,13 @@ export function ContractsClient({ canManage, employees, initialContracts, carAss
   }
 
   function openEdit(c: ContractRow) {
+    const auth = resolveAuthority(c.issuingAuthority);
     setForm({
       title: c.title,
       type: c.type,
       employeeId: c.employeeId ?? '',
-      issuingAuthority: c.issuingAuthority ?? '',
+      issuingAuthoritySelect: auth.select,
+      issuingAuthorityCustom: auth.custom,
       referenceNumber: c.referenceNumber ?? '',
       issueDate: c.issueDate ? c.issueDate.split('T')[0] : '',
       expiryDate: c.expiryDate ? c.expiryDate.split('T')[0] : '',
@@ -272,12 +295,15 @@ export function ContractsClient({ canManage, employees, initialContracts, carAss
   async function handleSave() {
     if (!form.title || !form.type) return;
     setSaving(true);
+    const resolvedAuthority = form.issuingAuthoritySelect === 'Other'
+      ? form.issuingAuthorityCustom
+      : form.issuingAuthoritySelect;
     try {
       const payload = {
         title: form.title,
         type: form.type || undefined,
         employeeId: form.employeeId || null,
-        issuingAuthority: form.issuingAuthority || null,
+        issuingAuthority: resolvedAuthority || null,
         referenceNumber: form.referenceNumber || null,
         issueDate: form.issueDate || null,
         expiryDate: form.expiryDate || null,
@@ -738,11 +764,26 @@ export function ContractsClient({ canManage, employees, initialContracts, carAss
             {/* Issuing Authority */}
             <div className="space-y-1.5">
               <Label>Issuing Authority</Label>
-              <Input
-                placeholder="e.g. Ministry of Interior"
-                value={form.issuingAuthority}
-                onChange={e => setForm(f => ({ ...f, issuingAuthority: e.target.value }))}
-              />
+              <Select
+                value={form.issuingAuthoritySelect || '__none__'}
+                onValueChange={v => setForm(f => ({ ...f, issuingAuthoritySelect: v === '__none__' ? '' : v, issuingAuthorityCustom: '' }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Select authority…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {ISSUING_AUTHORITIES.map(a => (
+                    <SelectItem key={a} value={a}>{a}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.issuingAuthoritySelect === 'Other' && (
+                <Input
+                  className="mt-2"
+                  placeholder="Enter authority name…"
+                  value={form.issuingAuthorityCustom}
+                  onChange={e => setForm(f => ({ ...f, issuingAuthorityCustom: e.target.value }))}
+                />
+              )}
             </div>
 
             {/* Reference Number */}
