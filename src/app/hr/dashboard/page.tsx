@@ -28,7 +28,19 @@ export default async function HrDashboardPage() {
   const in7Days = new Date(today.getTime() + 7 * 86400000);
   const in30Days = new Date(today.getTime() + 30 * 86400000);
 
-  const [initialStats, departments, occupationRows, sectionRows, contractCounts] = await Promise.all([
+  const [
+    initialStats,
+    departments,
+    occupationRows,
+    sectionRows,
+    contractCounts,
+    assetCounts,
+    loanStats,
+    custodyStats,
+    violationStats,
+    maintenanceAlerts,
+    employeeCounts,
+  ] = await Promise.all([
     getHrDashboardStats({ startDate, endDate, groupBy: 'occupation' }),
     prisma.department.findMany({
       select: { id: true, name: true },
@@ -44,12 +56,85 @@ export default async function HrDashboardPage() {
       select: { section: true },
       distinct: ['section'],
     }),
-    // Graceful fallback: returns null if the Contract table doesn't exist yet (pre-migration)
     Promise.all([
       prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
       prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE', expiryDate: { gte: today, lte: in7Days } } }),
       prisma.contract.count({ where: { deletedAt: null, status: 'ACTIVE', expiryDate: { gte: today, lte: in30Days } } }),
       prisma.contract.count({ where: { deletedAt: null, status: 'EXPIRED' } }),
+    ]).catch(() => null),
+
+    // Asset stats
+    Promise.all([
+      prisma.asset.count({ where: { deletedAt: null } }),
+      prisma.asset.count({ where: { deletedAt: null, status: 'AVAILABLE' } }),
+      prisma.asset.count({ where: { deletedAt: null, status: 'ASSIGNED' } }),
+      prisma.asset.count({ where: { deletedAt: null, status: 'UNDER_MAINTENANCE' } }),
+      prisma.asset.count({ where: { deletedAt: null, category: 'CAR' } }),
+      prisma.asset.count({ where: { deletedAt: null, category: 'LAPTOP' } }),
+      prisma.asset.count({ where: { deletedAt: null, category: 'SIM_CARD' } }),
+      // Cars with license expiring in 30 days
+      prisma.asset.count({
+        where: {
+          deletedAt: null,
+          category: 'CAR',
+          licenseExpiryDate: { not: null, lte: in30Days },
+        },
+      }),
+    ]).catch(() => null),
+
+    // Loan stats
+    Promise.all([
+      prisma.loan.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
+      prisma.loan.aggregate({
+        where: { deletedAt: null, status: 'ACTIVE' },
+        _sum: { principal: true },
+      }),
+      prisma.loan.aggregate({
+        where: { deletedAt: null, status: 'ACTIVE' },
+        _sum: { installmentAmount: true },
+      }),
+    ]).catch(() => null),
+
+    // Custody stats
+    Promise.all([
+      prisma.custody.count({ where: { deletedAt: null, status: 'OPEN' } }),
+      prisma.custody.aggregate({
+        where: { deletedAt: null, status: { in: ['OPEN', 'PARTIALLY_SETTLED'] } },
+        _sum: { amount: true, settledAmount: true },
+      }),
+    ]).catch(() => null),
+
+    // Violation stats
+    Promise.all([
+      prisma.trafficViolation.count({ where: { deletedAt: null } }),
+      prisma.trafficViolation.count({ where: { deletedAt: null, status: 'PENDING' } }),
+      prisma.trafficViolation.count({ where: { deletedAt: null, deductFromPayroll: true, status: 'PENDING' } }),
+      prisma.trafficViolation.aggregate({
+        where: { deletedAt: null, status: 'PENDING' },
+        _sum: { violationAmount: true },
+      }),
+    ]).catch(() => null),
+
+    // Maintenance alerts: cars due for service (nextServiceDate within 14 days or overdue)
+    Promise.all([
+      prisma.carMaintenanceRecord.count({
+        where: {
+          deletedAt: null,
+          nextServiceDate: { not: null, lte: in14Days(today) },
+        },
+      }),
+      prisma.carMaintenanceRecord.count({
+        where: {
+          deletedAt: null,
+          nextServiceDate: { not: null, lt: today },
+        },
+      }),
+    ]).catch(() => null),
+
+    // Total employee counts
+    Promise.all([
+      prisma.employee.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
+      prisma.employee.count({ where: { deletedAt: null } }),
     ]).catch(() => null),
   ]);
 
@@ -66,6 +151,57 @@ export default async function HrDashboardPage() {
     ? { totalActive: contractCounts[0], expiringIn7: contractCounts[1], expiringIn30: contractCounts[2], expired: contractCounts[3] }
     : undefined;
 
+  const assetStats = assetCounts
+    ? {
+        total: assetCounts[0],
+        available: assetCounts[1],
+        assigned: assetCounts[2],
+        maintenance: assetCounts[3],
+        cars: assetCounts[4],
+        laptops: assetCounts[5],
+        simCards: assetCounts[6],
+        licensesExpiringSoon: assetCounts[7],
+      }
+    : undefined;
+
+  const loanSummary = loanStats
+    ? {
+        activeCount: loanStats[0],
+        totalPrincipal: Number(loanStats[1]._sum.principal ?? 0),
+        monthlyRepayment: Number(loanStats[2]._sum.installmentAmount ?? 0),
+      }
+    : undefined;
+
+  const custodySummary = custodyStats
+    ? {
+        openCount: custodyStats[0],
+        totalOutstanding: Math.max(
+          0,
+          Number(custodyStats[1]._sum.amount ?? 0) - Number(custodyStats[1]._sum.settledAmount ?? 0),
+        ),
+      }
+    : undefined;
+
+  const violationSummary = violationStats
+    ? {
+        total: violationStats[0],
+        open: violationStats[1],
+        pendingDeduction: violationStats[2],
+        openAmount: Number(violationStats[3]._sum.violationAmount ?? 0),
+      }
+    : undefined;
+
+  const maintenanceSummary = maintenanceAlerts
+    ? {
+        dueSoon: maintenanceAlerts[0],
+        overdue: maintenanceAlerts[1],
+      }
+    : undefined;
+
+  const employeeSummary = employeeCounts
+    ? { active: employeeCounts[0], total: employeeCounts[1] }
+    : undefined;
+
   return (
     <HrDashboardClient
       initialStats={initialStats}
@@ -73,6 +209,16 @@ export default async function HrDashboardPage() {
       occupations={occupations}
       sections={sections}
       contractStats={contractStats}
+      assetStats={assetStats}
+      loanSummary={loanSummary}
+      custodySummary={custodySummary}
+      violationSummary={violationSummary}
+      maintenanceSummary={maintenanceSummary}
+      employeeSummary={employeeSummary}
     />
   );
+}
+
+function in14Days(today: Date): Date {
+  return new Date(today.getTime() + 14 * 86400000);
 }

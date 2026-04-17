@@ -40,6 +40,15 @@ import {
   Stethoscope,
   CalendarDays,
   FileText,
+  PackageSearch,
+  Car,
+  Laptop,
+  Smartphone,
+  Wrench,
+  DollarSign,
+  HandCoins,
+  ShieldAlert,
+  UserCheck,
 } from 'lucide-react';
 import type { HrDashboardResult, HrDashboardGroupBy } from '@/lib/services/hr/hr-dashboard-stats';
 
@@ -50,12 +59,57 @@ type ContractStats = {
   expired: number;
 };
 
+type AssetStats = {
+  total: number;
+  available: number;
+  assigned: number;
+  maintenance: number;
+  cars: number;
+  laptops: number;
+  simCards: number;
+  licensesExpiringSoon: number;
+};
+
+type LoanSummary = {
+  activeCount: number;
+  totalPrincipal: number;
+  monthlyRepayment: number;
+};
+
+type CustodySummary = {
+  openCount: number;
+  totalOutstanding: number;
+};
+
+type ViolationSummary = {
+  total: number;
+  open: number;
+  pendingDeduction: number;
+  openAmount: number;
+};
+
+type MaintenanceSummary = {
+  dueSoon: number;
+  overdue: number;
+};
+
+type EmployeeSummary = {
+  active: number;
+  total: number;
+};
+
 type Props = {
   initialStats: HrDashboardResult;
   departments: { id: string; name: string }[];
   occupations: string[];
   sections: string[];
   contractStats?: ContractStats;
+  assetStats?: AssetStats;
+  loanSummary?: LoanSummary;
+  custodySummary?: CustodySummary;
+  violationSummary?: ViolationSummary;
+  maintenanceSummary?: MaintenanceSummary;
+  employeeSummary?: EmployeeSummary;
 };
 
 const ABSENCE_COLORS: Record<string, string> = {
@@ -97,6 +151,12 @@ export function HrDashboardClient({
   occupations,
   sections,
   contractStats,
+  assetStats,
+  loanSummary,
+  custodySummary,
+  violationSummary,
+  maintenanceSummary,
+  employeeSummary,
 }: Props) {
   const { start: defStart, end: defEnd } = defaultRange();
   const [startDate, setStartDate] = useState<string>(defStart);
@@ -673,6 +733,209 @@ export function HrDashboardClient({
                 <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Expired</p>
                 <p className="text-2xl font-bold text-slate-700 mt-1">{contractStats.expired}</p>
                 <p className="text-xs text-slate-400 mt-0.5">require renewal</p>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Workforce snapshot */}
+      {employeeSummary && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-sky-600" />
+              Workforce
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <a href="/hr/employees" className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Active Employees</p>
+                <p className="text-2xl font-bold text-sky-700 mt-1">{employeeSummary.active}</p>
+                <p className="text-xs text-sky-500 mt-0.5">on payroll</p>
+              </a>
+              <a href="/hr/employees" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Records</p>
+                <p className="text-2xl font-bold text-slate-700 mt-1">{employeeSummary.total}</p>
+                <p className="text-xs text-slate-400 mt-0.5">inc. inactive</p>
+              </a>
+              <a href="/hr/leaves" className="rounded-xl border bg-gradient-to-b from-indigo-50 to-white border-indigo-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-indigo-600 font-medium uppercase tracking-wide">Leave Management</p>
+                <p className="text-2xl font-bold text-indigo-700 mt-1">→</p>
+                <p className="text-xs text-indigo-500 mt-0.5">view leave requests</p>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Asset Registry */}
+      {assetStats && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PackageSearch className="h-4 w-4 text-violet-600" />
+              Asset Registry
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <a href="/hr/assets" className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Total Assets</p>
+                <p className="text-2xl font-bold text-violet-700 mt-1">{assetStats.total}</p>
+                <p className="text-xs text-violet-500 mt-0.5">in registry</p>
+              </a>
+              <a href="/hr/assets?status=ASSIGNED" className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Assigned</p>
+                <p className="text-2xl font-bold text-sky-700 mt-1">{assetStats.assigned}</p>
+                <p className="text-xs text-sky-500 mt-0.5">with employees</p>
+              </a>
+              <a href="/hr/assets?status=AVAILABLE" className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Available</p>
+                <p className="text-2xl font-bold text-emerald-700 mt-1">{assetStats.available}</p>
+                <p className="text-xs text-emerald-500 mt-0.5">ready to assign</p>
+              </a>
+              <a href="/hr/assets?status=UNDER_MAINTENANCE" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">In Maintenance</p>
+                <p className="text-2xl font-bold text-amber-700 mt-1">{assetStats.maintenance}</p>
+                <p className="text-xs text-amber-500 mt-0.5">being serviced</p>
+              </a>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-1">
+              <a href="/hr/assets?category=CAR" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
+                <Car className="h-4 w-4 text-slate-500 shrink-0" />
+                <span className="font-medium text-slate-700">{assetStats.cars}</span>
+                <span className="text-slate-500 text-xs">Cars</span>
+              </a>
+              <a href="/hr/assets?category=LAPTOP" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
+                <Laptop className="h-4 w-4 text-slate-500 shrink-0" />
+                <span className="font-medium text-slate-700">{assetStats.laptops}</span>
+                <span className="text-slate-500 text-xs">Laptops</span>
+              </a>
+              <a href="/hr/assets?category=SIM_CARD" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
+                <Smartphone className="h-4 w-4 text-slate-500 shrink-0" />
+                <span className="font-medium text-slate-700">{assetStats.simCards}</span>
+                <span className="text-slate-500 text-xs">SIMs</span>
+              </a>
+              {assetStats.licensesExpiringSoon > 0 && (
+                <a href="/hr/contracts" className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100 transition-colors text-sm">
+                  <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+                  <span className="font-medium text-rose-700">{assetStats.licensesExpiringSoon}</span>
+                  <span className="text-rose-500 text-xs">License expiring</span>
+                </a>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Maintenance alerts */}
+      {maintenanceSummary && (maintenanceSummary.dueSoon > 0 || maintenanceSummary.overdue > 0) && (
+        <Card className="border-amber-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Wrench className="h-4 w-4 text-amber-600" />
+              Car Maintenance Alerts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <a href="/hr/car-maintenance" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Overdue</p>
+                <p className="text-2xl font-bold text-rose-700 mt-1">{maintenanceSummary.overdue}</p>
+                <p className="text-xs text-rose-500 mt-0.5">vehicles past service date</p>
+              </a>
+              <a href="/hr/car-maintenance" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Due Soon</p>
+                <p className="text-2xl font-bold text-amber-700 mt-1">{maintenanceSummary.dueSoon}</p>
+                <p className="text-xs text-amber-500 mt-0.5">within 14 days</p>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loans & Custodies */}
+      {(loanSummary || custodySummary) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-emerald-600" />
+              Loans &amp; Custodies
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {loanSummary && (
+                <>
+                  <a href="/hr/loans" className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Active Loans</p>
+                    <p className="text-2xl font-bold text-emerald-700 mt-1">{loanSummary.activeCount}</p>
+                    <p className="text-xs text-emerald-500 mt-0.5">ongoing repayments</p>
+                  </a>
+                  <a href="/hr/loans" className="rounded-xl border bg-gradient-to-b from-teal-50 to-white border-teal-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-xs text-teal-600 font-medium uppercase tracking-wide">Total Outstanding</p>
+                    <p className="text-2xl font-bold text-teal-700 mt-1">
+                      {loanSummary.totalPrincipal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                    <p className="text-xs text-teal-500 mt-0.5">SAR principal</p>
+                  </a>
+                </>
+              )}
+              {custodySummary && (
+                <>
+                  <a href="/hr/custodies" className="rounded-xl border bg-gradient-to-b from-indigo-50 to-white border-indigo-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-xs text-indigo-600 font-medium uppercase tracking-wide">Open Custodies</p>
+                    <p className="text-2xl font-bold text-indigo-700 mt-1">{custodySummary.openCount}</p>
+                    <p className="text-xs text-indigo-500 mt-0.5">unsettled advances</p>
+                  </a>
+                  <a href="/hr/custodies" className="rounded-xl border bg-gradient-to-b from-purple-50 to-white border-purple-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">Outstanding</p>
+                    <p className="text-2xl font-bold text-purple-700 mt-1">
+                      {custodySummary.totalOutstanding.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                    <p className="text-xs text-purple-500 mt-0.5">SAR to recover</p>
+                  </a>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Traffic Violations */}
+      {violationSummary && violationSummary.total > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-rose-600" />
+              Traffic Violations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Violations</p>
+                <p className="text-2xl font-bold text-slate-700 mt-1">{violationSummary.total}</p>
+                <p className="text-xs text-slate-400 mt-0.5">all time</p>
+              </a>
+              <a href="/hr/traffic-violations?status=PENDING" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Pending</p>
+                <p className="text-2xl font-bold text-rose-700 mt-1">{violationSummary.open}</p>
+                <p className="text-xs text-rose-500 mt-0.5">unresolved</p>
+              </a>
+              <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Pending Deduction</p>
+                <p className="text-2xl font-bold text-amber-700 mt-1">{violationSummary.pendingDeduction}</p>
+                <p className="text-xs text-amber-500 mt-0.5">flagged for payroll</p>
+              </a>
+              <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-orange-50 to-white border-orange-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-xs text-orange-600 font-medium uppercase tracking-wide">Open Amount</p>
+                <p className="text-2xl font-bold text-orange-700 mt-1">
+                  {violationSummary.openAmount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-orange-500 mt-0.5">SAR outstanding</p>
               </a>
             </div>
           </CardContent>

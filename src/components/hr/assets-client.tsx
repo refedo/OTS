@@ -1782,6 +1782,7 @@ function AssignmentLogTab({ active, canManage }: { active: boolean; canManage: b
 export function AssetsClient({ canManage }: Props) {
   const [assets, setAssets] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -1835,6 +1836,7 @@ export function AssetsClient({ canManage }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams();
       if (filterCategory) params.set('category', filterCategory);
@@ -1842,8 +1844,14 @@ export function AssetsClient({ canManage }: Props) {
       if (search) params.set('search', search);
       const res = await fetch(`/api/hr/assets?${params}`);
       const data = await res.json();
-      setAssets(Array.isArray(data) ? data : []);
-    } catch {
+      if (!res.ok) {
+        setLoadError(data?.error ?? `Server error ${res.status} — the asset tables may not have been created yet. Restart the server to trigger startup migrations.`);
+        setAssets([]);
+      } else {
+        setAssets(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load assets');
       setAssets([]);
     } finally {
       setLoading(false);
@@ -2018,6 +2026,13 @@ export function AssetsClient({ canManage }: Props) {
             {loading ? (
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+              </div>
+            ) : loadError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center">
+                <AlertCircle className="h-10 w-10 text-rose-400 mx-auto mb-3" />
+                <p className="text-rose-700 font-medium">Failed to load assets</p>
+                <p className="text-rose-500 text-sm mt-1 max-w-md mx-auto">{loadError}</p>
+                <button onClick={load} className="mt-4 text-xs text-rose-600 underline">Retry</button>
               </div>
             ) : assets.length === 0 ? (
               <div className="rounded-2xl border bg-white shadow-sm p-12 text-center">
