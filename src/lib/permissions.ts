@@ -393,6 +393,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       // 18.16.0 — Letters & Correspondence
       { id: 'hr.letters.view', name: 'View Letters', description: 'View HR letters and correspondence issued to employees', category: 'hr' },
       { id: 'hr.letters.manage', name: 'Manage Letters', description: 'Create, edit, and delete HR letters and correspondence', category: 'hr' },
+      { id: 'hr.letters.approveCeo', name: 'CEO-Approve Letters', description: 'Final CEO sign-off on HR letters — approve or reject letters pending approval', category: 'hr' },
     ],
   },
   {

@@ -57,6 +57,9 @@ const STARTUP_MIGRATIONS = [
   // ── Ops Agent (19.x) ─────────────────────────────────────────────────────
   'add_ops_agent_module.sql',
   'add_ops_agent_ai_config.sql',
+
+  // ── Letters enhancements (19.1.0) ─────────────────────────────────────────
+  'add_hr_letter_enhancements.sql',
 ];
 
 /**
