@@ -175,7 +175,6 @@ async function runOpenAILoop(
       model,
       max_tokens: 8192,
       tools: openAITools,
-      tool_choice: 'auto',
       messages,
     });
 
@@ -287,8 +286,16 @@ export async function runOpsAgent(
     log.info({ runId: run.id, durationMs, inputTokens, outputTokens }, 'Ops Agent run completed');
     return completedRun;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    log.error({ error, runId: run.id }, 'Ops Agent run failed');
+    // Extract full detail from OpenAI SDK API errors (status + response body)
+    let errorMessage = error instanceof Error ? error.message : String(error);
+    if (error && typeof error === 'object') {
+      const e = error as Record<string, unknown>;
+      const body = e['error'] ?? e['body'];
+      const status = e['status'];
+      if (status) errorMessage = `HTTP ${status}: ${errorMessage}`;
+      if (body) errorMessage += ` — ${typeof body === 'string' ? body : JSON.stringify(body)}`;
+    }
+    log.error({ error, runId: run.id, provider: config.aiProvider, model, baseUrl: config.aiBaseUrl }, 'Ops Agent run failed');
 
     const failedRun = await prisma.opsAgentRun.update({
       where: { id: run.id },
