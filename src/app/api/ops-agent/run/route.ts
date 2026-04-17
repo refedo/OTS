@@ -45,6 +45,9 @@ export async function POST(req: NextRequest) {
       thresholds: config.thresholds as unknown as OpsAgentThresholds,
       notifyWhatsApp: config.notifyWhatsApp,
       notifyPush: config.notifyPush,
+      aiProvider: config.aiProvider ?? 'anthropic',
+      aiModel: config.aiModel ?? 'claude-sonnet-4-6',
+      aiApiKey: config.aiApiKey ?? null,
     };
 
     // Execute in background — run record already exists

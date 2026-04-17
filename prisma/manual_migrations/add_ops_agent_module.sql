@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS ops_agent_config (
   cronSchedule    VARCHAR(100) NOT NULL DEFAULT '0 7 * * 0-4',
   notifyWhatsApp  TINYINT(1)   NOT NULL DEFAULT 1,
   notifyPush      TINYINT(1)   NOT NULL DEFAULT 1,
+  aiProvider      VARCHAR(50)  NOT NULL DEFAULT 'anthropic',
+  aiModel         VARCHAR(100) NOT NULL DEFAULT 'claude-sonnet-4-6',
+  aiApiKey        TEXT         NULL,
   updatedAt       DATETIME(3)  NOT NULL,
   updatedBy       VARCHAR(36)  NULL,
   PRIMARY KEY (id)

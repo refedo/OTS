@@ -9,6 +9,7 @@ import { RiskFlagList } from './RiskFlagList';
 import { RunHistoryList } from './RunHistoryList';
 import { ModeSwitcher } from './ModeSwitcher';
 import { ThresholdEditor } from './ThresholdEditor';
+import { AiProviderSettings } from './AiProviderSettings';
 
 interface OpsAgentLayoutProps {
   canRun: boolean;
@@ -147,6 +148,10 @@ export function OpsAgentLayout({ canRun, canConfigure, canResolveFlags }: OpsAge
           <div className="space-y-4">
             {canConfigure && config && (
               <>
+                <AiProviderSettings
+                  config={config}
+                  onSaved={loadConfig}
+                />
                 <ModeSwitcher
                   currentMode={(config.mode as string) ?? 'READ_ONLY'}
                   onModeChange={loadConfig}

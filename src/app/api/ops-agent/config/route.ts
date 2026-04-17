@@ -24,6 +24,9 @@ const updateSchema = z.object({
   cronSchedule: z.string().optional(),
   notifyWhatsApp: z.boolean().optional(),
   notifyPush: z.boolean().optional(),
+  aiProvider: z.string().optional(),
+  aiModel: z.string().optional(),
+  aiApiKey: z.string().nullable().optional(),
 });
 
 export async function GET(req: NextRequest) {
