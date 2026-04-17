@@ -7,14 +7,14 @@ import { NotificationService } from '@/lib/services/notification.service';
 
 export const GET = withApiContext(async (req, session) => {
   const userId = session!.userId;
+  const url = new URL(req.url);
+  const showArchived = url.searchParams.get('archived') === 'true';
+
   try {
-    // Task-linked conversations: user is a participant or sent a message
-    // Standalone conversations are fetched separately with a fallback in case
-    // the tables don't exist yet (migration not yet run).
     const [participantTasks, messageTasks] = await Promise.all([
       prisma.taskConversationParticipant.findMany({
         where: { userId },
-        select: { taskId: true, lastReadAt: true },
+        select: { taskId: true, lastReadAt: true, archivedAt: true },
       }),
       prisma.taskMessage.findMany({
         where: { userId },
@@ -23,28 +23,41 @@ export const GET = withApiContext(async (req, session) => {
       }),
     ]);
 
-    // Standalone conversations — guarded in case migration hasn't run yet
-    let standaloneConvs: { conversationId: string; lastReadAt: Date | null }[] = [];
+    let standaloneConvs: { conversationId: string; lastReadAt: Date | null; archivedAt: Date | null }[] = [];
     try {
       standaloneConvs = await prisma.conversationParticipant.findMany({
         where: { userId },
-        select: { conversationId: true, lastReadAt: true },
+        select: { conversationId: true, lastReadAt: true, archivedAt: true },
       });
     } catch {
-      // Table doesn't exist yet — ignore standalone conversations
+      // Table doesn't exist yet
     }
 
-    // Build lastReadAt maps keyed by taskId / conversationId
     const taskLastReadMap = new Map(participantTasks.map(p => [p.taskId, p.lastReadAt]));
+    const taskArchivedMap = new Map(participantTasks.map(p => [p.taskId, p.archivedAt]));
     const convLastReadMap = new Map(standaloneConvs.map(c => [c.conversationId, c.lastReadAt]));
+    const convArchivedMap = new Map(standaloneConvs.map(c => [c.conversationId, c.archivedAt]));
+
+    // Filter archived based on query param
+    const activeParticipantTasks = showArchived
+      ? participantTasks
+      : participantTasks.filter(p => !p.archivedAt);
+    const activeMessageTaskIds = messageTasks.map(m => m.taskId);
+    // For message-only tasks (no participant entry), include them if not in archived map
+    const participantTaskIds = new Set(activeParticipantTasks.map(p => p.taskId));
+    const messageOnlyTaskIds = activeMessageTaskIds.filter(id =>
+      !participantTaskIds.has(id) && (showArchived || !taskArchivedMap.get(id))
+    );
 
     const taskIds = [...new Set([
-      ...participantTasks.map(p => p.taskId),
-      ...messageTasks.map(m => m.taskId),
+      ...activeParticipantTasks.map(p => p.taskId),
+      ...messageOnlyTaskIds,
     ])];
 
-    // Fetch task conversations and standalone conversations in parallel
-    // The standalone query is guarded against missing tables.
+    const activeStandaloneConvs = showArchived
+      ? standaloneConvs
+      : standaloneConvs.filter(c => !c.archivedAt);
+
     let conversations: Array<{
       id: string; topic: string;
       messages: Array<{ content: string; createdAt: Date; user: { id: string; name: string } }>;
@@ -59,6 +72,7 @@ export const GET = withApiContext(async (req, session) => {
               id: true,
               title: true,
               status: true,
+              dueDate: true,
               project: { select: { id: true, projectNumber: true, name: true } },
               building: { select: { id: true, name: true, designation: true } },
               messages: {
@@ -75,11 +89,13 @@ export const GET = withApiContext(async (req, session) => {
         : Promise.resolve([]),
     ]);
 
-    // Fetch standalone conversations, guarded in case migration hasn't run yet
-    if (standaloneConvs.length > 0) {
+    if (activeStandaloneConvs.length > 0) {
       try {
         conversations = await prisma.conversation.findMany({
-          where: { id: { in: standaloneConvs.map(c => c.conversationId) } },
+          where: {
+            id: { in: activeStandaloneConvs.map(c => c.conversationId) },
+            deletedAt: null,
+          },
           select: {
             id: true,
             topic: true,
@@ -95,7 +111,7 @@ export const GET = withApiContext(async (req, session) => {
           orderBy: { updatedAt: 'desc' },
         });
       } catch {
-        // Table doesn't exist yet — skip standalone conversations
+        // Table doesn't exist yet
       }
     }
 
@@ -103,17 +119,20 @@ export const GET = withApiContext(async (req, session) => {
       const lastMsg = t.messages[0] ?? null;
       const lastRead = taskLastReadMap.get(t.id) ?? null;
       const hasUnread = lastMsg !== null && (lastRead === null || new Date(lastMsg.createdAt) > new Date(lastRead));
+      const isArchived = !!(taskArchivedMap.get(t.id));
       return {
         type: 'task' as const,
         taskId: t.id,
         taskTitle: t.title,
         taskStatus: t.status,
+        taskDueDate: t.dueDate ? t.dueDate.toISOString() : null,
         project: t.project,
         building: t.building,
         lastMessage: lastMsg,
         participants: t.conversationParticipants.map(p => p.user),
         updatedAt: lastMsg?.createdAt ?? null,
         hasUnread,
+        isArchived,
       };
     });
 
@@ -121,6 +140,7 @@ export const GET = withApiContext(async (req, session) => {
       const lastMsg = c.messages[0] ?? null;
       const lastRead = convLastReadMap.get(c.id) ?? null;
       const hasUnread = lastMsg !== null && (lastRead === null || new Date(lastMsg.createdAt) > new Date(lastRead));
+      const isArchived = !!(convArchivedMap.get(c.id));
       return {
         type: 'standalone' as const,
         conversationId: c.id,
@@ -129,10 +149,10 @@ export const GET = withApiContext(async (req, session) => {
         participants: c.participants.map(p => p.user),
         updatedAt: lastMsg?.createdAt ?? null,
         hasUnread,
+        isArchived,
       };
     });
 
-    // Merge and sort by last message time (most recent first)
     const all = [...taskResults, ...convResults].sort((a, b) => {
       const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
@@ -164,7 +184,6 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
   const { taskId, topic, firstMessage, inviteeIds = [] } = parsed.data;
 
   try {
-    // Task-linked conversation: just post first message and add participants
     if (taskId) {
       const task = await prisma.task.findFirst({ where: { id: taskId }, select: { id: true, title: true, assignedToId: true, createdById: true } });
       if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -190,7 +209,6 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       return NextResponse.json({ type: 'task', taskId });
     }
 
-    // Standalone conversation: create Conversation record
     if (!topic) {
       return NextResponse.json({ error: 'Either taskId or topic is required' }, { status: 400 });
     }
@@ -212,7 +230,6 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       select: { id: true },
     });
 
-    // Notify invitees
     if (inviteeIds.length > 0) {
       const sender = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
       const senderName = sender?.name ?? 'Someone';

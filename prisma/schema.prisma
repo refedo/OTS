@@ -822,6 +822,7 @@ model TaskConversationParticipant {
   invitedBy   User?     @relation("TaskConversationInvites", fields: [invitedById], references: [id])
   joinedAt    DateTime  @default(now())
   lastReadAt  DateTime?
+  archivedAt  DateTime?
 
   @@id([taskId, userId])
   @@map("task_conversation_participants")
@@ -840,6 +841,7 @@ model Conversation {
   participants ConversationParticipant[]
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
+  deletedAt    DateTime?
 
   @@index([createdById])
   @@map("conversations")
@@ -870,6 +872,7 @@ model ConversationParticipant {
   invitedBy      User?        @relation("ConvInviter", fields: [invitedById], references: [id])
   joinedAt       DateTime     @default(now())
   lastReadAt     DateTime?
+  archivedAt     DateTime?
 
   @@id([conversationId, userId])
   @@map("conversation_participants")
