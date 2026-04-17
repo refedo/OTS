@@ -62,8 +62,11 @@ async function runMigrationFile(filename: string): Promise<void> {
     if (trimmed.startsWith('--')) continue;
 
     if (insideProc) {
-      // Inside a stored procedure — collect until $$
-      if (trimmed === '$$') {
+      // Inside a stored procedure — collect until a line ending with $$
+      // (typically "END$$" — never a bare "$$" in practice)
+      if (trimmed.endsWith('$$')) {
+        const withoutDelim = line.replace(/\$\$\s*$/, '').trimEnd();
+        if (withoutDelim.trim()) current += withoutDelim + '\n';
         if (current.trim()) statements.push(current.trim());
         current = '';
       } else {
