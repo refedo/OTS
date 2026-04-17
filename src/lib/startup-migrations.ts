@@ -28,6 +28,7 @@ const STARTUP_MIGRATIONS = [
   'add_task_message_updated_at.sql',
   'add_standalone_conversations.sql',
   'add_conversation_last_read.sql',
+  'add_conversation_archive_delete.sql',
 
   // ── System / integrations ─────────────────────────────────────────────────
   'system_event_summaries.sql',
