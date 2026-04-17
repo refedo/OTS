@@ -18,5 +18,5 @@ export default async function CustodiesPage() {
     redirect('/unauthorized?from=/hr/custodies');
   }
 
-  return <CustodiesPageClient canViewAll={canView} />;
+  return <CustodiesPageClient canViewAll={canView} canManage={perms.includes('hr.custodies.manage')} />;
 }

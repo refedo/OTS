@@ -16,8 +16,10 @@ const STARTUP_MIGRATIONS = [
   'add_announcements.sql',
   'add_contracts.sql',
   'add_hr_letters.sql',
+  'add_asset_management.sql',
   'add_asset_location.sql',
   'add_asset_sn.sql',
+  'add_holiday_enddate_asset_attachments_backlog_hr.sql',
   'add_ops_agent_module.sql',
   'add_ops_agent_ai_config.sql',
 ];

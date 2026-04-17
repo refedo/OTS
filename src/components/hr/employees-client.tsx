@@ -379,7 +379,7 @@ export function EmployeesClient({
                       )}
                       <td className="px-4 py-3 text-xs text-slate-400">
                         {e.lastSyncedFromDolibarrAt
-                          ? new Date(e.lastSyncedFromDolibarrAt).toLocaleDateString('en-SA', { day: '2-digit', month: 'short', year: 'numeric' })
+                          ? new Date(e.lastSyncedFromDolibarrAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                           : <span className="text-rose-400">Never</span>}
                       </td>
                     </tr>

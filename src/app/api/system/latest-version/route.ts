@@ -6,13 +6,13 @@ import { APP_VERSION } from '@/lib/version';
 
 const CURRENT_VERSION = {
   ...APP_VERSION,
-  mainTitle: '🤖 OTS™ Operations Agent — Autonomous AI Sweep Engine',
+  mainTitle: 'Asset Management Fixes + Loan/Custody Quick-Create',
   highlights: [
-    'Introducing the OTS™ Operations Agent: a Claude-powered autonomous module that sweeps Tasks, Projects, HR/Manpower, and Pipeline daily, producing a structured Ops Brief with RED / AMBER / GREEN early warning signals.',
-    'Three operating modes: READ_ONLY (observe only), ANNOTATE (flag records with risk notes), and FULL_ACTOR (trigger escalations and create follow-up tasks). Mode is enforced at the API harness level.',
-    'Separate OpsRiskFlag table lets the agent annotate individual entities independently of the existing EWS — comparison mode shows both side-by-side.',
-    'Daily cron runs automatically on the Saudi work week (Saturday–Wednesday, 07:00 Riyadh). Trigger manually from the /ops-agent dashboard at any time.',
-    'Full UI dashboard: run history, live Ops Brief view, risk flag resolution, mode switcher, and configurable thresholds — all at /ops-agent.',
+    'Asset tables now auto-created on first deploy — startup migration order fixed.',
+    'Click any asset to open a comprehensive detail card: specs, full assignment history, maintenance records, traffic violations, and attached documents.',
+    'New Loan button added to /hr/loans page — create loans directly without opening the employee finance tab.',
+    'New Custody button added to /hr/custodies page — issue cash advances and asset custodies directly.',
+    'Employee sync date column now shows Gregorian dates instead of Hijri.',
     'Push notifications dispatched to all ops_agent.view users after each completed run with RED/AMBER flag counts.',
   ],
   changes: {

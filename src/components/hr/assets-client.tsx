@@ -65,6 +65,14 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  Gauge,
+  MapPin,
+  DollarSign,
+  AlertOctagon,
+  Building2,
+  Info,
+  Hash,
+  ClipboardList,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -771,6 +779,619 @@ function DeleteDialog({ open, asset, onClose, onDeleted }: {
   );
 }
 
+// ─── Asset Detail Dialog ──────────────────────────────────────────────────────
+
+interface MaintenanceDetailEntry {
+  id: string;
+  maintenanceDate: string;
+  maintenanceType: string;
+  description: string;
+  serviceCenter: string | null;
+  odometer: number | null;
+  cost: string | null;
+  nextServiceDate: string | null;
+  nextServiceOdometer: number | null;
+  partsReplaced: string | null;
+  invoiceNumber: string | null;
+  technician: string | null;
+  notes: string | null;
+  createdBy: { id: string; name: string } | null;
+}
+
+interface ViolationDetailEntry {
+  id: string;
+  violationDate: string;
+  violationType: string;
+  violationAmount: string;
+  status: string;
+  referenceNumber: string | null;
+  issuingAuthority: string | null;
+  deductFromPayroll: boolean;
+  notes: string | null;
+  employee: { id: string; fullNameEn: string; employmentId: string };
+  createdBy: { id: string; name: string } | null;
+}
+
+interface DetailEntry {
+  id: string;
+  assignedDate: string;
+  returnedDate: string | null;
+  returnReason: string | null;
+  status: 'ACTIVE' | 'RETURNED';
+  notes: string | null;
+  employee: { id: string; fullNameEn: string; employmentId: string; occupation: string | null };
+  createdBy: { id: string; name: string } | null;
+}
+
+interface AssetFullDetail extends AssetRow {
+  assignments: (ActiveAssignment & { returnedDate?: string | null; status?: string; returnReason?: string | null; notes?: string | null; employee: { id: string; fullNameEn: string; employmentId: string; occupation?: string | null }; createdBy?: { id: string; name: string } | null })[];
+  maintenanceRecords: MaintenanceDetailEntry[];
+  violations: ViolationDetailEntry[];
+}
+
+const MAINTENANCE_TYPE_MAP: Record<string, { label: string; color: string }> = {
+  OIL_CHANGE:           { label: 'Oil Change',            color: 'amber' },
+  BRAKE_SERVICE:        { label: 'Brake Service',         color: 'rose' },
+  TIRE_ROTATION:        { label: 'Tire Rotation',         color: 'slate' },
+  TIRE_REPLACEMENT:     { label: 'Tire Replacement',      color: 'slate' },
+  BATTERY_REPLACEMENT:  { label: 'Battery Replacement',   color: 'sky' },
+  AC_SERVICE:           { label: 'A/C Service',           color: 'sky' },
+  GENERAL_SERVICE:      { label: 'General Service',       color: 'emerald' },
+  INSPECTION:           { label: 'Inspection',            color: 'violet' },
+  REPAIR:               { label: 'Repair',                color: 'orange' },
+  ACCIDENT_REPAIR:      { label: 'Accident Repair',       color: 'red' },
+  FILTER_REPLACEMENT:   { label: 'Filter Replacement',    color: 'amber' },
+  SPARK_PLUGS:          { label: 'Spark Plugs',           color: 'amber' },
+  TRANSMISSION_SERVICE: { label: 'Transmission',          color: 'indigo' },
+  COOLANT_FLUSH:        { label: 'Coolant Flush',         color: 'sky' },
+  OTHER:                { label: 'Other',                 color: 'slate' },
+};
+
+function maintenanceTypeBadge(type: string) {
+  const t = MAINTENANCE_TYPE_MAP[type] ?? { label: type, color: 'slate' };
+  const colorMap: Record<string, string> = {
+    amber: 'bg-amber-100 text-amber-700 border-amber-200',
+    rose: 'bg-rose-100 text-rose-700 border-rose-200',
+    slate: 'bg-slate-100 text-slate-600 border-slate-200',
+    sky: 'bg-sky-100 text-sky-700 border-sky-200',
+    emerald: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    violet: 'bg-violet-100 text-violet-700 border-violet-200',
+    orange: 'bg-orange-100 text-orange-700 border-orange-200',
+    red: 'bg-red-100 text-red-700 border-red-200',
+    indigo: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+  };
+  return (
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border', colorMap[t.color] ?? colorMap.slate)}>
+      {t.label}
+    </span>
+  );
+}
+
+function violationStatusBadge(status: string) {
+  if (status === 'PENDING') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-100 text-amber-700 border-amber-200">Pending</span>;
+  if (status === 'PAID_BY_EMPLOYEE') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-100 text-emerald-700 border-emerald-200">Paid by Employee</span>;
+  if (status === 'PAID_BY_COMPANY') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-sky-100 text-sky-700 border-sky-200">Paid by Company</span>;
+  if (status === 'DEDUCTED_FROM_PAYROLL') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-violet-100 text-violet-700 border-violet-200">Deducted</span>;
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-slate-100 text-slate-600 border-slate-200">{status}</span>;
+}
+
+function AssetDetailDialog({ open, asset, onClose, canManage, onEdit, onAssign, onReturn }: {
+  open: boolean;
+  asset: AssetRow | null;
+  onClose: () => void;
+  canManage: boolean;
+  onEdit: (a: AssetRow) => void;
+  onAssign: (a: AssetRow) => void;
+  onReturn: (a: AssetRow) => void;
+}) {
+  const [detail, setDetail] = useState<AssetFullDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    if (!open || !asset) { setDetail(null); setActiveTab('overview'); return; }
+    setLoading(true);
+    fetch(`/api/hr/assets/${asset.id}`)
+      .then(r => r.json())
+      .then(d => setDetail(d))
+      .catch(() => setDetail(null))
+      .finally(() => setLoading(false));
+  }, [open, asset]);
+
+  const data = detail ?? asset;
+
+  const assignments = (detail?.assignments ?? []) as DetailEntry[];
+  const maintenance = detail?.maintenanceRecords ?? [];
+  const violations = detail?.violations ?? [];
+  const attachments: AssetAttachment[] = detail?.attachments ?? asset?.attachments ?? [];
+
+  const activeAssignment = assignments.find(a => a.status === 'ACTIVE');
+  const isCar = data?.category === 'CAR';
+
+  function spec(label: string, value: React.ReactNode, icon?: React.ReactNode) {
+    if (value == null || value === '' || value === '—') return null;
+    return (
+      <div className="flex items-start gap-2">
+        {icon && <div className="mt-0.5 text-slate-400 shrink-0">{icon}</div>}
+        <div>
+          <p className="text-xs text-slate-400">{label}</p>
+          <p className="text-sm text-slate-700 font-medium">{value}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+        {/* Header */}
+        {data && (
+          <div className="bg-gradient-to-br from-violet-600 via-violet-500 to-purple-600 p-6 text-white relative overflow-hidden rounded-t-2xl">
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl" />
+            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
+            <div className="relative z-10">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
+                    {categoryIcon(data.category, 'h-5 w-5')}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-violet-200 text-xs font-mono">{data.assetCode}</span>
+                      {data.assetSn != null && (
+                        <span className="text-violet-300 text-xs">#{String(data.assetSn).padStart(3, '0')}</span>
+                      )}
+                    </div>
+                    <h2 className="text-xl font-bold leading-tight">{data.name}</h2>
+                    <p className="text-violet-200 text-sm mt-0.5">{categoryLabel(data.category)}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  {statusBadge(data.status)}
+                  {canManage && (
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => { onClose(); onEdit(data as AssetRow); }}
+                        className="text-xs bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-lg transition-colors"
+                      >Edit</button>
+                      {data.status === 'AVAILABLE' && (
+                        <button
+                          onClick={() => { onClose(); onAssign(data as AssetRow); }}
+                          className="text-xs bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-lg transition-colors"
+                        >Assign</button>
+                      )}
+                      {data.status === 'ASSIGNED' && (
+                        <button
+                          onClick={() => { onClose(); onReturn(data as AssetRow); }}
+                          className="text-xs bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-lg transition-colors"
+                        >Return</button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Current holder strip */}
+              {activeAssignment && (
+                <div className="mt-4 flex items-center gap-2 bg-white/15 rounded-xl px-4 py-2.5">
+                  <User className="h-4 w-4 text-violet-200 shrink-0" />
+                  <div>
+                    <p className="text-xs text-violet-200">Currently with</p>
+                    <p className="text-sm font-semibold">{activeAssignment.employee.fullNameEn}
+                      <span className="ml-2 text-violet-200 text-xs font-normal font-mono">{activeAssignment.employee.employmentId}</span>
+                    </p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-1 text-xs text-violet-200">
+                    <Calendar className="h-3.5 w-3.5" />
+                    Since {fmtDate(activeAssignment.assignedDate)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+          </div>
+        )}
+
+        {!loading && data && (
+          <div className="p-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-6">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="history">
+                  History
+                  {assignments.length > 0 && (
+                    <span className="ml-1.5 text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">
+                      {assignments.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                {isCar && (
+                  <TabsTrigger value="maintenance">
+                    Maintenance
+                    {maintenance.length > 0 && (
+                      <span className="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+                        {maintenance.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                )}
+                {isCar && (
+                  <TabsTrigger value="violations">
+                    Violations
+                    {violations.length > 0 && (
+                      <span className="ml-1.5 text-xs bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-full font-medium">
+                        {violations.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                )}
+                <TabsTrigger value="attachments">
+                  Docs
+                  {attachments.length > 0 && (
+                    <span className="ml-1.5 text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-medium">
+                      {attachments.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              {/* ── Overview ── */}
+              <TabsContent value="overview" className="mt-0 space-y-5">
+                {/* Car specs */}
+                {isCar && (
+                  <div className="rounded-xl border bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                      <Car className="h-3.5 w-3.5" />Vehicle Details
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {spec('Plate Number', data.plateNumber && (
+                        <span className="font-mono bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200 text-sm">
+                          {data.plateNumber}
+                        </span>
+                      ), undefined)}
+                      {spec('Make', data.vehicleMake)}
+                      {spec('Model', data.vehicleModel)}
+                      {spec('Year', data.vehicleYear)}
+                      {spec('Color', data.vehicleColor)}
+                      {spec('VIN', data.vin)}
+                      {spec('Odometer', data.currentOdometer != null ? `${data.currentOdometer.toLocaleString()} km` : null, <Gauge className="h-3.5 w-3.5" />)}
+                      {spec('License Expiry', data.licenseExpiryDate ? (() => {
+                        const exp = new Date(data.licenseExpiryDate);
+                        const days = Math.round((exp.getTime() - Date.now()) / 86400000);
+                        const cls = days < 0 ? 'text-rose-600' : days <= 30 ? 'text-amber-600' : 'text-emerald-600';
+                        return (
+                          <span className={cls}>
+                            {fmtDate(data.licenseExpiryDate)}
+                            {days < 0 ? ' — EXPIRED' : days <= 30 ? ` — ${days}d remaining` : ''}
+                          </span>
+                        );
+                      })() : null, <ShieldCheck className="h-3.5 w-3.5" />)}
+                    </div>
+                  </div>
+                )}
+
+                {/* SIM / General specs */}
+                {!isCar && (
+                  <div className="rounded-xl border bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                      <Info className="h-3.5 w-3.5" />Device Details
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {data.category === 'SIM_CARD' && spec('SIM Number', data.simNumber, <Hash className="h-3.5 w-3.5" />)}
+                      {data.category === 'SIM_CARD' && spec('Mobile Number', data.mobileNumber)}
+                      {data.category === 'SIM_CARD' && spec('Carrier', data.carrier)}
+                      {data.category !== 'SIM_CARD' && spec('Make', data.make)}
+                      {data.category !== 'SIM_CARD' && spec('Model', data.model)}
+                      {spec('Serial Number', data.serialNumber, <Hash className="h-3.5 w-3.5" />)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Purchase & location */}
+                <div className="rounded-xl border bg-white p-4 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                    <ClipboardList className="h-3.5 w-3.5" />Registry Info
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {spec('Asset Code', <span className="font-mono text-slate-700">{data.assetCode}</span>, <Hash className="h-3.5 w-3.5" />)}
+                    {spec('Purchase Date', data.purchaseDate ? fmtDate(data.purchaseDate) : null, <Calendar className="h-3.5 w-3.5" />)}
+                    {spec('Purchase Price', data.purchasePrice ? `SAR ${Number(data.purchasePrice).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : null, <DollarSign className="h-3.5 w-3.5" />)}
+                    {spec('Location', data.location, <MapPin className="h-3.5 w-3.5" />)}
+                    {spec('Added By', data.createdBy?.name, <User className="h-3.5 w-3.5" />)}
+                  </div>
+                  {data.notes && (
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <p className="text-xs text-slate-400 mb-1">Notes</p>
+                      <p className="text-sm text-slate-600">{data.notes}</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* ── Assignment History ── */}
+              <TabsContent value="history" className="mt-0">
+                {assignments.length === 0 ? (
+                  <div className="text-center py-12 space-y-2">
+                    <Clock className="h-10 w-10 text-slate-200 mx-auto" />
+                    <p className="text-slate-400 text-sm">No assignment history yet.</p>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute left-[10px] top-1 bottom-4 w-px bg-slate-200" />
+                    <div className="space-y-3">
+                      {assignments.map(a => {
+                        const isCurrent = a.status === 'ACTIVE';
+                        const returnLabel = RETURN_REASONS.find(r => r.value === a.returnReason)?.label;
+                        return (
+                          <div key={a.id} className="relative pl-8">
+                            <div className={cn(
+                              'absolute left-0 top-2 h-5 w-5 rounded-full border-2 flex items-center justify-center',
+                              isCurrent ? 'bg-sky-500 border-sky-500' : 'bg-white border-slate-300'
+                            )}>
+                              {isCurrent && <div className="h-2 w-2 rounded-full bg-white" />}
+                            </div>
+                            <div className={cn(
+                              'rounded-xl border p-3.5 space-y-2',
+                              isCurrent ? 'bg-sky-50 border-sky-200' : 'bg-white border-slate-200'
+                            )}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800">
+                                    {a.employee.fullNameEn}
+                                    <span className="ml-1.5 text-xs font-mono text-slate-400">{a.employee.employmentId}</span>
+                                  </p>
+                                  {a.employee.occupation && (
+                                    <p className="text-xs text-slate-500 mt-0.5">{a.employee.occupation}</p>
+                                  )}
+                                </div>
+                                {isCurrent ? (
+                                  <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700 border border-sky-200">
+                                    Currently Assigned
+                                  </span>
+                                ) : (
+                                  <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                    Returned
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3 text-slate-400" />
+                                  Assigned {fmtDate(a.assignedDate)}
+                                </span>
+                                {a.returnedDate && (
+                                  <span className="flex items-center gap-1">
+                                    <RotateCcw className="h-3 w-3 text-slate-400" />
+                                    Returned {fmtDate(a.returnedDate)}
+                                  </span>
+                                )}
+                              </div>
+                              {returnLabel && (
+                                <p className="text-xs text-slate-400">
+                                  Return reason: <span className="text-slate-600 font-medium">{returnLabel}</span>
+                                </p>
+                              )}
+                              {a.notes && <p className="text-xs text-slate-400 italic">"{a.notes}"</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* ── Maintenance ── */}
+              {isCar && (
+                <TabsContent value="maintenance" className="mt-0">
+                  {maintenance.length === 0 ? (
+                    <div className="text-center py-12 space-y-2">
+                      <Wrench className="h-10 w-10 text-slate-200 mx-auto" />
+                      <p className="text-slate-400 text-sm">No maintenance records yet.</p>
+                      <p className="text-slate-300 text-xs">Go to Car Maintenance to add service records.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {maintenance.map(m => (
+                        <div key={m.id} className="rounded-xl border bg-white p-4 shadow-sm space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <Wrench className="h-4 w-4 text-amber-500 shrink-0" />
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {maintenanceTypeBadge(m.maintenanceType)}
+                                  <span className="text-xs text-slate-500">{fmtDate(m.maintenanceDate)}</span>
+                                </div>
+                                {m.description && <p className="text-sm text-slate-700 mt-1">{m.description}</p>}
+                              </div>
+                            </div>
+                            {m.cost && (
+                              <div className="text-right shrink-0">
+                                <p className="text-xs text-slate-400">Cost</p>
+                                <p className="text-sm font-semibold text-slate-800">SAR {Number(m.cost).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                            {m.serviceCenter && (
+                              <div>
+                                <p className="text-slate-400">Service Centre</p>
+                                <p className="text-slate-700 font-medium flex items-center gap-1">
+                                  <Building2 className="h-3 w-3 text-slate-400" />{m.serviceCenter}
+                                </p>
+                              </div>
+                            )}
+                            {m.odometer != null && (
+                              <div>
+                                <p className="text-slate-400">Odometer</p>
+                                <p className="text-slate-700 font-medium flex items-center gap-1">
+                                  <Gauge className="h-3 w-3 text-slate-400" />{m.odometer.toLocaleString()} km
+                                </p>
+                              </div>
+                            )}
+                            {m.technician && (
+                              <div>
+                                <p className="text-slate-400">Technician</p>
+                                <p className="text-slate-700 font-medium">{m.technician}</p>
+                              </div>
+                            )}
+                            {m.invoiceNumber && (
+                              <div>
+                                <p className="text-slate-400">Invoice</p>
+                                <p className="text-slate-700 font-mono text-xs">{m.invoiceNumber}</p>
+                              </div>
+                            )}
+                            {m.nextServiceDate && (
+                              <div>
+                                <p className="text-slate-400">Next Service</p>
+                                <p className="text-slate-700 font-medium">{fmtDate(m.nextServiceDate)}</p>
+                              </div>
+                            )}
+                            {m.nextServiceOdometer != null && (
+                              <div>
+                                <p className="text-slate-400">Next at (km)</p>
+                                <p className="text-slate-700 font-medium">{m.nextServiceOdometer.toLocaleString()} km</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {m.partsReplaced && (
+                            <div className="pt-2 border-t border-slate-100">
+                              <p className="text-xs text-slate-400 mb-0.5">Parts Replaced</p>
+                              <p className="text-xs text-slate-600">{m.partsReplaced}</p>
+                            </div>
+                          )}
+                          {m.notes && (
+                            <div className="pt-1">
+                              <p className="text-xs text-slate-400 italic">"{m.notes}"</p>
+                            </div>
+                          )}
+                          {m.createdBy && (
+                            <p className="text-xs text-slate-300">Logged by {m.createdBy.name}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              )}
+
+              {/* ── Violations ── */}
+              {isCar && (
+                <TabsContent value="violations" className="mt-0">
+                  {violations.length === 0 ? (
+                    <div className="text-center py-12 space-y-2">
+                      <AlertOctagon className="h-10 w-10 text-slate-200 mx-auto" />
+                      <p className="text-slate-400 text-sm">No traffic violations recorded.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {violations.map(v => (
+                        <div key={v.id} className="rounded-xl border bg-white p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <AlertOctagon className="h-4 w-4 text-rose-500 shrink-0" />
+                                <p className="text-sm font-semibold text-slate-800">{v.violationType}</p>
+                                {violationStatusBadge(v.status)}
+                              </div>
+                              <p className="text-xs text-slate-500 mt-0.5">{fmtDate(v.violationDate)}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs text-slate-400">Fine</p>
+                              <p className="text-sm font-semibold text-rose-600">SAR {Number(v.violationAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <p className="text-slate-400">Driver</p>
+                              <p className="text-slate-700 font-medium">{v.employee.fullNameEn}</p>
+                            </div>
+                            {v.issuingAuthority && (
+                              <div>
+                                <p className="text-slate-400">Authority</p>
+                                <p className="text-slate-700 font-medium">{v.issuingAuthority}</p>
+                              </div>
+                            )}
+                            {v.referenceNumber && (
+                              <div>
+                                <p className="text-slate-400">Reference</p>
+                                <p className="text-slate-700 font-mono">{v.referenceNumber}</p>
+                              </div>
+                            )}
+                            {v.deductFromPayroll && (
+                              <div className="col-span-2">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                                  Marked for payroll deduction
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          {v.notes && <p className="text-xs text-slate-400 italic mt-2">"{v.notes}"</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              )}
+
+              {/* ── Attachments / Documents ── */}
+              <TabsContent value="attachments" className="mt-0">
+                {attachments.length === 0 ? (
+                  <div className="text-center py-12 space-y-2">
+                    <Paperclip className="h-10 w-10 text-slate-200 mx-auto" />
+                    <p className="text-slate-400 text-sm">No documents or images attached.</p>
+                    {canManage && (
+                      <p className="text-slate-300 text-xs">Edit the asset to upload files.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {attachments.map((att, i) => {
+                      const isImage = att.fileType.startsWith('image/');
+                      const sizeMb = (att.fileSize / 1024 / 1024).toFixed(1);
+                      return (
+                        <a
+                          key={i}
+                          href={att.filePath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group rounded-xl border bg-white hover:shadow-md transition-shadow overflow-hidden block"
+                        >
+                          {isImage ? (
+                            <div className="h-28 bg-slate-100 flex items-center justify-center overflow-hidden">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={att.filePath} alt={att.label ?? att.fileName} className="object-cover w-full h-full group-hover:scale-105 transition-transform" />
+                            </div>
+                          ) : (
+                            <div className="h-28 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+                              <FileText className="h-10 w-10 text-slate-300" />
+                            </div>
+                          )}
+                          <div className="p-2.5">
+                            <p className="text-xs font-medium text-slate-700 truncate">{att.label ?? att.fileName}</p>
+                            <p className="text-xs text-slate-400">{sizeMb} MB · {fmtDate(att.uploadedAt)}</p>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Assignment History Dialog ────────────────────────────────────────────────
 
 interface AssignmentEntry {
@@ -1170,6 +1791,7 @@ export function AssetsClient({ canManage }: Props) {
   const [returnAsset, setReturnAsset] = useState<AssetRow | null>(null);
   const [deleteAsset, setDeleteAsset] = useState<AssetRow | null>(null);
   const [historyAsset, setHistoryAsset] = useState<AssetRow | null>(null);
+  const [detailAsset, setDetailAsset] = useState<AssetRow | null>(null);
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'assetSn', dir: 'asc' });
 
   const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
@@ -1449,7 +2071,9 @@ export function AssetsClient({ canManage }: Props) {
                               </div>
                             </td>
                             <td className="px-4 py-3 max-w-[200px]">
-                              <p className="font-medium text-slate-800 truncate">{asset.name}</p>
+                              <button className="text-left hover:underline" onClick={() => setDetailAsset(asset)}>
+                                <p className="font-medium text-slate-800 truncate hover:text-violet-700 transition-colors">{asset.name}</p>
+                              </button>
                               {makeModel && <p className="text-xs text-slate-400 truncate">{makeModel}</p>}
                             </td>
                             <td className="px-4 py-3">
@@ -1477,8 +2101,8 @@ export function AssetsClient({ canManage }: Props) {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1">
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-violet-500 hover:text-violet-700 hover:bg-violet-50" title="Assignment log" onClick={() => setHistoryAsset(asset)}>
-                                  <Clock className="h-3.5 w-3.5" />
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-violet-500 hover:text-violet-700 hover:bg-violet-50" title="View details" onClick={() => setDetailAsset(asset)}>
+                                  <Eye className="h-3.5 w-3.5" />
                                 </Button>
                                 {canManage && (
                                   <>
@@ -1524,7 +2148,9 @@ export function AssetsClient({ canManage }: Props) {
                           </div>
                           <div>
                             <p className="text-xs font-mono text-slate-500">{asset.assetCode}</p>
-                            <p className="text-sm font-semibold text-slate-800 leading-tight">{asset.name}</p>
+                            <button className="text-left" onClick={() => setDetailAsset(asset)}>
+                              <p className="text-sm font-semibold text-slate-800 hover:text-violet-700 transition-colors leading-tight">{asset.name}</p>
+                            </button>
                           </div>
                         </div>
                         {statusBadge(asset.status)}
@@ -1599,8 +2225,8 @@ export function AssetsClient({ canManage }: Props) {
 
                       {/* Card Actions */}
                       <div className="px-4 py-2.5 border-t bg-slate-50 flex gap-2 flex-wrap">
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50" onClick={() => setHistoryAsset(asset)}>
-                          <Clock className="h-3 w-3 mr-1" />Log
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-violet-600 border-violet-200 hover:bg-violet-50" onClick={() => setDetailAsset(asset)}>
+                          <Eye className="h-3 w-3 mr-1" />View
                         </Button>
                         {canManage && (
                           <>
@@ -1673,6 +2299,15 @@ export function AssetsClient({ canManage }: Props) {
         open={!!historyAsset}
         asset={historyAsset}
         onClose={() => setHistoryAsset(null)}
+      />
+      <AssetDetailDialog
+        open={!!detailAsset}
+        asset={detailAsset}
+        onClose={() => setDetailAsset(null)}
+        canManage={canManage}
+        onEdit={a => { setDetailAsset(null); setEditAsset(a); }}
+        onAssign={a => { setDetailAsset(null); setAssignAsset(a); }}
+        onReturn={a => { setDetailAsset(null); setReturnAsset(a); }}
       />
     </div>
   );

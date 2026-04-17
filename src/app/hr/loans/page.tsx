@@ -22,5 +22,5 @@ export default async function LoansPage() {
 
   const canViewAll = canView;
 
-  return <LoansPageClient canViewAll={canViewAll} />;
+  return <LoansPageClient canViewAll={canViewAll} canManage={perms.includes('hr.loans.manage')} />;
 }

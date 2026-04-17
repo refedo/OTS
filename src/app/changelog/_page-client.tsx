@@ -23,10 +23,36 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.0.1',
+    date: 'April 17, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Asset Management Fixes + Loan/Custody Quick-Create',
+    highlights: [
+      'Asset tables now created on first deploy — startup migration order fixed',
+      'Asset detail card: click any asset to see full history, maintenance, violations & docs',
+      'New Loan and New Custody buttons added to the standalone HR sidebar pages',
+      'Employee sync date no longer shows Hijri calendar',
+    ],
+    changes: {
+      added: [
+        'Asset Detail Dialog: comprehensive tabbed card opened by clicking an asset — Overview (specs, current holder), History (assignment timeline), Maintenance (service records for cars), Violations (traffic fines for cars), Docs (attached images and documents)',
+        'New Loan from /hr/loans page: HR managers can create loans directly without going to the employee finance tab — employee picker, principal, installments, start date, and 12-month warning',
+        'New Custody from /hr/custodies page: issue cash advances or asset custodies directly — employee picker, amount, issue date, reason, and per-payroll deduction amount',
+      ],
+      fixed: [
+        'Startup migrations: add_asset_management.sql and add_holiday_enddate_asset_attachments_backlog_hr.sql added to STARTUP_MIGRATIONS list in correct order — Asset, AssetAssignment, TrafficViolation, CarMaintenanceRecord tables and licenseExpiryDate/attachments columns now auto-created on first server start',
+        'Employee list Sync column: changed en-SA locale (Hijri) to en-GB (Gregorian) so dates display correctly',
+        'Employee detail page last-sync timestamp: same en-SA → en-GB fix',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '19.0.0',
     date: 'April 16, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'OTS™ Operations Agent — Autonomous AI Sweep Engine',
     highlights: [
       'Introducing the OTS™ Operations Agent: a Claude-powered autonomous module that sweeps Tasks, Projects, HR/Manpower, and Pipeline daily — producing a structured Ops Brief with RED / AMBER / GREEN early warning signals.',

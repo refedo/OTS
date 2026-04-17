@@ -126,7 +126,7 @@ export default async function EmployeeDetailPage({
               <p className="text-sky-200 text-xs mt-2">
                 Last synced:{' '}
                 {employee.lastSyncedFromDolibarrAt
-                  ? new Date(employee.lastSyncedFromDolibarrAt).toLocaleString('en-SA', { dateStyle: 'medium', timeStyle: 'short' })
+                  ? new Date(employee.lastSyncedFromDolibarrAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
                   : 'never'}
               </p>
             </div>

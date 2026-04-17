@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.0.1] - 2026-04-17
+
+### Asset Management Fixes + Loan/Custody Quick-Create (Patch)
+
+#### Fixed
+- **Migration:** Added `add_asset_management.sql` and `add_holiday_enddate_asset_attachments_backlog_hr.sql` to `STARTUP_MIGRATIONS` in the correct order — Asset tables now created automatically on first deploy; `licenseExpiryDate` and `attachments` columns also applied.
+- **Hijri date:** Employee list "Sync" column and employee detail page now use `en-GB` locale instead of `en-SA`, eliminating Hijri calendar display.
+
+#### Added
+- **Asset Detail Card:** Clicking an asset name or the Eye icon opens a comprehensive detail dialog with tabs — Overview (full specs, purchase info, current holder), History (timeline of all assignments), Maintenance (car-only, service records), Violations (car-only, traffic fines), and Docs (attached images and documents).
+- **New Loan from Loans page:** HR managers can now create a loan directly from `/hr/loans` via the "New Loan" button — includes employee picker, amount, installment, start date, and auto-warnings for loans exceeding 12 months.
+- **New Custody from Custodies page:** HR managers can now issue a custody directly from `/hr/custodies` via the "New Custody" button — includes employee picker, amount, issue date, reason, and monthly deduction amount.
+
+---
+
 ## [19.0.0] - 2026-04-16
 
 ### OTS™ Operations Agent — Autonomous AI Sweep Engine (Major)
