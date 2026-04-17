@@ -56,6 +56,7 @@ export function RunTriggerCard({ canRun, latestRun, activeRunId, onRunStarted, o
   const durationMs = latestRun?.durationMs as number | undefined;
   const inputTokens = latestRun?.inputTokens as number | undefined;
   const outputTokens = latestRun?.outputTokens as number | undefined;
+  const errorMessage = latestRun?.errorMessage as string | undefined;
 
   return (
     <div className="rounded-2xl border bg-white shadow-sm">
@@ -103,17 +104,24 @@ export function RunTriggerCard({ canRun, latestRun, activeRunId, onRunStarted, o
       )}
 
       {!isRunning && durationMs && (
-        <div className="px-6 py-3 flex items-center gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
-            {(durationMs / 1000).toFixed(1)}s
-          </span>
-          {inputTokens !== undefined && (
-            <span>{((inputTokens ?? 0) + (outputTokens ?? 0)).toLocaleString()} tokens</span>
+        <div className="px-6 py-3 flex flex-col gap-1.5">
+          <div className="flex items-center gap-4 text-xs text-slate-500">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {(durationMs / 1000).toFixed(1)}s
+            </span>
+            {inputTokens !== undefined && (
+              <span>{((inputTokens ?? 0) + (outputTokens ?? 0)).toLocaleString()} tokens</span>
+            )}
+            <span className={`font-medium ${status === 'COMPLETED' ? 'text-emerald-600' : status === 'FAILED' ? 'text-rose-600' : 'text-slate-500'}`}>
+              {status}
+            </span>
+          </div>
+          {status === 'FAILED' && errorMessage && (
+            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2 break-words">
+              {errorMessage}
+            </p>
           )}
-          <span className={`font-medium ${status === 'COMPLETED' ? 'text-emerald-600' : status === 'FAILED' ? 'text-rose-600' : 'text-slate-500'}`}>
-            {status}
-          </span>
         </div>
       )}
     </div>
