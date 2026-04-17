@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS ops_agent_config (
   aiProvider      VARCHAR(50)  NOT NULL DEFAULT 'anthropic',
   aiModel         VARCHAR(100) NOT NULL DEFAULT 'claude-sonnet-4-6',
   aiApiKey        TEXT         NULL,
+  aiBaseUrl       TEXT         NULL,
   updatedAt       DATETIME(3)  NOT NULL,
   updatedBy       VARCHAR(36)  NULL,
   PRIMARY KEY (id)

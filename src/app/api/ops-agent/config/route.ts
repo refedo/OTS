@@ -27,6 +27,7 @@ const updateSchema = z.object({
   aiProvider: z.string().optional(),
   aiModel: z.string().optional(),
   aiApiKey: z.string().nullable().optional(),
+  aiBaseUrl: z.string().nullable().optional(),
 });
 
 export async function GET(req: NextRequest) {
