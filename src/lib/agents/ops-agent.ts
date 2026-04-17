@@ -194,7 +194,10 @@ async function runOpenAILoop(
     } else if (choice.finish_reason === 'tool_calls') {
       for (const toolCall of choice.message.tool_calls ?? []) {
         log.debug({ runId: run.id, tool: toolCall.function.name }, 'Executing tool');
-        const toolInput = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
+        const rawParsed = JSON.parse(toolCall.function.arguments || '{}');
+        const toolInput = (rawParsed !== null && typeof rawParsed === 'object' && !Array.isArray(rawParsed))
+          ? rawParsed as Record<string, unknown>
+          : {};
         const result = await executeTool(toolCall.function.name, toolInput, config.mode, run.id);
         messages.push({ role: 'tool' as const, tool_call_id: toolCall.id, content: result });
         actionsExecuted.push({ tool: toolCall.function.name, input: toolInput, result });
