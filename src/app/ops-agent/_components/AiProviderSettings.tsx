@@ -40,8 +40,8 @@ const PROVIDERS: Record<string, ProviderConfig> = {
   groq: {
     label: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1',
-    defaultModel: 'llama-3.3-70b-versatile',
-    modelPlaceholder: 'llama-3.3-70b-versatile · mixtral-8x7b-32768',
+    defaultModel: 'llama-3.1-8b-instant',
+    modelPlaceholder: 'llama-3.1-8b-instant · llama-3.3-70b-versatile · mixtral-8x7b-32768',
     keyPlaceholder: 'gsk_...',
   },
   deepseek: {
