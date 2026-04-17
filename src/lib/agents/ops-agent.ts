@@ -139,14 +139,21 @@ async function runOpenAILoop(
 ): Promise<LoopResult> {
   const client = new OpenAI({ apiKey, ...(baseUrl ? { baseURL: baseUrl } : {}) });
 
-  const openAITools: OpenAI.Chat.Completions.ChatCompletionTool[] = OPS_AGENT_TOOLS.map((t) => ({
-    type: 'function' as const,
-    function: {
-      name: t.name,
-      description: t.description ?? '',
-      parameters: t.input_schema as Record<string, unknown>,
-    },
-  }));
+  const openAITools: OpenAI.Chat.Completions.ChatCompletionTool[] = OPS_AGENT_TOOLS.map((t) => {
+    // Some providers (Google, MiniMax, etc.) reject empty required arrays — strip them
+    const schema = { ...(t.input_schema as Record<string, unknown>) };
+    if (Array.isArray(schema.required) && (schema.required as unknown[]).length === 0) {
+      delete schema.required;
+    }
+    // Omit empty properties object for cleaner schema
+    if (schema.properties && Object.keys(schema.properties as object).length === 0) {
+      delete schema.properties;
+    }
+    return {
+      type: 'function' as const,
+      function: { name: t.name, description: t.description ?? '', parameters: schema },
+    };
+  });
 
   type OAIMsg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
   const messages: OAIMsg[] = [
