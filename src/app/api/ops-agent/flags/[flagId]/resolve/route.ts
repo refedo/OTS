@@ -27,17 +27,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ fl
 
     const updated = await prisma.opsRiskFlag.update({
       where: { id: flagId },
-      data: { resolvedAt: new Date(), resolvedBy: session.userId },
+      data: { resolvedAt: new Date(), resolvedBy: session.sub },
     });
 
     await systemEventService.log({
       eventType: 'OPS_RISK_FLAG_RESOLVED',
       eventCategory: 'OPS_AGENT',
       severity: 'INFO',
-      userId: session.userId,
+      userId: session.sub,
       entityType: flag.entityType,
       entityId: flag.entityId,
-      summary: `Ops risk flag resolved by ${session.userId}: ${flag.entityLabel}`,
+      summary: `Ops risk flag resolved by ${session.sub}: ${flag.entityLabel}`,
       details: { flagId, severity: flag.severity, module: flag.module },
     });
 

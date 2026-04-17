@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest) {
     const prevMode = existing.mode;
     const updated = await prisma.opsAgentConfig.update({
       where: { id: existing.id },
-      data: { ...parsed.data, updatedBy: session.userId },
+      data: { ...parsed.data, updatedBy: session.sub },
     });
 
     const eventType = parsed.data.mode && parsed.data.mode !== prevMode
@@ -83,8 +83,8 @@ export async function PATCH(req: NextRequest) {
       eventType,
       eventCategory: 'OPS_AGENT',
       severity: 'INFO',
-      userId: session.userId,
-      summary: `Ops Agent config updated by ${session.userId}`,
+      userId: session.sub,
+      summary: `Ops Agent config updated by ${session.sub}`,
       details: { changes: parsed.data, prevMode },
     });
 

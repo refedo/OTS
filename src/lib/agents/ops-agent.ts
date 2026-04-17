@@ -1,14 +1,17 @@
 import type { OpsAgentMode, OpsAgentRun, Prisma } from '@prisma/client';
+import type Anthropic from '@anthropic-ai/sdk';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { systemEventService } from '@/services/system-events.service';
 import { anthropic } from './anthropic-client';
+import { OPS_AGENT_TOOLS } from './ops-agent-tools';
 import { executeTool } from './ops-agent-harness';
 import { parseAgentBrief } from '@/lib/ops-agent/parsers';
 import { dispatchOpsAgentNotifications } from '@/lib/ops-agent/notifier';
-import type { BetaManagedAgentsStreamSessionEvents } from '@anthropic-ai/sdk/resources/beta/sessions/events';
 
 const log = logger.child({ module: 'OpsAgent' });
+
+const OPS_AGENT_MODEL = process.env.OPS_AGENT_MODEL ?? 'claude-opus-4-5-20251101';
 
 export interface OpsAgentThresholds {
   taskStaleDays: number;
@@ -25,10 +28,37 @@ export interface OpsAgentConfigData {
   notifyPush: boolean;
 }
 
-const SYSTEM_PROMPT_INJECTION = (mode: OpsAgentMode, thresholds: OpsAgentThresholds, date: string) =>
-  `Run a full operations sweep for Hexa Steel® today (${date}).
-Call all read tools (get_stale_tasks, get_project_health, get_pipeline_stalls, get_hr_flags, get_project_status, get_recent_system_events), then produce your structured brief.
-Current mode: ${mode}. Thresholds: ${JSON.stringify(thresholds)}.`;
+const SYSTEM_PROMPT = `You are the OTS™ Operations Agent for Hexa Steel®. Your job is to run a structured daily sweep of the ERP system and produce an Ops Brief in JSON format.
+
+Always call ALL six read tools before writing anything. After gathering data, produce a JSON brief wrapped in a \`\`\`json code block with this exact structure:
+{
+  "summary": "One sentence summary of the day's operational health",
+  "earlyWarning": {
+    "red": [{ "label": "entity name", "reason": "why it's red" }],
+    "amber": [{ "label": "entity name", "reason": "why it's amber" }],
+    "green": [{ "label": "entity name", "reason": "why it's green" }]
+  },
+  "modules": {
+    "tasks": { "critical": 0, "stale": 0, "items": [] },
+    "projects": { "atRisk": 0, "items": [] },
+    "hr": { "otPending": 0, "agencyUnreconciled": 0, "items": [] },
+    "pipeline": { "stalled": 0, "items": [] }
+  },
+  "recommendedActions": [
+    { "priority": "HIGH|MEDIUM|LOW", "action": "what to do", "relatedEntity": "optional entity name" }
+  ]
+}`;
+
+const USER_PROMPT = (mode: OpsAgentMode, thresholds: OpsAgentThresholds, date: string) =>
+  `Today is ${date}. Run a full operations sweep for Hexa Steel®.
+
+Mode: ${mode}. Thresholds: task stale after ${thresholds.taskStaleDays} days, project stale after ${thresholds.projectStaleDays} days, OT approval threshold ${thresholds.otApprovalHours} hours.
+
+Call all six read tools, then produce your structured JSON brief. ${
+    mode !== 'READ_ONLY'
+      ? 'You may also use flag_record and create_followup_task for critical items.'
+      : 'Mode is READ_ONLY — do NOT call flag_record or create_followup_task.'
+  }`;
 
 export async function runOpsAgent(
   config: OpsAgentConfigData,
@@ -36,9 +66,8 @@ export async function runOpsAgent(
   triggerType: 'cron' | 'manual' | 'event' = 'manual',
   existingRunId?: string,
 ): Promise<OpsAgentRun> {
-  const agentId = process.env.OTS_OPS_AGENT_ID;
-  if (!agentId) {
-    throw new Error('OTS_OPS_AGENT_ID is not configured');
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY is not configured');
   }
 
   const startedAt = Date.now();
@@ -51,7 +80,7 @@ export async function runOpsAgent(
         data: { triggeredBy, triggerType, mode: config.mode, status: 'RUNNING' },
       });
 
-  log.info({ runId: run.id, mode: config.mode, triggeredBy }, 'Ops Agent run started');
+  log.info({ runId: run.id, mode: config.mode, triggeredBy, model: OPS_AGENT_MODEL }, 'Ops Agent run started');
 
   await systemEventService.log({
     eventType: 'OPS_AGENT_RUN_STARTED',
@@ -64,91 +93,66 @@ export async function runOpsAgent(
   });
 
   try {
-    const environmentId = process.env.OTS_OPS_AGENT_ENVIRONMENT_ID ?? '';
-    const session = await anthropic.beta.sessions.create({ agent: agentId, environment_id: environmentId });
-    log.info({ runId: run.id, sessionId: session.id }, 'Managed agent session created');
-
-    await prisma.opsAgentRun.update({
-      where: { id: run.id },
-      data: { sessionId: session.id },
-    });
-
-    await anthropic.beta.sessions.events.send(session.id, {
-      events: [
-        {
-          type: 'user.message',
-          content: [
-            {
-              type: 'text',
-              text: SYSTEM_PROMPT_INJECTION(config.mode, config.thresholds, date),
-            },
-          ],
-        },
-      ],
-    });
+    const messages: Anthropic.MessageParam[] = [
+      { role: 'user', content: USER_PROMPT(config.mode, config.thresholds, date) },
+    ];
 
     let finalText = '';
     let inputTokens = 0;
     let outputTokens = 0;
     const actionsExecuted: Record<string, unknown>[] = [];
-    const pendingToolCalls = new Map<string, { name: string; input: Record<string, unknown> }>();
     let done = false;
+    let iterations = 0;
 
-    while (!done) {
-      const streamResponse = await anthropic.beta.sessions.events.stream(session.id);
+    while (!done && iterations < 20) {
+      iterations++;
 
-      for await (const event of streamResponse as AsyncIterable<BetaManagedAgentsStreamSessionEvents>) {
-        if (event.type === 'agent.custom_tool_use') {
-          pendingToolCalls.set(event.id, { name: event.name, input: event.input as Record<string, unknown> });
-          log.debug({ runId: run.id, tool: event.name }, 'Tool use event received');
-        } else if (event.type === 'agent.message') {
-          finalText = event.content.map((b) => b.text).join('');
-        } else if (event.type === 'span.model_request_end') {
-          if (event.model_usage) {
-            inputTokens += event.model_usage.input_tokens ?? 0;
-            outputTokens += event.model_usage.output_tokens ?? 0;
-          }
-        } else if (event.type === 'session.status_idle') {
-          if (event.stop_reason.type === 'end_turn') {
-            done = true;
-            break;
-          } else if (event.stop_reason.type === 'requires_action') {
-            const toolResultEvents: Array<{
-              type: 'user.custom_tool_result';
-              custom_tool_use_id: string;
-              content: Array<{ type: 'text'; text: string }>;
-            }> = [];
+      const response = await anthropic.messages.create({
+        model: OPS_AGENT_MODEL,
+        max_tokens: 8192,
+        system: SYSTEM_PROMPT,
+        tools: OPS_AGENT_TOOLS,
+        messages,
+      });
 
-            for (const eventId of event.stop_reason.event_ids) {
-              const toolCall = pendingToolCalls.get(eventId);
-              if (!toolCall) continue;
+      inputTokens += response.usage.input_tokens;
+      outputTokens += response.usage.output_tokens;
 
-              const result = await executeTool(toolCall.name, toolCall.input, config.mode, run.id);
-              toolResultEvents.push({
-                type: 'user.custom_tool_result',
-                custom_tool_use_id: eventId,
-                content: [{ type: 'text', text: result }],
-              });
-              actionsExecuted.push({ tool: toolCall.name, input: toolCall.input, result });
-              pendingToolCalls.delete(eventId);
-            }
+      // Add assistant response to conversation
+      messages.push({ role: 'assistant', content: response.content });
 
-            if (toolResultEvents.length > 0) {
-              await anthropic.beta.sessions.events.send(session.id, {
-                events: toolResultEvents,
-              });
-            }
+      if (response.stop_reason === 'end_turn') {
+        finalText = response.content
+          .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('');
+        done = true;
+      } else if (response.stop_reason === 'tool_use') {
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-            break;
-          } else if (event.stop_reason.type === 'retries_exhausted') {
-            log.warn({ runId: run.id }, 'Agent session retries exhausted');
-            done = true;
-            break;
-          }
-        } else if (event.type === 'session.status_terminated') {
-          done = true;
-          break;
+        for (const block of response.content) {
+          if (block.type !== 'tool_use') continue;
+
+          log.debug({ runId: run.id, tool: block.name }, 'Executing tool');
+          const result = await executeTool(
+            block.name,
+            block.input as Record<string, unknown>,
+            config.mode,
+            run.id,
+          );
+
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: result,
+          });
+          actionsExecuted.push({ tool: block.name, input: block.input, result });
         }
+
+        messages.push({ role: 'user', content: toolResults });
+      } else {
+        // max_tokens or other stop reason — treat as done
+        done = true;
       }
     }
 
@@ -174,8 +178,8 @@ export async function runOpsAgent(
       severity: 'INFO',
       entityType: 'ops_agent_run',
       entityId: run.id,
-      summary: `Ops Agent run completed in ${durationMs}ms — ${inputTokens + outputTokens} tokens`,
-      details: { durationMs, inputTokens, outputTokens, mode: config.mode },
+      summary: `Ops Agent run completed in ${(durationMs / 1000).toFixed(1)}s — ${inputTokens + outputTokens} tokens`,
+      details: { durationMs, inputTokens, outputTokens, mode: config.mode, iterations },
     });
 
     if (config.notifyPush || config.notifyWhatsApp) {
@@ -184,7 +188,7 @@ export async function runOpsAgent(
       });
     }
 
-    log.info({ runId: run.id, durationMs }, 'Ops Agent run completed');
+    log.info({ runId: run.id, durationMs, inputTokens, outputTokens }, 'Ops Agent run completed');
     return completedRun;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

@@ -1,11 +1,12 @@
-export const OPS_AGENT_TOOLS = [
+import type Anthropic from '@anthropic-ai/sdk';
+
+export const OPS_AGENT_TOOLS: Anthropic.Tool[] = [
   {
-    type: 'custom' as const,
     name: 'get_stale_tasks',
     description:
-      'Returns all tasks that are overdue or have had no activity logged past the configured staleness threshold. Groups by severity and assignee. Use this first in every run. Do NOT call this more than once per session.',
+      'Returns all tasks that are overdue or have had no activity past the configured staleness threshold. Groups by severity and assignee. Call this first in every run.',
     input_schema: {
-      type: 'object' as const,
+      type: 'object',
       properties: {
         include_details: {
           type: 'boolean',
@@ -16,40 +17,35 @@ export const OPS_AGENT_TOOLS = [
     },
   },
   {
-    type: 'custom' as const,
     name: 'get_project_health',
     description:
-      'Returns all active projects with their current pipeline stage, days since last progress event, tonnage completion percentage, scheduled delivery date, and days until delivery. Use to identify projects at risk of missing delivery. Do NOT call more than once per session.',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
+      'Returns all active projects with pipeline stage, days since last progress, tonnage completion, scheduled delivery date, and days until delivery. Use to identify projects at risk.',
+    input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    type: 'custom' as const,
     name: 'get_pipeline_stalls',
     description:
-      'Returns PEB pipeline stages (11 stages) where jobs have not advanced past the configured threshold days. Includes job ID, current stage, days stuck, and responsible team. Use alongside get_project_health.',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
+      'Returns pipeline stages where jobs have not advanced past the configured threshold days. Includes job ID, current stage, days stuck, and responsible team.',
+    input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    type: 'custom' as const,
     name: 'get_hr_flags',
     description:
-      'Returns HR issues: overtime requests pending approval past the configured hour threshold, agency slot hours not reconciled for the current month, and headcount gaps on active production jobs.',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
+      'Returns HR issues: overtime requests pending approval past the threshold, agency slot hours not reconciled for the current month, and headcount gaps on active production jobs.',
+    input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    type: 'custom' as const,
     name: 'get_project_status',
     description:
-      'Returns project status tracker issues: projects with no status update past threshold, erection crews deployed with no progress events fired, and stage regressions detected since the last run.',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
+      'Returns project status issues: projects with no status update past threshold, erection crews with no progress events, and stage regressions since the last run.',
+    input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    type: 'custom' as const,
     name: 'get_recent_system_events',
     description:
-      'Returns the last N system events for context. Use to detect patterns such as repeated failures, missing expected events, or unusual activity. Call this last, after all module tools.',
+      'Returns the last N system events for context. Use to detect repeated failures, missing expected events, or unusual activity. Call this last.',
     input_schema: {
-      type: 'object' as const,
+      type: 'object',
       properties: {
         limit: { type: 'number', description: 'Max events to return. Default 50.' },
       },
@@ -57,12 +53,11 @@ export const OPS_AGENT_TOOLS = [
     },
   },
   {
-    type: 'custom' as const,
     name: 'flag_record',
     description:
-      '[LEVEL 2+ ONLY] Sets a risk flag with severity and a note on an OTS entity (task, project, HR request, pipeline stage). Only call this if your current mode is ANNOTATE or FULL_ACTOR. If mode is READ_ONLY, do NOT call this — instead include the recommendation in your brief text only.',
+      '[ANNOTATE/FULL_ACTOR only] Sets a risk flag with severity and a note on an OTS entity. Do NOT call in READ_ONLY mode — include findings in the brief text instead.',
     input_schema: {
-      type: 'object' as const,
+      type: 'object',
       properties: {
         entity_type: { type: 'string', enum: ['task', 'project', 'hr_request', 'pipeline_stage'] },
         entity_id: { type: 'string', description: 'The OTS record ID' },
@@ -75,12 +70,11 @@ export const OPS_AGENT_TOOLS = [
     },
   },
   {
-    type: 'custom' as const,
     name: 'create_followup_task',
     description:
-      '[LEVEL 2+ ONLY] Creates a follow-up task in OTS assigned to the responsible user. Use only when a stale item has a clear owner and action. Only call if mode is ANNOTATE or FULL_ACTOR.',
+      '[ANNOTATE/FULL_ACTOR only] Creates a follow-up task in OTS assigned to the responsible user. Use when a stale item has a clear owner and action.',
     input_schema: {
-      type: 'object' as const,
+      type: 'object',
       properties: {
         title: { type: 'string' },
         description: { type: 'string' },
@@ -93,12 +87,11 @@ export const OPS_AGENT_TOOLS = [
     },
   },
   {
-    type: 'custom' as const,
     name: 'trigger_escalation',
     description:
-      '[LEVEL 3 ONLY] Triggers the approval escalation workflow for a blocked or overdue item. Only call if mode is FULL_ACTOR and the workflow engine is available. Check mode before calling.',
+      '[FULL_ACTOR only] Triggers the approval escalation workflow for a blocked or overdue item. Only call if mode is FULL_ACTOR.',
     input_schema: {
-      type: 'object' as const,
+      type: 'object',
       properties: {
         entity_type: { type: 'string' },
         entity_id: { type: 'string' },
@@ -107,6 +100,6 @@ export const OPS_AGENT_TOOLS = [
       required: ['entity_type', 'entity_id', 'reason'],
     },
   },
-] as const;
+];
 
 export type OpsToolName = (typeof OPS_AGENT_TOOLS)[number]['name'];
