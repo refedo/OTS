@@ -13,6 +13,36 @@ const MIGRATIONS_DIR = join(process.cwd(), 'prisma', 'manual_migrations');
 
 /** Migration files to run in order on startup */
 const STARTUP_MIGRATIONS = [
+  // ── Core HR foundation (Employee, Agency, ManpowerSlot, SystemConfig) ──────
+  'add_hr_foundation.sql',
+  'add_hr_setup.sql',
+  'add_hr_divisions_and_occupations.sql',
+  'add_hr_phase_2_5.sql',
+  'add_attendance_phase_2.sql',
+  'add_hr_phase_3.sql',
+
+  // ── Tasks / conversations ─────────────────────────────────────────────────
+  'add_task_soft_delete.sql',
+  'add_task_conversations.sql',
+  'add_task_message_attachments.sql',
+  'add_task_message_updated_at.sql',
+  'add_standalone_conversations.sql',
+  'add_conversation_last_read.sql',
+
+  // ── System / integrations ─────────────────────────────────────────────────
+  'system_event_summaries.sql',
+  'add_system_settings_missing_columns.sql',
+  'add_integration_toggles.sql',
+  'add_lcr_column_mapping.sql',
+  'add_lcr1_supplier_field.sql',
+  'add_credit_limit_to_thirdparties.sql',
+  'add_is_locked_journal_entries.sql',
+  'github_integration.sql',
+  'widen_attendance_raw_cells.sql',
+  'v17_13_to_v17_15_pending.sql',
+
+  // ── HR features (18.x) ────────────────────────────────────────────────────
+  'add_dolibarr_leaves_sync.sql',
   'add_announcements.sql',
   'add_contracts.sql',
   'add_hr_letters.sql',
@@ -23,6 +53,8 @@ const STARTUP_MIGRATIONS = [
   'add_employee_history.sql',
   'add_loans_custodies.sql',
   'add_manpower_billing.sql',
+
+  // ── Ops Agent (19.x) ─────────────────────────────────────────────────────
   'add_ops_agent_module.sql',
   'add_ops_agent_ai_config.sql',
 ];
