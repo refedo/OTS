@@ -1,5 +1,5 @@
 -- Ops Agent AI config migration (19.0.0)
--- Adds aiProvider, aiModel, aiApiKey columns to ops_agent_config
+-- Adds aiProvider, aiModel, aiApiKey, aiBaseUrl columns to ops_agent_config
 -- Idempotent: uses stored-procedure pattern with information_schema guards
 -- NOTE: END and $$ are on separate lines so the startup migration parser detects the boundary
 
@@ -30,6 +30,14 @@ BEGIN
       AND COLUMN_NAME = 'aiApiKey'
   ) THEN
     ALTER TABLE ops_agent_config ADD COLUMN aiApiKey TEXT NULL;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'ops_agent_config'
+      AND COLUMN_NAME = 'aiBaseUrl'
+  ) THEN
+    ALTER TABLE ops_agent_config ADD COLUMN aiBaseUrl TEXT NULL;
   END IF;
 END
 $$

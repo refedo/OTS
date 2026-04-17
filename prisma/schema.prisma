@@ -5484,6 +5484,7 @@ model OpsAgentConfig {
   aiProvider     String       @default("anthropic")
   aiModel        String       @default("claude-sonnet-4-6")
   aiApiKey       String?      @db.Text
+  aiBaseUrl      String?      @db.Text
   updatedAt      DateTime     @updatedAt
   updatedBy      String?
 

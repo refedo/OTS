@@ -27,6 +27,7 @@ export interface OpsAgentConfigData {
   aiProvider: string;
   aiModel: string;
   aiApiKey: string | null;
+  aiBaseUrl: string | null;
 }
 
 interface LoopResult {
@@ -131,11 +132,12 @@ async function runAnthropicLoop(
 async function runOpenAILoop(
   apiKey: string,
   model: string,
+  baseUrl: string | null,
   config: OpsAgentConfigData,
   run: OpsAgentRun,
   date: string,
 ): Promise<LoopResult> {
-  const client = new OpenAI({ apiKey });
+  const client = new OpenAI({ apiKey, ...(baseUrl ? { baseURL: baseUrl } : {}) });
 
   const openAITools: OpenAI.Chat.Completions.ChatCompletionTool[] = OPS_AGENT_TOOLS.map((t) => ({
     type: 'function' as const,
@@ -238,9 +240,9 @@ export async function runOpsAgent(
   });
 
   try {
-    const loopResult = config.aiProvider === 'openai'
-      ? await runOpenAILoop(apiKey, model, config, run, date)
-      : await runAnthropicLoop(apiKey, model, config, run, date);
+    const loopResult = config.aiProvider === 'anthropic'
+      ? await runAnthropicLoop(apiKey, model, config, run, date)
+      : await runOpenAILoop(apiKey, model, config.aiBaseUrl, config, run, date);
 
     const { finalText, inputTokens, outputTokens, actionsExecuted } = loopResult;
     const brief = parseAgentBrief(finalText);

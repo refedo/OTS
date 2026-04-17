@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       aiProvider: config.aiProvider ?? 'anthropic',
       aiModel: config.aiModel ?? 'claude-sonnet-4-6',
       aiApiKey: config.aiApiKey ?? null,
+      aiBaseUrl: config.aiBaseUrl ?? null,
     };
 
     // Execute in background — run record already exists
