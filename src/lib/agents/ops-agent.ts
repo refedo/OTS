@@ -11,7 +11,7 @@ import { dispatchOpsAgentNotifications } from '@/lib/ops-agent/notifier';
 
 const log = logger.child({ module: 'OpsAgent' });
 
-const OPS_AGENT_MODEL = process.env.OPS_AGENT_MODEL ?? 'claude-opus-4-5-20251101';
+const OPS_AGENT_MODEL = process.env.OPS_AGENT_MODEL ?? 'claude-sonnet-4-6';
 
 export interface OpsAgentThresholds {
   taskStaleDays: number;
