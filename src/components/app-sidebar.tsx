@@ -509,14 +509,14 @@ export function AppSidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen bg-card border-r transition-all duration-300 print:hidden',
+          'fixed left-0 top-0 z-40 h-screen bg-sidebar border-sidebar-border border-r transition-all duration-300 print:hidden',
           collapsed ? 'w-0 overflow-hidden lg:w-16 lg:overflow-visible' : 'w-64',
           'max-lg:shadow-lg'
         )}
       >
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex h-16 items-center justify-between border-b px-4">
+          <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
             {!collapsed && (
               <div className="flex items-center gap-2">
                 {isMounted && companyLogo ? (
@@ -527,10 +527,10 @@ export function AppSidebar() {
                   />
                 ) : (
                   <>
-                    <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-                      <span className="text-primary-foreground font-bold text-sm">HS</span>
+                    <div className="size-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
+                      <span className="text-sidebar-primary-foreground font-bold text-sm">HS</span>
                     </div>
-                    <span className="font-semibold">Hexa Steel</span>
+                    <span className="font-semibold text-sidebar-foreground">Hexa Steel</span>
                   </>
                 )}
               </div>
@@ -570,8 +570,8 @@ export function AppSidebar() {
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors relative',
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground',
                     collapsed && 'justify-center'
                   )}
                   title={collapsed ? item.name : undefined}
@@ -581,7 +581,7 @@ export function AppSidebar() {
                   {isMounted && isNotifications && totalAlertCount > 0 && (
                     <span className={cn(
                       'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold',
-                      isActive ? 'bg-primary-foreground text-primary' : 'bg-red-500 text-white'
+                      isActive ? 'bg-sidebar-primary-foreground text-sidebar-primary' : 'bg-red-500 text-white'
                     )}>
                       {totalAlertCount > 99 ? '99+' : totalAlertCount}
                     </span>
@@ -634,8 +634,8 @@ export function AppSidebar() {
                     className={cn(
                       'flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors relative',
                       hasActiveItem
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                     )}
                     title={section.name}
                   >
@@ -656,8 +656,8 @@ export function AppSidebar() {
                     className={cn(
                       'flex items-center justify-between w-full gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                       hasActiveItem
-                        ? 'text-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        ? 'text-sidebar-foreground font-semibold'
+                        : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -682,7 +682,7 @@ export function AppSidebar() {
                   </button>
 
                   {isExpanded && (
-                    <div className="ml-4 space-y-1 border-l-2 border-muted pl-2">
+                    <div className="ml-4 space-y-1 border-l-2 border-sidebar-border/40 pl-2">
                       {section.items.filter(item => 
                         isLoadingPermissions 
                           ? NAVIGATION_PERMISSIONS[item.href] === null 
@@ -712,8 +712,8 @@ export function AppSidebar() {
                             className={cn(
                               'flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                               isActive
-                                ? 'bg-primary text-primary-foreground font-medium'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium'
+                                : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                             )}
                           >
                             <div className="flex items-center gap-3">
@@ -726,8 +726,8 @@ export function AppSidebar() {
                             {isMounted && badgeCount > 0 && (
                               <span className={cn(
                                 'flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold',
-                                isActive 
-                                  ? 'bg-primary-foreground text-primary' 
+                                isActive
+                                  ? 'bg-sidebar-primary-foreground text-sidebar-primary'
                                   : item.name === 'Delayed Tasks' 
                                     ? 'bg-orange-500 text-white'
                                     : item.name === 'Deadlines'
@@ -748,7 +748,7 @@ export function AppSidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="border-t p-2">
+          <div className="border-t border-sidebar-border p-2">
             {/* User Menu */}
             {!collapsed && (
               <div className="mb-2">
@@ -793,7 +793,7 @@ export function AppSidebar() {
                   }
                 }}
                 variant="ghost"
-                className="w-full justify-center px-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+                className="w-full justify-center px-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                 title="Logout"
               >
                 <LogOut className="size-5 shrink-0" />
@@ -801,8 +801,8 @@ export function AppSidebar() {
             )}
             
             {!collapsed && (
-              <div className="mt-auto p-4 border-t">
-                <p className="text-xs text-muted-foreground text-center">
+              <div className="mt-auto p-4 border-t border-sidebar-border">
+                <p className="text-xs text-sidebar-foreground/40 text-center">
                   Hexa Steel® OTS v{version}
                 </p>
               </div>

@@ -238,7 +238,7 @@ export default function TopBar() {
   };
 
   return (
-    <div className="fixed top-0 right-0 z-50 flex items-center gap-1 p-2 lg:p-3 print:hidden">
+    <div className="fixed top-0 right-0 z-50 flex items-center gap-1 p-2 lg:p-3 print:hidden bg-background/80 backdrop-blur-sm border-b border-border/40">
       <Button
         variant="ghost"
         size="icon"
