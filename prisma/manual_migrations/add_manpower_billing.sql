@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS `ManpowerInvoiceDraft` (
   CONSTRAINT `ManpowerInvoiceDraft_payrollPeriodId_fkey`
     FOREIGN KEY (`payrollPeriodId`) REFERENCES `PayrollPeriod` (`id`),
   CONSTRAINT `ManpowerInvoiceDraft_createdById_fkey`
-    FOREIGN KEY (`createdById`) REFERENCES `User` (`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`createdById`) REFERENCES `User` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `ManpowerInvoiceDraft_updatedById_fkey`
     FOREIGN KEY (`updatedById`) REFERENCES `User` (`id`) ON DELETE SET NULL,
   CONSTRAINT `ManpowerInvoiceDraft_deletedById_fkey`
