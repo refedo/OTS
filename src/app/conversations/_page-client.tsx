@@ -726,7 +726,7 @@ export default function ConversationsPage() {
       if (res.ok) {
         const msg = await res.json();
         setMessages(prev => [...prev, msg]);
-        await loadConversations();
+        await loadConversations(showArchived);
       } else {
         setNewMessage(content);
         setPendingAttachments(attachmentsToSend);
@@ -759,7 +759,7 @@ export default function ConversationsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        await loadConversations();
+        await loadConversations(showArchived);
         if (data.type === 'standalone') {
           setSelectedConversationId(data.conversationId);
           setSelectedTaskId(null);

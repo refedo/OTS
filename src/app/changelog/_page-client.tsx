@@ -23,10 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.1.0',
+    date: 'April 17, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Conversation Status Colors, Archive/Delete & Employee Dashboard Widget',
+    highlights: [
+      'Task-linked conversations now show a color-coded left border and status badge — Completed=green, In Progress=blue, delayed=red, Pending=amber, Waiting for Approval=violet',
+      'Archive and Delete actions added via a hover context menu on each conversation item — persisted per-user in the database',
+      'Employee Self-Service widget on the Dashboard completely redesigned with a gradient hero banner, KPI strip, and 7-tab layout',
+    ],
+    changes: {
+      added: [
+        'Conversation status color coding: left border and status badge on each task-linked conversation item, color-mapped to task status (Completed → emerald, In Progress → blue, delayed/past due → red, Pending → amber, Waiting for Approval → violet)',
+        'Archive conversations: hover any conversation to reveal a ⋮ menu with Archive/Unarchive — archived per-user, persisted via new archivedAt column on conversation_participants and task_conversation_participants',
+        'Delete conversations: standalone discussions can be soft-deleted by their creator via the same context menu',
+        '"Show archived" toggle in the conversations sidebar reveals hidden/archived threads',
+        'dueDate now included in task-conversation API responses — used to detect delayed conversations',
+        'New API endpoints: PATCH /api/conversations/[id]/archive, DELETE /api/conversations/[id], PATCH /api/tasks/[id]/conversation/archive',
+        'Employee Dashboard Widget redesigned with gradient indigo hero banner + KPI strip (assets, loan balance, pending violations, expiring contracts)',
+        'Widget tab: Overview — summary cards for assets, finance, and latest payslip',
+        'Widget tab: Assets — full list of assigned assets with category, code, and assignment date',
+        'Widget tab: Finance — active loans with progress bars showing installment completion + open custodies with outstanding balance',
+        'Widget tab: Payslips — latest 3 approved payroll periods showing basic, allowances, and net pay',
+        'Widget tab: Violations — traffic violations with status badges (Pending/Paid/Deducted) and amounts',
+        'Widget tab: Letters — recent HR letters with letter type and issue date',
+        'Widget tab: Contracts — active contracts with expiry color-coding (red <7d, amber <30d, green)',
+      ],
+      fixed: [
+        'Changelog page entry added for 19.1.0',
+      ],
+      changed: [
+        'DB migration add_conversation_archive_delete.sql: adds archivedAt to both participant tables and deletedAt to conversations table',
+      ],
+    },
+  },
+  {
     version: '19.0.1',
     date: 'April 17, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Asset Management Fixes + Loan/Custody Quick-Create',
     highlights: [
       'Asset tables now created on first deploy — startup migration order fixed',

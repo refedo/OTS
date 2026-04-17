@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { ElementType } from 'react';
 import Link from 'next/link';
 import {
   PackageSearch,
@@ -40,7 +41,7 @@ type SelfServiceData = {
   activeContracts: { id: string; contractNumber: string; title: string; type: string; expiryDate: string | null; status: string }[];
 };
 
-const CATEGORY_ICON: Record<string, React.ElementType> = {
+const CATEGORY_ICON: Record<string, ElementType> = {
   CAR: Car,
   LAPTOP: Laptop,
   SIM_CARD: Smartphone,
