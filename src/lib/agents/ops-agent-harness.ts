@@ -64,16 +64,17 @@ export async function executeTool(
   let url = `${baseUrl}${basePath}${endpoint.path}`;
   let body: string | undefined;
 
+  const safeInput = input ?? {};
   if (endpoint.method === 'GET') {
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(input)) {
+    for (const [k, v] of Object.entries(safeInput)) {
       if (v !== undefined && v !== null) params.set(k, String(v));
     }
     params.set('runId', runId);
     const qs = params.toString();
     if (qs) url += `?${qs}`;
   } else {
-    body = JSON.stringify({ ...input, runId });
+    body = JSON.stringify({ ...safeInput, runId });
   }
 
   try {
