@@ -5481,6 +5481,9 @@ model OpsAgentConfig {
   cronSchedule   String       @default("0 7 * * 0-4")
   notifyWhatsApp Boolean      @default(true)
   notifyPush     Boolean      @default(true)
+  aiProvider     String       @default("anthropic")
+  aiModel        String       @default("claude-sonnet-4-6")
+  aiApiKey       String?      @db.Text
   updatedAt      DateTime     @updatedAt
   updatedBy      String?
 

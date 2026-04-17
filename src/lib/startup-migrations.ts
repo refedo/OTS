@@ -19,6 +19,7 @@ const STARTUP_MIGRATIONS = [
   'add_asset_location.sql',
   'add_asset_sn.sql',
   'add_ops_agent_module.sql',
+  'add_ops_agent_ai_config.sql',
 ];
 
 /**
