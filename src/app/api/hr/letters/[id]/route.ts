@@ -1,9 +1,9 @@
 /**
  * GET    /api/hr/letters/[id]
- * PUT    /api/hr/letters/[id]
+ * PUT    /api/hr/letters/[id]  — only editable while PENDING_CEO or REJECTED
  * DELETE /api/hr/letters/[id]  — soft delete
  *
- * 18.16.0
+ * 19.1.0
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,7 +25,15 @@ const updateSchema = z.object({
     'PROBATION_EVALUATION', 'PERFORMANCE_APPRAISAL', 'CLEARANCE_FORM',
     'SALARY_NON_DISCLOSURE', 'OTHER',
   ]).optional(),
+  language: z.enum(['ARABIC', 'ENGLISH', 'BILINGUAL']).optional(),
 });
+
+const LETTER_INCLUDE = {
+  employee: { select: { id: true, fullNameEn: true, fullNameAr: true, employmentId: true, department: true, occupation: true } },
+  createdBy: { select: { id: true, name: true } },
+  approvedBy: { select: { id: true, name: true } },
+  rejectedBy: { select: { id: true, name: true } },
+} as const;
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -33,10 +41,7 @@ export const GET = withApiContext(async (_req: NextRequest, _session, ctx: Route
   const { id } = await ctx.params;
   const letter = await prisma.hrLetter.findFirst({
     where: { id, deletedAt: null },
-    include: {
-      employee: { select: { id: true, fullNameEn: true, employmentId: true } },
-      createdBy: { select: { id: true, name: true } },
-    },
+    include: LETTER_INCLUDE,
   });
   if (!letter) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(letter);
@@ -44,8 +49,12 @@ export const GET = withApiContext(async (_req: NextRequest, _session, ctx: Route
 
 export const PUT = withApiContext(async (req: NextRequest, session, ctx: RouteParams) => {
   const { id } = await ctx.params;
-  const letter = await prisma.hrLetter.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
+  const letter = await prisma.hrLetter.findFirst({ where: { id, deletedAt: null }, select: { id: true, status: true } });
   if (!letter) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (letter.status === 'APPROVED') {
+    return NextResponse.json({ error: 'Approved letters cannot be edited' }, { status: 422 });
+  }
 
   const body: unknown = await req.json();
   const parsed = updateSchema.safeParse(body);
@@ -64,8 +73,10 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx: RoutePa
         ...(d.issuedAt !== undefined ? { issuedAt: new Date(d.issuedAt) } : {}),
         ...(d.notes !== undefined ? { notes: d.notes } : {}),
         ...(d.letterType !== undefined ? { letterType: d.letterType } : {}),
+        ...(d.language !== undefined ? { language: d.language } : {}),
         updatedById: session!.userId,
       },
+      include: LETTER_INCLUDE,
     });
     return NextResponse.json(updated);
   } catch (error) {
@@ -76,8 +87,12 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx: RoutePa
 
 export const DELETE = withApiContext(async (_req: NextRequest, session, ctx: RouteParams) => {
   const { id } = await ctx.params;
-  const letter = await prisma.hrLetter.findFirst({ where: { id, deletedAt: null }, select: { id: true } });
+  const letter = await prisma.hrLetter.findFirst({ where: { id, deletedAt: null }, select: { id: true, status: true } });
   if (!letter) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (letter.status === 'APPROVED') {
+    return NextResponse.json({ error: 'Approved letters cannot be deleted' }, { status: 422 });
+  }
 
   try {
     await prisma.hrLetter.update({
