@@ -23,10 +23,37 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.1.0',
+    version: '19.2.0',
     date: 'April 17, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'UI Color System Redesign & Typography Standardization',
+    highlights: [
+      'Replaces the fully-grayscale CSS token palette with a vibrant steel-blue brand system — primary becomes blue-600, sidebar switches to deep navy with sky-blue active pills',
+      'Muted/secondary/accent tokens all gain subtle blue chroma so nothing reads as pure grey — white cards lift off the blue-tinted page background',
+      'Heading hierarchy (h1–h4) standardized in @layer base; TopBar gains frosted-glass effect; PWA themeColor updated to match new navy sidebar',
+    ],
+    changes: {
+      added: [
+        'Typography defaults for h1–h4 added to @layer base for consistent heading hierarchy across all pages',
+        'TopBar frosted-glass strip: bg-background/80 backdrop-blur-sm so content scrolls cleanly beneath it',
+        'PWA themeColor updated from default to #1a2744 matching the new deep-navy sidebar',
+      ],
+      fixed: [],
+      changed: [
+        'Primary color updated from near-black gray to blue-600 oklch(0.546 0.245 264)',
+        'Sidebar background switched from white bg-card to deep navy bg-sidebar oklch(0.19 0.06 264) — active nav items render as sky-blue pills; inactive items use blue-tinted muted text',
+        'All muted/secondary/accent tokens gain subtle blue chroma (replacing pure gray) — page background gains a hairline cool tint so white cards lift off the surface',
+        'Table sticky headers use bg-secondary (blue-tinted) instead of bg-slate-100',
+        'Domain hero colors (sky/emerald/violet/amber/rose) are unchanged — only neutral tokens were updated',
+      ],
+    },
+  },
+  {
+    version: '19.1.0',
+    date: 'April 17, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Conversation Status Colors, Archive/Delete & Employee Dashboard Widget',
     highlights: [
       'Task-linked conversations now show a color-coded left border and status badge — Completed=green, In Progress=blue, delayed=red, Pending=amber, Waiting for Approval=violet',
