@@ -7,8 +7,8 @@ import { logger } from '@/lib/logger';
 export const GET = withApiContext(async (_req, session) => {
   try {
     const [perms, user] = await Promise.all([
-      resolveUserPermissions(session!.sub),
-      prisma.user.findUnique({ where: { id: session!.sub }, select: { employeeId: true } }),
+      resolveUserPermissions(session!.userId),
+      prisma.user.findUnique({ where: { id: session!.userId }, select: { employeeId: true } }),
     ]);
 
     const canViewAll = perms.includes('hr.custodies.view') || perms.includes('hr.custodies.manage');
