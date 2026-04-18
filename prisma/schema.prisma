@@ -274,9 +274,10 @@ model User {
   calculatedEosAwards       EndOfServiceAward[] @relation("EndOfServiceCalculatedBy")
   paidEosAwards             EndOfServiceAward[] @relation("EndOfServicePaidBy")
   // 18.10.0 — Loans & Custodies
-  createdLoans    Loan[]    @relation("LoanCreatedBy")
-  updatedLoans    Loan[]    @relation("LoanUpdatedBy")
-  deletedLoans    Loan[]    @relation("LoanDeletedBy")
+  createdLoans         Loan[]         @relation("LoanCreatedBy")
+  updatedLoans         Loan[]         @relation("LoanUpdatedBy")
+  deletedLoans         Loan[]         @relation("LoanDeletedBy")
+  createdLoanPayments  LoanPayment[]  @relation("LoanPaymentCreatedBy")
   createdCustodies Custody[] @relation("CustodyCreatedBy")
   updatedCustodies Custody[] @relation("CustodyUpdatedBy")
   deletedCustodies Custody[] @relation("CustodyDeletedBy")
@@ -4995,8 +4996,29 @@ model Loan {
   deletedBy    User?     @relation("LoanDeletedBy", fields: [deletedById], references: [id])
   deleteReason String?   @db.VarChar(500)
 
+  payments     LoanPayment[] @relation("LoanPayments")
+
   @@index([employeeId, status])
   @@index([deletedAt])
+}
+
+// Individual payment event against a Loan (manual or payroll-deducted).
+model LoanPayment {
+  id          String   @id @default(uuid()) @db.Char(36)
+  loanId      String   @db.Char(36)
+  loan        Loan     @relation("LoanPayments", fields: [loanId], references: [id])
+
+  paymentType String   @default("SCHEDULED") @db.VarChar(20) // SCHEDULED | ADJUSTED
+  amount      Decimal  @db.Decimal(12, 2)
+  paymentDate DateTime @db.Date
+  notes       String?  @db.VarChar(500)
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("LoanPaymentCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([loanId])
+  @@index([paymentDate])
 }
 
 // Employee custody (cash advance / company asset). Finance can set

@@ -7,32 +7,27 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 
 const CURRENT_VERSION = {
   version: pkgVersion,
-  date: 'April 18, 2026',
+  date: 'April 19, 2026',
   type: 'minor' as const,
-  mainTitle: 'UI Color System Redesign & Typography Standardization',
+  mainTitle: 'Employee Widget Fix, Leave Balances, Loan Payments & Attendance Monthly Grid',
   highlights: [
-    'Steel-blue brand system replaces the fully-grayscale palette — primary is now blue-600, sidebar is deep navy with sky-blue active pills.',
-    'Conversation status colors: task-linked conversations show a color-coded left border (Completed=green, In Progress=blue, Delayed=red, Pending=amber, Waiting=violet).',
-    'Archive and Delete actions added to conversations via a hover context menu — persisted per-user in the database.',
-    'Employee Self-Service widget on the Dashboard completely redesigned with gradient hero banner, KPI strip, and 7-tab layout.',
+    'Employee Self-Service widget now linkable to any user via Edit User — CEO and all staff can see their HR profile on the dashboard.',
+    'Leave balance tracker added to the dashboard widget (Leaves tab) and auto-computed per leave type for the current year.',
+    'Loan payments can now be recorded manually — choose Scheduled (standard installment) or Adjusted (custom amount); loan auto-completes when fully paid.',
+    'Attendance page gains a Monthly Grid tab: employees as rows, days as columns, color-coded by status (Present/Absent/Vacation/Sick/Weekend/Holiday).',
   ],
   changes: {
     added: [
-      'Conversation status color coding: left border and status badge on each task-linked conversation item',
-      'Archive conversations: hover any conversation to reveal Archive/Unarchive via context menu',
-      'Delete conversations: standalone discussions can be soft-deleted by their creator',
-      '"Show archived" toggle in the conversations sidebar reveals hidden threads',
-      'Employee Dashboard Widget redesigned: Assets, Finance (loans+custodies), Payslips, Violations, Letters, Contracts tabs',
-      'Typography defaults for h1–h4 added to @layer base',
-      'TopBar frosted-glass strip: bg-background/80 backdrop-blur-sm',
+      'Employee Self-Service widget: link any user to an employee record via Users → Edit User → Linked Employee Record field',
+      'Dashboard widget Leaves tab: shows leave balance per type (available, accrued, used) with a progress bar',
+      'Loan payments: Record Payment dialog on the Loans page — Scheduled (uses installmentAmount) or Adjusted (custom SAR) with auto-complete when fully paid',
+      'POST /api/hr/loans/[id]/payments and GET /api/hr/loans/[id]/payments endpoints',
+      'Attendance Monthly Grid tab at /hr/attendance — month/year navigator, employees as rows, days 1–31 as columns, color-coded abbreviations (P/AP/A/AV/SL/WE/PH), summary columns (Present/Absent/Vacation)',
+      'GET /api/hr/attendance/grid?year=YYYY&month=MM endpoint',
     ],
-    fixed: [
-      'ecosystem.config.js: explicit cwd so PM2 always runs from the correct app directory',
-    ],
+    fixed: [],
     changed: [
-      'Primary color updated to blue-600 oklch(0.546 0.245 264)',
-      'Sidebar background switched to deep navy bg-sidebar oklch(0.19 0.06 264)',
-      'All muted/secondary/accent tokens gain subtle blue chroma',
+      'User edit form now includes an employee picker so any user account can be linked to an HR employee record',
     ],
   },
 };

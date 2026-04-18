@@ -23,10 +23,37 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.3.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Employee Widget Fix, Leave Balances, Loan Payments & Attendance Monthly Grid',
+    highlights: [
+      'Employee Self-Service widget now linkable to any user via Edit User — CEO and all staff can see their HR profile on the dashboard',
+      'Leave balance tracker added to the dashboard widget with a new Leaves tab showing available/accrued/used days per leave type',
+      'Loan payments can now be recorded manually as Scheduled (standard installment) or Adjusted (custom amount)',
+      'Attendance page gains a Monthly Grid tab with employees as rows and days as columns, color-coded by attendance status',
+    ],
+    changes: {
+      added: [
+        'Employee Self-Service widget: link any user to an employee record via Users → Edit User → Linked Employee Record field',
+        'Dashboard widget Leaves tab: shows leave balance per type (available days, accrued, used) with progress bar and link to /hr/leaves',
+        'Loan payments: Record Payment dialog on the Loans page — Scheduled (uses installmentAmount) or Adjusted (custom SAR) with auto-complete when fully paid',
+        'POST /api/hr/loans/[id]/payments and GET /api/hr/loans/[id]/payments API endpoints; LoanPayment model in schema',
+        'Attendance Monthly Grid tab at /hr/attendance — month/year navigator, employees as rows, days 1–31 as columns, color-coded abbreviations (P/AP/A/AV/SL/WE/PH), summary totals per row',
+        'GET /api/hr/attendance/grid?year=YYYY&month=MM API endpoint',
+      ],
+      fixed: [],
+      changed: [
+        'User edit form now includes an employee picker (Linked Employee Record) so any user account can be linked to an HR employee record',
+      ],
+    },
+  },
+  {
     version: '19.2.0',
     date: 'April 17, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'UI Color System Redesign & Typography Standardization',
     highlights: [
       'Replaces the fully-grayscale CSS token palette with a vibrant steel-blue brand system — primary becomes blue-600, sidebar switches to deep navy with sky-blue active pills',

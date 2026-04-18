@@ -42,8 +42,8 @@ export default async function EditUserPage({ params }: { params: { id: string } 
     notFound();
   }
 
-  // Fetch roles, departments, and potential managers for the form
-  const [roles, departments, managers] = await Promise.all([
+  // Fetch roles, departments, potential managers, and employees for the form
+  const [roles, departments, managers, employees] = await Promise.all([
     db.role.findMany({
       orderBy: { name: 'asc' },
     }),
@@ -54,6 +54,11 @@ export default async function EditUserPage({ params }: { params: { id: string } 
       where: { status: 'active' },
       select: { id: true, name: true, role: { select: { name: true } } },
       orderBy: { name: 'asc' },
+    }),
+    db.employee.findMany({
+      where: { deletedAt: null, status: 'ACTIVE' },
+      select: { id: true, fullNameEn: true, employmentId: true, occupation: true },
+      orderBy: { fullNameEn: 'asc' },
     }),
   ]);
 
@@ -84,7 +89,7 @@ export default async function EditUserPage({ params }: { params: { id: string } 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <UserEditForm user={user} roles={roles} departments={departments} managers={managers} />
+            <UserEditForm user={user} roles={roles} departments={departments} managers={managers} employees={employees} />
           </CardContent>
         </Card>
       </div>

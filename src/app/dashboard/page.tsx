@@ -4,6 +4,7 @@ import { Sparkles } from 'lucide-react';
 import WidgetContainer from '@/components/dashboard/WidgetContainer';
 import EmployeeSelfService from '@/components/dashboard/EmployeeSelfService';
 import prisma from '@/lib/db';
+import { computeLeaveBalance } from '@/lib/services/hr/leave-balance-calculator';
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
     trafficViolations: { id: string; violationDate: string; violationType: string; violationAmount: number; status: string; deductFromPayroll: boolean }[];
     recentLetters: { id: string; letterNumber: string; letterType: string; subject: string; issuedAt: string }[];
     activeContracts: { id: string; contractNumber: string; title: string; type: string; expiryDate: string | null; status: string }[];
+    leaveBalances: { leaveTypeId: string; leaveTypeName: string; available: number; accrued: number; used: number }[];
   };
 
   let selfService: SelfServiceData | null = null;
@@ -42,7 +44,8 @@ export default async function DashboardPage() {
       if (user?.employeeId) {
         const empId = user.employeeId;
 
-        const [employee, assignments, loans, custodies, violations, letters, contracts, payrollLines] = await Promise.all([
+        const currentYear = new Date().getFullYear();
+        const [employee, assignments, loans, custodies, violations, letters, contracts, leaveTypes, payrollLines] = await Promise.all([
           prisma.employee.findUnique({
             where: { id: empId },
             select: { id: true, fullNameEn: true, occupation: true },
@@ -82,6 +85,11 @@ export default async function DashboardPage() {
             where: { employeeId: empId, status: 'ACTIVE', deletedAt: null },
             select: { id: true, contractNumber: true, title: true, type: true, expiryDate: true, status: true },
             orderBy: { expiryDate: 'asc' },
+          }).catch(() => []),
+          // Leave types for balance computation
+          prisma.leaveType.findMany({
+            where: { archivedAt: null },
+            orderBy: { displayOrder: 'asc' },
           }).catch(() => []),
           // Latest 3 approved payroll periods for this employee
           prisma.payrollLine.findMany({
@@ -163,7 +171,29 @@ export default async function DashboardPage() {
               expiryDate: c.expiryDate ? c.expiryDate.toISOString().slice(0, 10) : null,
               status: c.status,
             })),
+            leaveBalances: [],
           };
+
+          // Compute leave balances (best-effort, non-blocking)
+          if (leaveTypes.length > 0) {
+            const balanceResults = await Promise.allSettled(
+              leaveTypes.map(lt => computeLeaveBalance(empId, lt.id, currentYear)),
+            );
+            selfService.leaveBalances = leaveTypes
+              .map((lt, i) => {
+                const result = balanceResults[i];
+                if (result.status !== 'fulfilled') return null;
+                const snap = result.value;
+                return {
+                  leaveTypeId: lt.id,
+                  leaveTypeName: lt.nameEn,
+                  available: snap.available,
+                  accrued: snap.accruedYtd,
+                  used: snap.usedYtd,
+                };
+              })
+              .filter((b): b is NonNullable<typeof b> => b !== null && (b.available > 0 || b.accrued > 0 || b.used > 0));
+          }
         }
       }
     } catch {
