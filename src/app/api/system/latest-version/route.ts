@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
-import { APP_VERSION } from '@/lib/version';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { version: pkgVersion } = require('../../../../../package.json') as { version: string };
 
 const CURRENT_VERSION = {
-  ...APP_VERSION,
+  version: pkgVersion,
+  date: 'April 18, 2026',
+  type: 'minor' as const,
   mainTitle: 'UI Color System Redesign & Typography Standardization',
   highlights: [
     'Steel-blue brand system replaces the fully-grayscale palette — primary is now blue-600, sidebar is deep navy with sky-blue active pills.',
