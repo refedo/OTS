@@ -163,7 +163,47 @@ function CollapsibleSection({
   );
 }
 
-function EmployeeOfMonthCard({ emp, month, year }: { emp: EmployeeRow; month: number; year: string | number }) {
+function RunnerUpRow({
+  place,
+  emp,
+}: {
+  place: 2 | 3;
+  emp: EmployeeRow;
+}) {
+  const totalHours = emp.summary.totalRegularHours + emp.summary.totalOvertimeHours;
+  const medal = place === 2
+    ? { icon: '🥈', label: '2nd Place', bg: 'bg-slate-100 border-slate-200', text: 'text-slate-600', sub: 'text-slate-400' }
+    : { icon: '🥉', label: '3rd Place', bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', sub: 'text-orange-400' };
+
+  return (
+    <div className={cn('flex items-center gap-3 rounded-xl border px-4 py-2.5', medal.bg)}>
+      <span className="text-lg leading-none">{medal.icon}</span>
+      <div className="flex-1 min-w-0">
+        <Link href={`/hr/employees/${emp.id}`} className="group">
+          <span className={cn('text-sm font-semibold truncate block group-hover:underline', medal.text)}>
+            {emp.fullNameEn}
+          </span>
+        </Link>
+        <span className={cn('text-[10px]', medal.sub)}>
+          #{emp.employmentId}{emp.occupation ? ` · ${emp.occupation}` : ''}{emp.section ? ` · ${emp.section}` : ''}
+        </span>
+      </div>
+      <div className="text-right shrink-0">
+        <span className={cn('text-sm font-bold', medal.text)}>{fmtH(totalHours)}h</span>
+        {emp.summary.totalOvertimeHours > 0 && (
+          <span className={cn('block text-[10px]', medal.sub)}>+{fmtH(emp.summary.totalOvertimeHours)}h OT</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmployeeOfMonthCard({ emp, runners, month, year }: {
+  emp: EmployeeRow;
+  runners: EmployeeRow[];
+  month: number;
+  year: string | number;
+}) {
   const totalHours = emp.summary.totalRegularHours + emp.summary.totalOvertimeHours;
   const totalLeaves = emp.summary.vacation + emp.summary.sick + emp.summary.absentWithPermission;
 
@@ -182,7 +222,7 @@ function EmployeeOfMonthCard({ emp, month, year }: { emp: EmployeeRow; month: nu
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
-              Employee of the Month
+              🥇 Employee of the Month
             </span>
             <span className="text-[10px] text-amber-500 font-medium">
               · {MONTH_NAMES[month - 1]} {year}
@@ -244,6 +284,15 @@ function EmployeeOfMonthCard({ emp, month, year }: { emp: EmployeeRow; month: nu
         </div>
       </div>
 
+      {/* Runner-up rows */}
+      {runners.length > 0 && (
+        <div className="relative z-10 px-5 pb-4 space-y-2">
+          {runners.map((r, i) => (
+            <RunnerUpRow key={r.id} place={(i + 2) as 2 | 3} emp={r} />
+          ))}
+        </div>
+      )}
+
       {/* Bottom ribbon */}
       <div className="relative z-10 px-5 py-2 bg-amber-100/60 border-t border-amber-200 flex items-center gap-2 text-[10px] text-amber-700 font-medium">
         <Trophy className="h-3 w-3" />
@@ -259,14 +308,14 @@ function GridTable<T extends { id: string; days: Record<number, DayData>; summar
   year,
   month,
   renderLabel,
-  highlightId,
+  highlights,
 }: {
   rows: T[];
   days: number[];
   year: number;
   month: number;
   renderLabel: (row: T) => React.ReactNode;
-  highlightId?: string;
+  highlights?: Map<string, 1 | 2 | 3>;
 }) {
   return (
     <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
@@ -298,15 +347,21 @@ function GridTable<T extends { id: string; days: Record<number, DayData>; summar
           </thead>
           <tbody>
             {rows.map((row, idx) => {
-              const isWinner = highlightId !== undefined && row.id === highlightId;
+              const rank = highlights?.get(row.id);
               return (
               <tr key={row.id} className={cn(
                 'border-b last:border-0 transition-colors',
-                isWinner
-                  ? 'bg-amber-50/70 hover:bg-amber-100/60'
-                  : cn('hover:bg-blue-50/30', idx % 2 === 1 && 'bg-slate-50/50'),
+                rank === 1 ? 'bg-amber-50/70 hover:bg-amber-100/60' :
+                rank === 2 ? 'bg-slate-100/60 hover:bg-slate-200/50' :
+                rank === 3 ? 'bg-orange-50/50 hover:bg-orange-100/40' :
+                cn('hover:bg-blue-50/30', idx % 2 === 1 && 'bg-slate-50/50'),
               )}>
-                <td className={cn('sticky left-0 z-10 bg-inherit px-3 py-1.5 border-r', isWinner && 'border-l-2 border-l-amber-400')}>
+                <td className={cn(
+                  'sticky left-0 z-10 bg-inherit px-3 py-1.5 border-r',
+                  rank === 1 && 'border-l-2 border-l-amber-400',
+                  rank === 2 && 'border-l-2 border-l-slate-400',
+                  rank === 3 && 'border-l-2 border-l-orange-400',
+                )}>
                   {renderLabel(row)}
                 </td>
                 {days.map(d => {
@@ -387,24 +442,21 @@ export function AttendanceMonthlyGrid() {
 
   const days = data ? Array.from({ length: data.daysInMonth }, (_, i) => i + 1) : [];
 
-  const employeeOfMonth = useMemo<EmployeeRow | null>(() => {
-    if (!data || data.employees.length === 0) return null;
-    // Must have zero unexcused absences
+  const topEmployees = useMemo<EmployeeRow[]>(() => {
+    if (!data || data.employees.length === 0) return [];
     const eligible = data.employees.filter(e => e.summary.absentNoPermission === 0);
-    if (eligible.length === 0) return null;
-    // Highest total hours (regular + overtime) wins; break ties by fewest total leave days
-    return eligible.reduce((best, e) => {
-      const bestHours = best.summary.totalRegularHours + best.summary.totalOvertimeHours;
-      const eHours    = e.summary.totalRegularHours   + e.summary.totalOvertimeHours;
-      if (eHours > bestHours) return e;
-      if (eHours === bestHours) {
-        const bestLeave = best.summary.vacation + best.summary.sick + best.summary.absentWithPermission;
-        const eLeave    = e.summary.vacation    + e.summary.sick    + e.summary.absentWithPermission;
-        return eLeave < bestLeave ? e : best;
-      }
-      return best;
-    });
+    if (eligible.length === 0) return [];
+    return [...eligible].sort((a, b) => {
+      const aHours = a.summary.totalRegularHours + a.summary.totalOvertimeHours;
+      const bHours = b.summary.totalRegularHours + b.summary.totalOvertimeHours;
+      if (bHours !== aHours) return bHours - aHours;
+      const aLeave = a.summary.vacation + a.summary.sick + a.summary.absentWithPermission;
+      const bLeave = b.summary.vacation + b.summary.sick + b.summary.absentWithPermission;
+      return aLeave - bLeave;
+    }).slice(0, 3);
   }, [data]);
+
+  const employeeOfMonth = topEmployees[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -567,7 +619,7 @@ export function AttendanceMonthlyGrid() {
                 </span>
               }
             >
-              <EmployeeOfMonthCard emp={employeeOfMonth} month={month} year={year} />
+              <EmployeeOfMonthCard emp={employeeOfMonth} runners={topEmployees.slice(1)} month={month} year={year} />
             </CollapsibleSection>
           )}
 
@@ -592,20 +644,22 @@ export function AttendanceMonthlyGrid() {
                   days={days}
                   year={year}
                   month={month}
-                  highlightId={employeeOfMonth?.id}
-                  renderLabel={(emp) => (
-                    <Link href={`/hr/employees/${emp.id}`} className="hover:underline flex items-center gap-1.5">
-                      {emp.id === employeeOfMonth?.id && (
-                        <Trophy className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                      )}
-                      <div>
-                        <div className="font-medium text-slate-800 truncate max-w-[140px]">
-                          {showAr && emp.fullNameAr ? emp.fullNameAr : emp.fullNameEn}
+                  highlights={new Map(topEmployees.map((e, i) => [e.id, (i + 1) as 1 | 2 | 3]))}
+                  renderLabel={(emp) => {
+                    const rank = topEmployees.findIndex(e => e.id === emp.id) + 1;
+                    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
+                    return (
+                      <Link href={`/hr/employees/${emp.id}`} className="hover:underline flex items-center gap-1.5">
+                        {medal && <span className="text-xs leading-none flex-shrink-0">{medal}</span>}
+                        <div>
+                          <div className="font-medium text-slate-800 truncate max-w-[130px]">
+                            {showAr && emp.fullNameAr ? emp.fullNameAr : emp.fullNameEn}
+                          </div>
+                          <div className="text-[10px] text-slate-400">{emp.employmentId}{emp.section ? ` · ${emp.section}` : ''}</div>
                         </div>
-                        <div className="text-[10px] text-slate-400">{emp.employmentId}{emp.section ? ` · ${emp.section}` : ''}</div>
-                      </div>
-                    </Link>
-                  )}
+                      </Link>
+                    );
+                  }}
                 />
               </div>
             </CollapsibleSection>
