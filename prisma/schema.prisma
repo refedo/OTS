@@ -4865,13 +4865,15 @@ model PayrollLine {
   overtimePay Decimal @default(0) @db.Decimal(12, 2)
 
   // Deductions
-  unpaidLeaveDeduction Decimal @default(0) @db.Decimal(12, 2)
-  absenceDeduction     Decimal @default(0) @db.Decimal(12, 2)
-  gosiEmployee         Decimal @default(0) @db.Decimal(12, 2)
-  gosiEmployer         Decimal @default(0) @db.Decimal(12, 2)
-  loanDeduction        Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of active loan installments
-  custodyDeduction     Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of custody deduction amounts
-  otherDeductions      Decimal @default(0) @db.Decimal(12, 2)
+  unpaidLeaveDeduction              Decimal @default(0) @db.Decimal(12, 2)
+  absenceDeduction                  Decimal @default(0) @db.Decimal(12, 2)
+  absenceWithPermissionDeduction    Decimal @default(0) @db.Decimal(12, 2) // 19.2.1 — absence with permission × configurable multiplier
+  gosiEmployee                      Decimal @default(0) @db.Decimal(12, 2)
+  gosiEmployer                      Decimal @default(0) @db.Decimal(12, 2)
+  loanDeduction                     Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of active loan installments
+  custodyDeduction                  Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of custody deduction amounts
+  violationDeduction                Decimal @default(0) @db.Decimal(12, 2) // 19.2.1 — traffic violations flagged for payroll deduction
+  otherDeductions                   Decimal @default(0) @db.Decimal(12, 2)
 
   // Additions
   bonuses        Decimal @default(0) @db.Decimal(12, 2)

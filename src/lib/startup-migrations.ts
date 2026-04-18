@@ -61,6 +61,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Letters enhancements (19.1.0) ─────────────────────────────────────────
   'add_hr_letter_enhancements.sql',
+
+  // ── Payroll leave/violation deductions (19.2.1) ───────────────────────────
+  'add_payroll_leave_violation_deductions.sql',
 ];
 
 /**

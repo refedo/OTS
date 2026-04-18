@@ -12,6 +12,8 @@ export const SYSTEM_CONFIG_KEYS = {
   payrollGosiEmployerRate: 'payroll.gosiEmployerRate',
   payrollOvertimeMultiplier: 'payroll.overtimeMultiplier',
   payrollWpsBankCode: 'payroll.wpsBankCode',
+  payrollAbsenceWithPermissionMultiplier: 'payroll.absenceWithPermissionMultiplier',
+  payrollAbsenceWithoutPermissionMultiplier: 'payroll.absenceWithoutPermissionMultiplier',
   leavesApprovalChain: 'leaves.approvalChain',
   leavesAutoApproveUnderDays: 'leaves.autoApproveUnderDays',
 } as const;
@@ -25,6 +27,8 @@ export type PayrollSettings = {
   gosiEmployerRate: number;
   overtimeMultiplier: number;
   wpsBankCode: string;
+  absenceWithPermissionMultiplier: number;
+  absenceWithoutPermissionMultiplier: number;
 };
 
 export type LeavesSettings = {
@@ -38,6 +42,8 @@ const DEFAULT_PAYROLL_SETTINGS: PayrollSettings = {
   gosiEmployerRate: 0.12,
   overtimeMultiplier: 1.5,
   wpsBankCode: 'ALINMA',
+  absenceWithPermissionMultiplier: 1.0,
+  absenceWithoutPermissionMultiplier: 2.0,
 };
 
 const DEFAULT_LEAVES_SETTINGS: LeavesSettings = {
@@ -59,12 +65,14 @@ async function writeRaw(key: string, value: string, userId: string | null): Prom
 }
 
 export async function getPayrollSettings(): Promise<PayrollSettings> {
-  const [basis, gosiEmp, gosiEmpr, otMult, bank] = await Promise.all([
+  const [basis, gosiEmp, gosiEmpr, otMult, bank, absWithPerm, absWithoutPerm] = await Promise.all([
     readRaw(SYSTEM_CONFIG_KEYS.payrollDailyRateBasis),
     readRaw(SYSTEM_CONFIG_KEYS.payrollGosiEmployeeRate),
     readRaw(SYSTEM_CONFIG_KEYS.payrollGosiEmployerRate),
     readRaw(SYSTEM_CONFIG_KEYS.payrollOvertimeMultiplier),
     readRaw(SYSTEM_CONFIG_KEYS.payrollWpsBankCode),
+    readRaw(SYSTEM_CONFIG_KEYS.payrollAbsenceWithPermissionMultiplier),
+    readRaw(SYSTEM_CONFIG_KEYS.payrollAbsenceWithoutPermissionMultiplier),
   ]);
   return {
     dailyRateBasis: (basis as DailyRateBasis | null) ?? DEFAULT_PAYROLL_SETTINGS.dailyRateBasis,
@@ -72,6 +80,8 @@ export async function getPayrollSettings(): Promise<PayrollSettings> {
     gosiEmployerRate: gosiEmpr ? parseFloat(gosiEmpr) : DEFAULT_PAYROLL_SETTINGS.gosiEmployerRate,
     overtimeMultiplier: otMult ? parseFloat(otMult) : DEFAULT_PAYROLL_SETTINGS.overtimeMultiplier,
     wpsBankCode: bank ?? DEFAULT_PAYROLL_SETTINGS.wpsBankCode,
+    absenceWithPermissionMultiplier: absWithPerm ? parseFloat(absWithPerm) : DEFAULT_PAYROLL_SETTINGS.absenceWithPermissionMultiplier,
+    absenceWithoutPermissionMultiplier: absWithoutPerm ? parseFloat(absWithoutPerm) : DEFAULT_PAYROLL_SETTINGS.absenceWithoutPermissionMultiplier,
   };
 }
 
@@ -90,6 +100,12 @@ export async function savePayrollSettings(patch: Partial<PayrollSettings>, userI
   }
   if (patch.wpsBankCode !== undefined) {
     await writeRaw(SYSTEM_CONFIG_KEYS.payrollWpsBankCode, patch.wpsBankCode, userId);
+  }
+  if (patch.absenceWithPermissionMultiplier !== undefined) {
+    await writeRaw(SYSTEM_CONFIG_KEYS.payrollAbsenceWithPermissionMultiplier, String(patch.absenceWithPermissionMultiplier), userId);
+  }
+  if (patch.absenceWithoutPermissionMultiplier !== undefined) {
+    await writeRaw(SYSTEM_CONFIG_KEYS.payrollAbsenceWithoutPermissionMultiplier, String(patch.absenceWithoutPermissionMultiplier), userId);
   }
   return getPayrollSettings();
 }
