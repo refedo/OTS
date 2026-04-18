@@ -24,64 +24,54 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     redirect('/login');
   }
 
-  // Get user permissions
-  const userPermissions = await getCurrentUserPermissions();
+  const verifiedSession = session!;
 
-  // Fetch tasks
-  const response = await fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/tasks`, {
-    headers: {
-      Cookie: `${cookieName}=${token}`,
-    },
-    cache: 'no-store',
-  });
+  // Run all data fetches in parallel
+  const [userPermissions, tasksResponse, users, projects, buildings, departments, userPrefs] = await Promise.all([
+    getCurrentUserPermissions(),
+    fetch(`${process.env.APP_URL || 'http://localhost:3000'}/api/tasks`, {
+      headers: { Cookie: `${cookieName}=${token}` },
+      cache: 'no-store',
+    }),
+    prisma.user.findMany({
+      where: { status: 'active' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        position: true,
+        departmentId: true,
+        department: { select: { id: true, name: true } },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.project.findMany({
+      where: { status: { in: ['Draft', 'Active'] } },
+      select: { id: true, projectNumber: true, name: true },
+      orderBy: { projectNumber: 'asc' },
+    }),
+    prisma.building.findMany({
+      select: { id: true, designation: true, name: true, projectId: true },
+      orderBy: { designation: 'asc' },
+    }),
+    prisma.department.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.user.findUnique({
+      where: { id: verifiedSession.sub },
+      select: { customPermissions: true },
+    }),
+  ]);
 
-  const tasks = response.ok ? await response.json() : [];
-
-  // Fetch all users for assignment dropdown with department info
-  const users = await prisma.user.findMany({
-    where: { status: 'active' },
-    select: { 
-      id: true, 
-      name: true, 
-      email: true, 
-      position: true,
-      departmentId: true,
-      department: { select: { id: true, name: true } }
-    },
-    orderBy: { name: 'asc' },
-  });
-
-  // Fetch all projects
-  const projects = await prisma.project.findMany({
-    where: { status: { in: ['Draft', 'Active'] } },
-    select: { id: true, projectNumber: true, name: true },
-    orderBy: { projectNumber: 'asc' },
-  });
-
-  // Fetch all buildings with projectId for filtering
-  const buildings = await prisma.building.findMany({
-    select: { id: true, designation: true, name: true, projectId: true },
-    orderBy: { designation: 'asc' },
-  });
-
-  // Fetch all departments
-  const departments = await prisma.department.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  });
-
-  // Read server-side tips dismissed state so dismissal persists across devices
-  const userPrefs = await prisma.user.findUnique({
-    where: { id: session.sub },
-    select: { customPermissions: true },
-  });
+  const tasks = tasksResponse.ok ? await tasksResponse.json() : [];
   const perms = (userPrefs?.customPermissions as Record<string, unknown>) ?? {};
   const tipsDismissed = perms['tipsDismissed_tasks-new-features'] === true;
 
   return (
     <TasksClient
       initialTasks={tasks}
-      userId={session.sub}
+      userId={verifiedSession.sub}
       allUsers={users}
       allProjects={projects}
       allBuildings={buildings}

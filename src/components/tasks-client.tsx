@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -125,6 +125,98 @@ type TasksClientProps = {
   initialProjectFilter?: string;
   tipsDismissed?: boolean;
 };
+
+function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: { id: string; name: string }[];
+  placeholder: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return options;
+    const q = query.toLowerCase();
+    return options.filter(o => o.name.toLowerCase().includes(q));
+  }, [options, query]);
+
+  const selected = options.find(o => o.id === value);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className={cn('relative', className)}>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setQuery(''); }}
+        className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none flex items-center gap-1.5 min-w-[130px] max-w-[180px] truncate"
+      >
+        <span className="truncate flex-1 text-left">{selected ? selected.name : placeholder}</span>
+        <ChevronDown className="size-3 shrink-0 text-slate-400" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 w-56 rounded-lg border bg-white shadow-lg">
+          <div className="p-2 border-b">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full h-7 px-2 text-sm border rounded outline-none focus:ring-1 focus:ring-sky-500"
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto py-1">
+            <button
+              type="button"
+              className={cn(
+                'w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100',
+                !value && 'font-medium text-sky-600'
+              )}
+              onClick={() => { onChange(''); setOpen(false); setQuery(''); }}
+            >
+              {placeholder}
+            </button>
+            {filtered.map(o => (
+              <button
+                key={o.id}
+                type="button"
+                className={cn(
+                  'w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100',
+                  value === o.id && 'font-medium text-sky-600 bg-sky-50'
+                )}
+                onClick={() => { onChange(o.id); setOpen(false); setQuery(''); }}
+              >
+                {o.name}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-xs text-slate-400">No results</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBuildings, allDepartments, userPermissions, filterMyTasks = false, filterRequesterTasks = false, initialProjectFilter, tipsDismissed = false }: TasksClientProps) {
   const router = useRouter();
@@ -1499,26 +1591,18 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   <option key={dept.id} value={dept.id}>{dept.name}</option>
                 ))}
               </select>
-              <select
+              <SearchableSelect
                 value={assignedToFilter}
-                onChange={(e) => setAssignedToFilter(e.target.value)}
-                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
-              >
-                <option value="">All Assignees</option>
-                {allUsers.map((user) => (
-                  <option key={user.id} value={user.id}>{user.name}</option>
-                ))}
-              </select>
-              <select
+                onChange={setAssignedToFilter}
+                options={allUsers}
+                placeholder="All Assignees"
+              />
+              <SearchableSelect
                 value={requesterFilter}
-                onChange={(e) => setRequesterFilter(e.target.value)}
-                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
-              >
-                <option value="">All Requesters</option>
-                {allUsers.map((user) => (
-                  <option key={user.id} value={user.id}>{user.name}</option>
-                ))}
-              </select>
+                onChange={setRequesterFilter}
+                options={allUsers}
+                placeholder="All Requesters"
+              />
               <select
                 value={activityFilter}
                 onChange={(e) => { setActivityFilter(e.target.value); setSubActivityFilter(''); }}

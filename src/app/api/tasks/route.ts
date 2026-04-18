@@ -165,56 +165,28 @@ export async function GET(req: Request) {
       department: {
         select: { id: true, name: true },
       },
+      completedBy: {
+        select: { id: true, name: true, email: true, position: true },
+      },
+      approvedBy: {
+        select: { id: true, name: true, email: true, position: true },
+      },
+      _count: {
+        select: { attachments: true, messages: true },
+      },
     },
   });
 
-  // Try to add attachment and message counts
-  try {
-    const taskCounts = await prisma.task.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        _count: { select: { attachments: true, messages: true } },
-      },
-    });
-    tasks = tasks.map(task => {
-      const countData = taskCounts.find(t => t.id === task.id);
-      return { ...task, _count: { attachments: countData?._count?.attachments ?? 0, messages: countData?._count?.messages ?? 0 } };
-    });
-  } catch {
-    // tables not yet migrated — skip counts
-    tasks = tasks.map(task => ({ ...task, _count: { attachments: 0, messages: 0 } }));
-  }
-
-  // Try to add completedBy and approvedBy if the fields exist in the database
-  try {
-    const tasksWithExtras = await prisma.task.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        approvedAt: true,
-        completedBy: {
-          select: { id: true, name: true, email: true, position: true },
-        },
-        approvedBy: {
-          select: { id: true, name: true, email: true, position: true },
-        },
-      },
-    });
-    
-    // Merge extra data into tasks
-    tasks = tasks.map(task => {
-      const extra = tasksWithExtras.find(t => t.id === task.id);
-      return {
-        ...task,
-        completedBy: extra?.completedBy || null,
-        approvedAt: extra?.approvedAt || null,
-        approvedBy: extra?.approvedBy || null,
-      };
-    });
-  } catch (error) {
-    console.log('Extended fields not available in database yet');
-  }
+  // Normalize _count in case the columns are missing in older DB schemas
+  tasks = tasks.map(task => ({
+    ...task,
+    _count: {
+      attachments: (task as any)._count?.attachments ?? 0,
+      messages: (task as any)._count?.messages ?? 0,
+    },
+    completedBy: (task as any).completedBy ?? null,
+    approvedBy: (task as any).approvedBy ?? null,
+  }));
 
   // Add orderBy to the original query
   tasks = tasks.sort((a, b) => {
