@@ -1237,6 +1237,8 @@ type PayrollSettingsState = {
     gosiEmployeeRate: number;
     gosiEmployerRate: number;
     overtimeMultiplier: number;
+    absenceWithPermissionMultiplier: number;
+    absenceWithoutPermissionMultiplier: number;
     wpsBankCode: string;
   };
   leaves: {
@@ -1366,6 +1368,49 @@ function PayrollSettingsTab({ canManage, onError }: { canManage: boolean; onErro
                   setSettings({
                     ...settings,
                     payroll: { ...settings.payroll, wpsBankCode: e.target.value },
+                  })
+                }
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <h4 className="font-semibold mb-3">Absence deduction rates</h4>
+          <p className="text-xs text-muted-foreground mb-3">
+            Number of daily-rate days deducted per absent day. e.g. 1.0 = 1 day deducted; 2.0 = 2 days deducted.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Absence with permission multiplier</Label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                max="5"
+                disabled={!canManage}
+                value={settings.payroll.absenceWithPermissionMultiplier ?? 1}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    payroll: { ...settings.payroll, absenceWithPermissionMultiplier: parseFloat(e.target.value) || 0 },
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label>Absence without permission multiplier</Label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                max="5"
+                disabled={!canManage}
+                value={settings.payroll.absenceWithoutPermissionMultiplier ?? 2}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    payroll: { ...settings.payroll, absenceWithoutPermissionMultiplier: parseFloat(e.target.value) || 0 },
                   })
                 }
               />

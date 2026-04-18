@@ -161,7 +161,9 @@ export async function generatePayslipPdf(lineId: string): Promise<PayslipResult>
   const filename = `${line.employee.employmentId}_${line.period.year}_${String(line.period.month).padStart(2, '0')}.pdf`;
   const diskPath = path.join(dir, filename);
   const publicPath = `/outputs/payslips/${line.period.id}/${filename}`;
-  const buffer = Buffer.from(doc.output('arraybuffer'));
+  // doc.output('arraybuffer') returns a plain ArrayBuffer; wrap in Buffer before writing.
+  const raw = doc.output('arraybuffer');
+  const buffer = Buffer.from(raw);
   await fs.writeFile(diskPath, buffer);
 
   await prisma.payrollLine.update({
