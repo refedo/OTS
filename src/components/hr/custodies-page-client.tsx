@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Loader2, Wallet, Search, Clock, CheckCircle2, MinusCircle, User,
-  ChevronUp, ChevronDown, ChevronsUpDown, Plus,
+  ChevronUp, ChevronDown, ChevronsUpDown, Plus, Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -207,6 +207,67 @@ function NewCustodyDialog({ open, onClose, onSaved }: {
   );
 }
 
+// ─── Delete Custody Dialog ────────────────────────────────────────────────────
+
+function DeleteCustodyDialog({ custody, open, onClose, onDeleted }: {
+  custody: CustodyEntry | null;
+  open: boolean;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  function reset() { setReason(''); setError(''); }
+
+  async function handleDelete() {
+    if (!reason.trim()) { setError('Please provide a reason for deletion'); return; }
+    setDeleting(true); setError('');
+    try {
+      const res = await fetch(`/api/hr/custodies/${custody!.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteReason: reason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? 'Failed to delete custody'); return; }
+      onDeleted(); onClose(); reset();
+    } catch { setError('Network error'); }
+    finally { setDeleting(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); reset(); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-rose-700">
+            <Trash2 className="h-4 w-4" />Delete Custody
+          </DialogTitle>
+          <DialogDescription>
+            {custody ? `Delete the custody for ${custody.employee?.fullNameEn ?? 'this employee'} (SAR ${money(custody.amount)} — ${custody.reason}).` : ''}
+            {' '}This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Reason for deletion *</Label>
+            <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="Enter reason…" />
+          </div>
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onClose(); reset(); }}>Cancel</Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+            {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Delete Custody
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function CustodiesPageClient({ canViewAll, canManage = false }: { canViewAll: boolean; canManage?: boolean }) {
@@ -215,6 +276,7 @@ export function CustodiesPageClient({ canViewAll, canManage = false }: { canView
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'createdAt', dir: 'desc' });
   const [newOpen, setNewOpen] = useState(false);
+  const [deleteCustody, setDeleteCustody] = useState<CustodyEntry | null>(null);
   const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
 
   const load = useCallback(async () => {
@@ -390,11 +452,21 @@ export function CustodiesPageClient({ canViewAll, canManage = false }: { canView
                           <td className="py-3 px-4 text-right tabular-nums font-medium text-rose-700">SAR {money(outstanding)}</td>
                           <td className="py-3 px-4 text-muted-foreground">{new Date(c.issuedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                           <td className="py-3 px-4">{custodyStatusBadge(c.status)}</td>
-                          {canViewAll && c.employee && (
+                          {canViewAll && (
                             <td className="py-3 px-4">
-                              <Link href={`/hr/employees/${c.employee.id}?tab=finance`}>
-                                <Button variant="ghost" size="sm" className="h-7 text-xs text-violet-600 hover:text-violet-800">Details</Button>
-                              </Link>
+                              <div className="flex items-center gap-1">
+                                {c.employee && (
+                                  <Link href={`/hr/employees/${c.employee.id}?tab=finance`}>
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs text-violet-600 hover:text-violet-800">Details</Button>
+                                  </Link>
+                                )}
+                                {canManage && (
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs text-rose-500 hover:text-rose-700"
+                                    onClick={() => setDeleteCustody(c)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           )}
                         </tr>
@@ -409,6 +481,12 @@ export function CustodiesPageClient({ canViewAll, canManage = false }: { canView
       </div>
 
       <NewCustodyDialog open={newOpen} onClose={() => setNewOpen(false)} onSaved={load} />
+      <DeleteCustodyDialog
+        custody={deleteCustody}
+        open={deleteCustody !== null}
+        onClose={() => setDeleteCustody(null)}
+        onDeleted={load}
+      />
     </div>
   );
 }
