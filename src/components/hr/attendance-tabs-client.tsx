@@ -48,7 +48,7 @@ export function AttendanceTabsClient({
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <Tabs defaultValue="records" className="space-y-4">
+      <Tabs defaultValue="grid" className="space-y-4">
         <TabsList className="bg-slate-100">
           <TabsTrigger value="records" className="gap-2">
             <Calendar className="h-4 w-4" />

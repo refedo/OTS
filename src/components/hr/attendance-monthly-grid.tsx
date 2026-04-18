@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, Users, HardHat, Clock, TrendingUp, Trophy, Star, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2, Users, HardHat, Clock, TrendingUp, Trophy, Star, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -126,13 +126,49 @@ function AggregateKpis({ agg, title, icon: Icon, colorClass }: { agg: DaySummary
   );
 }
 
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  iconClass,
+  children,
+  defaultOpen = true,
+  badge,
+}: {
+  title: string;
+  icon: React.ElementType;
+  iconClass?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50/70 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Icon className={cn('h-4 w-4', iconClass ?? 'text-slate-500')} />
+          <span className="text-sm font-semibold text-slate-700">{title}</span>
+          {badge}
+        </div>
+        {open
+          ? <ChevronUp className="h-4 w-4 text-slate-400" />
+          : <ChevronDown className="h-4 w-4 text-slate-400" />
+        }
+      </button>
+      {open && <div className="border-t">{children}</div>}
+    </div>
+  );
+}
+
 function EmployeeOfMonthCard({ emp, month, year }: { emp: EmployeeRow; month: number; year: string | number }) {
   const totalHours = emp.summary.totalRegularHours + emp.summary.totalOvertimeHours;
   const totalLeaves = emp.summary.vacation + emp.summary.sick + emp.summary.absentWithPermission;
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-amber-200 shadow-md bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50">
-      {/* decorative blobs */}
+    <div className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50">
       <div className="absolute -top-6 -right-6 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl pointer-events-none" />
       <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-yellow-300/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -428,79 +464,101 @@ export function AttendanceMonthlyGrid() {
       ) : (
         <div className="space-y-8">
           {/* ── KPI Aggregate Cards ───────────────────────────────────────── */}
-          <div className="rounded-2xl border bg-white shadow-sm p-5 space-y-6">
-            <div className="flex items-center gap-2 border-b pb-3">
-              <TrendingUp className="h-4 w-4 text-slate-500" />
-              <span className="text-sm font-semibold text-slate-700">{MONTH_NAMES[month - 1]} {year} — Aggregate Totals</span>
+          <CollapsibleSection
+            title={`${MONTH_NAMES[month - 1]} ${year} — Aggregate Totals`}
+            icon={TrendingUp}
+            defaultOpen={true}
+          >
+            <div className="p-5 space-y-6">
+              {data.employees.length > 0 && (
+                <AggregateKpis agg={data.aggregates.employees} title="Employees" icon={Users} colorClass="text-sky-600" />
+              )}
+              {data.manpower.length > 0 && (
+                <AggregateKpis agg={data.aggregates.manpower} title="Manpower Slots" icon={HardHat} colorClass="text-violet-600" />
+              )}
             </div>
-            {data.employees.length > 0 && (
-              <AggregateKpis agg={data.aggregates.employees} title="Employees" icon={Users} colorClass="text-sky-600" />
-            )}
-            {data.manpower.length > 0 && (
-              <AggregateKpis agg={data.aggregates.manpower} title="Manpower Slots" icon={HardHat} colorClass="text-violet-600" />
-            )}
-          </div>
+          </CollapsibleSection>
 
           {/* ── Employee of the Month ────────────────────────────────────── */}
           {employeeOfMonth && (
-            <EmployeeOfMonthCard emp={employeeOfMonth} month={month} year={year} />
+            <CollapsibleSection
+              title="Employee of the Month"
+              icon={Trophy}
+              iconClass="text-amber-500"
+              defaultOpen={true}
+              badge={
+                <span className="text-[10px] text-amber-500 font-medium">
+                  · {MONTH_NAMES[month - 1]} {year}
+                </span>
+              }
+            >
+              <EmployeeOfMonthCard emp={employeeOfMonth} month={month} year={year} />
+            </CollapsibleSection>
           )}
 
           {/* ── Employee Grid ─────────────────────────────────────────────── */}
           {data.employees.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-sky-600" />
-                <span className="text-sm font-semibold text-slate-700">Employees ({data.employees.length})</span>
-                {employeeOfMonth && (
-                  <span className="text-[10px] text-amber-600 flex items-center gap-0.5">
-                    <Trophy className="h-3 w-3" />row highlighted
+            <CollapsibleSection
+              title={`Employees (${data.employees.length})`}
+              icon={Users}
+              iconClass="text-sky-600"
+              defaultOpen={true}
+              badge={
+                employeeOfMonth ? (
+                  <span className="text-[10px] text-amber-600 flex items-center gap-0.5 ml-1">
+                    <Trophy className="h-3 w-3" />winner highlighted
                   </span>
-                )}
-              </div>
-              <GridTable
-                rows={data.employees}
-                days={days}
-                year={year}
-                month={month}
-                highlightId={employeeOfMonth?.id}
-                renderLabel={(emp) => (
-                  <Link href={`/hr/employees/${emp.id}`} className="hover:underline flex items-center gap-1.5">
-                    {emp.id === employeeOfMonth?.id && (
-                      <Trophy className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                    )}
-                    <div>
-                      <div className="font-medium text-slate-800 truncate max-w-[140px]">
-                        {showAr && emp.fullNameAr ? emp.fullNameAr : emp.fullNameEn}
+                ) : undefined
+              }
+            >
+              <div className="p-3">
+                <GridTable
+                  rows={data.employees}
+                  days={days}
+                  year={year}
+                  month={month}
+                  highlightId={employeeOfMonth?.id}
+                  renderLabel={(emp) => (
+                    <Link href={`/hr/employees/${emp.id}`} className="hover:underline flex items-center gap-1.5">
+                      {emp.id === employeeOfMonth?.id && (
+                        <Trophy className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                      )}
+                      <div>
+                        <div className="font-medium text-slate-800 truncate max-w-[140px]">
+                          {showAr && emp.fullNameAr ? emp.fullNameAr : emp.fullNameEn}
+                        </div>
+                        <div className="text-[10px] text-slate-400">{emp.employmentId}{emp.section ? ` · ${emp.section}` : ''}</div>
                       </div>
-                      <div className="text-[10px] text-slate-400">{emp.employmentId}{emp.section ? ` · ${emp.section}` : ''}</div>
-                    </div>
-                  </Link>
-                )}
-              />
-            </div>
+                    </Link>
+                  )}
+                />
+              </div>
+            </CollapsibleSection>
           )}
 
           {/* ── Manpower Grid ─────────────────────────────────────────────── */}
           {data.manpower.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <HardHat className="h-4 w-4 text-violet-600" />
-                <span className="text-sm font-semibold text-slate-700">Manpower Slots ({data.manpower.length})</span>
+            <CollapsibleSection
+              title={`Manpower Slots (${data.manpower.length})`}
+              icon={HardHat}
+              iconClass="text-violet-600"
+              defaultOpen={true}
+            >
+              <div className="p-3">
+                <GridTable
+                  rows={data.manpower}
+                  days={days}
+                  year={year}
+                  month={month}
+                  renderLabel={(mp) => (
+                    <div>
+                      <div className="font-medium text-slate-800 truncate max-w-[150px]">{mp.slotCode}</div>
+                      <div className="text-[10px] text-slate-400">{mp.trade}{mp.agencyName ? ` · ${mp.agencyName}` : ''}</div>
+                    </div>
+                  )}
+                />
               </div>
-              <GridTable
-                rows={data.manpower}
-                days={days}
-                year={year}
-                month={month}
-                renderLabel={(mp) => (
-                  <div>
-                    <div className="font-medium text-slate-800 truncate max-w-[150px]">{mp.slotCode}</div>
-                    <div className="text-[10px] text-slate-400">{mp.trade}{mp.agencyName ? ` · ${mp.agencyName}` : ''}</div>
-                  </div>
-                )}
-              />
-            </div>
+            </CollapsibleSection>
           )}
         </div>
       )}
