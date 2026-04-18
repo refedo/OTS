@@ -29,14 +29,19 @@ function money(n: unknown): string {
   return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** Try to load the most recent PNG logo from the company-logo upload folder. */
-async function loadLogoBase64(): Promise<string | null> {
+type LogoInfo = { base64: string; width: number; height: number };
+
+/** Try to load the most recent PNG logo, returning base64 + actual pixel dimensions. */
+async function loadLogo(): Promise<LogoInfo | null> {
   try {
     const files = await fs.readdir(LOGO_DIR);
     const pngs = files.filter((f) => f.toLowerCase().endsWith('.png')).sort().reverse();
     if (!pngs.length) return null;
     const buf = await fs.readFile(path.join(LOGO_DIR, pngs[0]));
-    return buf.toString('base64');
+    // PNG stores width at bytes 16-19 and height at bytes 20-23 (big-endian)
+    const width = buf.readUInt32BE(16);
+    const height = buf.readUInt32BE(20);
+    return { base64: buf.toString('base64'), width, height };
   } catch {
     return null;
   }
@@ -68,7 +73,7 @@ export async function generatePayslipPdf(lineId: string): Promise<PayslipResult>
   });
   if (!line) throw new Error('Payroll line not found');
 
-  const logoBase64 = await loadLogoBase64();
+  const logo = await loadLogo();
   const periodLabel = `${MONTH_NAMES[line.period.month - 1]} ${line.period.year}`;
   const A4_W = 595.28;
   const A4_H = 841.89;
@@ -78,33 +83,56 @@ export async function generatePayslipPdf(lineId: string): Promise<PayslipResult>
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
   // ── Header band ────────────────────────────────────────────────────────────
-  doc.setFillColor(...BRAND_DARK);
-  doc.rect(0, 0, A4_W, 72, 'F');
+  // White background when logo present (so coloured logos render correctly);
+  // dark navy when no logo (fallback brand style).
+  if (logo) {
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, A4_W, 72, 'F');
+    doc.setDrawColor(...BRAND_MID);
+    doc.setLineWidth(1);
+    doc.line(0, 72, A4_W, 72);
+  } else {
+    doc.setFillColor(...BRAND_DARK);
+    doc.rect(0, 0, A4_W, 72, 'F');
+  }
 
-  // Logo (top-left inside header)
-  if (logoBase64) {
+  // Logo (top-left inside header), correct aspect ratio
+  let textOffsetX = MARGIN;
+  if (logo) {
     try {
-      doc.addImage(logoBase64, 'PNG', MARGIN, 10, 52, 52);
+      const MAX_H = 52;
+      const MAX_W = 120;
+      const scale = Math.min(MAX_W / logo.width, MAX_H / logo.height);
+      const logoW = logo.width * scale;
+      const logoH = logo.height * scale;
+      const logoY = (72 - logoH) / 2;
+      doc.addImage(logo.base64, 'PNG', MARGIN, logoY, logoW, logoH);
+      textOffsetX = MARGIN + logoW + 10;
     } catch {
       // logo failed — skip silently
     }
   }
 
   // Company name + payslip label
-  doc.setTextColor(255, 255, 255);
+  const headerTextColor: [number, number, number] = logo ? BRAND_DARK : [255, 255, 255];
+  const headerSubColor: [number, number, number] = logo ? BRAND_MID : [200, 220, 245];
+  doc.setTextColor(...headerTextColor);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('Hexa Steel\u00AE', logoBase64 ? MARGIN + 60 : MARGIN, 36);
+  doc.text('Hexa Steel\u00AE', textOffsetX, 32);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('EMPLOYEE PAYSLIP', logoBase64 ? MARGIN + 60 : MARGIN, 54);
+  doc.setTextColor(...headerSubColor);
+  doc.text('EMPLOYEE PAYSLIP', textOffsetX, 50);
 
   // Period + pay date (right-aligned in header)
+  doc.setTextColor(...headerTextColor);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text(periodLabel, A4_W - MARGIN, 30, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
+  doc.setTextColor(...headerSubColor);
   doc.text(`Pay date: ${line.period.payDate.toISOString().slice(0, 10)}`, A4_W - MARGIN, 46, { align: 'right' });
   doc.text(`Cutoff:   ${line.period.cutoffDate.toISOString().slice(0, 10)}`, A4_W - MARGIN, 60, { align: 'right' });
 

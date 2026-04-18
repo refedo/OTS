@@ -389,7 +389,7 @@ export function PayrollPeriodDetailClient({
 
         {/* Payroll Lines Table */}
         <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b bg-white sticky top-0 z-10">
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
             <div>
               <h2 className="text-sm font-semibold text-slate-700">Payroll Lines</h2>
               <p className="text-xs text-slate-400 mt-0.5">Click column headers to sort</p>
@@ -406,7 +406,7 @@ export function PayrollPeriodDetailClient({
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b sticky top-[57px] z-10">
+                <thead className="bg-slate-50 border-b">
                   <tr>
                     <Th col="employmentId">ID</Th>
                     <Th col="fullNameEn">Name</Th>
