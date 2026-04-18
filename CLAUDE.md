@@ -3,7 +3,9 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `19.3.2` — **Patch:** Loan payment recording fix (LoanPayment migration registered in startup sequence so the table is created on server start); delete button added to Loans and Custodies standalone pages — trash icon per row opens a confirmation dialog requiring a mandatory reason, calls the existing soft-delete API endpoints.
+**Current version:** `19.3.3` — **Patch:** Employee of the Month card added to production attendance grid — selects the employee with zero unexcused absences (ANP) and the highest total hours (regular + overtime) for the viewed month; trophy icon, total/OT hours, present-days count, leave days if any; winner's row highlighted in amber with left-border accent and trophy icon in name column.
+
+**Previous version:** `19.3.2` — **Patch:** Loan payment recording fix (LoanPayment migration registered in startup sequence so the table is created on server start); delete button added to Loans and Custodies standalone pages — trash icon per row opens a confirmation dialog requiring a mandatory reason, calls the existing soft-delete API endpoints.
 
 **Previous version:** `19.3.1` — **Patch:** Payroll table sort fix (numeric localeCompare for employee IDs), dismissible info note on payroll detail page explaining cutoff/pay date and leave deduction logic, leave-without-permission column changed to rose/red color, payslip PDF beautified with company logo (auto-loaded from uploads/company-logo), dark navy header band, colour-coded totals row, and footer strip.
 

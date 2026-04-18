@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, Users, HardHat, Clock, TrendingUp } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Loader2, Users, HardHat, Clock, TrendingUp, Trophy, Star, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -126,18 +126,111 @@ function AggregateKpis({ agg, title, icon: Icon, colorClass }: { agg: DaySummary
   );
 }
 
+function EmployeeOfMonthCard({ emp, month, year }: { emp: EmployeeRow; month: number; year: string | number }) {
+  const totalHours = emp.summary.totalRegularHours + emp.summary.totalOvertimeHours;
+  const totalLeaves = emp.summary.vacation + emp.summary.sick + emp.summary.absentWithPermission;
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden border border-amber-200 shadow-md bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50">
+      {/* decorative blobs */}
+      <div className="absolute -top-6 -right-6 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-yellow-300/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+        {/* Trophy icon */}
+        <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg flex items-center justify-center">
+          <Trophy className="h-7 w-7 text-white drop-shadow" />
+        </div>
+
+        {/* Main info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              Employee of the Month
+            </span>
+            <span className="text-[10px] text-amber-500 font-medium">
+              · {MONTH_NAMES[month - 1]} {year}
+            </span>
+          </div>
+          <Link href={`/hr/employees/${emp.id}`} className="group">
+            <h3 className="text-xl font-bold text-slate-800 group-hover:text-amber-700 transition-colors truncate">
+              {emp.fullNameEn}
+            </h3>
+          </Link>
+          <p className="text-xs text-slate-500 mt-0.5">
+            #{emp.employmentId}
+            {emp.occupation && <span> · {emp.occupation}</span>}
+            {emp.section && <span> · {emp.section}</span>}
+          </p>
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-emerald-600 mb-0.5">
+              <Zap className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold">{fmtH(totalHours)}</span>
+              <span className="text-xs font-medium mt-1">h</span>
+            </div>
+            <p className="text-[10px] text-slate-500 whitespace-nowrap">Total Hours</p>
+          </div>
+
+          <div className="w-px h-10 bg-amber-200 hidden sm:block" />
+
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-amber-600 mb-0.5">
+              <Clock className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold">{fmtH(emp.summary.totalOvertimeHours)}</span>
+              <span className="text-xs font-medium mt-1">h</span>
+            </div>
+            <p className="text-[10px] text-slate-500 whitespace-nowrap">Overtime</p>
+          </div>
+
+          <div className="w-px h-10 bg-amber-200 hidden sm:block" />
+
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Star className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500" />
+              <span className="text-2xl font-bold text-emerald-600">0</span>
+            </div>
+            <p className="text-[10px] text-slate-500 whitespace-nowrap">Unexcused Absences</p>
+          </div>
+
+          {totalLeaves > 0 && (
+            <>
+              <div className="w-px h-10 bg-amber-200 hidden sm:block" />
+              <div className="text-center">
+                <span className="text-2xl font-bold text-sky-600">{totalLeaves}</span>
+                <p className="text-[10px] text-slate-500 whitespace-nowrap">Leave Days</p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom ribbon */}
+      <div className="relative z-10 px-5 py-2 bg-amber-100/60 border-t border-amber-200 flex items-center gap-2 text-[10px] text-amber-700 font-medium">
+        <Trophy className="h-3 w-3" />
+        Highest effort with zero unexcused absences — {emp.summary.present} days present out of the month.
+      </div>
+    </div>
+  );
+}
+
 function GridTable<T extends { id: string; days: Record<number, DayData>; summary: DaySummary }>({
   rows,
   days,
   year,
   month,
   renderLabel,
+  highlightId,
 }: {
   rows: T[];
   days: number[];
   year: number;
   month: number;
   renderLabel: (row: T) => React.ReactNode;
+  highlightId?: string;
 }) {
   return (
     <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
@@ -168,9 +261,16 @@ function GridTable<T extends { id: string; days: Record<number, DayData>; summar
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, idx) => (
-              <tr key={row.id} className={cn('border-b last:border-0 hover:bg-blue-50/30 transition-colors', idx % 2 === 1 && 'bg-slate-50/50')}>
-                <td className="sticky left-0 z-10 bg-inherit px-3 py-1.5 border-r">
+            {rows.map((row, idx) => {
+              const isWinner = highlightId !== undefined && row.id === highlightId;
+              return (
+              <tr key={row.id} className={cn(
+                'border-b last:border-0 transition-colors',
+                isWinner
+                  ? 'bg-amber-50/70 hover:bg-amber-100/60'
+                  : cn('hover:bg-blue-50/30', idx % 2 === 1 && 'bg-slate-50/50'),
+              )}>
+                <td className={cn('sticky left-0 z-10 bg-inherit px-3 py-1.5 border-r', isWinner && 'border-l-2 border-l-amber-400')}>
                   {renderLabel(row)}
                 </td>
                 {days.map(d => {
@@ -206,7 +306,8 @@ function GridTable<T extends { id: string; days: Record<number, DayData>; summar
                   {fmtH(row.summary.totalOvertimeHours)}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -249,6 +350,25 @@ export function AttendanceMonthlyGrid() {
   }
 
   const days = data ? Array.from({ length: data.daysInMonth }, (_, i) => i + 1) : [];
+
+  const employeeOfMonth = useMemo<EmployeeRow | null>(() => {
+    if (!data || data.employees.length === 0) return null;
+    // Must have zero unexcused absences
+    const eligible = data.employees.filter(e => e.summary.absentNoPermission === 0);
+    if (eligible.length === 0) return null;
+    // Highest total hours (regular + overtime) wins; break ties by fewest total leave days
+    return eligible.reduce((best, e) => {
+      const bestHours = best.summary.totalRegularHours + best.summary.totalOvertimeHours;
+      const eHours    = e.summary.totalRegularHours   + e.summary.totalOvertimeHours;
+      if (eHours > bestHours) return e;
+      if (eHours === bestHours) {
+        const bestLeave = best.summary.vacation + best.summary.sick + best.summary.absentWithPermission;
+        const eLeave    = e.summary.vacation    + e.summary.sick    + e.summary.absentWithPermission;
+        return eLeave < bestLeave ? e : best;
+      }
+      return best;
+    });
+  }, [data]);
 
   return (
     <div className="space-y-6">
@@ -321,24 +441,40 @@ export function AttendanceMonthlyGrid() {
             )}
           </div>
 
+          {/* ── Employee of the Month ────────────────────────────────────── */}
+          {employeeOfMonth && (
+            <EmployeeOfMonthCard emp={employeeOfMonth} month={month} year={year} />
+          )}
+
           {/* ── Employee Grid ─────────────────────────────────────────────── */}
           {data.employees.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-sky-600" />
                 <span className="text-sm font-semibold text-slate-700">Employees ({data.employees.length})</span>
+                {employeeOfMonth && (
+                  <span className="text-[10px] text-amber-600 flex items-center gap-0.5">
+                    <Trophy className="h-3 w-3" />row highlighted
+                  </span>
+                )}
               </div>
               <GridTable
                 rows={data.employees}
                 days={days}
                 year={year}
                 month={month}
+                highlightId={employeeOfMonth?.id}
                 renderLabel={(emp) => (
-                  <Link href={`/hr/employees/${emp.id}`} className="hover:underline">
-                    <div className="font-medium text-slate-800 truncate max-w-[150px]">
-                      {showAr && emp.fullNameAr ? emp.fullNameAr : emp.fullNameEn}
+                  <Link href={`/hr/employees/${emp.id}`} className="hover:underline flex items-center gap-1.5">
+                    {emp.id === employeeOfMonth?.id && (
+                      <Trophy className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                    )}
+                    <div>
+                      <div className="font-medium text-slate-800 truncate max-w-[140px]">
+                        {showAr && emp.fullNameAr ? emp.fullNameAr : emp.fullNameEn}
+                      </div>
+                      <div className="text-[10px] text-slate-400">{emp.employmentId}{emp.section ? ` · ${emp.section}` : ''}</div>
                     </div>
-                    <div className="text-[10px] text-slate-400">{emp.employmentId}{emp.section ? ` · ${emp.section}` : ''}</div>
                   </Link>
                 )}
               />
