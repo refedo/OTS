@@ -1,6 +1,6 @@
 {
   "name": "hexa-steel-ots",
-  "version": "19.3.1",
+  "version": "19.3.2",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
