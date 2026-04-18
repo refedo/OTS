@@ -3,7 +3,9 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `19.3.4` — **Patch:** Attendance grid cards are now collapsible (Aggregate Totals, Employee of the Month, Employees, Manpower Slots) — each section has a toggle chevron header; collapsed state is per-session. Monthly Grid is now the default tab on the Attendance page.
+**Current version:** `19.3.5` — **Patch:** Total Hours card added to attendance grid — three tiles showing Our Staff hours, Manpower hours, and Combined total (regular + OT breakdown per tile); collapsible like all other grid sections.
+
+**Previous version:** `19.3.4` — **Patch:** Attendance grid cards are now collapsible (Aggregate Totals, Employee of the Month, Employees, Manpower Slots) — each section has a toggle chevron header; collapsed state is per-session. Monthly Grid is now the default tab on the Attendance page.
 
 **Previous version:** `19.3.3` — **Patch:** Employee of the Month card added to production attendance grid — selects the employee with zero unexcused absences (ANP) and the highest total hours (regular + overtime) for the viewed month; trophy icon, total/OT hours, present-days count, leave days if any; winner's row highlighted in amber with left-border accent and trophy icon in name column.
 

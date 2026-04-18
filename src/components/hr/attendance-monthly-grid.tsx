@@ -479,6 +479,81 @@ export function AttendanceMonthlyGrid() {
             </div>
           </CollapsibleSection>
 
+          {/* ── Total Hours Card ─────────────────────────────────────────── */}
+          <CollapsibleSection title="Total Hours" icon={Clock} iconClass="text-sky-600" defaultOpen={true}>
+            <div className="p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Staff */}
+                <div className="rounded-xl border border-sky-200 bg-gradient-to-b from-sky-50 to-white p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-sky-600" />
+                    <span className="text-xs font-semibold text-sky-700 uppercase tracking-wide">Our Staff</span>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-sky-700">
+                      {fmtH(data.aggregates.employees.totalRegularHours + data.aggregates.employees.totalOvertimeHours)}
+                      <span className="text-base font-medium ml-1">h</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {fmtH(data.aggregates.employees.totalRegularHours)}h regular
+                      {data.aggregates.employees.totalOvertimeHours > 0 && (
+                        <span className="text-amber-600 ml-1">+ {fmtH(data.aggregates.employees.totalOvertimeHours)}h OT</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-slate-400">{data.employees.length} employee{data.employees.length !== 1 ? 's' : ''}</div>
+                </div>
+
+                {/* Manpower */}
+                <div className="rounded-xl border border-violet-200 bg-gradient-to-b from-violet-50 to-white p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <HardHat className="h-4 w-4 text-violet-600" />
+                    <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Manpower</span>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-violet-700">
+                      {fmtH(data.aggregates.manpower.totalRegularHours + data.aggregates.manpower.totalOvertimeHours)}
+                      <span className="text-base font-medium ml-1">h</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {fmtH(data.aggregates.manpower.totalRegularHours)}h regular
+                      {data.aggregates.manpower.totalOvertimeHours > 0 && (
+                        <span className="text-amber-600 ml-1">+ {fmtH(data.aggregates.manpower.totalOvertimeHours)}h OT</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-slate-400">{data.manpower.length} slot{data.manpower.length !== 1 ? 's' : ''}</div>
+                </div>
+
+                {/* Combined */}
+                <div className="rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-emerald-600" />
+                    <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Combined</span>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-emerald-700">
+                      {fmtH(
+                        data.aggregates.employees.totalRegularHours + data.aggregates.employees.totalOvertimeHours +
+                        data.aggregates.manpower.totalRegularHours  + data.aggregates.manpower.totalOvertimeHours
+                      )}
+                      <span className="text-base font-medium ml-1">h</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {fmtH(data.aggregates.employees.totalRegularHours + data.aggregates.manpower.totalRegularHours)}h regular
+                      {(data.aggregates.employees.totalOvertimeHours + data.aggregates.manpower.totalOvertimeHours) > 0 && (
+                        <span className="text-amber-600 ml-1">
+                          + {fmtH(data.aggregates.employees.totalOvertimeHours + data.aggregates.manpower.totalOvertimeHours)}h OT
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-slate-400">{data.employees.length + data.manpower.length} workers total</div>
+                </div>
+              </div>
+            </div>
+          </CollapsibleSection>
+
           {/* ── Employee of the Month ────────────────────────────────────── */}
           {employeeOfMonth && (
             <CollapsibleSection
