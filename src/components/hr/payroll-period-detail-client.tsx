@@ -21,6 +21,8 @@ import {
   Users,
   TrendingDown,
   TrendingUp,
+  Info,
+  X,
 } from 'lucide-react';
 
 type Line = {
@@ -125,6 +127,7 @@ export function PayrollPeriodDetailClient({
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('employmentId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [noteVisible, setNoteVisible] = useState(true);
 
   async function run(label: string, path: string) {
     setBusy(label);
@@ -151,28 +154,30 @@ export function PayrollPeriodDetailClient({
 
   const sortedLines = useMemo(() => {
     return [...period.lines].sort((a, b) => {
-      let aVal: string | number;
-      let bVal: string | number;
-      if (sortKey === 'employmentId') { aVal = a.employee.employmentId; bVal = b.employee.employmentId; }
-      else if (sortKey === 'fullNameEn') { aVal = a.employee.fullNameEn; bVal = b.employee.fullNameEn; }
-      else if (sortKey === 'basicSalary') { aVal = Number(a.basicSalary); bVal = Number(b.basicSalary); }
-      else if (sortKey === 'overtimeHours') { aVal = Number(a.overtimeHours); bVal = Number(b.overtimeHours); }
-      else if (sortKey === 'overtimePay') { aVal = Number(a.overtimePay); bVal = Number(b.overtimePay); }
-      else if (sortKey === 'absentDaysWithPermission') { aVal = Number(a.absentDaysWithPermission); bVal = Number(b.absentDaysWithPermission); }
-      else if (sortKey === 'absenceWithPermissionDeduction') { aVal = Number(a.absenceWithPermissionDeduction); bVal = Number(b.absenceWithPermissionDeduction); }
-      else if (sortKey === 'absentDaysWithoutPermission') { aVal = Number(a.absentDaysWithoutPermission); bVal = Number(b.absentDaysWithoutPermission); }
-      else if (sortKey === 'absenceDeduction') { aVal = Number(a.absenceDeduction); bVal = Number(b.absenceDeduction); }
-      else if (sortKey === 'loanDeduction') { aVal = Number(a.loanDeduction); bVal = Number(b.loanDeduction); }
-      else if (sortKey === 'custodyDeduction') { aVal = Number(a.custodyDeduction); bVal = Number(b.custodyDeduction); }
-      else if (sortKey === 'violationDeduction') { aVal = Number(a.violationDeduction); bVal = Number(b.violationDeduction); }
-      else if (sortKey === 'gosiEmployee') { aVal = Number(a.gosiEmployee); bVal = Number(b.gosiEmployee); }
-      else if (sortKey === 'grossPay') { aVal = Number(a.grossPay); bVal = Number(b.grossPay); }
-      else if (sortKey === 'totalDeductions') { aVal = Number(a.totalDeductions); bVal = Number(b.totalDeductions); }
-      else { aVal = Number(a.netPay); bVal = Number(b.netPay); }
-
-      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
-      return 0;
+      const dir = sortDir === 'asc' ? 1 : -1;
+      if (sortKey === 'employmentId') {
+        return dir * a.employee.employmentId.localeCompare(b.employee.employmentId, undefined, { numeric: true, sensitivity: 'base' });
+      }
+      if (sortKey === 'fullNameEn') {
+        return dir * a.employee.fullNameEn.localeCompare(b.employee.fullNameEn, undefined, { sensitivity: 'base' });
+      }
+      const numMap: Record<string, number> = {
+        basicSalary: Number(a.basicSalary) - Number(b.basicSalary),
+        overtimeHours: Number(a.overtimeHours) - Number(b.overtimeHours),
+        overtimePay: Number(a.overtimePay) - Number(b.overtimePay),
+        absentDaysWithPermission: Number(a.absentDaysWithPermission) - Number(b.absentDaysWithPermission),
+        absenceWithPermissionDeduction: Number(a.absenceWithPermissionDeduction) - Number(b.absenceWithPermissionDeduction),
+        absentDaysWithoutPermission: Number(a.absentDaysWithoutPermission) - Number(b.absentDaysWithoutPermission),
+        absenceDeduction: Number(a.absenceDeduction) - Number(b.absenceDeduction),
+        loanDeduction: Number(a.loanDeduction) - Number(b.loanDeduction),
+        custodyDeduction: Number(a.custodyDeduction) - Number(b.custodyDeduction),
+        violationDeduction: Number(a.violationDeduction) - Number(b.violationDeduction),
+        gosiEmployee: Number(a.gosiEmployee) - Number(b.gosiEmployee),
+        grossPay: Number(a.grossPay) - Number(b.grossPay),
+        totalDeductions: Number(a.totalDeductions) - Number(b.totalDeductions),
+        netPay: Number(a.netPay) - Number(b.netPay),
+      };
+      return dir * (numMap[sortKey] ?? 0);
     });
   }, [period.lines, sortKey, sortDir]);
 
@@ -231,6 +236,22 @@ export function PayrollPeriodDetailClient({
         {error && (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
             {error}
+          </div>
+        )}
+
+        {/* Dismissible info note */}
+        {noteVisible && (
+          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 flex gap-3">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-sky-500" />
+            <div className="flex-1 space-y-1">
+              <p><span className="font-semibold">Cutoff date</span> ({new Date(period.cutoffDate).toLocaleDateString('en-GB')}): the last day of attendance included in this payroll run. Records after this date appear in the next period.</p>
+              <p><span className="font-semibold">Pay date</span> ({new Date(period.payDate).toLocaleDateString('en-GB')}): the date salaries are disbursed to employees.</p>
+              <p><span className="font-semibold">Leave with permission</span> <span className="inline-block bg-amber-100 text-amber-700 rounded px-1 py-0.5 text-xs font-medium">amber</span>: days absent with manager approval — deducted at the configured multiplier (default 1× daily rate).</p>
+              <p><span className="font-semibold">Leave without permission</span> <span className="inline-block bg-rose-100 text-rose-700 rounded px-1 py-0.5 text-xs font-medium">rose</span>: unauthorised absences — deducted at a higher multiplier (default 2× daily rate). Change multipliers in <span className="font-medium underline cursor-pointer" onClick={() => window.open('/hr/setup?tab=payrollSettings', '_blank')}>HR Setup → Payroll Settings</span>.</p>
+            </div>
+            <button onClick={() => setNoteVisible(false)} className="text-sky-400 hover:text-sky-700 mt-0.5 shrink-0">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
 
@@ -396,7 +417,7 @@ export function PayrollPeriodDetailClient({
                       <div>Leave w/ Perm</div>
                       <div className="text-[10px] font-normal text-slate-400">days / ded</div>
                     </th>
-                    <th className="py-2 px-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap bg-orange-50">
+                    <th className="py-2 px-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap bg-rose-50">
                       <div>Leave w/o Perm</div>
                       <div className="text-[10px] font-normal text-slate-400">days / ded</div>
                     </th>
@@ -436,11 +457,11 @@ export function PayrollPeriodDetailClient({
                       </td>
 
                       {/* Leave without permission */}
-                      <td className="py-2.5 px-3 bg-orange-50/50">
+                      <td className="py-2.5 px-3 bg-rose-50/60">
                         <div className="text-center text-xs">
-                          <span className="font-semibold text-orange-700">{fmt(l.absentDaysWithoutPermission, 1)}</span>
+                          <span className="font-semibold text-rose-700">{fmt(l.absentDaysWithoutPermission, 1)}</span>
                           <span className="text-slate-400 mx-1">/</span>
-                          <span className="text-rose-600">{fmt(l.absenceDeduction)}</span>
+                          <span className="text-rose-700 font-medium">{fmt(l.absenceDeduction)}</span>
                         </div>
                       </td>
 
@@ -486,7 +507,7 @@ export function PayrollPeriodDetailClient({
                     <td className="py-3 px-3 text-center text-xs font-semibold text-amber-700">
                       {fmt(period.lines.reduce((s, l) => s + Number(l.absentDaysWithPermission), 0), 1)} / {sar(period.lines.reduce((s, l) => s + Number(l.absenceWithPermissionDeduction), 0))}
                     </td>
-                    <td className="py-3 px-3 text-center text-xs font-semibold text-orange-700">
+                    <td className="py-3 px-3 text-center text-xs font-semibold text-rose-700">
                       {fmt(period.lines.reduce((s, l) => s + Number(l.absentDaysWithoutPermission), 0), 1)} / {sar(period.lines.reduce((s, l) => s + Number(l.absenceDeduction), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-rose-600">
