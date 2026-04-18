@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, Sparkles, XCircle, ShieldX, Undo2, Paperclip, BarChart3, MessageCircleQuestion, Clock, MessageCircle } from 'lucide-react';
+import { Search, Plus, LayoutGrid, List, LayoutList, MoreVertical, Eye, Edit, Trash2, Calendar, User, AlertCircle, CheckSquare, Square, Loader2, Lock, ArrowUpDown, ArrowUp, ArrowDown, Copy, FolderTree, ChevronDown, ChevronRight, ShieldCheck, Shield, X, XCircle, ShieldX, Undo2, Paperclip, BarChart3, MessageCircleQuestion, Clock, MessageCircle } from 'lucide-react';
 import { TasksGanttView } from '@/components/tasks-gantt-view';
 import { uploadPendingAttachments, type PendingFile } from '@/components/task-attachment-uploader';
 import Link from 'next/link';
@@ -1040,87 +1040,82 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 w-full">
-      <div className="w-full p-6 lg:p-8 space-y-6 max-lg:pt-20">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage and track your tasks
-            </p>
-            <div className="mt-4">
-              <div className="inline-flex items-center gap-6 p-4 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
-                {/* Main Stats */}
-                <div className="flex items-center gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Total Tasks</p>
-                    <p className="text-3xl font-bold text-primary">{filteredTasks.length}</p>
-                  </div>
-                  {tasks.length !== filteredTasks.length && (
-                    <div className="text-sm text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                      of {tasks.length} total
-                    </div>
-                  )}
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white w-full">
+      <div className="w-full p-4 lg:p-8 space-y-6 max-lg:pt-20">
+        {/* Hero Banner */}
+        <div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <CheckSquare className="h-5 w-5" />
                 </div>
-                
-                {/* Status Breakdown */}
-                <div className="flex items-center gap-4 pl-6 border-l border-primary/20">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <span className="text-sm">
-                      {filteredTasks.filter(t => t.status === 'Pending').length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-sm">
-                      {filteredTasks.filter(t => t.status === 'In Progress').length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                    <span className="text-sm">
-                      {filteredTasks.filter(t => t.status === 'Waiting for Approval').length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span className="text-sm">
-                      {filteredTasks.filter(t => t.status === 'Completed').length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gray-500"></div>
-                    <span className="text-sm">
-                      {filteredTasks.filter(t => t.status === 'Cancelled').length}
-                    </span>
-                  </div>
-                </div>
+                <h1 className="text-2xl font-bold">
+                  {filterMyTasks ? 'My Tasks' : filterRequesterTasks ? 'Requested by Me' : 'Tasks'}
+                </h1>
               </div>
+              <p className="text-sky-100 text-sm">
+                {filterMyTasks ? 'Tasks currently assigned to you' : filterRequesterTasks ? 'Tasks you have submitted for others' : 'Manage and track all project tasks'}
+              </p>
             </div>
-          </div>
-          {canCreateTask && (
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => setShowQuickAdd(!showQuickAdd)}
-                className={cn(
-                  showQuickAdd 
-                    ? 'bg-amber-500 hover:bg-amber-600 text-white' 
-                    : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0'
-                )}
-              >
-                <Plus className="size-4 mr-2" />
-                {showQuickAdd ? 'Hide Quick Add' : 'Quick Add Task'}
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/tasks/new">
+            {canCreateTask && (
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  onClick={() => setShowQuickAdd(!showQuickAdd)}
+                  className={cn(
+                    'border-0 font-semibold',
+                    showQuickAdd
+                      ? 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm'
+                      : 'bg-white text-sky-700 hover:bg-sky-50'
+                  )}
+                >
                   <Plus className="size-4 mr-2" />
-                  Full Form
-                </Link>
-              </Button>
-            </div>
-          )}
+                  {showQuickAdd ? 'Hide Quick Add' : 'Quick Add'}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-white/30 text-white hover:bg-white/10 bg-white/10 backdrop-blur-sm"
+                  asChild
+                >
+                  <Link href="/tasks/new">
+                    <Plus className="size-4 mr-2" />
+                    Full Form
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* KPI Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+            <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Showing</p>
+            <p className="text-2xl font-bold text-sky-700 mt-1">{filteredTasks.length}</p>
+            <p className="text-xs text-sky-500 mt-0.5">{tasks.length !== filteredTasks.length ? `of ${tasks.length} total` : 'tasks'}</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-yellow-50 to-white border-yellow-200 p-4 shadow-sm">
+            <p className="text-xs text-yellow-600 font-medium uppercase tracking-wide">Pending</p>
+            <p className="text-2xl font-bold text-yellow-700 mt-1">{filteredTasks.filter(t => t.status === 'Pending').length}</p>
+            <p className="text-xs text-yellow-500 mt-0.5">awaiting start</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-blue-50 to-white border-blue-200 p-4 shadow-sm">
+            <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">In Progress</p>
+            <p className="text-2xl font-bold text-blue-700 mt-1">{filteredTasks.filter(t => t.status === 'In Progress').length}</p>
+            <p className="text-xs text-blue-500 mt-0.5">active</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-purple-50 to-white border-purple-200 p-4 shadow-sm">
+            <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">For Approval</p>
+            <p className="text-2xl font-bold text-purple-700 mt-1">{filteredTasks.filter(t => t.status === 'Waiting for Approval').length}</p>
+            <p className="text-xs text-purple-500 mt-0.5">pending review</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
+            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Completed</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">{filteredTasks.filter(t => t.status === 'Completed').length}</p>
+            <p className="text-xs text-emerald-500 mt-0.5">done</p>
+          </div>
         </div>
 
         {/* Bulk Actions Bar */}
@@ -1203,109 +1198,106 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
         )}
 
         {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4">
-              {/* Search + Reset All (always visible row) */}
-              <div className="flex gap-2 items-center">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tasks..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {(statusFilter.length > 0 || priorityFilter.length > 0 || projectFilter || buildingFilter || departmentFilter || assignedToFilter || requesterFilter || approvalFilter || activityFilter || subActivityFilter || search) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setStatusFilter([]);
-                      setPriorityFilter([]);
-                      setProjectFilter('');
-                      setBuildingFilter('');
-                      setDepartmentFilter('');
-                      setAssignedToFilter('');
-                      setRequesterFilter('');
-                      setApprovalFilter('');
-                      setActivityFilter('');
-                      setSubActivityFilter('');
-                      setSearch('');
-                    }}
-                    className="shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Reset All
-                  </Button>
-                )}
+        <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+          {/* Filter header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b bg-slate-50/80">
+            <div className="flex items-center gap-3">
+              <Search className="size-4 text-slate-400" />
+              <div className="relative">
+                <Input
+                  placeholder="Search tasks by title, project, assignee..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-72 h-8 pl-2 border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm"
+                />
               </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 rounded-lg border bg-white p-0.5 shadow-sm">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  title="Table View"
+                  className="h-7 px-2"
+                >
+                  <List className="size-3.5" />
+                </Button>
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  title="Card View"
+                  className="h-7 px-2"
+                >
+                  <LayoutGrid className="size-3.5" />
+                </Button>
+                <Button
+                  variant={viewMode === 'project' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('project')}
+                  title="Project Tree"
+                  className="h-7 px-2"
+                >
+                  <FolderTree className="size-3.5" />
+                </Button>
+                <Button
+                  variant={viewMode === 'simple' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('simple')}
+                  title="Simple List"
+                  className="h-7 px-2"
+                >
+                  <LayoutList className="size-3.5" />
+                </Button>
+                <Button
+                  variant={viewMode === 'gantt' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('gantt')}
+                  title="Gantt Chart"
+                  className="h-7 px-2"
+                >
+                  <BarChart3 className="size-3.5" />
+                </Button>
+              </div>
+              {(statusFilter.length > 0 || priorityFilter.length > 0 || projectFilter || buildingFilter || departmentFilter || assignedToFilter || requesterFilter || approvalFilter || activityFilter || subActivityFilter || search) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setStatusFilter([]);
+                    setPriorityFilter([]);
+                    setProjectFilter('');
+                    setBuildingFilter('');
+                    setDepartmentFilter('');
+                    setAssignedToFilter('');
+                    setRequesterFilter('');
+                    setApprovalFilter('');
+                    setActivityFilter('');
+                    setSubActivityFilter('');
+                    setSearch('');
+                  }}
+                  className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Reset
+                </Button>
+              )}
+            </div>
+          </div>
 
-              {/* Filter buttons */}
-              <div className="flex flex-wrap gap-2 items-center">
-                {/* View Toggle */}
-                <div className="flex gap-1">
-                  <Button
-                    variant={viewMode === 'table' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('table')}
-                    title="Table View"
-                  >
-                    <List className="size-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'grid' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    title="Card View"
-                  >
-                    <LayoutGrid className="size-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'project' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('project')}
-                    title="Project Management View"
-                  >
-                    <FolderTree className="size-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'simple' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('simple')}
-                    title="Simple Tasks View"
-                  >
-                    <LayoutList className="size-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'gantt' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('gantt')}
-                    title="Gantt View (Project > Building > Activity > Sub-Activity)"
-                  >
-                    <BarChart3 className="size-4" />
-                  </Button>
-                </div>
-
-                <div className="h-6 w-px bg-border" />
-
-                {/* Multi-select tip bubble */}
-                <div className="relative group">
-                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200 text-xs text-blue-700">
-                    <Sparkles className="h-3 w-3" />
-                    <span>Ctrl+Click for multi-select</span>
-                  </div>
-                </div>
-
-                <div className="h-6 w-px bg-border" />
-
-                {/* Status filters - Ctrl+Click for multi-select */}
-                <span className="text-sm text-muted-foreground">Status:</span>
+          {/* Filter body */}
+          <div className="px-5 py-4 flex flex-col gap-4">
+            {/* Status + Approval row */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">Status</span>
+              <div className="flex flex-wrap gap-1.5">
                 <Button
                   variant={statusFilter.length === 0 ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter([])}
+                  className="h-7 text-xs rounded-full px-3"
                 >
                   All
                 </Button>
@@ -1314,8 +1306,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   size="sm"
                   onClick={(e) => toggleStatusFilter('Pending', e)}
                   className={cn(
-                    statusFilter.includes('Pending') 
-                      ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600 hover:text-white' 
+                    'h-7 text-xs rounded-full px-3',
+                    statusFilter.includes('Pending')
+                      ? 'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600 hover:text-white'
                       : 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300'
                   )}
                 >
@@ -1326,8 +1319,9 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   size="sm"
                   onClick={(e) => toggleStatusFilter('In Progress', e)}
                   className={cn(
-                    statusFilter.includes('In Progress') 
-                      ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:text-white' 
+                    'h-7 text-xs rounded-full px-3',
+                    statusFilter.includes('In Progress')
+                      ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:text-white'
                       : 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
                   )}
                 >
@@ -1338,21 +1332,23 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   size="sm"
                   onClick={(e) => toggleStatusFilter('Waiting for Approval', e)}
                   className={cn(
-                    statusFilter.includes('Waiting for Approval') 
-                      ? 'bg-purple-500 text-white border-purple-500 hover:bg-purple-600 hover:text-white' 
+                    'h-7 text-xs rounded-full px-3',
+                    statusFilter.includes('Waiting for Approval')
+                      ? 'bg-purple-500 text-white border-purple-500 hover:bg-purple-600 hover:text-white'
                       : 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300'
                   )}
                 >
-                  Waiting for Approval
+                  For Approval
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={(e) => toggleStatusFilter('Completed', e)}
                   className={cn(
-                    statusFilter.includes('Completed') 
-                      ? 'bg-green-500 text-white border-green-500 hover:bg-green-600 hover:text-white' 
-                      : 'hover:bg-green-50 hover:text-green-700 hover:border-green-300'
+                    'h-7 text-xs rounded-full px-3',
+                    statusFilter.includes('Completed')
+                      ? 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:text-white'
+                      : 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
                   )}
                 >
                   Completed
@@ -1362,22 +1358,78 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   size="sm"
                   onClick={(e) => toggleStatusFilter('Cancelled', e)}
                   className={cn(
-                    statusFilter.includes('Cancelled') 
-                      ? 'bg-gray-500 text-white border-gray-500 hover:bg-gray-600 hover:text-white' 
-                      : 'hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'
+                    'h-7 text-xs rounded-full px-3',
+                    statusFilter.includes('Cancelled')
+                      ? 'bg-slate-500 text-white border-slate-500 hover:bg-slate-600 hover:text-white'
+                      : 'hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300'
                   )}
                 >
                   Cancelled
                 </Button>
+              </div>
 
-                <div className="h-6 w-px bg-border" />
+              <div className="h-5 w-px bg-slate-200 mx-1" />
 
-                {/* Approval filter */}
-                <span className="text-sm text-muted-foreground">Approval:</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0">Priority</span>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  variant={priorityFilter.length === 0 ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPriorityFilter([])}
+                  className="h-7 text-xs rounded-full px-3"
+                >
+                  All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => togglePriorityFilter('High', e)}
+                  className={cn(
+                    'h-7 text-xs rounded-full px-3',
+                    priorityFilter.includes('High')
+                      ? 'bg-red-500 text-white border-red-500 hover:bg-red-600 hover:text-white'
+                      : 'hover:bg-red-50 hover:text-red-700 hover:border-red-300'
+                  )}
+                >
+                  High
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => togglePriorityFilter('Medium', e)}
+                  className={cn(
+                    'h-7 text-xs rounded-full px-3',
+                    priorityFilter.includes('Medium')
+                      ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:text-white'
+                      : 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300'
+                  )}
+                >
+                  Medium
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => togglePriorityFilter('Low', e)}
+                  className={cn(
+                    'h-7 text-xs rounded-full px-3',
+                    priorityFilter.includes('Low')
+                      ? 'bg-slate-500 text-white border-slate-500 hover:bg-slate-600 hover:text-white'
+                      : 'hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300'
+                  )}
+                >
+                  Low
+                </Button>
+              </div>
+
+              <div className="h-5 w-px bg-slate-200 mx-1" />
+
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0">Approval</span>
+              <div className="flex flex-wrap gap-1.5">
                 <Button
                   variant={approvalFilter === '' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setApprovalFilter('')}
+                  className="h-7 text-xs rounded-full px-3"
                 >
                   All
                 </Button>
@@ -1386,6 +1438,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   size="sm"
                   onClick={() => setApprovalFilter('approved')}
                   className={cn(
+                    'h-7 text-xs rounded-full px-3',
                     approvalFilter === 'approved'
                       ? 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:text-white'
                       : 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
@@ -1398,6 +1451,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                   size="sm"
                   onClick={() => setApprovalFilter('not_approved')}
                   className={cn(
+                    'h-7 text-xs rounded-full px-3',
                     approvalFilter === 'not_approved'
                       ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600 hover:text-white'
                       : 'hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300'
@@ -1405,162 +1459,90 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                 >
                   Not Approved
                 </Button>
-
-                <div className="h-6 w-px bg-border" />
-
-                {/* Priority filters - Ctrl+Click for multi-select */}
-                <span className="text-sm text-muted-foreground" title="Hold Ctrl/Cmd and click to select multiple">Priority:</span>
-                <Button
-                  variant={priorityFilter.length === 0 ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPriorityFilter([])}
-                >
-                  All
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => togglePriorityFilter('High', e)}
-                  className={cn(
-                    priorityFilter.includes('High') 
-                      ? 'bg-red-500 text-white border-red-500 hover:bg-red-600 hover:text-white' 
-                      : 'hover:bg-red-50 hover:text-red-700 hover:border-red-300'
-                  )}
-                >
-                  High
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => togglePriorityFilter('Medium', e)}
-                  className={cn(
-                    priorityFilter.includes('Medium') 
-                      ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:text-white' 
-                      : 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300'
-                  )}
-                >
-                  Medium
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => togglePriorityFilter('Low', e)}
-                  className={cn(
-                    priorityFilter.includes('Low') 
-                      ? 'bg-gray-500 text-white border-gray-500 hover:bg-gray-600 hover:text-white' 
-                      : 'hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300'
-                  )}
-                >
-                  Low
-                </Button>
-              </div>
-
-              {/* Additional Filters */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">Filters:</span>
-                
-                {/* Project Filter */}
-                <select
-                  value={projectFilter}
-                  onChange={(e) => {
-                    setProjectFilter(e.target.value);
-                    setBuildingFilter(''); // Reset building when project changes
-                  }}
-                  className="h-9 px-3 rounded-md border bg-background text-sm"
-                >
-                  <option value="">All Projects</option>
-                  {allProjects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.projectNumber} - {project.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Building Filter - dependent on selected project */}
-                <select
-                  value={buildingFilter}
-                  onChange={(e) => setBuildingFilter(e.target.value)}
-                  className="h-9 px-3 rounded-md border bg-background text-sm"
-                >
-                  <option value="">{projectFilter ? 'All Buildings (filtered)' : 'All Buildings'}</option>
-                  {filteredBuildings.map((building) => (
-                    <option key={building.id} value={building.id}>
-                      {building.name} ({building.designation})
-                    </option>
-                  ))}
-                </select>
-
-                {/* Assigned To Filter */}
-                <select
-                  value={assignedToFilter}
-                  onChange={(e) => setAssignedToFilter(e.target.value)}
-                  className="h-9 px-3 rounded-md border bg-background text-sm"
-                >
-                  <option value="">All Assignees</option>
-                  {allUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Requester Filter */}
-                <select
-                  value={requesterFilter}
-                  onChange={(e) => setRequesterFilter(e.target.value)}
-                  className="h-9 px-3 rounded-md border bg-background text-sm"
-                >
-                  <option value="">All Requesters</option>
-                  {allUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Department Filter */}
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="h-9 px-3 rounded-md border bg-background text-sm"
-                >
-                  <option value="">All Departments</option>
-                  {allDepartments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Activity Filter */}
-                <select
-                  value={activityFilter}
-                  onChange={(e) => { setActivityFilter(e.target.value); setSubActivityFilter(''); }}
-                  className="h-9 px-3 rounded-md border bg-background text-sm"
-                >
-                  <option value="">All Activities</option>
-                  {MAIN_ACTIVITIES.map((act) => (
-                    <option key={act.key} value={act.key}>{act.label}</option>
-                  ))}
-                </select>
-
-                {/* Sub-Activity Filter — dependent on activity */}
-                <select
-                  value={subActivityFilter}
-                  onChange={(e) => setSubActivityFilter(e.target.value)}
-                  disabled={!activityFilter}
-                  className="h-9 px-3 rounded-md border bg-background text-sm disabled:opacity-50"
-                >
-                  <option value="">{activityFilter ? 'All Sub-Activities' : 'Select Activity First'}</option>
-                  {(SUB_ACTIVITIES[activityFilter] ?? []).map((sub) => (
-                    <option key={sub.key} value={sub.key}>{sub.label}</option>
-                  ))}
-                </select>
-
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Dropdown filters row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">Scope</span>
+              <select
+                value={projectFilter}
+                onChange={(e) => { setProjectFilter(e.target.value); setBuildingFilter(''); }}
+                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
+              >
+                <option value="">All Projects</option>
+                {allProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.projectNumber} – {project.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={buildingFilter}
+                onChange={(e) => setBuildingFilter(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
+              >
+                <option value="">{projectFilter ? 'All Buildings' : 'All Buildings'}</option>
+                {filteredBuildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {building.name} ({building.designation})
+                  </option>
+                ))}
+              </select>
+              <select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
+              >
+                <option value="">All Departments</option>
+                {allDepartments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>{dept.name}</option>
+                ))}
+              </select>
+              <select
+                value={assignedToFilter}
+                onChange={(e) => setAssignedToFilter(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
+              >
+                <option value="">All Assignees</option>
+                {allUsers.map((user) => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
+                ))}
+              </select>
+              <select
+                value={requesterFilter}
+                onChange={(e) => setRequesterFilter(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
+              >
+                <option value="">All Requesters</option>
+                {allUsers.map((user) => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
+                ))}
+              </select>
+              <select
+                value={activityFilter}
+                onChange={(e) => { setActivityFilter(e.target.value); setSubActivityFilter(''); }}
+                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none"
+              >
+                <option value="">All Activities</option>
+                {MAIN_ACTIVITIES.map((act) => (
+                  <option key={act.key} value={act.key}>{act.label}</option>
+                ))}
+              </select>
+              <select
+                value={subActivityFilter}
+                onChange={(e) => setSubActivityFilter(e.target.value)}
+                disabled={!activityFilter}
+                className="h-8 px-2.5 rounded-lg border bg-slate-50 text-sm text-slate-700 hover:border-slate-300 focus:ring-1 focus:ring-sky-500 outline-none disabled:opacity-40"
+              >
+                <option value="">{activityFilter ? 'All Sub-Activities' : 'Select Activity First'}</option>
+                {(SUB_ACTIVITIES[activityFilter] ?? []).map((sub) => (
+                  <option key={sub.key} value={sub.key}>{sub.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
 
         {/* Tips Banner */}
         {showTips && (
@@ -1570,7 +1552,6 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                 <div className="space-y-1 text-sm">
                   <p className="font-medium text-blue-900">New Features</p>
                   <ul className="text-blue-800 space-y-0.5 text-xs">
-                    <li><strong>Ctrl+Click</strong> on Status or Priority buttons to select multiple filters at once</li>
                     <li><strong>Click column headers</strong> to sort the table ascending/descending</li>
                     <li><strong>Project Management View</strong> (<FolderTree className="size-3 inline" />) groups tasks by Project &gt; Building &gt; Department &gt; Task</li>
                   <li><strong>Gantt View</strong> (<BarChart3 className="size-3 inline" />) shows Project &gt; Building &gt; Activity &gt; Sub-Activity timeline with dependency arrows</li>
