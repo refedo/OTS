@@ -369,21 +369,21 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
               </div>
               <div className="divide-y">
                 {data.activeLoans.map(loan => {
-                  const remaining = loan.installmentsTotal - loan.installmentsPaid;
-                  const balance = remaining * loan.installmentAmount;
-                  const progress = Math.round((loan.installmentsPaid / loan.installmentsTotal) * 100);
+                  const paid = loan.totalAmountPaid;
+                  const balance = Math.max(0, loan.principal - paid);
+                  const progress = loan.principal > 0 ? Math.min(100, Math.round((paid / loan.principal) * 100)) : 0;
                   return (
-                    <div key={loan.id} className="px-5 py-4 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <p className="text-sm font-medium text-slate-700">{loan.reason ?? 'Loan'}</p>
-                        <p className="text-sm font-bold text-emerald-700">SAR {fmtSAR(balance)}</p>
+                    <div key={loan.id} className="px-5 py-4 space-y-2.5">
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="text-sm font-medium text-slate-700 truncate">{loan.reason ?? 'Loan'}</p>
+                        <p className="text-sm font-bold text-emerald-700 shrink-0">SAR {fmtSAR(balance)} left</p>
                       </div>
-                      <div className="h-2 bg-emerald-100 rounded-full overflow-hidden">
+                      <div className="h-2.5 bg-emerald-100 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
                       </div>
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>{loan.installmentsPaid}/{loan.installmentsTotal} paid · SAR {fmtSAR(loan.installmentAmount)}/mo</span>
-                        <span>{progress}%</span>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Paid <span className="font-semibold text-emerald-600">SAR {fmtSAR(paid)}</span> of <span className="font-medium text-slate-600">SAR {fmtSAR(loan.principal)}</span></span>
+                        <span className="font-semibold text-slate-600">{progress}%</span>
                       </div>
                     </div>
                   );
