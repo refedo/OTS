@@ -320,6 +320,13 @@ model User {
   approvedLetters HrLetter[] @relation("HrLetterApprovedBy")
   rejectedLetters HrLetter[] @relation("HrLetterRejectedBy")
 
+  // 19.12.0 — Policies & Training
+  createdPolicies         HrPolicy[]          @relation("HrPolicyCreatedBy")
+  updatedPolicies         HrPolicy[]          @relation("HrPolicyUpdatedBy")
+  deletedPolicies         HrPolicy[]          @relation("HrPolicyDeletedBy")
+  createdTrainingPrograms HrTrainingProgram[] @relation("HrTrainingProgramCreatedBy")
+  deletedTrainingPrograms HrTrainingProgram[] @relation("HrTrainingProgramDeletedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -5617,4 +5624,75 @@ model OpsRiskFlag {
   @@index([severity])
   @@index([module])
   @@map("ops_risk_flags")
+}
+
+// ─── 19.12.0 — HR Policies, Onboarding Tasks, Training Programs ──────────────
+
+model HrPolicy {
+  id            String    @id @default(uuid()) @db.Char(36)
+  titleEn       String    @db.VarChar(255)
+  titleAr       String?   @db.VarChar(255)
+  contentEn     String?   @db.Text
+  contentAr     String?   @db.Text
+  category      String    @default("General") @db.VarChar(100)
+  version       String    @default("v1.0") @db.VarChar(20)
+  effectiveDate DateTime  @db.Date
+  status        String    @default("ACTIVE") @db.VarChar(20)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("HrPolicyCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?   @db.Char(36)
+  updatedBy    User?     @relation("HrPolicyUpdatedBy", fields: [updatedById], references: [id])
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("HrPolicyDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@index([category, status])
+  @@index([deletedAt])
+  @@map("HrPolicy")
+}
+
+model HrOnboardingTask {
+  id          String   @id @default(uuid()) @db.Char(36)
+  labelEn     String   @db.VarChar(255)
+  labelAr     String?  @db.VarChar(255)
+  description String?  @db.VarChar(1000)
+  sortOrder   Int      @default(0)
+  isRequired  Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@map("HrOnboardingTask")
+}
+
+model HrTrainingProgram {
+  id             String    @id @default(uuid()) @db.Char(36)
+  titleEn        String    @db.VarChar(255)
+  titleAr        String?   @db.VarChar(255)
+  descriptionEn  String?   @db.Text
+  descriptionAr  String?   @db.Text
+  category       String    @default("General") @db.VarChar(100)
+  durationHours  Int       @default(0)
+  targetAudience String?   @db.VarChar(255)
+  scheduledDate  DateTime? @db.Date
+  status         String    @default("PLANNED") @db.VarChar(20)
+  notes          String?   @db.Text
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("HrTrainingProgramCreatedBy", fields: [createdById], references: [id])
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("HrTrainingProgramDeletedBy", fields: [deletedById], references: [id])
+  deleteReason String?   @db.VarChar(500)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@index([category, status])
+  @@index([deletedAt])
+  @@map("HrTrainingProgram")
 }

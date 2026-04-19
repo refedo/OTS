@@ -73,6 +73,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── WorkUnit type expansion (19.6.1) ─────────────────────────────────────
   'add_work_unit_types.sql',
+
+  // ── HR Policies, Onboarding Tasks, Training Programs (19.12.0) ───────────
+  'add_hr_policies_onboarding_training.sql',
 ];
 
 /**

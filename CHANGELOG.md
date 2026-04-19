@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.13.0] - 2026-04-20
+
+### DB-Backed HR Pages — Policies, Onboarding & Training CRUD (Minor)
+
+#### Added
+
+- **Company Policies CRUD:** "New Policy" dialog creates policies with EN/AR title, bilingual content, category (HR/Safety/Conduct/IT/Finance), version, effective date. Per-policy Edit and Delete (soft-delete) with confirmation dialog. Language toggle (EN ↔ AR) switches list display between languages.
+- **Onboarding Checklist Management:** "Manage Checklist" button opens a management panel to Add/Edit/Delete checklist tasks from the database. Each task: EN label, AR label, description, sort order, required flag, active/inactive. Live checklist loaded from DB per session.
+- **Training Program CRUD:** "New Program" dialog with EN/AR title and description, category, status (Planned/Upcoming/Ongoing/Completed), duration hours, target audience, scheduled date, notes. Per-program Edit and Delete (soft-delete). Language toggle on program list.
+- **`HrPolicy` Prisma model:** titleEn, titleAr, contentEn, contentAr, category, version, effectiveDate, status (ACTIVE/ARCHIVED), soft-delete audit fields.
+- **`HrOnboardingTask` Prisma model:** labelEn, labelAr, description, sortOrder, isRequired, isActive.
+- **`HrTrainingProgram` Prisma model:** titleEn, titleAr, descriptionEn, descriptionAr, category, durationHours, targetAudience, scheduledDate, status, notes, soft-delete.
+- **`add_hr_policies_onboarding_training.sql`** startup migration — creates all three tables and seeds 10 bilingual default onboarding tasks (only if table is empty).
+- **`GET/POST /api/hr/policies`** — list active policies sorted by category; create new policy.
+- **`PUT/DELETE /api/hr/policies/[id]`** — update policy fields; soft-delete.
+- **`GET/POST /api/hr/onboarding-tasks`** — list active tasks sorted by sortOrder; create task.
+- **`PUT/DELETE /api/hr/onboarding-tasks/[id]`** — update task; hard-delete.
+- **`GET/POST /api/hr/training-programs`** — list programs sorted by category; create program.
+- **`PUT/DELETE /api/hr/training-programs/[id]`** — update program; soft-delete.
+
+#### Changed
+
+- `/hr/policies` — fully DB-backed; all static hardcoded policies removed; live fetch from API; CRUD dialogs; language toggle.
+- `/hr/onboarding` — checklist loaded from DB via API instead of hardcoded array; Manage Checklist dialog for full task CRUD.
+- `/hr/training` — programs fetched from DB instead of SAMPLE_PROGRAMS; New/Edit/Delete dialogs; language toggle.
+
+---
+
+## [19.12.0] - 2026-04-19
+
+### Leave Balance Tab Enhancements — Burn-Risk Highlighting (Minor)
+
+#### Changed
+
+- **Vacation Balance tab:** Now shows annual-leave-specific consumed days and balance (Entitled − Annual Consumed) instead of all-types total; simplified table with single Annual Consumed column and Status column with flame/warning badges.
+- **Burn-risk highlighting:** Rows with ≥ 21 days balance flagged **Must Take Leave** (rose); rows with 14–20 days flagged **Take Soon** (amber). Five-tile KPI strip adds a Burn Risk counter.
+- **Employee search:** Clear (×) button added to search input on the leave balance tab.
+- **"My balances" section:** Defaults to collapsed; toggled via a chevron header.
+
+---
+
 ## [19.4.2] - 2026-04-19
 
 ### HR Letter Enhancements — CEO Approval, Per-Type Serials, Bilingual Print (Patch)

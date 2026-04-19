@@ -23,10 +23,39 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.13.0',
+    date: 'April 20, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'DB-Backed HR Pages — Policies, Onboarding & Training CRUD',
+    highlights: [
+      'Company Policies page is now fully DB-backed — create, edit, and delete policies with bilingual (EN/AR) content via a dialog; language toggle on the list.',
+      'Employee Onboarding checklist is now managed from the DB — Manage Checklist button opens a dialog to add, edit, delete, and reorder checklist tasks (EN/AR labels, required flag, sort order).',
+      'Employee Training page is now fully DB-backed — New Program and per-program Edit/Delete dialogs with bilingual title and description; language toggle on the list.',
+      'New Prisma models: HrPolicy, HrOnboardingTask, HrTrainingProgram — seeded with 10 bilingual default onboarding tasks on first startup.',
+      'Full CRUD APIs for all three resources: /api/hr/policies, /api/hr/onboarding-tasks, /api/hr/training-programs.',
+    ],
+    changes: {
+      added: [
+        'POST /api/hr/policies — create a new policy with EN/AR title, content, category, version, effectiveDate',
+        'PUT /api/hr/policies/[id] — update policy fields; DELETE /api/hr/policies/[id] — soft-delete',
+        'POST /api/hr/onboarding-tasks — create checklist task; PUT/DELETE /api/hr/onboarding-tasks/[id] — update/hard-delete',
+        'POST /api/hr/training-programs — create training program; PUT/DELETE /api/hr/training-programs/[id] — update/soft-delete',
+        'HrPolicy, HrOnboardingTask, HrTrainingProgram Prisma models with startup migration add_hr_policies_onboarding_training.sql (seeds 10 bilingual onboarding tasks)',
+      ],
+      fixed: [],
+      changed: [
+        '/hr/policies — fetches live from DB; New Policy / Edit / Delete dialogs; EN/AR language toggle',
+        '/hr/onboarding — checklist loaded from DB; Manage Checklist dialog for full CRUD of tasks per employee',
+        '/hr/training — programs fetched from DB; New Program / Edit / Delete dialogs; EN/AR language toggle',
+      ],
+    },
+  },
+  {
     version: '19.11.0',
     date: 'April 19, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'HR Policies, Onboarding & Training + Payroll Fixes',
     highlights: [
       'New Company Policies page (/hr/policies) — browse all company policies by category with search, version tags, and effective dates.',
