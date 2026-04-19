@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
-import { APP_VERSION } from '@/lib/version';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { version: pkgVersion } = require('../../../../../package.json') as { version: string };
 
 const CURRENT_VERSION = {
-  ...APP_VERSION,
+  version: pkgVersion,
+  date: 'April 19, 2026',
+  type: 'patch' as const,
   mainTitle: 'HR Letter Enhancements — CEO Approval, Per-Type Serials, Bilingual Print',
   highlights: [
     'CEO approval cycle: every issued letter goes to PENDING_CEO — CEO receives a push notification and can approve or reject with a reason; HR creator is notified of the decision.',

@@ -1,0 +1,696 @@
+'use client';
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2, Users, HardHat, Clock, TrendingUp, Trophy, Star, Zap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
+
+type DayData = { status: string; regularHours: number; overtimeHours: number };
+
+type DaySummary = {
+  present: number;
+  absentWithPermission: number;
+  absentNoPermission: number;
+  vacation: number;
+  sick: number;
+  weekend: number;
+  holiday: number;
+  unknown: number;
+  totalRegularHours: number;
+  totalOvertimeHours: number;
+};
+
+type EmployeeRow = {
+  id: string;
+  employmentId: string;
+  fullNameEn: string;
+  fullNameAr: string | null;
+  occupation: string | null;
+  section: string | null;
+  days: Record<number, DayData>;
+  summary: DaySummary;
+};
+
+type ManpowerRow = {
+  id: string;
+  slotCode: string;
+  trade: string;
+  agencyName: string;
+  days: Record<number, DayData>;
+  summary: DaySummary;
+};
+
+type GridData = {
+  year: number;
+  month: number;
+  daysInMonth: number;
+  aggregates: { employees: DaySummary; manpower: DaySummary };
+  employees: EmployeeRow[];
+  manpower: ManpowerRow[];
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  PRESENT:                'bg-emerald-500 text-white',
+  ABSENT_WITH_PERMISSION: 'bg-amber-400 text-white',
+  ABSENT_NO_PERMISSION:   'bg-rose-500 text-white',
+  ANNUAL_VACATION:        'bg-sky-500 text-white',
+  SICK_LEAVE:             'bg-orange-400 text-white',
+  WEEKEND:                'bg-slate-200 text-slate-400',
+  PUBLIC_HOLIDAY:         'bg-violet-300 text-violet-800',
+  UNKNOWN:                'bg-slate-300 text-slate-600',
+};
+
+const STATUS_ABBR: Record<string, string> = {
+  PRESENT:                'P',
+  ABSENT_WITH_PERMISSION: 'AP',
+  ABSENT_NO_PERMISSION:   'A',
+  ANNUAL_VACATION:        'AV',
+  SICK_LEAVE:             'SL',
+  WEEKEND:                'WE',
+  PUBLIC_HOLIDAY:         'PH',
+  UNKNOWN:                '?',
+};
+
+const SUMMARY_COLS = [
+  { key: 'present',              label: 'P',   color: 'text-emerald-700' },
+  { key: 'absentWithPermission', label: 'AP',  color: 'text-amber-600'   },
+  { key: 'absentNoPermission',   label: 'A',   color: 'text-rose-600'    },
+  { key: 'vacation',             label: 'AV',  color: 'text-sky-600'     },
+  { key: 'sick',                 label: 'SL',  color: 'text-orange-600'  },
+  { key: 'weekend',              label: 'WE',  color: 'text-slate-500'   },
+  { key: 'holiday',              label: 'PH',  color: 'text-violet-600'  },
+  { key: 'unknown',              label: '?',   color: 'text-slate-400'   },
+] as const;
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function getDayOfWeek(year: number, month: number, day: number) {
+  return new Date(year, month - 1, day).getDay();
+}
+
+function fmtH(h: number) {
+  return h % 1 === 0 ? String(h) : h.toFixed(1);
+}
+
+function KpiCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color: string }) {
+  return (
+    <div className={cn('rounded-xl border p-3 shadow-sm', color)}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{label}</p>
+      <p className="text-xl font-bold mt-0.5">{value}</p>
+      {sub && <p className="text-[10px] opacity-60 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function AggregateKpis({ agg, title, icon: Icon, colorClass }: { agg: DaySummary; title: string; icon: React.ElementType; colorClass: string }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Icon className={cn('h-4 w-4', colorClass)} />
+        <span className="text-sm font-semibold text-slate-700">{title}</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <KpiCard label="Regular Hrs" value={fmtH(agg.totalRegularHours)} color="bg-slate-50 border-slate-200 text-slate-700" />
+        <KpiCard label="Overtime Hrs" value={fmtH(agg.totalOvertimeHours)} color="bg-amber-50 border-amber-200 text-amber-700" />
+        <KpiCard label="Present" value={agg.present} color="bg-emerald-50 border-emerald-200 text-emerald-700" />
+        <KpiCard label="Absent (perm)" value={agg.absentWithPermission} color="bg-amber-50 border-amber-200 text-amber-700" />
+        <KpiCard label="Absent (no perm)" value={agg.absentNoPermission} color="bg-rose-50 border-rose-200 text-rose-700" />
+        <KpiCard label="Annual Leave" value={agg.vacation} color="bg-sky-50 border-sky-200 text-sky-700" />
+        <KpiCard label="Sick Leave" value={agg.sick} color="bg-orange-50 border-orange-200 text-orange-700" />
+        <KpiCard label="Weekend" value={agg.weekend} color="bg-slate-50 border-slate-200 text-slate-500" />
+        <KpiCard label="Public Holiday" value={agg.holiday} color="bg-violet-50 border-violet-200 text-violet-700" />
+        <KpiCard label="Unknown" value={agg.unknown} color="bg-slate-50 border-slate-200 text-slate-400" />
+      </div>
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  iconClass,
+  children,
+  defaultOpen = true,
+  badge,
+}: {
+  title: string;
+  icon: React.ElementType;
+  iconClass?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50/70 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Icon className={cn('h-4 w-4', iconClass ?? 'text-slate-500')} />
+          <span className="text-sm font-semibold text-slate-700">{title}</span>
+          {badge}
+        </div>
+        {open
+          ? <ChevronUp className="h-4 w-4 text-slate-400" />
+          : <ChevronDown className="h-4 w-4 text-slate-400" />
+        }
+      </button>
+      {open && <div className="border-t">{children}</div>}
+    </div>
+  );
+}
+
+function RunnerUpRow({
+  place,
+  emp,
+}: {
+  place: 2 | 3;
+  emp: EmployeeRow;
+}) {
+  const totalHours = emp.summary.totalRegularHours + emp.summary.totalOvertimeHours;
+  const medal = place === 2
+    ? { icon: '🥈', label: '2nd Place', bg: 'bg-slate-100 border-slate-200', text: 'text-slate-600', sub: 'text-slate-400' }
+    : { icon: '🥉', label: '3rd Place', bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', sub: 'text-orange-400' };
+
+  return (
+    <div className={cn('flex items-center gap-3 rounded-xl border px-4 py-2.5', medal.bg)}>
+      <span className="text-lg leading-none">{medal.icon}</span>
+      <div className="flex-1 min-w-0">
+        <Link href={`/hr/employees/${emp.id}`} className="group">
+          <span className={cn('text-sm font-semibold truncate block group-hover:underline', medal.text)}>
+            {emp.fullNameEn}
+          </span>
+        </Link>
+        <span className={cn('text-[10px]', medal.sub)}>
+          #{emp.employmentId}{emp.occupation ? ` · ${emp.occupation}` : ''}{emp.section ? ` · ${emp.section}` : ''}
+        </span>
+      </div>
+      <div className="text-right shrink-0">
+        <span className={cn('text-sm font-bold', medal.text)}>{fmtH(totalHours)}h</span>
+        {emp.summary.totalOvertimeHours > 0 && (
+          <span className={cn('block text-[10px]', medal.sub)}>+{fmtH(emp.summary.totalOvertimeHours)}h OT</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmployeeOfMonthCard({ emp, runners, month, year }: {
+  emp: EmployeeRow;
+  runners: EmployeeRow[];
+  month: number;
+  year: string | number;
+}) {
+  const totalHours = emp.summary.totalRegularHours + emp.summary.totalOvertimeHours;
+  const totalLeaves = emp.summary.vacation + emp.summary.sick + emp.summary.absentWithPermission;
+
+  return (
+    <div className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50">
+      <div className="absolute -top-6 -right-6 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-yellow-300/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+        {/* Trophy icon */}
+        <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg flex items-center justify-center">
+          <Trophy className="h-7 w-7 text-white drop-shadow" />
+        </div>
+
+        {/* Main info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              🥇 Employee of the Month
+            </span>
+            <span className="text-[10px] text-amber-500 font-medium">
+              · {MONTH_NAMES[month - 1]} {year}
+            </span>
+          </div>
+          <Link href={`/hr/employees/${emp.id}`} className="group">
+            <h3 className="text-xl font-bold text-slate-800 group-hover:text-amber-700 transition-colors truncate">
+              {emp.fullNameEn}
+            </h3>
+          </Link>
+          <p className="text-xs text-slate-500 mt-0.5">
+            #{emp.employmentId}
+            {emp.occupation && <span> · {emp.occupation}</span>}
+            {emp.section && <span> · {emp.section}</span>}
+          </p>
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 sm:gap-6 flex-wrap sm:flex-nowrap">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-emerald-600 mb-0.5">
+              <Zap className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold">{fmtH(totalHours)}</span>
+              <span className="text-xs font-medium mt-1">h</span>
+            </div>
+            <p className="text-[10px] text-slate-500 whitespace-nowrap">Total Hours</p>
+          </div>
+
+          <div className="w-px h-10 bg-amber-200 hidden sm:block" />
+
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-amber-600 mb-0.5">
+              <Clock className="h-3.5 w-3.5" />
+              <span className="text-2xl font-bold">{fmtH(emp.summary.totalOvertimeHours)}</span>
+              <span className="text-xs font-medium mt-1">h</span>
+            </div>
+            <p className="text-[10px] text-slate-500 whitespace-nowrap">Overtime</p>
+          </div>
+
+          <div className="w-px h-10 bg-amber-200 hidden sm:block" />
+
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Star className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500" />
+              <span className="text-2xl font-bold text-emerald-600">0</span>
+            </div>
+            <p className="text-[10px] text-slate-500 whitespace-nowrap">Unexcused Absences</p>
+          </div>
+
+          {totalLeaves > 0 && (
+            <>
+              <div className="w-px h-10 bg-amber-200 hidden sm:block" />
+              <div className="text-center">
+                <span className="text-2xl font-bold text-sky-600">{totalLeaves}</span>
+                <p className="text-[10px] text-slate-500 whitespace-nowrap">Leave Days</p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Runner-up rows */}
+      {runners.length > 0 && (
+        <div className="relative z-10 px-5 pb-4 space-y-2">
+          {runners.map((r, i) => (
+            <RunnerUpRow key={r.id} place={(i + 2) as 2 | 3} emp={r} />
+          ))}
+        </div>
+      )}
+
+      {/* Bottom ribbon */}
+      <div className="relative z-10 px-5 py-2 bg-amber-100/60 border-t border-amber-200 flex items-center gap-2 text-[10px] text-amber-700 font-medium">
+        <Trophy className="h-3 w-3" />
+        Highest effort with zero unexcused absences — {emp.summary.present} days present out of the month.
+      </div>
+    </div>
+  );
+}
+
+function GridTable<T extends { id: string; days: Record<number, DayData>; summary: DaySummary }>({
+  rows,
+  days,
+  year,
+  month,
+  renderLabel,
+  highlights,
+}: {
+  rows: T[];
+  days: number[];
+  year: number;
+  month: number;
+  renderLabel: (row: T) => React.ReactNode;
+  highlights?: Map<string, 1 | 2 | 3>;
+}) {
+  return (
+    <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b">
+              <th className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-left font-semibold text-slate-600 min-w-[160px] whitespace-nowrap border-r">
+                Worker
+              </th>
+              {days.map(d => {
+                const dow = getDayOfWeek(year, month, d);
+                return (
+                  <th key={d} className={cn('px-1 py-2 text-center font-medium text-slate-500 w-8 min-w-[28px]', (dow === 5 || dow === 6) && 'bg-slate-100 text-slate-400')}>
+                    <div>{d}</div>
+                    <div className="text-[8px] font-normal">{['Su','Mo','Tu','We','Th','Fr','Sa'][dow]}</div>
+                  </th>
+                );
+              })}
+              {/* Summary columns header */}
+              {SUMMARY_COLS.map(c => (
+                <th key={c.key} className="px-1 py-2 text-center font-semibold text-slate-600 border-l min-w-[30px] first:border-l">
+                  <span className={cn('text-[10px]', c.color)}>{c.label}</span>
+                </th>
+              ))}
+              <th className="px-2 py-2 text-center font-semibold text-slate-600 border-l min-w-[48px] whitespace-nowrap text-[10px]">Reg h</th>
+              <th className="px-2 py-2 text-center font-semibold text-amber-700 min-w-[48px] whitespace-nowrap text-[10px]">OT h</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => {
+              const rank = highlights?.get(row.id);
+              return (
+              <tr key={row.id} className={cn(
+                'border-b last:border-0 transition-colors',
+                rank === 1 ? 'bg-amber-50/70 hover:bg-amber-100/60' :
+                rank === 2 ? 'bg-slate-100/60 hover:bg-slate-200/50' :
+                rank === 3 ? 'bg-orange-50/50 hover:bg-orange-100/40' :
+                cn('hover:bg-blue-50/30', idx % 2 === 1 && 'bg-slate-50/50'),
+              )}>
+                <td className={cn(
+                  'sticky left-0 z-10 bg-inherit px-3 py-1.5 border-r',
+                  rank === 1 && 'border-l-2 border-l-amber-400',
+                  rank === 2 && 'border-l-2 border-l-slate-400',
+                  rank === 3 && 'border-l-2 border-l-orange-400',
+                )}>
+                  {renderLabel(row)}
+                </td>
+                {days.map(d => {
+                  const cell = row.days[d];
+                  const dow = getDayOfWeek(year, month, d);
+                  if (!cell) {
+                    return (
+                      <td key={d} className={cn('px-1 py-1.5 text-center', (dow === 5 || dow === 6) && 'bg-slate-50')}>
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-slate-100 text-slate-300 text-[9px]">—</span>
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={d} className={cn('px-1 py-1.5 text-center', (dow === 5 || dow === 6) && 'bg-slate-50/80')}>
+                      <span
+                        title={`${cell.status.replace(/_/g, ' ')}${cell.regularHours > 0 ? ` · ${cell.regularHours}h` : ''}${cell.overtimeHours > 0 ? ` +${cell.overtimeHours}h OT` : ''}`}
+                        className={cn('inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-bold cursor-default', STATUS_COLOR[cell.status] ?? 'bg-slate-200 text-slate-600')}
+                      >
+                        {STATUS_ABBR[cell.status] ?? '?'}
+                      </span>
+                    </td>
+                  );
+                })}
+                {SUMMARY_COLS.map(c => (
+                  <td key={c.key} className={cn('px-1 py-1.5 text-center font-semibold border-l text-[11px]', c.color)}>
+                    {(row.summary as unknown as Record<string, number>)[c.key] || 0}
+                  </td>
+                ))}
+                <td className="px-2 py-1.5 text-center text-[11px] font-semibold text-slate-700 border-l">
+                  {fmtH(row.summary.totalRegularHours)}
+                </td>
+                <td className="px-2 py-1.5 text-center text-[11px] font-semibold text-amber-700">
+                  {fmtH(row.summary.totalOvertimeHours)}
+                </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function AttendanceMonthlyGrid() {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [data, setData] = useState<GridData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showAr, setShowAr] = useState(false);
+
+  const load = useCallback(async (y: number, m: number) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/hr/attendance/grid?year=${y}&month=${m}`);
+      if (!res.ok) throw new Error('Failed to load grid');
+      setData(await res.json());
+    } catch {
+      setError('Failed to load attendance data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(year, month); }, [load, year, month]);
+
+  function prevMonth() {
+    if (month === 1) { setYear(y => y - 1); setMonth(12); }
+    else setMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (month === 12) { setYear(y => y + 1); setMonth(1); }
+    else setMonth(m => m + 1);
+  }
+
+  const days = data ? Array.from({ length: data.daysInMonth }, (_, i) => i + 1) : [];
+
+  const topEmployees = useMemo<EmployeeRow[]>(() => {
+    if (!data || data.employees.length === 0) return [];
+    const eligible = data.employees.filter(e => e.summary.absentNoPermission === 0);
+    if (eligible.length === 0) return [];
+    return [...eligible].sort((a, b) => {
+      const aHours = a.summary.totalRegularHours + a.summary.totalOvertimeHours;
+      const bHours = b.summary.totalRegularHours + b.summary.totalOvertimeHours;
+      if (bHours !== aHours) return bHours - aHours;
+      const aLeave = a.summary.vacation + a.summary.sick + a.summary.absentWithPermission;
+      const bLeave = b.summary.vacation + b.summary.sick + b.summary.absentWithPermission;
+      return aLeave - bLeave;
+    }).slice(0, 3);
+  }, [data]);
+
+  const employeeOfMonth = topEmployees[0] ?? null;
+
+  return (
+    <div className="space-y-6">
+      {/* Controls */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={prevMonth} disabled={loading}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-base font-semibold text-slate-800 min-w-[150px] text-center">
+            {MONTH_NAMES[month - 1]} {year}
+          </span>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={nextMonth} disabled={loading}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAr(v => !v)}
+            className="text-xs text-slate-500 hover:text-slate-700 border rounded px-2 py-1"
+          >
+            {showAr ? 'Show EN names' : 'Show AR names'}
+          </button>
+          {data && (
+            <span className="text-xs text-slate-500 flex items-center gap-1">
+              <Users className="h-3 w-3" />{data.employees.length} emp
+              <HardHat className="h-3 w-3 ml-1" />{data.manpower.length} mp
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-2 text-[10px]">
+        {Object.entries(STATUS_ABBR).map(([key, abbr]) => (
+          <div key={key} className="flex items-center gap-1">
+            <span className={cn('w-5 h-5 rounded text-[9px] flex items-center justify-center font-bold', STATUS_COLOR[key])}>
+              {abbr}
+            </span>
+            <span className="text-slate-500">{key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}</span>
+          </div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
+          <Loader2 className="h-5 w-5 animate-spin" />Loading attendance grid…
+        </div>
+      ) : error ? (
+        <div className="py-10 text-center text-rose-500 text-sm">{error}</div>
+      ) : !data || (data.employees.length === 0 && data.manpower.length === 0) ? (
+        <div className="rounded-2xl border bg-gradient-to-b from-slate-50 to-white p-12 text-center space-y-2">
+          <Users className="h-12 w-12 text-slate-200 mx-auto" />
+          <p className="text-sm text-slate-500">No attendance records for {MONTH_NAMES[month - 1]} {year}</p>
+          <p className="text-xs text-slate-400">Sync attendance data from PTS to populate this view</p>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {/* ── KPI Aggregate Cards ───────────────────────────────────────── */}
+          <CollapsibleSection
+            title={`${MONTH_NAMES[month - 1]} ${year} — Aggregate Totals`}
+            icon={TrendingUp}
+            defaultOpen={true}
+          >
+            <div className="p-5 space-y-6">
+              {data.employees.length > 0 && (
+                <AggregateKpis agg={data.aggregates.employees} title="Employees" icon={Users} colorClass="text-sky-600" />
+              )}
+              {data.manpower.length > 0 && (
+                <AggregateKpis agg={data.aggregates.manpower} title="Manpower Slots" icon={HardHat} colorClass="text-violet-600" />
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* ── Total Hours Card ─────────────────────────────────────────── */}
+          <CollapsibleSection title="Total Hours" icon={Clock} iconClass="text-sky-600" defaultOpen={true}>
+            <div className="p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Staff */}
+                <div className="rounded-xl border border-sky-200 bg-gradient-to-b from-sky-50 to-white p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-sky-600" />
+                    <span className="text-xs font-semibold text-sky-700 uppercase tracking-wide">Our Staff</span>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-sky-700">
+                      {fmtH(data.aggregates.employees.totalRegularHours + data.aggregates.employees.totalOvertimeHours)}
+                      <span className="text-base font-medium ml-1">h</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {fmtH(data.aggregates.employees.totalRegularHours)}h regular
+                      {data.aggregates.employees.totalOvertimeHours > 0 && (
+                        <span className="text-amber-600 ml-1">+ {fmtH(data.aggregates.employees.totalOvertimeHours)}h OT</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-slate-400">{data.employees.length} employee{data.employees.length !== 1 ? 's' : ''}</div>
+                </div>
+
+                {/* Manpower */}
+                <div className="rounded-xl border border-violet-200 bg-gradient-to-b from-violet-50 to-white p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <HardHat className="h-4 w-4 text-violet-600" />
+                    <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Manpower</span>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-violet-700">
+                      {fmtH(data.aggregates.manpower.totalRegularHours + data.aggregates.manpower.totalOvertimeHours)}
+                      <span className="text-base font-medium ml-1">h</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {fmtH(data.aggregates.manpower.totalRegularHours)}h regular
+                      {data.aggregates.manpower.totalOvertimeHours > 0 && (
+                        <span className="text-amber-600 ml-1">+ {fmtH(data.aggregates.manpower.totalOvertimeHours)}h OT</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-slate-400">{data.manpower.length} slot{data.manpower.length !== 1 ? 's' : ''}</div>
+                </div>
+
+                {/* Combined */}
+                <div className="rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-emerald-600" />
+                    <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Combined</span>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-emerald-700">
+                      {fmtH(
+                        data.aggregates.employees.totalRegularHours + data.aggregates.employees.totalOvertimeHours +
+                        data.aggregates.manpower.totalRegularHours  + data.aggregates.manpower.totalOvertimeHours
+                      )}
+                      <span className="text-base font-medium ml-1">h</span>
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {fmtH(data.aggregates.employees.totalRegularHours + data.aggregates.manpower.totalRegularHours)}h regular
+                      {(data.aggregates.employees.totalOvertimeHours + data.aggregates.manpower.totalOvertimeHours) > 0 && (
+                        <span className="text-amber-600 ml-1">
+                          + {fmtH(data.aggregates.employees.totalOvertimeHours + data.aggregates.manpower.totalOvertimeHours)}h OT
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-slate-400">{data.employees.length + data.manpower.length} workers total</div>
+                </div>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* ── Employee of the Month ────────────────────────────────────── */}
+          {employeeOfMonth && (
+            <CollapsibleSection
+              title="Employee of the Month"
+              icon={Trophy}
+              iconClass="text-amber-500"
+              defaultOpen={true}
+              badge={
+                <span className="text-[10px] text-amber-500 font-medium">
+                  · {MONTH_NAMES[month - 1]} {year}
+                </span>
+              }
+            >
+              <EmployeeOfMonthCard emp={employeeOfMonth} runners={topEmployees.slice(1)} month={month} year={year} />
+            </CollapsibleSection>
+          )}
+
+          {/* ── Employee Grid ─────────────────────────────────────────────── */}
+          {data.employees.length > 0 && (
+            <CollapsibleSection
+              title={`Employees (${data.employees.length})`}
+              icon={Users}
+              iconClass="text-sky-600"
+              defaultOpen={true}
+              badge={
+                employeeOfMonth ? (
+                  <span className="text-[10px] text-amber-600 flex items-center gap-0.5 ml-1">
+                    <Trophy className="h-3 w-3" />winner highlighted
+                  </span>
+                ) : undefined
+              }
+            >
+              <div className="p-3">
+                <GridTable
+                  rows={data.employees}
+                  days={days}
+                  year={year}
+                  month={month}
+                  highlights={new Map(topEmployees.map((e, i) => [e.id, (i + 1) as 1 | 2 | 3]))}
+                  renderLabel={(emp) => {
+                    const rank = topEmployees.findIndex(e => e.id === emp.id) + 1;
+                    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
+                    return (
+                      <Link href={`/hr/employees/${emp.id}`} className="hover:underline flex items-center gap-1.5">
+                        {medal && <span className="text-xs leading-none flex-shrink-0">{medal}</span>}
+                        <div>
+                          <div className="font-medium text-slate-800 truncate max-w-[130px]">
+                            {showAr && emp.fullNameAr ? emp.fullNameAr : emp.fullNameEn}
+                          </div>
+                          <div className="text-[10px] text-slate-400">{emp.employmentId}{emp.section ? ` · ${emp.section}` : ''}</div>
+                        </div>
+                      </Link>
+                    );
+                  }}
+                />
+              </div>
+            </CollapsibleSection>
+          )}
+
+          {/* ── Manpower Grid ─────────────────────────────────────────────── */}
+          {data.manpower.length > 0 && (
+            <CollapsibleSection
+              title={`Manpower Slots (${data.manpower.length})`}
+              icon={HardHat}
+              iconClass="text-violet-600"
+              defaultOpen={true}
+            >
+              <div className="p-3">
+                <GridTable
+                  rows={data.manpower}
+                  days={days}
+                  year={year}
+                  month={month}
+                  renderLabel={(mp) => (
+                    <div>
+                      <div className="font-medium text-slate-800 truncate max-w-[150px]">{mp.slotCode}</div>
+                      <div className="text-[10px] text-slate-400">{mp.trade}{mp.agencyName ? ` · ${mp.agencyName}` : ''}</div>
+                    </div>
+                  )}
+                />
+              </div>
+            </CollapsibleSection>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

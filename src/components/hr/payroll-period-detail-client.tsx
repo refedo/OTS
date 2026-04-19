@@ -1,11 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Calculator, CheckCircle2, Lock, Download, FileText, RotateCcw } from 'lucide-react';
+import {
+  Loader2,
+  Calculator,
+  CheckCircle2,
+  Lock,
+  Download,
+  FileText,
+  RotateCcw,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  FileSpreadsheet,
+  DollarSign,
+  Users,
+  TrendingDown,
+  TrendingUp,
+  Info,
+  X,
+} from 'lucide-react';
 
 type Line = {
   id: string;
@@ -17,9 +35,17 @@ type Line = {
   netPay: string;
   gosiEmployee: string;
   overtimePay: string;
+  overtimeHours: string;
   unpaidLeaveDays: string;
+  unpaidLeaveDeduction: string;
   paidLeaveDays: string;
+  absentDaysWithPermission: string;
+  absenceWithPermissionDeduction: string;
   absentDaysWithoutPermission: string;
+  absenceDeduction: string;
+  loanDeduction: string;
+  custodyDeduction: string;
+  violationDeduction: string;
   payslipPdfPath: string | null;
 };
 
@@ -52,6 +78,37 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+type SortKey = 'employmentId' | 'fullNameEn' | 'basicSalary' | 'overtimeHours' | 'overtimePay' |
+  'absentDaysWithPermission' | 'absenceWithPermissionDeduction' |
+  'absentDaysWithoutPermission' | 'absenceDeduction' |
+  'loanDeduction' | 'custodyDeduction' | 'violationDeduction' | 'gosiEmployee' |
+  'grossPay' | 'totalDeductions' | 'netPay';
+
+type SortDir = 'asc' | 'desc';
+
+function sar(n: string | number) {
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmt(n: string | number, decimals = 2) {
+  return Number(n).toFixed(decimals);
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  DRAFT: 'bg-slate-100 text-slate-700 border-slate-200',
+  CALCULATED: 'bg-sky-100 text-sky-700 border-sky-200',
+  APPROVED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  PAID: 'bg-blue-100 text-blue-700 border-blue-200',
+  LOCKED: 'bg-rose-100 text-rose-700 border-rose-200',
+};
+
+function SortIcon({ col, sortKey, dir }: { col: SortKey; sortKey: SortKey; dir: SortDir }) {
+  if (col !== sortKey) return <ChevronsUpDown className="h-3 w-3 text-slate-400 inline ml-1" />;
+  return dir === 'asc'
+    ? <ChevronUp className="h-3 w-3 text-sky-600 inline ml-1" />
+    : <ChevronDown className="h-3 w-3 text-sky-600 inline ml-1" />;
+}
+
 export function PayrollPeriodDetailClient({
   period,
   canCalculate,
@@ -68,6 +125,9 @@ export function PayrollPeriodDetailClient({
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('employmentId');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [noteVisible, setNoteVisible] = useState(true);
 
   async function run(label: string, path: string) {
     setBusy(label);
@@ -83,6 +143,44 @@ export function PayrollPeriodDetailClient({
     }
   }
 
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
+
+  const sortedLines = useMemo(() => {
+    return [...period.lines].sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      if (sortKey === 'employmentId') {
+        return dir * a.employee.employmentId.localeCompare(b.employee.employmentId, undefined, { numeric: true, sensitivity: 'base' });
+      }
+      if (sortKey === 'fullNameEn') {
+        return dir * a.employee.fullNameEn.localeCompare(b.employee.fullNameEn, undefined, { sensitivity: 'base' });
+      }
+      const numMap: Record<string, number> = {
+        basicSalary: Number(a.basicSalary) - Number(b.basicSalary),
+        overtimeHours: Number(a.overtimeHours) - Number(b.overtimeHours),
+        overtimePay: Number(a.overtimePay) - Number(b.overtimePay),
+        absentDaysWithPermission: Number(a.absentDaysWithPermission) - Number(b.absentDaysWithPermission),
+        absenceWithPermissionDeduction: Number(a.absenceWithPermissionDeduction) - Number(b.absenceWithPermissionDeduction),
+        absentDaysWithoutPermission: Number(a.absentDaysWithoutPermission) - Number(b.absentDaysWithoutPermission),
+        absenceDeduction: Number(a.absenceDeduction) - Number(b.absenceDeduction),
+        loanDeduction: Number(a.loanDeduction) - Number(b.loanDeduction),
+        custodyDeduction: Number(a.custodyDeduction) - Number(b.custodyDeduction),
+        violationDeduction: Number(a.violationDeduction) - Number(b.violationDeduction),
+        gosiEmployee: Number(a.gosiEmployee) - Number(b.gosiEmployee),
+        grossPay: Number(a.grossPay) - Number(b.grossPay),
+        totalDeductions: Number(a.totalDeductions) - Number(b.totalDeductions),
+        netPay: Number(a.netPay) - Number(b.netPay),
+      };
+      return dir * (numMap[sortKey] ?? 0);
+    });
+  }, [period.lines, sortKey, sortDir]);
+
   const totalGross = period.lines.reduce((s, l) => s + Number(l.grossPay) + Number(l.totalAdditions), 0);
   const totalDed = period.lines.reduce((s, l) => s + Number(l.totalDeductions), 0);
   const totalNet = period.lines.reduce((s, l) => s + Number(l.netPay), 0);
@@ -95,125 +193,189 @@ export function PayrollPeriodDetailClient({
     (period.status === 'APPROVED' || period.status === 'PAID' || period.status === 'LOCKED') && canExport;
   const canGenPayslips = period.lines.length > 0 && canCalculate;
 
+  const Th = ({ col, children, className = '' }: { col: SortKey; children: React.ReactNode; className?: string }) => (
+    <th
+      className={`py-2 px-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide cursor-pointer select-none whitespace-nowrap hover:text-sky-700 ${className}`}
+      onClick={() => toggleSort(col)}
+    >
+      {children}
+      <SortIcon col={col} sortKey={sortKey} dir={sortDir} />
+    </th>
+  );
+
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {MONTHS[period.month - 1]} {period.year}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Pay date: {new Date(period.payDate).toLocaleDateString()} · Cutoff:{' '}
-            {new Date(period.cutoffDate).toLocaleDateString()}
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* Hero Banner */}
+        <div className="rounded-2xl border bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <DollarSign className="h-5 w-5" />
+                </div>
+                <h1 className="text-2xl font-bold">{MONTHS[period.month - 1]} {period.year} Payroll</h1>
+              </div>
+              <p className="text-emerald-100 text-sm">
+                Pay date: {new Date(period.payDate).toLocaleDateString('en-GB')} · Cutoff: {new Date(period.cutoffDate).toLocaleDateString('en-GB')}
+                {period.calculatedAt && ` · Calculated: ${new Date(period.calculatedAt).toLocaleDateString('en-GB')}`}
+                {period.approvedAt && ` · Approved: ${new Date(period.approvedAt).toLocaleDateString('en-GB')}`}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${STATUS_STYLES[period.status] ?? 'bg-white/20 text-white border-white/30'}`}>
+                {period.status}
+              </span>
+            </div>
+          </div>
         </div>
-        <Badge variant={period.status === 'LOCKED' ? 'destructive' : 'secondary'}>{period.status}</Badge>
-      </div>
 
-      {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error}
+        {error && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            {error}
+          </div>
+        )}
+
+        {/* Dismissible info note */}
+        {noteVisible && (
+          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 flex gap-3">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-sky-500" />
+            <div className="flex-1 space-y-1">
+              <p><span className="font-semibold">Cutoff date</span> ({new Date(period.cutoffDate).toLocaleDateString('en-GB')}): the last day of attendance included in this payroll run. Records after this date appear in the next period.</p>
+              <p><span className="font-semibold">Pay date</span> ({new Date(period.payDate).toLocaleDateString('en-GB')}): the date salaries are disbursed to employees.</p>
+              <p><span className="font-semibold">Leave with permission</span> <span className="inline-block bg-amber-100 text-amber-700 rounded px-1 py-0.5 text-xs font-medium">amber</span>: days absent with manager approval — deducted at the configured multiplier (default 1× daily rate).</p>
+              <p><span className="font-semibold">Leave without permission</span> <span className="inline-block bg-rose-100 text-rose-700 rounded px-1 py-0.5 text-xs font-medium">rose</span>: unauthorised absences — deducted at a higher multiplier (default 2× daily rate). Change multipliers in <span className="font-medium underline cursor-pointer" onClick={() => window.open('/hr/setup?tab=payrollSettings', '_blank')}>HR Setup → Payroll Settings</span>.</p>
+            </div>
+            <button onClick={() => setNoteVisible(false)} className="text-sky-400 hover:text-sky-700 mt-0.5 shrink-0">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* KPI Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="h-4 w-4 text-sky-500" />
+              <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Employees</p>
+            </div>
+            <p className="text-2xl font-bold text-sky-700">{period.lines.length}</p>
+            <p className="text-xs text-sky-500 mt-0.5">payroll lines</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Gross</p>
+            </div>
+            <p className="text-2xl font-bold text-emerald-700">{sar(totalGross)}</p>
+            <p className="text-xs text-emerald-500 mt-0.5">SAR total</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingDown className="h-4 w-4 text-rose-500" />
+              <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Deductions</p>
+            </div>
+            <p className="text-2xl font-bold text-rose-700">{sar(totalDed)}</p>
+            <p className="text-xs text-rose-500 mt-0.5">SAR total</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign className="h-4 w-4 text-violet-500" />
+              <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Net Pay</p>
+            </div>
+            <p className="text-2xl font-bold text-violet-700">{sar(totalNet)}</p>
+            <p className="text-xs text-violet-500 mt-0.5">SAR total</p>
+          </div>
         </div>
-      )}
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Gross</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">SAR {totalGross.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Deductions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">SAR {totalDed.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Net</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">SAR {totalNet.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Action Buttons */}
+        <div className="rounded-2xl border bg-white shadow-sm p-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            {canRecalc && (
+              <Button
+                onClick={() => run('calculate', `/api/hr/payroll-periods/${period.id}/calculate`)}
+                disabled={busy !== null}
+                className="bg-sky-600 hover:bg-sky-700 text-white"
+              >
+                {busy === 'calculate' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Calculator className="h-4 w-4 mr-1.5" />}
+                {period.status === 'CALCULATED' ? 'Recalculate' : 'Calculate'}
+              </Button>
+            )}
+            {canApproveNow && (
+              <Button variant="secondary" onClick={() => run('approve', `/api/hr/payroll-periods/${period.id}/approve`)} disabled={busy !== null}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                Approve
+              </Button>
+            )}
+            {canUnapproveNow && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (confirm('Revert this period from APPROVED back to CALCULATED? Loan/custody advances applied during approval will NOT be reversed automatically.')) {
+                    run('unapprove', `/api/hr/payroll-periods/${period.id}/unapprove`);
+                  }
+                }}
+                disabled={busy !== null}
+                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+              >
+                {busy === 'unapprove' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-1.5" />}
+                Revert Approval
+              </Button>
+            )}
+            {canLockNow && (
+              <Button variant="destructive" onClick={() => run('lock', `/api/hr/payroll-periods/${period.id}/lock`)} disabled={busy !== null}>
+                <Lock className="h-4 w-4 mr-1.5" />
+                Lock
+              </Button>
+            )}
+            {canExportNow && (
+              <Button variant="outline" onClick={() => run('wps', `/api/hr/payroll-periods/${period.id}/wps`)} disabled={busy !== null}>
+                <Download className="h-4 w-4 mr-1.5" />
+                Alinma WPS
+              </Button>
+            )}
+            {canExportNow && (
+              <Button variant="outline" onClick={() => run('wps-sif', `/api/hr/payroll-periods/${period.id}/wps-sif`)} disabled={busy !== null}>
+                <Download className="h-4 w-4 mr-1.5" />
+                WPS SIF
+              </Button>
+            )}
+            {period.lines.length > 0 && (
+              <a href={`/api/hr/payroll-periods/${period.id}/export-xlsx`} download>
+                <Button variant="outline" disabled={busy !== null}>
+                  <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-600" />
+                  Export Excel
+                </Button>
+              </a>
+            )}
+            {canGenPayslips && (
+              <Button variant="outline" onClick={() => run('payslips', `/api/hr/payroll-periods/${period.id}/payslips`)} disabled={busy !== null}>
+                {busy === 'payslips' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+                Generate PDFs
+              </Button>
+            )}
+          </div>
+        </div>
 
-      <div className="flex flex-wrap gap-2">
-        {canRecalc && (
-          <Button
-            onClick={() => run('calculate', `/api/hr/payroll-periods/${period.id}/calculate`)}
-            disabled={busy !== null}
-          >
-            {busy === 'calculate' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Calculator className="h-4 w-4 mr-1" />}
-            {period.status === 'CALCULATED' ? 'Recalculate' : 'Calculate'}
-          </Button>
-        )}
-        {canApproveNow && (
-          <Button variant="secondary" onClick={() => run('approve', `/api/hr/payroll-periods/${period.id}/approve`)} disabled={busy !== null}>
-            <CheckCircle2 className="h-4 w-4 mr-1" />
-            Approve
-          </Button>
-        )}
-        {canUnapproveNow && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (confirm('Revert this period from APPROVED back to CALCULATED? Loan/custody advances applied during approval will NOT be reversed automatically.')) {
-                run('unapprove', `/api/hr/payroll-periods/${period.id}/unapprove`);
-              }
-            }}
-            disabled={busy !== null}
-            className="border-amber-300 text-amber-700 hover:bg-amber-50"
-          >
-            {busy === 'unapprove' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-1" />}
-            Revert Approval
-          </Button>
-        )}
-        {canLockNow && (
-          <Button variant="destructive" onClick={() => run('lock', `/api/hr/payroll-periods/${period.id}/lock`)} disabled={busy !== null}>
-            <Lock className="h-4 w-4 mr-1" />
-            Lock
-          </Button>
-        )}
-        {canExportNow && (
-          <Button variant="outline" onClick={() => run('wps', `/api/hr/payroll-periods/${period.id}/wps`)} disabled={busy !== null}>
-            <Download className="h-4 w-4 mr-1" />
-            Alinma WPS (CSV)
-          </Button>
-        )}
-        {canExportNow && (
-          <Button variant="outline" onClick={() => run('wps-sif', `/api/hr/payroll-periods/${period.id}/wps-sif`)} disabled={busy !== null}>
-            <Download className="h-4 w-4 mr-1" />
-            WPS SIF (SAMA)
-          </Button>
-        )}
-        {canGenPayslips && (
-          <Button variant="outline" onClick={() => run('payslips', `/api/hr/payroll-periods/${period.id}/payslips`)} disabled={busy !== null}>
-            <FileText className="h-4 w-4 mr-1" />
-            Generate payslip PDFs
-          </Button>
-        )}
-      </div>
-
-      {period.wpsExports.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>WPS Exports</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm space-y-1">
+        {/* WPS Exports */}
+        {period.wpsExports.length > 0 && (
+          <div className="rounded-2xl border bg-white shadow-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-sm font-semibold text-slate-700">WPS Export History</h2>
+              <Badge variant="secondary">{period.wpsExports.length}</Badge>
+            </div>
+            <ul className="divide-y text-sm px-4 py-2">
               {period.wpsExports.map((w) => (
-                <li key={w.id} className="flex items-center justify-between border-b py-1">
-                  <span>
-                    {w.filename} · {w.totalEmployees} employees · SAR{' '}
-                    {Number(w.totalNet).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <li key={w.id} className="flex items-center justify-between py-2">
+                  <span className="text-slate-700">
+                    <span className="font-mono text-xs text-slate-500 mr-2">{new Date(w.generatedAt).toLocaleDateString('en-GB')}</span>
+                    {w.filename} · {w.totalEmployees} employees · SAR {sar(w.totalNet)}
                   </span>
-                  <a href={w.filePath} download>
+                  <a href={w.filePath} download={w.filename}>
                     <Button size="sm" variant="ghost">
                       <Download className="h-4 w-4 mr-1" />
                       Download
@@ -222,61 +384,155 @@ export function PayrollPeriodDetailClient({
                 </li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Payslips ({period.lines.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
+        {/* Payroll Lines Table */}
+        <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-700">Payroll Lines</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Click column headers to sort</p>
+            </div>
+            <Badge variant="secondary">{period.lines.length} employees</Badge>
+          </div>
+
           {period.lines.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No lines yet. Click Calculate.</p>
+            <div className="px-6 py-12 text-center">
+              <Calculator className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-500 font-medium">No payroll lines yet</p>
+              <p className="text-xs text-slate-400 mt-1">Click Calculate to generate payroll for this period.</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground border-b">
+                <thead className="bg-slate-50 border-b">
                   <tr>
-                    <th className="py-2">ID</th>
-                    <th>Name</th>
-                    <th className="text-right">Basic</th>
-                    <th className="text-right">OT</th>
-                    <th className="text-right">GOSI</th>
-                    <th className="text-right">Gross</th>
-                    <th className="text-right">Ded</th>
-                    <th className="text-right">Net</th>
-                    <th></th>
+                    <Th col="employmentId">ID</Th>
+                    <Th col="fullNameEn">Name</Th>
+                    <Th col="basicSalary" className="text-right">Basic</Th>
+                    <Th col="overtimeHours" className="text-right">OT Hrs</Th>
+                    <Th col="overtimePay" className="text-right">OT Pay</Th>
+                    <th className="py-2 px-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap bg-amber-50">
+                      <div>Leave w/ Perm</div>
+                      <div className="text-[10px] font-normal text-slate-400">days / ded</div>
+                    </th>
+                    <th className="py-2 px-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap bg-rose-50">
+                      <div>Leave w/o Perm</div>
+                      <div className="text-[10px] font-normal text-slate-400">days / ded</div>
+                    </th>
+                    <Th col="loanDeduction" className="text-right">Loan Ded</Th>
+                    <Th col="custodyDeduction" className="text-right">Custody</Th>
+                    <Th col="violationDeduction" className="text-right">Violation</Th>
+                    <Th col="gosiEmployee" className="text-right">GOSI</Th>
+                    <Th col="grossPay" className="text-right">Gross</Th>
+                    <Th col="totalDeductions" className="text-right">Total Ded</Th>
+                    <Th col="netPay" className="text-right">Net Pay</Th>
+                    <th className="py-2 px-3 text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap">PDF</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {period.lines.map((l) => (
-                    <tr key={l.id} className="border-b">
-                      <td className="py-2 font-mono text-xs">{l.employee.employmentId}</td>
-                      <td>{l.employee.fullNameEn}</td>
-                      <td className="text-right">{Number(l.basicSalary).toFixed(2)}</td>
-                      <td className="text-right">{Number(l.overtimePay).toFixed(2)}</td>
-                      <td className="text-right">{Number(l.gosiEmployee).toFixed(2)}</td>
-                      <td className="text-right">{Number(l.grossPay).toFixed(2)}</td>
-                      <td className="text-right">{Number(l.totalDeductions).toFixed(2)}</td>
-                      <td className="text-right font-semibold">{Number(l.netPay).toFixed(2)}</td>
-                      <td className="text-right">
-                        {l.payslipPdfPath && (
-                          <a href={l.payslipPdfPath} download>
-                            <Button size="sm" variant="ghost">
-                              <Download className="h-4 w-4" />
+                <tbody className="divide-y divide-slate-100">
+                  {sortedLines.map((l) => (
+                    <tr key={l.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 px-3 font-mono text-xs text-slate-500 whitespace-nowrap">{l.employee.employmentId}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <Link
+                          href={`/hr/employees/${l.employee.id}`}
+                          className="font-medium text-sky-700 hover:text-sky-900 hover:underline"
+                        >
+                          {l.employee.fullNameEn}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums">{fmt(l.basicSalary)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-sky-700">{fmt(l.overtimeHours)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-sky-700">{fmt(l.overtimePay)}</td>
+
+                      {/* Leave with permission */}
+                      <td className="py-2.5 px-3 bg-amber-50/50">
+                        <div className="text-center text-xs">
+                          <span className="font-semibold text-amber-700">{fmt(l.absentDaysWithPermission, 1)}</span>
+                          <span className="text-slate-400 mx-1">/</span>
+                          <span className="text-rose-600">{fmt(l.absenceWithPermissionDeduction)}</span>
+                        </div>
+                      </td>
+
+                      {/* Leave without permission */}
+                      <td className="py-2.5 px-3 bg-rose-50/60">
+                        <div className="text-center text-xs">
+                          <span className="font-semibold text-rose-700">{fmt(l.absentDaysWithoutPermission, 1)}</span>
+                          <span className="text-slate-400 mx-1">/</span>
+                          <span className="text-rose-700 font-medium">{fmt(l.absenceDeduction)}</span>
+                        </div>
+                      </td>
+
+                      <td className="py-2.5 px-3 text-right tabular-nums text-rose-600">
+                        {Number(l.loanDeduction) > 0 ? fmt(l.loanDeduction) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-rose-600">
+                        {Number(l.custodyDeduction) > 0 ? fmt(l.custodyDeduction) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-rose-600">
+                        {Number(l.violationDeduction) > 0 ? fmt(l.violationDeduction) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-slate-600">{fmt(l.gosiEmployee)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums font-medium">{fmt(l.grossPay)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-rose-700 font-medium">{fmt(l.totalDeductions)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-emerald-700 font-bold">{fmt(l.netPay)}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        {l.payslipPdfPath ? (
+                          <a href={l.payslipPdfPath} download={l.payslipPdfPath.split('/').pop()}>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-sky-600 hover:text-sky-800">
+                              <Download className="h-3.5 w-3.5" />
                             </Button>
                           </a>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
                         )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className="border-t-2 bg-slate-50">
+                  <tr>
+                    <td colSpan={2} className="py-3 px-3 text-xs font-semibold text-slate-600 uppercase">Total ({period.lines.length})</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold">
+                      {sar(period.lines.reduce((s, l) => s + Number(l.basicSalary), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold text-sky-700">
+                      {fmt(period.lines.reduce((s, l) => s + Number(l.overtimeHours), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold text-sky-700">
+                      {sar(period.lines.reduce((s, l) => s + Number(l.overtimePay), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-center text-xs font-semibold text-amber-700">
+                      {fmt(period.lines.reduce((s, l) => s + Number(l.absentDaysWithPermission), 0), 1)} / {sar(period.lines.reduce((s, l) => s + Number(l.absenceWithPermissionDeduction), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-center text-xs font-semibold text-rose-700">
+                      {fmt(period.lines.reduce((s, l) => s + Number(l.absentDaysWithoutPermission), 0), 1)} / {sar(period.lines.reduce((s, l) => s + Number(l.absenceDeduction), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold text-rose-600">
+                      {sar(period.lines.reduce((s, l) => s + Number(l.loanDeduction), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold text-rose-600">
+                      {sar(period.lines.reduce((s, l) => s + Number(l.custodyDeduction), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold text-rose-600">
+                      {sar(period.lines.reduce((s, l) => s + Number(l.violationDeduction), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold">
+                      {sar(period.lines.reduce((s, l) => s + Number(l.gosiEmployee), 0))}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-bold">{sar(totalGross)}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-bold text-rose-700">{sar(totalDed)}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-bold text-emerald-700">{sar(totalNet)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

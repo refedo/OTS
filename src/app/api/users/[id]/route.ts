@@ -31,6 +31,7 @@ const updateSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   isAdmin: z.boolean().optional(),
   mobileNumber: z.string().max(20).nullable().optional(),
+  employeeId: z.string().uuid().nullable().optional(),
   customPermissions: customPermissionsSchema,
 });
 
@@ -85,7 +86,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid input', details: parsed.error }, { status: 400 });
   }
 
-  const { password, departmentId, mobileNumber, customPermissions, ...rest } = parsed.data;
+  const { password, departmentId, mobileNumber, employeeId, customPermissions, ...rest } = parsed.data;
   
   // Build update data
   const updateData: any = { ...rest };
@@ -97,7 +98,11 @@ export async function PATCH(
   if (mobileNumber !== undefined) {
     updateData.mobileNumber = mobileNumber;
   }
-  
+
+  if (employeeId !== undefined) {
+    updateData.employeeId = employeeId;
+  }
+
   if (customPermissions !== undefined) {
     updateData.customPermissions = customPermissions;
   }

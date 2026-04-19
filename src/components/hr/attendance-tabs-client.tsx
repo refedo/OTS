@@ -1,9 +1,10 @@
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, GitMerge, CalendarDays } from 'lucide-react';
+import { Calendar, GitMerge, CalendarDays, LayoutGrid } from 'lucide-react';
 import { AttendanceListClient } from '@/components/hr/attendance-list-client';
 import { AttendanceMappingClient } from '@/components/hr/attendance-mapping-client';
+import { AttendanceMonthlyGrid } from '@/components/hr/attendance-monthly-grid';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
@@ -47,7 +48,7 @@ export function AttendanceTabsClient({
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <Tabs defaultValue="records" className="space-y-4">
+      <Tabs defaultValue="grid" className="space-y-4">
         <TabsList className="bg-slate-100">
           <TabsTrigger value="records" className="gap-2">
             <Calendar className="h-4 w-4" />
@@ -64,6 +65,10 @@ export function AttendanceTabsClient({
               )}
             </TabsTrigger>
           )}
+          <TabsTrigger value="grid" className="gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Monthly Grid
+          </TabsTrigger>
           <TabsTrigger value="timesheet" className="gap-2">
             <CalendarDays className="h-4 w-4" />
             Timesheet
@@ -79,6 +84,12 @@ export function AttendanceTabsClient({
             <AttendanceMappingClient candidates={mappingCandidates} employees={employees} />
           </TabsContent>
         )}
+
+        <TabsContent value="grid">
+          <div className="py-2">
+            <AttendanceMonthlyGrid />
+          </div>
+        </TabsContent>
 
         <TabsContent value="timesheet">
           <div className="rounded-2xl border bg-gradient-to-br from-sky-50 to-white border-sky-200 p-8 text-center space-y-4">

@@ -274,9 +274,10 @@ model User {
   calculatedEosAwards       EndOfServiceAward[] @relation("EndOfServiceCalculatedBy")
   paidEosAwards             EndOfServiceAward[] @relation("EndOfServicePaidBy")
   // 18.10.0 — Loans & Custodies
-  createdLoans    Loan[]    @relation("LoanCreatedBy")
-  updatedLoans    Loan[]    @relation("LoanUpdatedBy")
-  deletedLoans    Loan[]    @relation("LoanDeletedBy")
+  createdLoans         Loan[]         @relation("LoanCreatedBy")
+  updatedLoans         Loan[]         @relation("LoanUpdatedBy")
+  deletedLoans         Loan[]         @relation("LoanDeletedBy")
+  createdLoanPayments  LoanPayment[]  @relation("LoanPaymentCreatedBy")
   createdCustodies Custody[] @relation("CustodyCreatedBy")
   updatedCustodies Custody[] @relation("CustodyUpdatedBy")
   deletedCustodies Custody[] @relation("CustodyDeletedBy")
@@ -824,6 +825,7 @@ model TaskConversationParticipant {
   invitedBy   User?     @relation("TaskConversationInvites", fields: [invitedById], references: [id])
   joinedAt    DateTime  @default(now())
   lastReadAt  DateTime?
+  archivedAt  DateTime?
 
   @@id([taskId, userId])
   @@map("task_conversation_participants")
@@ -842,6 +844,7 @@ model Conversation {
   participants ConversationParticipant[]
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
+  deletedAt    DateTime?
 
   @@index([createdById])
   @@map("conversations")
@@ -872,6 +875,7 @@ model ConversationParticipant {
   invitedBy      User?        @relation("ConvInviter", fields: [invitedById], references: [id])
   joinedAt       DateTime     @default(now())
   lastReadAt     DateTime?
+  archivedAt     DateTime?
 
   @@id([conversationId, userId])
   @@map("conversation_participants")
@@ -4862,13 +4866,15 @@ model PayrollLine {
   overtimePay Decimal @default(0) @db.Decimal(12, 2)
 
   // Deductions
-  unpaidLeaveDeduction Decimal @default(0) @db.Decimal(12, 2)
-  absenceDeduction     Decimal @default(0) @db.Decimal(12, 2)
-  gosiEmployee         Decimal @default(0) @db.Decimal(12, 2)
-  gosiEmployer         Decimal @default(0) @db.Decimal(12, 2)
-  loanDeduction        Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of active loan installments
-  custodyDeduction     Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of custody deduction amounts
-  otherDeductions      Decimal @default(0) @db.Decimal(12, 2)
+  unpaidLeaveDeduction              Decimal @default(0) @db.Decimal(12, 2)
+  absenceDeduction                  Decimal @default(0) @db.Decimal(12, 2)
+  absenceWithPermissionDeduction    Decimal @default(0) @db.Decimal(12, 2) // 19.2.1 — absence with permission × configurable multiplier
+  gosiEmployee                      Decimal @default(0) @db.Decimal(12, 2)
+  gosiEmployer                      Decimal @default(0) @db.Decimal(12, 2)
+  loanDeduction                     Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of active loan installments
+  custodyDeduction                  Decimal @default(0) @db.Decimal(12, 2) // 18.10.0 — sum of custody deduction amounts
+  violationDeduction                Decimal @default(0) @db.Decimal(12, 2) // 19.2.1 — traffic violations flagged for payroll deduction
+  otherDeductions                   Decimal @default(0) @db.Decimal(12, 2)
 
   // Additions
   bonuses        Decimal @default(0) @db.Decimal(12, 2)
@@ -4990,8 +4996,29 @@ model Loan {
   deletedBy    User?     @relation("LoanDeletedBy", fields: [deletedById], references: [id])
   deleteReason String?   @db.VarChar(500)
 
+  payments     LoanPayment[] @relation("LoanPayments")
+
   @@index([employeeId, status])
   @@index([deletedAt])
+}
+
+// Individual payment event against a Loan (manual or payroll-deducted).
+model LoanPayment {
+  id          String   @id @default(uuid()) @db.Char(36)
+  loanId      String   @db.Char(36)
+  loan        Loan     @relation("LoanPayments", fields: [loanId], references: [id])
+
+  paymentType String   @default("SCHEDULED") @db.VarChar(20) // SCHEDULED | ADJUSTED
+  amount      Decimal  @db.Decimal(12, 2)
+  paymentDate DateTime @db.Date
+  notes       String?  @db.VarChar(500)
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("LoanPaymentCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([loanId])
+  @@index([paymentDate])
 }
 
 // Employee custody (cash advance / company asset). Finance can set

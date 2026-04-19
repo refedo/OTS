@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, User, Shield, Phone, ShieldCheck, Eye, EyeOff, Check, X } from 'lucide-react';
+import { Loader2, User, Shield, Phone, ShieldCheck, Eye, EyeOff, Check, X, UserCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionsMatrix } from '@/components/permissions-matrix';
 import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions';
@@ -52,10 +52,18 @@ type User = {
   status: string;
   isAdmin?: boolean;
   mobileNumber?: string | null;
+  employeeId?: string | null;
   roleId: string;
   departmentId: string | null;
   reportsToId: string | null;
   customPermissions?: any;
+};
+
+type EmployeeOption = {
+  id: string;
+  fullNameEn: string;
+  employmentId: string;
+  occupation: string | null;
 };
 
 type UserEditFormProps = {
@@ -63,15 +71,19 @@ type UserEditFormProps = {
   roles: Role[];
   departments: Department[];
   managers: Manager[];
+  employees?: EmployeeOption[];
 };
 
-export function UserEditForm({ user, roles, departments, managers }: UserEditFormProps) {
+export function UserEditForm({ user, roles, departments, managers, employees = [] }: UserEditFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
   const [selectedRoleId, setSelectedRoleId] = useState<string>(user.roleId);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(user.employeeId ?? '');
+  const [empSearch, setEmpSearch] = useState('');
+  const [empDropOpen, setEmpDropOpen] = useState(false);
   const initialCustom = useMemo(() => parseCustomPerms(user.customPermissions), [user.customPermissions]);
   const [grants, setGrants] = useState<string[]>(initialCustom.grants);
   const [revokes, setRevokes] = useState<string[]>(initialCustom.revokes);
@@ -113,6 +125,7 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
       status: formData.get('status') as string,
       isAdmin: formData.get('isAdmin') === 'on',
       mobileNumber: formData.get('mobileNumber') as string || null,
+      employeeId: selectedEmployeeId || null,
       customPermissions: (grants.length > 0 || revokes.length > 0) ? { grants, revokes } : null,
     };
 
@@ -381,6 +394,60 @@ export function UserEditForm({ user, roles, departments, managers }: UserEditFor
             International format for WhatsApp notifications (e.g. +966512345678)
           </p>
         </div>
+
+        {/* Linked Employee Record */}
+        {employees.length > 0 && (
+          <div className="space-y-2 col-span-2">
+            <Label className="flex items-center gap-1">
+              <UserCheck className="size-3" />
+              Linked Employee Record
+            </Label>
+            <div className="relative">
+              <Input
+                placeholder="Search and link an employee…"
+                value={
+                  selectedEmployeeId
+                    ? (employees.find(e => e.id === selectedEmployeeId)?.fullNameEn ?? selectedEmployeeId)
+                    : empSearch
+                }
+                onFocus={() => {
+                  setEmpDropOpen(true);
+                  if (selectedEmployeeId) { setSelectedEmployeeId(''); setEmpSearch(''); }
+                }}
+                onChange={e => { setEmpSearch(e.target.value); setEmpDropOpen(true); }}
+                disabled={loading}
+                className="pr-8"
+              />
+              {selectedEmployeeId && (
+                <button type="button" onClick={() => { setSelectedEmployeeId(''); setEmpSearch(''); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+              )}
+              {empDropOpen && !selectedEmployeeId && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                  <div
+                    className="w-full text-left px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 cursor-pointer"
+                    onMouseDown={e => { e.preventDefault(); setSelectedEmployeeId(''); setEmpSearch(''); setEmpDropOpen(false); }}>
+                    — No linked employee —
+                  </div>
+                  {employees
+                    .filter(e => !empSearch.trim() || e.fullNameEn.toLowerCase().includes(empSearch.toLowerCase()) || e.employmentId.toLowerCase().includes(empSearch.toLowerCase()))
+                    .slice(0, 20)
+                    .map(e => (
+                      <div key={e.id}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between cursor-pointer"
+                        onMouseDown={ev => { ev.preventDefault(); setSelectedEmployeeId(e.id); setEmpSearch(''); setEmpDropOpen(false); }}>
+                        <span className="font-medium">{e.fullNameEn}</span>
+                        <span className="text-xs text-slate-400">{e.employmentId}{e.occupation ? ` · ${e.occupation}` : ''}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Linking an employee record enables the Employee Self-Service widget on the dashboard.
+            </p>
+          </div>
+        )}
 
         {/* Is Administrator */}
         <div className="space-y-2">

@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, CheckCircle2, AlertTriangle, Clock, TrendingUp, BarChart3, Target } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle2, AlertTriangle, Clock, TrendingUp, BarChart3, Target, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -66,99 +66,69 @@ export function TasksDashboardClient({ data }: Props) {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto p-6 lg:p-8 max-lg:pt-20">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/tasks">
-              <ArrowLeft className="size-5" />
-            </Link>
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Tasks Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Team performance overview and task analytics</p>
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="container mx-auto p-4 lg:p-8 space-y-6 max-lg:pt-20">
+        {/* Hero Banner */}
+        <div className="rounded-2xl border bg-gradient-to-br from-violet-600 via-violet-500 to-purple-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <LayoutDashboard className="h-5 w-5" />
+                </div>
+                <h1 className="text-2xl font-bold">Tasks Dashboard</h1>
+              </div>
+              <p className="text-violet-100 text-sm">Team performance overview and task analytics</p>
+            </div>
+            <Button
+              variant="outline"
+              className="border-white/30 text-white hover:bg-white/10 bg-white/10 backdrop-blur-sm self-start md:self-auto"
+              asChild
+            >
+              <Link href="/tasks">
+                <ArrowLeft className="size-4 mr-2" />
+                Back to Tasks
+              </Link>
+            </Button>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-50 border border-blue-200">
-                  <BarChart3 className="size-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary.totalTasks}</p>
-                  <p className="text-xs text-muted-foreground">Total Tasks</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                  <CheckCircle2 className="size-5 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary.totalCompleted}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
-                  <Clock className="size-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary.totalInProgress}</p>
-                  <p className="text-xs text-muted-foreground">In Progress</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-50 border border-red-200">
-                  <AlertTriangle className="size-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary.totalOverdue}</p>
-                  <p className="text-xs text-muted-foreground">Overdue</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-50 border border-purple-200">
-                  <TrendingUp className="size-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary.completionRate}%</p>
-                  <p className="text-xs text-muted-foreground">Completion Rate</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* KPI Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+            <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Total Tasks</p>
+            <p className="text-2xl font-bold text-sky-700 mt-1">{summary.totalTasks}</p>
+            <p className="text-xs text-sky-500 mt-0.5">all time</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
+            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Completed</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">{summary.totalCompleted}</p>
+            <p className="text-xs text-emerald-500 mt-0.5">finished</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-blue-50 to-white border-blue-200 p-4 shadow-sm">
+            <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">In Progress</p>
+            <p className="text-2xl font-bold text-blue-700 mt-1">{summary.totalInProgress}</p>
+            <p className="text-xs text-blue-500 mt-0.5">active</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-red-50 to-white border-red-200 p-4 shadow-sm">
+            <p className="text-xs text-red-600 font-medium uppercase tracking-wide">Overdue</p>
+            <p className="text-2xl font-bold text-red-700 mt-1">{summary.totalOverdue}</p>
+            <p className="text-xs text-red-500 mt-0.5">past due date</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm">
+            <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Completion</p>
+            <p className="text-2xl font-bold text-violet-700 mt-1">{summary.completionRate}%</p>
+            <p className="text-xs text-violet-500 mt-0.5">success rate</p>
+          </div>
         </div>
 
         {/* Members Performance Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="size-5" />
+        <Card className="rounded-2xl shadow-sm border">
+          <CardHeader className="border-b bg-slate-50/80 rounded-t-2xl">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-700">
+              <Users className="size-4 text-violet-500" />
               Team Members Performance
             </CardTitle>
           </CardHeader>
@@ -270,7 +240,7 @@ export function TasksDashboardClient({ data }: Props) {
         </Card>
 
         {/* Legend */}
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-emerald-500" />
             <span>Success Rate &ge; 80%</span>

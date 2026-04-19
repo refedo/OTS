@@ -28,6 +28,7 @@ const STARTUP_MIGRATIONS = [
   'add_task_message_updated_at.sql',
   'add_standalone_conversations.sql',
   'add_conversation_last_read.sql',
+  'add_conversation_archive_delete.sql',
 
   // ── System / integrations ─────────────────────────────────────────────────
   'system_event_summaries.sql',
@@ -60,6 +61,12 @@ const STARTUP_MIGRATIONS = [
 
   // ── Letters enhancements (19.1.0) ─────────────────────────────────────────
   'add_hr_letter_enhancements.sql',
+
+  // ── Payroll leave/violation deductions (19.3.0) ───────────────────────────
+  'add_payroll_leave_violation_deductions.sql',
+
+  // ── Loan payments (19.3.0) ────────────────────────────────────────────────
+  'add_loan_payments.sql',
 ];
 
 /**

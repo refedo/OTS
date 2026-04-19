@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Loader2, Landmark, Search, Clock, CheckCircle2, MinusCircle, User,
-  ChevronUp, ChevronDown, ChevronsUpDown, Plus, AlertTriangle,
+  ChevronUp, ChevronDown, ChevronsUpDown, Plus, AlertTriangle, Banknote, Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -237,6 +237,179 @@ function NewLoanDialog({ open, onClose, onSaved }: {
   );
 }
 
+// ─── Record Payment Dialog ────────────────────────────────────────────────────
+
+function RecordPaymentDialog({ loan, open, onClose, onSaved }: {
+  loan: LoanEntry | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [paymentType, setPaymentType] = useState<'SCHEDULED' | 'ADJUSTED'>('SCHEDULED');
+  const [amount, setAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const scheduledAmount = loan ? money(loan.installmentAmount) : '';
+
+  function reset() {
+    setPaymentType('SCHEDULED');
+    setAmount('');
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setNotes('');
+    setError('');
+  }
+
+  async function handleSave() {
+    const finalAmount = paymentType === 'SCHEDULED'
+      ? Number(loan?.installmentAmount ?? 0)
+      : Number(amount);
+
+    if (!finalAmount || finalAmount <= 0) { setError('Enter a valid payment amount'); return; }
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`/api/hr/loans/${loan!.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentType, amount: finalAmount, paymentDate, notes: notes.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? 'Failed to record payment'); return; }
+      onSaved(); onClose(); reset();
+    } catch { setError('Network error'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); reset(); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-sky-600" />Record Payment
+          </DialogTitle>
+          <DialogDescription>
+            {loan ? `Loan for ${loan.employee?.fullNameEn ?? 'employee'} — SAR ${money(loan.installmentAmount)}/mo` : ''}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Payment type */}
+          <div className="space-y-1.5">
+            <Label>Payment Type *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['SCHEDULED', 'ADJUSTED'] as const).map(type => (
+                <button key={type} type="button"
+                  onClick={() => setPaymentType(type)}
+                  className={cn(
+                    'px-3 py-2 rounded-lg border text-sm font-medium transition-all',
+                    paymentType === type
+                      ? 'bg-sky-600 border-sky-600 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-sky-300',
+                  )}>
+                  {type === 'SCHEDULED' ? `Scheduled (SAR ${scheduledAmount})` : 'Adjusted amount'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Amount — only for adjusted */}
+          {paymentType === 'ADJUSTED' && (
+            <div className="space-y-1.5">
+              <Label>Amount (SAR) *</Label>
+              <Input type="number" min="0.01" step="0.01" value={amount}
+                onChange={e => setAmount(e.target.value)} placeholder="e.g. 1500" />
+              <p className="text-xs text-slate-500">Scheduled installment is SAR {scheduledAmount}</p>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label>Payment Date *</Label>
+            <Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Optional notes…" />
+          </div>
+
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onClose(); reset(); }}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-sky-600 hover:bg-sky-700">
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Record Payment
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Delete Loan Dialog ───────────────────────────────────────────────────────
+
+function DeleteLoanDialog({ loan, open, onClose, onDeleted }: {
+  loan: LoanEntry | null;
+  open: boolean;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  function reset() { setReason(''); setError(''); }
+
+  async function handleDelete() {
+    if (!reason.trim()) { setError('Please provide a reason for deletion'); return; }
+    setDeleting(true); setError('');
+    try {
+      const res = await fetch(`/api/hr/loans/${loan!.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteReason: reason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? 'Failed to delete loan'); return; }
+      onDeleted(); onClose(); reset();
+    } catch { setError('Network error'); }
+    finally { setDeleting(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); reset(); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-rose-700">
+            <Trash2 className="h-4 w-4" />Delete Loan
+          </DialogTitle>
+          <DialogDescription>
+            {loan ? `Cancel and delete the loan for ${loan.employee?.fullNameEn ?? 'this employee'} (SAR ${money(loan.principal)}).` : ''}
+            {' '}This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Reason for deletion *</Label>
+            <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="Enter reason…" />
+          </div>
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onClose(); reset(); }}>Cancel</Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+            {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Delete Loan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll: boolean; canManage?: boolean }) {
@@ -245,6 +418,8 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'createdAt', dir: 'desc' });
   const [newLoanOpen, setNewLoanOpen] = useState(false);
+  const [paymentLoan, setPaymentLoan] = useState<LoanEntry | null>(null);
+  const [deleteLoan, setDeleteLoan] = useState<LoanEntry | null>(null);
   const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
 
   const load = useCallback(async () => {
@@ -395,7 +570,7 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
                       <SortTh col="balance" label="Balance" sort={sort} onSort={toggleSort} align="right" />
                       <SortTh col="startDate" label="Start" sort={sort} onSort={toggleSort} />
                       <SortTh col="status" label="Status" sort={sort} onSort={toggleSort} />
-                      {canViewAll && <th className="py-3 px-4 font-medium">Action</th>}
+                      {canViewAll && <th className="py-3 px-4 font-medium">Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -427,11 +602,27 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
                           <td className="py-3 px-4 text-right tabular-nums font-medium text-slate-800">SAR {money(remaining)}</td>
                           <td className="py-3 px-4 text-muted-foreground">{new Date(loan.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                           <td className="py-3 px-4">{loanStatusBadge(loan.status)}</td>
-                          {canViewAll && loan.employee && (
+                          {canViewAll && (
                             <td className="py-3 px-4">
-                              <Link href={`/hr/employees/${loan.employee.id}?tab=finance`}>
-                                <Button variant="ghost" size="sm" className="h-7 text-xs text-sky-600 hover:text-sky-800">Details</Button>
-                              </Link>
+                              <div className="flex items-center gap-1">
+                                {canManage && loan.status === 'ACTIVE' && (
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs text-emerald-600 hover:text-emerald-800"
+                                    onClick={() => setPaymentLoan(loan)}>
+                                    <Banknote className="h-3 w-3 mr-1" />Pay
+                                  </Button>
+                                )}
+                                {loan.employee && (
+                                  <Link href={`/hr/employees/${loan.employee.id}?tab=finance`}>
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs text-sky-600 hover:text-sky-800">Details</Button>
+                                  </Link>
+                                )}
+                                {canManage && (
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs text-rose-500 hover:text-rose-700"
+                                    onClick={() => setDeleteLoan(loan)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           )}
                         </tr>
@@ -446,6 +637,18 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
       </div>
 
       <NewLoanDialog open={newLoanOpen} onClose={() => setNewLoanOpen(false)} onSaved={load} />
+      <RecordPaymentDialog
+        loan={paymentLoan}
+        open={paymentLoan !== null}
+        onClose={() => setPaymentLoan(null)}
+        onSaved={load}
+      />
+      <DeleteLoanDialog
+        loan={deleteLoan}
+        open={deleteLoan !== null}
+        onClose={() => setDeleteLoan(null)}
+        onDeleted={load}
+      />
     </div>
   );
 }

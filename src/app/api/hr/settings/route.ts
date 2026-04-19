@@ -22,6 +22,8 @@ const payrollSchema = z.object({
   gosiEmployerRate: z.number().min(0).max(1).optional(),
   overtimeMultiplier: z.number().min(1).max(10).optional(),
   wpsBankCode: z.string().min(1).max(20).optional(),
+  absenceWithPermissionMultiplier: z.number().min(0).max(5).optional(),
+  absenceWithoutPermissionMultiplier: z.number().min(0).max(5).optional(),
 });
 
 const leavesSchema = z.object({

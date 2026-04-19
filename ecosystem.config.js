@@ -4,6 +4,7 @@ module.exports = {
       name: 'hexa-steel-ots',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
+      cwd: '/var/www/hexasteel.sa/ots',
       instances: 1,
       exec_mode: 'fork',
       node_args: '--max-old-space-size=1024 --expose-gc',
@@ -12,28 +13,19 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
-        // No NEXT_PUBLIC_BASE_PATH - nginx proxies ots.hexasteel.sa directly to localhost:3000
         NEXT_PUBLIC_APP_URL: 'https://ots.hexasteel.sa',
       },
-      cron_restart: '0 */6 * * *', // Restart every 6 hours to prevent memory buildup
-      error_file: './logs/pm2-error.log',
-      out_file: './logs/pm2-out.log',
+      cron_restart: '0 */6 * * *',
+      error_file: '/var/www/hexasteel.sa/ots/logs/pm2-error.log',
+      out_file: '/var/www/hexasteel.sa/ots/logs/pm2-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
-      // Zero-downtime deployment settings
-      wait_ready: true,
-      listen_timeout: 30000,
       kill_timeout: 10000,
-      // Auto-restart on crash with exponential backoff
       autorestart: true,
       max_restarts: 15,
       min_uptime: '30s',
       restart_delay: 4000,
       exp_backoff_restart_delay: 100,
-      // Graceful shutdown
-      shutdown_with_message: true,
-      // Health check
-      instance_var: 'INSTANCE_ID',
     },
   ],
 };

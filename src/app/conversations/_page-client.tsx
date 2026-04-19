@@ -5,7 +5,7 @@ import { useSessionValidator } from '@/hooks/use-session-validator';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign, Calendar, Paperclip, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Download, ExternalLink, Pencil, Check, Share2, Link as LinkIcon } from 'lucide-react';
+import { MessageCircle, Building2, Briefcase, Loader2, Send, Plus, Search, X, Hash, Users, UserPlus, UserMinus, AtSign, Calendar, Paperclip, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Download, ExternalLink, Pencil, Check, Share2, Link as LinkIcon, Archive, ArchiveRestore, Trash2, MoreVertical, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -38,12 +38,14 @@ type TaskConversation = {
   taskId: string;
   taskTitle: string;
   taskStatus: string;
+  taskDueDate: string | null;
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; name: string; designation: string } | null;
   lastMessage: { content: string; createdAt: string; user: { id: string; name: string } } | null;
   participants: { id: string; name: string }[];
   updatedAt: string | null;
   hasUnread: boolean;
+  isArchived: boolean;
 };
 
 type StandaloneConversation = {
@@ -54,6 +56,7 @@ type StandaloneConversation = {
   participants: { id: string; name: string }[];
   updatedAt: string | null;
   hasUnread: boolean;
+  isArchived: boolean;
 };
 
 type Conversation = TaskConversation | StandaloneConversation;
@@ -134,6 +137,28 @@ function dueDateStyle(dueDate: string | null | undefined): string {
   if (days < 0) return 'text-red-600 font-semibold';
   if (days < 3) return 'text-orange-500 font-medium';
   return 'text-muted-foreground';
+}
+
+function convStatusColor(conv: TaskConversation): { border: string; dot: string; bg: string } {
+  const isDelayed = conv.taskDueDate
+    ? new Date(conv.taskDueDate).getTime() < Date.now() && conv.taskStatus !== 'Completed'
+    : false;
+  if (isDelayed || conv.taskStatus === 'Delayed') {
+    return { border: 'border-l-red-400', dot: 'bg-red-400', bg: 'from-red-50/60' };
+  }
+  if (conv.taskStatus === 'Completed') {
+    return { border: 'border-l-emerald-400', dot: 'bg-emerald-400', bg: 'from-emerald-50/60' };
+  }
+  if (conv.taskStatus === 'In Progress') {
+    return { border: 'border-l-blue-400', dot: 'bg-blue-400', bg: 'from-blue-50/60' };
+  }
+  if (conv.taskStatus === 'Pending') {
+    return { border: 'border-l-amber-400', dot: 'bg-amber-400', bg: 'from-amber-50/60' };
+  }
+  if (conv.taskStatus === 'Waiting for Approval') {
+    return { border: 'border-l-violet-400', dot: 'bg-violet-400', bg: 'from-violet-50/60' };
+  }
+  return { border: 'border-l-slate-300', dot: 'bg-slate-300', bg: 'from-slate-50/60' };
 }
 
 function renderContent(content: string) {
@@ -245,6 +270,12 @@ export default function ConversationsPage() {
   const [editingContent, setEditingContent] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Archive / delete state
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivingConvKey, setArchivingConvKey] = useState<string | null>(null);
+  const [deletingConvId, setDeletingConvId] = useState<string | null>(null);
+  const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
+
   // Fallback task info for when a taskId deep-link points to a task not in the conversations list
   const [fallbackTaskInfo, setFallbackTaskInfo] = useState<{
     title: string; status: string;
@@ -266,6 +297,7 @@ export default function ConversationsPage() {
       taskId: selectedTaskId,
       taskTitle: fallbackTaskInfo.title,
       taskStatus: fallbackTaskInfo.status,
+      taskDueDate: null,
       project: fallbackTaskInfo.project,
       building: fallbackTaskInfo.building,
       lastMessage: messages[messages.length - 1]
@@ -274,6 +306,7 @@ export default function ConversationsPage() {
       participants: participants.map(p => p.user),
       updatedAt: null,
       hasUnread: false,
+      isArchived: false,
     } : null
   );
 
@@ -298,17 +331,18 @@ export default function ConversationsPage() {
   }, []);
 
   // Load conversation list
-  const loadConversations = useCallback(async () => {
-    const res = await fetch('/api/conversations');
+  const loadConversations = useCallback(async (archived = false) => {
+    const url = archived ? '/api/conversations?archived=true' : '/api/conversations';
+    const res = await fetch(url);
     if (res.ok) setConversations(await res.json());
     setLoadingList(false);
   }, []);
 
   useEffect(() => {
-    loadConversations();
-    const interval = setInterval(loadConversations, 30000);
+    loadConversations(showArchived);
+    const interval = setInterval(() => loadConversations(showArchived), 30000);
     return () => clearInterval(interval);
-  }, [loadConversations]);
+  }, [loadConversations, showArchived]);
 
   // Deep-link: open conversation from notification (?taskId=xxx or ?id=xxx)
   useEffect(() => {
@@ -513,6 +547,42 @@ export default function ConversationsPage() {
     } finally { setSavingEdit(false); }
   };
 
+  const handleArchiveConversation = async (conv: Conversation, archive: boolean) => {
+    const key = conv.type === 'task' ? conv.taskId : conv.conversationId;
+    setArchivingConvKey(key);
+    setOpenMenuKey(null);
+    try {
+      const url = conv.type === 'task'
+        ? `/api/tasks/${conv.taskId}/conversation/archive`
+        : `/api/conversations/${conv.conversationId}/archive`;
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archive }),
+      });
+      if (res.ok) {
+        await loadConversations(showArchived);
+        // Deselect if we archived the active conversation
+        if (!showArchived && archive) {
+          if (conv.type === 'task' && selectedTaskId === conv.taskId) { setSelectedTaskId(null); }
+          if (conv.type === 'standalone' && selectedConversationId === conv.conversationId) { setSelectedConversationId(null); }
+        }
+      }
+    } finally { setArchivingConvKey(null); }
+  };
+
+  const handleDeleteConversation = async (conv: StandaloneConversation) => {
+    setDeletingConvId(conv.conversationId);
+    setOpenMenuKey(null);
+    try {
+      const res = await fetch(`/api/conversations/${conv.conversationId}`, { method: 'DELETE' });
+      if (res.ok) {
+        await loadConversations(showArchived);
+        if (selectedConversationId === conv.conversationId) setSelectedConversationId(null);
+      }
+    } finally { setDeletingConvId(null); }
+  };
+
   const resetStartNew = () => {
     setShowStartNew(false);
     setSelectedNewTask(null);
@@ -656,7 +726,7 @@ export default function ConversationsPage() {
       if (res.ok) {
         const msg = await res.json();
         setMessages(prev => [...prev, msg]);
-        await loadConversations();
+        await loadConversations(showArchived);
       } else {
         setNewMessage(content);
         setPendingAttachments(attachmentsToSend);
@@ -689,7 +759,7 @@ export default function ConversationsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        await loadConversations();
+        await loadConversations(showArchived);
         if (data.type === 'standalone') {
           setSelectedConversationId(data.conversationId);
           setSelectedTaskId(null);
@@ -732,7 +802,7 @@ export default function ConversationsPage() {
         </div>
 
         {/* Search bar */}
-        <div className="px-3 py-2 border-b">
+        <div className="px-3 py-2 border-b space-y-1.5">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <input
@@ -748,9 +818,20 @@ export default function ConversationsPage() {
               </button>
             )}
           </div>
+          {/* Archive toggle */}
+          <button
+            onClick={() => setShowArchived(v => !v)}
+            className={cn(
+              'w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
+              showArchived ? 'bg-amber-100 text-amber-700' : 'text-muted-foreground hover:bg-muted/60',
+            )}
+          >
+            <Archive className="size-3" />
+            {showArchived ? 'Showing archived' : 'Show archived'}
+          </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 py-1">
+        <div className="overflow-y-auto flex-1 py-1" onClick={() => setOpenMenuKey(null)}>
           {loadingList ? (
             <div className="flex items-center justify-center h-40">
               <Loader2 className="size-5 animate-spin text-primary/40" />
@@ -759,76 +840,147 @@ export default function ConversationsPage() {
             <div className="p-6 text-center">
               <MessageCircle className="size-10 text-primary/15 mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">
-                {convSearch ? 'No matches found' : 'No conversations yet'}
+                {convSearch ? 'No matches found' : showArchived ? 'No archived conversations' : 'No conversations yet'}
               </p>
-              {!convSearch && <p className="text-[11px] text-muted-foreground/60 mt-1">Start one with the + button</p>}
+              {!convSearch && !showArchived && <p className="text-[11px] text-muted-foreground/60 mt-1">Start one with the + button</p>}
             </div>
           ) : (
             filteredConversations.map(conv => {
+              const convKey = conv.type === 'task' ? conv.taskId : conv.conversationId;
               const active = conv.type === 'task'
                 ? selectedTaskId === conv.taskId
                 : selectedConversationId === conv.conversationId;
               const displayTitle = conv.type === 'task' ? conv.taskTitle : conv.topic;
               const showUnread = conv.hasUnread && !active;
+              const statusColors = conv.type === 'task' ? convStatusColor(conv) : null;
+              const isArchiving = archivingConvKey === convKey;
+              const isDeleting = conv.type === 'standalone' && deletingConvId === conv.conversationId;
+              const menuOpen = openMenuKey === convKey;
+
               return (
-                <button
-                  key={conv.type === 'task' ? conv.taskId : conv.conversationId}
-                  onClick={() => handleSelectConversation(conv)}
-                  className={cn(
-                    'w-full text-left px-3 py-2.5 mx-1 w-[calc(100%-8px)] rounded-lg transition-all mb-0.5',
-                    active
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'hover:bg-primary/8 text-foreground',
-                  )}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className="relative shrink-0">
-                      <div className={cn(
-                        'size-8 rounded-xl flex items-center justify-center text-[11px] font-bold mt-0.5',
-                        active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary',
-                      )}>
-                        {conv.type === 'standalone'
-                          ? <MessageCircle className="size-4" />
-                          : displayTitle.charAt(0).toUpperCase()}
-                      </div>
-                      {showUnread && (
-                        <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-orange-500 border-2 border-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className={cn(
-                          'text-sm truncate',
-                          active ? 'text-primary-foreground font-semibold' : showUnread ? 'font-bold' : 'font-semibold',
+                <div key={convKey} className="relative group mx-1 mb-0.5">
+                  <button
+                    onClick={() => { setOpenMenuKey(null); handleSelectConversation(conv); }}
+                    className={cn(
+                      'w-full text-left px-3 py-2.5 rounded-lg transition-all border-l-[3px]',
+                      active
+                        ? 'bg-primary text-primary-foreground shadow-sm border-l-primary'
+                        : conv.isArchived
+                        ? 'opacity-60 hover:opacity-80 hover:bg-muted/40 border-l-slate-200'
+                        : statusColors
+                        ? `hover:bg-gradient-to-r ${statusColors.bg} to-transparent ${statusColors.border} hover:border-l-4`
+                        : 'hover:bg-primary/8 border-l-transparent',
+                    )}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="relative shrink-0">
+                        <div className={cn(
+                          'size-8 rounded-xl flex items-center justify-center text-[11px] font-bold mt-0.5',
+                          active ? 'bg-primary-foreground/20 text-primary-foreground'
+                            : statusColors ? `bg-gradient-to-br ${statusColors.bg} to-white border border-current/20` : 'bg-primary/15 text-primary',
                         )}>
-                          {displayTitle}
-                        </span>
-                        {conv.lastMessage && (
-                          <span className={cn('text-[10px] shrink-0', active ? 'text-primary-foreground/70' : showUnread ? 'font-semibold text-orange-500' : 'text-muted-foreground')}>
-                            {timeAgo(conv.lastMessage.createdAt)}
-                          </span>
+                          {conv.type === 'standalone'
+                            ? <MessageCircle className="size-4" />
+                            : displayTitle.charAt(0).toUpperCase()}
+                        </div>
+                        {showUnread && (
+                          <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-orange-500 border-2 border-background" />
+                        )}
+                        {/* Status dot for task convs */}
+                        {!active && statusColors && !showUnread && (
+                          <span className={cn('absolute -bottom-0.5 -right-0.5 size-2 rounded-full border border-background', statusColors.dot)} />
                         )}
                       </div>
-                      {conv.type === 'task' && conv.project && (
-                        <span className={cn('text-[10px] font-medium', active ? 'text-primary-foreground/70' : 'text-primary/70')}>
-                          {conv.project.projectNumber}
-                          {conv.building ? ` · ${conv.building.designation}` : ''}
-                        </span>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={cn(
+                            'text-xs truncate',
+                            active ? 'text-primary-foreground font-semibold' : showUnread ? 'font-bold' : 'font-semibold',
+                          )}>
+                            {displayTitle}
+                          </span>
+                          {conv.lastMessage && (
+                            <span className={cn('text-[10px] shrink-0', active ? 'text-primary-foreground/70' : showUnread ? 'font-semibold text-orange-500' : 'text-muted-foreground')}>
+                              {timeAgo(conv.lastMessage.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                        {conv.type === 'task' && (
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {conv.project && (
+                              <span className={cn('text-[10px] font-medium', active ? 'text-primary-foreground/70' : 'text-primary/70')}>
+                                {conv.project.projectNumber}{conv.building ? ` · ${conv.building.designation}` : ''}
+                              </span>
+                            )}
+                            {!active && statusColors && (
+                              <span className={cn(
+                                'text-[9px] px-1 py-0 rounded font-semibold',
+                                conv.taskStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                (conv.taskDueDate && new Date(conv.taskDueDate).getTime() < Date.now()) ? 'bg-red-100 text-red-700' :
+                                conv.taskStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                conv.taskStatus === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                'bg-slate-100 text-slate-600'
+                              )}>
+                                {(conv.taskDueDate && new Date(conv.taskDueDate).getTime() < Date.now() && conv.taskStatus !== 'Completed') ? 'Delayed' : conv.taskStatus}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {conv.type === 'standalone' && (
+                          <span className={cn('text-[10px] font-medium', active ? 'text-primary-foreground/70' : 'text-muted-foreground/70')}>
+                            Discussion · {conv.participants.length} people
+                          </span>
+                        )}
+                        {conv.lastMessage && (
+                          <p className={cn('text-[11px] truncate mt-0.5', active ? 'text-primary-foreground/70' : showUnread ? 'text-foreground font-medium' : 'text-muted-foreground')}>
+                            <span className="font-medium">{conv.lastMessage.user.name.split(' ')[0]}:</span>{' '}
+                            {conv.lastMessage.content}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Context menu trigger */}
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={e => { e.stopPropagation(); setOpenMenuKey(menuOpen ? null : convKey); }}
+                      className="size-6 flex items-center justify-center rounded-md bg-background/80 hover:bg-muted border border-border/50 text-muted-foreground hover:text-foreground transition-colors backdrop-blur-sm"
+                      title="More options"
+                    >
+                      <MoreVertical className="size-3" />
+                    </button>
+                  </div>
+
+                  {/* Context menu */}
+                  {menuOpen && (
+                    <div
+                      className="absolute right-1 top-full mt-0.5 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[140px]"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {/* Archive / Unarchive */}
+                      <button
+                        onClick={() => handleArchiveConversation(conv, !conv.isArchived)}
+                        disabled={isArchiving}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors text-left"
+                      >
+                        {isArchiving ? <Loader2 className="size-3 animate-spin" /> : conv.isArchived ? <ArchiveRestore className="size-3" /> : <Archive className="size-3" />}
+                        {conv.isArchived ? 'Unarchive' : 'Archive'}
+                      </button>
+                      {/* Delete (standalone only) */}
                       {conv.type === 'standalone' && (
-                        <span className={cn('text-[10px] font-medium', active ? 'text-primary-foreground/70' : 'text-muted-foreground/70')}>
-                          Discussion · {conv.participants.length} people
-                        </span>
-                      )}
-                      {conv.lastMessage && (
-                        <p className={cn('text-[11px] truncate mt-0.5', active ? 'text-primary-foreground/70' : showUnread ? 'text-foreground font-medium' : 'text-muted-foreground')}>
-                          <span className="font-medium">{conv.lastMessage.user.name.split(' ')[0]}:</span>{' '}
-                          {conv.lastMessage.content}
-                        </p>
+                        <button
+                          onClick={() => handleDeleteConversation(conv)}
+                          disabled={isDeleting}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-red-50 text-red-600 transition-colors text-left"
+                        >
+                          {isDeleting ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
+                          Delete
+                        </button>
                       )}
                     </div>
-                  </div>
-                </button>
+                  )}
+                </div>
               );
             })
           )}
