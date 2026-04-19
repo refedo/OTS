@@ -50,10 +50,20 @@ export const POST = withApiContext(async (req: NextRequest, session, context) =>
 
   const { paymentType, amount, paymentDate, notes } = parsed.data;
 
-  // Determine how many installments this payment covers (min 1)
-  const installmentCount = Math.max(1, Math.round(amount / Number(loan.installmentAmount)));
-  const newPaid = Math.min(loan.installmentsPaid + installmentCount, loan.installmentsTotal);
-  const isComplete = newPaid >= loan.installmentsTotal;
+  // Aggregate all existing payments to compute true cumulative total paid
+  const existingAgg = await prisma.loanPayment.aggregate({
+    where: { loanId: id },
+    _sum: { amount: true },
+  });
+  const existingTotal = Number(existingAgg._sum.amount ?? 0);
+  const newTotalPaid = existingTotal + amount;
+
+  // installmentsPaid = full installments covered by cumulative payments
+  const installmentAmt = Number(loan.installmentAmount);
+  const newInstallmentsPaid = installmentAmt > 0
+    ? Math.min(Math.floor(newTotalPaid / installmentAmt), loan.installmentsTotal)
+    : loan.installmentsPaid;
+  const isComplete = newInstallmentsPaid >= loan.installmentsTotal;
 
   try {
     const [payment] = await prisma.$transaction([
@@ -70,14 +80,14 @@ export const POST = withApiContext(async (req: NextRequest, session, context) =>
       prisma.loan.update({
         where: { id },
         data: {
-          installmentsPaid: newPaid,
+          installmentsPaid: newInstallmentsPaid,
           status: isComplete ? 'COMPLETED' : 'ACTIVE',
           updatedById: session!.userId,
         },
       }),
     ]);
 
-    logger.info({ loanId: id, paymentType, amount }, '[LoanPayments] Payment recorded');
+    logger.info({ loanId: id, paymentType, amount, newTotalPaid, newInstallmentsPaid }, '[LoanPayments] Payment recorded');
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {
     logger.error({ error }, 'Failed to record loan payment');

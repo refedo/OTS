@@ -23,10 +23,33 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.4.1',
+    date: 'April 19, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Loan Payment Recording Fix & Delete Payments',
+    highlights: [
+      'Any payment amount (even 1 SAR) no longer incorrectly marks a loan as completed',
+      'Completion now calculated from cumulative total paid vs. principal, not a per-payment counter floored at 1',
+      'New DELETE endpoint lets admins remove erroneous payment records with automatic loan recalculation',
+      'Loans list now returns totalAmountPaid per loan for accurate balance display',
+    ],
+    changes: {
+      added: [
+        'DELETE /api/hr/loans/[id]/payments/[paymentId] — removes a payment record and recalculates installmentsPaid + status from remaining payments',
+        'GET /api/hr/loans/all now returns totalAmountPaid (sum of all LoanPayment amounts) per loan',
+      ],
+      fixed: [
+        'POST /api/hr/loans/[id]/payments — replaced Math.max(1, round(amount/installment)) with cumulative aggregate logic; paying 1 SAR on a 9,225 SAR/mo loan no longer marks it complete',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '19.4.0',
     date: 'April 19, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'HR Absence & Leave Analytics Module',
     highlights: [
       'New /hr/analytics page lets management study behavioral patterns hidden in attendance and leave data',
