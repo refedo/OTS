@@ -20,6 +20,7 @@ import { EmployeeFinanceTab } from './employee-finance-tab';
 import { EmployeeAssetsTab } from './employee-assets-tab';
 import { EmployeeOverviewTab } from './employee-overview-tab';
 import { EmployeeLettersTab } from './employee-letters-tab';
+import { EmployeePayslipsTab } from './employee-payslips-tab';
 import { useSearchParams } from 'next/navigation';
 
 interface Props {
@@ -28,6 +29,7 @@ interface Props {
   showFinance: boolean;
   showAssets: boolean;
   showLetters: boolean;
+  showPayslips: boolean;
   employeeId: string;
   departments: { id: string; name: string }[];
   canManagePosition: boolean;
@@ -57,6 +59,7 @@ export function EmployeeDetailTabs({
   showFinance,
   showAssets,
   showLetters,
+  showPayslips,
   employeeId,
   departments,
   canManagePosition,
@@ -85,6 +88,7 @@ export function EmployeeDetailTabs({
         {showFinance && <TabsTrigger value="finance">Finance</TabsTrigger>}
         {showAssets && <TabsTrigger value="assets">Assets</TabsTrigger>}
         {showLetters && <TabsTrigger value="letters">Letters</TabsTrigger>}
+        {showPayslips && <TabsTrigger value="payslips">Payslips</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="overview" className="mt-4">
@@ -134,6 +138,11 @@ export function EmployeeDetailTabs({
       {showLetters && (
         <TabsContent value="letters" className="mt-4">
           <EmployeeLettersTab employeeId={employeeId} />
+        </TabsContent>
+      )}
+      {showPayslips && (
+        <TabsContent value="payslips" className="mt-4">
+          <EmployeePayslipsTab employeeId={employeeId} />
         </TabsContent>
       )}
     </Tabs>
