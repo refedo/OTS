@@ -47,7 +47,7 @@ export function AttendanceTabsClient({
   const unmappedCount = mappingCandidates.filter((c) => c.status === 'UNMAPPED').length;
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8">
       <Tabs defaultValue="grid" className="space-y-4">
         <TabsList className="bg-slate-100">
           <TabsTrigger value="records" className="gap-2">

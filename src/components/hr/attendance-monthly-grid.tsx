@@ -519,7 +519,7 @@ export function AttendanceMonthlyGrid() {
           <CollapsibleSection
             title={`${MONTH_NAMES[month - 1]} ${year} — Aggregate Totals`}
             icon={TrendingUp}
-            defaultOpen={true}
+            defaultOpen={false}
           >
             <div className="p-5 space-y-6">
               {data.employees.length > 0 && (
