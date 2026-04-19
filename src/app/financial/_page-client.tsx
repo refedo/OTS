@@ -396,6 +396,7 @@ export default function FinancialDashboardPage() {
           { href: '/financial/reports/project-cost-structure', icon: BarChart3, color: 'rose', title: 'Cost Structure', desc: 'Project cost breakdown by category' },
           { href: '/financial/reports/expenses-analysis', icon: TrendingDown, color: 'fuchsia', title: 'Expenses Analysis', desc: 'Detailed expense analysis & trends' },
           { href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet, color: 'cyan', title: 'Expenses by Account', desc: 'Monthly breakdown by accounting account' },
+          { href: '/financial/reports/cogs-supplier-map', icon: Layers, color: 'sky', title: 'COGS Supplier Map', desc: 'Expenses by GL account with top supplier breakdown' },
           { href: '/financial/reports/ots-journal-entries', icon: BookOpen, color: 'emerald', title: 'OTS Journal Entries', desc: 'Double-entry journal from supplier invoices' },
           { href: '/financial/reports/assets', icon: Package, color: 'indigo', title: 'Asset Report', desc: 'All asset accounts and balances' },
           { href: '/financial/reports/salaries', icon: Users, color: 'teal', title: 'Salaries & Wages', desc: 'Salary records synced from Dolibarr' },

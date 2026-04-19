@@ -237,6 +237,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck },
       { name: 'AP Aging Report', href: '/financial/reports/aging?type=payable', icon: Clock },
       { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText },
+      { name: 'COGS Supplier Map', href: '/financial/reports/cogs-supplier-map', icon: Layers },
     ],
   },
   {

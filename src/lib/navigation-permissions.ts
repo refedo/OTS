@@ -121,6 +121,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/reports/wip': ['financial.view'],
   '/financial/reports/projects-dashboard': ['financial.view'],
   '/financial/reports/project-cost-structure': ['financial.view'],
+  '/financial/reports/cogs-supplier-map': ['financial.view', 'supply_chain.view'],
   '/financial/reports/expenses-analysis': ['financial.view'],
   '/financial/reports/project-analysis': ['financial.view'],
   '/financial/reports/assets': ['financial.view'],
