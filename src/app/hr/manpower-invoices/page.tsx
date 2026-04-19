@@ -35,7 +35,6 @@ export default async function ManpowerInvoicesPage() {
   });
 
   const periods = await prisma.payrollPeriod.findMany({
-    where: { status: { in: ['APPROVED', 'PAID', 'LOCKED'] } },
     orderBy: [{ year: 'desc' }, { month: 'desc' }],
     select: { id: true, year: true, month: true, status: true },
   });
