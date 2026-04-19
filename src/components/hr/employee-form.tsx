@@ -61,6 +61,21 @@ const schema = z.object({
     .refine((v) => !v || /^SA\d{22}$/.test(v), 'IBAN must be SA + 22 digits'),
   isGosiSubject: z.boolean().optional(),
   gosiSalary: z.string().optional().or(z.literal('')),
+  // Extended Dolibarr extrafields (19.5.0)
+  employeeNo: z.string().max(20).optional().or(z.literal('')),
+  boarderNumber: z.string().max(255).optional().or(z.literal('')),
+  maritalStatus: z.string().max(50).optional().or(z.literal('')),
+  occupationAr: z.string().max(100).optional().or(z.literal('')),
+  gosiSubscriptionNo: z.string().max(100).optional().or(z.literal('')),
+  contractEndDate: z.string().optional().or(z.literal('')),
+  contractDuration: z.string().max(100).optional().or(z.literal('')),
+  passportNumber: z.string().max(100).optional().or(z.literal('')),
+  iqamaUrl: z.string().max(255).optional().or(z.literal('')),
+  passportUrl: z.string().max(255).optional().or(z.literal('')),
+  sponsorNumber: z.string().max(30).optional().or(z.literal('')),
+  contractType: z.string().max(100).optional().or(z.literal('')),
+  workingLocation: z.string().max(100).optional().or(z.literal('')),
+  transferType: z.string().max(100).optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -192,6 +207,20 @@ export function EmployeeForm({
       bankIban: initial?.bankIban ?? '',
       isGosiSubject: initial?.isGosiSubject ?? false,
       gosiSalary: initial?.gosiSalary ?? '',
+      employeeNo: (initial as Record<string, unknown>)?.employeeNo as string ?? '',
+      boarderNumber: (initial as Record<string, unknown>)?.boarderNumber as string ?? '',
+      maritalStatus: (initial as Record<string, unknown>)?.maritalStatus as string ?? '',
+      occupationAr: (initial as Record<string, unknown>)?.occupationAr as string ?? '',
+      gosiSubscriptionNo: (initial as Record<string, unknown>)?.gosiSubscriptionNo as string ?? '',
+      contractEndDate: (initial as Record<string, unknown>)?.contractEndDate as string ?? '',
+      contractDuration: (initial as Record<string, unknown>)?.contractDuration as string ?? '',
+      passportNumber: (initial as Record<string, unknown>)?.passportNumber as string ?? '',
+      iqamaUrl: (initial as Record<string, unknown>)?.iqamaUrl as string ?? '',
+      passportUrl: (initial as Record<string, unknown>)?.passportUrl as string ?? '',
+      sponsorNumber: (initial as Record<string, unknown>)?.sponsorNumber as string ?? '',
+      contractType: (initial as Record<string, unknown>)?.contractType as string ?? '',
+      workingLocation: (initial as Record<string, unknown>)?.workingLocation as string ?? '',
+      transferType: (initial as Record<string, unknown>)?.transferType as string ?? '',
     },
   });
 
@@ -283,9 +312,10 @@ export function EmployeeForm({
       )}
 
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="personal">Personal</TabsTrigger>
           <TabsTrigger value="employment">Employment</TabsTrigger>
+          <TabsTrigger value="documents">Documents & Contract</TabsTrigger>
           {canViewCompensation && <TabsTrigger value="compensation">Compensation</TabsTrigger>}
           {canViewCompensation && <TabsTrigger value="banking">Banking</TabsTrigger>}
         </TabsList>
@@ -449,6 +479,82 @@ export function EmployeeForm({
               <div>
                 <Label>Work week (days)</Label>
                 <Input type="number" {...form.register('workWeekDaysCount')} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <Card>
+            <CardContent className="p-4 space-y-6">
+              {/* Identity documents */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Identity Documents</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Employee No.</Label>
+                    <Input {...form.register('employeeNo')} placeholder="e.g. 1023" />
+                  </div>
+                  <div>
+                    <Label>Boarder Number</Label>
+                    <Input {...form.register('boarderNumber')} />
+                  </div>
+                  <div>
+                    <Label>Passport Number</Label>
+                    <Input {...form.register('passportNumber')} />
+                  </div>
+                  <div>
+                    <Label>Sponsor Number</Label>
+                    <Input {...form.register('sponsorNumber')} />
+                  </div>
+                  <div>
+                    <Label>Marital Status</Label>
+                    <Input {...form.register('maritalStatus')} placeholder="Single / Married" />
+                  </div>
+                  <div>
+                    <Label>المسمى الوظيفي في الإقامة</Label>
+                    <Input {...form.register('occupationAr')} dir="rtl" placeholder="عامل / مهندس" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Iqama URL <span className="text-xs text-muted-foreground">(Google Drive or direct link)</span></Label>
+                    <Input {...form.register('iqamaUrl')} placeholder="https://drive.google.com/…" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Passport URL <span className="text-xs text-muted-foreground">(Google Drive or direct link)</span></Label>
+                    <Input {...form.register('passportUrl')} placeholder="https://drive.google.com/…" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contract details */}
+              <div className="border-t pt-4">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Contract Details</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Contract Type</Label>
+                    <Input {...form.register('contractType')} placeholder="Full time / Part time" />
+                  </div>
+                  <div>
+                    <Label>Contract Duration</Label>
+                    <Input {...form.register('contractDuration')} placeholder="1 Year / 2 Years" />
+                  </div>
+                  <div>
+                    <Label>Contract End Date</Label>
+                    <Input type="date" {...form.register('contractEndDate')} />
+                  </div>
+                  <div>
+                    <Label>Working Location</Label>
+                    <Input {...form.register('workingLocation')} placeholder="Site / Office / Remote" />
+                  </div>
+                  <div>
+                    <Label>Transfer Type</Label>
+                    <Input {...form.register('transferType')} placeholder="Sponsor Transfer (Internal)" />
+                  </div>
+                  <div>
+                    <Label>GOSI Subscription #</Label>
+                    <Input {...form.register('gosiSubscriptionNo')} />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

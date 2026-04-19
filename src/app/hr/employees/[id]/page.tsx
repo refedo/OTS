@@ -86,6 +86,23 @@ export default async function EmployeeDetailPage({
     bankIban: canViewCompensation ? (employee.bankIban ?? '') : '',
     isGosiSubject: canViewCompensation ? employee.isGosiSubject : false,
     gosiSalary: canViewCompensation && employee.gosiSalary ? employee.gosiSalary.toString() : '',
+    // Extended Dolibarr extrafields (19.5.0)
+    employeeNo: (employee as Record<string, unknown>).employeeNo as string ?? '',
+    boarderNumber: (employee as Record<string, unknown>).boarderNumber as string ?? '',
+    maritalStatus: (employee as Record<string, unknown>).maritalStatus as string ?? '',
+    occupationAr: (employee as Record<string, unknown>).occupationAr as string ?? '',
+    gosiSubscriptionNo: (employee as Record<string, unknown>).gosiSubscriptionNo as string ?? '',
+    contractEndDate: (employee as Record<string, unknown>).contractEndDate
+      ? new Date((employee as Record<string, unknown>).contractEndDate as string).toISOString().slice(0, 10)
+      : '',
+    contractDuration: (employee as Record<string, unknown>).contractDuration as string ?? '',
+    passportNumber: (employee as Record<string, unknown>).passportNumber as string ?? '',
+    iqamaUrl: (employee as Record<string, unknown>).iqamaUrl as string ?? '',
+    passportUrl: (employee as Record<string, unknown>).passportUrl as string ?? '',
+    sponsorNumber: (employee as Record<string, unknown>).sponsorNumber as string ?? '',
+    contractType: (employee as Record<string, unknown>).contractType as string ?? '',
+    workingLocation: (employee as Record<string, unknown>).workingLocation as string ?? '',
+    transferType: (employee as Record<string, unknown>).transferType as string ?? '',
     manuallyEditedFields: Array.isArray(employee.manuallyEditedFields)
       ? (employee.manuallyEditedFields as string[])
       : [],

@@ -312,6 +312,7 @@ export interface DolibarrUser {
   email?: string | null;
   job?: string | null;           // maps to Employee.occupation (UI label "Position Title")
   statut?: string | number;      // "1"=active, "0"=disabled/terminated
+  employee?: number | string;    // "1"=employee, "0"=admin/system user
   salary?: string | number | null;       // basic salary
   salaryextra?: string | number | null;  // extra allowances (sometimes present)
   national_registration_number?: string | null; // Iqama / National ID
@@ -1037,8 +1038,9 @@ export class DolibarrClient {
   }
 
   /**
-   * Auto-paginate to fetch ALL llx_user records. Returns every Dolibarr user
-   * regardless of status — the HR sync decides how to interpret them.
+   * Auto-paginate to fetch Dolibarr employee users only (t.employee=1).
+   * System/admin accounts (employee=0) are excluded so the HR sync does not
+   * create Employee rows for Dolibarr API users, managers without contracts, etc.
    */
   async getAllUsers(batchSize: number = 100): Promise<DolibarrUser[]> {
     const all: DolibarrUser[] = [];
@@ -1046,7 +1048,11 @@ export class DolibarrClient {
     let hasMore = true;
 
     while (hasMore) {
-      const batch = await this.getUsers({ limit: batchSize, page });
+      const batch = await this.getUsers({
+        limit: batchSize,
+        page,
+        sqlfilters: '(t.employee:=:1)',
+      });
       all.push(...batch);
       hasMore = batch.length >= batchSize;
       page++;
