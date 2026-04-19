@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ElementType } from 'react';
 import Link from 'next/link';
 import {
@@ -26,6 +26,9 @@ import {
   CalendarDays,
   Banknote,
   Umbrella,
+  Printer,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -111,8 +114,51 @@ function letterTypeLabel(type: string) {
   return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
+interface DolibarrPayslip {
+  id: number;
+  ref: string;
+  label: string | null;
+  salary: number;
+  amount: number;
+  dateStart: string;
+  dateEnd: string;
+  datePayment: string | null;
+  isPaid: boolean;
+}
+
+interface OtsPayslipExtended {
+  lineId: string;
+  periodId: string;
+  periodLabel: string;
+  year: number;
+  month: number;
+  payDate: string;
+  basicSalary: number;
+  totalAllowances: number;
+  netPay: number;
+  payslipPdfPath: string | null;
+}
+
 export default function EmployeeSelfService({ data }: { data: SelfServiceData }) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [dolibarrPayslips, setDolibarrPayslips] = useState<DolibarrPayslip[]>([]);
+  const [otsPayslipsExtended, setOtsPayslipsExtended] = useState<OtsPayslipExtended[]>([]);
+  const [payslipsFetched, setPayslipsFetched] = useState(false);
+  const [payslipsLoading, setPayslipsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'payslips' || payslipsFetched) return;
+    setPayslipsLoading(true);
+    fetch(`/api/hr/employees/${data.employeeId}/payslips`)
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((body) => {
+        setDolibarrPayslips(body.dolibarr ?? []);
+        setOtsPayslipsExtended(body.ots ?? []);
+        setPayslipsFetched(true);
+      })
+      .catch(() => setPayslipsFetched(true))
+      .finally(() => setPayslipsLoading(false));
+  }, [activeTab, payslipsFetched, data.employeeId]);
 
   const hasAssets = data.assignedAssets.length > 0;
   const hasLoans = data.activeLoans.length > 0;
@@ -486,42 +532,142 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
         <div className="rounded-2xl border bg-white shadow-sm">
           <div className="px-5 py-4 border-b flex items-center gap-2 text-sky-700">
             <Receipt className="h-4 w-4" />
-            <span className="text-sm font-semibold">Recent Payslips</span>
+            <span className="text-sm font-semibold">Payslips</span>
+            {payslipsLoading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
           </div>
-          {data.recentPayslips.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-slate-400">No payslips available</div>
-          ) : (
-            <div className="divide-y">
-              {data.recentPayslips.map((p, i) => (
-                <div key={i} className="px-5 py-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-700">{p.periodLabel}</p>
-                      <p className="text-xs text-slate-400">Pay date: {fmtDate(p.payDate)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-sky-600 font-medium">Net Pay</p>
-                      <p className="text-base font-bold text-sky-700">SAR {fmtSAR(p.netSalary)}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 bg-slate-50 rounded-lg p-3">
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Basic</p>
-                      <p className="text-xs font-semibold text-slate-700">SAR {fmtSAR(p.basicSalary)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Allowances</p>
-                      <p className="text-xs font-semibold text-slate-700">SAR {fmtSAR(p.totalAllowances)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wide">Total</p>
-                      <p className="text-xs font-semibold text-sky-700">SAR {fmtSAR(p.netSalary)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+          {payslipsLoading ? (
+            <div className="flex items-center justify-center py-8 gap-2 text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-xs">Loading payslips…</span>
             </div>
-          )}
+          ) : (() => {
+            // Build merged list from both sources
+            const dolibarrItems = dolibarrPayslips.map((d) => ({
+              source: 'dolibarr' as const,
+              sortKey: d.dateStart || '0000-00-00',
+              dolibarr: d,
+              ots: null as OtsPayslipExtended | null,
+            }));
+            const otsItems = (payslipsFetched ? otsPayslipsExtended : data.recentPayslips.map((p) => ({
+              lineId: '',
+              periodId: '',
+              periodLabel: p.periodLabel,
+              year: 0,
+              month: 0,
+              payDate: p.payDate,
+              basicSalary: p.basicSalary,
+              totalAllowances: p.totalAllowances,
+              netPay: p.netSalary,
+              payslipPdfPath: null,
+            }))).map((o) => ({
+              source: 'ots' as const,
+              sortKey: o.payDate || '0000-00-00',
+              dolibarr: null as DolibarrPayslip | null,
+              ots: o,
+            }));
+            const merged = [...dolibarrItems, ...otsItems].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+            if (merged.length === 0) {
+              return <div className="px-5 py-8 text-center text-sm text-slate-400">No payslips available</div>;
+            }
+            return (
+              <div className="divide-y">
+                {merged.map((item, i) => {
+                  if (item.source === 'dolibarr' && item.dolibarr) {
+                    const d = item.dolibarr;
+                    const periodLabel = d.dateStart
+                      ? new Date(d.dateStart).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+                      : d.ref;
+                    return (
+                      <div key={`d-${d.id}-${i}`} className="px-5 py-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="inline-flex items-center px-1.5 py-0 rounded-full text-[10px] font-semibold bg-sky-100 text-sky-700 border border-sky-200">
+                                Dolibarr
+                              </span>
+                              <p className="text-sm font-semibold text-slate-700">{periodLabel}</p>
+                            </div>
+                            <p className="text-xs text-slate-400">
+                              {d.datePayment ? `Pay date: ${fmtDate(d.datePayment)}` : `Period: ${fmtDate(d.dateStart)}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <p className="text-[10px] text-sky-600 font-medium">Total</p>
+                              <p className="text-sm font-bold text-sky-700">SAR {fmtSAR(d.amount)}</p>
+                            </div>
+                            <button
+                              onClick={() => window.open(`/api/hr/employees/${data.employeeId}/payslips/dolibarr/${d.id}/pdf`, '_blank')}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg border border-sky-200 text-sky-700 hover:bg-sky-50 text-xs font-medium"
+                            >
+                              <Printer className="h-3 w-3" />
+                              Print
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-lg p-2.5 text-xs">
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">Base Salary</p>
+                            <p className="font-semibold text-slate-700">SAR {fmtSAR(d.salary)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">Total Disbursed</p>
+                            <p className="font-semibold text-sky-700">SAR {fmtSAR(d.amount)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  // OTS payslip
+                  const o = item.ots!;
+                  return (
+                    <div key={`o-${o.lineId || i}`} className="px-5 py-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="inline-flex items-center px-1.5 py-0 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                              OTS Payroll
+                            </span>
+                            <p className="text-sm font-semibold text-slate-700">{o.periodLabel}</p>
+                          </div>
+                          <p className="text-xs text-slate-400">Pay date: {fmtDate(o.payDate)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <p className="text-[10px] text-sky-600 font-medium">Net Pay</p>
+                            <p className="text-sm font-bold text-sky-700">SAR {fmtSAR(o.netPay)}</p>
+                          </div>
+                          {o.payslipPdfPath && (
+                            <button
+                              onClick={() => window.open(o.payslipPdfPath!, '_blank')}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-medium"
+                            >
+                              <Download className="h-3 w-3" />
+                              PDF
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 bg-slate-50 rounded-lg p-2.5 text-xs">
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wide">Basic</p>
+                          <p className="font-semibold text-slate-700">SAR {fmtSAR(o.basicSalary)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wide">Allowances</p>
+                          <p className="font-semibold text-slate-700">SAR {fmtSAR(o.totalAllowances)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wide">Net Pay</p>
+                          <p className="font-semibold text-sky-700">SAR {fmtSAR(o.netPay)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 

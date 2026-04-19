@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.8.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Previously Disbursed Salaries — Unified Employee Payslip History',
+    highlights: [
+      'New "Payslips" tab on /hr/employees/[id] shows all payslips in one place: Dolibarr historical disbursements + OTS Payroll lines, merged by date with source badges.',
+      'Dolibarr payslips render a branded A4 PDF on demand — streamed directly from the API without saving to disk.',
+      'OTS payslips link to the existing generated PDF or trigger inline PDF generation.',
+      'Employee Self-Service dashboard widget payslips tab now shows both sources merged by date with Print/Download buttons per entry.',
+      'No schema changes — reads from existing fin_salaries raw SQL table and PayrollLine Prisma model.',
+    ],
+    changes: {
+      added: [
+        'GET /api/hr/employees/[id]/payslips — combined payslips list (Dolibarr from fin_salaries + OTS from PayrollLine); gated by hr.payroll.view',
+        'GET /api/hr/employees/[id]/payslips/dolibarr/[id]/pdf — on-demand Dolibarr payslip PDF (in-memory jsPDF, Content-Disposition: inline)',
+        'src/lib/services/hr/dolibarr-payslip-pdf-generator.ts — branded A4 PDF generator for Dolibarr salary records',
+        'src/components/hr/employee-payslips-tab.tsx — "Payslips" tab component with hero, KPI tiles, merged list, expand/collapse rows',
+        'EmployeeDetailTabs: showPayslips prop + Payslips TabsTrigger/TabsContent',
+        '/hr/employees/[id]/page.tsx: canViewPayslips computed from hr.payroll.view permission',
+      ],
+      fixed: [],
+      changed: [
+        'EmployeeSelfService dashboard widget payslips tab: lazy-fetches /api/hr/employees/[id]/payslips on tab activation; merges Dolibarr + OTS items sorted by date DESC with source badges and Print/Download buttons',
+      ],
+    },
+  },
+  {
     version: '19.6.1',
     date: 'April 19, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'DETAILING WorkUnit Type + Full 8-Stage Fabrication Sequence',
     highlights: [
       'New WorkUnit type DETAILING (shop drawings) — sits between Design approval and Procurement in the fabrication sequence.',
