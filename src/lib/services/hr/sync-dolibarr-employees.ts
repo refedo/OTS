@@ -86,6 +86,19 @@ function extra(apiUser: DolibarrUser, ...keys: string[]): string | null {
   return null;
 }
 
+/**
+ * Read a date extrafield from Dolibarr's array_options.
+ * Dolibarr returns date extrafields as "YYYY-MM-DD" strings or Unix timestamps.
+ */
+function extraDate(apiUser: DolibarrUser, ...keys: string[]): Date | null {
+  const raw = extra(apiUser, ...keys);
+  if (!raw) return null;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 0) return new Date(n * 1000);
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function parseDecimal(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
   const s = String(value).trim();
@@ -130,16 +143,32 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
   basicSalary: string;
   bankName: string | null;
   bankIban: string | null;
+  // Extended Dolibarr extrafields (19.5.0)
+  nationality: string | null;
+  employeeNo: string | null;
+  boarderNumber: string | null;
+  maritalStatus: string | null;
+  occupationAr: string | null;
+  gosiSubscriptionNo: string | null;
+  contractEndDate: Date | null;
+  contractDuration: string | null;
+  passportNumber: string | null;
+  iqamaUrl: string | null;
+  passportUrl: string | null;
+  sponsorNumber: string | null;
+  contractType: string | null;
+  workingLocation: string | null;
+  transferType: string | null;
 } {
   const fullName = buildFullName(apiUser);
   const basic = parseDecimal(apiUser.salary) ?? '0.00';
   return {
     employmentId: String(apiUser.id),
     fullNameEn: fullName || `Dolibarr user ${apiUser.id}`,
-    fullNameAr: extra(apiUser, 'options_name_ar', 'options_fullname_ar'),
+    fullNameAr: extra(apiUser, 'options_name_in_arabic', 'options_name_ar', 'options_fullname_ar'),
     nationalId:
       (typeof apiUser.national_registration_number === 'string' && apiUser.national_registration_number.trim()) ||
-      extra(apiUser, 'options_iqama', 'options_national_id') ||
+      extra(apiUser, 'options_iqama_number', 'options_iqama', 'options_national_id') ||
       null,
     dateOfJoining: tsToDate(apiUser.dateemployment) ?? tsToDate(apiUser.datec) ?? new Date(),
     dateOfLeaving: tsToDate(apiUser.dateemploymentend),
@@ -152,6 +181,22 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
     basicSalary: basic,
     bankName: extra(apiUser, 'options_bank_name', 'options_bank'),
     bankIban: extra(apiUser, 'options_iban', 'options_bank_iban'),
+    // Extended extrafields
+    nationality: extra(apiUser, 'options_nationality'),
+    employeeNo: extra(apiUser, 'options_employee_no'),
+    boarderNumber: extra(apiUser, 'options_boarder_number'),
+    maritalStatus: extra(apiUser, 'options_marital_status'),
+    occupationAr: extra(apiUser, 'options_occupation_in_iqama_ar'),
+    gosiSubscriptionNo: extra(apiUser, 'options_gosi_subscription'),
+    contractEndDate: extraDate(apiUser, 'options_contract_ending_date'),
+    contractDuration: extra(apiUser, 'options_contract_duration'),
+    passportNumber: extra(apiUser, 'options_passport_number'),
+    iqamaUrl: extra(apiUser, 'options_iqama_url'),
+    passportUrl: extra(apiUser, 'options_passport_url'),
+    sponsorNumber: extra(apiUser, 'options_sponsor_number'),
+    contractType: extra(apiUser, 'options_contract_type'),
+    workingLocation: extra(apiUser, 'options_working_location'),
+    transferType: extra(apiUser, 'options_transfer_type'),
   };
 }
 
@@ -227,6 +272,21 @@ export async function runDolibarrEmployeeSync(
               basicSalary: projection.basicSalary,
               bankName: projection.bankName,
               bankIban: projection.bankIban,
+              nationality: projection.nationality,
+              employeeNo: projection.employeeNo,
+              boarderNumber: projection.boarderNumber,
+              maritalStatus: projection.maritalStatus,
+              occupationAr: projection.occupationAr,
+              gosiSubscriptionNo: projection.gosiSubscriptionNo,
+              contractEndDate: projection.contractEndDate,
+              contractDuration: projection.contractDuration,
+              passportNumber: projection.passportNumber,
+              iqamaUrl: projection.iqamaUrl,
+              passportUrl: projection.passportUrl,
+              sponsorNumber: projection.sponsorNumber,
+              contractType: projection.contractType,
+              workingLocation: projection.workingLocation,
+              transferType: projection.transferType,
               lastSyncedFromDolibarrAt: new Date(),
               manuallyEditedFields: [],
               createdById: opts.triggeredById,
@@ -254,6 +314,21 @@ export async function runDolibarrEmployeeSync(
             'basicSalary',
             'bankName',
             'bankIban',
+            'nationality',
+            'employeeNo',
+            'boarderNumber',
+            'maritalStatus',
+            'occupationAr',
+            'gosiSubscriptionNo',
+            'contractEndDate',
+            'contractDuration',
+            'passportNumber',
+            'iqamaUrl',
+            'passportUrl',
+            'sponsorNumber',
+            'contractType',
+            'workingLocation',
+            'transferType',
           ];
           let anyChange = false;
           for (const field of fields) {
