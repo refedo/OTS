@@ -23,7 +23,7 @@ export default async function DashboardPage() {
     fullNameEn: string;
     occupation: string | null;
     assignedAssets: { id: string; assetCode: string; name: string; category: string; assignedDate: string }[];
-    activeLoans: { id: string; principal: number; installmentAmount: number; installmentsPaid: number; installmentsTotal: number; reason: string | null }[];
+    activeLoans: { id: string; principal: number; installmentAmount: number; installmentsPaid: number; installmentsTotal: number; totalAmountPaid: number; reason: string | null }[];
     openCustodies: { id: string; amount: number; settledAmount: number; reason: string; issuedDate: string }[];
     recentPayslips: { periodLabel: string; netSalary: number; basicSalary: number; totalAllowances: number; payDate: string }[];
     trafficViolations: { id: string; violationDate: string; violationType: string; violationAmount: number; status: string; deductFromPayroll: boolean }[];
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
           }).catch(() => []),
           prisma.loan.findMany({
             where: { employeeId: empId, status: 'ACTIVE', deletedAt: null },
-            select: { id: true, principal: true, installmentAmount: true, installmentsPaid: true, installmentsTotal: true, reason: true },
+            select: { id: true, principal: true, installmentAmount: true, installmentsPaid: true, installmentsTotal: true, reason: true, payments: { select: { amount: true } } },
             orderBy: { createdAt: 'desc' },
           }).catch(() => []),
           prisma.custody.findMany({
@@ -126,12 +126,13 @@ export default async function DashboardPage() {
               category: a.asset.category,
               assignedDate: a.assignedDate.toISOString().slice(0, 10),
             })),
-            activeLoans: loans.map(l => ({
+            activeLoans: loans.map(({ payments: loanPayments, ...l }) => ({
               id: l.id,
               principal: Number(l.principal),
               installmentAmount: Number(l.installmentAmount),
               installmentsPaid: l.installmentsPaid,
               installmentsTotal: l.installmentsTotal,
+              totalAmountPaid: loanPayments.reduce((s, p) => s + Number(p.amount), 0),
               reason: l.reason,
             })),
             openCustodies: custodies.map(c => ({
