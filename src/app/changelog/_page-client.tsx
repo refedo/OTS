@@ -23,10 +23,69 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.6.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'EWS ↔ Project Status Tracker Integration',
+    highlights: [
+      'Early Warning System now reads live execution data from the Project Status Tracker — Tasks, LCR entries, AssemblyParts, and ProductionLogs — instead of relying solely on static WorkUnit plan records.',
+      'Rule 1 (Late Start) suppresses false alarms: if the tracker shows ≥75% actual progress for the corresponding activity, the plan-based alert is suppressed and any open alert is auto-resolved.',
+      'New Rule 5 (Tracker Progress Lag): fires DELAY alerts when the tracker's actual % lags more than 20 points behind the time-elapsed expected % derived from WorkUnit planned dates.',
+      'Shared service layer: all tracker computation logic is now in project-tracker.service.ts, consumed by both the tracker UI and the EWS engine — no duplicated queries.',
+      'No schema changes required.',
+    ],
+    changes: {
+      added: [
+        'src/lib/services/project-tracker.service.ts — shared computation service (computeActivityProgress, getProjectActivitySummary, getProjectActivitySummaries)',
+        'EWS Rule 5: evaluateTrackerProgressLag() — detects activities lagging behind schedule using live tracker data; severity: MEDIUM (gap ≥20pp), HIGH (≥40pp), CRITICAL (≥60pp)',
+        'RuleEvaluationResult.risksSuppressedByTracker — count of alerts suppressed because tracker showed real completion',
+        'RuleEvaluationResult.risksAutoResolved — count of previously open alerts auto-resolved by tracker data',
+        'EarlyWarningEngineService.getTrackerAvgForActivities() — helper averaging tracker progress for a set of activity types',
+        'EarlyWarningEngineService.autoResolveIfOpen() — auto-resolves an open RiskEvent when tracker confirms completion; records autoResolvedByTracker + progress in metadata',
+        'WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES mapping: DESIGN→design/detailing, DOCUMENTATION→arch_approval, PROCUREMENT→procurement, PRODUCTION→production/coating',
+        'CONFIG.TRACKER_SUPPRESSION_THRESHOLD (75%), TRACKER_DOWNGRADE_THRESHOLD (40%), TRACKER_LAG_THRESHOLD (20pp)',
+      ],
+      fixed: [
+        'EWS no longer fires false DELAY alerts for WorkUnits whose corresponding work is already complete in actual execution (Tasks approved, production logs entered, LCR orders placed)',
+      ],
+      changed: [
+        'Rule 1 (Late Start Risk): now cross-checks tracker progress before creating/keeping an alert; downgrades severity one level when tracker shows ≥40% partial real progress',
+        'runAllRules() now runs Rule 5 (Tracker Progress Lag) in parallel with existing rules',
+        'src/app/api/project-tracker/route.ts: imports computeActivityProgress and TRACKER_COLUMNS from the shared service (logic unchanged, no behavioral difference)',
+      ],
+    },
+  },
+  {
+    version: '19.5.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Asset Creation Fix + Dolibarr Extended Employee Sync',
+    highlights: [
+      'Asset creation no longer returns 400 for SIM cards/laptops when no attachments are uploaded.',
+      'Dolibarr employee sync now mirrors 14 additional extrafields into new Employee columns.',
+    ],
+    changes: {
+      added: [
+        'Employee columns: nationality, employeeNo, boarderNumber, maritalStatus, occupationAr, gosiSubscriptionNo, contractEndDate, contractDuration, passportNumber, iqamaUrl, passportUrl, sponsorNumber, contractType, workingLocation, transferType',
+        'Startup migration: add_employee_dolibarr_fields.sql',
+      ],
+      fixed: [
+        'Asset creation Zod schema: attachments changed from .optional() to .nullish() — allows omitting the field entirely (SIM cards, laptops)',
+        'Dolibarr 401 errors now surface a clear fix message (regenerate API key in Dolibarr → Users & Groups)',
+      ],
+      changed: [
+        'Arabic name fallback extended to options_name_in_arabic',
+        'Iqama number fallback extended to options_iqama_number',
+      ],
+    },
+  },
+  {
     version: '19.4.2',
     date: 'April 19, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'HR Letter Enhancements — CEO Approval, Per-Type Serials & Bilingual Print',
     highlights: [
       'CEO approval cycle: every issued letter goes to PENDING_CEO — CEO receives a push notification and can approve or reject with a mandatory reason; HR creator is notified of the outcome.',

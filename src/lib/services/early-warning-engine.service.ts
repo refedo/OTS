@@ -17,12 +17,23 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { 
-  RiskSeverity, 
-  RiskType, 
+import {
+  RiskSeverity,
+  RiskType,
   WorkUnitStatus,
 } from '@prisma/client';
 import crypto from 'crypto';
+import { getProjectActivitySummaries, ACTIVITY_LABELS, type ProjectActivitySummary } from '@/lib/services/project-tracker.service';
+
+// Maps WorkUnit.type values to the tracker activity columns they correspond to.
+// Used to cross-check plan-based alerts against real execution progress.
+const WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES: Record<string, string[]> = {
+  DESIGN: ['design', 'detailing'],
+  DOCUMENTATION: ['arch_approval'],
+  PROCUREMENT: ['procurement'],
+  PRODUCTION: ['production', 'coating'],
+  QC: [],
+};
 
 // ============================================
 // TYPES
@@ -43,6 +54,10 @@ export interface RuleEvaluationResult {
   risksDetected: number;
   risksCreated: number;
   risksAlreadyExist: number;
+  /** Alerts suppressed because tracker shows the work is largely complete in real execution */
+  risksSuppressedByTracker?: number;
+  /** Previously open alerts auto-resolved because tracker now shows completion */
+  risksAutoResolved?: number;
   errors: string[];
 }
 
@@ -61,15 +76,27 @@ export interface EngineRunResult {
 const CONFIG = {
   // Late Start Risk: Trigger when this percentage of planned duration has elapsed
   LATE_START_THRESHOLD_PERCENT: 40,
-  
+
   // Capacity Overload: Trigger when utilization exceeds this percentage
   CAPACITY_OVERLOAD_THRESHOLD: 100,
-  
+
   // Dependency Cascade: Days before planned start to check upstream delays
   DEPENDENCY_LOOKAHEAD_DAYS: 7,
-  
+
   // Critical Path: Minimum chain depth to consider "critical"
   CRITICAL_PATH_MIN_DEPTH: 3,
+
+  // Tracker integration — suppress a WorkUnit-based alert when the tracker's average
+  // activity progress for the corresponding activity meets this threshold.
+  // Rationale: if real execution shows ≥75%, the static plan is stale, not the project.
+  TRACKER_SUPPRESSION_THRESHOLD: 75,
+
+  // Downgrade severity by one level when tracker shows partial progress above this threshold.
+  TRACKER_DOWNGRADE_THRESHOLD: 40,
+
+  // Tracker Progress Lag (Rule 5): minimum gap between expected % (time-elapsed) and
+  // actual % (from tracker) required to fire an alert.
+  TRACKER_LAG_THRESHOLD: 20,
 };
 
 // ============================================
@@ -128,12 +155,15 @@ export class EarlyWarningEngineService {
 
   /**
    * RULE 1: Late Start Risk
-   * 
-   * Condition: WorkUnit is NOT_STARTED and more than 40% of planned duration has elapsed
-   * Severity: Based on elapsed percentage
-   *   - 40-60%: MEDIUM
-   *   - 60-80%: HIGH
-   *   - 80%+: CRITICAL
+   *
+   * Condition: WorkUnit is NOT_STARTED and more than 40% of planned duration has elapsed.
+   * Severity: Based on elapsed percentage (40-60%: MEDIUM, 60-80%: HIGH, 80%+: CRITICAL).
+   *
+   * Tracker integration: before creating an alert, the engine fetches the corresponding
+   * activity progress from the Project Status Tracker (real execution data). If the tracker
+   * shows the work is already largely done (≥75% avg across buildings), the alert is
+   * suppressed and any previously open alert for this WorkUnit is auto-resolved. If the
+   * tracker shows partial progress (≥40%), severity is downgraded by one level.
    */
   static async evaluateLateStartRisk(): Promise<RuleEvaluationResult> {
     const result: RuleEvaluationResult = {
@@ -141,13 +171,14 @@ export class EarlyWarningEngineService {
       risksDetected: 0,
       risksCreated: 0,
       risksAlreadyExist: 0,
+      risksSuppressedByTracker: 0,
+      risksAutoResolved: 0,
       errors: [],
     };
 
     try {
       const now = new Date();
 
-      // Get all NOT_STARTED WorkUnits where planned start is in the past
       const workUnits = await prisma.workUnit.findMany({
         where: {
           status: WorkUnitStatus.NOT_STARTED,
@@ -159,53 +190,78 @@ export class EarlyWarningEngineService {
         },
       });
 
+      // Pre-fetch tracker summaries for all affected projects in one batch
+      const projectIds = [...new Set(workUnits.map((wu) => wu.projectId))];
+      const trackerCache = await getProjectActivitySummaries(projectIds);
+
       for (const wu of workUnits) {
         const plannedDuration = wu.plannedEnd.getTime() - wu.plannedStart.getTime();
         const elapsed = now.getTime() - wu.plannedStart.getTime();
         const elapsedPercent = (elapsed / plannedDuration) * 100;
 
-        if (elapsedPercent >= CONFIG.LATE_START_THRESHOLD_PERCENT) {
-          result.risksDetected++;
+        if (elapsedPercent < CONFIG.LATE_START_THRESHOLD_PERCENT) continue;
 
-          // Determine severity
-          let severity: RiskSeverity;
-          if (elapsedPercent >= 80) {
-            severity = RiskSeverity.CRITICAL;
-          } else if (elapsedPercent >= 60) {
-            severity = RiskSeverity.HIGH;
-          } else {
-            severity = RiskSeverity.MEDIUM;
-          }
+        result.risksDetected++;
 
-          const fingerprint = this.generateFingerprint(
-            RiskType.DELAY,
-            [wu.id],
-            'late_start'
-          );
+        // ── Tracker cross-check ──────────────────────────────────────────────
+        const trackerSummary = trackerCache.get(wu.projectId);
+        const trackerActivities = WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES[wu.type] ?? [];
+        const trackerAvg = this.getTrackerAvgForActivities(trackerSummary, trackerActivities);
 
-          const { created } = await this.createRiskEvent(
-            {
-              severity,
-              type: RiskType.DELAY,
-              affectedProjectIds: [wu.projectId],
-              affectedWorkUnitIds: [wu.id],
-              reason: `WorkUnit "${wu.referenceModule}:${wu.referenceId}" in project ${wu.project.projectNumber} has not started. ${Math.round(elapsedPercent)}% of planned duration has elapsed. Owner: ${wu.owner.name}`,
-              recommendedAction: `Immediately start work on ${wu.referenceModule}:${wu.referenceId} or reassign to available resource. Review dependencies and blockers.`,
-              metadata: {
-                elapsedPercent: Math.round(elapsedPercent),
-                plannedStart: wu.plannedStart,
-                plannedEnd: wu.plannedEnd,
-                ownerName: wu.owner.name,
-              },
+        const fingerprint = this.generateFingerprint(RiskType.DELAY, [wu.id], 'late_start');
+
+        if (trackerActivities.length > 0 && trackerAvg >= CONFIG.TRACKER_SUPPRESSION_THRESHOLD) {
+          // Real execution shows this work is largely done — the static plan is stale.
+          // Auto-resolve any open alert and skip creating a new one.
+          const autoResolved = await this.autoResolveIfOpen(fingerprint, trackerAvg);
+          if (autoResolved) result.risksAutoResolved!++;
+          result.risksSuppressedByTracker!++;
+          continue;
+        }
+
+        // Determine severity, downgrading if tracker shows partial real progress
+        let severity: RiskSeverity;
+        if (elapsedPercent >= 80) {
+          severity = RiskSeverity.CRITICAL;
+        } else if (elapsedPercent >= 60) {
+          severity = RiskSeverity.HIGH;
+        } else {
+          severity = RiskSeverity.MEDIUM;
+        }
+
+        if (trackerActivities.length > 0 && trackerAvg >= CONFIG.TRACKER_DOWNGRADE_THRESHOLD) {
+          if (severity === RiskSeverity.CRITICAL) severity = RiskSeverity.HIGH;
+          else if (severity === RiskSeverity.HIGH) severity = RiskSeverity.MEDIUM;
+        }
+
+        const activityLabel = trackerActivities
+          .map((a) => ACTIVITY_LABELS[a] ?? a)
+          .join(' / ') || wu.type;
+
+        const { created } = await this.createRiskEvent(
+          {
+            severity,
+            type: RiskType.DELAY,
+            affectedProjectIds: [wu.projectId],
+            affectedWorkUnitIds: [wu.id],
+            reason: `WorkUnit "${wu.referenceModule}:${wu.referenceId}" (${activityLabel}) in project ${wu.project.projectNumber} has not started. ${Math.round(elapsedPercent)}% of planned duration has elapsed. Owner: ${wu.owner.name}${trackerAvg > 0 ? `. Tracker shows ${trackerAvg}% actual progress.` : ''}`,
+            recommendedAction: `Immediately start work on ${wu.referenceModule}:${wu.referenceId} or reassign to available resource. Review dependencies and blockers.`,
+            metadata: {
+              elapsedPercent: Math.round(elapsedPercent),
+              plannedStart: wu.plannedStart,
+              plannedEnd: wu.plannedEnd,
+              ownerName: wu.owner.name,
+              trackerProgress: trackerAvg,
+              trackerActivities,
             },
-            fingerprint
-          );
+          },
+          fingerprint
+        );
 
-          if (created) {
-            result.risksCreated++;
-          } else {
-            result.risksAlreadyExist++;
-          }
+        if (created) {
+          result.risksCreated++;
+        } else {
+          result.risksAlreadyExist++;
         }
       }
     } catch (error) {
@@ -560,6 +616,164 @@ export class EarlyWarningEngineService {
   }
 
   /**
+   * RULE 5: Tracker Progress Lag
+   *
+   * Reads live execution data from the Project Status Tracker (Tasks, LCR,
+   * AssemblyParts, ProductionLogs) and compares actual activity progress against
+   * what is expected based on elapsed time relative to WorkUnit planned dates.
+   *
+   * Fires a DELAY alert when actual tracker % lags more than TRACKER_LAG_THRESHOLD
+   * points behind the time-elapsed expected %.
+   *
+   * This rule works even when WorkUnit.status has never been updated — it reads
+   * the same real-time sources that power the Project Status Tracker UI, making
+   * EWS responsive to actual execution rather than static plan changes.
+   */
+  static async evaluateTrackerProgressLag(): Promise<RuleEvaluationResult> {
+    const result: RuleEvaluationResult = {
+      ruleName: 'Tracker Progress Lag',
+      risksDetected: 0,
+      risksCreated: 0,
+      risksAlreadyExist: 0,
+      errors: [],
+    };
+
+    try {
+      const now = new Date();
+
+      // Find all projects that have active (non-completed) WorkUnits
+      const activeProjects = await prisma.workUnit.findMany({
+        where: { status: { not: WorkUnitStatus.COMPLETED } },
+        select: { projectId: true, type: true, plannedStart: true, plannedEnd: true, id: true },
+        distinct: ['projectId'],
+      });
+
+      if (activeProjects.length === 0) return result;
+
+      const projectIds = [...new Set(activeProjects.map((wu) => wu.projectId))];
+
+      // Fetch tracker summaries and project metadata in parallel
+      const [trackerCache, projects] = await Promise.all([
+        getProjectActivitySummaries(projectIds),
+        prisma.project.findMany({
+          where: { id: { in: projectIds }, deletedAt: null },
+          select: { id: true, projectNumber: true },
+        }),
+      ]);
+
+      const projectNumberMap = new Map(projects.map((p) => [p.id, p.projectNumber]));
+
+      for (const projectId of projectIds) {
+        const trackerSummary = trackerCache.get(projectId);
+        if (!trackerSummary || trackerSummary.buildingCount === 0) continue;
+
+        const projectNumber = projectNumberMap.get(projectId) ?? projectId;
+
+        // Evaluate each WorkUnit type independently
+        for (const [workUnitType, trackerActivities] of Object.entries(WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES)) {
+          if (trackerActivities.length === 0) continue;
+
+          // Get the planned timeline for this type in this project (aggregate min start / max end)
+          const timeline = await prisma.workUnit.aggregate({
+            where: {
+              projectId,
+              type: workUnitType as never,
+              status: { not: WorkUnitStatus.COMPLETED },
+            },
+            _min: { plannedStart: true },
+            _max: { plannedEnd: true },
+          });
+
+          const plannedStart = timeline._min.plannedStart;
+          const plannedEnd = timeline._max.plannedEnd;
+
+          if (!plannedStart || !plannedEnd || plannedStart >= now) continue;
+
+          const totalDuration = plannedEnd.getTime() - plannedStart.getTime();
+          if (totalDuration <= 0) continue;
+
+          const elapsed = Math.min(now.getTime() - plannedStart.getTime(), totalDuration);
+          const expectedPct = Math.round((elapsed / totalDuration) * 100);
+
+          if (expectedPct <= 0) continue;
+
+          // Average the actual tracker progress across the mapped activities
+          const actualPct = this.getTrackerAvgForActivities(trackerSummary, trackerActivities);
+          const gap = expectedPct - actualPct;
+
+          if (gap < CONFIG.TRACKER_LAG_THRESHOLD) continue;
+
+          result.risksDetected++;
+
+          let severity: RiskSeverity;
+          if (gap >= 60) {
+            severity = RiskSeverity.CRITICAL;
+          } else if (gap >= 40) {
+            severity = RiskSeverity.HIGH;
+          } else {
+            severity = RiskSeverity.MEDIUM;
+          }
+
+          const activityLabel = trackerActivities.map((a) => ACTIVITY_LABELS[a] ?? a).join(' / ');
+          const daysElapsed = Math.round(elapsed / (24 * 60 * 60 * 1000));
+          const daysRemaining = Math.max(
+            0,
+            Math.round((plannedEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+          );
+
+          // Fetch the WorkUnit IDs for reference in the event
+          const affectedWorkUnits = await prisma.workUnit.findMany({
+            where: { projectId, type: workUnitType as never, status: { not: WorkUnitStatus.COMPLETED } },
+            select: { id: true },
+          });
+          const affectedWorkUnitIds = affectedWorkUnits.map((wu) => wu.id);
+
+          const fingerprint = this.generateFingerprint(
+            RiskType.DELAY,
+            [projectId],
+            `tracker_lag:${workUnitType}`
+          );
+
+          const { created } = await this.createRiskEvent(
+            {
+              severity,
+              type: RiskType.DELAY,
+              affectedProjectIds: [projectId],
+              affectedWorkUnitIds,
+              reason: `${activityLabel} in project ${projectNumber} is lagging behind schedule. Tracker shows ${actualPct}% actual progress but ${expectedPct}% was expected (${daysElapsed} days into the plan, ${daysRemaining} days remaining). Gap: ${gap} percentage points.`,
+              recommendedAction: `Investigate and accelerate ${activityLabel} activities in project ${projectNumber}. Review resource allocation and remove blockers. Tracker data reflects live execution — update plans if scope has changed.`,
+              metadata: {
+                source: 'tracker',
+                workUnitType,
+                trackerActivities,
+                activityLabel,
+                actualPct,
+                expectedPct,
+                gap,
+                daysElapsed,
+                daysRemaining,
+                plannedStart,
+                plannedEnd,
+              },
+            },
+            fingerprint
+          );
+
+          if (created) {
+            result.risksCreated++;
+          } else {
+            result.risksAlreadyExist++;
+          }
+        }
+      }
+    } catch (error) {
+      result.errors.push(error instanceof Error ? error.message : 'Unknown error');
+    }
+
+    return result;
+  }
+
+  /**
    * Run all rules and return aggregated results
    */
   static async runAllRules(): Promise<EngineRunResult> {
@@ -570,6 +784,7 @@ export class EarlyWarningEngineService {
       this.evaluateDependencyCascadeRisk(),
       this.evaluateCapacityOverloadRisk(),
       this.evaluateCriticalPathDelayRisk(),
+      this.evaluateTrackerProgressLag(),
     ]);
 
     const totalRisksDetected = ruleResults.reduce((sum, r) => sum + r.risksDetected, 0);
@@ -694,6 +909,52 @@ export class EarlyWarningEngineService {
         count: t._count.id,
       })),
     };
+  }
+
+  // ============================================
+  // TRACKER INTEGRATION HELPERS
+  // ============================================
+
+  /**
+   * Returns the average tracker progress for a set of activity types,
+   * or 0 if no tracker summary is available or no activities are mapped.
+   */
+  private static getTrackerAvgForActivities(
+    summary: ProjectActivitySummary | undefined,
+    activityTypes: string[]
+  ): number {
+    if (!summary || activityTypes.length === 0) return 0;
+    const total = activityTypes.reduce(
+      (sum, a) => sum + (summary.activityAverages[a] ?? 0),
+      0
+    );
+    return Math.round(total / activityTypes.length);
+  }
+
+  /**
+   * If a RiskEvent with the given fingerprint is currently open (unresolved),
+   * auto-resolves it because the tracker now shows the work is complete.
+   * Returns true if an event was resolved.
+   */
+  private static async autoResolveIfOpen(fingerprint: string, trackerProgress: number): Promise<boolean> {
+    const existing = await prisma.riskEvent.findUnique({
+      where: { fingerprint },
+      select: { id: true, resolvedAt: true, metadata: true },
+    });
+    if (!existing || existing.resolvedAt) return false;
+
+    await prisma.riskEvent.update({
+      where: { id: existing.id },
+      data: {
+        resolvedAt: new Date(),
+        metadata: {
+          ...(existing.metadata as Record<string, unknown> ?? {}),
+          autoResolvedByTracker: true,
+          autoResolvedTrackerProgress: trackerProgress,
+        },
+      },
+    });
+    return true;
   }
 
   // ============================================
