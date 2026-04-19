@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Banknote,
   Plus,
   Loader2,
@@ -81,6 +88,7 @@ export function PayrollPeriodsClient({
   const [error, setError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
   const now = new Date();
   const [form, setForm] = useState({
     year: now.getFullYear(),
@@ -180,8 +188,10 @@ export function PayrollPeriodsClient({
     }
   }
 
-  async function deletePeriod(id: string, label: string) {
-    if (!confirm(`Delete payroll period "${label}"? This will permanently remove all calculated payroll lines. This cannot be undone.`)) return;
+  async function confirmDeletePeriod() {
+    if (!deleteConfirm) return;
+    const { id } = deleteConfirm;
+    setDeleteConfirm(null);
     setDeletingId(id);
     setError(null);
     try {
@@ -479,7 +489,7 @@ export function PayrollPeriodsClient({
                                 variant="ghost"
                                 className="text-rose-500 hover:text-rose-700 hover:bg-rose-50"
                                 disabled={deletingId === p.id}
-                                onClick={() => deletePeriod(p.id, `${MONTHS[p.month - 1]} ${p.year}`)}
+                                onClick={() => setDeleteConfirm({ id: p.id, label: `${MONTHS[p.month - 1]} ${p.year}` })}
                               >
                                 {deletingId === p.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -510,6 +520,23 @@ export function PayrollPeriodsClient({
           Alinma WPS file once a period is APPROVED. Payslip PDFs become available after calculation.
         </p>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete payroll period?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            This will permanently delete the <span className="font-semibold">{deleteConfirm?.label}</span> payroll
+            period and all its calculated lines. This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDeletePeriod}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

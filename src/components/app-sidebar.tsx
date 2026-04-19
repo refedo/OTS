@@ -69,6 +69,8 @@ import {
   PackageSearch,
   Receipt,
   Radar,
+  GraduationCap,
+  UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -268,6 +270,9 @@ const navigationSections: NavigationSection[] = [
       { name: 'Manpower Invoices', href: '/hr/manpower-invoices', icon: Receipt, newSince: '2026-04-15' },
       { name: 'Contracts & Docs', href: '/hr/contracts', icon: FileText, newSince: '2026-04-15' },
       { name: 'Letters & Correspondence', href: '/hr/letters', icon: FileText, newSince: '2026-04-16' },
+      { name: 'Company Policies', href: '/hr/policies', icon: BookOpen, newSince: '2026-04-19' },
+      { name: 'Onboarding', href: '/hr/onboarding', icon: UserPlus, newSince: '2026-04-19' },
+      { name: 'Training', href: '/hr/training', icon: GraduationCap, newSince: '2026-04-19' },
       { name: 'HR Setup', href: '/hr/setup', icon: UserCog, newSince: '2026-04-12' },
     ],
   },

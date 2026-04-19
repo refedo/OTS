@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.10.0',
+    version: '19.11.0',
     date: 'April 19, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'HR Policies, Onboarding & Training + Payroll Fixes',
+    highlights: [
+      'New Company Policies page (/hr/policies) — browse all company policies by category with search, version tags, and effective dates.',
+      'New Employee Onboarding page (/hr/onboarding) — tracks new hires from the last 3 months with an interactive 10-item checklist and progress bar per employee.',
+      'New Employee Training page (/hr/training) — lists training programs with category/status badges, duration, target audience, and upcoming schedule.',
+      'Payroll period delete now works on iOS Safari and PWA — replaced native window.confirm() with a proper Dialog component.',
+      'Payslips widget and employee payslips tab now only show approved/locked/paid periods — DRAFT and CALCULATED lines are hidden.',
+    ],
+    changes: {
+      added: [
+        '/hr/policies — Company Policies page with 5 categories (HR, Safety, Conduct, IT, Finance), search, and category filter',
+        '/hr/onboarding — Employee Onboarding page showing employees joined in last 3 months with interactive 10-task checklist per employee',
+        '/hr/training — Employee Training page with program list, category/status badges, duration, target audience, and occupation coverage widget',
+        'Company Policies, Onboarding, Training entries added to HR sidebar section',
+        'Navigation permissions added for /hr/policies, /hr/onboarding, /hr/training (gated by hr.employee.view)',
+      ],
+      fixed: [
+        'Payroll period delete — window.confirm() replaced with Dialog component (fixes "The string did not match the expected pattern." on iOS Safari/PWA)',
+        'Payslips API — OTS payroll lines now filtered to status IN (APPROVED, LOCKED, PAID) so draft/calculated payslips no longer appear in the widget or employee profile',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '19.10.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Employee List Enhancements',
     highlights: [
       'Employee form tabs stay clickable in read-only mode — the fieldset lock now wraps only tab content, not the tab navigation bar.',

@@ -63,9 +63,9 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
       }
     })(),
 
-    // OTS payroll lines
+    // OTS payroll lines — only approved/locked/paid periods
     prisma.payrollLine.findMany({
-      where: { employeeId: id },
+      where: { employeeId: id, period: { status: { in: ['APPROVED', 'LOCKED', 'PAID'] } } },
       include: { period: { select: { id: true, year: true, month: true, payDate: true, status: true } } },
       orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }],
     }),
