@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.3.0',
+    version: '19.4.0',
     date: 'April 19, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'HR Absence & Leave Analytics Module',
+    highlights: [
+      'New /hr/analytics page lets management study behavioral patterns hidden in attendance and leave data',
+      'Detects four pattern types: Consecutive Absence, Weekend Extension (Mon/Fri bias), Escalating Absences, and Frequent Leaves',
+      'Absence Frequency Matrix heatmap shows each employee\'s ANP days per month color-coded by severity',
+      'Day-of-week distribution chart reveals which days are disproportionately missed across the team',
+    ],
+    changes: {
+      added: [
+        'GET /api/hr/analytics/absence — behavioral pattern analysis over AttendanceRecord + LeaveRequest data; query params: months (1–12), section, occupation',
+        '/hr/analytics page with violet hero, 4 KPI tiles (ANP Days, Flagged Employees, Avg ANP/Employee, Approved Leaves), and five collapsible analysis cards',
+        'Pattern Alert card: table of flagged employees with alert type badge (CONSECUTIVE_ABSENCE / WEEKEND_EXTENSION / ESCALATING_ABSENCES / FREQUENT_LEAVES) and severity (HIGH / MEDIUM)',
+        'Absence Frequency Matrix: employee × month heatmap with color-coded cells (white→amber→rose by ANP count)',
+        'ANP by Day-of-Week bar chart: Monday and Friday bars highlighted in amber to expose weekend-extension patterns',
+        'Monthly Company Trend stacked bar chart: ANP (rose) / AP (amber) / Sick (orange) per month',
+        'Leave Request Frequency table: employees with ≥ 2 approved leaves sorted by count with leave-type breakdown',
+        'hr.analytics.view permission added to HR role bundle',
+        '"Absence Analytics" sidebar item under HR section (between HR Dashboard and Employees)',
+      ],
+      fixed: [],
+      changed: [],
+    },
+  },
+  {
+    version: '19.3.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Employee Widget Fix, Leave Balances, Loan Payments & Attendance Monthly Grid',
     highlights: [
       'Employee Self-Service widget now linkable to any user via Edit User — CEO and all staff can see their HR profile on the dashboard',
