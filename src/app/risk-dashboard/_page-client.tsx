@@ -18,6 +18,9 @@ import {
   ExternalLink,
   Filter,
   Zap,
+  Play,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 
 interface AffectedItem {
@@ -139,12 +142,33 @@ const categoryConfig = {
   },
 };
 
+type RuleResult = {
+  ruleName: string;
+  risksDetected: number;
+  risksCreated: number;
+  risksAlreadyExist: number;
+  risksSuppressedByTracker?: number;
+  risksAutoResolved?: number;
+  errors: string[];
+};
+
+type EngineRunResult = {
+  runAt: string;
+  totalRisksDetected: number;
+  totalRisksCreated: number;
+  duration: number;
+  ruleResults: RuleResult[];
+};
+
 export default function RiskDashboardPage() {
   const [data, setData] = useState<LeadingIndicatorsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [lastRunResult, setLastRunResult] = useState<EngineRunResult | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -160,6 +184,23 @@ export default function RiskDashboardPage() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runEngine = async () => {
+    setRunning(true);
+    setRunError(null);
+    setLastRunResult(null);
+    try {
+      const res = await fetch('/api/risk-events/run', { method: 'POST' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? 'Engine run failed');
+      setLastRunResult(body as EngineRunResult);
+      await fetchData();
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : 'Engine run failed');
+    } finally {
+      setRunning(false);
     }
   };
 
@@ -204,7 +245,7 @@ export default function RiskDashboardPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <Zap className="h-8 w-8 text-yellow-500" />
@@ -214,11 +255,49 @@ export default function RiskDashboardPage() {
             Leading indicators - detect problems before they happen
           </p>
         </div>
-        <Button onClick={fetchData} variant="outline" disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={fetchData} variant="outline" disabled={loading || running}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={runEngine} disabled={running || loading} className="bg-amber-500 hover:bg-amber-600 text-white">
+            {running ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
+            {running ? 'Running engine…' : 'Run Engine'}
+          </Button>
+        </div>
       </div>
+
+      {/* Engine run result strip */}
+      {lastRunResult && !runError && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 font-medium text-emerald-800 mb-1">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            Engine run complete — {lastRunResult.totalRisksDetected} risks detected, {lastRunResult.totalRisksCreated} new · {lastRunResult.duration}ms
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-emerald-700">
+            {lastRunResult.ruleResults.map((r) => (
+              <span key={r.ruleName}>
+                <span className="font-medium">{r.ruleName}:</span>{' '}
+                {r.risksDetected} detected
+                {r.risksCreated > 0 && <span className="text-emerald-600"> · {r.risksCreated} new</span>}
+                {(r.risksSuppressedByTracker ?? 0) > 0 && <span className="text-sky-600"> · {r.risksSuppressedByTracker} suppressed by tracker</span>}
+                {(r.risksAutoResolved ?? 0) > 0 && <span className="text-violet-600"> · {r.risksAutoResolved} auto-resolved</span>}
+                {r.errors.length > 0 && <span className="text-rose-600"> · {r.errors.length} errors</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {runError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm flex items-start gap-2 text-rose-800">
+          <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>Engine run failed: {runError}</span>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
