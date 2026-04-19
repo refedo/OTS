@@ -345,7 +345,6 @@ export function EmployeeForm({
         </div>
       )}
 
-      <fieldset disabled={locked} className="disabled:opacity-60">
       <Tabs defaultValue="personal" className="w-full">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="personal">Personal</TabsTrigger>
@@ -354,6 +353,7 @@ export function EmployeeForm({
           {canViewCompensation && <TabsTrigger value="compensation">Compensation</TabsTrigger>}
           {canViewCompensation && <TabsTrigger value="banking">Banking</TabsTrigger>}
         </TabsList>
+        <fieldset disabled={locked} className="border-0 p-0 m-0 disabled:opacity-60">
 
         <TabsContent value="personal">
           <Card>
@@ -673,8 +673,8 @@ export function EmployeeForm({
             </Card>
           </TabsContent>
         )}
+        </fieldset>
       </Tabs>
-      </fieldset>
 
       {(!isEdit || isEditing) && (
       <div className="flex gap-2 justify-end">

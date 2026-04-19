@@ -23,10 +23,41 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.9.0',
+    version: '19.10.0',
     date: 'April 19, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Employee List Enhancements',
+    highlights: [
+      'Employee form tabs stay clickable in read-only mode — the fieldset lock now wraps only tab content, not the tab navigation bar.',
+      'Employees list defaults to Active status on load; KPI tiles are now clickable to filter instantly.',
+      'Export the current filtered employee list to Excel with a single click — includes all identity, employment, contract, and compensation columns.',
+      'New Full Details view shows all Dolibarr extra fields per employee: iqama, boarder number, passport, sponsor, contract end date, contract type, location, and full salary breakdown.',
+      'Search now matches on boarder number (iqama-related field) in addition to name, employment ID, and national ID.',
+    ],
+    changes: {
+      added: [
+        'Excel export button in employees hero — exports filtered list as OTS_Employees_<date>.xlsx via dynamic xlsx import',
+        'Full Details view mode (card grid) in employees list showing all Dolibarr extra fields per employee',
+        'Compact / Full Details toggle in the filter bar',
+        'boarderNumber field added to employee search matching',
+        'KPI tiles converted to clickable buttons for quick status filtering',
+      ],
+      fixed: [
+        'Employee form tabs (Personal / Employment / Documents / Compensation / Banking) are now clickable while form is locked — fieldset[disabled] moved inside Tabs, wrapping only TabsContent nodes not TabsList',
+      ],
+      changed: [
+        'Employees list default status filter changed from "all" to "ACTIVE"',
+        'Search placeholder updated to "Search name, ID, iqama, boarder number…"',
+        'employees/page.tsx select now includes boarderNumber, passportNumber, sponsorNumber, contractEndDate, contractType, workingLocation, housingAllowance, transportAllowance, mobileAllowance, foodAllowance, otherAllowances',
+      ],
+    },
+  },
+  {
+    version: '19.9.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'HR & Payroll UX Improvements',
     highlights: [
       'Delete payroll periods directly from the payroll table — trash icon on DRAFT and CALCULATED rows, one-click with confirmation.',
