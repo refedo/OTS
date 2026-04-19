@@ -59,6 +59,9 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Only DRAFT or CALCULATED periods can be deleted' }, { status: 400 });
   }
 
+  // ManpowerInvoiceDraft has no onDelete: Cascade so we delete those first,
+  // then the period (PayrollLine/Adjustment/WpsExport cascade automatically).
+  await prisma.manpowerInvoiceDraft.deleteMany({ where: { payrollPeriodId: id } });
   await prisma.payrollPeriod.delete({ where: { id } });
   logger.info({ id }, '[Payroll] Period deleted');
   return NextResponse.json({ success: true });
