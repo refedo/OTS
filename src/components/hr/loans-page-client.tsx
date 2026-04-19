@@ -749,7 +749,7 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
                               <div className="w-20 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                 <div className="h-full rounded-full bg-sky-500" style={{ width: `${Math.min(progress, 100)}%` }} />
                               </div>
-                              <span className="text-xs text-muted-foreground tabular-nums">{loan.installmentsPaid}/{loan.installmentsTotal}</span>
+                              <span className="text-xs text-muted-foreground tabular-nums w-10 text-right">{Math.round(progress)}%</span>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right tabular-nums font-medium text-slate-800">SAR {money(remaining)}</td>
