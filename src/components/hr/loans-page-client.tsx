@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Loader2, Landmark, Search, Clock, CheckCircle2, MinusCircle, User,
-  ChevronUp, ChevronDown, ChevronsUpDown, Plus, AlertTriangle, Banknote, Trash2,
+  ChevronUp, ChevronDown, ChevronsUpDown, Plus, AlertTriangle, Banknote, Trash2, History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -35,6 +35,15 @@ interface LoanEntry {
 }
 
 interface EmpOption { id: string; fullNameEn: string; employmentId: string; }
+
+interface PaymentRecord {
+  id: string;
+  paymentType: string;
+  amount: string;
+  paymentDate: string;
+  notes: string | null;
+  createdBy: { id: string; name: string } | null;
+}
 
 function money(v: string | number) {
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -60,6 +69,147 @@ function SortTh({ col, label, sort, onSort, align = 'left' }: {
         {active ? (sort.dir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-30" />}
       </span>
     </th>
+  );
+}
+
+// ─── Payments History Dialog ──────────────────────────────────────────────────
+
+function PaymentsHistoryDialog({ loan, open, onClose, onDeleted, canManage }: {
+  loan: LoanEntry | null;
+  open: boolean;
+  onClose: () => void;
+  onDeleted: () => void;
+  canManage: boolean;
+}) {
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const loadPayments = useCallback(async () => {
+    if (!loan) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/hr/loans/${loan.id}/payments`);
+      if (res.ok) setPayments(await res.json());
+    } catch { /* ignore */ } finally { setLoading(false); }
+  }, [loan]);
+
+  useEffect(() => { if (open && loan) loadPayments(); }, [open, loan, loadPayments]);
+
+  async function handleDelete(paymentId: string) {
+    setDeletingId(paymentId);
+    try {
+      const res = await fetch(`/api/hr/loans/${loan!.id}/payments/${paymentId}`, { method: 'DELETE' });
+      if (res.ok) { setConfirmId(null); await loadPayments(); onDeleted(); }
+    } catch { /* ignore */ } finally { setDeletingId(null); }
+  }
+
+  const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setConfirmId(null); } }}>
+      <DialogContent className="max-w-xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="h-4 w-4 text-sky-600" />Payment History
+          </DialogTitle>
+          <DialogDescription>
+            {loan ? `${loan.employee?.fullNameEn ?? 'Employee'} — SAR ${money(loan.principal)} loan` : ''}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Summary strip */}
+        {!loading && payments.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 pb-1">
+            <div className="rounded-lg bg-slate-50 border p-2.5 text-center">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Payments</p>
+              <p className="text-base font-bold text-slate-700 mt-0.5">{payments.length}</p>
+            </div>
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-center">
+              <p className="text-[10px] text-emerald-600 uppercase tracking-wide">Total Paid</p>
+              <p className="text-base font-bold text-emerald-700 mt-0.5">SAR {money(totalPaid)}</p>
+            </div>
+            <div className="rounded-lg bg-sky-50 border border-sky-200 p-2.5 text-center">
+              <p className="text-[10px] text-sky-600 uppercase tracking-wide">Balance</p>
+              <p className="text-base font-bold text-sky-700 mt-0.5">SAR {money(Math.max(0, Number(loan?.principal ?? 0) - totalPaid))}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center gap-2 justify-center py-10 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading payments…
+            </div>
+          ) : payments.length === 0 ? (
+            <div className="py-10 text-center text-slate-400">
+              <Banknote className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No payments recorded yet.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b sticky top-0">
+                <tr>
+                  <th className="py-2.5 px-4 text-left font-medium">Date</th>
+                  <th className="py-2.5 px-4 text-left font-medium">Type</th>
+                  <th className="py-2.5 px-4 text-right font-medium">Amount</th>
+                  <th className="py-2.5 px-4 text-left font-medium">Notes</th>
+                  {canManage && <th className="py-2.5 px-2" />}
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map(p => (
+                  <tr key={p.id} className="border-b last:border-0 hover:bg-slate-50/60">
+                    <td className="py-2.5 px-4 tabular-nums text-slate-700">
+                      {new Date(p.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <Badge className={cn('border text-xs', p.paymentType === 'SCHEDULED'
+                        ? 'bg-sky-50 text-sky-700 border-sky-200'
+                        : 'bg-violet-50 text-violet-700 border-violet-200')}>
+                        {p.paymentType === 'SCHEDULED' ? 'Scheduled' : 'Adjusted'}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-semibold tabular-nums">SAR {money(p.amount)}</td>
+                    <td className="py-2.5 px-4 text-slate-500 text-xs max-w-[120px] truncate">{p.notes ?? '—'}</td>
+                    {canManage && (
+                      <td className="py-2.5 px-2">
+                        {confirmId === p.id ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Button variant="ghost" size="sm"
+                              className="h-6 px-1.5 text-xs text-rose-600 hover:bg-rose-50"
+                              disabled={deletingId === p.id}
+                              onClick={() => handleDelete(p.id)}>
+                              {deletingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Yes'}
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs"
+                              onClick={() => setConfirmId(null)}>No</Button>
+                          </span>
+                        ) : (
+                          <Button variant="ghost" size="sm"
+                            className="h-7 w-7 p-0 text-rose-400 hover:text-rose-600 hover:bg-rose-50"
+                            onClick={() => setConfirmId(p.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-50 border-t">
+                  <td colSpan={2} className="py-2 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Total</td>
+                  <td className="py-2 px-4 text-right font-bold tabular-nums">SAR {money(totalPaid)}</td>
+                  <td colSpan={canManage ? 2 : 1} />
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -420,6 +570,7 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'createdAt', dir: 'desc' });
   const [newLoanOpen, setNewLoanOpen] = useState(false);
   const [paymentLoan, setPaymentLoan] = useState<LoanEntry | null>(null);
+  const [historyLoan, setHistoryLoan] = useState<LoanEntry | null>(null);
   const [deleteLoan, setDeleteLoan] = useState<LoanEntry | null>(null);
   const toggleSort = (key: string) => setSort(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
 
@@ -613,9 +764,13 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
                                     <Banknote className="h-3 w-3 mr-1" />Pay
                                   </Button>
                                 )}
+                                <Button variant="ghost" size="sm" className="h-7 text-xs text-sky-600 hover:text-sky-800"
+                                  onClick={() => setHistoryLoan(loan)}>
+                                  <History className="h-3 w-3 mr-1" />Payments
+                                </Button>
                                 {loan.employee && (
                                   <Link href={`/hr/employees/${loan.employee.id}?tab=finance`}>
-                                    <Button variant="ghost" size="sm" className="h-7 text-xs text-sky-600 hover:text-sky-800">Details</Button>
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-700">Details</Button>
                                   </Link>
                                 )}
                                 {canManage && (
@@ -644,6 +799,13 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
         open={paymentLoan !== null}
         onClose={() => setPaymentLoan(null)}
         onSaved={load}
+      />
+      <PaymentsHistoryDialog
+        loan={historyLoan}
+        open={historyLoan !== null}
+        onClose={() => setHistoryLoan(null)}
+        onDeleted={load}
+        canManage={canManage}
       />
       <DeleteLoanDialog
         loan={deleteLoan}
