@@ -26,13 +26,18 @@ import crypto from 'crypto';
 import { getProjectActivitySummaries, ACTIVITY_LABELS, type ProjectActivitySummary } from '@/lib/services/project-tracker.service';
 
 // Maps WorkUnit.type values to the tracker activity columns they correspond to.
-// Used to cross-check plan-based alerts against real execution progress.
+// Full sequence: DOCUMENTATION → DESIGN → DETAILING → PROCUREMENT → PRODUCTION → COATING → DISPATCH → ERECTION
+// Used to cross-check plan-based alerts against real execution progress in the tracker.
 const WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES: Record<string, string[]> = {
-  DESIGN: ['design', 'detailing'],
   DOCUMENTATION: ['arch_approval'],
-  PROCUREMENT: ['procurement'],
-  PRODUCTION: ['production', 'coating'],
-  QC: [],
+  DESIGN:        ['design'],
+  DETAILING:     ['detailing'],
+  PROCUREMENT:   ['procurement'],
+  PRODUCTION:    ['production'],
+  COATING:       ['coating'],
+  DISPATCH:      ['dispatch'],
+  ERECTION:      ['erection'],
+  QC:            [], // cross-cutting, no dedicated tracker column
 };
 
 // ============================================
