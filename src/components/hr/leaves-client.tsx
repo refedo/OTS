@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3, Sun, Trash2, Edit2 } from 'lucide-react';
+import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3, Sun, Trash2, Edit2, ChevronDown, Flame } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -84,6 +84,7 @@ type EntitlementRow = {
   dateOfJoining: string | null;
   monthsEmployed: number;
   entitledDays: number;
+  annualConsumed: number;
   totalConsumed: number;
   remaining: number;
   byType: Record<string, number>;
@@ -118,6 +119,9 @@ export function LeavesClient({
   const [entitlementTypes, setEntitlementTypes] = useState<EntitlementLeaveType[]>([]);
   const [entitlementLoading, setEntitlementLoading] = useState(false);
   const [entitlementSearch, setEntitlementSearch] = useState('');
+
+  // My balances collapsed by default (19.12.0)
+  const [balancesCollapsed, setBalancesCollapsed] = useState(true);
 
   // Public holidays (18.18.1)
   const [holidays, setHolidays] = useState<PublicHolidayEntry[]>([]);
@@ -502,45 +506,54 @@ export function LeavesClient({
         </Card>
       )}
 
-      {/* Balances */}
+      {/* Balances — collapsed by default */}
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50">
-          <CardTitle className="text-base font-semibold text-slate-800">
+        <button
+          type="button"
+          className="w-full flex flex-row items-center justify-between px-6 py-4 border-b bg-slate-50/50 rounded-t-xl hover:bg-slate-100/60 transition"
+          onClick={() => setBalancesCollapsed((c) => !c)}
+        >
+          <span className="text-base font-semibold text-slate-800">
             My balances · {new Date().getFullYear()}
-          </CardTitle>
-          <span className="text-xs text-muted-foreground">updated live</span>
-        </CardHeader>
-        <CardContent className="pt-5">
-          {loading ? (
-            <div className="flex items-center gap-2 text-muted-foreground py-6">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading balances…
-            </div>
-          ) : balances.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-sm text-muted-foreground">
-              Your account is not linked to an employee. Contact HR to link your user to an employee record.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {balances.map((b) => (
-                <div
-                  key={b.leaveTypeId}
-                  className="rounded-xl border border-slate-200 bg-white p-4 hover:border-sky-300 hover:shadow-sm transition"
-                >
-                  <div className="text-xs uppercase tracking-wide text-slate-500 font-medium">
-                    {b.leaveType.nameEn}
+          </span>
+          <span className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">updated live</span>
+            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${balancesCollapsed ? '' : 'rotate-180'}`} />
+          </span>
+        </button>
+        {!balancesCollapsed && (
+          <CardContent className="pt-5">
+            {loading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-6">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading balances…
+              </div>
+            ) : balances.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-sm text-muted-foreground">
+                Your account is not linked to an employee. Contact HR to link your user to an employee record.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {balances.map((b) => (
+                  <div
+                    key={b.leaveTypeId}
+                    className="rounded-xl border border-slate-200 bg-white p-4 hover:border-sky-300 hover:shadow-sm transition"
+                  >
+                    <div className="text-xs uppercase tracking-wide text-slate-500 font-medium">
+                      {b.leaveType.nameEn}
+                    </div>
+                    <div className="mt-1 text-3xl font-bold text-slate-900 tabular-nums">
+                      {Number(b.available).toFixed(1)}
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground space-y-0.5">
+                      <div>Opening {Number(b.openingBalance).toFixed(1)}</div>
+                      <div>Accrued {Number(b.accruedYtd).toFixed(1)} · Used {Number(b.usedYtd).toFixed(1)}</div>
+                    </div>
                   </div>
-                  <div className="mt-1 text-3xl font-bold text-slate-900 tabular-nums">
-                    {Number(b.available).toFixed(1)}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground space-y-0.5">
-                    <div>Opening {Number(b.openingBalance).toFixed(1)}</div>
-                    <div>Accrued {Number(b.accruedYtd).toFixed(1)} · Used {Number(b.usedYtd).toFixed(1)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
 
       <Tabs defaultValue={canViewAll ? 'all' : 'mine'} className="space-y-4">
@@ -1043,9 +1056,14 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={variant}>{status.replace('_', ' ')}</Badge>;
 }
 
+function burnRisk(remaining: number): { level: 'high' | 'medium' | null; label: string } {
+  if (remaining >= 21) return { level: 'high', label: 'Must Take Leave' };
+  if (remaining >= 14) return { level: 'medium', label: 'Take Soon' };
+  return { level: null, label: '' };
+}
+
 function VacationBalanceTab({
   rows,
-  leaveTypes,
   loading,
   search,
   onSearchChange,
@@ -1065,13 +1083,15 @@ function VacationBalanceTab({
     : rows;
 
   const totalEntitled = rows.reduce((s, r) => s + r.entitledDays, 0);
-  const totalConsumed = rows.reduce((s, r) => s + r.totalConsumed, 0);
+  const totalAnnualConsumed = rows.reduce((s, r) => s + (r.annualConsumed ?? 0), 0);
   const totalRemaining = rows.reduce((s, r) => s + r.remaining, 0);
+  const highRiskCount = rows.filter((r) => burnRisk(r.remaining).level === 'high').length;
+  const mediumRiskCount = rows.filter((r) => burnRisk(r.remaining).level === 'medium').length;
 
   return (
     <div className="space-y-4">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
           <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Employees</p>
           <p className="text-2xl font-bold text-sky-700 mt-1">{rows.length}</p>
@@ -1083,14 +1103,19 @@ function VacationBalanceTab({
           <p className="text-xs text-emerald-500 mt-0.5">days @ 1.75/month</p>
         </div>
         <div className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm">
-          <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Total Consumed</p>
-          <p className="text-2xl font-bold text-violet-700 mt-1">{totalConsumed.toFixed(1)}</p>
-          <p className="text-xs text-violet-500 mt-0.5">approved leaves</p>
+          <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Annual Consumed</p>
+          <p className="text-2xl font-bold text-violet-700 mt-1">{totalAnnualConsumed.toFixed(1)}</p>
+          <p className="text-xs text-violet-500 mt-0.5">approved annual leaves</p>
         </div>
         <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm">
-          <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Remaining</p>
+          <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Balance</p>
           <p className="text-2xl font-bold text-amber-700 mt-1">{totalRemaining.toFixed(1)}</p>
           <p className="text-xs text-amber-500 mt-0.5">balance days</p>
+        </div>
+        <div className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm">
+          <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Burn Risk</p>
+          <p className="text-2xl font-bold text-rose-700 mt-1">{highRiskCount + mediumRiskCount}</p>
+          <p className="text-xs text-rose-500 mt-0.5">{highRiskCount} critical · {mediumRiskCount} warning</p>
         </div>
       </div>
 
@@ -1100,12 +1125,23 @@ function VacationBalanceTab({
             <BarChart3 className="h-4 w-4 text-sky-600" />
             Vacation Entitlement — All Employees
           </CardTitle>
-          <Input
-            placeholder="Search by name or ID…"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-56 h-8 text-sm"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Search any employee…"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-60 h-8 text-sm"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -1119,26 +1155,29 @@ function VacationBalanceTab({
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b">
+                <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b sticky top-0">
                   <tr>
                     <th className="py-3 px-4 font-medium">Employee</th>
                     <th className="py-3 px-4 font-medium">Contract Date</th>
                     <th className="py-3 px-4 font-medium text-right">Months</th>
                     <th className="py-3 px-4 font-medium text-right">Entitled</th>
-                    {leaveTypes.map((lt) => (
-                      <th key={lt.id} className="py-3 px-4 font-medium text-right whitespace-nowrap">
-                        {lt.nameEn}
-                      </th>
-                    ))}
-                    <th className="py-3 px-4 font-medium text-right">Consumed</th>
-                    <th className="py-3 px-4 font-medium text-right">Remaining</th>
+                    <th className="py-3 px-4 font-medium text-right">Annual Consumed</th>
+                    <th className="py-3 px-4 font-medium text-right">Balance</th>
+                    <th className="py-3 px-4 font-medium text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((row) => {
+                    const risk = burnRisk(row.remaining);
                     const isNegative = row.remaining < 0;
+                    const rowBg =
+                      risk.level === 'high'
+                        ? 'bg-rose-50/70 hover:bg-rose-50'
+                        : risk.level === 'medium'
+                          ? 'bg-amber-50/70 hover:bg-amber-50'
+                          : 'hover:bg-slate-50/60';
                     return (
-                      <tr key={row.id} className="border-b last:border-0 hover:bg-slate-50/60 transition">
+                      <tr key={row.id} className={`border-b last:border-0 transition ${rowBg}`}>
                         <td className="py-3 px-4">
                           <div className="font-medium text-slate-900">{row.fullNameEn}</div>
                           <div className="text-xs text-muted-foreground">{row.employmentId}</div>
@@ -1158,20 +1197,28 @@ function VacationBalanceTab({
                         <td className="py-3 px-4 text-right tabular-nums font-semibold text-emerald-700">
                           {row.entitledDays.toFixed(1)}
                         </td>
-                        {leaveTypes.map((lt) => (
-                          <td key={lt.id} className="py-3 px-4 text-right tabular-nums text-slate-600">
-                            {(row.byType[lt.code] ?? 0) > 0
-                              ? (row.byType[lt.code] ?? 0).toFixed(1)
-                              : <span className="text-slate-300">—</span>}
-                          </td>
-                        ))}
                         <td className="py-3 px-4 text-right tabular-nums font-medium text-violet-700">
-                          {row.totalConsumed.toFixed(1)}
+                          {(row.annualConsumed ?? 0).toFixed(1)}
                         </td>
                         <td className="py-3 px-4 text-right tabular-nums font-bold">
-                          <span className={isNegative ? 'text-rose-600' : 'text-slate-900'}>
+                          <span className={isNegative ? 'text-rose-600' : risk.level === 'high' ? 'text-rose-700' : risk.level === 'medium' ? 'text-amber-700' : 'text-slate-900'}>
                             {row.remaining.toFixed(1)}
                           </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {risk.level === 'high' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-rose-100 text-rose-700 border border-rose-200 whitespace-nowrap">
+                              <Flame className="h-3 w-3" />
+                              {risk.label}
+                            </span>
+                          ) : risk.level === 'medium' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                              <AlertTriangle className="h-3 w-3" />
+                              {risk.label}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1183,8 +1230,8 @@ function VacationBalanceTab({
         </CardContent>
       </Card>
       <p className="text-xs text-slate-400 text-center">
-        Entitlement = 1.75 days × months from contract date. Consumed = sum of all approved leave requests.
-        Negative remaining indicates the employee has taken more leave than entitled.
+        Entitlement = 1.75 days × months from contract date. Consumed = approved annual leave only.
+        Balance ≥ 21 days: must take leave immediately · Balance 14–20 days: should plan leave soon.
       </p>
     </div>
   );
