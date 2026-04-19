@@ -7,6 +7,7 @@
  *   - History:  position + salary timelines (18.9.0)
  *   - Finance:  loans + custodies (18.10.0)
  *   - Assets:   asset assignments + traffic violations (18.12.0)
+ *   - Letters:  HR letters issued to this employee (19.1.0)
  *
  * All tabs are client-side so switching between them never remounts the form.
  */
@@ -18,6 +19,7 @@ import { EmployeeHistoryTab } from './employee-history-tab';
 import { EmployeeFinanceTab } from './employee-finance-tab';
 import { EmployeeAssetsTab } from './employee-assets-tab';
 import { EmployeeOverviewTab } from './employee-overview-tab';
+import { EmployeeLettersTab } from './employee-letters-tab';
 import { useSearchParams } from 'next/navigation';
 
 interface Props {
@@ -25,6 +27,7 @@ interface Props {
   showHistory: boolean;
   showFinance: boolean;
   showAssets: boolean;
+  showLetters: boolean;
   employeeId: string;
   departments: { id: string; name: string }[];
   canManagePosition: boolean;
@@ -53,6 +56,7 @@ export function EmployeeDetailTabs({
   showHistory,
   showFinance,
   showAssets,
+  showLetters,
   employeeId,
   departments,
   canManagePosition,
@@ -80,6 +84,7 @@ export function EmployeeDetailTabs({
         {showHistory && <TabsTrigger value="history">History</TabsTrigger>}
         {showFinance && <TabsTrigger value="finance">Finance</TabsTrigger>}
         {showAssets && <TabsTrigger value="assets">Assets</TabsTrigger>}
+        {showLetters && <TabsTrigger value="letters">Letters</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="overview" className="mt-4">
@@ -124,6 +129,11 @@ export function EmployeeDetailTabs({
             canManageAssets={canManageAssets}
             canManageViolations={canManageViolations}
           />
+        </TabsContent>
+      )}
+      {showLetters && (
+        <TabsContent value="letters" className="mt-4">
+          <EmployeeLettersTab employeeId={employeeId} />
         </TabsContent>
       )}
     </Tabs>
