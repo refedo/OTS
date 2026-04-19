@@ -38,9 +38,16 @@ async function resolveLetterNumber(
   classification: 'INTERNAL' | 'EXTERNAL',
   attempt = 0,
 ): Promise<{ number: string; configId?: string; newSeq?: number; newYear?: number }> {
-  const config = await prisma.hrLetterSerialConfig.findUnique({
-    where: { letterType: letterType as never },
-  });
+  // Wrap in try-catch: HrLetterSerialConfig table may not exist yet if the
+  // startup migration hasn't run (e.g. first deploy). Fall through to fallback.
+  let config = null;
+  try {
+    config = await prisma.hrLetterSerialConfig.findUnique({
+      where: { letterType: letterType as never },
+    });
+  } catch {
+    // Table not ready — use fallback numbering
+  }
 
   if (config) {
     const year = new Date().getFullYear();
@@ -92,6 +99,14 @@ const LETTER_INCLUDE = {
   rejectedBy: { select: { id: true, name: true } },
 } as const;
 
+// Minimal include for the POST create response — only uses original columns
+// that existed before the add_hr_letter_enhancements migration. Avoids FK-column
+// errors if the migration hasn't run yet on first deploy.
+const LETTER_INCLUDE_SAFE = {
+  employee: { select: { id: true, fullNameEn: true, fullNameAr: true, employmentId: true } },
+  createdBy: { select: { id: true, name: true } },
+} as const;
+
 export const GET = withApiContext(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url);
   const employeeId = searchParams.get('employeeId');
@@ -140,29 +155,56 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       const letter = await prisma.$transaction(async (tx) => {
         // If using a serial config, atomically update its sequence
         if (resolved.configId && resolved.newSeq !== undefined && resolved.newYear !== undefined) {
-          await tx.hrLetterSerialConfig.update({
-            where: { id: resolved.configId },
-            data: { currentSeq: resolved.newSeq, lastResetYear: resolved.newYear },
-          });
+          // Guard: HrLetterSerialConfig table might not exist yet
+          try {
+            await tx.hrLetterSerialConfig.update({
+              where: { id: resolved.configId },
+              data: { currentSeq: resolved.newSeq, lastResetYear: resolved.newYear },
+            });
+          } catch {
+            // Non-fatal — table not ready, skip serial update
+          }
         }
 
-        return tx.hrLetter.create({
-          data: {
-            letterNumber: resolved.number,
-            letterType: d.letterType,
-            classification: d.classification,
-            language: d.language,
-            status: 'PENDING_CEO',
-            employeeId: d.employeeId,
-            subject: d.subject,
-            content: d.content ?? null,
-            attachmentUrl: d.attachmentUrl ?? null,
-            issuedAt: new Date(d.issuedAt),
-            notes: d.notes ?? null,
-            createdById: session!.userId,
-          },
-          include: LETTER_INCLUDE,
-        });
+        // Try full create with enhancement fields (status, language).
+        // If the add_hr_letter_enhancements migration hasn't run yet,
+        // fall back to a basic create without those fields.
+        try {
+          return await tx.hrLetter.create({
+            data: {
+              letterNumber: resolved.number,
+              letterType: d.letterType,
+              classification: d.classification,
+              language: d.language,
+              status: 'PENDING_CEO',
+              employeeId: d.employeeId,
+              subject: d.subject,
+              content: d.content ?? null,
+              attachmentUrl: d.attachmentUrl ?? null,
+              issuedAt: new Date(d.issuedAt),
+              notes: d.notes ?? null,
+              createdById: session!.userId,
+            },
+            include: LETTER_INCLUDE_SAFE,
+          });
+        } catch {
+          // Migration not yet applied — create without enhancement fields
+          return await tx.hrLetter.create({
+            data: {
+              letterNumber: resolved.number,
+              letterType: d.letterType,
+              classification: d.classification,
+              employeeId: d.employeeId,
+              subject: d.subject,
+              content: d.content ?? null,
+              attachmentUrl: d.attachmentUrl ?? null,
+              issuedAt: new Date(d.issuedAt),
+              notes: d.notes ?? null,
+              createdById: session!.userId,
+            },
+            include: LETTER_INCLUDE_SAFE,
+          });
+        }
       });
 
       logger.info({ letterId: letter.id, letterNumber: resolved.number, employeeId: d.employeeId }, '[Letters] Created');
