@@ -3,7 +3,9 @@
 ## Project Overview
 Enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL.
 Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
-**Current version:** `19.3.6` — **Patch:** 2nd and 3rd place employees shown in the Employee of the Month card with silver 🥈 and bronze 🥉 styling — smaller rows beneath the gold winner; all three get medal icons and colored left-border highlights in the employee grid rows.
+**Current version:** `19.4.0` — **Minor:** HR Absence Analytics module. New `/hr/analytics` page surfaces behavioral patterns in team attendance and leave data so management can see "the data behind the data". Detects four pattern types from `AttendanceRecord` + `LeaveRequest` — Consecutive Absence (3+ consecutive ANP days, weekends transparent), Weekend Extension (>60% of ANP days fall on Monday/Friday), Escalating Absences (monotonically increasing ANP over last 3 months), and Frequent Leaves (≥3 approved leave requests in a single month). UI: violet hero, 4 KPI tiles (ANP Days, Flagged Employees, Avg ANP/Employee, Approved Leaves), collapsible Behavior Flags table (severity HIGH/MEDIUM badges), Absence Frequency Matrix (employee × month heatmap), ANP by Day-of-Week bar chart, Monthly Company Trend stacked bar chart, and Leave Request Frequency table. New API `GET /api/hr/analytics/absence?months=N&section=&occupation=`. New permission `hr.analytics.view` added to HR role bundle. No schema changes.
+
+**Previous version:** `19.3.6` — **Patch:** 2nd and 3rd place employees shown in the Employee of the Month card with silver 🥈 and bronze 🥉 styling — smaller rows beneath the gold winner; all three get medal icons and colored left-border highlights in the employee grid rows.
 
 **Previous version:** `19.3.5` — **Patch:** Total Hours card added to attendance grid — three tiles showing Our Staff hours, Manpower hours, and Combined total (regular + OT breakdown per tile); collapsible like all other grid sections.
 

@@ -190,6 +190,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/loans': ['hr.loans.view', 'hr.loans.manage'],
   '/hr/custodies': ['hr.custodies.view', 'hr.custodies.manage'],
 
+  // HR Absence Analytics (19.4.0)
+  '/hr/analytics': ['hr.analytics.view'],
+
   '/admin/identity-reconciliation': ['admin.identity.reconcile'],
 
   // Organization

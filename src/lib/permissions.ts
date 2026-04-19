@@ -394,6 +394,8 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.letters.view', name: 'View Letters', description: 'View HR letters and correspondence issued to employees', category: 'hr' },
       { id: 'hr.letters.manage', name: 'Manage Letters', description: 'Create, edit, and delete HR letters and correspondence', category: 'hr' },
       { id: 'hr.letters.approveCeo', name: 'CEO-Approve Letters', description: 'Final CEO sign-off on HR letters — approve or reject letters pending approval', category: 'hr' },
+      // 19.4.0 — HR Absence Analytics
+      { id: 'hr.analytics.view', name: 'View HR Analytics', description: 'Access the absence and leave behavioral analytics dashboard', category: 'hr' },
     ],
   },
   {
@@ -507,6 +509,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // 18.16.0 — Letters & Correspondence
     'hr.letters.view',
     'hr.letters.manage',
+    // 19.4.0 — HR Absence Analytics
+    'hr.analytics.view',
   ],
   Manager: [
     // User Management
