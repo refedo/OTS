@@ -44,7 +44,7 @@ const createSchema = z.object({
     fileSize: z.number(),
     uploadedAt: z.string(),
     label: z.string().optional(),
-  })).optional(),
+  })).nullish(),
 });
 
 export const GET = withApiContext(async (req: NextRequest) => {

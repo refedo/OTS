@@ -4142,6 +4142,22 @@ model Employee {
   bankName String? @db.VarChar(200)
   bankIban String? @db.VarChar(34)
 
+  // Extended Dolibarr extrafields (19.5.0)
+  employeeNo      String?   @db.VarChar(20)
+  boarderNumber   String?   @db.VarChar(255)
+  maritalStatus   String?   @db.VarChar(50)
+  occupationAr    String?   @db.VarChar(100)
+  gosiSubscriptionNo String? @db.VarChar(100)
+  contractEndDate DateTime? @db.Date
+  contractDuration String?  @db.VarChar(100)
+  passportNumber  String?   @db.VarChar(100)
+  iqamaUrl        String?   @db.VarChar(255)
+  passportUrl     String?   @db.VarChar(255)
+  sponsorNumber   String?   @db.VarChar(30)
+  contractType    String?   @db.VarChar(100)
+  workingLocation String?   @db.VarChar(100)
+  transferType    String?   @db.VarChar(100)
+
   // Sync state — set by syncDolibarrEmployees service
   lastSyncedFromDolibarrAt DateTime?
   // JSON array of column names that have been edited via the OTS UI after sync;

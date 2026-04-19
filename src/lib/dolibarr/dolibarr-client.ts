@@ -419,6 +419,13 @@ export class DolibarrClient {
 
         if (!response.ok) {
           const errorText = await response.text().catch(() => 'Unknown error');
+          if (response.status === 401) {
+            throw new Error(
+              `Dolibarr API key is invalid or expired (401 Unauthorized). ` +
+              `Fix: In Dolibarr go to Users & Groups → [API key user] → regenerate or extend the API key validity dates. ` +
+              `Raw: ${errorText}`,
+            );
+          }
           if (response.status >= 400 && response.status < 500 && response.status !== 429) {
             throw new Error(`Dolibarr API error ${response.status}: ${errorText}`);
           }
@@ -502,6 +509,14 @@ export class DolibarrClient {
 
         if (!response.ok) {
           const errorText = await response.text().catch(() => 'Unknown error');
+
+          if (response.status === 401) {
+            throw new Error(
+              `Dolibarr API key is invalid or expired (401 Unauthorized). ` +
+              `Fix: In Dolibarr go to Users & Groups → [API key user] → regenerate or extend the API key validity dates. ` +
+              `Raw: ${errorText}`,
+            );
+          }
 
           // Don't retry on 4xx errors (except 429)
           if (response.status >= 400 && response.status < 500 && response.status !== 429) {
