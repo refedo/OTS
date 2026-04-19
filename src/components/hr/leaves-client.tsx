@@ -109,6 +109,7 @@ export function LeavesClient({
   const [myRequests, setMyRequests] = useState<LeaveRequest[]>([]);
   const [inbox, setInbox] = useState<LeaveRequest[]>([]);
   const [allRequests, setAllRequests] = useState<LeaveRequest[]>([]);
+  const [allSearch, setAllSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -542,7 +543,7 @@ export function LeavesClient({
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="mine" className="space-y-4">
+      <Tabs defaultValue={canViewAll ? 'all' : 'mine'} className="space-y-4">
         <TabsList className="bg-slate-100">
           <TabsTrigger value="mine" className="gap-2">
             <CalendarClock className="h-4 w-4" />
@@ -598,8 +599,31 @@ export function LeavesClient({
 
         {canViewAll && (
           <TabsContent value="all" className="space-y-3 mt-4">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Search by name, ID, type or status…"
+                value={allSearch}
+                onChange={(e) => setAllSearch(e.target.value)}
+                className="max-w-sm h-9 text-sm"
+              />
+              {allSearch && (
+                <Button size="sm" variant="ghost" onClick={() => setAllSearch('')} className="h-9 px-2">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <RequestTable
-              requests={allRequests}
+              requests={allSearch.trim()
+                ? allRequests.filter((r) => {
+                    const q = allSearch.toLowerCase();
+                    return (
+                      r.employee?.fullNameEn.toLowerCase().includes(q) ||
+                      r.employee?.employmentId.toLowerCase().includes(q) ||
+                      r.leaveType.nameEn.toLowerCase().includes(q) ||
+                      r.status.toLowerCase().includes(q)
+                    );
+                  })
+                : allRequests}
               canApprove={canApprove}
               onAct={act}
               onCancel={cancel}

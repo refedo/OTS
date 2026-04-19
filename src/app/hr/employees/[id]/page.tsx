@@ -1,11 +1,12 @@
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
+import Link from 'next/link';
 import prisma from '@/lib/db';
 import { checkPermission, getCurrentUserPermissions } from '@/lib/permission-checker';
 import { EmployeeForm } from '@/components/hr/employee-form';
 import { EmployeeDetailTabs } from '@/components/hr/employee-detail-tabs';
-import { UserCircle2 } from 'lucide-react';
+import { UserCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default async function EmployeeDetailPage({
   params,
@@ -52,6 +53,17 @@ export default async function EmployeeDetailPage({
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
+
+  // Prev / next navigation (ordered alphabetically, same as the list page)
+  const allEmployeeIds = await prisma.employee.findMany({
+    where: { deletedAt: null },
+    select: { id: true },
+    orderBy: { fullNameEn: 'asc' },
+  });
+  const navIndex = allEmployeeIds.findIndex((e) => e.id === id);
+  const prevEmployeeId = navIndex > 0 ? allEmployeeIds[navIndex - 1].id : null;
+  const nextEmployeeId = navIndex < allEmployeeIds.length - 1 ? allEmployeeIds[navIndex + 1].id : null;
+  const navPosition = navIndex >= 0 ? `${navIndex + 1} / ${allEmployeeIds.length}` : null;
 
   const initial = {
     id: employee.id,
@@ -148,6 +160,38 @@ export default async function EmployeeDetailPage({
                   ? new Date(employee.lastSyncedFromDolibarrAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
                   : 'never'}
               </p>
+            </div>
+            {/* Prev / Next navigation */}
+            <div className="flex items-center gap-1 shrink-0">
+              {prevEmployeeId ? (
+                <Link
+                  href={`/hr/employees/${prevEmployeeId}`}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                  title="Previous employee"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Link>
+              ) : (
+                <span className="p-2 bg-white/10 rounded-lg opacity-40 cursor-not-allowed">
+                  <ChevronLeft className="h-5 w-5" />
+                </span>
+              )}
+              {navPosition && (
+                <span className="text-xs text-sky-200 font-mono px-1 tabular-nums">{navPosition}</span>
+              )}
+              {nextEmployeeId ? (
+                <Link
+                  href={`/hr/employees/${nextEmployeeId}`}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                  title="Next employee"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Link>
+              ) : (
+                <span className="p-2 bg-white/10 rounded-lg opacity-40 cursor-not-allowed">
+                  <ChevronRight className="h-5 w-5" />
+                </span>
+              )}
             </div>
           </div>
         </div>

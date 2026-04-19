@@ -19,6 +19,7 @@ import {
   CalendarClock,
   Lock,
   ArrowRight,
+  Trash2,
 } from 'lucide-react';
 
 type Period = {
@@ -79,6 +80,7 @@ export function PayrollPeriodsClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const now = new Date();
   const [form, setForm] = useState({
     year: now.getFullYear(),
@@ -175,6 +177,21 @@ export function PayrollPeriodsClient({
       setSyncError(e instanceof Error ? e.message : 'Sync failed');
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function deletePeriod(id: string, label: string) {
+    if (!confirm(`Delete payroll period "${label}"? This will permanently remove all calculated payroll lines. This cannot be undone.`)) return;
+    setDeletingId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/hr/payroll-periods/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Delete failed');
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -455,11 +472,28 @@ export function PayrollPeriodsClient({
                           {new Date(p.payDate).toLocaleDateString()}
                         </td>
                         <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <Link href={`/hr/payroll/${p.id}`}>
-                            <Button size="sm" variant="ghost" className="gap-1">
-                              Open <ArrowRight className="h-3.5 w-3.5" />
-                            </Button>
-                          </Link>
+                          <div className="flex items-center justify-end gap-1">
+                            {canCalculate && (p.status === 'DRAFT' || p.status === 'CALCULATED') && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                                disabled={deletingId === p.id}
+                                onClick={() => deletePeriod(p.id, `${MONTHS[p.month - 1]} ${p.year}`)}
+                              >
+                                {deletingId === p.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            )}
+                            <Link href={`/hr/payroll/${p.id}`}>
+                              <Button size="sm" variant="ghost" className="gap-1">
+                                Open <ArrowRight className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}

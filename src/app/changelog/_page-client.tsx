@@ -23,10 +23,39 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.8.0',
+    version: '19.9.0',
     date: 'April 19, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'HR & Payroll UX Improvements',
+    highlights: [
+      'Delete payroll periods directly from the payroll table — trash icon on DRAFT and CALCULATED rows, one-click with confirmation.',
+      'Employee records open in read-only mode by default — click Edit to unlock, Cancel to revert all changes and re-lock.',
+      'Prev/next arrow buttons in the employee hero banner let you navigate alphabetically through all employees with a position counter.',
+      'Leave Management "All" tab is now the default for users with viewAll permission; live search filters by employee name, ID, leave type, or status.',
+    ],
+    changes: {
+      added: [
+        'Payroll period delete button (Trash2 icon) on DRAFT/CALCULATED rows in payroll-periods-client.tsx',
+        'Employee form isEditing state — form starts locked (read-only) for existing records; Edit/Cancel banner at the top toggles edit mode',
+        'fieldset[disabled] wrapper around all employee form tabs so all inputs go inert in locked mode',
+        'ChevronLeft/ChevronRight nav arrows in the employee detail hero — links to prevEmployeeId/nextEmployeeId with position counter (N / total)',
+        'Server-side navigation query in /hr/employees/[id]/page.tsx (allEmployeeIds ordered by fullNameEn)',
+        'GET /api/hr/employees/navigation — returns prevId, nextId, total, currentIndex for a given currentId',
+        'allSearch state and Input in the Leaves All tab for live filtering by name, ID, type, or status',
+      ],
+      fixed: [],
+      changed: [
+        'Leaves Tabs defaultValue changes from "mine" to "all" when canViewAll is true',
+        'Save / Cancel buttons in employee form hidden when form is locked (only shown in edit mode)',
+      ],
+    },
+  },
+  {
+    version: '19.8.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Previously Disbursed Salaries — Unified Employee Payslip History',
     highlights: [
       'New "Payslips" tab on /hr/employees/[id] shows all payslips in one place: Dolibarr historical disbursements + OTS Payroll lines, merged by date with source badges.',

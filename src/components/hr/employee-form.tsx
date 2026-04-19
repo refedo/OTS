@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Pencil, X } from 'lucide-react';
 
 /**
  * Shared create/edit form for Employees. In create mode, `initial` is null;
@@ -104,6 +104,8 @@ export function EmployeeForm({
 }: Props) {
   const router = useRouter();
   const isEdit = !!initial?.id;
+  // In edit mode the form is locked (read-only) by default; user must click Edit to unlock.
+  const [isEditing, setIsEditing] = useState(!isEdit);
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -279,8 +281,40 @@ export function EmployeeForm({
     }
   };
 
+  // Shorthand: fields are disabled when the form is locked (edit mode only)
+  const locked = isEdit && !isEditing;
+
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {/* Edit / lock banner (edit mode only) */}
+      {isEdit && (
+        <div className="flex items-center justify-between rounded-lg border bg-slate-50 px-4 py-2.5">
+          <p className="text-sm text-slate-600">
+            {isEditing ? 'Editing record — save or cancel when done.' : 'Record is locked. Click Edit to make changes.'}
+          </p>
+          {isEditing ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => { setIsEditing(false); form.reset(); setError(null); }}
+            >
+              <X className="h-3.5 w-3.5" /> Cancel editing
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              className="gap-1.5 bg-sky-600 hover:bg-sky-700 text-white"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
           {error}
@@ -311,6 +345,7 @@ export function EmployeeForm({
         </div>
       )}
 
+      <fieldset disabled={locked} className="disabled:opacity-60">
       <Tabs defaultValue="personal" className="w-full">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="personal">Personal</TabsTrigger>
@@ -639,7 +674,9 @@ export function EmployeeForm({
           </TabsContent>
         )}
       </Tabs>
+      </fieldset>
 
+      {(!isEdit || isEditing) && (
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel
@@ -649,6 +686,7 @@ export function EmployeeForm({
           {isEdit ? 'Save changes' : 'Create employee'}
         </Button>
       </div>
+      )}
     </form>
   );
 }
