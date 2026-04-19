@@ -4,7 +4,8 @@ export type CronJobId =
   | 'financial-sync'
   | 'deadline-reminders'
   | 'early-warning'
-  | 'ops-agent';
+  | 'ops-agent'
+  | 'attendance-sync';
 
 export interface CronJobDef {
   id: CronJobId;
@@ -91,6 +92,18 @@ export const CRON_JOB_REGISTRY: CronJobDef[] = [
     enabledEnvVar: 'ENABLE_OPS_AGENT_SCHEDULER',
     intervalEnvVar: null,
     category: 'analysis',
+  },
+  {
+    id: 'attendance-sync',
+    name: 'PTS Attendance & Overtime Sync',
+    description: 'Pulls the daily PTS (Production Tracking Sheet) overtime tab from Google Sheets into OTS AttendanceRecord — syncs regular hours, OT hours, and absence codes for all employees and manpower slots.',
+    scheduleExpression: '0 6 * * *',
+    scheduleHuman: 'Daily at 06:00 (Asia/Riyadh)',
+    endpoint: '/api/hr/attendance/sync',
+    authMode: 'bearer',
+    enabledEnvVar: 'ENABLE_ATTENDANCE_SYNC_SCHEDULER',
+    intervalEnvVar: null,
+    category: 'sync',
   },
 ];
 

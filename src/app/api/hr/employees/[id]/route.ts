@@ -70,6 +70,21 @@ const updateSchema = z.object({
     .optional(),
   isGosiSubject: z.boolean().optional(),
   gosiSalary: z.union([z.string(), z.number()]).nullable().optional(),
+  // Extended Dolibarr extrafields (19.5.0)
+  employeeNo: z.string().max(20).nullable().optional(),
+  boarderNumber: z.string().max(255).nullable().optional(),
+  maritalStatus: z.string().max(50).nullable().optional(),
+  occupationAr: z.string().max(100).nullable().optional(),
+  gosiSubscriptionNo: z.string().max(100).nullable().optional(),
+  contractEndDate: z.string().nullable().optional(),
+  contractDuration: z.string().max(100).nullable().optional(),
+  passportNumber: z.string().max(100).nullable().optional(),
+  iqamaUrl: z.string().max(255).nullable().optional(),
+  passportUrl: z.string().max(255).nullable().optional(),
+  sponsorNumber: z.string().max(30).nullable().optional(),
+  contractType: z.string().max(100).nullable().optional(),
+  workingLocation: z.string().max(100).nullable().optional(),
+  transferType: z.string().max(100).nullable().optional(),
   deleteReason: z.string().max(500).optional(),
 });
 
@@ -92,6 +107,21 @@ const TRACKED_SYNC_FIELDS = [
   'bankIban',
   'isGosiSubject',
   'gosiSalary',
+  'nationality',
+  'employeeNo',
+  'boarderNumber',
+  'maritalStatus',
+  'occupationAr',
+  'gosiSubscriptionNo',
+  'contractEndDate',
+  'contractDuration',
+  'passportNumber',
+  'iqamaUrl',
+  'passportUrl',
+  'sponsorNumber',
+  'contractType',
+  'workingLocation',
+  'transferType',
 ] as const;
 
 async function getSessionOrUnauthorized() {
@@ -166,7 +196,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
 
   for (const [key, value] of Object.entries(data)) {
     if (value === undefined) continue;
-    if (key === 'dateOfBirth' || key === 'dateOfJoining' || key === 'dateOfLeaving') {
+    if (key === 'dateOfBirth' || key === 'dateOfJoining' || key === 'dateOfLeaving' || key === 'contractEndDate') {
       updateData[key] = value ? new Date(value as string) : null;
     } else if (
       key === 'basicSalary' ||

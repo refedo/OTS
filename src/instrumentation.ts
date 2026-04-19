@@ -16,6 +16,7 @@ export async function register() {
     const { DolibarrLeavesSyncScheduler } = await import('@/lib/scheduler/dolibarr-leaves-sync.scheduler');
     const { ContractRemindersScheduler } = await import('@/lib/scheduler/contract-reminders.scheduler');
     const { OpsAgentScheduler } = await import('@/lib/scheduler/ops-agent.scheduler');
+    const { AttendanceSyncScheduler } = await import('@/lib/scheduler/attendance-sync.scheduler');
     const { ensureOpsAgentConfig } = await import('@/lib/ops-agent/seeder');
     const { registerIntegrationListeners } = await import('@/lib/events/integration-listeners');
     const { runStartupMigrations } = await import('@/lib/startup-migrations');
@@ -40,6 +41,9 @@ export async function register() {
 
     // Initialize the Ops Agent scheduler (18.19.0) — Sat–Wed 07:00 Riyadh
     OpsAgentScheduler.initialize();
+
+    // Initialize the daily PTS Attendance & Overtime Sync scheduler (HR module, 19.6.0)
+    AttendanceSyncScheduler.initialize();
 
     // Register integration event listeners (open-audit, Libre MES, …)
     registerIntegrationListeners();
