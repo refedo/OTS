@@ -25,6 +25,7 @@ interface LoanEntry {
   installmentAmount: string;
   installmentsTotal: number;
   installmentsPaid: number;
+  totalAmountPaid: number;
   startDate: string;
   status: LoanStatus;
   reason: string | null;
@@ -447,7 +448,7 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
       switch (sort.key) {
         case 'employee': av = a.employee?.fullNameEn ?? ''; bv = b.employee?.fullNameEn ?? ''; break;
         case 'principal': av = Number(a.principal); bv = Number(b.principal); break;
-        case 'balance': av = (a.installmentsTotal - a.installmentsPaid) * Number(a.installmentAmount); bv = (b.installmentsTotal - b.installmentsPaid) * Number(b.installmentAmount); break;
+        case 'balance': av = Math.max(0, Number(a.principal) - a.totalAmountPaid); bv = Math.max(0, Number(b.principal) - b.totalAmountPaid); break;
         case 'startDate': av = a.startDate; bv = b.startDate; break;
         case 'status': av = a.status; bv = b.status; break;
         default: av = a.createdAt; bv = b.createdAt;
@@ -460,7 +461,7 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
   const activeLoans = useMemo(() => loans.filter((l) => l.status === 'ACTIVE'), [loans]);
   const completedLoans = useMemo(() => loans.filter((l) => l.status === 'COMPLETED'), [loans]);
   const activeBalance = useMemo(() => activeLoans.reduce((s, l) => {
-    return s + (l.installmentsTotal - l.installmentsPaid) * Number(l.installmentAmount);
+    return s + Math.max(0, Number(l.principal) - l.totalAmountPaid);
   }, 0), [activeLoans]);
   const totalPrincipal = useMemo(() => loans.reduce((s, l) => s + Number(l.principal), 0), [loans]);
 
@@ -575,8 +576,9 @@ export function LoansPageClient({ canViewAll, canManage = false }: { canViewAll:
                   </thead>
                   <tbody>
                     {filtered.map((loan) => {
-                      const remaining = (loan.installmentsTotal - loan.installmentsPaid) * Number(loan.installmentAmount);
-                      const progress = loan.installmentsTotal > 0 ? (loan.installmentsPaid / loan.installmentsTotal) * 100 : 0;
+                      const principal = Number(loan.principal);
+                      const remaining = Math.max(0, principal - loan.totalAmountPaid);
+                      const progress = principal > 0 ? Math.min(100, (loan.totalAmountPaid / principal) * 100) : 0;
                       return (
                         <tr key={loan.id} className="border-b last:border-0 hover:bg-slate-50/60 transition">
                           {canViewAll && (
