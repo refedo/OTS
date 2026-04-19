@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.4.2] - 2026-04-19
+
+### HR Letter Enhancements — CEO Approval, Per-Type Serials, Bilingual Print (Patch)
+
+#### Added
+
+- **CEO Approval Workflow:** Every issued letter is created with status `PENDING_CEO`. All users holding `hr.letters.approveCeo` receive a push notification immediately. CEO can approve or reject (with mandatory reason) from the Letters page; HR creator is notified either way. Audit trail (approved/rejected by + timestamp) is stored on the record and shown in the print output.
+- **Per-Type Serial Numbers:** New `HrLetterSerialConfig` table stores a prefix, mask, sequence counter, and yearly-reset flag per letter type. Example: Questioning letters → `QST-26-0001`, First Warning → `FW1-26-0001`. Types without a config fall back to the previous `INT/EXT-YY-NNNN` format. Sequence is incremented atomically inside a Prisma transaction — no race conditions.
+- **Configurable Numbering Masks:** Mask supports `{PREFIX}`, `{YY}`, `{YYYY}`, and any run of `N`s for padding (e.g. `{PREFIX}-{YY}-{NNNNN}` → 5-digit counter). Yearly reset optional per type.
+- **HR Setup → Letter Serials tab:** HR can configure, edit, reset counters, and delete serial configs for each letter type. Unconfigured types show a live preview of the generated number before saving. Available-only dropdown prevents duplicate configs.
+- **Bilingual Print Page (`/hr/letters/[id]/print`):** Opens in a new tab. Language switcher in the control bar (Arabic RTL / English LTR / Bilingual — both on one printout with a page break). Full A4-formatted letterhead (Hexa Steel®), employee info block, subject, body, signature area (CEO name + date shown when approved), approval stamp, and audit footer. Browser "Print → Save as PDF" works natively — no external PDF library needed.
+- **Letters Tab on Employee Card:** New "Letters" tab on `/hr/employees/[id]` (visible to any user with `hr.letters.*`). Shows KPI tiles (total / approved / pending / rejected), expandable letter rows with type badge, status badge, classification, issued date, issuer, and full approval/rejection detail. Print and PDF attachment buttons inline.
+- **`hr.letters.approveCeo` permission:** Added to permission registry. CEO role holds it via ALL_PERMISSIONS. HR role does not — only the CEO can approve.
+- **`language` field on HrLetter:** `ARABIC` / `ENGLISH` / `BILINGUAL` — drives print page default language.
+- **Status field on HrLetter:** `DRAFT` / `PENDING_CEO` / `APPROVED` / `REJECTED` — with index for fast filtering.
+
+#### Fixed
+
+- **Approved letters locked:** `PUT` and `DELETE` on `APPROVED` letters now return `422` instead of silently allowing edits.
+- **Atomic serial increment:** Per-type sequence updated inside the letter-creation transaction — eliminates the race condition possible with the previous retry-loop approach.
+
+#### Changed
+
+- `POST /api/hr/letters`: uses `HrLetterSerialConfig` when available; adds `language` field; status defaults to `PENDING_CEO`; notifies CEO approvers after creation.
+- `GET /api/hr/letters`: now returns `status`, `language`, `approvedBy`, `rejectedBy`, `approvedAt`, `rejectedAt`, `rejectionReason`, `employee.fullNameAr`, `employee.department`, `employee.occupation`; supports `?status=` filter.
+- Startup migrations: `add_hr_letter_enhancements.sql` registered.
+
+---
+
 ## [19.0.1] - 2026-04-17
 
 ### Asset Management Fixes + Loan/Custody Quick-Create (Patch)

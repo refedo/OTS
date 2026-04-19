@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers, Network, Briefcase, CalendarClock, Banknote, Settings2, RefreshCw, Loader2, AlertTriangle, CheckCircle2, Bug, Link2 } from 'lucide-react';
+import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers, Network, Briefcase, CalendarClock, Banknote, Settings2, RefreshCw, Loader2, AlertTriangle, CheckCircle2, Bug, Link2, Hash } from 'lucide-react';
+import { LetterSerialsSetupTab } from './letter-serials-setup-tab';
 
 type Department = {
   id: string;
@@ -387,6 +388,10 @@ export function HrSetupClient({
             <CheckCircle2 className="h-4 w-4" />
             Identity Reconciliation
           </TabsTrigger>
+          <TabsTrigger value="letterSerials" className="gap-2">
+            <Hash className="h-4 w-4" />
+            Letter Serials
+          </TabsTrigger>
         </TabsList>
 
         {/* ------------------------------------------------------------- */}
@@ -749,6 +754,13 @@ export function HrSetupClient({
         {/* ------------------------------------------------------------- */}
         <TabsContent value="identityReconciliation" className="space-y-4">
           <IdentityReconciliationTab users={identityUsers} isComplete={reconciliationComplete} canManage={canIdentityReconcile} />
+        </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* Letter Serials                                                 */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="letterSerials" className="space-y-4">
+          <LetterSerialsSetupTab />
         </TabsContent>
       </Tabs>
       </div>
