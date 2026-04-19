@@ -23,10 +23,52 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.4.2',
+    date: 'April 19, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'HR Letter Enhancements — CEO Approval, Per-Type Serials & Bilingual Print',
+    highlights: [
+      'CEO approval cycle: every issued letter goes to PENDING_CEO — CEO receives a push notification and can approve or reject with a mandatory reason; HR creator is notified of the outcome.',
+      'Per-type serial numbers: configure a custom prefix and numbering mask per letter type (QST-26-0001, FW1-26-0001, …) in HR Setup → Letter Serials. Counter resets yearly by default.',
+      'Bilingual print page: open any letter at /hr/letters/[id]/print — language switcher toggles Arabic (RTL), English (LTR), or Bilingual layout; prints to A4 PDF via the browser natively.',
+      'Letters tab on the employee card: all letters issued to an employee appear under a new Letters tab with KPI tiles, status badges, approval/rejection detail, and an inline print button.',
+      'HR Setup → Letter Serials tab: add, edit, reset counter, and delete per-type serial configs with a live number preview.',
+      'Approved letters are now locked — editing or deleting an APPROVED letter returns HTTP 422.',
+    ],
+    changes: {
+      added: [
+        'HrLetterSerialConfig table: per-type prefix, mask, currentSeq, resetYearly — sequence incremented atomically inside the letter-creation Prisma transaction',
+        'POST /api/hr/letters/[id]/approve — CEO approves a PENDING_CEO letter; notifies HR creator via NotificationService',
+        'POST /api/hr/letters/[id]/reject — CEO rejects with a mandatory reason; notifies HR creator',
+        'GET/POST /api/hr/letter-serial-configs — list and create serial configs',
+        'PUT/DELETE /api/hr/letter-serial-configs/[id] — edit prefix/mask/resetYearly, reset counter to 0, or delete',
+        'hr.letters.approveCeo permission — CEO-only; not included in the HR role bundle',
+        'HrLetterStatus enum (DRAFT | PENDING_CEO | APPROVED | REJECTED) + status index on HrLetter',
+        'HrLetterLanguage enum (ARABIC | ENGLISH | BILINGUAL)',
+        '/hr/letters/[id]/print — bilingual A4 print page with control bar language switcher; CSS @media print hides the bar',
+        'EmployeeLettersTab: Letters tab on /hr/employees/[id] with KPI strip, expandable rows, approval/rejection detail, inline print and PDF buttons',
+        'LetterSerialsSetupTab: new HR Setup tab with full config table (edit inline, reset counter, delete) and add-new form with live generated-number preview',
+        'Startup migration: prisma/manual_migrations/add_hr_letter_enhancements.sql — stored-procedure pattern, fully idempotent',
+      ],
+      fixed: [
+        'PUT /api/hr/letters/[id]: APPROVED letters now return 422 Unprocessable Entity instead of silently accepting edits',
+        'DELETE /api/hr/letters/[id]: APPROVED letters now return 422 instead of soft-deleting',
+      ],
+      changed: [
+        'POST /api/hr/letters: uses HrLetterSerialConfig when configured; status defaults to PENDING_CEO (not saved silently); notifies all hr.letters.approveCeo holders after creation',
+        'GET /api/hr/letters: returns status, language, approvedBy, rejectedBy, approvedAt, rejectedAt, rejectionReason, employee.fullNameAr/department/occupation; new ?status= query param',
+        'EmployeeDetailTabs: showLetters prop + Letters TabsTrigger/TabsContent wired',
+        'hr-setup-client: Letter Serials tab added (Hash icon, LetterSerialsSetupTab)',
+        'Version bumped to 19.4.2',
+      ],
+    },
+  },
+  {
     version: '19.0.1',
     date: 'April 17, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Asset Management Fixes + Loan/Custody Quick-Create',
     highlights: [
       'Asset tables now created on first deploy — startup migration order fixed',
