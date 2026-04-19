@@ -51,6 +51,7 @@ export const GET = withApiContext(async () => {
     }
 
     const MONTHLY_ACCRUAL = 1.75;
+    const annualLeaveType = leaveTypes.find((lt) => lt.code === 'ANNUAL');
 
     const rows = employees.map((emp) => {
       const joinDate = emp.dateOfJoining ? new Date(emp.dateOfJoining) : null;
@@ -66,6 +67,10 @@ export const GET = withApiContext(async () => {
       const empConsumed = consumed[emp.id] ?? {};
       const totalConsumed = Object.values(empConsumed).reduce((s, v) => s + v, 0);
 
+      const annualConsumed = annualLeaveType
+        ? Math.round((empConsumed[annualLeaveType.id] ?? 0) * 10) / 10
+        : 0;
+
       const byType: Record<string, number> = {};
       for (const lt of leaveTypes) {
         byType[lt.code] = Math.round((empConsumed[lt.id] ?? 0) * 10) / 10;
@@ -78,8 +83,9 @@ export const GET = withApiContext(async () => {
         dateOfJoining: emp.dateOfJoining,
         monthsEmployed,
         entitledDays,
+        annualConsumed,
         totalConsumed: Math.round(totalConsumed * 10) / 10,
-        remaining: Math.round((entitledDays - totalConsumed) * 10) / 10,
+        remaining: Math.round((entitledDays - annualConsumed) * 10) / 10,
         byType,
       };
     });
