@@ -187,7 +187,7 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
     if (t.id === 'assets') return hasAssets;
     if (t.id === 'finance') return hasLoans || hasCustodies;
     if (t.id === 'leaves') return hasLeaves;
-    if (t.id === 'payslips') return hasPayslips;
+    if (t.id === 'payslips') return true;
     if (t.id === 'violations') return hasViolations;
     if (t.id === 'letters') return hasLetters;
     if (t.id === 'contracts') return hasContracts;
@@ -336,15 +336,18 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
           )}
 
           {/* Recent payslip */}
-          {hasPayslips && (
-            <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-sky-700">
-                  <Receipt className="h-4 w-4" />
-                  <span className="text-sm font-semibold">Latest Payslip</span>
-                </div>
+          <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-sky-700">
+                <Receipt className="h-4 w-4" />
+                <span className="text-sm font-semibold">Latest Payslip</span>
               </div>
-              {data.recentPayslips.slice(0, 1).map((p, i) => (
+              <span className="text-[10px] bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded-full font-medium">
+                OTS + Dolibarr
+              </span>
+            </div>
+            {hasPayslips ? (
+              data.recentPayslips.slice(0, 1).map((p, i) => (
                 <div key={i} className="space-y-2">
                   <p className="text-xs text-slate-500 font-medium">{p.periodLabel}</p>
                   <div className="grid grid-cols-2 gap-1 text-xs">
@@ -362,10 +365,15 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
                     <p className="text-lg font-bold text-sky-700">SAR {fmtSAR(p.netSalary)}</p>
                   </div>
                 </div>
-              ))}
-              <button onClick={() => setActiveTab('payslips')} className="mt-2 text-xs text-sky-600 hover:underline">View all payslips →</button>
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="flex flex-col items-center py-3 gap-1">
+                <Banknote className="h-7 w-7 text-sky-300" />
+                <p className="text-xs text-slate-500 text-center">Payslip history available — tap to view all salary records including Dolibarr disbursements.</p>
+              </div>
+            )}
+            <button onClick={() => setActiveTab('payslips')} className="mt-2 text-xs text-sky-600 hover:underline">View all payslips →</button>
+          </div>
         </div>
       )}
 

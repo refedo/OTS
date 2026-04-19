@@ -160,6 +160,32 @@ type EngineRunResult = {
   ruleResults: RuleResult[];
 };
 
+type EngineSummary = {
+  totalActive: number;
+  recentlyResolved: number;
+  bySeverity: { severity: string; count: number }[];
+  byType: { type: string; count: number }[];
+};
+
+type RiskEvent = {
+  id: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  type: 'DELAY' | 'DEPENDENCY' | 'OVERLOAD' | 'BOTTLENECK';
+  affectedProjectIds: string[];
+  affectedWorkUnitIds: string[];
+  reason: string;
+  recommendedAction: string;
+  metadata?: Record<string, unknown>;
+  detectedAt: string;
+};
+
+const TYPE_TO_CATEGORY: Record<string, string> = {
+  DELAY: 'task_delay',
+  DEPENDENCY: 'cascade_risk',
+  OVERLOAD: 'capacity_overload',
+  BOTTLENECK: 'cascade_risk',
+};
+
 export default function RiskDashboardPage() {
   const [data, setData] = useState<LeadingIndicatorsSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -169,21 +195,39 @@ export default function RiskDashboardPage() {
   const [running, setRunning] = useState(false);
   const [lastRunResult, setLastRunResult] = useState<EngineRunResult | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'live' | 'engine'>('live');
+  const [engineSummary, setEngineSummary] = useState<EngineSummary | null>(null);
+  const [engineRisks, setEngineRisks] = useState<RiskEvent[]>([]);
+  const [engineLoading, setEngineLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch('/api/leading-indicators');
-      if (!response.ok) {
-        throw new Error('Failed to fetch risk data');
-      }
-      const result = await response.json();
-      setData(result);
+      if (!response.ok) throw new Error('Failed to fetch risk data');
+      setData(await response.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEngineData = async () => {
+    setEngineLoading(true);
+    try {
+      const [summaryRes, risksRes] = await Promise.all([
+        fetch('/api/risk-events/summary'),
+        fetch('/api/risk-events'),
+      ]);
+      if (summaryRes.ok) setEngineSummary(await summaryRes.json());
+      if (risksRes.ok) {
+        const body = await risksRes.json();
+        setEngineRisks(body.data ?? []);
+      }
+    } finally {
+      setEngineLoading(false);
     }
   };
 
@@ -196,7 +240,8 @@ export default function RiskDashboardPage() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? 'Engine run failed');
       setLastRunResult(body as EngineRunResult);
-      await fetchData();
+      await fetchEngineData();
+      setViewMode('engine');
     } catch (err) {
       setRunError(err instanceof Error ? err.message : 'Engine run failed');
     } finally {
@@ -204,9 +249,43 @@ export default function RiskDashboardPage() {
     }
   };
 
+  const switchToLive = async () => {
+    setViewMode('live');
+    if (!data) await fetchData();
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // ----- derived counts -----
+  const sevCount = (sev: string) => engineSummary?.bySeverity.find(s => s.severity === sev)?.count ?? 0;
+  const liveTotal   = data?.totalRisks ?? 0;
+  const liveCrit    = data?.critical ?? 0;
+  const liveHigh    = data?.high ?? 0;
+  const liveMed     = data?.medium ?? 0;
+  const liveLow     = data?.low ?? 0;
+  const engTotal    = engineSummary?.totalActive ?? 0;
+  const engCrit     = sevCount('CRITICAL');
+  const engHigh     = sevCount('HIGH');
+  const engMed      = sevCount('MEDIUM');
+  const engLow      = sevCount('LOW');
+
+  const totalRisks  = viewMode === 'engine' ? engTotal  : liveTotal;
+  const critCount   = viewMode === 'engine' ? engCrit   : liveCrit;
+  const highCount   = viewMode === 'engine' ? engHigh   : liveHigh;
+  const medCount    = viewMode === 'engine' ? engMed    : liveMed;
+  const lowCount    = viewMode === 'engine' ? engLow    : liveLow;
+
+  // filter engine risks
+  const filteredEngine = engineRisks.filter(r => {
+    if (selectedLevel) {
+      const map: Record<string, string> = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM', low: 'LOW' };
+      if (r.severity !== map[selectedLevel]) return false;
+    }
+    if (selectedCategory && TYPE_TO_CATEGORY[r.type] !== selectedCategory) return false;
+    return true;
+  });
 
   const filteredIndicators = data?.indicators.filter(indicator => {
     if (selectedCategory && indicator.category !== selectedCategory) return false;
@@ -214,18 +293,20 @@ export default function RiskDashboardPage() {
     return true;
   }) || [];
 
-  if (loading) {
+  const isBusy = loading || running || engineLoading;
+
+  if (loading && viewMode === 'live') {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-          <p className="mt-2 text-muted-foreground">Analyzing risks...</p>
+          <p className="mt-2 text-muted-foreground">Analyzing risks…</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && viewMode === 'live') {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -240,282 +321,316 @@ export default function RiskDashboardPage() {
     );
   }
 
-  if (!data) return null;
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Zap className="h-8 w-8 text-yellow-500" />
-            Early Warning System
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Leading indicators - detect problems before they happen
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={fetchData} variant="outline" disabled={loading || running}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button onClick={runEngine} disabled={running || loading} className="bg-amber-500 hover:bg-amber-600 text-white">
-            {running ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="mr-2 h-4 w-4" />
-            )}
-            {running ? 'Running engine…' : 'Run Engine'}
-          </Button>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+      {/* Hero */}
+      <div className="rounded-2xl border bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+        <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+        <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <Zap className="h-5 w-5" />
+              </div>
+              <h1 className="text-2xl font-bold">Early Warning System</h1>
+            </div>
+            <p className="text-orange-100 text-sm">
+              {viewMode === 'engine'
+                ? 'Showing engine results — tracker-linked, suppression-aware risk events stored in the database'
+                : 'Live leading indicators — real-time computation from tasks, resources & schedule data'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Mode toggle */}
+            <div className="flex items-center gap-1 bg-white/15 rounded-lg p-1 backdrop-blur-sm">
+              <button
+                onClick={switchToLive}
+                disabled={isBusy}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'live' ? 'bg-white text-orange-700 shadow-sm' : 'text-white/80 hover:text-white'}`}
+              >
+                Live
+              </button>
+              <button
+                onClick={fetchEngineData}
+                disabled={isBusy || !engineSummary}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'engine' ? 'bg-white text-orange-700 shadow-sm' : 'text-white/80 hover:text-white disabled:opacity-40'}`}
+              >
+                Engine
+              </button>
+            </div>
+            <Button onClick={viewMode === 'live' ? fetchData : fetchEngineData} variant="secondary" disabled={isBusy}
+              className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
+              <RefreshCw className={`mr-2 h-4 w-4 ${isBusy ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button onClick={runEngine} disabled={isBusy}
+              className="bg-white text-orange-700 hover:bg-orange-50 border-0 shadow-sm">
+              {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+              {running ? 'Running…' : 'Run Engine'}
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Engine run result strip */}
       {lastRunResult && !runError && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
-          <div className="flex items-center gap-2 font-medium text-emerald-800 mb-1">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3">
+          <div className="flex items-center gap-2 font-semibold text-emerald-800 mb-1.5 text-sm">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
-            Engine run complete — {lastRunResult.totalRisksDetected} risks detected, {lastRunResult.totalRisksCreated} new · {lastRunResult.duration}ms
+            Engine run complete — {lastRunResult.totalRisksDetected} detected, {lastRunResult.totalRisksCreated} new · {lastRunResult.duration}ms
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-emerald-700">
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-emerald-700">
             {lastRunResult.ruleResults.map((r) => (
-              <span key={r.ruleName}>
-                <span className="font-medium">{r.ruleName}:</span>{' '}
-                {r.risksDetected} detected
-                {r.risksCreated > 0 && <span className="text-emerald-600"> · {r.risksCreated} new</span>}
-                {(r.risksSuppressedByTracker ?? 0) > 0 && <span className="text-sky-600"> · {r.risksSuppressedByTracker} suppressed by tracker</span>}
-                {(r.risksAutoResolved ?? 0) > 0 && <span className="text-violet-600"> · {r.risksAutoResolved} auto-resolved</span>}
-                {r.errors.length > 0 && <span className="text-rose-600"> · {r.errors.length} errors</span>}
+              <span key={r.ruleName} className="flex items-center gap-1 flex-wrap">
+                <span className="font-medium">{r.ruleName}:</span>
+                <span>{r.risksDetected} detected</span>
+                {r.risksCreated > 0 && <span className="text-emerald-600 font-medium">· {r.risksCreated} new</span>}
+                {(r.risksSuppressedByTracker ?? 0) > 0 && <span className="text-sky-600 font-medium">· {r.risksSuppressedByTracker} suppressed by tracker</span>}
+                {(r.risksAutoResolved ?? 0) > 0 && <span className="text-violet-600 font-medium">· {r.risksAutoResolved} auto-resolved</span>}
+                {r.errors.length > 0 && <span className="text-rose-600 font-medium">· {r.errors.length} errors</span>}
               </span>
             ))}
           </div>
         </div>
       )}
       {runError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm flex items-start gap-2 text-rose-800">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm flex items-start gap-2 text-rose-800">
           <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>Engine run failed: {runError}</span>
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card 
-          className={`cursor-pointer transition-all ${selectedLevel === null ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
-          onClick={() => setSelectedLevel(null)}
-        >
-          <CardContent className="pt-6">
-            <div className="text-4xl font-bold">{data.totalRisks}</div>
-            <p className="text-sm text-muted-foreground">Total Risks</p>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className={`cursor-pointer transition-all border-red-200 ${selectedLevel === 'critical' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
-          onClick={() => setSelectedLevel(selectedLevel === 'critical' ? null : 'critical')}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span className="text-4xl font-bold text-red-600">{data.critical}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Critical</p>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className={`cursor-pointer transition-all border-orange-200 ${selectedLevel === 'high' ? 'ring-2 ring-orange-500' : 'hover:shadow-md'}`}
-          onClick={() => setSelectedLevel(selectedLevel === 'high' ? null : 'high')}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-              <span className="text-4xl font-bold text-orange-600">{data.high}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">High</p>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className={`cursor-pointer transition-all border-yellow-200 ${selectedLevel === 'medium' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
-          onClick={() => setSelectedLevel(selectedLevel === 'medium' ? null : 'medium')}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-              <span className="text-4xl font-bold text-yellow-600">{data.medium}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Medium</p>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className={`cursor-pointer transition-all border-blue-200 ${selectedLevel === 'low' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
-          onClick={() => setSelectedLevel(selectedLevel === 'low' ? null : 'low')}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-4xl font-bold text-blue-600">{data.low}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Low</p>
-          </CardContent>
-        </Card>
+      {/* KPI tiles — engine-aware */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: 'Total Risks', value: totalRisks, color: 'slate', dot: null, level: null },
+          { label: 'Critical', value: critCount, color: 'red', dot: 'bg-red-500', level: 'critical' },
+          { label: 'High', value: highCount, color: 'orange', dot: 'bg-orange-500', level: 'high' },
+          { label: 'Medium', value: medCount, color: 'yellow', dot: 'bg-yellow-500', level: 'medium' },
+          { label: 'Low', value: lowCount, color: 'blue', dot: 'bg-blue-500', level: 'low' },
+        ].map(({ label, value, color, dot, level }) => {
+          const isActive = selectedLevel === level;
+          const borderCls = color === 'slate' ? 'border-slate-200' : color === 'red' ? 'border-red-200' : color === 'orange' ? 'border-orange-200' : color === 'yellow' ? 'border-yellow-200' : 'border-blue-200';
+          const ringCls   = color === 'slate' ? 'ring-slate-400' : color === 'red' ? 'ring-red-500' : color === 'orange' ? 'ring-orange-500' : color === 'yellow' ? 'ring-yellow-500' : 'ring-blue-500';
+          const valCls    = color === 'slate' ? 'text-slate-900' : color === 'red' ? 'text-red-600' : color === 'orange' ? 'text-orange-600' : color === 'yellow' ? 'text-yellow-600' : 'text-blue-600';
+          return (
+            <button
+              key={label}
+              onClick={() => setSelectedLevel(isActive ? null : level)}
+              className={`rounded-xl border bg-white shadow-sm p-4 text-left transition-all hover:shadow-md ${borderCls} ${isActive ? `ring-2 ${ringCls}` : ''}`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                {dot && <div className={`w-2.5 h-2.5 rounded-full ${dot}`} />}
+                <span className={`text-3xl font-bold tabular-nums ${valCls}`}>{value}</span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">{label}</p>
+              {viewMode === 'engine' && engineSummary && label === 'Total Risks' && (
+                <p className="text-[10px] text-emerald-600 mt-0.5 font-medium">tracker-linked</p>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Category Filter */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filter by Category
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={selectedCategory === null ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(null)}
-            >
-              All ({data.totalRisks})
-            </Button>
-            {Object.entries(categoryConfig).map(([key, config]) => {
-              const count = data.byCategory[key as keyof typeof data.byCategory];
-              const Icon = config.icon;
-              return (
-                <Button
-                  key={key}
-                  variant={selectedCategory === key ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory(selectedCategory === key ? null : key)}
-                  className="gap-2"
-                >
-                  <Icon className={`h-4 w-4 ${selectedCategory !== key ? config.color : ''}`} />
-                  {config.label} ({count})
-                </Button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Risk List */}
-      <div className="space-y-4">
-        {filteredIndicators.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <AlertCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
-              <h3 className="text-lg font-semibold text-green-700">No Risks Detected</h3>
-              <p className="text-muted-foreground mt-1">
-                {selectedCategory || selectedLevel 
-                  ? 'No risks match your current filters.'
-                  : 'All systems operating normally. Great job!'}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredIndicators.map((indicator) => {
-            const levelCfg = levelConfig[indicator.level];
-            const categoryCfg = categoryConfig[indicator.category];
-            const LevelIcon = levelCfg.icon;
-            const CategoryIcon = categoryCfg.icon;
-            
+      {/* Category filter */}
+      <div className="rounded-xl border bg-white shadow-sm p-4">
+        <div className="flex items-center gap-2 text-slate-600 text-sm font-semibold mb-3">
+          <Filter className="h-4 w-4" />
+          Filter by Category
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant={selectedCategory === null ? 'default' : 'outline'} size="sm" onClick={() => setSelectedCategory(null)}>
+            All ({totalRisks})
+          </Button>
+          {Object.entries(categoryConfig).map(([key, config]) => {
+            const count = viewMode === 'engine'
+              ? engineRisks.filter(r => TYPE_TO_CATEGORY[r.type] === key).length
+              : (data?.byCategory[key as keyof typeof data.byCategory] ?? 0);
+            const Icon = config.icon;
             return (
-              <Card 
-                key={indicator.id} 
-                className={`border-l-4 ${indicator.level === 'critical' ? 'border-l-red-500' : indicator.level === 'high' ? 'border-l-orange-500' : indicator.level === 'medium' ? 'border-l-yellow-500' : 'border-l-blue-500'}`}
-              >
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-4">
-                    {/* Icon */}
-                    <div className={`p-2 rounded-lg ${levelCfg.bgColor}`}>
-                      <LevelIcon className={`h-6 w-6 ${levelCfg.iconColor}`} />
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Header */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-lg">{indicator.title}</h3>
-                            <span className={`px-2 py-0.5 text-xs rounded-full border ${levelCfg.color}`}>
-                              {levelCfg.label}
+              <Button key={key} variant={selectedCategory === key ? 'default' : 'outline'} size="sm"
+                onClick={() => setSelectedCategory(selectedCategory === key ? null : key)} className="gap-1.5">
+                <Icon className={`h-3.5 w-3.5 ${selectedCategory !== key ? config.color : ''}`} />
+                {config.label} ({count})
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Risk list */}
+      <div className="space-y-4">
+        {viewMode === 'engine' ? (
+          engineLoading ? (
+            <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Loading engine risks…</span>
+            </div>
+          ) : filteredEngine.length === 0 ? (
+            <div className="rounded-xl border bg-white shadow-sm py-12 text-center">
+              <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-400 mb-3" />
+              <h3 className="text-base font-semibold text-emerald-700">No active risk events</h3>
+              <p className="text-sm text-slate-400 mt-1">
+                {selectedCategory || selectedLevel ? 'No risks match your filters.' : 'Run the engine to detect risks, or all previously detected risks have been resolved.'}
+              </p>
+            </div>
+          ) : (
+            filteredEngine.map((risk) => {
+              const sev = risk.severity.toLowerCase() as 'critical' | 'high' | 'medium' | 'low';
+              const cfg = levelConfig[sev];
+              const LevelIcon = cfg.icon;
+              const catKey = TYPE_TO_CATEGORY[risk.type] as keyof typeof categoryConfig;
+              const catCfg = categoryConfig[catKey] ?? categoryConfig.task_delay;
+              const CatIcon = catCfg.icon;
+              const isTrackerSource = risk.metadata?.source === 'tracker';
+              return (
+                <div key={risk.id}
+                  className={`rounded-xl border bg-white shadow-sm overflow-hidden border-l-4 ${sev === 'critical' ? 'border-l-red-500' : sev === 'high' ? 'border-l-orange-500' : sev === 'medium' ? 'border-l-yellow-500' : 'border-l-blue-500'}`}
+                >
+                  <div className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className={`p-2 rounded-lg shrink-0 ${cfg.bgColor}`}>
+                        <LevelIcon className={`h-5 w-5 ${cfg.iconColor}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className={`px-2 py-0.5 text-xs rounded-full border font-medium ${cfg.color}`}>{cfg.label}</span>
+                          <span className="flex items-center gap-1 text-xs text-slate-500">
+                            <CatIcon className={`h-3 w-3 ${catCfg.color}`} />
+                            {catCfg.label}
+                          </span>
+                          {isTrackerSource && (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-medium border border-sky-200">
+                              <Zap className="h-2.5 w-2.5" /> Tracker
                             </span>
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <CategoryIcon className={`h-3 w-3 ${categoryCfg.color}`} />
-                              {categoryCfg.label}
-                            </span>
+                          )}
+                          <span className="text-[10px] text-slate-400 ml-auto">
+                            {new Date(risk.detectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-700 mt-2 leading-relaxed">{risk.reason}</p>
+                        <div className="mt-4 grid md:grid-cols-2 gap-3">
+                          <div className="rounded-lg bg-rose-50 border border-rose-100 p-3">
+                            <p className="text-[10px] font-semibold text-rose-700 uppercase tracking-wide mb-1">Recommended Action</p>
+                            <p className="text-xs text-rose-800 leading-relaxed">{risk.recommendedAction}</p>
                           </div>
-                          {indicator.project && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Project: {indicator.project.projectNumber} - {indicator.project.name}
-                            </p>
+                          {risk.affectedProjectIds.length > 0 && (
+                            <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
+                              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Affected Projects</p>
+                              <p className="text-xs text-slate-700 font-mono">{risk.affectedProjectIds.length} project{risk.affectedProjectIds.length !== 1 ? 's' : ''}</p>
+                              {risk.affectedWorkUnitIds.length > 0 && (
+                                <p className="text-xs text-slate-400 mt-0.5">{risk.affectedWorkUnitIds.length} work unit{risk.affectedWorkUnitIds.length !== 1 ? 's' : ''}</p>
+                              )}
+                            </div>
                           )}
                         </div>
-                        {indicator.daysUntilImpact !== undefined && indicator.daysUntilImpact >= 0 && (
-                          <div className="text-right shrink-0">
-                            <div className={`text-2xl font-bold ${indicator.daysUntilImpact <= 3 ? 'text-red-600' : indicator.daysUntilImpact <= 7 ? 'text-orange-600' : 'text-muted-foreground'}`}>
-                              {indicator.daysUntilImpact}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )
+        ) : (
+          filteredIndicators.length === 0 ? (
+            <div className="rounded-xl border bg-white shadow-sm py-12 text-center">
+              <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-400 mb-3" />
+              <h3 className="text-base font-semibold text-emerald-700">No Risks Detected</h3>
+              <p className="text-sm text-slate-400 mt-1">
+                {selectedCategory || selectedLevel ? 'No risks match your current filters.' : 'All systems operating normally. Great job!'}
+              </p>
+            </div>
+          ) : (
+            filteredIndicators.map((indicator) => {
+              const levelCfg = levelConfig[indicator.level];
+              const categoryCfg = categoryConfig[indicator.category];
+              const LevelIcon = levelCfg.icon;
+              const CategoryIcon = categoryCfg.icon;
+              return (
+                <div key={indicator.id}
+                  className={`rounded-xl border bg-white shadow-sm overflow-hidden border-l-4 ${indicator.level === 'critical' ? 'border-l-red-500' : indicator.level === 'high' ? 'border-l-orange-500' : indicator.level === 'medium' ? 'border-l-yellow-500' : 'border-l-blue-500'}`}
+                >
+                  <div className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className={`p-2 rounded-lg shrink-0 ${levelCfg.bgColor}`}>
+                        <LevelIcon className={`h-5 w-5 ${levelCfg.iconColor}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-slate-900">{indicator.title}</h3>
+                              <span className={`px-2 py-0.5 text-xs rounded-full border font-medium ${levelCfg.color}`}>{levelCfg.label}</span>
+                              <span className="flex items-center gap-1 text-xs text-slate-400">
+                                <CategoryIcon className={`h-3 w-3 ${categoryCfg.color}`} />
+                                {categoryCfg.label}
+                              </span>
                             </div>
-                            <div className="text-xs text-muted-foreground">days until impact</div>
+                            {indicator.project && (
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                Project: {indicator.project.projectNumber} — {indicator.project.name}
+                              </p>
+                            )}
+                          </div>
+                          {indicator.daysUntilImpact !== undefined && indicator.daysUntilImpact >= 0 && (
+                            <div className="text-right shrink-0">
+                              <div className={`text-2xl font-bold tabular-nums ${indicator.daysUntilImpact <= 3 ? 'text-red-600' : indicator.daysUntilImpact <= 7 ? 'text-orange-600' : 'text-slate-500'}`}>
+                                {indicator.daysUntilImpact}
+                              </div>
+                              <div className="text-[10px] text-slate-400">days until impact</div>
+                            </div>
+                          )}
+                        </div>
+                        <p className="mt-2 text-sm text-slate-600 leading-relaxed">{indicator.description}</p>
+                        <div className="mt-4 grid md:grid-cols-2 gap-3">
+                          <div className="rounded-lg bg-rose-50 border border-rose-100 p-3">
+                            <p className="text-[10px] font-semibold text-rose-700 uppercase tracking-wide mb-1">Impact</p>
+                            <p className="text-xs text-rose-800 leading-relaxed">{indicator.impact}</p>
+                          </div>
+                          <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3">
+                            <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide mb-1">Recommendation</p>
+                            <p className="text-xs text-emerald-800 leading-relaxed">{indicator.recommendation}</p>
+                          </div>
+                        </div>
+                        {indicator.affectedItems.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Affected Items</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {indicator.affectedItems.slice(0, 5).map((item, idx) => (
+                                <Link key={idx} href={item.link}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs text-slate-700 transition-colors">
+                                  {item.type}: {item.name}
+                                  <ExternalLink className="h-3 w-3 text-slate-400" />
+                                </Link>
+                              ))}
+                              {indicator.affectedItems.length > 5 && (
+                                <span className="px-2 py-1 text-xs text-slate-400">+{indicator.affectedItems.length - 5} more</span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
-                      
-                      {/* Description */}
-                      <p className="mt-3 text-sm">{indicator.description}</p>
-                      
-                      {/* Impact & Recommendation */}
-                      <div className="mt-4 grid md:grid-cols-2 gap-4">
-                        <div className="bg-red-50 rounded-lg p-3">
-                          <div className="text-xs font-medium text-red-800 mb-1">Impact</div>
-                          <p className="text-sm text-red-700">{indicator.impact}</p>
-                        </div>
-                        <div className="bg-green-50 rounded-lg p-3">
-                          <div className="text-xs font-medium text-green-800 mb-1">Recommendation</div>
-                          <p className="text-sm text-green-700">{indicator.recommendation}</p>
-                        </div>
-                      </div>
-                      
-                      {/* Affected Items */}
-                      {indicator.affectedItems.length > 0 && (
-                        <div className="mt-4">
-                          <div className="text-xs font-medium text-muted-foreground mb-2">Affected Items</div>
-                          <div className="flex flex-wrap gap-2">
-                            {indicator.affectedItems.slice(0, 5).map((item, idx) => (
-                              <Link 
-                                key={idx} 
-                                href={item.link}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs hover:bg-muted/80 transition-colors"
-                              >
-                                {item.type}: {item.name}
-                                <ExternalLink className="h-3 w-3" />
-                              </Link>
-                            ))}
-                            {indicator.affectedItems.length > 5 && (
-                              <span className="px-2 py-1 text-xs text-muted-foreground">
-                                +{indicator.affectedItems.length - 5} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
+                </div>
+              );
+            })
+          )
         )}
       </div>
 
       {/* Footer */}
-      <div className="text-center text-sm text-muted-foreground">
-        Last updated: {new Date(data.generatedAt).toLocaleString()}
-      </div>
+      <p className="text-center text-xs text-slate-400">
+        {viewMode === 'engine' && engineSummary
+          ? `Engine view · ${engTotal} active, ${engineSummary.recentlyResolved} recently resolved · tracker-integrated`
+          : data
+            ? `Live view · generated ${new Date(data.generatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`
+            : ''}
+      </p>
+    </div>
     </div>
   );
 }
