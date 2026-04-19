@@ -70,6 +70,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Extended Dolibarr employee fields (19.5.0) ───────────────────────────
   'add_employee_dolibarr_fields.sql',
+
+  // ── WorkUnit type expansion (19.6.1) ─────────────────────────────────────
+  'add_work_unit_types.sql',
 ];
 
 /**

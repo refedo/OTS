@@ -2926,11 +2926,15 @@ model WorkOrderPart {
 // ============================================
 
 enum WorkUnitType {
-  DESIGN
-  PROCUREMENT
-  PRODUCTION
-  QC
-  DOCUMENTATION
+  DOCUMENTATION // Arch drawing approval
+  DESIGN        // Design stage
+  DETAILING     // Shop drawings (depends on DESIGN approval)
+  PROCUREMENT   // Material sourcing (depends on DETAILING approval)
+  PRODUCTION    // Fabrication (depends on PROCUREMENT)
+  COATING       // Surface treatment (depends on PRODUCTION)
+  DISPATCH      // Dispatch & delivery (depends on COATING)
+  ERECTION      // Site erection (depends on DISPATCH)
+  QC            // Quality control (cross-cutting)
 }
 
 enum WorkUnitStatus {

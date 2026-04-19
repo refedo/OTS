@@ -23,15 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.6.1',
+    date: 'April 19, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'DETAILING WorkUnit Type + Full 8-Stage Fabrication Sequence',
+    highlights: [
+      'New WorkUnit type DETAILING (shop drawings) — sits between Design approval and Procurement in the fabrication sequence.',
+      'Full 8-stage sequence now modellable as distinct WorkUnits: Arch Approval → Design → Detailing → Procurement → Production → Coating → Dispatch → Erection.',
+      'EWS tracker mapping corrected: DESIGN now maps only to the design tracker column; DETAILING, COATING, DISPATCH, ERECTION each map to their own tracker activity.',
+      'Dependency blueprints updated with the correct 8-step FS chain; re-runnable seed auto-repairs stale blueprints missing the DETAILING step.',
+      'MySQL migration automatically expands the WorkUnitType enum on server start.',
+    ],
+    changes: {
+      added: [
+        'WorkUnitType enum values: DETAILING, COATING, DISPATCH, ERECTION',
+        'prisma/manual_migrations/add_work_unit_types.sql — idempotent enum modification for work_units.type and dependency_blueprint_steps.fromType/toType',
+        'Blueprint sequence step: DESIGN → DETAILING (FS, lagDays: 0, sequenceOrder: 2)',
+        'Blueprint sequence step: DETAILING → PROCUREMENT (replaces old DESIGN → PROCUREMENT)',
+        'Blueprint sequence steps: PRODUCTION → COATING → DISPATCH → ERECTION (new downstream chain)',
+      ],
+      fixed: [
+        'EWS WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES: DESIGN was incorrectly mapped to [design, detailing] — now maps only to [design]; DETAILING maps to [detailing]',
+        'Changelog JSX build error: unescaped apostrophe in single-quoted string',
+      ],
+      changed: [
+        'dependency-blueprints-seed.ts: now idempotent per blueprint type (checks structureType/isDefault instead of count); auto-detects and replaces stale default blueprint steps missing DETAILING',
+        'startup-migrations.ts: add_work_unit_types.sql registered in startup sequence',
+      ],
+    },
+  },
+  {
     version: '19.6.0',
     date: 'April 19, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'EWS ↔ Project Status Tracker Integration',
     highlights: [
       'Early Warning System now reads live execution data from the Project Status Tracker — Tasks, LCR entries, AssemblyParts, and ProductionLogs — instead of relying solely on static WorkUnit plan records.',
       'Rule 1 (Late Start) suppresses false alarms: if the tracker shows ≥75% actual progress for the corresponding activity, the plan-based alert is suppressed and any open alert is auto-resolved.',
-      'New Rule 5 (Tracker Progress Lag): fires DELAY alerts when the tracker's actual % lags more than 20 points behind the time-elapsed expected % derived from WorkUnit planned dates.',
+      'New Rule 5 (Tracker Progress Lag): fires DELAY alerts when actual tracker progress lags more than 20 points behind the time-elapsed expected progress derived from WorkUnit planned dates.',
       'Shared service layer: all tracker computation logic is now in project-tracker.service.ts, consumed by both the tracker UI and the EWS engine — no duplicated queries.',
       'No schema changes required.',
     ],

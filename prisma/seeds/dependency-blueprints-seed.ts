@@ -1,211 +1,148 @@
 /**
  * Dependency Blueprints Seed
- * 
- * Seeds default dependency blueprints for automatic workflow dependency creation.
- * 
- * Blueprints define the standard flow:
- * DESIGN → PROCUREMENT (parallel)
- * DESIGN → PRODUCTION (after design)
- * PROCUREMENT → PRODUCTION (materials needed)
- * PRODUCTION → QC (inspection after fabrication)
- * QC → DOCUMENTATION (as-built after QC approval)
+ *
+ * Seeds (or updates) dependency blueprints with the correct steel fabrication sequence:
+ *   DOCUMENTATION → DESIGN → DETAILING → PROCUREMENT → PRODUCTION → COATING → DISPATCH → ERECTION
+ *
+ * Safe to re-run: if the default blueprint already exists but is missing DETAILING steps
+ * (legacy data from before v19.6.1), its steps are replaced with the correct sequence.
  */
 
 import { PrismaClient, WorkUnitType, DependencyType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// The canonical step sequence for standard steel fabrication
+const STANDARD_STEPS = [
+  // Arch drawing approval must finish before design starts
+  { fromType: WorkUnitType.DOCUMENTATION, toType: WorkUnitType.DESIGN,       dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 1 },
+  // Design must be approved before shop drawings (detailing) can start
+  { fromType: WorkUnitType.DESIGN,        toType: WorkUnitType.DETAILING,    dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 2 },
+  // Shop drawings must be approved before procurement can start
+  { fromType: WorkUnitType.DETAILING,     toType: WorkUnitType.PROCUREMENT,  dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 3 },
+  // Materials must be sourced before production starts
+  { fromType: WorkUnitType.PROCUREMENT,   toType: WorkUnitType.PRODUCTION,   dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 4 },
+  // Fabrication must complete before coating (surface treatment)
+  { fromType: WorkUnitType.PRODUCTION,    toType: WorkUnitType.COATING,      dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 5 },
+  // Coating must complete before dispatch & delivery
+  { fromType: WorkUnitType.COATING,       toType: WorkUnitType.DISPATCH,     dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 6 },
+  // Dispatch must complete before site erection can start
+  { fromType: WorkUnitType.DISPATCH,      toType: WorkUnitType.ERECTION,     dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 7 },
+];
+
 async function seedDependencyBlueprints() {
   console.log('🔧 Seeding Dependency Blueprints...');
 
-  // Check if blueprints already exist
-  const existingCount = await prisma.dependencyBlueprint.count();
-  if (existingCount > 0) {
-    console.log(`  ℹ️  ${existingCount} blueprints already exist. Skipping seed.`);
-    return;
+  // ── Default blueprint: create or update ─────────────────────────────────────
+  const defaultBlueprint = await prisma.dependencyBlueprint.findFirst({
+    where: { isDefault: true },
+    include: { steps: true },
+  });
+
+  if (defaultBlueprint) {
+    const hasDetailing = defaultBlueprint.steps.some(
+      (s) => s.fromType === WorkUnitType.DETAILING || s.toType === WorkUnitType.DETAILING
+    );
+
+    if (hasDetailing) {
+      console.log(`  ℹ️  Default blueprint "${defaultBlueprint.name}" is already up to date. Skipping.`);
+    } else {
+      console.log(`  ⚠️  Default blueprint "${defaultBlueprint.name}" is missing DETAILING steps — updating...`);
+      // Delete all old steps and replace with the correct sequence
+      await prisma.dependencyBlueprintStep.deleteMany({ where: { blueprintId: defaultBlueprint.id } });
+      for (const step of STANDARD_STEPS) {
+        await prisma.dependencyBlueprintStep.create({ data: { ...step, blueprintId: defaultBlueprint.id } });
+      }
+      await prisma.dependencyBlueprint.update({
+        where: { id: defaultBlueprint.id },
+        data: {
+          description:
+            'Standard workflow for steel fabrication projects: Arch Approval → Design → Detailing → Procurement → Production → Coating → Dispatch → Erection.',
+        },
+      });
+      console.log(`  ✅ Updated default blueprint with ${STANDARD_STEPS.length} steps.`);
+    }
+  } else {
+    // No default blueprint exists — create it fresh
+    const created = await prisma.dependencyBlueprint.create({
+      data: {
+        name: 'Standard Steel Fabrication',
+        description:
+          'Standard workflow for steel fabrication projects: Arch Approval → Design → Detailing → Procurement → Production → Coating → Dispatch → Erection.',
+        isActive: true,
+        isDefault: true,
+        steps: { create: STANDARD_STEPS },
+      },
+      include: { steps: true },
+    });
+    console.log(`  ✅ Created blueprint: "${created.name}" with ${created.steps.length} steps (DEFAULT)`);
   }
 
-  // Create Standard Steel Fabrication Blueprint (Default)
-  const standardBlueprint = await prisma.dependencyBlueprint.create({
-    data: {
-      name: 'Standard Steel Fabrication',
-      description: 'Default workflow for steel fabrication projects. Covers Design → Procurement → Production → QC → Documentation flow.',
-      isActive: true,
-      isDefault: true,
-      steps: {
-        create: [
-          // DESIGN is the starting point - no upstream dependencies
-          // DESIGN → PRODUCTION (design must finish before production starts)
-          {
-            fromType: WorkUnitType.DESIGN,
-            toType: WorkUnitType.PRODUCTION,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 1,
-          },
-          // DESIGN → PROCUREMENT (procurement can start after design)
-          {
-            fromType: WorkUnitType.DESIGN,
-            toType: WorkUnitType.PROCUREMENT,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 2,
-          },
-          // PROCUREMENT → PRODUCTION (materials needed for production)
-          {
-            fromType: WorkUnitType.PROCUREMENT,
-            toType: WorkUnitType.PRODUCTION,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 3,
-          },
-          // PRODUCTION → QC (QC inspection after fabrication)
-          {
-            fromType: WorkUnitType.PRODUCTION,
-            toType: WorkUnitType.QC,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 4,
-          },
-          // QC → DOCUMENTATION (as-built docs after QC approval)
-          {
-            fromType: WorkUnitType.QC,
-            toType: WorkUnitType.DOCUMENTATION,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 5,
-          },
-        ],
+  // ── PEB blueprint ────────────────────────────────────────────────────────────
+  const pebExists = await prisma.dependencyBlueprint.findFirst({ where: { structureType: 'PEB' } });
+  if (!pebExists) {
+    const peb = await prisma.dependencyBlueprint.create({
+      data: {
+        name: 'PEB Project',
+        description:
+          'Workflow for Pre-Engineered Building projects (tighter coupling between stages).',
+        structureType: 'PEB',
+        isActive: true,
+        isDefault: false,
+        steps: {
+          create: [
+            { fromType: WorkUnitType.DOCUMENTATION, toType: WorkUnitType.DESIGN,      dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 1 },
+            { fromType: WorkUnitType.DESIGN,        toType: WorkUnitType.DETAILING,   dependencyType: DependencyType.FS, lagDays: 2, sequenceOrder: 2 },
+            { fromType: WorkUnitType.DETAILING,     toType: WorkUnitType.PROCUREMENT, dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 3 },
+            { fromType: WorkUnitType.PROCUREMENT,   toType: WorkUnitType.PRODUCTION,  dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 4 },
+            { fromType: WorkUnitType.PRODUCTION,    toType: WorkUnitType.COATING,     dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 5 },
+            { fromType: WorkUnitType.COATING,       toType: WorkUnitType.DISPATCH,    dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 6 },
+            { fromType: WorkUnitType.DISPATCH,      toType: WorkUnitType.ERECTION,    dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 7 },
+          ],
+        },
       },
-    },
-    include: { steps: true },
-  });
+      include: { steps: true },
+    });
+    console.log(`  ✅ Created blueprint: "${peb.name}" with ${peb.steps.length} steps (Structure: PEB)`);
+  } else {
+    console.log(`  ℹ️  PEB blueprint already exists. Skipping.`);
+  }
 
-  console.log(`  ✅ Created blueprint: "${standardBlueprint.name}" with ${standardBlueprint.steps.length} steps (DEFAULT)`);
-
-  // Create PEB (Pre-Engineered Building) Blueprint
-  const pebBlueprint = await prisma.dependencyBlueprint.create({
-    data: {
-      name: 'PEB Project',
-      description: 'Workflow for Pre-Engineered Building projects. Similar to standard but with tighter coupling.',
-      structureType: 'PEB',
-      isActive: true,
-      isDefault: false,
-      steps: {
-        create: [
-          // DESIGN → PRODUCTION
-          {
-            fromType: WorkUnitType.DESIGN,
-            toType: WorkUnitType.PRODUCTION,
-            dependencyType: DependencyType.FS,
-            lagDays: 2, // 2-day lag for PEB design review
-            sequenceOrder: 1,
-          },
-          // DESIGN → PROCUREMENT
-          {
-            fromType: WorkUnitType.DESIGN,
-            toType: WorkUnitType.PROCUREMENT,
-            dependencyType: DependencyType.SS, // Start-to-Start: procurement can start when design starts
-            lagDays: 5, // 5-day lag
-            sequenceOrder: 2,
-          },
-          // PROCUREMENT → PRODUCTION
-          {
-            fromType: WorkUnitType.PROCUREMENT,
-            toType: WorkUnitType.PRODUCTION,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 3,
-          },
-          // PRODUCTION → QC
-          {
-            fromType: WorkUnitType.PRODUCTION,
-            toType: WorkUnitType.QC,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 4,
-          },
-          // QC → DOCUMENTATION
-          {
-            fromType: WorkUnitType.QC,
-            toType: WorkUnitType.DOCUMENTATION,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 5,
-          },
-        ],
+  // ── Heavy Steel blueprint ─────────────────────────────────────────────────────
+  const heavyExists = await prisma.dependencyBlueprint.findFirst({ where: { structureType: 'Heavy Steel' } });
+  if (!heavyExists) {
+    const heavy = await prisma.dependencyBlueprint.create({
+      data: {
+        name: 'Heavy Steel Structure',
+        description:
+          'Workflow for heavy steel structures with longer design review lags.',
+        structureType: 'Heavy Steel',
+        isActive: true,
+        isDefault: false,
+        steps: {
+          create: [
+            { fromType: WorkUnitType.DOCUMENTATION, toType: WorkUnitType.DESIGN,      dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 1 },
+            { fromType: WorkUnitType.DESIGN,        toType: WorkUnitType.DETAILING,   dependencyType: DependencyType.FS, lagDays: 3, sequenceOrder: 2 },
+            { fromType: WorkUnitType.DETAILING,     toType: WorkUnitType.PROCUREMENT, dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 3 },
+            { fromType: WorkUnitType.PROCUREMENT,   toType: WorkUnitType.PRODUCTION,  dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 4 },
+            { fromType: WorkUnitType.PRODUCTION,    toType: WorkUnitType.COATING,     dependencyType: DependencyType.FS, lagDays: 1, sequenceOrder: 5 },
+            { fromType: WorkUnitType.COATING,       toType: WorkUnitType.DISPATCH,    dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 6 },
+            { fromType: WorkUnitType.DISPATCH,      toType: WorkUnitType.ERECTION,    dependencyType: DependencyType.FS, lagDays: 0, sequenceOrder: 7 },
+          ],
+        },
       },
-    },
-    include: { steps: true },
-  });
-
-  console.log(`  ✅ Created blueprint: "${pebBlueprint.name}" with ${pebBlueprint.steps.length} steps (Structure: PEB)`);
-
-  // Create Heavy Steel Blueprint
-  const heavySteelBlueprint = await prisma.dependencyBlueprint.create({
-    data: {
-      name: 'Heavy Steel Structure',
-      description: 'Workflow for heavy steel structures requiring more QC checkpoints.',
-      structureType: 'Heavy Steel',
-      isActive: true,
-      isDefault: false,
-      steps: {
-        create: [
-          // DESIGN → PRODUCTION (longer lag for complex designs)
-          {
-            fromType: WorkUnitType.DESIGN,
-            toType: WorkUnitType.PRODUCTION,
-            dependencyType: DependencyType.FS,
-            lagDays: 3,
-            sequenceOrder: 1,
-          },
-          // DESIGN → PROCUREMENT
-          {
-            fromType: WorkUnitType.DESIGN,
-            toType: WorkUnitType.PROCUREMENT,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 2,
-          },
-          // PROCUREMENT → PRODUCTION
-          {
-            fromType: WorkUnitType.PROCUREMENT,
-            toType: WorkUnitType.PRODUCTION,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 3,
-          },
-          // PRODUCTION → QC
-          {
-            fromType: WorkUnitType.PRODUCTION,
-            toType: WorkUnitType.QC,
-            dependencyType: DependencyType.FS,
-            lagDays: 1, // 1-day lag for heavy steel QC prep
-            sequenceOrder: 4,
-          },
-          // QC → DOCUMENTATION
-          {
-            fromType: WorkUnitType.QC,
-            toType: WorkUnitType.DOCUMENTATION,
-            dependencyType: DependencyType.FS,
-            lagDays: 0,
-            sequenceOrder: 5,
-          },
-        ],
-      },
-    },
-    include: { steps: true },
-  });
-
-  console.log(`  ✅ Created blueprint: "${heavySteelBlueprint.name}" with ${heavySteelBlueprint.steps.length} steps (Structure: Heavy Steel)`);
+      include: { steps: true },
+    });
+    console.log(`  ✅ Created blueprint: "${heavy.name}" with ${heavy.steps.length} steps (Structure: Heavy Steel)`);
+  } else {
+    console.log(`  ℹ️  Heavy Steel blueprint already exists. Skipping.`);
+  }
 
   console.log('✅ Dependency Blueprints seeded successfully!');
 }
 
-// Export for use in main seed file
 export { seedDependencyBlueprints };
 
-// Direct execution
 seedDependencyBlueprints()
   .then(() => prisma.$disconnect())
   .catch((e) => {
