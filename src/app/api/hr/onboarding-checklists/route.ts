@@ -5,21 +5,27 @@ import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
 const createSchema = z.object({
-  checklistId: z.string().optional(),
-  labelEn: z.string().min(1),
-  labelAr: z.string().optional(),
+  nameEn: z.string().min(1),
+  nameAr: z.string().optional(),
   description: z.string().optional(),
-  sortOrder: z.number().int().default(0),
-  isRequired: z.boolean().default(true),
+  forPositions: z.string().optional(),
+  isDefault: z.boolean().default(false),
   isActive: z.boolean().default(true),
+  sortOrder: z.number().int().default(0),
 });
 
 export const GET = withApiContext(async (_req: NextRequest, _session) => {
-  const tasks = await prisma.hrOnboardingTask.findMany({
+  const checklists = await prisma.hrOnboardingChecklist.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: 'asc' },
+    include: {
+      tasks: {
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+      },
+    },
   });
-  return NextResponse.json(tasks);
+  return NextResponse.json(checklists);
 });
 
 export const POST = withApiContext(async (req: NextRequest, _session) => {
@@ -28,7 +34,7 @@ export const POST = withApiContext(async (req: NextRequest, _session) => {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
   }
-  const task = await prisma.hrOnboardingTask.create({ data: parsed.data });
-  logger.info({ id: task.id }, '[HR] Onboarding task created');
-  return NextResponse.json(task, { status: 201 });
+  const checklist = await prisma.hrOnboardingChecklist.create({ data: parsed.data });
+  logger.info({ id: checklist.id }, '[HR] Onboarding checklist created');
+  return NextResponse.json(checklist, { status: 201 });
 });
