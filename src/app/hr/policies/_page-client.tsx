@@ -1,117 +1,163 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  BookOpen,
-  Search,
-  Plus,
-  FileText,
-  Shield,
-  Heart,
-  Laptop,
-  DollarSign,
-  Users,
-  Clock,
-  ChevronRight,
+  BookOpen, Search, Plus, FileText, Shield, Heart, Laptop,
+  DollarSign, Users, Clock, ChevronRight, Pencil, Trash2,
+  Globe, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-
-type PolicyCategory = {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  color: string;
-  policies: Policy[];
-};
 
 type Policy = {
   id: string;
-  title: string;
-  description: string;
-  effectiveDate: string;
+  titleEn: string;
+  titleAr: string | null;
+  contentEn: string | null;
+  contentAr: string | null;
+  category: string;
   version: string;
+  effectiveDate: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
-const CATEGORIES: PolicyCategory[] = [
-  {
-    id: 'hr',
-    label: 'HR Policies',
-    icon: <Users className="h-4 w-4" />,
-    color: 'sky',
-    policies: [
-      { id: 'hr-1', title: 'Leave Policy', description: 'Annual leave, sick leave, emergency leave entitlements and procedures.', effectiveDate: '2026-01-01', version: 'v2.1' },
-      { id: 'hr-2', title: 'Attendance & Working Hours', description: 'Standard working hours, overtime rules, and attendance tracking requirements.', effectiveDate: '2026-01-01', version: 'v1.5' },
-      { id: 'hr-3', title: 'Recruitment & Onboarding', description: 'Hiring process, reference checks, and new employee onboarding procedures.', effectiveDate: '2025-07-01', version: 'v1.2' },
-    ],
-  },
-  {
-    id: 'safety',
-    label: 'Safety & Health',
-    icon: <Shield className="h-4 w-4" />,
-    color: 'emerald',
-    policies: [
-      { id: 'safe-1', title: 'Workplace Safety Policy', description: 'Safety procedures, PPE requirements, and incident reporting protocols.', effectiveDate: '2026-01-01', version: 'v3.0' },
-      { id: 'safe-2', title: 'Emergency Response Plan', description: 'Fire evacuation, first aid procedures, and emergency contact information.', effectiveDate: '2025-06-01', version: 'v2.0' },
-    ],
-  },
-  {
-    id: 'conduct',
-    label: 'Code of Conduct',
-    icon: <Heart className="h-4 w-4" />,
-    color: 'violet',
-    policies: [
-      { id: 'cod-1', title: 'Code of Conduct', description: 'Professional behavior standards, anti-harassment, and ethics guidelines.', effectiveDate: '2025-01-01', version: 'v4.1' },
-      { id: 'cod-2', title: 'Conflict of Interest', description: 'Disclosure requirements and restrictions on outside business activities.', effectiveDate: '2025-01-01', version: 'v1.0' },
-    ],
-  },
-  {
-    id: 'it',
-    label: 'IT & Security',
-    icon: <Laptop className="h-4 w-4" />,
-    color: 'amber',
-    policies: [
-      { id: 'it-1', title: 'IT Acceptable Use Policy', description: 'Company equipment, internet, email, and software usage rules.', effectiveDate: '2026-01-01', version: 'v2.3' },
-      { id: 'it-2', title: 'Data Privacy & Confidentiality', description: 'Employee and company data handling, storage, and disclosure restrictions.', effectiveDate: '2026-01-01', version: 'v1.8' },
-    ],
-  },
-  {
-    id: 'finance',
-    label: 'Finance & Expenses',
-    icon: <DollarSign className="h-4 w-4" />,
-    color: 'rose',
-    policies: [
-      { id: 'fin-1', title: 'Expense Reimbursement Policy', description: 'Eligible expenses, approval workflow, and reimbursement timelines.', effectiveDate: '2025-10-01', version: 'v1.4' },
-    ],
-  },
+const CATEGORY_OPTIONS = [
+  { value: 'HR', label: 'HR Policies', icon: Users, color: 'sky' },
+  { value: 'Safety', label: 'Safety & Health', icon: Shield, color: 'emerald' },
+  { value: 'Conduct', label: 'Code of Conduct', icon: Heart, color: 'violet' },
+  { value: 'IT', label: 'IT & Security', icon: Laptop, color: 'amber' },
+  { value: 'Finance', label: 'Finance & Expenses', icon: DollarSign, color: 'rose' },
 ];
 
-const COLOR_MAP: Record<string, { badge: string; row: string; icon: string }> = {
-  sky:    { badge: 'bg-sky-100 text-sky-700 border-sky-200',    row: 'border-sky-200 bg-sky-50',    icon: 'text-sky-600' },
-  emerald:{ badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', row: 'border-emerald-200 bg-emerald-50', icon: 'text-emerald-600' },
-  violet: { badge: 'bg-violet-100 text-violet-700 border-violet-200',   row: 'border-violet-200 bg-violet-50',   icon: 'text-violet-600' },
-  amber:  { badge: 'bg-amber-100 text-amber-700 border-amber-200',      row: 'border-amber-200 bg-amber-50',     icon: 'text-amber-600' },
-  rose:   { badge: 'bg-rose-100 text-rose-700 border-rose-200',         row: 'border-rose-200 bg-rose-50',       icon: 'text-rose-600' },
+const COLOR_MAP: Record<string, { badge: string; row: string; icon: string; header: string }> = {
+  sky:     { badge: 'bg-sky-100 text-sky-700 border-sky-200',       row: 'border-sky-100 bg-sky-50/50',      icon: 'text-sky-600',     header: 'bg-sky-50/70' },
+  emerald: { badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', row: 'border-emerald-100 bg-emerald-50/50', icon: 'text-emerald-600', header: 'bg-emerald-50/70' },
+  violet:  { badge: 'bg-violet-100 text-violet-700 border-violet-200',   row: 'border-violet-100 bg-violet-50/50',   icon: 'text-violet-600',  header: 'bg-violet-50/70' },
+  amber:   { badge: 'bg-amber-100 text-amber-700 border-amber-200',       row: 'border-amber-100 bg-amber-50/50',     icon: 'text-amber-600',   header: 'bg-amber-50/70' },
+  rose:    { badge: 'bg-rose-100 text-rose-700 border-rose-200',           row: 'border-rose-100 bg-rose-50/50',       icon: 'text-rose-600',    header: 'bg-rose-50/70' },
+};
+
+const BLANK_FORM = {
+  titleEn: '', titleAr: '', contentEn: '', contentAr: '',
+  category: 'HR', version: 'v1.0', effectiveDate: '',
 };
 
 export function PoliciesClient() {
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [lang, setLang] = useState<'en' | 'ar'>('en');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const totalPolicies = CATEGORIES.reduce((s, c) => s + c.policies.length, 0);
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null);
+  const [editTarget, setEditTarget] = useState<Policy | null>(null);
+  const [form, setForm] = useState({ ...BLANK_FORM });
+  const [saving, setSaving] = useState(false);
 
-  const filtered = CATEGORIES
-    .filter(c => activeCategory === 'all' || c.id === activeCategory)
+  const [deleteTarget, setDeleteTarget] = useState<Policy | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/hr/policies');
+      if (res.ok) setPolicies(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function openCreate() {
+    setForm({ ...BLANK_FORM });
+    setEditTarget(null);
+    setDialogMode('create');
+  }
+
+  function openEdit(p: Policy) {
+    setForm({
+      titleEn: p.titleEn, titleAr: p.titleAr ?? '',
+      contentEn: p.contentEn ?? '', contentAr: p.contentAr ?? '',
+      category: p.category, version: p.version,
+      effectiveDate: p.effectiveDate.slice(0, 10),
+    });
+    setEditTarget(p);
+    setDialogMode('edit');
+  }
+
+  async function save() {
+    if (!form.titleEn.trim() || !form.effectiveDate || !form.category) return;
+    setSaving(true);
+    try {
+      const isEdit = dialogMode === 'edit' && editTarget;
+      const url = isEdit ? `/api/hr/policies/${editTarget.id}` : '/api/hr/policies';
+      const method = isEdit ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titleEn: form.titleEn,
+          titleAr: form.titleAr || undefined,
+          contentEn: form.contentEn || undefined,
+          contentAr: form.contentAr || undefined,
+          category: form.category,
+          version: form.version,
+          effectiveDate: form.effectiveDate,
+        }),
+      });
+      if (res.ok) {
+        setDialogMode(null);
+        load();
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/hr/policies/${deleteTarget.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setDeleteTarget(null);
+        load();
+      }
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const grouped = CATEGORY_OPTIONS
+    .filter(c => activeCategory === 'all' || c.value === activeCategory)
     .map(c => ({
       ...c,
-      policies: c.policies.filter(p =>
-        !search.trim() ||
-        p.title.toLowerCase().includes(search.toLowerCase()) ||
-        p.description.toLowerCase().includes(search.toLowerCase())
+      items: policies.filter(p =>
+        p.category === c.value &&
+        (p.status !== 'ARCHIVED') &&
+        (!search.trim() ||
+          p.titleEn.toLowerCase().includes(search.toLowerCase()) ||
+          (p.titleAr ?? '').includes(search) ||
+          (p.contentEn ?? '').toLowerCase().includes(search.toLowerCase()))
       ),
     }))
-    .filter(c => c.policies.length > 0);
+    .filter(c => c.items.length > 0);
+
+  const totalActive = policies.filter(p => p.status !== 'ARCHIVED').length;
+  const categories = Array.from(new Set(policies.map(p => p.category))).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -131,7 +177,7 @@ export function PoliciesClient() {
               </div>
               <p className="text-emerald-100 text-sm">Official HR policies, code of conduct, and workplace guidelines</p>
             </div>
-            <Button size="sm" className="bg-white text-emerald-700 hover:bg-emerald-50 border-0 shadow-sm">
+            <Button size="sm" onClick={openCreate} className="bg-white text-emerald-700 hover:bg-emerald-50 border-0 shadow-sm">
               <Plus className="mr-2 h-4 w-4" />
               New Policy
             </Button>
@@ -142,30 +188,30 @@ export function PoliciesClient() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
             <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Total Policies</p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">{totalPolicies}</p>
-            <p className="text-xs text-emerald-500 mt-0.5">across all categories</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">{totalActive}</p>
+            <p className="text-xs text-emerald-500 mt-0.5">active policies</p>
           </div>
           <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
             <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Categories</p>
-            <p className="text-2xl font-bold text-sky-700 mt-1">{CATEGORIES.length}</p>
+            <p className="text-2xl font-bold text-sky-700 mt-1">{categories}</p>
             <p className="text-xs text-sky-500 mt-0.5">policy groups</p>
           </div>
           <div className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm">
-            <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Updated 2026</p>
-            <p className="text-2xl font-bold text-violet-700 mt-1">7</p>
-            <p className="text-xs text-violet-500 mt-0.5">policies revised</p>
+            <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">HR Policies</p>
+            <p className="text-2xl font-bold text-violet-700 mt-1">{policies.filter(p => p.category === 'HR').length}</p>
+            <p className="text-xs text-violet-500 mt-0.5">employee policies</p>
           </div>
           <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm">
             <div className="flex items-center gap-1.5 mb-1">
               <Clock className="h-3.5 w-3.5 text-amber-600" />
-              <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Due Review</p>
+              <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Safety</p>
             </div>
-            <p className="text-2xl font-bold text-amber-700">2</p>
-            <p className="text-xs text-amber-500 mt-0.5">need annual review</p>
+            <p className="text-2xl font-bold text-amber-700">{policies.filter(p => p.category === 'Safety').length}</p>
+            <p className="text-xs text-amber-500 mt-0.5">safety policies</p>
           </div>
         </div>
 
-        {/* Filters + Content */}
+        {/* Policy list */}
         <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
           {/* Filter bar */}
           <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-wrap gap-3 items-center">
@@ -187,69 +233,197 @@ export function PoliciesClient() {
                     : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300')}>
                 All
               </button>
-              {CATEGORIES.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveCategory(c.id)}
-                  className={cn('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-1',
-                    activeCategory === c.id
+              {CATEGORY_OPTIONS.map(c => (
+                <button key={c.value} onClick={() => setActiveCategory(c.value)}
+                  className={cn('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                    activeCategory === c.value
                       ? 'bg-emerald-600 text-white border-emerald-600'
                       : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300')}>
                   {c.label}
                 </button>
               ))}
             </div>
+            {/* Language toggle */}
+            <button
+              onClick={() => setLang(l => l === 'en' ? 'ar' : 'en')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 transition-colors">
+              <Globe className="h-3.5 w-3.5" />
+              {lang === 'en' ? 'عربي' : 'EN'}
+            </button>
           </div>
 
-          {/* Policy list */}
-          <div className="divide-y divide-slate-100">
-            {filtered.length === 0 ? (
-              <div className="py-16 text-center text-slate-400">
-                <BookOpen className="h-10 w-10 mx-auto mb-2 text-slate-200" />
-                <p>No policies match your search.</p>
-              </div>
-            ) : (
-              filtered.map(category => {
+          {loading ? (
+            <div className="py-16 text-center text-slate-400">Loading…</div>
+          ) : grouped.length === 0 ? (
+            <div className="py-16 text-center text-slate-400">
+              <BookOpen className="h-10 w-10 mx-auto mb-2 text-slate-200" />
+              <p>No policies yet. Click <strong>New Policy</strong> to add one.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {grouped.map(category => {
                 const colors = COLOR_MAP[category.color] ?? COLOR_MAP.sky;
+                const Icon = category.icon;
                 return (
-                  <div key={category.id}>
-                    {/* Category header */}
-                    <div className="px-6 py-3 bg-slate-50/70 flex items-center gap-2">
-                      <span className={cn('flex items-center gap-1 text-xs font-semibold uppercase tracking-wide', colors.icon)}>
-                        {category.icon}
+                  <div key={category.value}>
+                    <div className={cn('px-6 py-3 flex items-center gap-2', colors.header)}>
+                      <Icon className={cn('h-4 w-4', colors.icon)} />
+                      <span className={cn('text-xs font-semibold uppercase tracking-wide', colors.icon)}>
                         {category.label}
                       </span>
                       <span className={cn('ml-auto text-xs px-2 py-0.5 rounded-full border font-medium', colors.badge)}>
-                        {category.policies.length}
+                        {category.items.length}
                       </span>
                     </div>
-                    {/* Policy rows */}
-                    {category.policies.map(policy => (
-                      <div
-                        key={policy.id}
-                        className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50/50 cursor-pointer transition-colors group"
-                      >
-                        <div className={cn('p-2 rounded-lg border', colors.row)}>
-                          <FileText className={cn('h-4 w-4', colors.icon)} />
+                    {category.items.map(policy => {
+                      const isExpanded = expandedId === policy.id;
+                      const title = lang === 'ar' && policy.titleAr ? policy.titleAr : policy.titleEn;
+                      const content = lang === 'ar' && policy.contentAr ? policy.contentAr : (policy.contentEn ?? '');
+                      return (
+                        <div key={policy.id} className="border-t border-slate-50">
+                          <div
+                            className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50/50 cursor-pointer transition-colors group"
+                            onClick={() => setExpandedId(isExpanded ? null : policy.id)}
+                          >
+                            <div className={cn('p-2 rounded-lg border shrink-0', colors.row)}>
+                              <FileText className={cn('h-4 w-4', colors.icon)} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={cn('text-sm font-semibold text-slate-800 group-hover:text-emerald-700 transition-colors', lang === 'ar' && 'text-right')} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                                {title}
+                              </p>
+                              {content && (
+                                <p className={cn('text-xs text-slate-500 mt-0.5 line-clamp-1', lang === 'ar' && 'text-right')} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                                  {content}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0 mr-1">
+                              <p className="text-xs text-slate-400">{policy.version}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">Effective {policy.effectiveDate}</p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={e => { e.stopPropagation(); openEdit(policy); }}
+                                className="p-1.5 rounded hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 transition-colors">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={e => { e.stopPropagation(); setDeleteTarget(policy); }}
+                                className="p-1.5 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition-colors">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                              {isExpanded
+                                ? <ChevronUp className="h-4 w-4 text-slate-400" />
+                                : <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500" />}
+                            </div>
+                          </div>
+                          {isExpanded && content && (
+                            <div className="px-6 pb-4 border-t border-slate-100 bg-slate-50/30">
+                              <p
+                                className={cn('text-sm text-slate-700 mt-4 leading-relaxed whitespace-pre-wrap', lang === 'ar' && 'text-right')}
+                                dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                              >
+                                {content}
+                              </p>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 group-hover:text-emerald-700 transition-colors">{policy.title}</p>
-                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{policy.description}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xs text-slate-400">{policy.version}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">Effective {policy.effectiveDate}</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 shrink-0" />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Create / Edit Dialog */}
+      <Dialog open={dialogMode !== null} onOpenChange={open => !open && setDialogMode(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{dialogMode === 'edit' ? 'Edit Policy' : 'New Policy'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Title (English) <span className="text-rose-500">*</span></Label>
+                <Input value={form.titleEn} onChange={e => setForm(f => ({ ...f, titleEn: e.target.value }))} placeholder="Policy title in English" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>العنوان (عربي)</Label>
+                <Input value={form.titleAr} onChange={e => setForm(f => ({ ...f, titleAr: e.target.value }))} placeholder="عنوان السياسة بالعربية" dir="rtl" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Category <span className="text-rose-500">*</span></Label>
+                <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Version</Label>
+                <Input value={form.version} onChange={e => setForm(f => ({ ...f, version: e.target.value }))} placeholder="v1.0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Effective Date <span className="text-rose-500">*</span></Label>
+                <Input type="date" value={form.effectiveDate} onChange={e => setForm(f => ({ ...f, effectiveDate: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Content (English)</Label>
+              <Textarea
+                value={form.contentEn}
+                onChange={e => setForm(f => ({ ...f, contentEn: e.target.value }))}
+                placeholder="Policy content in English…"
+                rows={6}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>المحتوى (عربي)</Label>
+              <Textarea
+                value={form.contentAr}
+                onChange={e => setForm(f => ({ ...f, contentAr: e.target.value }))}
+                placeholder="محتوى السياسة بالعربية…"
+                dir="rtl"
+                rows={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogMode(null)}>Cancel</Button>
+            <Button
+              onClick={save}
+              disabled={saving || !form.titleEn.trim() || !form.effectiveDate || !form.category}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {saving ? 'Saving…' : dialogMode === 'edit' ? 'Save Changes' : 'Create Policy'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Policy</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            Are you sure you want to delete <strong>{deleteTarget?.titleEn}</strong>? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
