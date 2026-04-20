@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3, Sun, Trash2, Edit2, ChevronDown, ChevronUp, ChevronsUpDown, Flame } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
 
 type LeaveType = {
   id: string;
@@ -121,6 +122,9 @@ export function LeavesClient({
   const [entitlementLoading, setEntitlementLoading] = useState(false);
   const [entitlementSearch, setEntitlementSearch] = useState('');
 
+  // Cumulative entitlement for the logged-in employee (used in KPI tiles)
+  const [myEntitlement, setMyEntitlement] = useState<{ entitledDays: number; annualConsumed: number; remaining: number } | null>(null);
+
   // My balances collapsed by default (19.12.0)
   const [balancesCollapsed, setBalancesCollapsed] = useState(true);
 
@@ -141,14 +145,16 @@ export function LeavesClient({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [typesRes, balancesRes, mineRes] = await Promise.all([
+      const [typesRes, balancesRes, mineRes, entitlementRes] = await Promise.all([
         fetch('/api/hr/leave-types'),
         fetch('/api/hr/leave-balances'),
         fetch('/api/hr/leave-requests?scope=mine'),
+        fetch('/api/hr/my-entitlement'),
       ]);
       if (typesRes.ok) setLeaveTypes(await typesRes.json());
       if (balancesRes.ok) setBalances(await balancesRes.json());
       if (mineRes.ok) setMyRequests(await mineRes.json());
+      if (entitlementRes.ok) setMyEntitlement(await entitlementRes.json());
       if (canApprove) {
         const inboxRes = await fetch('/api/hr/leave-requests?scope=inbox');
         if (inboxRes.ok) setInbox(await inboxRes.json());
@@ -284,9 +290,6 @@ export function LeavesClient({
   const selectedType = leaveTypes.find((t) => t.id === form.leaveTypeId);
   const selectedBalance = balances.find((b) => b.leaveTypeId === form.leaveTypeId);
 
-  const totalAvailable = balances.reduce((sum, b) => sum + Number(b.available || 0), 0);
-  const totalAccrued = balances.reduce((sum, b) => sum + Number(b.accruedYtd || 0), 0);
-  const totalUsed = balances.reduce((sum, b) => sum + Number(b.usedYtd || 0), 0);
   const pendingCount = myRequests.filter((r) => r.status.startsWith('PENDING_')).length;
 
   return (
@@ -340,21 +343,21 @@ export function LeavesClient({
         {/* KPI tiles */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <KpiTile
-            label="Available balance"
-            value={totalAvailable.toFixed(1)}
-            hint="days across all types"
+            label="Annual balance"
+            value={myEntitlement ? myEntitlement.remaining.toFixed(1) : '—'}
+            hint="entitled − consumed (all-time)"
             tone="emerald"
           />
           <KpiTile
-            label="Accrued this year"
-            value={totalAccrued.toFixed(1)}
-            hint="days earned YTD"
+            label="Total entitled"
+            value={myEntitlement ? myEntitlement.entitledDays.toFixed(1) : '—'}
+            hint="days @ 1.75/month from joining"
             tone="sky"
           />
           <KpiTile
-            label="Used this year"
-            value={totalUsed.toFixed(1)}
-            hint="days consumed YTD"
+            label="Annual consumed"
+            value={myEntitlement ? myEntitlement.annualConsumed.toFixed(1) : '—'}
+            hint="approved annual leaves (all-time)"
             tone="violet"
           />
           <KpiTile
@@ -826,8 +829,12 @@ function RequestTable({
               <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50/60 transition">
                 {showEmployee && (
                   <td className="py-3 px-4">
-                    <div className="font-medium text-slate-900">{r.employee?.fullNameEn}</div>
-                    <div className="text-xs text-muted-foreground">{r.employee?.employmentId}</div>
+                    {r.employee ? (
+                      <Link href={`/hr/employees/${r.employee.id}`} className="hover:underline">
+                        <div className="font-medium text-slate-900">{r.employee.fullNameEn}</div>
+                        <div className="text-xs text-muted-foreground">{r.employee.employmentId}</div>
+                      </Link>
+                    ) : null}
                   </td>
                 )}
                 <td className="py-3 px-4">{r.leaveType.nameEn}</td>
@@ -1273,8 +1280,10 @@ function VacationBalanceTab({
                     return (
                       <tr key={row.id} className={`border-b last:border-0 transition ${rowBg}`}>
                         <td className="py-3 px-4">
-                          <div className="font-medium text-slate-900">{row.fullNameEn}</div>
-                          <div className="text-xs text-muted-foreground">{row.employmentId}</div>
+                          <Link href={`/hr/employees/${row.id}`} className="hover:underline">
+                            <div className="font-medium text-slate-900">{row.fullNameEn}</div>
+                            <div className="text-xs text-muted-foreground">{row.employmentId}</div>
+                          </Link>
                         </td>
                         <td className="py-3 px-4 text-muted-foreground">
                           {row.dateOfJoining

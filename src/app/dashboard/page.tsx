@@ -4,7 +4,6 @@ import { Sparkles } from 'lucide-react';
 import WidgetContainer from '@/components/dashboard/WidgetContainer';
 import EmployeeSelfService from '@/components/dashboard/EmployeeSelfService';
 import prisma from '@/lib/db';
-import { computeLeaveBalance } from '@/lib/services/hr/leave-balance-calculator';
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -29,7 +28,7 @@ export default async function DashboardPage() {
     trafficViolations: { id: string; violationDate: string; violationType: string; violationAmount: number; status: string; deductFromPayroll: boolean }[];
     recentLetters: { id: string; letterNumber: string; letterType: string; subject: string; issuedAt: string }[];
     activeContracts: { id: string; contractNumber: string; title: string; type: string; expiryDate: string | null; status: string }[];
-    leaveBalances: { leaveTypeId: string; leaveTypeName: string; available: number; accrued: number; used: number }[];
+    leaveEntitlement: { entitledDays: number; annualConsumed: number; remaining: number } | null;
   };
 
   let selfService: SelfServiceData | null = null;
@@ -44,11 +43,10 @@ export default async function DashboardPage() {
       if (user?.employeeId) {
         const empId = user.employeeId;
 
-        const currentYear = new Date().getFullYear();
-        const [employee, assignments, loans, custodies, violations, letters, contracts, leaveTypes, payrollLines] = await Promise.all([
+        const [employee, assignments, loans, custodies, violations, letters, contracts, payrollLines] = await Promise.all([
           prisma.employee.findUnique({
             where: { id: empId },
-            select: { id: true, fullNameEn: true, occupation: true },
+            select: { id: true, fullNameEn: true, occupation: true, dateOfJoining: true },
           }),
           prisma.assetAssignment.findMany({
             where: { employeeId: empId, status: 'ACTIVE', deletedAt: null },
@@ -85,11 +83,6 @@ export default async function DashboardPage() {
             where: { employeeId: empId, status: 'ACTIVE', deletedAt: null },
             select: { id: true, contractNumber: true, title: true, type: true, expiryDate: true, status: true },
             orderBy: { expiryDate: 'asc' },
-          }).catch(() => []),
-          // Leave types for balance computation
-          prisma.leaveType.findMany({
-            where: { archivedAt: null },
-            orderBy: { displayOrder: 'asc' },
           }).catch(() => []),
           // Latest 3 approved payroll periods for this employee
           prisma.payrollLine.findMany({
@@ -172,29 +165,33 @@ export default async function DashboardPage() {
               expiryDate: c.expiryDate ? c.expiryDate.toISOString().slice(0, 10) : null,
               status: c.status,
             })),
-            leaveBalances: [],
+            leaveEntitlement: null,
           };
 
-          // Compute leave balances (best-effort, non-blocking)
-          if (leaveTypes.length > 0) {
-            const balanceResults = await Promise.allSettled(
-              leaveTypes.map(lt => computeLeaveBalance(empId, lt.id, currentYear)),
-            );
-            selfService.leaveBalances = leaveTypes
-              .map((lt, i) => {
-                const result = balanceResults[i];
-                if (result.status !== 'fulfilled') return null;
-                const snap = result.value;
-                return {
-                  leaveTypeId: lt.id,
-                  leaveTypeName: lt.nameEn,
-                  available: snap.available,
-                  accrued: snap.accruedYtd,
-                  used: snap.usedYtd,
-                };
-              })
-              .filter((b): b is NonNullable<typeof b> => b !== null && (b.available > 0 || b.accrued > 0 || b.used > 0));
-          }
+          // Compute cumulative leave entitlement (1.75/month from joining, minus all approved annual leaves)
+          try {
+            const annualLeaveType = await prisma.leaveType.findFirst({ where: { code: 'ANNUAL', archivedAt: null }, select: { id: true } });
+            const joinDate = employee.dateOfJoining ? new Date(employee.dateOfJoining) : null;
+            if (joinDate) {
+              const today = new Date();
+              const diffMs = today.getTime() - joinDate.getTime();
+              const monthsEmployed = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24 * 30.4375)));
+              const entitledDays = Math.round(monthsEmployed * 1.75 * 10) / 10;
+              let annualConsumed = 0;
+              if (annualLeaveType) {
+                const reqs = await prisma.leaveRequest.findMany({
+                  where: { employeeId: empId, leaveTypeId: annualLeaveType.id, status: 'APPROVED', deletedAt: null },
+                  select: { workingDays: true },
+                });
+                annualConsumed = Math.round(reqs.reduce((s, r) => s + Number(r.workingDays), 0) * 10) / 10;
+              }
+              selfService.leaveEntitlement = {
+                entitledDays,
+                annualConsumed,
+                remaining: Math.round((entitledDays - annualConsumed) * 10) / 10,
+              };
+            }
+          } catch { /* non-fatal */ }
         }
       }
     } catch {

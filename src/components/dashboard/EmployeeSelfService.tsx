@@ -43,7 +43,7 @@ type SelfServiceData = {
   trafficViolations: { id: string; violationDate: string; violationType: string; violationAmount: number; status: string; deductFromPayroll: boolean }[];
   recentLetters: { id: string; letterNumber: string; letterType: string; subject: string; issuedAt: string }[];
   activeContracts: { id: string; contractNumber: string; title: string; type: string; expiryDate: string | null; status: string }[];
-  leaveBalances: { leaveTypeId: string; leaveTypeName: string; available: number; accrued: number; used: number }[];
+  leaveEntitlement: { entitledDays: number; annualConsumed: number; remaining: number } | null;
 };
 
 const CATEGORY_ICON: Record<string, ElementType> = {
@@ -168,7 +168,7 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
   const hasLetters = data.recentLetters.length > 0;
   const hasContracts = data.activeContracts.length > 0;
 
-  const hasLeaves = data.leaveBalances.length > 0;
+  const hasLeaves = data.leaveEntitlement !== null;
   const hasAnyData = hasAssets || hasLoans || hasCustodies || hasPayslips || hasViolations || hasLetters || hasContracts || hasLeaves;
   if (!hasAnyData) return null;
 
@@ -491,43 +491,45 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
 
       {activeTab === 'leaves' && (
         <div className="rounded-2xl border bg-white shadow-sm">
-          <div className="px-5 py-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2 text-teal-700">
-              <Umbrella className="h-4 w-4" />
-              <span className="text-sm font-semibold">Leave Balances — {new Date().getFullYear()}</span>
-            </div>
-            <span className="text-xs text-slate-400">{data.leaveBalances.length} leave type{data.leaveBalances.length !== 1 ? 's' : ''}</span>
+          <div className="px-5 py-4 border-b flex items-center gap-2 text-teal-700">
+            <Umbrella className="h-4 w-4" />
+            <span className="text-sm font-semibold">Annual Leave Balance</span>
           </div>
-          {data.leaveBalances.length === 0 ? (
+          {!data.leaveEntitlement ? (
             <div className="px-5 py-8 text-center text-sm text-slate-400">No leave balance data available</div>
           ) : (
-            <div className="divide-y">
-              {data.leaveBalances.map(lb => {
-                const pct = lb.accrued > 0 ? Math.min(100, (lb.used / lb.accrued) * 100) : 0;
-                return (
-                  <div key={lb.leaveTypeId} className="px-5 py-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-700">{lb.leaveTypeName}</p>
-                      <div className="text-right">
-                        <span className={cn(
-                          'text-base font-bold',
-                          lb.available <= 0 ? 'text-rose-600' : lb.available < 3 ? 'text-amber-600' : 'text-teal-700',
-                        )}>
-                          {lb.available.toFixed(1)}
-                        </span>
-                        <span className="text-xs text-slate-400 ml-1">days left</span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 bg-teal-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-400">
-                      <span>Accrued: {lb.accrued.toFixed(1)} days</span>
-                      <span>Used: {lb.used.toFixed(1)} days</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="px-5 py-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-700">Annual Leave</p>
+                <div className="text-right">
+                  <span className={cn(
+                    'text-base font-bold',
+                    data.leaveEntitlement.remaining <= 0 ? 'text-rose-600'
+                      : data.leaveEntitlement.remaining >= 21 ? 'text-rose-600'
+                      : data.leaveEntitlement.remaining >= 14 ? 'text-amber-600'
+                      : 'text-teal-700',
+                  )}>
+                    {data.leaveEntitlement.remaining.toFixed(1)}
+                  </span>
+                  <span className="text-xs text-slate-400 ml-1">days balance</span>
+                </div>
+              </div>
+              <div className="h-1.5 bg-teal-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-teal-500 rounded-full transition-all"
+                  style={{ width: `${data.leaveEntitlement.entitledDays > 0 ? Math.min(100, (data.leaveEntitlement.annualConsumed / data.leaveEntitlement.entitledDays) * 100) : 0}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Entitled: {data.leaveEntitlement.entitledDays.toFixed(1)} days</span>
+                <span>Consumed: {data.leaveEntitlement.annualConsumed.toFixed(1)} days</span>
+              </div>
+              {data.leaveEntitlement.remaining >= 21 && (
+                <p className="text-xs font-medium text-rose-600">⚠ Must take leave — balance exceeds 21 days</p>
+              )}
+              {data.leaveEntitlement.remaining >= 14 && data.leaveEntitlement.remaining < 21 && (
+                <p className="text-xs font-medium text-amber-600">Plan leave soon — balance exceeds 14 days</p>
+              )}
             </div>
           )}
           <div className="px-5 py-3 border-t">
