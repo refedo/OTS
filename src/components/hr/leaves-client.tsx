@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3, Sun, Trash2, Edit2, ChevronDown, Flame } from 'lucide-react';
+import { Loader2, Plus, CalendarClock, Inbox, Users, Check, X, AlertTriangle, CloudDownload, CheckCircle2, AlertCircle, XCircle, BarChart3, Sun, Trash2, Edit2, ChevronDown, ChevronUp, ChevronsUpDown, Flame } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -727,6 +727,41 @@ function Pill({
   );
 }
 
+type ReqSortKey = 'employee' | 'type' | 'from' | 'to' | 'days' | 'status';
+
+function SortTh({
+  label,
+  col,
+  current,
+  dir,
+  onSort,
+  align,
+}: {
+  label: string;
+  col: string;
+  current: string;
+  dir: 'asc' | 'desc';
+  onSort: (col: string) => void;
+  align?: 'right';
+}) {
+  const active = current === col;
+  return (
+    <th
+      className={`py-3 px-4 font-medium cursor-pointer select-none hover:text-slate-700 ${align === 'right' ? 'text-right' : ''}`}
+      onClick={() => onSort(col)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (
+          dir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronsUpDown className="h-3 w-3 opacity-30" />
+        )}
+      </span>
+    </th>
+  );
+}
+
 function RequestTable({
   requests,
   canApprove,
@@ -740,6 +775,27 @@ function RequestTable({
   onCancel: (id: string) => void;
   showEmployee: boolean;
 }) {
+  const [sortCol, setSortCol] = useState<ReqSortKey>('from');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  function handleSort(col: string) {
+    if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortCol(col as ReqSortKey); setSortDir('asc'); }
+  }
+
+  const sorted = [...requests].sort((a, b) => {
+    let cmp = 0;
+    switch (sortCol) {
+      case 'employee': cmp = (a.employee?.fullNameEn ?? '').localeCompare(b.employee?.fullNameEn ?? ''); break;
+      case 'type': cmp = a.leaveType.nameEn.localeCompare(b.leaveType.nameEn); break;
+      case 'from': cmp = a.startDate.localeCompare(b.startDate); break;
+      case 'to': cmp = a.endDate.localeCompare(b.endDate); break;
+      case 'days': cmp = Number(a.workingDays) - Number(b.workingDays); break;
+      case 'status': cmp = a.status.localeCompare(b.status); break;
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
   if (requests.length === 0) {
     return (
       <Card className="border-dashed">
@@ -756,17 +812,17 @@ function RequestTable({
         <table className="w-full text-sm">
           <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b">
             <tr>
-              {showEmployee && <th className="py-3 px-4 font-medium">Employee</th>}
-              <th className="py-3 px-4 font-medium">Type</th>
-              <th className="py-3 px-4 font-medium">From</th>
-              <th className="py-3 px-4 font-medium">To</th>
-              <th className="py-3 px-4 font-medium text-right">Days</th>
-              <th className="py-3 px-4 font-medium">Status</th>
+              {showEmployee && <SortTh label="Employee" col="employee" current={sortCol} dir={sortDir} onSort={handleSort} />}
+              <SortTh label="Type" col="type" current={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortTh label="From" col="from" current={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortTh label="To" col="to" current={sortCol} dir={sortDir} onSort={handleSort} />
+              <SortTh label="Days" col="days" current={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+              <SortTh label="Status" col="status" current={sortCol} dir={sortDir} onSort={handleSort} />
               <th className="py-3 px-4"></th>
             </tr>
           </thead>
           <tbody>
-            {requests.map((r) => (
+            {sorted.map((r) => (
               <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50/60 transition">
                 {showEmployee && (
                   <td className="py-3 px-4">
@@ -1076,18 +1132,38 @@ function VacationBalanceTab({
   onSearchChange: (v: string) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+  const [sortCol, setSortCol] = useState<string>('fullNameEn');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  function handleSort(col: string) {
+    if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortCol(col); setSortDir('asc'); }
+  }
 
   const statusFiltered = statusFilter === 'ALL'
     ? rows
     : rows.filter((r) => r.status === statusFilter);
 
-  const filtered = search.trim()
+  const searchFiltered = search.trim()
     ? statusFiltered.filter(
         (r) =>
           r.fullNameEn.toLowerCase().includes(search.toLowerCase()) ||
           r.employmentId.toLowerCase().includes(search.toLowerCase()),
       )
     : statusFiltered;
+
+  const filtered = [...searchFiltered].sort((a, b) => {
+    let cmp = 0;
+    switch (sortCol) {
+      case 'fullNameEn': cmp = a.fullNameEn.localeCompare(b.fullNameEn); break;
+      case 'dateOfJoining': cmp = (a.dateOfJoining ?? '').localeCompare(b.dateOfJoining ?? ''); break;
+      case 'monthsEmployed': cmp = a.monthsEmployed - b.monthsEmployed; break;
+      case 'entitledDays': cmp = a.entitledDays - b.entitledDays; break;
+      case 'annualConsumed': cmp = (a.annualConsumed ?? 0) - (b.annualConsumed ?? 0); break;
+      case 'remaining': cmp = a.remaining - b.remaining; break;
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
 
   const totalEntitled = filtered.reduce((s, r) => s + r.entitledDays, 0);
   const totalAnnualConsumed = filtered.reduce((s, r) => s + (r.annualConsumed ?? 0), 0);
@@ -1175,12 +1251,12 @@ function VacationBalanceTab({
               <table className="w-full text-sm">
                 <thead className="text-left text-[11px] uppercase tracking-wide text-slate-500 bg-slate-50 border-b sticky top-0">
                   <tr>
-                    <th className="py-3 px-4 font-medium">Employee</th>
-                    <th className="py-3 px-4 font-medium">Contract Date</th>
-                    <th className="py-3 px-4 font-medium text-right">Months</th>
-                    <th className="py-3 px-4 font-medium text-right">Entitled</th>
-                    <th className="py-3 px-4 font-medium text-right">Annual Consumed</th>
-                    <th className="py-3 px-4 font-medium text-right">Balance</th>
+                    <SortTh label="Employee" col="fullNameEn" current={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortTh label="Contract Date" col="dateOfJoining" current={sortCol} dir={sortDir} onSort={handleSort} />
+                    <SortTh label="Months" col="monthsEmployed" current={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                    <SortTh label="Entitled" col="entitledDays" current={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                    <SortTh label="Annual Consumed" col="annualConsumed" current={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+                    <SortTh label="Balance" col="remaining" current={sortCol} dir={sortDir} onSort={handleSort} align="right" />
                     <th className="py-3 px-4 font-medium text-center">Status</th>
                   </tr>
                 </thead>
