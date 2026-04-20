@@ -18,7 +18,6 @@ import { logger } from '@/lib/logger';
 // ============================================
 
 export const TRACKER_COLUMNS = [
-  { type: 'arch_approval', label: 'Arch Drawing' },
   { type: 'design', label: 'Design Stage' },
   { type: 'detailing', label: 'Shop Drawings' },
   { type: 'procurement', label: 'Procurement' },
@@ -35,7 +34,6 @@ export const ACTIVITY_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 const ACTIVITY_TO_TASK_MAIN: Record<string, string> = {
-  arch_approval: 'architecture',
   design: 'design',
   detailing: 'detailing',
 };

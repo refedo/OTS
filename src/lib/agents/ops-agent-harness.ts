@@ -94,6 +94,17 @@ export async function executeTool(
       return JSON.stringify({ error: `Tool '${toolName}' failed: ${res.status} ${text}` });
     }
 
+    // Limit result size to stay within provider TPM limits (e.g. Groq free tier = 12k TPM).
+    // ~3 chars ≈ 1 token; keeping results under 6 000 chars ≈ 2 000 tokens leaves room for
+    // system prompt, tool definitions, and model output within a 12 000 TPM budget.
+    const MAX_CHARS = 6000;
+    if (text.length > MAX_CHARS) {
+      const truncated = text.slice(0, MAX_CHARS);
+      // Close the JSON array/object so the string is still parseable where possible
+      log.warn({ toolName, originalLength: text.length }, 'Tool result truncated to fit TPM limit');
+      return truncated + `\n...[TRUNCATED: result was ${text.length} chars, showing first ${MAX_CHARS}]`;
+    }
+
     return text;
   } catch (error) {
     log.error({ error, toolName }, 'Tool endpoint call failed');

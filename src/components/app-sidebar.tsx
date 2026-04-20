@@ -528,7 +528,7 @@ export function AppSidebar() {
               <div className="flex items-center gap-2">
                 {isMounted && companyLogo ? (
                   <img
-                    src={companyLogo}
+                    src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${companyLogo.startsWith('/') ? companyLogo : '/' + companyLogo}`}
                     alt="Company Logo"
                     className="h-8 max-w-[120px] object-contain"
                   />

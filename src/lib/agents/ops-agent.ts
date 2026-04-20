@@ -173,7 +173,7 @@ async function runOpenAILoop(
 
     const response = await client.chat.completions.create({
       model,
-      max_tokens: 8192,
+      max_tokens: 4096,
       tools: openAITools,
       messages,
     });
