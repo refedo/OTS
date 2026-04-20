@@ -82,6 +82,7 @@ type EntitlementRow = {
   fullNameEn: string;
   employmentId: string;
   dateOfJoining: string | null;
+  status: string;
   monthsEmployed: number;
   entitledDays: number;
   annualConsumed: number;
@@ -1074,19 +1075,25 @@ function VacationBalanceTab({
   search: string;
   onSearchChange: (v: string) => void;
 }) {
+  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+
+  const statusFiltered = statusFilter === 'ALL'
+    ? rows
+    : rows.filter((r) => r.status === statusFilter);
+
   const filtered = search.trim()
-    ? rows.filter(
+    ? statusFiltered.filter(
         (r) =>
           r.fullNameEn.toLowerCase().includes(search.toLowerCase()) ||
           r.employmentId.toLowerCase().includes(search.toLowerCase()),
       )
-    : rows;
+    : statusFiltered;
 
-  const totalEntitled = rows.reduce((s, r) => s + r.entitledDays, 0);
-  const totalAnnualConsumed = rows.reduce((s, r) => s + (r.annualConsumed ?? 0), 0);
-  const totalRemaining = rows.reduce((s, r) => s + r.remaining, 0);
-  const highRiskCount = rows.filter((r) => burnRisk(r.remaining).level === 'high').length;
-  const mediumRiskCount = rows.filter((r) => burnRisk(r.remaining).level === 'medium').length;
+  const totalEntitled = filtered.reduce((s, r) => s + r.entitledDays, 0);
+  const totalAnnualConsumed = filtered.reduce((s, r) => s + (r.annualConsumed ?? 0), 0);
+  const totalRemaining = filtered.reduce((s, r) => s + r.remaining, 0);
+  const highRiskCount = filtered.filter((r) => burnRisk(r.remaining).level === 'high').length;
+  const mediumRiskCount = filtered.filter((r) => burnRisk(r.remaining).level === 'medium').length;
 
   return (
     <div className="space-y-4">
@@ -1094,8 +1101,8 @@ function VacationBalanceTab({
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
           <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Employees</p>
-          <p className="text-2xl font-bold text-sky-700 mt-1">{rows.length}</p>
-          <p className="text-xs text-sky-500 mt-0.5">active</p>
+          <p className="text-2xl font-bold text-sky-700 mt-1">{filtered.length}</p>
+          <p className="text-xs text-sky-500 mt-0.5">{statusFilter === 'ALL' ? 'all statuses' : statusFilter.toLowerCase()}</p>
         </div>
         <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
           <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Total Entitled</p>
@@ -1123,14 +1130,25 @@ function VacationBalanceTab({
         <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 gap-3 flex-wrap">
           <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-sky-600" />
-            Vacation Entitlement — All Employees
+            Vacation Entitlement
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="TERMINATED">Terminated</option>
+              <option value="ON_LEAVE">On Leave</option>
+              <option value="RESIGNED">Resigned</option>
+              <option value="ALL">All Statuses</option>
+            </select>
             <Input
               placeholder="Search any employee…"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-60 h-8 text-sm"
+              className="w-52 h-8 text-sm"
             />
             {search && (
               <button
@@ -1150,7 +1168,7 @@ function VacationBalanceTab({
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              {search ? 'No employees match your search.' : 'No active employees found.'}
+              {search ? 'No employees match your search.' : `No ${statusFilter === 'ALL' ? '' : statusFilter.toLowerCase() + ' '}employees found.`}
             </div>
           ) : (
             <div className="overflow-x-auto">
