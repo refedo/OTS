@@ -28,21 +28,32 @@ export async function POST(req: NextRequest) {
   const extraNote = message ? ` — "${message}"` : '';
 
   try {
-    // Find all Admin users
-    const admins = await prisma.user.findMany({
-      where: { isAdmin: true, deletedAt: null },
+    // Find all system admins + users in HR and CEO roles who should handle access requests
+    const recipients = await prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        status: 'active',
+        OR: [
+          { isAdmin: true },
+          { role: { name: { in: ['Admin', 'HR', 'CEO'] } } },
+        ],
+      },
       select: { id: true },
     });
 
-    if (admins.length === 0) {
-      return NextResponse.json({ error: 'No admin users found' }, { status: 500 });
+    // Deduplicate in case a user matches multiple conditions
+    const uniqueRecipients = Array.from(new Map(recipients.map((u) => [u.id, u])).values());
+
+    if (uniqueRecipients.length === 0) {
+      logger.warn({ fromPath }, 'No admin/HR/CEO users found to receive access request');
+      return NextResponse.json({ error: 'No administrators found to receive your request' }, { status: 500 });
     }
 
     await Promise.all(
-      admins.map((admin) =>
+      uniqueRecipients.map((recipient) =>
         NotificationService.createNotification({
-          userId: admin.id,
-          type: 'TASK_ASSIGNED',
+          userId: recipient.id,
+          type: 'APPROVAL_REQUIRED',
           title: 'Access Request',
           message: `${session.name} is requesting access to${pageLabel}${extraNote}`,
           relatedEntityType: 'user',
@@ -52,7 +63,7 @@ export async function POST(req: NextRequest) {
       ),
     );
 
-    logger.info({ userId: session.sub, fromPath }, 'Access request sent to admins');
+    logger.info({ userId: session.sub, fromPath, recipientCount: uniqueRecipients.length }, 'Access request sent to admins/HR/CEO');
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error({ error, userId: session.sub }, 'Failed to send access request');
