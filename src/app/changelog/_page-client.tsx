@@ -23,10 +23,60 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.13.2',
+    date: 'April 20, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Payment Timeline, Logo 404, Ops Agent TPM & Risk Dashboard Fixes',
+    highlights: [
+      'Cash Flow Timeline in the payment schedule report now anchors to the current month (−3 to +15 months) instead of showing only the oldest 12 months — April 2026 and future payments are visible.',
+      'Company logo 404 fixed: all img tags prepend NEXT_PUBLIC_BASE_PATH so the logo resolves correctly under the /ots subdirectory.',
+      'Ops Agent Groq 413 error fixed: tool results are truncated to 6 000 chars and max_tokens reduced to 4 096 to stay within the 12 000 TPM free-tier limit.',
+      'Risk dashboard alerts now show task names (e.g. "Steel Frame Detailing") instead of raw UUIDs (Task:dcf56f6f-...).',
+      'Arch Drawing (arch_approval) column removed from Project Status Tracker — tracker always starts from Design Stage.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Payment schedule Cash Flow Timeline slice(0,12) replaced with today-anchored window — April 2026 and next months now appear',
+        'Company logo 404 under /ots basepath — sidebar, aging report print header, settings preview, WPS export all prepend NEXT_PUBLIC_BASE_PATH',
+        'Ops Agent HTTP 413 from Groq llama-3.3-70b-versatile — tool results capped at 6 000 chars; OpenAI loop max_tokens reduced to 4 096',
+        'Risk dashboard: WorkUnit alert text now shows task title instead of raw UUID',
+      ],
+      changed: [
+        'Project Status Tracker: removed Arch Drawing (arch_approval) column — tracker starts from Design Stage',
+        'EWS engine: DOCUMENTATION WorkUnit type no longer mapped to arch_approval tracker activity',
+      ],
+    },
+  },
+  {
+    version: '19.13.1',
+    date: 'April 20, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Building Designation Extended to 5 Characters + Name Cascade',
+    highlights: [
+      'Building designation max length raised from 4 to 5 uppercase letters/numbers across all POST/PATCH routes and form inputs.',
+      'GET /api/projects/[id]/buildings/[buildingId] now returns _count of linked child records.',
+      'PATCH endpoint cascades a building name change to LcrEntry.buildingNameRaw for all linked LCR entries.',
+      'Edit dialog fetches child counts on open and shows an amber warning listing affected record types.',
+    ],
+    changes: {
+      added: [],
+      fixed: [],
+      changed: [
+        'Building designation max length: 4 → 5 characters',
+        'Building PATCH: name change cascades to LcrEntry.buildingNameRaw',
+        'Building GET: returns _count of tasks, assembly parts, RFIs, NCRs, documents, work orders, LCR entries',
+        'Building edit dialog: shows amber warning with affected record counts before saving name change',
+      ],
+    },
+  },
+  {
     version: '19.13.0',
     date: 'April 20, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'DB-Backed HR Pages — Policies, Onboarding & Training CRUD',
     highlights: [
       'Company Policies page is now fully DB-backed — create, edit, and delete policies with bilingual (EN/AR) content via a dialog; language toggle on the list.',

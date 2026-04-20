@@ -125,7 +125,6 @@ interface TrackerResponse {
 // --- Constants ---
 
 const ACTIVITY_COLUMNS = [
-  { type: 'arch_approval', label: 'ARCH DRAWING',  color: 'text-sky-400' },
   { type: 'design',        label: 'DESIGN STAGE',  color: 'text-violet-400' },
   { type: 'detailing',     label: 'SHOP DRAWINGS', color: 'text-cyan-400' },
   { type: 'procurement',   label: 'PROCUREMENT',   color: 'text-amber-400' },

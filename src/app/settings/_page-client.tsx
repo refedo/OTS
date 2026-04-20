@@ -357,9 +357,9 @@ export default function SettingsPage() {
                   <div className="flex items-start gap-4">
                     {logoPreview && (
                       <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
-                        <img 
-                          src={logoPreview} 
-                          alt="Company Logo" 
+                        <img
+                          src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${logoPreview.startsWith('/') ? logoPreview : '/' + logoPreview}`}
+                          alt="Company Logo"
                           className="max-w-full max-h-full object-contain"
                         />
                       </div>

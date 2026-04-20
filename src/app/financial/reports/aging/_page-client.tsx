@@ -174,7 +174,7 @@ export default function AgingReportPage() {
             <div className="flex items-center gap-3">
               {companyLogo ? (
                 <img
-                  src={companyLogo}
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${companyLogo.startsWith('/') ? companyLogo : '/' + companyLogo}`}
                   alt="Company Logo"
                   className="h-14 max-w-[200px] object-contain"
                 />

@@ -49,7 +49,8 @@ export function WPSExportButton({ wps }: WPSExportButtonProps) {
       let logoBase64: string | undefined;
       if (settings?.companyLogo) {
         try {
-          logoBase64 = await imageToBase64(settings.companyLogo);
+          const logoUrl = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}${settings.companyLogo.startsWith('/') ? settings.companyLogo : '/' + settings.companyLogo}`;
+          logoBase64 = await imageToBase64(logoUrl);
         } catch (error) {
           console.error('Error converting logo to base64:', error);
         }

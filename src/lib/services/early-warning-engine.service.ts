@@ -26,10 +26,10 @@ import crypto from 'crypto';
 import { getProjectActivitySummaries, ACTIVITY_LABELS, type ProjectActivitySummary } from '@/lib/services/project-tracker.service';
 
 // Maps WorkUnit.type values to the tracker activity columns they correspond to.
-// Full sequence: DOCUMENTATION → DESIGN → DETAILING → PROCUREMENT → PRODUCTION → COATING → DISPATCH → ERECTION
+// Sequence starts from DESIGN: DESIGN → DETAILING → PROCUREMENT → PRODUCTION → COATING → DISPATCH → ERECTION
 // Used to cross-check plan-based alerts against real execution progress in the tracker.
 const WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES: Record<string, string[]> = {
-  DOCUMENTATION: ['arch_approval'],
+  DOCUMENTATION: [], // arch approval removed from tracker — no tracker column to cross-check
   DESIGN:        ['design'],
   DETAILING:     ['detailing'],
   PROCUREMENT:   ['procurement'],
@@ -159,6 +159,38 @@ export class EarlyWarningEngineService {
   }
 
   /**
+   * Build a map of workUnitId → human-readable display name by resolving the
+   * referenceId for Task work units. Falls back to "referenceModule #shortId".
+   */
+  private static async buildDisplayNameMap(
+    workUnits: Array<{ id: string; referenceModule: string; referenceId: string }>
+  ): Promise<Map<string, string>> {
+    const taskIds = workUnits
+      .filter((wu) => wu.referenceModule === 'Task')
+      .map((wu) => wu.referenceId);
+
+    const taskTitleMap = new Map<string, string>();
+    if (taskIds.length > 0) {
+      const tasks = await prisma.task.findMany({
+        where: { id: { in: taskIds } },
+        select: { id: true, title: true },
+      });
+      tasks.forEach((t) => taskTitleMap.set(t.id, t.title));
+    }
+
+    const map = new Map<string, string>();
+    for (const wu of workUnits) {
+      if (wu.referenceModule === 'Task') {
+        const title = taskTitleMap.get(wu.referenceId);
+        map.set(wu.id, title ?? `Task #${wu.referenceId.slice(0, 8)}`);
+      } else {
+        map.set(wu.id, `${wu.referenceModule} #${wu.referenceId.slice(0, 8)}`);
+      }
+    }
+    return map;
+  }
+
+  /**
    * RULE 1: Late Start Risk
    *
    * Condition: WorkUnit is NOT_STARTED and more than 40% of planned duration has elapsed.
@@ -195,9 +227,12 @@ export class EarlyWarningEngineService {
         },
       });
 
-      // Pre-fetch tracker summaries for all affected projects in one batch
+      // Pre-fetch tracker summaries and display names in one batch
       const projectIds = [...new Set(workUnits.map((wu) => wu.projectId))];
-      const trackerCache = await getProjectActivitySummaries(projectIds);
+      const [trackerCache, displayNames] = await Promise.all([
+        getProjectActivitySummaries(projectIds),
+        this.buildDisplayNameMap(workUnits),
+      ]);
 
       for (const wu of workUnits) {
         const plannedDuration = wu.plannedEnd.getTime() - wu.plannedStart.getTime();
@@ -249,8 +284,8 @@ export class EarlyWarningEngineService {
             type: RiskType.DELAY,
             affectedProjectIds: [wu.projectId],
             affectedWorkUnitIds: [wu.id],
-            reason: `WorkUnit "${wu.referenceModule}:${wu.referenceId}" (${activityLabel}) in project ${wu.project.projectNumber} has not started. ${Math.round(elapsedPercent)}% of planned duration has elapsed. Owner: ${wu.owner.name}${trackerAvg > 0 ? `. Tracker shows ${trackerAvg}% actual progress.` : ''}`,
-            recommendedAction: `Immediately start work on ${wu.referenceModule}:${wu.referenceId} or reassign to available resource. Review dependencies and blockers.`,
+            reason: `"${displayNames.get(wu.id)}" (${activityLabel}) in project ${wu.project.projectNumber} has not started. ${Math.round(elapsedPercent)}% of planned duration has elapsed. Owner: ${wu.owner.name}${trackerAvg > 0 ? `. Tracker shows ${trackerAvg}% actual progress.` : ''}`,
+            recommendedAction: `Immediately start work on "${displayNames.get(wu.id)}" or reassign to available resource. Review dependencies and blockers.`,
             metadata: {
               elapsedPercent: Math.round(elapsedPercent),
               plannedStart: wu.plannedStart,
@@ -368,14 +403,20 @@ export class EarlyWarningEngineService {
 
         const projectIds = [...new Set([dep.fromWorkUnit.projectId, dep.toWorkUnit.projectId])];
 
+        const [depDisplayNames] = await Promise.all([
+          this.buildDisplayNameMap([dep.fromWorkUnit, dep.toWorkUnit]),
+        ]);
+        const fromName = depDisplayNames.get(dep.fromWorkUnitId) ?? dep.fromWorkUnit.referenceModule;
+        const toName   = depDisplayNames.get(dep.toWorkUnitId)   ?? dep.toWorkUnit.referenceModule;
+
         const { created } = await this.createRiskEvent(
           {
             severity,
             type: RiskType.DEPENDENCY,
             affectedProjectIds: projectIds,
             affectedWorkUnitIds: [dep.fromWorkUnitId, dep.toWorkUnitId],
-            reason: `Upstream WorkUnit "${dep.fromWorkUnit.referenceModule}:${dep.fromWorkUnit.referenceId}" is ${upstreamStatus}. Downstream "${dep.toWorkUnit.referenceModule}:${dep.toWorkUnit.referenceId}" is scheduled to start in ${daysUntilStart} days but cannot proceed.`,
-            recommendedAction: `Resolve ${upstreamStatus} status on ${dep.fromWorkUnit.referenceModule}:${dep.fromWorkUnit.referenceId} immediately. Consider rescheduling ${dep.toWorkUnit.referenceModule}:${dep.toWorkUnit.referenceId} or finding alternative approach. Notify ${dep.toWorkUnit.owner.name}.`,
+            reason: `Upstream work item "${fromName}" is ${upstreamStatus}. Downstream "${toName}" is scheduled to start in ${daysUntilStart} days but cannot proceed.`,
+            recommendedAction: `Resolve ${upstreamStatus} status on "${fromName}" immediately. Consider rescheduling "${toName}" or finding alternative approach. Notify ${dep.toWorkUnit.owner.name}.`,
             metadata: {
               upstreamWorkUnitId: dep.fromWorkUnitId,
               downstreamWorkUnitId: dep.toWorkUnitId,
@@ -589,14 +630,17 @@ export class EarlyWarningEngineService {
 
           const statusText = wu.status === WorkUnitStatus.BLOCKED ? 'blocked' : 'delayed';
 
+          const cpDisplayNames = await this.buildDisplayNameMap([wu]);
+          const cpName = cpDisplayNames.get(wu.id) ?? wu.referenceModule;
+
           const { created } = await this.createRiskEvent(
             {
               severity,
               type: RiskType.BOTTLENECK,
               affectedProjectIds: [wu.projectId],
               affectedWorkUnitIds: [wu.id],
-              reason: `WorkUnit "${wu.referenceModule}:${wu.referenceId}" in project ${wu.project.projectNumber} is ${statusText} and sits on a critical path with ${chainDepth} downstream dependencies. This delay will cascade to multiple subsequent work items.`,
-              recommendedAction: `Prioritize resolution of ${wu.referenceModule}:${wu.referenceId} immediately. This is a bottleneck affecting ${chainDepth} downstream WorkUnits. Consider escalation and resource reallocation.`,
+              reason: `"${cpName}" in project ${wu.project.projectNumber} is ${statusText} and sits on a critical path with ${chainDepth} downstream dependencies. This delay will cascade to multiple subsequent work items.`,
+              recommendedAction: `Prioritize resolution of "${cpName}" immediately. This is a bottleneck affecting ${chainDepth} downstream work items. Consider escalation and resource reallocation.`,
               metadata: {
                 chainDepth,
                 status: wu.status,
