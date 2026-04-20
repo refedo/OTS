@@ -68,26 +68,26 @@ CREATE TABLE IF NOT EXISTS `HrTrainingProgram` (
   CONSTRAINT `HrTrainingProgram_deletedById_fkey` FOREIGN KEY (`deletedById`) REFERENCES `User` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── Seed default onboarding tasks ───────────────────────────────────────────
--- Only insert if table is empty
-DROP PROCEDURE IF EXISTS seed_onboarding_tasks;
-DELIMITER $$
-CREATE PROCEDURE seed_onboarding_tasks()
-BEGIN
-  IF (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0 THEN
-    INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`) VALUES
-      (UUID(), 'Identity documents collected (Iqama, Passport)', 'استلام وثائق الهوية (الإقامة، جواز السفر)', 1, 1),
-      (UUID(), 'Employment contract signed', 'توقيع عقد العمل', 2, 1),
-      (UUID(), 'OTS system access granted', 'منح صلاحية الدخول لنظام OTS', 3, 1),
-      (UUID(), 'Company email account created', 'إنشاء حساب البريد الإلكتروني الرسمي', 4, 1),
-      (UUID(), 'Access badge issued', 'إصدار بطاقة الدخول', 5, 1),
-      (UUID(), 'Safety induction completed', 'إتمام التعريف بسلامة العمل', 6, 1),
-      (UUID(), 'PPE / Uniform issued', 'تسليم معدات الوقاية / الزي الرسمي', 7, 1),
-      (UUID(), 'Bank account / IBAN collected for WPS', 'استلام رقم الحساب البنكي / IBAN لنظام حماية الأجور', 8, 1),
-      (UUID(), 'GOSI registration submitted', 'تقديم طلب التسجيل في التأمينات الاجتماعية', 9, 1),
-      (UUID(), 'Medical insurance enrolled', 'التسجيل في التأمين الطبي', 10, 1);
-  END IF;
-END$$
-DELIMITER ;
-CALL seed_onboarding_tasks();
-DROP PROCEDURE IF EXISTS seed_onboarding_tasks;
+-- ─── Seed default onboarding tasks (only if table is empty) ──────────────────
+-- INSERT ... SELECT pattern avoids stored procedures (CREATE PROCEDURE fails
+-- with error 1295 in Prisma's prepared-statement protocol).
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'Identity documents collected (Iqama, Passport)', 'استلام وثائق الهوية (الإقامة، جواز السفر)', 1, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'Employment contract signed', 'توقيع عقد العمل', 2, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'OTS system access granted', 'منح صلاحية الدخول لنظام OTS', 3, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'Company email account created', 'إنشاء حساب البريد الإلكتروني الرسمي', 4, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'Access badge issued', 'إصدار بطاقة الدخول', 5, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'Safety induction completed', 'إتمام التعريف بسلامة العمل', 6, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'PPE / Uniform issued', 'تسليم معدات الوقاية / الزي الرسمي', 7, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'Bank account / IBAN collected for WPS', 'استلام رقم الحساب البنكي / IBAN لنظام حماية الأجور', 8, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'GOSI registration submitted', 'تقديم طلب التسجيل في التأمينات الاجتماعية', 9, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;
+INSERT INTO `HrOnboardingTask` (`id`, `labelEn`, `labelAr`, `sortOrder`, `isRequired`)
+SELECT UUID(), 'Medical insurance enrolled', 'التسجيل في التأمين الطبي', 10, 1 FROM dual WHERE (SELECT COUNT(*) FROM `HrOnboardingTask`) = 0;

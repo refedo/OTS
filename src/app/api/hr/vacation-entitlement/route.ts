@@ -25,7 +25,7 @@ export const GET = withApiContext(async () => {
         orderBy: { fullNameEn: 'asc' },
       }),
       prisma.leaveType.findMany({
-        where: { deletedAt: null },
+        where: { archivedAt: null },
         select: { id: true, code: true, nameEn: true },
       }),
       prisma.leaveRequest.findMany({
