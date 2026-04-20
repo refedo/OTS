@@ -15,7 +15,7 @@ export const GET = withApiContext(async () => {
   try {
     const [employees, leaveTypes, approvedRequests] = await Promise.all([
       prisma.employee.findMany({
-        where: { deletedAt: null, status: { notIn: ['TERMINATED', 'RESIGNED'] } },
+        where: { deletedAt: null },
         select: {
           id: true,
           fullNameEn: true,
