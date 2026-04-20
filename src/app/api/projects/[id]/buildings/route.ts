@@ -191,11 +191,11 @@ export async function POST(
       );
     }
 
-    // Validate designation format (2-4 uppercase letters/numbers)
-    const designationPattern = /^[A-Z0-9]{2,4}$/;
+    // Validate designation format (2-5 uppercase letters/numbers)
+    const designationPattern = /^[A-Z0-9]{2,5}$/;
     if (!designationPattern.test(designation)) {
       return NextResponse.json(
-        { error: 'Designation must be 2-4 uppercase letters/numbers' },
+        { error: 'Designation must be 2-5 uppercase letters/numbers' },
         { status: 400 }
       );
     }

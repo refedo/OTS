@@ -581,11 +581,11 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
                   placeholder="e.g., BLD1, WH, MAIN"
                   required
                   disabled={isCreating}
-                  maxLength={4}
+                  maxLength={5}
                   className="uppercase"
                 />
                 <p className="text-xs text-muted-foreground">
-                  2-4 uppercase letters/numbers (e.g., BLD1, WH, MAIN)
+                  2-5 uppercase letters/numbers (e.g., BLD1, WH, MAIN1)
                 </p>
               </div>
 
