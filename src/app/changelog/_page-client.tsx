@@ -23,10 +23,36 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.13.2',
+    version: '19.13.3',
     date: 'April 20, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Payment Timeline (All Months), Logo Double-Prefix, Ops Agent TPM & Sidebar Colors',
+    highlights: [
+      'Cash Flow Timeline now shows every month with data — no lookback or lookahead limits; chart is purely data-driven.',
+      'Company logo double-prefix (/ots/ots/uploads/...) fixed: upload route stores canonical paths; resolveUploadUrl() adds basePath once at render time.',
+      'Ops Agent Groq TPM tightened: tool results truncated to 3 000 chars, max_tokens reduced to 2 000 (~9 000 token budget, safely under 12 000 TPM).',
+      'EWS stale alert text now updates on re-detection — renamed tasks propagate to existing open alerts without waiting for expiry.',
+      'Sidebar collapse arrow and username are now visible on the dark navy background (text-sidebar-foreground tokens).',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Payment schedule Cash Flow Timeline: removed 3-month lookback filter and 18-month slice — chart shows all months with pending or collected data',
+        'Company logo double-prefix: upload route no longer prepends NEXT_PUBLIC_BASE_PATH; resolveUploadUrl() in sidebar/aging/settings/WPS deduplicates the prefix',
+        'Ops Agent HTTP 413: tool result cap tightened to 3 000 chars; max_tokens reduced to 2 000',
+        'EWS: createRiskEvent now refreshes reason/recommendedAction of existing unresolved events so stale task-UUID text is replaced immediately',
+        'EWS: DOCUMENTATION WorkUnits with no mapped tracker activities auto-resolve their open events (clears lingering arch_approval alerts)',
+        'Sidebar: collapse arrow and username invisible on dark navy — fixed with text-sidebar-foreground; role sub-text uses text-sidebar-foreground/60',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '19.13.2',
+    date: 'April 20, 2026',
+    type: 'patch',
+    status: 'previous' as const,
     mainTitle: 'Payment Timeline, Logo 404, Ops Agent TPM & Risk Dashboard Fixes',
     highlights: [
       'Cash Flow Timeline in the payment schedule report now anchors to the current month (−3 to +15 months) instead of showing only the oldest 12 months — April 2026 and future payments are visible.',

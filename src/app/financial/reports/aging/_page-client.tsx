@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Loader2, Clock, Printer, ChevronDown, ChevronRight, ArrowLeft, Search } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, resolveUploadUrl } from '@/lib/utils';
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -174,7 +174,7 @@ export default function AgingReportPage() {
             <div className="flex items-center gap-3">
               {companyLogo ? (
                 <img
-                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${companyLogo.startsWith('/') ? companyLogo : '/' + companyLogo}`}
+                  src={resolveUploadUrl(companyLogo)}
                   alt="Company Logo"
                   className="h-14 max-w-[200px] object-contain"
                 />

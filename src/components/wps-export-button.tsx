@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { generateWPSPDF } from '@/lib/wps-pdf-generator';
 import { generateAWSWPSPDF } from '@/lib/wps-aws-d1-pdf-generator';
+import { resolveUploadUrl } from '@/lib/utils';
 
 type WPSExportButtonProps = {
   wps: any;
@@ -49,8 +50,7 @@ export function WPSExportButton({ wps }: WPSExportButtonProps) {
       let logoBase64: string | undefined;
       if (settings?.companyLogo) {
         try {
-          const logoUrl = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}${settings.companyLogo.startsWith('/') ? settings.companyLogo : '/' + settings.companyLogo}`;
-          logoBase64 = await imageToBase64(logoUrl);
+          logoBase64 = await imageToBase64(resolveUploadUrl(settings.companyLogo));
         } catch (error) {
           console.error('Error converting logo to base64:', error);
         }

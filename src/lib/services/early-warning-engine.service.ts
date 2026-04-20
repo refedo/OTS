@@ -124,7 +124,9 @@ export class EarlyWarningEngineService {
   }
 
   /**
-   * Create a RiskEvent if it doesn't already exist (idempotent)
+   * Create a RiskEvent if it doesn't already exist (idempotent).
+   * If an unresolved event already exists, refresh its reason and recommendedAction
+   * so display text stays current (e.g. after upgrading from UUIDs to names).
    */
   private static async createRiskEvent(
     input: RiskEventInput,
@@ -137,6 +139,11 @@ export class EarlyWarningEngineService {
     });
 
     if (existing && !existing.resolvedAt) {
+      // Refresh reason/action text in case display format improved (e.g. UUIDs → names)
+      await prisma.riskEvent.update({
+        where: { id: existing.id },
+        data: { reason: input.reason, recommendedAction: input.recommendedAction },
+      });
       return { created: false, id: existing.id };
     }
 
@@ -720,7 +727,12 @@ export class EarlyWarningEngineService {
 
         // Evaluate each WorkUnit type independently
         for (const [workUnitType, trackerActivities] of Object.entries(WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES)) {
-          if (trackerActivities.length === 0) continue;
+          if (trackerActivities.length === 0) {
+            // Decommissioned activity — auto-resolve any open alert for this project/type
+            const fp = this.generateFingerprint(RiskType.DELAY, [projectId], `tracker_lag:${workUnitType}`);
+            await this.autoResolveIfOpen(fp, 100);
+            continue;
+          }
 
           // Get the planned timeline for this type in this project (aggregate min start / max end)
           const timeline = await prisma.workUnit.aggregate({

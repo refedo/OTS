@@ -2,7 +2,7 @@
 // Force recompile - v15.0.0
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, resolveUploadUrl } from '@/lib/utils';
 import {
   LayoutDashboard,
   Users,
@@ -528,7 +528,7 @@ export function AppSidebar() {
               <div className="flex items-center gap-2">
                 {isMounted && companyLogo ? (
                   <img
-                    src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${companyLogo.startsWith('/') ? companyLogo : '/' + companyLogo}`}
+                    src={resolveUploadUrl(companyLogo)}
                     alt="Company Logo"
                     className="h-8 max-w-[120px] object-contain"
                   />
@@ -546,7 +546,7 @@ export function AppSidebar() {
               variant="ghost"
               size="icon"
               onClick={() => setCollapsed(!collapsed)}
-              className="ml-auto"
+              className="ml-auto text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <ChevronLeft className={cn('size-4 transition-transform', collapsed && 'rotate-180')} />
             </Button>

@@ -948,13 +948,7 @@ function CashFlowTimeline({
       }
     }
 
-    const _today = new Date();
-    const _d3ago = new Date(_today.getFullYear(), _today.getMonth() - 3, 1);
-    const minKey = `${_d3ago.getFullYear()}-${String(_d3ago.getMonth() + 1).padStart(2, '0')}`;
-    const months = Array.from(new Set([...pending.keys(), ...collected.keys()]))
-      .sort()
-      .filter(m => m >= minKey)
-      .slice(0, 18);
+    const months = Array.from(new Set([...pending.keys(), ...collected.keys()])).sort();
 
     const totExp = Array.from(pending.values()).reduce((s, v) => s + v, 0);
     const totCol = Array.from(collected.values()).reduce((s, v) => s + v, 0);
