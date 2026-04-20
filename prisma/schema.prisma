@@ -5655,18 +5655,37 @@ model HrPolicy {
   @@map("HrPolicy")
 }
 
-model HrOnboardingTask {
-  id          String   @id @default(uuid()) @db.Char(36)
-  labelEn     String   @db.VarChar(255)
-  labelAr     String?  @db.VarChar(255)
-  description String?  @db.VarChar(1000)
-  sortOrder   Int      @default(0)
-  isRequired  Boolean  @default(true)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model HrOnboardingChecklist {
+  id           String             @id @default(uuid()) @db.Char(36)
+  nameEn       String             @db.VarChar(255)
+  nameAr       String?            @db.VarChar(255)
+  description  String?            @db.Text
+  forPositions String?            @db.Text
+  isDefault    Boolean            @default(false)
+  isActive     Boolean            @default(true)
+  sortOrder    Int                @default(0)
+  tasks        HrOnboardingTask[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
-  @@index([sortOrder])
+  @@index([isActive, sortOrder])
+  @@map("HrOnboardingChecklist")
+}
+
+model HrOnboardingTask {
+  id          String                  @id @default(uuid()) @db.Char(36)
+  checklistId String?                 @db.Char(36)
+  checklist   HrOnboardingChecklist?  @relation(fields: [checklistId], references: [id])
+  labelEn     String                  @db.VarChar(500)
+  labelAr     String?                 @db.VarChar(500)
+  description String?                 @db.VarChar(1000)
+  sortOrder   Int                     @default(0)
+  isRequired  Boolean                 @default(true)
+  isActive    Boolean                 @default(true)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([checklistId, isActive, sortOrder])
   @@map("HrOnboardingTask")
 }
 
