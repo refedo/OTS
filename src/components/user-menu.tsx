@@ -125,7 +125,7 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="flex items-center gap-2 px-2 py-1.5 h-auto"
+          className="flex items-center gap-2 px-2 py-1.5 h-auto text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
@@ -133,12 +133,12 @@ export function UserMenu() {
             </AvatarFallback>
           </Avatar>
           <div className="hidden md:flex flex-col items-start text-left">
-            <span className="text-sm font-medium leading-none">{user.name}</span>
-            <span className="text-xs text-muted-foreground leading-none mt-0.5">
+            <span className="text-sm font-medium leading-none text-sidebar-foreground">{user.name}</span>
+            <span className="text-xs leading-none mt-0.5 text-sidebar-foreground/60">
               {user.role?.name || 'User'}
             </span>
           </div>
-          <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
+          <ChevronDown className="h-4 w-4 text-sidebar-foreground/60 hidden md:block" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

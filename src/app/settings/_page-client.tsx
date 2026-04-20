@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { resolveUploadUrl } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -358,7 +359,7 @@ export default function SettingsPage() {
                     {logoPreview && (
                       <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
                         <img
-                          src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${logoPreview.startsWith('/') ? logoPreview : '/' + logoPreview}`}
+                          src={resolveUploadUrl(logoPreview)}
                           alt="Company Logo"
                           className="max-w-full max-h-full object-contain"
                         />
