@@ -62,11 +62,13 @@ export function BuildingDialog({ projectId, building, open, onOpenChange, onSave
     setError('');
 
     const formData = new FormData(e.currentTarget);
-    const data = {
-      designation: (formData.get('designation') as string || '').toUpperCase(),
+    const data: Record<string, string | null> = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
     };
+    if (!building) {
+      data.designation = (formData.get('designation') as string || '').toUpperCase();
+    }
 
     try {
       const url = building

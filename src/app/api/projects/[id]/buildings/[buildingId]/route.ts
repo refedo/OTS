@@ -71,23 +71,10 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid input', details: parsed.error }, { status: 400 });
   }
 
-  const existing = await prisma.building.findUnique({
-    where: { id: params.buildingId },
-    select: { name: true },
-  });
-
   const building = await prisma.building.update({
     where: { id: params.buildingId },
     data: parsed.data,
   });
-
-  // When the building name changes, cascade the update to LcrEntry raw name references
-  if (parsed.data.name && existing && existing.name !== parsed.data.name) {
-    await prisma.lcrEntry.updateMany({
-      where: { buildingId: params.buildingId },
-      data: { buildingNameRaw: parsed.data.name },
-    });
-  }
 
   return NextResponse.json(building);
 }
