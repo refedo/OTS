@@ -118,10 +118,13 @@ function buildFullName(apiUser: DolibarrUser): string {
 type EmployeeStatus = 'ACTIVE' | 'ON_LEAVE' | 'SUSPENDED' | 'TERMINATED' | 'RESIGNED';
 
 function mapStatus(apiUser: DolibarrUser): EmployeeStatus {
+  const statut = apiUser.statut === undefined ? '1' : String(apiUser.statut);
+  // Dolibarr statut=1 means the user account is active — trust it as ACTIVE
+  // regardless of dateemploymentend (contract end date ≠ employment end date
+  // for renewable contracts common in Saudi Arabia).
+  if (statut === '1') return 'ACTIVE';
   const leavingTs = tsToDate(apiUser.dateemploymentend);
   if (leavingTs && leavingTs.getTime() < Date.now()) return 'TERMINATED';
-  const statut = apiUser.statut === undefined ? '1' : String(apiUser.statut);
-  if (statut === '1') return 'ACTIVE';
   return 'TERMINATED';
 }
 
