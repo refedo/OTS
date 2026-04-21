@@ -1,11 +1,94 @@
 'use client';
 
-import { ChevronDown, ChevronRight, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertCircle, AlertTriangle, CheckCircle2, PlusCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { OpsBrief } from '@/lib/ops-agent/parsers';
 
 interface OpsBriefViewProps {
   run: Record<string, unknown>;
+}
+
+// Fields that carry no human value in the UI
+const SKIP_KEYS = new Set([
+  'id', 'jobId', 'projectId', 'isStale', 'isOverdue', 'atRisk',
+  'lastActivity', 'deliveryDate',
+]);
+
+// Keys treated as the primary display name (shown bold at the top)
+const NAME_KEYS = ['title', 'name', 'jobName'];
+
+function formatValue(key: string, value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return null;
+  if (typeof value === 'object') {
+    // Nested object (e.g. assignee: { id, name }) — show the name sub-field only
+    const nested = value as Record<string, unknown>;
+    return nested.name ? String(nested.name) : null;
+  }
+  if (typeof value === 'string' && /\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  if (key.toLowerCase().includes('days')) return `${value} days`;
+  return String(value);
+}
+
+function ModuleItemRow({ item }: { item: Record<string, unknown> }) {
+  const primaryLabel =
+    (NAME_KEYS.map((k) => item[k]).find((v) => v != null) as string | undefined) ?? '—';
+
+  const metaPairs: [string, string][] = [];
+  for (const [k, v] of Object.entries(item)) {
+    if (SKIP_KEYS.has(k) || NAME_KEYS.includes(k)) continue;
+    const formatted = formatValue(k, v);
+    if (formatted === null) continue;
+    // Humanise the key label
+    const label = k
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (s) => s.toUpperCase())
+      .trim();
+    metaPairs.push([label, formatted]);
+    if (metaPairs.length >= 4) break;
+  }
+
+  return (
+    <div className="px-4 py-2.5 flex flex-col gap-0.5">
+      <span className="text-xs font-medium text-slate-700">{primaryLabel}</span>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+        {metaPairs.map(([label, val]) => (
+          <span key={label} className="text-xs text-slate-500">
+            <span className="text-slate-400">{label}: </span>
+            {val}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ModuleSection({ title, count, items }: { title: string; count: number; items: Record<string, unknown>[] }) {
+  const [open, setOpen] = useState(false);
+  if (count === 0) return null;
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
+      >
+        <span className="text-sm font-medium text-slate-700">{title}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{count}</span>
+          {open ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
+        </div>
+      </button>
+      {open && items.length > 0 && (
+        <div className="divide-y">
+          {items.slice(0, 10).map((item, i) => (
+            <ModuleItemRow key={i} item={item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SeverityCard({ items, severity }: { items: OpsBrief['earlyWarning']['red']; severity: 'RED' | 'AMBER' | 'GREEN' }) {
@@ -37,35 +120,53 @@ function SeverityCard({ items, severity }: { items: OpsBrief['earlyWarning']['re
   );
 }
 
-function ModuleSection({ title, count, items }: { title: string; count: number; items: Record<string, unknown>[] }) {
-  const [open, setOpen] = useState(false);
-  if (count === 0) return null;
+interface ActionEntry {
+  tool: string;
+  input: Record<string, unknown>;
+  result?: unknown;
+}
+
+function ActionsExecutedSection({ actionsExecuted, mode }: { actionsExecuted: ActionEntry[]; mode: string }) {
+  const createdTasks = actionsExecuted.filter((a) => a.tool === 'create_followup_task');
+  if (createdTasks.length === 0) return null;
+
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
-      >
-        <span className="text-sm font-medium text-slate-700">{title}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{count}</span>
-          {open ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
-        </div>
-      </button>
-      {open && items.length > 0 && (
-        <div className="divide-y">
-          {items.slice(0, 10).map((item, i) => (
-            <div key={i} className="px-4 py-2.5 text-xs text-slate-600">
-              {Object.entries(item).slice(0, 4).map(([k, v]) => (
-                <span key={k} className="mr-3">
-                  <span className="text-slate-400">{k}: </span>
-                  <span>{String(v)}</span>
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <PlusCircle className="h-4 w-4 text-violet-600 flex-shrink-0" />
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+          Tasks Created by Agent ({mode})
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {createdTasks.map((action, i) => {
+          const inp = action.input;
+          return (
+            <li key={i} className="bg-white rounded-lg border border-violet-100 px-3 py-2">
+              <p className="text-xs font-medium text-slate-700">{String(inp.title ?? '—')}</p>
+              {inp.description && (
+                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{String(inp.description)}</p>
+              )}
+              <div className="flex gap-3 mt-1">
+                {inp.priority && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                    inp.priority === 'CRITICAL' || inp.priority === 'HIGH'
+                      ? 'bg-rose-100 text-rose-700'
+                      : inp.priority === 'MEDIUM'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>{String(inp.priority)}</span>
+                )}
+                {inp.related_entity_type && (
+                  <span className="text-xs text-slate-400">
+                    Re: {String(inp.related_entity_type)}
+                  </span>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -75,6 +176,8 @@ export function OpsBriefView({ run }: OpsBriefViewProps) {
   if (!brief) return null;
 
   const { earlyWarning, modules, recommendedActions, summary } = brief;
+  const mode = (run.mode as string | undefined) ?? '';
+  const actionsExecuted = (run.actionsExecuted as ActionEntry[] | undefined) ?? [];
 
   return (
     <div className="rounded-2xl border bg-white shadow-sm">
@@ -83,6 +186,9 @@ export function OpsBriefView({ run }: OpsBriefViewProps) {
         <p className="text-xs text-slate-500 mt-0.5">{summary}</p>
       </div>
       <div className="p-6 space-y-4">
+        {/* Agent-created tasks (ANNOTATE / FULL_ACTOR) */}
+        <ActionsExecutedSection actionsExecuted={actionsExecuted} mode={mode} />
+
         {/* Early Warning */}
         <div className="space-y-3">
           <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Early Warning Signals</p>

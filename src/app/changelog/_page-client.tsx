@@ -23,10 +23,30 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.13.4',
+    date: 'April 21, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Ops Agent: Named Items in Module Breakdown & FULL_ACTOR Task Alerts',
+    highlights: [
+      'Module Breakdown now shows entity names/titles instead of raw UUIDs — IDs, boolean flags, and raw timestamps are hidden.',
+      'When the agent runs in FULL_ACTOR or ANNOTATE mode and creates tasks, a violet alert banner lists every created task at the top of the Ops Brief.',
+    ],
+    changes: {
+      added: [
+        'Violet "Tasks Created by Agent" banner in Ops Brief: appears whenever the agent calls create_followup_task, showing task title, description, priority badge, and related entity type',
+      ],
+      fixed: [
+        'Module Breakdown items: raw UUID fields (id, jobId, projectId) hidden; entity name/title shown bold; nested objects display only the human-readable name sub-field; dates formatted as "DD Mon YYYY"; daysSince/daysStuck values auto-append "days"',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '19.13.3',
     date: 'April 20, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Payment Timeline (All Months), Logo Double-Prefix, Ops Agent TPM & Sidebar Colors',
     highlights: [
       'Cash Flow Timeline now shows every month with data — no lookback or lookahead limits; chart is purely data-driven.',
