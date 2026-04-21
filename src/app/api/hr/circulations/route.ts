@@ -86,6 +86,12 @@ export const GET = withApiContext(async (req: NextRequest) => {
     });
     return NextResponse.json(circulations);
   } catch (error) {
+    // Table may not exist yet if startup migration hasn't run — return empty array
+    const errMsg = String(error);
+    if (errMsg.includes("doesn't exist") || errMsg.includes('P2021') || errMsg.toLowerCase().includes('table')) {
+      logger.warn({}, 'HrCirculation table not ready — migration pending');
+      return NextResponse.json([]);
+    }
     logger.error({ error }, 'Failed to fetch circulations');
     return NextResponse.json({ error: 'Failed to fetch circulations' }, { status: 500 });
   }
@@ -168,6 +174,10 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
     } catch (error: unknown) {
       const isPrismaUnique = typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002';
       if (isPrismaUnique && attempt < 4) continue;
+      const errMsg = String(error);
+      if (errMsg.includes("doesn't exist") || errMsg.includes('P2021') || errMsg.toLowerCase().includes('table')) {
+        return NextResponse.json({ error: 'Circulations table not ready — please restart the server to apply migrations' }, { status: 503 });
+      }
       logger.error({ error }, 'Failed to create circulation');
       return NextResponse.json({ error: 'Failed to create circulation' }, { status: 500 });
     }

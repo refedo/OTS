@@ -42,6 +42,12 @@ export const GET = withApiContext(async (req: NextRequest) => {
     });
     return NextResponse.json(templates);
   } catch (error) {
+    // Table may not exist yet if startup migration hasn't run — return empty array
+    const errMsg = String(error);
+    if (errMsg.includes("doesn't exist") || errMsg.includes('P2021') || errMsg.toLowerCase().includes('table')) {
+      logger.warn({}, 'HrLetterTemplate table not ready — migration pending');
+      return NextResponse.json([]);
+    }
     logger.error({ error }, 'Failed to fetch letter templates');
     return NextResponse.json({ error: 'Failed to fetch templates' }, { status: 500 });
   }
