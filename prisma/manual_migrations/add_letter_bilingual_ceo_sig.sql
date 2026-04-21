@@ -1,28 +1,13 @@
 -- 19.15.1 — Add contentEn to HrLetter (bilingual translation storage)
---           Add ceoSignatureUrl to SystemSettings (CEO signature image)
+--           Add ceoSignatureUrl to system_settings (CEO signature image)
+--           Widen letterNumber to VARCHAR(100) to support longer serial masks
+-- Direct ALTER TABLE approach — no stored procedures (CREATE PROCEDURE fails
+-- with error 1295 in Prisma's prepared-statement protocol).
+-- Duplicate-column errors (1060) on re-run are caught as non-fatal by the
+-- startup migration runner and startup continues normally.
 
-DROP PROCEDURE IF EXISTS add_letter_bilingual_ceo_sig;
-DELIMITER $$
-CREATE PROCEDURE add_letter_bilingual_ceo_sig()
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'HrLetter'
-      AND COLUMN_NAME = 'contentEn'
-  ) THEN
-    ALTER TABLE HrLetter ADD COLUMN contentEn TEXT NULL;
-  END IF;
+ALTER TABLE HrLetter ADD COLUMN contentEn TEXT NULL;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'SystemSettings'
-      AND COLUMN_NAME = 'ceoSignatureUrl'
-  ) THEN
-    ALTER TABLE SystemSettings ADD COLUMN ceoSignatureUrl VARCHAR(1000) NULL;
-  END IF;
-END$$
-DELIMITER ;
-CALL add_letter_bilingual_ceo_sig();
-DROP PROCEDURE IF EXISTS add_letter_bilingual_ceo_sig;
+ALTER TABLE HrLetter MODIFY COLUMN letterNumber VARCHAR(100) NOT NULL;
+
+ALTER TABLE system_settings ADD COLUMN ceoSignatureUrl VARCHAR(1000) NULL;
