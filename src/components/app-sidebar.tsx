@@ -365,6 +365,7 @@ export function AppSidebar() {
     } catch { /* ignore */ }
   }, []);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [logoLoadError, setLogoLoadError] = useState(false);
   const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
   const { unreadCount, totalAlertCount, delayedTasksCount, deadlinesCount, taskMessageCount } = useNotifications();
   const { version } = useVersion();
@@ -427,7 +428,7 @@ export function AppSidebar() {
     // Fetch company logo from settings
     fetch('/api/settings')
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.companyLogo) setCompanyLogo(data.companyLogo); })
+      .then(data => { if (data?.companyLogo) { setCompanyLogo(data.companyLogo); setLogoLoadError(false); } })
       .catch(() => { /* non-critical */ });
   }, []);
 
@@ -529,11 +530,12 @@ export function AppSidebar() {
           <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
             {!collapsed && (
               <div className="flex items-center gap-2">
-                {isMounted && companyLogo ? (
+                {isMounted && companyLogo && !logoLoadError ? (
                   <img
                     src={resolveUploadUrl(companyLogo)}
                     alt="Company Logo"
                     className="h-8 max-w-[120px] object-contain"
+                    onError={() => setLogoLoadError(true)}
                   />
                 ) : (
                   <>

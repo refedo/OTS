@@ -287,60 +287,92 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
     return Array.from(grouped.values());
   }, [filteredBuildings]);
 
+  // KPI counts
+  const totalWeight = buildings.reduce((sum, b) => sum + (b.weight ?? 0), 0);
+  const uniqueProjects = new Set(buildings.map(b => b.project.id)).size;
+  const uniqueClients = new Set(buildings.map(b => b.project.client.id)).size;
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-20">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Building2 className="size-8" />
-              All Buildings
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Overview of all buildings across projects
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setShowAddDialog(true)}
-              size="sm"
-            >
-              <Plus className="size-4 mr-2" />
-              Add Building
-            </Button>
-            {selectedIds.size > 0 && (
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 max-lg:pt-20 space-y-6">
+
+        {/* Hero Banner */}
+        <div className="rounded-2xl border bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <h1 className="text-2xl font-bold">All Buildings</h1>
+              </div>
+              <p className="text-emerald-100 text-sm">Overview of all structural buildings across active projects</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="bg-red-500/20 border-red-300/40 text-white hover:bg-red-500/30 hover:text-white"
+                >
+                  <Trash2 className="size-4 mr-2" />
+                  Delete ({selectedIds.size})
+                </Button>
+              )}
+              <div className="flex gap-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className={viewMode === 'table' ? 'bg-white text-emerald-700 hover:bg-emerald-50' : 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white'}
+                >
+                  <List className="size-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className={viewMode === 'grid' ? 'bg-white text-emerald-700 hover:bg-emerald-50' : 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white'}
+                >
+                  <LayoutGrid className="size-4" />
+                </Button>
+              </div>
               <Button
-                variant="destructive"
+                onClick={() => setShowAddDialog(true)}
+                className="bg-white text-emerald-700 hover:bg-emerald-50 font-semibold"
                 size="sm"
-                onClick={() => setShowDeleteDialog(true)}
               >
-                <Trash2 className="size-4 mr-2" />
-                Delete ({selectedIds.size})
-              </Button>
-            )}
-            <Badge variant="secondary" className="text-sm">
-              {filteredBuildings.length} {filteredBuildings.length === 1 ? 'Building' : 'Buildings'}
-            </Badge>
-            <Badge variant="secondary" className="text-sm">
-              {buildingsByProject.length} {buildingsByProject.length === 1 ? 'Project' : 'Projects'}
-            </Badge>
-            <div className="flex gap-1 ml-2">
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-              >
-                <List className="size-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="size-4" />
+                <Plus className="size-4 mr-2" />
+                Add Building
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* KPI Tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
+            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Total Buildings</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">{buildings.length}</p>
+            <p className="text-xs text-emerald-500 mt-0.5">{filteredBuildings.length} shown</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+            <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Projects</p>
+            <p className="text-2xl font-bold text-sky-700 mt-1">{buildingsByProject.length}</p>
+            <p className="text-xs text-sky-500 mt-0.5">{uniqueProjects} unique</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm">
+            <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Clients</p>
+            <p className="text-2xl font-bold text-violet-700 mt-1">{uniqueClients}</p>
+            <p className="text-xs text-violet-500 mt-0.5">across all projects</p>
+          </div>
+          <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm">
+            <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Weight</p>
+            <p className="text-2xl font-bold text-amber-700 mt-1">{totalWeight > 0 ? `${totalWeight.toLocaleString('en-US', { maximumFractionDigits: 1 })}` : '—'}</p>
+            <p className="text-xs text-amber-500 mt-0.5">tonnes (plan)</p>
           </div>
         </div>
 

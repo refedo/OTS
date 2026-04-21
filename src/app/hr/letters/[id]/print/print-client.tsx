@@ -112,6 +112,24 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
     );
   }
 
+  function UnapprovedWatermark({ dir }: { dir: 'rtl' | 'ltr' }) {
+    if (isApproved) return null;
+    return (
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden"
+        style={{ zIndex: 5 }}
+        aria-hidden="true"
+      >
+        <div
+          className="font-black text-red-500 opacity-[0.12] rotate-[-35deg] text-center leading-tight"
+          style={{ fontSize: 'clamp(40px, 8vw, 80px)', userSelect: 'none', whiteSpace: 'nowrap' }}
+        >
+          {dir === 'rtl' ? 'غير معتمد' : 'NOT APPROVED'}
+        </div>
+      </div>
+    );
+  }
+
   function ApprovalStamp({ dir }: { dir: 'rtl' | 'ltr' }) {
     if (!isApproved) return null;
     return (
@@ -193,6 +211,13 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
         </div>
       </div>
 
+      {/* Unapproved banner — visible on screen and in print */}
+      {!isApproved && (
+        <div className="bg-red-600 text-white text-center py-2 px-4 font-bold text-sm tracking-wide print:block">
+          ⚠ NOT APPROVED — هذا الخطاب غير معتمد — Do not distribute before CEO approval
+        </div>
+      )}
+
       <style>{`
         @media print {
           @page { size: A4; margin: 20mm 15mm; }
@@ -206,7 +231,8 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
 
           {/* ── ARABIC VERSION ── */}
           {showAr && (
-            <div dir="rtl" className={lang === 'BILINGUAL' ? 'mb-12 pb-10 border-b-2 border-slate-300' : ''}>
+            <div dir="rtl" className={`relative ${lang === 'BILINGUAL' ? 'mb-12 pb-10 border-b-2 border-slate-300' : ''}`}>
+              <UnapprovedWatermark dir="rtl" />
               <Letterhead dir="rtl" />
 
               <div className="flex justify-between items-start mb-8">
@@ -255,7 +281,8 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
 
           {/* ── ENGLISH VERSION ── */}
           {showEn && (
-            <div dir="ltr">
+            <div dir="ltr" className="relative">
+              <UnapprovedWatermark dir="ltr" />
               <Letterhead dir="ltr" />
 
               <div className="flex justify-between items-start mb-8">

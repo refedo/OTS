@@ -11,6 +11,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
+import { resolveUserPermissions } from '@/lib/services/permission-resolution.service';
 
 const createSchema = z.object({
   assetCode: z.string().min(1).max(50),
@@ -47,16 +48,30 @@ const createSchema = z.object({
   })).nullish(),
 });
 
-export const GET = withApiContext(async (req: NextRequest) => {
+export const GET = withApiContext(async (req: NextRequest, session) => {
   const { searchParams } = new URL(req.url);
   const category = searchParams.get('category');
   const status = searchParams.get('status');
   const search = searchParams.get('search');
 
+  // If user only has viewOwn (not view/manage), restrict to own assigned assets
+  let ownEmployeeId: string | null = null;
+  if (session) {
+    const perms = await resolveUserPermissions(session.userId);
+    const canViewAll = perms.includes('hr.assets.view') || perms.includes('hr.assets.manage');
+    if (!canViewAll && perms.includes('hr.assets.viewOwn')) {
+      const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { employeeId: true } });
+      ownEmployeeId = user?.employeeId ?? null;
+    }
+  }
+
   try {
     const assets = await prisma.asset.findMany({
       where: {
         deletedAt: null,
+        ...(ownEmployeeId ? {
+          assignments: { some: { employeeId: ownEmployeeId, status: 'ACTIVE', deletedAt: null } },
+        } : {}),
         ...(category ? { category: category as AssetCategory } : {}),
         ...(status ? { status: status as AssetStatus } : {}),
         ...(search

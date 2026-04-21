@@ -12,7 +12,7 @@ export default async function AssetsPage() {
   if (!session) redirect('/login');
 
   const permissions = await getCurrentUserPermissions();
-  const canView = permissions.includes('hr.assets.view') || permissions.includes('hr.assets.manage');
+  const canView = permissions.includes('hr.assets.view') || permissions.includes('hr.assets.manage') || permissions.includes('hr.assets.viewOwn');
   if (!canView) redirect('/unauthorized?from=/hr/assets');
 
   return (
