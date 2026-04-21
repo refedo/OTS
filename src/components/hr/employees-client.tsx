@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Users,
   Plus,
@@ -29,6 +32,9 @@ import {
   LayoutList,
   LayoutGrid,
   FileSpreadsheet,
+  Upload,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -116,6 +122,10 @@ export function EmployeesClient({
   const [sortKey, setSortKey] = useState<SortKey>('employmentId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
+  const [importOpen, setImportOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; errors: string[] } | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -248,7 +258,29 @@ export function EmployeesClient({
     XLSX.writeFile(wb, `OTS_Employees_${date}.xlsx`);
   };
 
+  const handleImportFile = async (file: File) => {
+    setImportLoading(true);
+    setImportResult(null);
+    try {
+      const XLSX = await import('xlsx');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { raw: false, dateNF: 'yyyy-mm-dd' });
+      const res = await fetch('/api/hr/employees/import', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rows),
+      });
+      const data = await res.json();
+      if (!res.ok) { setImportResult({ created: 0, updated: 0, skipped: 0, errors: [data.error ?? 'Import failed'] }); return; }
+      setImportResult(data);
+    } catch (e) {
+      setImportResult({ created: 0, updated: 0, skipped: 0, errors: [e instanceof Error ? e.message : 'Parse error'] });
+    } finally { setImportLoading(false); }
+  };
+
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
@@ -289,6 +321,14 @@ export function EmployeesClient({
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Export Excel
               </Button>
+              {canCreate && (
+                <Button variant="outline" size="sm"
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                  onClick={() => { setImportResult(null); setImportOpen(true); }}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import Excel
+                </Button>
+              )}
               <Link href="/hr/employees/sync">
                 <Button variant="outline" size="sm"
                   className="bg-white/10 border-white/30 text-white hover:bg-white/20">
@@ -668,5 +708,94 @@ export function EmployeesClient({
         </div>
       </div>
     </div>
+
+    {/* Import Dialog */}
+    <Dialog open={importOpen} onOpenChange={v => { if (!v) { setImportOpen(false); setImportResult(null); } }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Import Employees from Excel</DialogTitle>
+          <DialogDescription>
+            Upload the OTS employee export file (or a file with the same column names) to create or update employee records.
+            Rows are matched by <strong>Employment ID</strong> — existing employees will be updated, new ones created.
+          </DialogDescription>
+        </DialogHeader>
+
+        {importResult ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-3 text-center">
+                <p className="text-xs text-emerald-600 font-medium">Created</p>
+                <p className="text-2xl font-bold text-emerald-700">{importResult.created}</p>
+              </div>
+              <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-3 text-center">
+                <p className="text-xs text-sky-600 font-medium">Updated</p>
+                <p className="text-2xl font-bold text-sky-700">{importResult.updated}</p>
+              </div>
+              <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-3 text-center">
+                <p className="text-xs text-amber-600 font-medium">Skipped</p>
+                <p className="text-2xl font-bold text-amber-700">{importResult.skipped}</p>
+              </div>
+            </div>
+            {importResult.errors.length > 0 && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 space-y-1 max-h-40 overflow-y-auto">
+                <p className="text-xs font-semibold text-rose-700">Errors ({importResult.errors.length})</p>
+                {importResult.errors.map((e, i) => <p key={i} className="text-xs text-rose-600">{e}</p>)}
+              </div>
+            )}
+            {importResult.created + importResult.updated > 0 && (
+              <div className="flex items-center gap-2 text-emerald-700 text-sm">
+                <CheckCircle2 className="h-4 w-4" />
+                Import completed. Refresh the page to see updated data.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div
+              className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-sky-300 hover:bg-sky-50/30 transition-colors"
+              onClick={() => importFileRef.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImportFile(f); }}
+            >
+              {importLoading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+                  <p className="text-sm text-slate-500">Processing...</p>
+                </div>
+              ) : (
+                <>
+                  <Upload className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-slate-600">Click or drag & drop your Excel file</p>
+                  <p className="text-xs text-slate-400 mt-1">.xlsx or .xls — same columns as the export file</p>
+                </>
+              )}
+            </div>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ''; }}
+            />
+            <div className="rounded-xl bg-slate-50 border p-3 text-xs text-slate-500 space-y-1">
+              <p className="font-semibold text-slate-600">Required column:</p>
+              <p>• <strong>Employment ID</strong> — used to match existing records</p>
+              <p className="font-semibold text-slate-600 mt-1">Optional columns (same as export):</p>
+              <p>Full Name (EN), Full Name (AR), Status, Position Title, Department, Date of Joining, etc.</p>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { setImportOpen(false); setImportResult(null); }}>
+            {importResult ? 'Close' : 'Cancel'}
+          </Button>
+          {importResult && importResult.created + importResult.updated > 0 && (
+            <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

@@ -14,13 +14,10 @@ export default async function LoansPage() {
 
   const perms = await getCurrentUserPermissions();
   const canView = perms.includes('hr.loans.view') || perms.includes('hr.loans.manage');
-  // Regular employees can see their own page too (via linked employee)
-  // but we still require at least loan-view or being an employee — allow access if any HR perm
-  if (!canView && !perms.includes('hr.employee.view')) {
+  const canViewOwn = perms.includes('hr.loans.viewOwn');
+  if (!canView && !canViewOwn) {
     redirect('/unauthorized?from=/hr/loans');
   }
 
-  const canViewAll = canView;
-
-  return <LoansPageClient canViewAll={canViewAll} canManage={perms.includes('hr.loans.manage')} />;
+  return <LoansPageClient canViewAll={canView} canManage={perms.includes('hr.loans.manage')} />;
 }

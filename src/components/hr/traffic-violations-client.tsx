@@ -98,7 +98,7 @@ interface ViolationRow {
 interface EmployeeOption { id: string; fullNameEn: string; employmentId: string; }
 interface CarOption { id: string; assetCode: string; name: string; plateNumber: string | null; }
 
-interface Props { canManage: boolean; }
+interface Props { canManage: boolean; viewOwnEmployeeId?: string | null; }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -392,7 +392,8 @@ function DeleteDialog({ open, violation, onClose, onDeleted }: {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function TrafficViolationsClient({ canManage }: Props) {
+export function TrafficViolationsClient({ canManage, viewOwnEmployeeId }: Props) {
+  const viewOwnOnly = !!viewOwnEmployeeId;
   const [violations, setViolations] = useState<ViolationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -406,11 +407,12 @@ export function TrafficViolationsClient({ canManage }: Props) {
     try {
       const params = new URLSearchParams();
       if (filterStatus) params.set('status', filterStatus);
+      if (viewOwnEmployeeId) params.set('employeeId', viewOwnEmployeeId);
       const res = await fetch(`/api/hr/traffic-violations?${params}`);
       const data = await res.json();
       setViolations(Array.isArray(data) ? data : []);
     } catch { setViolations([]); } finally { setLoading(false); }
-  }, [filterStatus]);
+  }, [filterStatus, viewOwnEmployeeId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -443,10 +445,12 @@ export function TrafficViolationsClient({ canManage }: Props) {
                 <h1 className="text-2xl font-bold">Traffic Violations</h1>
               </div>
               <p className="text-rose-100 text-sm">
-                Record and track traffic fines and infractions per employee. Flag company-paid violations for payroll deduction.
+                {viewOwnOnly
+                  ? 'Your traffic violations and infractions associated with company vehicles.'
+                  : 'Record and track traffic fines and infractions per employee. Flag company-paid violations for payroll deduction.'}
               </p>
             </div>
-            {canManage && (
+            {canManage && !viewOwnOnly && (
               <Button onClick={() => setCreateOpen(true)} className="bg-white text-rose-700 hover:bg-rose-50 border-0 shadow-sm">
                 <Plus className="h-4 w-4 mr-2" />Record Violation
               </Button>

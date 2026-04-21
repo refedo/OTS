@@ -14,7 +14,8 @@ export default async function CustodiesPage() {
 
   const perms = await getCurrentUserPermissions();
   const canView = perms.includes('hr.custodies.view') || perms.includes('hr.custodies.manage');
-  if (!canView && !perms.includes('hr.employee.view')) {
+  const canViewOwn = perms.includes('hr.custodies.viewOwn');
+  if (!canView && !canViewOwn) {
     redirect('/unauthorized?from=/hr/custodies');
   }
 
