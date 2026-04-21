@@ -11,6 +11,7 @@ const settingsSchema = z.object({
   companyName: z.string().min(1).optional(),
   companyTagline: z.string().optional(),
   companyLogo: emptyStringToNull.optional(),
+  ceoSignatureUrl: emptyStringToNull.optional(),
   companyAddress: emptyStringToNull.optional(),
   companyPhone: emptyStringToNull.optional(),
   companyEmail: z.string().email().or(z.literal('')).transform(val => val === '' ? null : val).nullable().optional(),

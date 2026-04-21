@@ -2572,7 +2572,8 @@ model SystemSettings {
   // Company Information
   companyName    String  @default("HEXA STEEL")
   companyTagline String  @default("THRIVE DIFFERENT")
-  companyLogo    String? // Path to logo file
+  companyLogo       String? // Path to logo file
+  ceoSignatureUrl   String? // Path to CEO signature image for letters
   companyAddress String? @db.Text
   companyPhone   String?
   companyEmail   String?
@@ -5500,6 +5501,7 @@ model HrLetter {
   employee       Employee         @relation("EmployeeLetters", fields: [employeeId], references: [id])
   subject        String           @db.VarChar(500)
   content        String?          @db.Text
+  contentEn      String?          @db.Text
   attachmentUrl  String?          @db.VarChar(1000)
   issuedAt       DateTime         @default(now()) @db.Date
   notes          String?          @db.VarChar(500)
