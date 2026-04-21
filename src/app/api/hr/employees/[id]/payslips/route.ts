@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { verifySession } from '@/lib/jwt';
-import { checkPermission } from '@/lib/permission-checker';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -20,10 +20,18 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const canView = await checkPermission('hr.payroll.view');
-  if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
   const { id } = await context.params;
+
+  const permissions = await getCurrentUserPermissions();
+  const canViewAll = permissions.includes('hr.payroll.view') || permissions.includes('hr.payroll.calculate');
+  let allowed = canViewAll;
+
+  if (!allowed && permissions.includes('hr.payroll.viewOwn')) {
+    const me = await prisma.user.findUnique({ where: { id: session.sub }, select: { employeeId: true } });
+    if (me?.employeeId === id) allowed = true;
+  }
+
+  if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const employee = await prisma.employee.findFirst({
     where: { id, deletedAt: null },

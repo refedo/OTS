@@ -333,6 +333,8 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.employee.viewCompensation', name: 'View Compensation', description: 'See employee salary and allowance fields', category: 'hr' },
       { id: 'hr.employee.sync', name: 'Sync Employees from Dolibarr', description: 'Trigger the Dolibarr → OTS employee mirror', category: 'hr' },
       { id: 'hr.employee.resetToDolibarr', name: 'Reset Employee to Dolibarr', description: 'Discard manual edits and re-pull an employee from Dolibarr on next sync', category: 'hr' },
+      // 19.14.0 — Employee self-service (viewOwn)
+      { id: 'hr.employee.viewOwn', name: 'View Own Employee Profile', description: 'Navigate to and view own HR profile page (read-only, no compensation fields). Granted to every employee-level role.', category: 'hr' },
       // 18.9.0 — Employment & salary history (HR/Payroll Phase 1)
       { id: 'hr.employee.positionHistory.view', name: 'View Position History', description: 'View each employee\u2019s timeline of position / department changes', category: 'hr' },
       { id: 'hr.employee.positionHistory.manage', name: 'Manage Position History', description: 'Record promotions, transfers, demotions, and role changes on the employee timeline', category: 'hr' },
@@ -373,13 +375,17 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.eos.pay', name: 'Mark EOS Paid', description: 'Mark an EOS award as paid', category: 'hr' },
       // 18.10.0 — Loans & Custodies
       { id: 'hr.loans.view', name: 'View Employee Loans', description: 'View loan records for all employees', category: 'hr' },
+      { id: 'hr.loans.viewOwn', name: 'View Own Loans', description: 'View own active and historical loan records (read-only, self-service)', category: 'hr' },
       { id: 'hr.loans.manage', name: 'Manage Employee Loans', description: 'Create, edit, and cancel employee loans', category: 'hr' },
       { id: 'hr.custodies.view', name: 'View Employee Custodies', description: 'View custody (cash advance / asset) records for all employees', category: 'hr' },
+      { id: 'hr.custodies.viewOwn', name: 'View Own Custodies', description: 'View own cash advances and custody records (read-only, self-service)', category: 'hr' },
       { id: 'hr.custodies.manage', name: 'Manage Employee Custodies', description: 'Create, edit, settle, and cancel employee custodies', category: 'hr' },
       // 18.12.0 — Asset Management
       { id: 'hr.assets.view', name: 'View Assets', description: 'View company asset registry and employee assignments', category: 'hr' },
+      { id: 'hr.assets.viewOwn', name: 'View Own Asset Assignments', description: 'View assets currently or previously assigned to you (read-only, self-service)', category: 'hr' },
       { id: 'hr.assets.manage', name: 'Manage Assets', description: 'Create, edit, assign, return, and retire company assets', category: 'hr' },
       { id: 'hr.violations.view', name: 'View Traffic Violations', description: 'View traffic violations and infractions for employees', category: 'hr' },
+      { id: 'hr.violations.viewOwn', name: 'View Own Traffic Violations', description: 'View your own traffic violations and infraction records (read-only, self-service)', category: 'hr' },
       { id: 'hr.violations.manage', name: 'Manage Traffic Violations', description: 'Record, update, and close traffic violations and infractions', category: 'hr' },
       { id: 'hr.carMaintenance.view', name: 'View Car Maintenance', description: 'View vehicle maintenance records and service history', category: 'hr' },
       { id: 'hr.carMaintenance.manage', name: 'Manage Car Maintenance', description: 'Create and update vehicle maintenance and service records', category: 'hr' },
@@ -392,6 +398,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.contracts.manage', name: 'Manage Contracts', description: 'Create, edit, and delete contracts and documents; receive expiry notifications', category: 'hr' },
       // 18.16.0 — Letters & Correspondence
       { id: 'hr.letters.view', name: 'View Letters', description: 'View HR letters and correspondence issued to employees', category: 'hr' },
+      { id: 'hr.letters.viewOwn', name: 'View Own HR Letters', description: 'View HR letters and correspondence addressed to you (read-only, self-service)', category: 'hr' },
       { id: 'hr.letters.manage', name: 'Manage Letters', description: 'Create, edit, and delete HR letters and correspondence', category: 'hr' },
       { id: 'hr.letters.approveCeo', name: 'CEO-Approve Letters', description: 'Final CEO sign-off on HR letters — approve or reject letters pending approval', category: 'hr' },
       // 19.4.0 — HR Absence Analytics
@@ -511,6 +518,28 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.letters.manage',
     // 19.4.0 — HR Absence Analytics
     'hr.analytics.view',
+    // 19.14.0 — HR Self-Service (viewOwn — so HR staff can test as employees)
+    'hr.employee.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
+  ],
+  // 19.14.0 — Employee self-service role: base permissions for any OTS-linked employee
+  Employee: [
+    'notifications.view',
+    'announcements.view',
+    // HR self-service
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
   ],
   Manager: [
     // User Management
@@ -641,6 +670,16 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'project_tracker.export',
     // Executive Command Center
     'executive.view',
+    // 19.14.0 — HR Self-Service (Managers are employees too)
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
   ],
   Engineer: [
     // Basic Access
@@ -711,6 +750,16 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'timeline.engineering',
     // Project Tracker
     'project_tracker.view',
+    // 19.14.0 — HR Self-Service
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
   ],
   Operator: [
     // Basic Access
@@ -747,6 +796,16 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Timeline (View Only)
     'timeline.view',
     'timeline.operations',
+    // 19.14.0 — HR Self-Service
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
   ],
   'Document Controller': [
     // Basic Access
@@ -801,5 +860,15 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     // Settings
     'settings.view',
     'settings.view_cron',
+    // 19.14.0 — HR Self-Service
+    'hr.employee.viewOwn',
+    'hr.leaves.view',
+    'hr.leaves.request',
+    'hr.payroll.viewOwn',
+    'hr.loans.viewOwn',
+    'hr.custodies.viewOwn',
+    'hr.assets.viewOwn',
+    'hr.violations.viewOwn',
+    'hr.letters.viewOwn',
   ],
 };

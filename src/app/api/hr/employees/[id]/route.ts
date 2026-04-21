@@ -135,13 +135,27 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   const session = await getSessionOrUnauthorized();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { id } = await context.params;
+
   const canView = await checkPermission('hr.employee.view');
-  if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  let isSelfAccess = false;
+
+  if (!canView) {
+    // Allow self-access if the caller has hr.employee.viewOwn and the record belongs to them
+    const canViewOwn = await checkPermission('hr.employee.viewOwn');
+    if (canViewOwn) {
+      const me = await prisma.user.findUnique({ where: { id: session.sub }, select: { employeeId: true } });
+      if (me?.employeeId === id) {
+        isSelfAccess = true;
+      }
+    }
+    if (!isSelfAccess) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const permissions = await getCurrentUserPermissions();
-  const canViewComp = permissions.includes('hr.employee.viewCompensation');
+  // Self-access never reveals compensation regardless of other permissions
+  const canViewComp = !isSelfAccess && permissions.includes('hr.employee.viewCompensation');
 
-  const { id } = await context.params;
   const employee = await prisma.employee.findFirst({
     where: { id, deletedAt: null },
   });
