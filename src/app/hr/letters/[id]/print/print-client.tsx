@@ -60,10 +60,11 @@ type Letter = {
 const fmt = (d: Date | string | null | undefined) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
 
+// Use Gregorian calendar explicitly for Arabic locale
 const fmtAr = (d: Date | string | null | undefined) =>
-  d ? new Date(d).toLocaleDateString('ar-SA', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+  d ? new Date(d).toLocaleDateString('ar-SA-u-ca-gregory', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
 
-export function PrintLetterClient({ letter }: { letter: Letter }) {
+export function PrintLetterClient({ letter, logoUrl }: { letter: Letter; logoUrl?: string | null }) {
   const [lang, setLang] = useState<'ARABIC' | 'ENGLISH' | 'BILINGUAL'>(
     (letter.language as 'ARABIC' | 'ENGLISH' | 'BILINGUAL') ?? 'ARABIC',
   );
@@ -130,6 +131,12 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
             <div dir="rtl" className={lang === 'BILINGUAL' ? 'mb-12 pb-10 border-b-2 border-slate-300' : ''}>
               {/* Letterhead */}
               <div className="text-center mb-8">
+                {logoUrl && (
+                  <div className="flex justify-center mb-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoUrl} alt="Company Logo" className="h-16 object-contain" />
+                  </div>
+                )}
                 <div className="text-2xl font-bold text-slate-800 mb-1">هيكسا ستيل®</div>
                 <div className="text-sm text-slate-500 mb-4">Hexa Steel® — شركة هيكسا للصلب</div>
                 <div className="border-t-4 border-b border-slate-800 pt-2 pb-1 mb-1" />
@@ -209,7 +216,7 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
 
               {/* Audit footer */}
               <div className="mt-8 pt-4 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
-                <span>أُصدر بواسطة: {letter.createdBy?.name}</span>
+                <span>أُصدر بواسطة: قسم الموارد البشرية</span>
                 <span className="font-mono">{letter.letterNumber}</span>
               </div>
             </div>
@@ -223,6 +230,12 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
             <div dir="ltr">
               {/* Letterhead */}
               <div className="text-center mb-8">
+                {logoUrl && (
+                  <div className="flex justify-center mb-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoUrl} alt="Company Logo" className="h-16 object-contain" />
+                  </div>
+                )}
                 <div className="text-2xl font-bold text-slate-800 mb-1">Hexa Steel®</div>
                 <div className="text-sm text-slate-500 mb-4">هيكسا للصلب — Hexa Steel Company</div>
                 <div className="border-t-4 border-b border-slate-800 pt-2 pb-1 mb-1" />
@@ -302,7 +315,7 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
 
               {/* Audit footer */}
               <div className="mt-8 pt-4 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
-                <span>Issued by: {letter.createdBy?.name}</span>
+                <span>Issued by: HR Department</span>
                 <span className="font-mono">{letter.letterNumber}</span>
               </div>
             </div>

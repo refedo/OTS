@@ -79,16 +79,29 @@ async function resolveLetterNumber(
   return { number: `${prefix}-${year}-${seq.toString().padStart(4, '0')}` };
 }
 
-/** Find all users who hold the hr.letters.approveCeo permission */
+/** Find all users who hold the hr.letters.approveCeo permission (or ALL) */
 async function findCeoApprovers(): Promise<{ id: string }[]> {
-  return prisma.user.findMany({
-    where: {
-      status: 'active',
-      role: {
-        permissions: { path: '$', string_contains: 'hr.letters.approveCeo' },
+  const [withPerm, withAll] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        status: 'active',
+        role: { permissions: { path: '$', string_contains: 'hr.letters.approveCeo' } },
       },
-    },
-    select: { id: true },
+      select: { id: true },
+    }),
+    prisma.user.findMany({
+      where: {
+        status: 'active',
+        role: { permissions: { path: '$', string_contains: '"ALL"' } },
+      },
+      select: { id: true },
+    }),
+  ]);
+  const seen = new Set<string>();
+  return [...withPerm, ...withAll].filter((u) => {
+    if (seen.has(u.id)) return false;
+    seen.add(u.id);
+    return true;
   });
 }
 
