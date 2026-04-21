@@ -71,6 +71,7 @@ import {
   Radar,
   GraduationCap,
   UserPlus,
+  UserCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -255,6 +256,7 @@ const navigationSections: NavigationSection[] = [
     name: 'HR',
     icon: UserCog,
     items: [
+      { name: 'My Profile', href: '/hr/employees/me', icon: UserCircle2, newSince: '2026-04-21' },
       { name: 'HR Dashboard', href: '/hr/dashboard', icon: BarChart3, newSince: '2026-04-12' },
       { name: 'Absence Analytics', href: '/hr/analytics', icon: TrendingUp, newSince: '2026-04-18' },
       { name: 'Employees', href: '/hr/employees', icon: Users, newSince: '2026-04-12' },
