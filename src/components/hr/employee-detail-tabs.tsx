@@ -1,15 +1,9 @@
 'use client';
 
 /**
- * Thin client wrapper that gives /hr/employees/[id] top-level tabs:
- *   - Overview: dashboard summary (18.18.1)
- *   - Record:   the existing full EmployeeForm (passed as a slot)
- *   - History:  position + salary timelines (18.9.0)
- *   - Finance:  loans + custodies (18.10.0)
- *   - Assets:   asset assignments + traffic violations (18.12.0)
- *   - Letters:  HR letters issued to this employee (19.1.0)
- *
- * All tabs are client-side so switching between them never remounts the form.
+ * Thin client wrapper that gives /hr/employees/[id] top-level tabs.
+ * Tabs: Overview, Record, History, Finance, Assets, Letters, Payslips,
+ *       Contracts, Training, Onboarding, Announcements, Circulations, Car Maintenance, Dashboard
  */
 
 import type { ReactNode } from 'react';
@@ -21,6 +15,13 @@ import { EmployeeAssetsTab } from './employee-assets-tab';
 import { EmployeeOverviewTab } from './employee-overview-tab';
 import { EmployeeLettersTab } from './employee-letters-tab';
 import { EmployeePayslipsTab } from './employee-payslips-tab';
+import { EmployeeContractsTab } from './employee-contracts-tab';
+import { EmployeeTrainingTab } from './employee-training-tab';
+import { EmployeeOnboardingTab } from './employee-onboarding-tab';
+import { EmployeeAnnouncementsTab } from './employee-announcements-tab';
+import { EmployeeCirculationsTab } from './employee-circulations-tab';
+import { EmployeeCarMaintenanceTab } from './employee-car-maintenance-tab';
+import { EmployeeSelfDashboardTab } from './employee-self-dashboard-tab';
 import { useSearchParams } from 'next/navigation';
 
 interface Props {
@@ -30,6 +31,8 @@ interface Props {
   showAssets: boolean;
   showLetters: boolean;
   showPayslips: boolean;
+  showContracts: boolean;
+  showCarMaintenance: boolean;
   employeeId: string;
   departments: { id: string; name: string }[];
   canManagePosition: boolean;
@@ -43,6 +46,7 @@ interface Props {
   canManageAssets: boolean;
   canManageViolations: boolean;
   canViewContracts: boolean;
+  canManageLeaves: boolean;
   employee: {
     fullNameEn: string;
     dateOfJoining: string;
@@ -60,6 +64,8 @@ export function EmployeeDetailTabs({
   showAssets,
   showLetters,
   showPayslips,
+  showContracts,
+  showCarMaintenance,
   employeeId,
   departments,
   canManagePosition,
@@ -73,6 +79,7 @@ export function EmployeeDetailTabs({
   canManageAssets,
   canManageViolations,
   canViewContracts,
+  canManageLeaves,
   employee,
 }: Props) {
   const searchParams = useSearchParams();
@@ -84,11 +91,18 @@ export function EmployeeDetailTabs({
       <TabsList className="flex-wrap h-auto gap-1">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="record">Record</TabsTrigger>
+        <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         {showHistory && <TabsTrigger value="history">History</TabsTrigger>}
         {showFinance && <TabsTrigger value="finance">Finance</TabsTrigger>}
         {showAssets && <TabsTrigger value="assets">Assets</TabsTrigger>}
+        {showCarMaintenance && <TabsTrigger value="car-maintenance">Car Maintenance</TabsTrigger>}
         {showLetters && <TabsTrigger value="letters">Letters</TabsTrigger>}
         {showPayslips && <TabsTrigger value="payslips">Payslips</TabsTrigger>}
+        {showContracts && <TabsTrigger value="contracts">Contracts</TabsTrigger>}
+        <TabsTrigger value="training">Training</TabsTrigger>
+        <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
+        <TabsTrigger value="announcements">Announcements</TabsTrigger>
+        <TabsTrigger value="circulations">Circulations</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview" className="mt-4">
@@ -104,6 +118,16 @@ export function EmployeeDetailTabs({
       </TabsContent>
 
       <TabsContent value="record">{recordTab}</TabsContent>
+
+      <TabsContent value="dashboard" className="mt-4">
+        <EmployeeSelfDashboardTab
+          employeeId={employeeId}
+          employeeName={employee.fullNameEn}
+          canManageLoans={canManageLoans}
+          canManageCustodies={canManageCustodies}
+          canManageLeaves={canManageLeaves}
+        />
+      </TabsContent>
 
       {showHistory && (
         <TabsContent value="history">
@@ -135,6 +159,11 @@ export function EmployeeDetailTabs({
           />
         </TabsContent>
       )}
+      {showCarMaintenance && (
+        <TabsContent value="car-maintenance" className="mt-4">
+          <EmployeeCarMaintenanceTab employeeId={employeeId} />
+        </TabsContent>
+      )}
       {showLetters && (
         <TabsContent value="letters" className="mt-4">
           <EmployeeLettersTab employeeId={employeeId} />
@@ -145,6 +174,23 @@ export function EmployeeDetailTabs({
           <EmployeePayslipsTab employeeId={employeeId} />
         </TabsContent>
       )}
+      {showContracts && (
+        <TabsContent value="contracts" className="mt-4">
+          <EmployeeContractsTab employeeId={employeeId} />
+        </TabsContent>
+      )}
+      <TabsContent value="training" className="mt-4">
+        <EmployeeTrainingTab />
+      </TabsContent>
+      <TabsContent value="onboarding" className="mt-4">
+        <EmployeeOnboardingTab employeeId={employeeId} dateOfJoining={employee.dateOfJoining} />
+      </TabsContent>
+      <TabsContent value="announcements" className="mt-4">
+        <EmployeeAnnouncementsTab />
+      </TabsContent>
+      <TabsContent value="circulations" className="mt-4">
+        <EmployeeCirculationsTab employeeId={employeeId} />
+      </TabsContent>
     </Tabs>
   );
 }

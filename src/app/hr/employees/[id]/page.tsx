@@ -42,6 +42,7 @@ export default async function EmployeeDetailPage({
   const canViewContracts = permissions.includes('hr.contracts.view') || permissions.includes('hr.contracts.manage');
   const canViewLetters = permissions.includes('hr.letters.view') || permissions.includes('hr.letters.manage') || permissions.includes('hr.letters.approveCeo');
   const canViewPayslips = permissions.includes('hr.payroll.view') || permissions.includes('hr.payroll.calculate');
+  const canManageLeaves = permissions.includes('hr.leaves.manage') || permissions.includes('hr.leaves.viewAll');
 
   const { id } = await params;
   const employee = await prisma.employee.findFirst({
@@ -64,6 +65,12 @@ export default async function EmployeeDetailPage({
   const prevEmployeeId = navIndex > 0 ? allEmployeeIds[navIndex - 1].id : null;
   const nextEmployeeId = navIndex < allEmployeeIds.length - 1 ? allEmployeeIds[navIndex + 1].id : null;
   const navPosition = navIndex >= 0 ? `${navIndex + 1} / ${allEmployeeIds.length}` : null;
+
+  // Check if employee has any asset assignments (to conditionally show assets tab)
+  const assetAssignmentCount = canViewAssets
+    ? await prisma.assetAssignment.count({ where: { employeeId: id } })
+    : 0;
+  const hasAssets = assetAssignmentCount > 0;
 
   const initial = {
     id: employee.id,
@@ -199,9 +206,11 @@ export default async function EmployeeDetailPage({
         <EmployeeDetailTabs
           showHistory={canViewPositionHistory || canViewSalaryHistory}
           showFinance={canViewLoans || canViewCustodies}
-          showAssets={canViewAssets || canViewViolations}
+          showAssets={(canViewAssets || canViewViolations) && hasAssets}
           showLetters={canViewLetters}
           showPayslips={canViewPayslips}
+          showContracts={canViewContracts}
+          showCarMaintenance={(canViewAssets || canViewViolations) && hasAssets}
           recordTab={
             <EmployeeForm
               initial={initial}
@@ -223,6 +232,7 @@ export default async function EmployeeDetailPage({
           canManageAssets={canManageAssets}
           canManageViolations={canManageViolations}
           canViewContracts={canViewContracts}
+          canManageLeaves={canManageLeaves}
           employee={{
             fullNameEn: employee.fullNameEn,
             dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),

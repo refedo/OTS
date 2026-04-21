@@ -23,10 +23,48 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.16.3',
+    version: '19.16.4',
     date: 'April 21, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Employee Profile Tabs, Self-Service Dashboard, Excel Import, viewOwn Permission Fixes',
+    highlights: [
+      '7 new tabs on the employee profile page: Contracts, Training, Onboarding, Announcements, Circulations, Car Maintenance, and Dashboard — HR gets a one-stop view of every dimension of an employee\'s record.',
+      'New HR Dashboard tab on employee profiles: quick-action cards let HR create a loan, cash advance, leave request, employment certificate, and browse all company policies — without leaving the employee page.',
+      'Import Excel button on the Employees list — upload the OTS export file (or same-format file) to bulk-create or update employee records by Employment ID, with per-row error reporting.',
+      '/hr/loans, /hr/custodies, and /hr/traffic-violations pages now properly allow access to employees with viewOwn permissions — previously these pages redirected to unauthorized even when the employee had the correct permission.',
+      'Assets tab on the employee detail page is now hidden when the employee has no asset assignments, keeping the tab bar clean for most employees.',
+      'Car Maintenance tab only appears when the employee has at least one car assigned, grouping service records per vehicle with next-service reminders.',
+    ],
+    changes: {
+      added: [
+        'employee-contracts-tab.tsx — shows all contracts and documents linked to the employee; expiry KPI strip (Active / Expiring Soon / Expired); color-coded status badges',
+        'employee-training-tab.tsx — lists all company training programs with category, status, duration, and schedule; KPI tiles for total, completed, and active programs',
+        'employee-onboarding-tab.tsx — interactive onboarding checklist (click to check off tasks); progress bar; required-task indicators; KPI tiles for progress %, mandatory completion, days since joining, and pending count',
+        'employee-announcements-tab.tsx — active and past announcements grouped by live vs expired; expandable content cards; banner and audience indicators',
+        'employee-circulations-tab.tsx — HR circulations targeting the employee (ALL audience or employee-specific); expandable content with status badges (Pending CEO / Approved / Rejected)',
+        'employee-car-maintenance-tab.tsx — grouped by assigned car; shows full service history with type, cost, odometer, service center, next-service date; per-vehicle KPI strip',
+        'employee-self-dashboard-tab.tsx — 5 quick-action cards: Request Loan (opens create-loan dialog), Cash Advance/Custody, Leave Request, Company Policies (inline searchable modal with all policies grouped by category), Employment Certificate (generates a SALARY_CERTIFICATE letter via API)',
+        'POST /api/hr/employees/import — JSON body of Excel rows; upserts by employmentId; maps all OTS export columns; returns created/updated/skipped counts and per-row error messages',
+        'Import Excel button in the Employees hero bar (canCreate permission required); drag-and-drop or click upload; result summary dialog with error list',
+      ],
+      fixed: [
+        '/hr/traffic-violations — now allows hr.violations.viewOwn access; fetches only own violations when in viewOwnOnly mode (passes employeeId to the API)',
+        '/hr/loans — page check changed from hr.employee.view fallback to hr.loans.viewOwn; employees with viewOwn can now access the loans page',
+        '/hr/custodies — same fix as loans; hr.custodies.viewOwn replaces hr.employee.view as the fallback access check',
+        'Assets tab and Car Maintenance tab on employee profile now hidden when employee has zero asset assignments (assetAssignment.count query added to server component)',
+      ],
+      changed: [
+        'employee-detail-tabs.tsx: 7 new tabs added; showContracts and showCarMaintenance props added; canManageLeaves prop added for Dashboard tab actions',
+        '/hr/employees/[id]/page.tsx: queries assetAssignment count to determine if assets/car-maintenance tabs should render',
+      ],
+    },
+  },
+  {
+    version: '19.16.3',
+    date: 'April 21, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Mobile Logo Fix, Unapproved Letter Watermark, Employee Asset/Contract Access, UI Beautification',
     highlights: [
       'Sidebar logo now shows the "HS" fallback on mobile when the image fails to load — no more broken-image icons.',
@@ -532,6 +570,37 @@ const hardcodedVersions: ChangelogVersion[] = [
       fixed: [],
       changed: [
         'EmployeeSelfService dashboard widget payslips tab: lazy-fetches /api/hr/employees/[id]/payslips on tab activation; merges Dolibarr + OTS items sorted by date DESC with source badges and Print/Download buttons',
+      ],
+    },
+  },
+  {
+    version: '19.7.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Drop Employee Trade Field, Rename Occupation → Position Title',
+    highlights: [
+      'Employee "trade" field removed — all existing trade values migrated to occupation (position title) where occupation was previously empty.',
+      '"Occupation" label renamed to "Position Title" throughout the UI — more professional and consistent with HR terminology.',
+      'HR Setup occupations tab renamed to "Position Titles"; the underlying HrOccupation catalogue and /api/hr/occupations endpoint stay unchanged.',
+      'Dolibarr sync now writes apiUser.job directly to Employee.occupation (position title).',
+      'ManpowerSlot.trade preserved — it is a separate concept (worker template trade) and not affected.',
+    ],
+    changes: {
+      added: [
+        'prisma/manual_migrations/migrate_trade_to_occupation.sql — idempotent migration: copies trade → occupation where occupation is empty, drops trade index, drops trade column',
+      ],
+      fixed: [
+        'Employee list and detail page Sync column showed Hijri date (en-SA locale) — changed to Gregorian (en-GB) to match other date displays',
+        'Last-sync date on employee detail page also corrected to Gregorian (en-GB)',
+      ],
+      changed: [
+        'Employee.trade column removed from Prisma schema and all component references',
+        'Employee form: Trade free-text input removed; Occupation Select relabeled "Position Title"',
+        'Employees list: sortable column and filter renamed from Trade to Position Title (now reads from occupation column)',
+        'Dolibarr sync: apiUser.job written to Employee.occupation instead of Employee.trade',
+        'HR Setup: Occupations tab renamed to Position Titles',
+        'Sweeps: EmployeePicker, user-create-form, dashboard/users/create, attendance timesheet and mapping, hr/employees [id] page, employees API route, attendance API route',
       ],
     },
   },

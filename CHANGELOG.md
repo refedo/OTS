@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.16.4] - 2026-04-21
+
+### Employee Profile Tabs, Self-Service Dashboard, Excel Import, viewOwn Fixes (Patch)
+
+#### Added
+
+- 7 new tabs on employee profile, self-service dashboard, Excel import, viewOwn fixes
+
+---
+
 ## [19.16.1] - 2026-04-21
 
 ### Employee Self-Profile Access & PBAC Activation (Minor)
