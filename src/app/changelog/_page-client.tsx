@@ -1,8 +1,8 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, AlertCircle, Wrench } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle, AlertCircle, Wrench, History, ChevronDown, ChevronUp, Sparkles, Zap, Shield } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type ChangeItem = { title: string; items: string[] };
 
@@ -23,10 +23,39 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.16.2',
+    date: 'April 21, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Logo Upload Fix, Announcements in Letters, Changelog Redesign',
+    highlights: [
+      'Logo and CEO signature now show an instant blob-URL preview after upload — broken image alt-text is gone. Both auto-save to settings immediately so no separate "Save Changes" click is needed.',
+      'Announcements moved to Letters & Correspondence — new "Announcements" tab on the letters page with create/edit/delete (for managers) and an expandable card list. Sidebar links updated.',
+      'Notification Center gains an "Announcements" tab showing all currently-active announcements targeted at the logged-in user with violet badges and a live count pill.',
+      'What\'s New (Changelog) page redesigned with a gradient hero banner, 4 KPI tiles (versions, features, fixes, changes), and collapsible accordion-style version cards matching the OTS design language.',
+    ],
+    changes: {
+      added: [
+        'src/components/hr/announcements-tab.tsx — full CRUD announcements tab component with KPI tiles, search/filter, expandable cards, create/edit/delete dialogs',
+        'Announcements tab in LettersClient (letters-client.tsx) — reachable at /hr/letters?tab=announcements; sidebar entry added',
+        'Announcements tab in Notification Center (_page-client.tsx) — shows active announcements as notification cards with violet border and count badge',
+        'Sidebar: "Announcements" entry moved from Notifications section to HR section (below Letters & Correspondence); links to /hr/letters?tab=announcements; notification center entry updated to /notifications?tab=announcements',
+      ],
+      fixed: [
+        'Company logo and CEO signature upload: blob URL used for immediate preview, bypassing URL-resolution and basePath mismatches that caused broken images',
+        'Logo and CEO signature auto-save to settings database after upload — no longer requires a separate "Save Changes" click',
+        'onError handler added to logo/CEO-signature img elements — hides broken image and shows a text fallback instead of the browser\'s broken-image icon',
+      ],
+      changed: [
+        'Changelog (_page-client.tsx) redesigned: gradient hero banner, KPI strip (versions/features/fixes/changes), collapsible accordion version cards with colour-coded Added/Fixed/Changed sections; current version highlighted with sky ring and animated green dot',
+      ],
+    },
+  },
+  {
     version: '19.16.1',
     date: 'April 21, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Employee Self-Profile Access & PBAC Activation',
     highlights: [
       'Employees can now view their own HR profile at /hr/employees/me — accessible from the dashboard "Full Profile" button and the new "My Profile" sidebar entry. Read-only, no compensation fields.',
@@ -7668,145 +7697,208 @@ const hardcodedVersions: ChangelogVersion[] = [
   },
 ];
 
+function renderItems(items: Array<string | ChangeItem>) {
+  return items.map((item, idx) =>
+    typeof item === 'string' ? (
+      <li key={idx} className="flex items-start gap-2 text-sm text-slate-600">
+        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-current shrink-0" />
+        <span>{item}</span>
+      </li>
+    ) : item && typeof item === 'object' && 'title' in item ? (
+      <li key={idx} className="space-y-1.5">
+        <p className="text-sm font-medium text-slate-700">{item.title}</p>
+        <ul className="space-y-1 pl-3">
+          {item.items.map((sub, si) => (
+            <li key={si} className="flex items-start gap-2 text-sm text-slate-600">
+              <span className="mt-1.5 h-1 w-1 rounded-full bg-current shrink-0 opacity-60" />
+              <span>{sub}</span>
+            </li>
+          ))}
+        </ul>
+      </li>
+    ) : null
+  );
+}
+
+const TYPE_CFG = {
+  major:  { cls: 'bg-rose-100 text-rose-700 border-rose-200',       icon: Zap     },
+  minor:  { cls: 'bg-sky-100 text-sky-700 border-sky-200',           icon: Sparkles },
+  patch:  { cls: 'bg-slate-100 text-slate-600 border-slate-200',     icon: Shield  },
+} as const;
+
 export default function ChangelogPage() {
-  // Display versions as they are in the array (newest at top, oldest at bottom)
   const versions = hardcodedVersions;
+  const current  = versions.find((v) => v.status === 'current');
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set([current?.version ?? '']));
+
+  const toggle = (v: string) =>
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      next.has(v) ? next.delete(v) : next.add(v);
+      return next;
+    });
+
+  const totalAdded   = versions.reduce((s, v) => s + v.changes.added.length,   0);
+  const totalFixed   = versions.reduce((s, v) => s + v.changes.fixed.length,   0);
+  const totalChanged = versions.reduce((s, v) => s + v.changes.changed.length, 0);
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-5xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Changelog</h1>
-        <p className="text-muted-foreground">
-          Track all updates and improvements to the Hexa Steel Operation Tracking System
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-      <div className="space-y-8">
-        {versions.map((version) => (
-          <Card key={version.version} className={version.status === 'current' ? 'border-blue-500' : ''}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <CardTitle className="text-xl">
-                      {version.mainTitle || `Version ${version.version}`}
-                    </CardTitle>
-                    {version.status === 'current' && (
-                      <Badge variant="default" className="bg-blue-500">
-                        Current
-                      </Badge>
+        {/* Hero */}
+        <div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <History className="h-5 w-5" />
+              </div>
+              <h1 className="text-2xl font-bold">What&apos;s New</h1>
+            </div>
+            <p className="text-sky-100 text-sm">
+              Release history for Hexa Steel® OTS — all features, fixes, and improvements.
+            </p>
+            {current && (
+              <div className="mt-4 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-semibold">
+                <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
+                Current: v{current.version} — {current.mainTitle}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* KPI strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: 'Versions', value: versions.length,  sub: 'releases',       color: 'blue'    },
+            { label: 'Features', value: totalAdded,        sub: 'items added',    color: 'emerald' },
+            { label: 'Fixed',    value: totalFixed,        sub: 'bugs resolved',  color: 'amber'   },
+            { label: 'Changed',  value: totalChanged,      sub: 'improvements',   color: 'violet'  },
+          ].map(({ label, value, sub, color }) => (
+            <div key={label} className={`rounded-xl border bg-gradient-to-b from-${color}-50 to-white border-${color}-200 p-4 shadow-sm`}>
+              <p className={`text-xs text-${color}-600 font-medium uppercase tracking-wide`}>{label}</p>
+              <p className={`text-2xl font-bold text-${color}-700 mt-1`}>{value}</p>
+              <p className={`text-xs text-${color}-500 mt-0.5`}>{sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Version list */}
+        <div className="space-y-4">
+          {versions.map((version) => {
+            const isOpen   = openIds.has(version.version);
+            const isCurrent = version.status === 'current';
+            const typeCfg  = TYPE_CFG[version.type] ?? TYPE_CFG.patch;
+            const TypeIcon = typeCfg.icon;
+            const hasChanges = version.changes.added.length + version.changes.fixed.length + version.changes.changed.length > 0;
+
+            return (
+              <div
+                key={version.version}
+                className={cn(
+                  'rounded-2xl border bg-white shadow-sm overflow-hidden transition-shadow hover:shadow-md',
+                  isCurrent && 'border-sky-300 ring-1 ring-sky-200'
+                )}
+              >
+                {/* Header row */}
+                <button
+                  className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-slate-50/60 transition-colors"
+                  onClick={() => toggle(version.version)}
+                >
+                  {/* Version badge */}
+                  <div className={cn(
+                    'shrink-0 rounded-xl px-3 py-2 text-center min-w-[72px]',
+                    isCurrent ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600'
+                  )}>
+                    <div className="text-xs font-medium opacity-75">v</div>
+                    <div className="text-sm font-bold leading-tight">{version.version}</div>
+                  </div>
+
+                  {/* Title + meta */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="font-semibold text-slate-800 truncate">
+                        {version.mainTitle || `Version ${version.version}`}
+                      </span>
+                      {isCurrent && (
+                        <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Current
+                        </span>
+                      )}
+                      <span className={cn('shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border', typeCfg.cls)}>
+                        <TypeIcon className="h-3 w-3" />
+                        {version.type}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">{version.date}</p>
+                  </div>
+
+                  {/* Toggle */}
+                  <div className="shrink-0 text-slate-400">
+                    {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
+                </button>
+
+                {/* Expanded content */}
+                {isOpen && (
+                  <div className="border-t px-5 pb-5 pt-4 bg-slate-50/40 space-y-5">
+                    {/* Highlights */}
+                    {version.highlights.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Highlights</p>
+                        <ul className="space-y-1.5">
+                          {version.highlights.map((h, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
+                              <span>{h}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {hasChanges && (
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* Added */}
+                        {version.changes.added.length > 0 && (
+                          <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+                            <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-700 mb-3">
+                              <CheckCircle className="h-4 w-4" /> Added
+                            </h4>
+                            <ul className="space-y-2">{renderItems(version.changes.added)}</ul>
+                          </div>
+                        )}
+
+                        {/* Fixed */}
+                        {version.changes.fixed.length > 0 && (
+                          <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+                            <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-700 mb-3">
+                              <AlertCircle className="h-4 w-4" /> Fixed
+                            </h4>
+                            <ul className="space-y-2">{renderItems(version.changes.fixed)}</ul>
+                          </div>
+                        )}
+
+                        {/* Changed */}
+                        {version.changes.changed.length > 0 && (
+                          <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-4">
+                            <h4 className="flex items-center gap-2 text-sm font-semibold text-sky-700 mb-3">
+                              <Wrench className="h-4 w-4" /> Changed
+                            </h4>
+                            <ul className="space-y-2">{renderItems(version.changes.changed)}</ul>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{version.date}</span>
-                    <Badge variant={version.type === 'major' ? 'destructive' : version.type === 'minor' ? 'default' : 'secondary'}>
-                      {version.type.toUpperCase()}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-muted-foreground">
-                    v{version.version}
-                  </div>
-                </div>
-              </div>
-              {version.highlights && (
-                <ul className="mt-4 space-y-1">
-                  {version.highlights.map((highlight, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <span className="mt-0.5 shrink-0 text-primary">•</span>
-                      <span>{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {version.changes.added.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4" />
-                      Added
-                    </h4>
-                    <div className="space-y-4">
-                      {version.changes.added.map((addition, idx) => (
-                        typeof addition === 'string' ? (
-                          <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
-                            <li>{addition}</li>
-                          </ul>
-                        ) : addition && typeof addition === 'object' && 'title' in addition ? (
-                          <div key={idx}>
-                            <h5 className="font-medium text-sm mb-2">{addition.title}</h5>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
-                              {addition.items.map((item: string, itemIdx: number) => (
-                                <li key={itemIdx}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {version.changes.changed.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-blue-700 mb-3 flex items-center gap-2">
-                      <Wrench className="h-4 w-4" />
-                      Changed
-                    </h4>
-                    <div className="space-y-2">
-                      {version.changes.changed.map((change, idx) => (
-                        typeof change === 'string' ? (
-                          <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
-                            <li>{change}</li>
-                          </ul>
-                        ) : change && typeof change === 'object' && 'title' in change ? (
-                          <div key={idx}>
-                            <h5 className="font-medium text-sm mb-1">{change.title}</h5>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
-                              {change.items.map((item: string, itemIdx: number) => (
-                                <li key={itemIdx}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {version.changes.fixed.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-orange-700 mb-3 flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4" />
-                      Fixed
-                    </h4>
-                    <div className="space-y-2">
-                      {version.changes.fixed.map((fix, idx) => (
-                        typeof fix === 'string' ? (
-                          <ul key={idx} className="list-disc list-inside text-sm text-muted-foreground ml-4">
-                            <li>{fix}</li>
-                          </ul>
-                        ) : fix && typeof fix === 'object' && 'title' in fix ? (
-                          <div key={idx}>
-                            <h5 className="font-medium text-sm mb-1">{fix.title}</h5>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
-                              {fix.items.map((item: string, itemIdx: number) => (
-                                <li key={itemIdx}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

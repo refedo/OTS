@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,7 @@ import {
   CheckCircle, XCircle, Languages, ClipboardList, AlertTriangle, Megaphone,
 } from 'lucide-react';
 import { CirculationsTab } from './circulations-tab';
+import { AnnouncementsTab } from './announcements-tab';
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   DRAFT:       { label: 'Draft',       cls: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -149,7 +150,11 @@ function typeBadge(type: string) {
 
 export function LettersClient({ employees, departments, canManage, canApproveCeo }: Props) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'letters' | 'circulations'>('letters');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab') as 'letters' | 'circulations' | 'announcements' | null;
+  const [activeTab, setActiveTab] = useState<'letters' | 'circulations' | 'announcements'>(
+    tabParam === 'circulations' || tabParam === 'announcements' ? tabParam : 'letters'
+  );
   const [letters, setLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -509,6 +514,12 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
           >
             <Megaphone className="h-4 w-4" /> Circulations
           </button>
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'announcements' ? 'border-violet-600 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setActiveTab('announcements')}
+          >
+            <ClipboardList className="h-4 w-4" /> Announcements
+          </button>
         </div>
 
         {/* Circulations tab */}
@@ -519,6 +530,11 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
             canManage={canManage}
             canApproveCeo={canApproveCeo}
           />
+        )}
+
+        {/* Announcements tab */}
+        {activeTab === 'announcements' && (
+          <AnnouncementsTab canManage={canManage} />
         )}
 
         {/* Letters tab content — only shown when activeTab === 'letters' */}

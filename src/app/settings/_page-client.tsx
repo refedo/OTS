@@ -42,8 +42,10 @@ export default function SettingsPage() {
   const [uploadingCeoSig, setUploadingCeoSig] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoBlobUrl, setLogoBlobUrl] = useState<string | null>(null);
   const [loginLogoPreview, setLoginLogoPreview] = useState<string | null>(null);
   const [ceoSigPreview, setCeoSigPreview] = useState<string | null>(null);
+  const [ceoSigBlobUrl, setCeoSigBlobUrl] = useState<string | null>(null);
 
   // GitHub integration state
   const [githubToken, setGithubToken] = useState('');
@@ -152,6 +154,10 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Show blob URL preview immediately — bypasses URL-resolution issues
+    const blobUrl = URL.createObjectURL(file);
+    setLogoBlobUrl(blobUrl);
+
     setUploadingLogo(true);
     try {
       const formData = new FormData();
@@ -165,14 +171,28 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setSettings(prev => prev ? { ...prev, companyLogo: data.filePath } : null);
+        const updatedSettings = settings ? { ...settings, companyLogo: data.filePath } : null;
+        setSettings(updatedSettings);
         setLogoPreview(data.filePath);
+        // Auto-persist the new logo path so user doesn't need to click Save separately
+        if (updatedSettings) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id: _id, createdAt: _ca, updatedAt: _ua, ...payload } = updatedSettings as Record<string, unknown>;
+          await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
       } else {
         alert('Failed to upload logo');
+        URL.revokeObjectURL(blobUrl);
+        setLogoBlobUrl(null);
       }
-    } catch (error) {
-      console.error('Error uploading logo:', error);
+    } catch {
       alert('Failed to upload logo');
+      URL.revokeObjectURL(blobUrl);
+      setLogoBlobUrl(null);
     } finally {
       setUploadingLogo(false);
     }
@@ -181,6 +201,10 @@ export default function SettingsPage() {
   const handleCeoSigUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const blobUrl = URL.createObjectURL(file);
+    setCeoSigBlobUrl(blobUrl);
+
     setUploadingCeoSig(true);
     try {
       const formData = new FormData();
@@ -189,13 +213,27 @@ export default function SettingsPage() {
       const response = await fetch('/api/upload', { method: 'POST', body: formData });
       if (response.ok) {
         const data = await response.json();
-        setSettings((prev) => prev ? { ...prev, ceoSignatureUrl: data.filePath } : null);
+        const updatedSettings = settings ? { ...settings, ceoSignatureUrl: data.filePath } : null;
+        setSettings(updatedSettings);
         setCeoSigPreview(data.filePath);
+        if (updatedSettings) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id: _id, createdAt: _ca, updatedAt: _ua, ...payload } = updatedSettings as Record<string, unknown>;
+          await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
       } else {
         alert('Failed to upload CEO signature');
+        URL.revokeObjectURL(blobUrl);
+        setCeoSigBlobUrl(null);
       }
     } catch {
       alert('Failed to upload CEO signature');
+      URL.revokeObjectURL(blobUrl);
+      setCeoSigBlobUrl(null);
     } finally {
       setUploadingCeoSig(false);
     }
@@ -383,12 +421,24 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="logo">Company Logo</Label>
                   <div className="flex items-start gap-4">
-                    {logoPreview && (
-                      <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                    {(logoBlobUrl || logoPreview) && (
+                      <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-muted overflow-hidden relative">
                         <img
-                          src={resolveUploadUrl(logoPreview)}
+                          src={logoBlobUrl || resolveUploadUrl(logoPreview)}
                           alt="Company Logo"
                           className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            if (!logoBlobUrl) {
+                              e.currentTarget.style.display = 'none';
+                              const parent = e.currentTarget.parentElement;
+                              if (parent && !parent.querySelector('.logo-error')) {
+                                const msg = document.createElement('span');
+                                msg.className = 'logo-error text-xs text-muted-foreground text-center px-2';
+                                msg.textContent = 'Preview unavailable — save to refresh';
+                                parent.appendChild(msg);
+                              }
+                            }
+                          }}
                         />
                       </div>
                     )}
@@ -418,9 +468,14 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="ceoSig">CEO Signature (for HR letters)</Label>
                   <div className="flex items-start gap-4">
-                    {ceoSigPreview && (
+                    {(ceoSigBlobUrl || ceoSigPreview) && (
                       <div className="h-16 w-40 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
-                        <img src={resolveUploadUrl(ceoSigPreview)} alt="CEO Signature" className="max-w-full max-h-full object-contain" />
+                        <img
+                          src={ceoSigBlobUrl || resolveUploadUrl(ceoSigPreview)}
+                          alt="CEO Signature"
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => { if (!ceoSigBlobUrl) e.currentTarget.style.display = 'none'; }}
+                        />
                       </div>
                     )}
                     <div className="flex-1">
