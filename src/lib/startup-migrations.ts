@@ -82,6 +82,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Letter bilingual content + CEO signature (19.15.1) ───────────────────
   'add_letter_bilingual_ceo_sig.sql',
+
+  // ── Letter templates + Circulations (19.16.0) ────────────────────────────
+  'add_hr_letter_templates_circulations.sql',
 ];
 
 /**

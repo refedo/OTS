@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers, Network, Briefcase, CalendarClock, Banknote, Settings2, RefreshCw, Loader2, AlertTriangle, CheckCircle2, Bug, Link2, Hash } from 'lucide-react';
+import { Plus, Archive, RotateCcw, Pencil, Save, X, Building2, Layers, Network, Briefcase, CalendarClock, Banknote, Settings2, RefreshCw, Loader2, AlertTriangle, CheckCircle2, Bug, Link2, Hash, FileText } from 'lucide-react';
 import { LetterSerialsSetupTab } from './letter-serials-setup-tab';
+import { LetterTemplatesSetupTab } from './letter-templates-setup-tab';
 
 type Department = {
   id: string;
@@ -392,6 +393,10 @@ export function HrSetupClient({
             <Hash className="h-4 w-4" />
             Letter Serials
           </TabsTrigger>
+          <TabsTrigger value="letterTemplates" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Letter Templates
+          </TabsTrigger>
         </TabsList>
 
         {/* ------------------------------------------------------------- */}
@@ -761,6 +766,13 @@ export function HrSetupClient({
         {/* ------------------------------------------------------------- */}
         <TabsContent value="letterSerials" className="space-y-4">
           <LetterSerialsSetupTab />
+        </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* Letter Templates                                               */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="letterTemplates" className="space-y-4">
+          <LetterTemplatesSetupTab />
         </TabsContent>
       </Tabs>
       </div>
