@@ -15,8 +15,9 @@ import {
 import {
   Mail, Plus, Search, Loader2, FileText, Eye, Pencil, Trash2,
   ExternalLink, User, Calendar, Hash, Upload, X, Building2, Printer,
-  CheckCircle, XCircle, Languages,
+  CheckCircle, XCircle, Languages, ClipboardList, AlertTriangle, Megaphone,
 } from 'lucide-react';
+import { CirculationsTab } from './circulations-tab';
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   DRAFT:       { label: 'Draft',       cls: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -69,6 +70,25 @@ const TYPE_BADGE: Record<string, string> = {
 
 type Employee = { id: string; fullNameEn: string; employmentId: string };
 
+type LetterTemplate = {
+  id: string;
+  letterType: string;
+  reasonCode: string;
+  subjectAr: string;
+  subjectEn: string;
+  bodyAr: string | null;
+  bodyEn: string | null;
+};
+
+type OverdueTask = {
+  id: string;
+  title: string;
+  dueDate: string;
+  status: string;
+  priority: string;
+  project: { name: string } | null;
+};
+
 type Letter = {
   id: string;
   letterNumber: string;
@@ -94,6 +114,7 @@ type Letter = {
 
 type Props = {
   employees: Employee[];
+  departments: { id: string; name: string }[];
   canManage: boolean;
   canApproveCeo: boolean;
 };
@@ -111,6 +132,7 @@ const EMPTY_FORM = {
   attachmentUrl: '',
   issuedAt: new Date().toISOString().slice(0, 10),
   notes: '',
+  templateId: '',
 };
 
 function typeBadge(type: string) {
@@ -125,8 +147,9 @@ function typeBadge(type: string) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
+export function LettersClient({ employees, departments, canManage, canApproveCeo }: Props) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'letters' | 'circulations'>('letters');
   const [letters, setLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -151,10 +174,94 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
   const [empOpen, setEmpOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Templates + task injection
+  const [templates, setTemplates] = useState<LetterTemplate[]>([]);
+  const [typeTemplates, setTypeTemplates] = useState<LetterTemplate[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [fetchingTasks, setFetchingTasks] = useState(false);
+  const [taskInjectOpen, setTaskInjectOpen] = useState(false);
+
+  // Load all templates on mount
+  useEffect(() => {
+    fetch('/api/hr/letters/templates')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: LetterTemplate[]) => setTemplates(data))
+      .catch(() => {});
+  }, []);
+
   const filteredEmployees = employees.filter((e) => {
     const q = form.empSearch.toLowerCase();
     return !q || e.fullNameEn.toLowerCase().includes(q) || e.employmentId.toLowerCase().includes(q);
   });
+
+  function handleLetterTypeChange(newType: string) {
+    const forType = templates.filter((t) => t.letterType === newType);
+    setTypeTemplates(forType);
+    setForm((f) => ({ ...f, letterType: newType, templateId: '' }));
+    setSelectedTaskIds(new Set());
+    setOverdueTasks([]);
+    setTaskInjectOpen(false);
+  }
+
+  function applyTemplate(templateId: string) {
+    const tpl = typeTemplates.find((t) => t.id === templateId);
+    if (!tpl) {
+      setForm((f) => ({ ...f, templateId: '' }));
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      templateId,
+      subject: tpl.subjectAr,
+      content: tpl.bodyAr ?? f.content,
+      contentEn: tpl.bodyEn ?? f.contentEn,
+    }));
+    // If task delay reason, fetch overdue tasks for selected employee
+    if (tpl.reasonCode === 'TASK_DELAY' && form.employeeId) {
+      fetchOverdueTasks(form.employeeId);
+    }
+  }
+
+  async function fetchOverdueTasks(employeeId: string) {
+    setFetchingTasks(true);
+    setOverdueTasks([]);
+    try {
+      const res = await fetch(`/api/hr/letters/overdue-tasks?employeeId=${employeeId}`);
+      if (res.ok) {
+        const tasks: OverdueTask[] = await res.json();
+        setOverdueTasks(tasks);
+        if (tasks.length > 0) setTaskInjectOpen(true);
+      }
+    } finally {
+      setFetchingTasks(false);
+    }
+  }
+
+  function injectTasksIntoContent() {
+    const selected = overdueTasks.filter((t) => selectedTaskIds.has(t.id));
+    if (!selected.length) return;
+
+    const arLines = selected.map((t, i) => {
+      const due = new Date(t.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      return `${i + 1}. ${t.title} (${t.project?.name ?? ''}) — تاريخ الاستحقاق: ${due}`;
+    });
+    const enLines = selected.map((t, i) => {
+      const due = new Date(t.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      return `${i + 1}. ${t.title}${t.project ? ` (${t.project.name})` : ''} — Due: ${due}`;
+    });
+
+    const arBlock = `\n\nالمهام المتأخرة:\n${arLines.join('\n')}`;
+    const enBlock = `\n\nOverdue Tasks:\n${enLines.join('\n')}`;
+
+    setForm((f) => ({
+      ...f,
+      content: (f.content + arBlock).trim(),
+      contentEn: (f.contentEn + enBlock).trim(),
+    }));
+    setTaskInjectOpen(false);
+    setSelectedTaskIds(new Set());
+  }
 
   async function fetchLetters() {
     setLoading(true);
@@ -172,6 +279,10 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
     setEditLetter(null);
     setForm({ ...EMPTY_FORM, issuedAt: new Date().toISOString().slice(0, 10) });
     setFormError(null);
+    setTypeTemplates([]);
+    setOverdueTasks([]);
+    setSelectedTaskIds(new Set());
+    setTaskInjectOpen(false);
     setDialogOpen(true);
   }
 
@@ -375,7 +486,7 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
                 Issue and track official HR letters — warnings, circulars, certificates, and more.
               </p>
             </div>
-            {canManage && (
+            {canManage && activeTab === 'letters' && (
               <Button onClick={openCreate} className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shrink-0">
                 <Plus className="h-4 w-4 mr-2" />
                 Issue Letter
@@ -383,6 +494,35 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
             )}
           </div>
         </div>
+
+        {/* Tab bar */}
+        <div className="flex gap-1 border-b">
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'letters' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setActiveTab('letters')}
+          >
+            <Mail className="h-4 w-4" /> Letters
+          </button>
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'circulations' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setActiveTab('circulations')}
+          >
+            <Megaphone className="h-4 w-4" /> Circulations
+          </button>
+        </div>
+
+        {/* Circulations tab */}
+        {activeTab === 'circulations' && (
+          <CirculationsTab
+            departments={departments}
+            employees={employees}
+            canManage={canManage}
+            canApproveCeo={canApproveCeo}
+          />
+        )}
+
+        {/* Letters tab content — only shown when activeTab === 'letters' */}
+        {activeTab === 'letters' && <>
 
         {/* KPI tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -546,6 +686,7 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
             </div>
           )}
         </div>
+        </>}
       </div>
 
       {/* Create / Edit dialog */}
@@ -623,7 +764,10 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
                 <Label className="text-sm font-medium mb-1.5 block">
                   <Hash className="h-3.5 w-3.5 inline mr-1" /> Letter Type <span className="text-rose-500">*</span>
                 </Label>
-                <Select value={form.letterType || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, letterType: v === '__none__' ? '' : v }))}>
+                <Select
+                  value={form.letterType || '__none__'}
+                  onValueChange={(v) => handleLetterTypeChange(v === '__none__' ? '' : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type…" />
                   </SelectTrigger>
@@ -646,6 +790,117 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
                 />
               </div>
             </div>
+
+            {/* Template selector (shown when there are templates for the selected type) */}
+            {typeTemplates.length > 0 && (
+              <div>
+                <Label className="text-sm font-medium mb-1.5 block">
+                  <ClipboardList className="h-3.5 w-3.5 inline mr-1" /> Reason / Template
+                </Label>
+                <Select value={form.templateId || '__none__'} onValueChange={(v) => applyTemplate(v === '__none__' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select reason or use custom…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Custom (no template)</SelectItem>
+                    {typeTemplates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.subjectAr}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.templateId && typeTemplates.find((t) => t.id === form.templateId)?.reasonCode === 'TASK_DELAY' && (
+                  <button
+                    type="button"
+                    className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1 transition-colors"
+                    onClick={() => form.employeeId ? fetchOverdueTasks(form.employeeId) : setFormError('Select an employee first')}
+                    disabled={fetchingTasks}
+                  >
+                    {fetchingTasks
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <AlertTriangle className="h-3 w-3" />}
+                    {fetchingTasks ? 'Loading tasks…' : 'Load overdue tasks for this employee'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Overdue task picker */}
+            {taskInjectOpen && overdueTasks.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4" />
+                    {overdueTasks.length} Overdue Task{overdueTasks.length !== 1 ? 's' : ''} Found
+                  </p>
+                  <button
+                    type="button"
+                    className="text-amber-600 hover:text-amber-900"
+                    onClick={() => setTaskInjectOpen(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-amber-700">Select tasks to inject into the letter body:</p>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {overdueTasks.map((t) => {
+                    const checked = selectedTaskIds.has(t.id);
+                    const due = new Date(t.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    return (
+                      <label
+                        key={t.id}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${checked ? 'bg-amber-100 border-amber-400' : 'bg-white border-amber-200 hover:bg-amber-50'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedTaskIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(t.id)) next.delete(t.id); else next.add(t.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{t.title}</p>
+                          <p className="text-xs text-slate-500">
+                            {t.project?.name && <span className="mr-2">{t.project.name}</span>}
+                            Due: <span className="text-rose-600 font-medium">{due}</span>
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="text-xs text-slate-500 hover:text-slate-700"
+                    onClick={() => setTaskInjectOpen(false)}
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedTaskIds.size === 0}
+                    className="text-xs font-medium bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                    onClick={injectTasksIntoContent}
+                  >
+                    Inject {selectedTaskIds.size > 0 ? `${selectedTaskIds.size} ` : ''}task{selectedTaskIds.size !== 1 ? 's' : ''} into letter
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {overdueTasks.length === 0 && !fetchingTasks && taskInjectOpen === false &&
+              form.templateId && typeTemplates.find((t) => t.id === form.templateId)?.reasonCode === 'TASK_DELAY' &&
+              form.employeeId && (
+                <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded px-3 py-2">
+                  No overdue tasks found for this employee.
+                </p>
+              )
+            }
 
             {/* Subject */}
             <div>

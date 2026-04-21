@@ -93,6 +93,7 @@ function getNotificationUrl(type: NotificationType, relatedEntityType?: string |
     announcement: '/notifications/announcements',
     contract: '/hr/contracts',
     hr_letter: '/hr/letters',
+    hr_circulation: '/hr/letters',
     user: '/notifications',
   };
 

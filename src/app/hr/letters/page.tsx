@@ -23,21 +23,26 @@ export default async function LettersPage() {
 
   const canManage = permissions.includes('hr.letters.manage');
 
-  const employees = await prisma.employee.findMany({
-    where: { deletedAt: null, status: 'ACTIVE' },
-    select: { id: true, fullNameEn: true, employmentId: true },
-    orderBy: { fullNameEn: 'asc' },
-  });
+  const [employees, departments] = await Promise.all([
+    prisma.employee.findMany({
+      where: { deletedAt: null, status: 'ACTIVE' },
+      select: { id: true, fullNameEn: true, employmentId: true },
+      orderBy: { fullNameEn: 'asc' },
+    }),
+    prisma.department.findMany({
+      where: { archivedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ]);
 
   return (
     <LettersClient
-      employees={employees.map((e) => ({
-        id: e.id,
-        fullNameEn: e.fullNameEn,
-        employmentId: e.employmentId,
-      }))}
+      employees={employees.map((e) => ({ id: e.id, fullNameEn: e.fullNameEn, employmentId: e.employmentId }))}
+      departments={departments}
       canManage={canManage}
       canApproveCeo={canApproveCeo}
     />
   );
 }
+
