@@ -14,8 +14,16 @@ import {
 } from '@/components/ui/dialog';
 import {
   Mail, Plus, Search, Loader2, FileText, Eye, Pencil, Trash2,
-  ExternalLink, User, Calendar, Hash, Upload, X, Building2,
+  ExternalLink, User, Calendar, Hash, Upload, X, Building2, Printer,
+  CheckCircle, XCircle,
 } from 'lucide-react';
+
+const STATUS_CFG: Record<string, { label: string; cls: string }> = {
+  DRAFT:       { label: 'Draft',       cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  PENDING_CEO: { label: 'Pending CEO', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  APPROVED:    { label: 'Approved',    cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  REJECTED:    { label: 'Rejected',    cls: 'bg-rose-100 text-rose-700 border-rose-200' },
+};
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -67,18 +75,25 @@ type Letter = {
   letterType: string;
   classification: 'INTERNAL' | 'EXTERNAL';
   employeeId: string;
+  status: string;
   subject: string;
   content: string | null;
   attachmentUrl: string | null;
   issuedAt: string;
   notes: string | null;
+  rejectionReason: string | null;
   employee: { id: string; fullNameEn: string; employmentId: string };
   createdBy: { id: string; name: string };
+  approvedBy: { id: string; name: string } | null;
+  rejectedBy: { id: string; name: string } | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
 };
 
 type Props = {
   employees: Employee[];
   canManage: boolean;
+  canApproveCeo: boolean;
 };
 
 const EMPTY_FORM = {
@@ -106,7 +121,7 @@ function typeBadge(type: string) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function LettersClient({ employees, canManage }: Props) {
+export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
   const router = useRouter();
   const [letters, setLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +132,12 @@ export function LettersClient({ employees, canManage }: Props) {
   const [editLetter, setEditLetter] = useState<Letter | null>(null);
   const [viewLetter, setViewLetter] = useState<Letter | null>(null);
   const [deleteLetter, setDeleteLetter] = useState<Letter | null>(null);
+  const [approveLetter, setApproveLetter] = useState<Letter | null>(null);
+  const [rejectLetter, setRejectLetter] = useState<Letter | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -232,6 +253,51 @@ export function LettersClient({ employees, canManage }: Props) {
       fetchLetters();
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleApprove() {
+    if (!approveLetter) return;
+    setApproving(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/hr/letters/${approveLetter.id}/approve`, { method: 'POST' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? 'Approval failed');
+      }
+      setApproveLetter(null);
+      fetchLetters();
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Approval failed');
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectLetter || !rejectReason.trim()) return;
+    setRejecting(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/hr/letters/${rejectLetter.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectReason.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? 'Rejection failed');
+      }
+      setRejectLetter(null);
+      setRejectReason('');
+      fetchLetters();
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Rejection failed');
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -359,6 +425,7 @@ export function LettersClient({ employees, canManage }: Props) {
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Number</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Class</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Employee</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Subject</th>
@@ -376,6 +443,11 @@ export function LettersClient({ employees, canManage }: Props) {
                         </span>
                       </td>
                       <td className="px-4 py-3">{typeBadge(l.letterType)}</td>
+                      <td className="px-4 py-3">
+                        {(() => { const s = STATUS_CFG[l.status] ?? STATUS_CFG.DRAFT; return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${s.cls}`}>{s.label}</span>
+                        ); })()}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${l.classification === 'INTERNAL' ? 'bg-slate-100 text-slate-700' : 'bg-sky-100 text-sky-700'}`}>
                           {l.classification === 'INTERNAL' ? <Building2 className="h-3 w-3" /> : <ExternalLink className="h-3 w-3" />}
@@ -405,10 +477,21 @@ export function LettersClient({ employees, canManage }: Props) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {(l.content || l.attachmentUrl) && (
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700" onClick={() => setViewLetter(l)}>
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600" title="View / Review" onClick={() => setViewLetter(l)}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600" title="Print letter" onClick={() => window.open(`/hr/letters/${l.id}/print`, '_blank')}>
+                            <Printer className="h-3.5 w-3.5" />
+                          </Button>
+                          {canApproveCeo && l.status === 'PENDING_CEO' && (
+                            <>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50" title="Approve" onClick={() => { setApproveLetter(l); setActionError(null); }}>
+                                <CheckCircle className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50" title="Reject" onClick={() => { setRejectLetter(l); setRejectReason(''); setActionError(null); }}>
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
                           )}
                           {canManage && (
                             <>
@@ -625,15 +708,18 @@ export function LettersClient({ employees, canManage }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* View letter dialog */}
+      {/* View / Review letter dialog */}
       <Dialog open={!!viewLetter} onOpenChange={() => setViewLetter(null)}>
         {viewLetter && (
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-blue-700">{viewLetter.letterNumber}</span>
                 <span className="text-slate-400">·</span>
-                <span className="text-base font-normal text-slate-600">{viewLetter.subject}</span>
+                <span className="text-base font-normal text-slate-600 truncate">{viewLetter.subject}</span>
+                {(() => { const s = STATUS_CFG[viewLetter.status] ?? STATUS_CFG.DRAFT; return (
+                  <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${s.cls}`}>{s.label}</span>
+                ); })()}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
@@ -650,15 +736,95 @@ export function LettersClient({ employees, canManage }: Props) {
                   <ExternalLink className="h-4 w-4 ml-auto" />
                 </a>
               ) : viewLetter.content ? (
-                <div className="border rounded-lg p-4 bg-slate-50 whitespace-pre-wrap text-sm text-slate-700 max-h-[50vh] overflow-y-auto">
+                <div className="border rounded-lg p-4 bg-slate-50 whitespace-pre-wrap text-sm text-slate-700 max-h-[40vh] overflow-y-auto">
                   {viewLetter.content}
                 </div>
               ) : null}
+              {viewLetter.status === 'APPROVED' && viewLetter.approvedBy && (
+                <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>Approved by <strong>{viewLetter.approvedBy.name}</strong>{viewLetter.approvedAt && ` · ${new Date(viewLetter.approvedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}</span>
+                </div>
+              )}
+              {viewLetter.status === 'REJECTED' && viewLetter.rejectedBy && (
+                <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 space-y-1">
+                  <div className="flex items-center gap-2"><XCircle className="h-3.5 w-3.5 shrink-0" /><span>Rejected by <strong>{viewLetter.rejectedBy.name}</strong>{viewLetter.rejectedAt && ` · ${new Date(viewLetter.rejectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}</span></div>
+                  {viewLetter.rejectionReason && <div className="pl-5 text-rose-600">{viewLetter.rejectionReason}</div>}
+                </div>
+              )}
               {viewLetter.notes && (
                 <div className="text-xs text-slate-500 border-t pt-3">
                   <span className="font-medium">Notes:</span> {viewLetter.notes}
                 </div>
               )}
+              <div className="flex items-center justify-between pt-1 border-t gap-3 flex-wrap">
+                <Button variant="outline" size="sm" onClick={() => window.open(`/hr/letters/${viewLetter.id}/print`, '_blank')}>
+                  <Printer className="h-3.5 w-3.5 mr-2" /> Print / Save PDF
+                </Button>
+                {canApproveCeo && viewLetter.status === 'PENDING_CEO' && (
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setApproveLetter(viewLetter); setViewLetter(null); setActionError(null); }}>
+                      <CheckCircle className="h-3.5 w-3.5 mr-2" /> Approve
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => { setRejectLetter(viewLetter); setViewLetter(null); setRejectReason(''); setActionError(null); }}>
+                      <XCircle className="h-3.5 w-3.5 mr-2" /> Reject
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Approve confirmation dialog */}
+      <Dialog open={!!approveLetter} onOpenChange={() => setApproveLetter(null)}>
+        {approveLetter && (
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-emerald-700 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" /> Approve Letter?
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600 py-2">
+              Approve letter <strong>{approveLetter.letterNumber}</strong> for <strong>{approveLetter.employee.fullNameEn}</strong>? This will notify the HR issuer and the employee.
+            </p>
+            {actionError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">{actionError}</p>}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setApproveLetter(null)}>Cancel</Button>
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleApprove} disabled={approving}>
+                {approving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Confirm Approval
+              </Button>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Reject dialog */}
+      <Dialog open={!!rejectLetter} onOpenChange={() => setRejectLetter(null)}>
+        {rejectLetter && (
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-rose-700 flex items-center gap-2">
+                <XCircle className="h-5 w-5" /> Reject Letter
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600 py-2">
+              Reject letter <strong>{rejectLetter.letterNumber}</strong> for <strong>{rejectLetter.employee.fullNameEn}</strong>. Please provide a reason.
+            </p>
+            <textarea
+              className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-rose-300"
+              rows={3}
+              placeholder="Reason for rejection…"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            {actionError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">{actionError}</p>}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setRejectLetter(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleReject} disabled={rejecting || !rejectReason.trim()}>
+                {rejecting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reject Letter
+              </Button>
             </div>
           </DialogContent>
         )}

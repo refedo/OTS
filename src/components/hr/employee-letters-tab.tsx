@@ -76,7 +76,7 @@ export function EmployeeLettersTab({ employeeId }: { employeeId: string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/hr/letters?employeeId=${employeeId}`)
+    fetch(`/api/hr/letters?employeeId=${employeeId}&status=APPROVED`)
       .then((r) => (r.ok ? r.json() : []))
       .then(setLetters)
       .catch(() => setLetters([]))
@@ -99,24 +99,19 @@ export function EmployeeLettersTab({ employeeId }: { employeeId: string }) {
       <div className="flex flex-col items-center justify-center py-16 text-slate-400">
         <Mail className="h-12 w-12 mb-3 opacity-30" />
         <p className="font-medium">No letters issued</p>
-        <p className="text-sm mt-1">HR letters for this employee will appear here.</p>
+        <p className="text-sm mt-1">Approved HR letters for this employee will appear here.</p>
       </div>
     );
   }
 
-  const approved = letters.filter((l) => l.status === 'APPROVED').length;
-  const pending  = letters.filter((l) => l.status === 'PENDING_CEO').length;
-  const rejected = letters.filter((l) => l.status === 'REJECTED').length;
-
   return (
     <div className="space-y-6">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
-          { label: 'Total',    value: letters.length, color: 'blue' },
-          { label: 'Approved', value: approved,        color: 'emerald' },
-          { label: 'Pending',  value: pending,         color: 'amber' },
-          { label: 'Rejected', value: rejected,        color: 'rose' },
+          { label: 'Total Letters', value: letters.length,                                            color: 'blue' },
+          { label: 'Warnings',      value: letters.filter((l) => l.letterType.includes('WARNING') || l.letterType === 'ATTENTION' || l.letterType === 'QUESTIONING').length, color: 'amber' },
+          { label: 'Certificates',  value: letters.filter((l) => l.letterType === 'SALARY_CERTIFICATE' || l.letterType === 'CIRCULATION').length, color: 'emerald' },
         ].map(({ label, value, color }) => (
           <div key={label} className={`rounded-xl border bg-gradient-to-b from-${color}-50 to-white border-${color}-200 p-4 shadow-sm`}>
             <p className={`text-xs text-${color}-600 font-medium uppercase tracking-wide`}>{label}</p>

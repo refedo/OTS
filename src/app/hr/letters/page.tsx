@@ -17,7 +17,8 @@ export default async function LettersPage() {
   if (!session) redirect('/login');
 
   const permissions = await getCurrentUserPermissions();
-  const canView = permissions.includes('hr.letters.view') || permissions.includes('hr.letters.manage');
+  const canApproveCeo = permissions.includes('hr.letters.approveCeo') || permissions.includes('ALL');
+  const canView = permissions.includes('hr.letters.view') || permissions.includes('hr.letters.manage') || canApproveCeo;
   if (!canView) redirect('/unauthorized?from=/hr/letters');
 
   const canManage = permissions.includes('hr.letters.manage');
@@ -36,6 +37,7 @@ export default async function LettersPage() {
         employmentId: e.employmentId,
       }))}
       canManage={canManage}
+      canApproveCeo={canApproveCeo}
     />
   );
 }

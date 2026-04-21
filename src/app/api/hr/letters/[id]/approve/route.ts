@@ -23,7 +23,7 @@ export const POST = withApiContext(async (_req: NextRequest, session, ctx: Route
   const letter = await prisma.hrLetter.findFirst({
     where: { id, deletedAt: null },
     include: {
-      employee: { select: { fullNameEn: true } },
+      employee: { select: { id: true, fullNameEn: true } },
       createdBy: { select: { id: true, name: true } },
     },
   });
@@ -48,16 +48,38 @@ export const POST = withApiContext(async (_req: NextRequest, session, ctx: Route
       },
     });
 
-    // Notify the HR user who created the letter
+    // Notify the HR user who created the letter, and the employee's linked user account
     const approverName = updated.approvedBy?.name ?? 'CEO';
-    NotificationService.createNotification({
-      userId: letter.createdBy.id,
-      type: 'APPROVED',
-      title: 'Letter Approved',
-      message: `${approverName} approved letter ${letter.letterNumber} for ${letter.employee.fullNameEn}`,
-      relatedEntityType: 'hr_letter',
-      relatedEntityId: id,
-    }).catch((err) => logger.warn({ err }, 'Failed to send letter approval notification'));
+    const notifyPromises: Promise<unknown>[] = [
+      NotificationService.createNotification({
+        userId: letter.createdBy.id,
+        type: 'APPROVED',
+        title: 'Letter Approved',
+        message: `${approverName} approved letter ${letter.letterNumber} for ${letter.employee.fullNameEn}`,
+        relatedEntityType: 'hr_letter',
+        relatedEntityId: id,
+      }),
+    ];
+
+    // Also notify the employee's linked user if they have one
+    const employeeUser = await prisma.user.findFirst({
+      where: { employeeId: letter.employee.id, status: 'active' },
+      select: { id: true },
+    }).catch(() => null);
+    if (employeeUser && employeeUser.id !== letter.createdBy.id) {
+      notifyPromises.push(
+        NotificationService.createNotification({
+          userId: employeeUser.id,
+          type: 'APPROVED',
+          title: 'Official Letter Issued',
+          message: `An official letter (${letter.letterNumber}) has been approved and issued to you`,
+          relatedEntityType: 'hr_letter',
+          relatedEntityId: id,
+        }),
+      );
+    }
+
+    Promise.all(notifyPromises).catch((err) => logger.warn({ err }, 'Failed to send letter approval notifications'));
 
     logger.info({ letterId: id, letterNumber: letter.letterNumber, approvedBy: session!.userId }, '[Letters] Approved');
     return NextResponse.json(updated);
