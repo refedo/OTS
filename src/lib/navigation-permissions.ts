@@ -177,20 +177,20 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/payroll': ['hr.payroll.view', 'hr.payroll.viewOwn'],
 
   // HR Asset Management (18.12.0)
-  '/hr/assets': ['hr.assets.view', 'hr.assets.manage'],
-  '/hr/traffic-violations': ['hr.violations.view', 'hr.violations.manage'],
+  '/hr/assets': ['hr.assets.view', 'hr.assets.manage', 'hr.assets.viewOwn'],
+  '/hr/traffic-violations': ['hr.violations.view', 'hr.violations.manage', 'hr.violations.viewOwn'],
   '/hr/car-maintenance': ['hr.carMaintenance.view', 'hr.carMaintenance.manage'],
   '/hr/manpower-invoices': ['hr.billing.view', 'hr.billing.manage', 'hr.billing.push'],
 
   // HR Contracts & Documents (18.14.0)
-  '/hr/contracts': ['hr.contracts.view', 'hr.contracts.manage'],
+  '/hr/contracts': ['hr.contracts.view', 'hr.contracts.manage', 'hr.contracts.viewOwn'],
 
   // HR Letters & Correspondence (18.17.0)
   '/hr/letters': ['hr.letters.view', 'hr.letters.manage', 'hr.letters.approveCeo'],
 
   // HR Loans & Custodies (18.18.1)
-  '/hr/loans': ['hr.loans.view', 'hr.loans.manage'],
-  '/hr/custodies': ['hr.custodies.view', 'hr.custodies.manage'],
+  '/hr/loans': ['hr.loans.view', 'hr.loans.manage', 'hr.loans.viewOwn'],
+  '/hr/custodies': ['hr.custodies.view', 'hr.custodies.manage', 'hr.custodies.viewOwn'],
 
   // HR Absence Analytics (19.4.0)
   '/hr/analytics': ['hr.analytics.view'],

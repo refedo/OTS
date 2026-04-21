@@ -310,12 +310,85 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
       return 0;
     });
 
+  const kpiCounts = {
+    total: projects.length,
+    active: projects.filter(p => p.status === 'Active').length,
+    onHold: projects.filter(p => p.status === 'On-Hold').length,
+    completed: projects.filter(p => p.status === 'Completed').length,
+    draft: projects.filter(p => p.status === 'Draft').length,
+  };
+
   if (loading) {
-    return <div className="text-center py-12">Loading projects...</div>;
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-xl border bg-white p-4 shadow-sm animate-pulse">
+              <div className="h-3 bg-slate-200 rounded w-16 mb-2" />
+              <div className="h-7 bg-slate-200 rounded w-10" />
+            </div>
+          ))}
+        </div>
+        <div className="text-center py-12 text-slate-400">Loading projects…</div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
+      {/* KPI Tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <button
+          onClick={() => setStatusFilter('')}
+          className={cn(
+            'rounded-xl border p-4 shadow-sm text-left transition-all hover:shadow-md',
+            statusFilter === '' ? 'bg-gradient-to-b from-sky-50 to-white border-sky-300 ring-2 ring-sky-200' : 'bg-white border-slate-200 hover:border-sky-200'
+          )}
+        >
+          <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">All Projects</p>
+          <p className="text-2xl font-bold text-sky-700 mt-1">{kpiCounts.total}</p>
+        </button>
+        <button
+          onClick={() => setStatusFilter('Active')}
+          className={cn(
+            'rounded-xl border p-4 shadow-sm text-left transition-all hover:shadow-md',
+            statusFilter === 'Active' ? 'bg-gradient-to-b from-emerald-50 to-white border-emerald-300 ring-2 ring-emerald-200' : 'bg-white border-slate-200 hover:border-emerald-200'
+          )}
+        >
+          <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Active</p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">{kpiCounts.active}</p>
+        </button>
+        <button
+          onClick={() => setStatusFilter('On-Hold')}
+          className={cn(
+            'rounded-xl border p-4 shadow-sm text-left transition-all hover:shadow-md',
+            statusFilter === 'On-Hold' ? 'bg-gradient-to-b from-amber-50 to-white border-amber-300 ring-2 ring-amber-200' : 'bg-white border-slate-200 hover:border-amber-200'
+          )}
+        >
+          <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">On-Hold</p>
+          <p className="text-2xl font-bold text-amber-700 mt-1">{kpiCounts.onHold}</p>
+        </button>
+        <button
+          onClick={() => setStatusFilter('Completed')}
+          className={cn(
+            'rounded-xl border p-4 shadow-sm text-left transition-all hover:shadow-md',
+            statusFilter === 'Completed' ? 'bg-gradient-to-b from-blue-50 to-white border-blue-300 ring-2 ring-blue-200' : 'bg-white border-slate-200 hover:border-blue-200'
+          )}
+        >
+          <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">Completed</p>
+          <p className="text-2xl font-bold text-blue-700 mt-1">{kpiCounts.completed}</p>
+        </button>
+        <button
+          onClick={() => setStatusFilter('Draft')}
+          className={cn(
+            'rounded-xl border p-4 shadow-sm text-left transition-all hover:shadow-md',
+            statusFilter === 'Draft' ? 'bg-gradient-to-b from-slate-100 to-white border-slate-300 ring-2 ring-slate-200' : 'bg-white border-slate-200 hover:border-slate-300'
+          )}
+        >
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Draft</p>
+          <p className="text-2xl font-bold text-slate-600 mt-1">{kpiCounts.draft}</p>
+        </button>
+      </div>
       {/* Bulk Actions Bar */}
       {selectedProjects.size > 0 && (
         <Card className="bg-primary/5 border-primary/20">

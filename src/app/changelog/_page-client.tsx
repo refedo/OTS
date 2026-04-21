@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle, AlertCircle, Wrench, History, ChevronDown, ChevronUp, Sparkles, Zap, Shield } from 'lucide-react';
+import { CheckCircle, AlertCircle, Wrench, History, ChevronDown, ChevronUp, Sparkles, Zap, Shield, ChevronsDown, ChevronsUp, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ChangeItem = { title: string; items: string[] };
@@ -23,10 +23,49 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.16.2',
+    version: '19.16.3',
     date: 'April 21, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Mobile Logo Fix, Unapproved Letter Watermark, Employee Asset/Contract Access, UI Beautification',
+    highlights: [
+      'Sidebar logo now shows the "HS" fallback on mobile when the image fails to load — no more broken-image icons.',
+      'Unapproved HR letters now display a prominent "NOT APPROVED" watermark and red banner in the print view, preventing distribution before CEO sign-off.',
+      'Employees with viewOwn permissions can now access /hr/assets and /hr/contracts to view records hinged to their names — the pages auto-filter to their own assigned assets and employee-linked contracts.',
+      'New hr.contracts.viewOwn permission added to all employee-level role bundles (Employee, Manager, Engineer, Operator, Document Controller, HR).',
+      'Projects and Buildings list pages redesigned with OTS hero banners, KPI tiles, and the standard design language.',
+      'What\'s New popup redesigned with gradient hero, branded type badges, highlight stats, and gradient action buttons.',
+      'Changelog gains Expand All / Collapse All and Copy All buttons; 4 missing versions (19.16.0, 19.15.1, 19.15.0, 19.14.1) added.',
+    ],
+    changes: {
+      added: [
+        'hr.contracts.viewOwn permission — view own employee-linked contracts (Iqama, work contract, etc.); added to Employee, Manager, Engineer, Operator, Document Controller, HR role bundles',
+        'GET /api/hr/assets: auto-filter to own assigned assets when caller has hr.assets.viewOwn but not hr.assets.view/manage',
+        '/hr/contracts: filters to employee-linked contracts when caller only has hr.contracts.viewOwn',
+        'Expand All / Collapse All buttons in changelog version list toolbar',
+        'Copy All button in changelog toolbar — copies full changelog as formatted plain text to clipboard',
+        'Unapproved letter print view: diagonal "NOT APPROVED" / "غير معتمد" watermark and red alert banner when letter is not yet CEO-approved',
+        'Sidebar logo: onError handler falls back to HS badge when image fails to load',
+      ],
+      fixed: [
+        'Mobile sidebar logo: broken image icon replaced by HS fallback when logo URL fails',
+        'Employees with hr.assets.viewOwn permission getting Access Denied on /hr/assets — page now allows viewOwn access',
+        'Employees with hr.contracts.viewOwn permission getting Access Denied on /hr/contracts — page now allows viewOwn access',
+        'navigation-permissions updated: hr.assets.viewOwn added to /hr/assets; hr.violations.viewOwn to /hr/traffic-violations; hr.loans.viewOwn to /hr/loans; hr.custodies.viewOwn to /hr/custodies; hr.contracts.viewOwn to /hr/contracts',
+        'Changelog missing versions 19.16.0, 19.15.1, 19.15.0, 19.14.1 now added',
+      ],
+      changed: [
+        'Projects page redesigned: sky/blue gradient hero banner with New Project and Import/Export buttons; KPI tiles (All / Active / On-Hold / Completed / Draft) above the project list — tiles are clickable status filters',
+        'Buildings page redesigned: emerald/teal gradient hero banner; KPI tiles (Total Buildings, Projects, Clients, Total Weight)',
+        'What\'s New dialog redesigned: gradient hero matching release type (violet=major, sky=minor, emerald=patch); branded type/version badges; highlight dot colors; stat pills showing items added/fixed; gradient Got It button',
+      ],
+    },
+  },
+  {
+    version: '19.16.2',
+    date: 'April 21, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Logo Upload Fix, Announcements in Letters, Changelog Redesign',
     highlights: [
       'Logo and CEO signature now show an instant blob-URL preview after upload — broken image alt-text is gone. Both auto-save to settings immediately so no separate "Save Changes" click is needed.',
@@ -82,6 +121,125 @@ const hardcodedVersions: ChangelogVersion[] = [
         'GET /api/hr/employees/[id]/payslips — hr.payroll.viewOwn now permits self-access to own payslips',
         'Dashboard EmployeeSelfService widget "Full Profile" button now links to /hr/employees/me instead of a specific employee ID path',
         'Engineer, Operator, Manager, Document Controller role bundles updated with all 9 viewOwn self-service permissions',
+      ],
+    },
+  },
+  {
+    version: '19.16.0',
+    date: 'April 21, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'HR Letter Templates, Circulations & Migration Fix',
+    highlights: [
+      'Letter creation uses a 3-tier fallback with explicit select clauses so missing contentEn column no longer causes errors — migration runs on server restart.',
+      'New HrLetterTemplate model — HR configures per-type pre-defined reason codes, bilingual subjects, and body templates in HR Setup → Letter Templates tab.',
+      'Template/reason dropdown auto-fills subject and body when creating a letter; TASK_DELAY reason code opens an overdue-task picker with multi-select injection.',
+      'New HrCirculation model — multi-recipient broadcast letters with the same CEO approval workflow; audience can be ALL employees, specific departments, or specific employees.',
+      'Circulations tab added to Letters & Correspondence page; serial numbers follow CIR-YY-NNNN format; all recipients notified via push on approval.',
+    ],
+    changes: {
+      added: [
+        'HrLetterTemplate Prisma model — per-type reason codes, bilingual subject/body templates; HR Setup → Letter Templates tab for CRUD',
+        'Template picker in letter create/edit dialog — reason dropdown auto-fills subject and body from template',
+        'TASK_DELAY reason code — overdue-task picker shows all past-due tasks assigned to the employee with multi-select and inject-into-body button',
+        'HrCirculation + HrCirculationRecipient Prisma models — broadcast letters to ALL / department / specific employees; CIR-YY-NNNN serial numbers',
+        'Circulations tab in Letters & Correspondence page (next to Letters); same PENDING_CEO → APPROVED/REJECTED approval workflow',
+        'Push notifications to all circulation recipients on CEO approval',
+      ],
+      fixed: [
+        'Letter creation 3-tier fallback with explicit select — contentEn column absence no longer causes "failed to create letter" 500 error',
+        'Startup migration runs add_hr_letter_enhancements.sql to create/patch schema on first deploy',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '19.15.1',
+    date: 'April 21, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'HR Letter Print — Bilingual Auto-Translate & CEO Signature',
+    highlights: [
+      'New POST /api/hr/letters/translate endpoint (Claude Haiku) translates letter content between Arabic and English.',
+      'Create/edit dialog gains a language selector (Arabic/English/Bilingual) and, in Bilingual mode, a second textarea with an Auto-translate button.',
+      'CEO signature image (uploaded in System Settings) appears above the signature line on approved letters.',
+      'Print page loads logo and CEO signature client-side via /api/settings, fixing URL resolution mismatches.',
+      'Letter number badge in the main letters table is now clickable — opens the print page in a new tab.',
+    ],
+    changes: {
+      added: [
+        'POST /api/hr/letters/translate — Claude Haiku auto-translate endpoint for Arabic ↔ English letter content',
+        'Language selector in letter create/edit dialog: Arabic / English / Bilingual',
+        'Bilingual mode: second textarea for English translation with Auto-translate button',
+        'ceoSignatureUrl added to SystemSettings; upload UI in System Settings → Company tab',
+        'CEO signature image rendered above the CEO signature line on the print page (approved letters only)',
+        'Approval stamp redesigned as a circular official-looking emerald stamp (rotated −12°) showing APPROVED / معتمد, approver name, and date',
+      ],
+      fixed: [
+        'Print page: logo and CEO signature now loaded client-side from /api/settings — eliminates URL resolution and basePath mismatches',
+        'Company name on Arabic letterhead simplified: هيكسا ستيل® without للصلب',
+        'Letter dates on print page switched from Hijri to Gregorian calendar',
+        'Footer changed from "Issued by: [name]" to "HR Department" / قسم الموارد البشرية',
+      ],
+      changed: [
+        'Letter number badge in main letters table is now a clickable link to the print page',
+        'contentEn stored in DB for all letters (bilingual content field)',
+      ],
+    },
+  },
+  {
+    version: '19.15.0',
+    date: 'April 21, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'HR Letter CEO Approval Workflow + Print Page',
+    highlights: [
+      'Employee profile now shows only APPROVED letters — non-approved letters are hidden from the employee Letters tab.',
+      'Letters & Correspondence page shows a Status column and approve/reject buttons for PENDING_CEO letters; CEO users can approve/reject directly from the view dialog.',
+      'CEO notification fix: findCeoApprovers() now also catches users with the ALL permission so admin/CEO users always receive the issuance notification.',
+      'After CEO approval, the employee\'s linked user account is notified in addition to the HR creator.',
+      'Print button added to every row in the main Letters table — print directly without navigating to the employee profile.',
+    ],
+    changes: {
+      added: [
+        'Status column in Letters & Correspondence table showing PENDING_CEO / APPROVED / REJECTED badges',
+        'Approve (✓) and Reject (✗) action buttons on PENDING_CEO letter rows — visible to users with hr.letters.approveCeo',
+        'CEO can approve or reject directly from the view dialog after reviewing content',
+        'Print button on every row in the main Letters table',
+        'hr_letter entity type added to push-notification URL router — notification taps deep-link to /hr/letters',
+        'Post-approval notification sent to the employee\'s linked user account',
+      ],
+      fixed: [
+        'findCeoApprovers() now includes users with the ALL permission — ensures admins/CEOs always receive letter issuance notifications',
+        'hr.letters.approveCeo permission now also grants access to the /hr/letters page',
+        'Approved letters locked against edits and deletes',
+      ],
+      changed: [
+        'Employee profile Letters tab: only APPROVED letters shown; PENDING_CEO and REJECTED letters hidden',
+      ],
+    },
+  },
+  {
+    version: '19.14.1',
+    date: 'April 20, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Clickable Invoices & Payments in SOA and Aging Reports',
+    highlights: [
+      'Clicking any invoice or payment row in Statement of Account or Aging Report opens a slide-in detail sheet.',
+      'Detail sheet shows the invoice header, all line items, and the full payment history for that invoice.',
+      'New GET /api/financial/invoices/[id] endpoint returns full invoice details with line items and payments.',
+    ],
+    changes: {
+      added: [
+        'GET /api/financial/invoices/[id] — returns invoice header, line items (product, qty, unit price, total), and payment history',
+        'Invoice detail slide-in sheet component — triggered by clicking any invoice or payment row in SOA and Aging reports',
+        'Aging report invoice objects now include invoiceId for the detail link',
+      ],
+      fixed: [],
+      changed: [
+        'SOA invoice/payment rows are now clickable links that open the invoice detail sheet',
+        'Aging report invoice rows are now clickable links that open the invoice detail sheet',
       ],
     },
   },
@@ -7730,6 +7888,7 @@ export default function ChangelogPage() {
   const versions = hardcodedVersions;
   const current  = versions.find((v) => v.status === 'current');
   const [openIds, setOpenIds] = useState<Set<string>>(new Set([current?.version ?? '']));
+  const [copied, setCopied] = useState(false);
 
   const toggle = (v: string) =>
     setOpenIds((prev) => {
@@ -7737,6 +7896,44 @@ export default function ChangelogPage() {
       next.has(v) ? next.delete(v) : next.add(v);
       return next;
     });
+
+  const expandAll = () => setOpenIds(new Set(versions.map((v) => v.version)));
+  const collapseAll = () => setOpenIds(new Set());
+
+  const copyAll = async () => {
+    const lines: string[] = [];
+    for (const v of versions) {
+      lines.push(`## v${v.version} — ${v.mainTitle} (${v.date}) [${v.type}]`);
+      if (v.highlights.length > 0) {
+        lines.push('', 'Highlights:');
+        v.highlights.forEach((h) => lines.push(`  • ${h}`));
+      }
+      if (v.changes.added.length > 0) {
+        lines.push('', 'Added:');
+        v.changes.added.forEach((item) =>
+          typeof item === 'string' ? lines.push(`  + ${item}`) : lines.push(`  + ${item.title}`)
+        );
+      }
+      if (v.changes.fixed.length > 0) {
+        lines.push('', 'Fixed:');
+        v.changes.fixed.forEach((item) =>
+          typeof item === 'string' ? lines.push(`  • ${item}`) : lines.push(`  • ${item.title}`)
+        );
+      }
+      if (v.changes.changed.length > 0) {
+        lines.push('', 'Changed:');
+        v.changes.changed.forEach((item) =>
+          typeof item === 'string' ? lines.push(`  ~ ${item}`) : lines.push(`  ~ ${item.title}`)
+        );
+      }
+      lines.push('');
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* non-critical */ }
+  };
 
   const totalAdded   = versions.reduce((s, v) => s + v.changes.added.length,   0);
   const totalFixed   = versions.reduce((s, v) => s + v.changes.fixed.length,   0);
@@ -7783,6 +7980,39 @@ export default function ChangelogPage() {
               <p className={`text-xs text-${color}-500 mt-0.5`}>{sub}</p>
             </div>
           ))}
+        </div>
+
+        {/* Version list toolbar */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-600">{versions.length} Releases</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={expandAll}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-sky-600 bg-white border border-slate-200 hover:border-sky-300 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              <ChevronsDown className="h-3.5 w-3.5" />
+              Expand All
+            </button>
+            <button
+              onClick={collapseAll}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-sky-600 bg-white border border-slate-200 hover:border-sky-300 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              <ChevronsUp className="h-3.5 w-3.5" />
+              Collapse All
+            </button>
+            <button
+              onClick={copyAll}
+              className={cn(
+                'inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors border',
+                copied
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                  : 'text-slate-500 hover:text-sky-600 bg-white border-slate-200 hover:border-sky-300'
+              )}
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? 'Copied!' : 'Copy All'}
+            </button>
+          </div>
         </div>
 
         {/* Version list */}

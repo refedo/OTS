@@ -395,6 +395,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.billing.push', name: 'Push Invoices to Dolibarr', description: 'Push confirmed manpower invoice drafts as vendor invoices in Dolibarr', category: 'hr' },
       // 18.14.0 — Contracts & Documents Management
       { id: 'hr.contracts.view', name: 'View Contracts', description: 'View company contracts, Iqamas, insurance policies, and legal documents', category: 'hr' },
+      { id: 'hr.contracts.viewOwn', name: 'View Own Contracts', description: 'View contracts and documents linked to your employee record (Iqama, work contract, etc.) — read-only, self-service', category: 'hr' },
       { id: 'hr.contracts.manage', name: 'Manage Contracts', description: 'Create, edit, and delete contracts and documents; receive expiry notifications', category: 'hr' },
       // 18.16.0 — Letters & Correspondence
       { id: 'hr.letters.view', name: 'View Letters', description: 'View HR letters and correspondence issued to employees', category: 'hr' },
@@ -525,6 +526,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.assets.viewOwn',
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
   ],
   // 19.14.0 — Employee self-service role: base permissions for any OTS-linked employee
   Employee: [
@@ -540,6 +542,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.assets.viewOwn',
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
   ],
   Manager: [
     // User Management
@@ -680,6 +683,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.assets.viewOwn',
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
   ],
   Engineer: [
     // Basic Access
@@ -760,6 +764,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.assets.viewOwn',
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
   ],
   Operator: [
     // Basic Access
@@ -806,6 +811,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.assets.viewOwn',
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
   ],
   'Document Controller': [
     // Basic Access
@@ -870,5 +876,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.assets.viewOwn',
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
+    'hr.contracts.viewOwn',
   ],
 };
