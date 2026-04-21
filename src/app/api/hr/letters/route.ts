@@ -27,6 +27,7 @@ const createSchema = z.object({
   language: z.enum(['ARABIC', 'ENGLISH', 'BILINGUAL']).default('ARABIC'),
   subject: z.string().min(1).max(500),
   content: z.string().max(50000).optional(),
+  contentEn: z.string().max(50000).optional(),
   attachmentUrl: z.string().max(1000).optional(),
   issuedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(500).optional(),
@@ -79,16 +80,29 @@ async function resolveLetterNumber(
   return { number: `${prefix}-${year}-${seq.toString().padStart(4, '0')}` };
 }
 
-/** Find all users who hold the hr.letters.approveCeo permission */
+/** Find all users who hold the hr.letters.approveCeo permission (or ALL) */
 async function findCeoApprovers(): Promise<{ id: string }[]> {
-  return prisma.user.findMany({
-    where: {
-      status: 'active',
-      role: {
-        permissions: { path: '$', string_contains: 'hr.letters.approveCeo' },
+  const [withPerm, withAll] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        status: 'active',
+        role: { permissions: { path: '$', string_contains: 'hr.letters.approveCeo' } },
       },
-    },
-    select: { id: true },
+      select: { id: true },
+    }),
+    prisma.user.findMany({
+      where: {
+        status: 'active',
+        role: { permissions: { path: '$', string_contains: '"ALL"' } },
+      },
+      select: { id: true },
+    }),
+  ]);
+  const seen = new Set<string>();
+  return [...withPerm, ...withAll].filter((u) => {
+    if (seen.has(u.id)) return false;
+    seen.add(u.id);
+    return true;
   });
 }
 
@@ -103,6 +117,28 @@ const LETTER_INCLUDE = {
 // that existed before the add_hr_letter_enhancements migration. Avoids FK-column
 // errors if the migration hasn't run yet on first deploy.
 const LETTER_INCLUDE_SAFE = {
+  employee: { select: { id: true, fullNameEn: true, fullNameAr: true, employmentId: true } },
+  createdBy: { select: { id: true, name: true } },
+} as const;
+
+// Explicit select for the tier-2 fallback (add_letter_bilingual_ceo_sig not yet applied).
+// Must use select (not include) so Prisma does NOT try to read contentEn from the DB.
+const LETTER_SELECT_NO_CONTENT_EN = {
+  id: true, letterNumber: true, letterType: true, classification: true,
+  language: true, status: true, subject: true, content: true,
+  attachmentUrl: true, issuedAt: true, notes: true,
+  createdAt: true, updatedAt: true, deletedAt: true,
+  employeeId: true, createdById: true,
+  employee: { select: { id: true, fullNameEn: true, fullNameAr: true, employmentId: true } },
+  createdBy: { select: { id: true, name: true } },
+} as const;
+
+// Tier-3 fallback: no enhancement fields (add_hr_letter_enhancements not yet applied).
+const LETTER_SELECT_MINIMAL = {
+  id: true, letterNumber: true, letterType: true, classification: true,
+  subject: true, content: true, attachmentUrl: true, issuedAt: true, notes: true,
+  createdAt: true, updatedAt: true, deletedAt: true,
+  employeeId: true, createdById: true,
   employee: { select: { id: true, fullNameEn: true, fullNameAr: true, employmentId: true } },
   createdBy: { select: { id: true, name: true } },
 } as const;
@@ -166,9 +202,10 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
           }
         }
 
-        // Try full create with enhancement fields (status, language).
-        // If the add_hr_letter_enhancements migration hasn't run yet,
-        // fall back to a basic create without those fields.
+        // Tier-1: Full create with all current fields (contentEn, language, status).
+        // Tier-2: Without contentEn — add_letter_bilingual_ceo_sig not yet applied.
+        //         Uses explicit select to avoid Prisma reading contentEn from DB.
+        // Tier-3: Without any enhancement fields — add_hr_letter_enhancements not yet applied.
         try {
           return await tx.hrLetter.create({
             data: {
@@ -180,6 +217,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
               employeeId: d.employeeId,
               subject: d.subject,
               content: d.content ?? null,
+              contentEn: d.contentEn ?? null,
               attachmentUrl: d.attachmentUrl ?? null,
               issuedAt: new Date(d.issuedAt),
               notes: d.notes ?? null,
@@ -188,22 +226,43 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
             include: LETTER_INCLUDE_SAFE,
           });
         } catch {
-          // Migration not yet applied — create without enhancement fields
-          return await tx.hrLetter.create({
-            data: {
-              letterNumber: resolved.number,
-              letterType: d.letterType,
-              classification: d.classification,
-              employeeId: d.employeeId,
-              subject: d.subject,
-              content: d.content ?? null,
-              attachmentUrl: d.attachmentUrl ?? null,
-              issuedAt: new Date(d.issuedAt),
-              notes: d.notes ?? null,
-              createdById: session!.userId,
-            },
-            include: LETTER_INCLUDE_SAFE,
-          });
+          try {
+            // Tier-2: contentEn column missing — skip it but keep status/language
+            return await tx.hrLetter.create({
+              data: {
+                letterNumber: resolved.number,
+                letterType: d.letterType,
+                classification: d.classification,
+                language: d.language,
+                status: 'PENDING_CEO',
+                employeeId: d.employeeId,
+                subject: d.subject,
+                content: d.content ?? null,
+                attachmentUrl: d.attachmentUrl ?? null,
+                issuedAt: new Date(d.issuedAt),
+                notes: d.notes ?? null,
+                createdById: session!.userId,
+              },
+              select: LETTER_SELECT_NO_CONTENT_EN,
+            });
+          } catch {
+            // Tier-3: no enhancement fields at all
+            return await tx.hrLetter.create({
+              data: {
+                letterNumber: resolved.number,
+                letterType: d.letterType,
+                classification: d.classification,
+                employeeId: d.employeeId,
+                subject: d.subject,
+                content: d.content ?? null,
+                attachmentUrl: d.attachmentUrl ?? null,
+                issuedAt: new Date(d.issuedAt),
+                notes: d.notes ?? null,
+                createdById: session!.userId,
+              },
+              select: LETTER_SELECT_MINIMAL,
+            });
+          }
         }
       });
 

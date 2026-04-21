@@ -14,8 +14,17 @@ import {
 } from '@/components/ui/dialog';
 import {
   Mail, Plus, Search, Loader2, FileText, Eye, Pencil, Trash2,
-  ExternalLink, User, Calendar, Hash, Upload, X, Building2,
+  ExternalLink, User, Calendar, Hash, Upload, X, Building2, Printer,
+  CheckCircle, XCircle, Languages, ClipboardList, AlertTriangle, Megaphone,
 } from 'lucide-react';
+import { CirculationsTab } from './circulations-tab';
+
+const STATUS_CFG: Record<string, { label: string; cls: string }> = {
+  DRAFT:       { label: 'Draft',       cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  PENDING_CEO: { label: 'Pending CEO', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  APPROVED:    { label: 'Approved',    cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  REJECTED:    { label: 'Rejected',    cls: 'bg-rose-100 text-rose-700 border-rose-200' },
+};
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -61,24 +70,53 @@ const TYPE_BADGE: Record<string, string> = {
 
 type Employee = { id: string; fullNameEn: string; employmentId: string };
 
+type LetterTemplate = {
+  id: string;
+  letterType: string;
+  reasonCode: string;
+  subjectAr: string;
+  subjectEn: string;
+  bodyAr: string | null;
+  bodyEn: string | null;
+};
+
+type OverdueTask = {
+  id: string;
+  title: string;
+  dueDate: string;
+  status: string;
+  priority: string;
+  project: { name: string } | null;
+};
+
 type Letter = {
   id: string;
   letterNumber: string;
   letterType: string;
   classification: 'INTERNAL' | 'EXTERNAL';
+  language: string;
   employeeId: string;
+  status: string;
   subject: string;
   content: string | null;
+  contentEn: string | null;
   attachmentUrl: string | null;
   issuedAt: string;
   notes: string | null;
+  rejectionReason: string | null;
   employee: { id: string; fullNameEn: string; employmentId: string };
   createdBy: { id: string; name: string };
+  approvedBy: { id: string; name: string } | null;
+  rejectedBy: { id: string; name: string } | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
 };
 
 type Props = {
   employees: Employee[];
+  departments: { id: string; name: string }[];
   canManage: boolean;
+  canApproveCeo: boolean;
 };
 
 const EMPTY_FORM = {
@@ -86,12 +124,15 @@ const EMPTY_FORM = {
   empSearch: '',
   letterType: '',
   classification: 'INTERNAL' as 'INTERNAL' | 'EXTERNAL',
+  language: 'ARABIC' as 'ARABIC' | 'ENGLISH' | 'BILINGUAL',
   subject: '',
   contentMode: 'write' as 'write' | 'attach',
   content: '',
+  contentEn: '',
   attachmentUrl: '',
   issuedAt: new Date().toISOString().slice(0, 10),
   notes: '',
+  templateId: '',
 };
 
 function typeBadge(type: string) {
@@ -106,8 +147,9 @@ function typeBadge(type: string) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function LettersClient({ employees, canManage }: Props) {
+export function LettersClient({ employees, departments, canManage, canApproveCeo }: Props) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'letters' | 'circulations'>('letters');
   const [letters, setLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -117,6 +159,13 @@ export function LettersClient({ employees, canManage }: Props) {
   const [editLetter, setEditLetter] = useState<Letter | null>(null);
   const [viewLetter, setViewLetter] = useState<Letter | null>(null);
   const [deleteLetter, setDeleteLetter] = useState<Letter | null>(null);
+  const [approveLetter, setApproveLetter] = useState<Letter | null>(null);
+  const [rejectLetter, setRejectLetter] = useState<Letter | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [translating, setTranslating] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -125,10 +174,94 @@ export function LettersClient({ employees, canManage }: Props) {
   const [empOpen, setEmpOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Templates + task injection
+  const [templates, setTemplates] = useState<LetterTemplate[]>([]);
+  const [typeTemplates, setTypeTemplates] = useState<LetterTemplate[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [fetchingTasks, setFetchingTasks] = useState(false);
+  const [taskInjectOpen, setTaskInjectOpen] = useState(false);
+
+  // Load all templates on mount
+  useEffect(() => {
+    fetch('/api/hr/letters/templates')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: LetterTemplate[]) => setTemplates(data))
+      .catch(() => {});
+  }, []);
+
   const filteredEmployees = employees.filter((e) => {
     const q = form.empSearch.toLowerCase();
     return !q || e.fullNameEn.toLowerCase().includes(q) || e.employmentId.toLowerCase().includes(q);
   });
+
+  function handleLetterTypeChange(newType: string) {
+    const forType = templates.filter((t) => t.letterType === newType);
+    setTypeTemplates(forType);
+    setForm((f) => ({ ...f, letterType: newType, templateId: '' }));
+    setSelectedTaskIds(new Set());
+    setOverdueTasks([]);
+    setTaskInjectOpen(false);
+  }
+
+  function applyTemplate(templateId: string) {
+    const tpl = typeTemplates.find((t) => t.id === templateId);
+    if (!tpl) {
+      setForm((f) => ({ ...f, templateId: '' }));
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      templateId,
+      subject: tpl.subjectAr,
+      content: tpl.bodyAr ?? f.content,
+      contentEn: tpl.bodyEn ?? f.contentEn,
+    }));
+    // If task delay reason, fetch overdue tasks for selected employee
+    if (tpl.reasonCode === 'TASK_DELAY' && form.employeeId) {
+      fetchOverdueTasks(form.employeeId);
+    }
+  }
+
+  async function fetchOverdueTasks(employeeId: string) {
+    setFetchingTasks(true);
+    setOverdueTasks([]);
+    try {
+      const res = await fetch(`/api/hr/letters/overdue-tasks?employeeId=${employeeId}`);
+      if (res.ok) {
+        const tasks: OverdueTask[] = await res.json();
+        setOverdueTasks(tasks);
+        if (tasks.length > 0) setTaskInjectOpen(true);
+      }
+    } finally {
+      setFetchingTasks(false);
+    }
+  }
+
+  function injectTasksIntoContent() {
+    const selected = overdueTasks.filter((t) => selectedTaskIds.has(t.id));
+    if (!selected.length) return;
+
+    const arLines = selected.map((t, i) => {
+      const due = new Date(t.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      return `${i + 1}. ${t.title} (${t.project?.name ?? ''}) — تاريخ الاستحقاق: ${due}`;
+    });
+    const enLines = selected.map((t, i) => {
+      const due = new Date(t.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      return `${i + 1}. ${t.title}${t.project ? ` (${t.project.name})` : ''} — Due: ${due}`;
+    });
+
+    const arBlock = `\n\nالمهام المتأخرة:\n${arLines.join('\n')}`;
+    const enBlock = `\n\nOverdue Tasks:\n${enLines.join('\n')}`;
+
+    setForm((f) => ({
+      ...f,
+      content: (f.content + arBlock).trim(),
+      contentEn: (f.contentEn + enBlock).trim(),
+    }));
+    setTaskInjectOpen(false);
+    setSelectedTaskIds(new Set());
+  }
 
   async function fetchLetters() {
     setLoading(true);
@@ -146,6 +279,10 @@ export function LettersClient({ employees, canManage }: Props) {
     setEditLetter(null);
     setForm({ ...EMPTY_FORM, issuedAt: new Date().toISOString().slice(0, 10) });
     setFormError(null);
+    setTypeTemplates([]);
+    setOverdueTasks([]);
+    setSelectedTaskIds(new Set());
+    setTaskInjectOpen(false);
     setDialogOpen(true);
   }
 
@@ -157,9 +294,11 @@ export function LettersClient({ employees, canManage }: Props) {
       empSearch: emp?.fullNameEn ?? '',
       letterType: l.letterType,
       classification: l.classification,
+      language: (l.language as 'ARABIC' | 'ENGLISH' | 'BILINGUAL') ?? 'ARABIC',
       subject: l.subject,
       contentMode: l.attachmentUrl ? 'attach' : 'write',
       content: l.content ?? '',
+      contentEn: l.contentEn ?? '',
       attachmentUrl: l.attachmentUrl ?? '',
       issuedAt: l.issuedAt.slice(0, 10),
       notes: l.notes ?? '',
@@ -184,6 +323,27 @@ export function LettersClient({ employees, canManage }: Props) {
     }
   }
 
+  async function handleTranslate() {
+    if (!form.content.trim()) return setFormError('Write the content first before translating');
+    setTranslating(true);
+    setFormError(null);
+    try {
+      const sourceLang = form.language === 'ENGLISH' ? 'ENGLISH' : 'ARABIC';
+      const res = await fetch('/api/hr/letters/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: form.content, sourceLang }),
+      });
+      if (!res.ok) throw new Error('Translation failed');
+      const data = await res.json();
+      setForm((f) => ({ ...f, contentEn: data.translated }));
+    } catch {
+      setFormError('Auto-translation failed — check your connection or enter the translation manually');
+    } finally {
+      setTranslating(false);
+    }
+  }
+
   async function handleSave() {
     if (!form.employeeId) return setFormError('Select an employee');
     if (!form.letterType) return setFormError('Select a letter type');
@@ -196,8 +356,10 @@ export function LettersClient({ employees, canManage }: Props) {
         employeeId: form.employeeId,
         letterType: form.letterType,
         classification: form.classification,
+        language: form.language,
         subject: form.subject.trim(),
         content: form.contentMode === 'write' && form.content.trim() ? form.content.trim() : undefined,
+        contentEn: form.contentMode === 'write' && form.contentEn.trim() ? form.contentEn.trim() : undefined,
         attachmentUrl: form.contentMode === 'attach' && form.attachmentUrl ? form.attachmentUrl : undefined,
         issuedAt: form.issuedAt,
         notes: form.notes.trim() || undefined,
@@ -232,6 +394,51 @@ export function LettersClient({ employees, canManage }: Props) {
       fetchLetters();
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleApprove() {
+    if (!approveLetter) return;
+    setApproving(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/hr/letters/${approveLetter.id}/approve`, { method: 'POST' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? 'Approval failed');
+      }
+      setApproveLetter(null);
+      fetchLetters();
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Approval failed');
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectLetter || !rejectReason.trim()) return;
+    setRejecting(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/hr/letters/${rejectLetter.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectReason.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? 'Rejection failed');
+      }
+      setRejectLetter(null);
+      setRejectReason('');
+      fetchLetters();
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Rejection failed');
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -279,7 +486,7 @@ export function LettersClient({ employees, canManage }: Props) {
                 Issue and track official HR letters — warnings, circulars, certificates, and more.
               </p>
             </div>
-            {canManage && (
+            {canManage && activeTab === 'letters' && (
               <Button onClick={openCreate} className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shrink-0">
                 <Plus className="h-4 w-4 mr-2" />
                 Issue Letter
@@ -287,6 +494,35 @@ export function LettersClient({ employees, canManage }: Props) {
             )}
           </div>
         </div>
+
+        {/* Tab bar */}
+        <div className="flex gap-1 border-b">
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'letters' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setActiveTab('letters')}
+          >
+            <Mail className="h-4 w-4" /> Letters
+          </button>
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'circulations' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setActiveTab('circulations')}
+          >
+            <Megaphone className="h-4 w-4" /> Circulations
+          </button>
+        </div>
+
+        {/* Circulations tab */}
+        {activeTab === 'circulations' && (
+          <CirculationsTab
+            departments={departments}
+            employees={employees}
+            canManage={canManage}
+            canApproveCeo={canApproveCeo}
+          />
+        )}
+
+        {/* Letters tab content — only shown when activeTab === 'letters' */}
+        {activeTab === 'letters' && <>
 
         {/* KPI tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -359,6 +595,7 @@ export function LettersClient({ employees, canManage }: Props) {
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Number</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Class</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Employee</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Subject</th>
@@ -371,11 +608,20 @@ export function LettersClient({ employees, canManage }: Props) {
                   {filtered.map((l) => (
                     <tr key={l.id} className="hover:bg-blue-50/30 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                        <button
+                          className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-100 hover:border-blue-300 transition-colors cursor-pointer"
+                          onClick={() => window.open(`/hr/letters/${l.id}/print`, '_blank')}
+                          title="Open print view"
+                        >
                           {l.letterNumber}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3">{typeBadge(l.letterType)}</td>
+                      <td className="px-4 py-3">
+                        {(() => { const s = STATUS_CFG[l.status] ?? STATUS_CFG.DRAFT; return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${s.cls}`}>{s.label}</span>
+                        ); })()}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${l.classification === 'INTERNAL' ? 'bg-slate-100 text-slate-700' : 'bg-sky-100 text-sky-700'}`}>
                           {l.classification === 'INTERNAL' ? <Building2 className="h-3 w-3" /> : <ExternalLink className="h-3 w-3" />}
@@ -405,10 +651,21 @@ export function LettersClient({ employees, canManage }: Props) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {(l.content || l.attachmentUrl) && (
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700" onClick={() => setViewLetter(l)}>
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600" title="View / Review" onClick={() => setViewLetter(l)}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600" title="Print letter" onClick={() => window.open(`/hr/letters/${l.id}/print`, '_blank')}>
+                            <Printer className="h-3.5 w-3.5" />
+                          </Button>
+                          {canApproveCeo && l.status === 'PENDING_CEO' && (
+                            <>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50" title="Approve" onClick={() => { setApproveLetter(l); setActionError(null); }}>
+                                <CheckCircle className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50" title="Reject" onClick={() => { setRejectLetter(l); setRejectReason(''); setActionError(null); }}>
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
                           )}
                           {canManage && (
                             <>
@@ -429,6 +686,7 @@ export function LettersClient({ employees, canManage }: Props) {
             </div>
           )}
         </div>
+        </>}
       </div>
 
       {/* Create / Edit dialog */}
@@ -506,7 +764,10 @@ export function LettersClient({ employees, canManage }: Props) {
                 <Label className="text-sm font-medium mb-1.5 block">
                   <Hash className="h-3.5 w-3.5 inline mr-1" /> Letter Type <span className="text-rose-500">*</span>
                 </Label>
-                <Select value={form.letterType || '__none__'} onValueChange={(v) => setForm((f) => ({ ...f, letterType: v === '__none__' ? '' : v }))}>
+                <Select
+                  value={form.letterType || '__none__'}
+                  onValueChange={(v) => handleLetterTypeChange(v === '__none__' ? '' : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type…" />
                   </SelectTrigger>
@@ -530,6 +791,117 @@ export function LettersClient({ employees, canManage }: Props) {
               </div>
             </div>
 
+            {/* Template selector (shown when there are templates for the selected type) */}
+            {typeTemplates.length > 0 && (
+              <div>
+                <Label className="text-sm font-medium mb-1.5 block">
+                  <ClipboardList className="h-3.5 w-3.5 inline mr-1" /> Reason / Template
+                </Label>
+                <Select value={form.templateId || '__none__'} onValueChange={(v) => applyTemplate(v === '__none__' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select reason or use custom…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Custom (no template)</SelectItem>
+                    {typeTemplates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.subjectAr}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.templateId && typeTemplates.find((t) => t.id === form.templateId)?.reasonCode === 'TASK_DELAY' && (
+                  <button
+                    type="button"
+                    className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1 transition-colors"
+                    onClick={() => form.employeeId ? fetchOverdueTasks(form.employeeId) : setFormError('Select an employee first')}
+                    disabled={fetchingTasks}
+                  >
+                    {fetchingTasks
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <AlertTriangle className="h-3 w-3" />}
+                    {fetchingTasks ? 'Loading tasks…' : 'Load overdue tasks for this employee'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Overdue task picker */}
+            {taskInjectOpen && overdueTasks.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4" />
+                    {overdueTasks.length} Overdue Task{overdueTasks.length !== 1 ? 's' : ''} Found
+                  </p>
+                  <button
+                    type="button"
+                    className="text-amber-600 hover:text-amber-900"
+                    onClick={() => setTaskInjectOpen(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-amber-700">Select tasks to inject into the letter body:</p>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {overdueTasks.map((t) => {
+                    const checked = selectedTaskIds.has(t.id);
+                    const due = new Date(t.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    return (
+                      <label
+                        key={t.id}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${checked ? 'bg-amber-100 border-amber-400' : 'bg-white border-amber-200 hover:bg-amber-50'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedTaskIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(t.id)) next.delete(t.id); else next.add(t.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{t.title}</p>
+                          <p className="text-xs text-slate-500">
+                            {t.project?.name && <span className="mr-2">{t.project.name}</span>}
+                            Due: <span className="text-rose-600 font-medium">{due}</span>
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="text-xs text-slate-500 hover:text-slate-700"
+                    onClick={() => setTaskInjectOpen(false)}
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedTaskIds.size === 0}
+                    className="text-xs font-medium bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                    onClick={injectTasksIntoContent}
+                  >
+                    Inject {selectedTaskIds.size > 0 ? `${selectedTaskIds.size} ` : ''}task{selectedTaskIds.size !== 1 ? 's' : ''} into letter
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {overdueTasks.length === 0 && !fetchingTasks && taskInjectOpen === false &&
+              form.templateId && typeTemplates.find((t) => t.id === form.templateId)?.reasonCode === 'TASK_DELAY' &&
+              form.employeeId && (
+                <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded px-3 py-2">
+                  No overdue tasks found for this employee.
+                </p>
+              )
+            }
+
             {/* Subject */}
             <div>
               <Label className="text-sm font-medium mb-1.5 block">Subject <span className="text-rose-500">*</span></Label>
@@ -538,6 +910,23 @@ export function LettersClient({ employees, canManage }: Props) {
                 placeholder="Brief subject of this letter…"
                 onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
               />
+            </div>
+
+            {/* Language selector */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Language / اللغة</Label>
+              <div className="flex rounded-lg border overflow-hidden w-fit">
+                {([['ARABIC', 'Arabic (عربي)'], ['ENGLISH', 'English'], ['BILINGUAL', 'Bilingual (ثنائي)']] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={`px-4 py-1.5 text-sm transition-colors ${form.language === val ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                    onClick={() => setForm((f) => ({ ...f, language: val }))}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Content mode toggle */}
@@ -557,13 +946,44 @@ export function LettersClient({ employees, canManage }: Props) {
               </div>
 
               {form.contentMode === 'write' ? (
-                <textarea
-                  className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  rows={8}
-                  placeholder="Write the letter content here…"
-                  value={form.content}
-                  onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-                />
+                <>
+                  <Label className="text-xs text-slate-500 mb-1 block">
+                    {form.language === 'ENGLISH' ? 'English content' : 'Arabic content (المحتوى العربي)'}
+                  </Label>
+                  <textarea
+                    className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    rows={6}
+                    placeholder={form.language === 'ENGLISH' ? 'Write the letter content in English…' : 'اكتب محتوى الخطاب هنا…'}
+                    dir={form.language === 'ENGLISH' ? 'ltr' : 'rtl'}
+                    value={form.content}
+                    onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                  />
+                  {form.language === 'BILINGUAL' && (
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <Label className="text-xs text-slate-500">English translation (الترجمة الإنجليزية)</Label>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          onClick={handleTranslate}
+                          disabled={translating || !form.content.trim()}
+                        >
+                          {translating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                          {translating ? 'Translating…' : 'Auto-translate'}
+                        </button>
+                      </div>
+                      <textarea
+                        className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        rows={6}
+                        placeholder="English translation will appear here after auto-translate, or type manually…"
+                        dir="ltr"
+                        value={form.contentEn}
+                        onChange={(e) => setForm((f) => ({ ...f, contentEn: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </>
+
               ) : (
                 <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center">
                   {form.attachmentUrl ? (
@@ -625,15 +1045,18 @@ export function LettersClient({ employees, canManage }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* View letter dialog */}
+      {/* View / Review letter dialog */}
       <Dialog open={!!viewLetter} onOpenChange={() => setViewLetter(null)}>
         {viewLetter && (
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-blue-700">{viewLetter.letterNumber}</span>
                 <span className="text-slate-400">·</span>
-                <span className="text-base font-normal text-slate-600">{viewLetter.subject}</span>
+                <span className="text-base font-normal text-slate-600 truncate">{viewLetter.subject}</span>
+                {(() => { const s = STATUS_CFG[viewLetter.status] ?? STATUS_CFG.DRAFT; return (
+                  <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${s.cls}`}>{s.label}</span>
+                ); })()}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
@@ -650,15 +1073,95 @@ export function LettersClient({ employees, canManage }: Props) {
                   <ExternalLink className="h-4 w-4 ml-auto" />
                 </a>
               ) : viewLetter.content ? (
-                <div className="border rounded-lg p-4 bg-slate-50 whitespace-pre-wrap text-sm text-slate-700 max-h-[50vh] overflow-y-auto">
+                <div className="border rounded-lg p-4 bg-slate-50 whitespace-pre-wrap text-sm text-slate-700 max-h-[40vh] overflow-y-auto">
                   {viewLetter.content}
                 </div>
               ) : null}
+              {viewLetter.status === 'APPROVED' && viewLetter.approvedBy && (
+                <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>Approved by <strong>{viewLetter.approvedBy.name}</strong>{viewLetter.approvedAt && ` · ${new Date(viewLetter.approvedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}</span>
+                </div>
+              )}
+              {viewLetter.status === 'REJECTED' && viewLetter.rejectedBy && (
+                <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 space-y-1">
+                  <div className="flex items-center gap-2"><XCircle className="h-3.5 w-3.5 shrink-0" /><span>Rejected by <strong>{viewLetter.rejectedBy.name}</strong>{viewLetter.rejectedAt && ` · ${new Date(viewLetter.rejectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}</span></div>
+                  {viewLetter.rejectionReason && <div className="pl-5 text-rose-600">{viewLetter.rejectionReason}</div>}
+                </div>
+              )}
               {viewLetter.notes && (
                 <div className="text-xs text-slate-500 border-t pt-3">
                   <span className="font-medium">Notes:</span> {viewLetter.notes}
                 </div>
               )}
+              <div className="flex items-center justify-between pt-1 border-t gap-3 flex-wrap">
+                <Button variant="outline" size="sm" onClick={() => window.open(`/hr/letters/${viewLetter.id}/print`, '_blank')}>
+                  <Printer className="h-3.5 w-3.5 mr-2" /> Print / Save PDF
+                </Button>
+                {canApproveCeo && viewLetter.status === 'PENDING_CEO' && (
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setApproveLetter(viewLetter); setViewLetter(null); setActionError(null); }}>
+                      <CheckCircle className="h-3.5 w-3.5 mr-2" /> Approve
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => { setRejectLetter(viewLetter); setViewLetter(null); setRejectReason(''); setActionError(null); }}>
+                      <XCircle className="h-3.5 w-3.5 mr-2" /> Reject
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Approve confirmation dialog */}
+      <Dialog open={!!approveLetter} onOpenChange={() => setApproveLetter(null)}>
+        {approveLetter && (
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-emerald-700 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" /> Approve Letter?
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600 py-2">
+              Approve letter <strong>{approveLetter.letterNumber}</strong> for <strong>{approveLetter.employee.fullNameEn}</strong>? This will notify the HR issuer and the employee.
+            </p>
+            {actionError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">{actionError}</p>}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setApproveLetter(null)}>Cancel</Button>
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleApprove} disabled={approving}>
+                {approving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Confirm Approval
+              </Button>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Reject dialog */}
+      <Dialog open={!!rejectLetter} onOpenChange={() => setRejectLetter(null)}>
+        {rejectLetter && (
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-rose-700 flex items-center gap-2">
+                <XCircle className="h-5 w-5" /> Reject Letter
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600 py-2">
+              Reject letter <strong>{rejectLetter.letterNumber}</strong> for <strong>{rejectLetter.employee.fullNameEn}</strong>. Please provide a reason.
+            </p>
+            <textarea
+              className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-rose-300"
+              rows={3}
+              placeholder="Reason for rejection…"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            {actionError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">{actionError}</p>}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setRejectLetter(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleReject} disabled={rejecting || !rejectReason.trim()}>
+                {rejecting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reject Letter
+              </Button>
             </div>
           </DialogContent>
         )}

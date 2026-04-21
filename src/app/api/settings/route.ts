@@ -11,6 +11,7 @@ const settingsSchema = z.object({
   companyName: z.string().min(1).optional(),
   companyTagline: z.string().optional(),
   companyLogo: emptyStringToNull.optional(),
+  ceoSignatureUrl: emptyStringToNull.optional(),
   companyAddress: emptyStringToNull.optional(),
   companyPhone: emptyStringToNull.optional(),
   companyEmail: z.string().email().or(z.literal('')).transform(val => val === '' ? null : val).nullable().optional(),
@@ -34,13 +35,36 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get or create settings (singleton pattern)
-    let settings = await prisma.systemSettings.findFirst();
-    
-    if (!settings) {
-      settings = await prisma.systemSettings.create({
-        data: {},
-      });
+    // Get or create settings (singleton pattern).
+    // A fallback select is used when the DB is ahead of migrations (e.g. ceoSignatureUrl
+    // column not yet added) so the page still loads instead of returning 500.
+    const SAFE_SELECT = {
+      id: true, companyName: true, companyTagline: true, companyLogo: true,
+      companyAddress: true, companyPhone: true, companyEmail: true,
+      companyWebsite: true, defaultReportTheme: true, reportFooterText: true,
+      dateFormat: true, timezone: true, currency: true,
+      emailNotifications: true, smsNotifications: true,
+      createdAt: true, updatedAt: true,
+    } as const;
+
+    let settings;
+    try {
+      settings = await prisma.systemSettings.findFirst();
+      if (!settings) {
+        settings = await prisma.systemSettings.create({ data: {} });
+      }
+    } catch {
+      // Migration pending — fall back to known-safe columns only
+      try {
+        let s = await prisma.systemSettings.findFirst({ select: SAFE_SELECT });
+        if (!s) {
+          s = await prisma.systemSettings.create({ data: {}, select: SAFE_SELECT });
+        }
+        settings = { ...s, ceoSignatureUrl: null };
+      } catch (innerError) {
+        logger.error({ innerError }, 'Error fetching settings with fallback select');
+        return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
+      }
     }
 
     return NextResponse.json(settings);

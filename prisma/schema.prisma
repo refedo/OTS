@@ -41,6 +41,7 @@ model Department {
   departmentPlans   DepartmentPlan[]   @relation("DepartmentPlanDept")
   annualInitiatives AnnualInitiative[] @relation("AnnualInitiativeDepartment")
   weeklyIssues      WeeklyIssue[]      @relation("WeeklyIssueDept")
+  circulationRecipients HrCirculationRecipient[] @relation("DepartmentCirculationRecipients")
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 }
@@ -319,6 +320,12 @@ model User {
   deletedLetters  HrLetter[] @relation("HrLetterDeletedBy")
   approvedLetters HrLetter[] @relation("HrLetterApprovedBy")
   rejectedLetters HrLetter[] @relation("HrLetterRejectedBy")
+
+  // 19.16.0 — Circulations
+  createdCirculations  HrCirculation[] @relation("HrCirculationCreatedBy")
+  deletedCirculations  HrCirculation[] @relation("HrCirculationDeletedBy")
+  approvedCirculations HrCirculation[] @relation("HrCirculationApprovedBy")
+  rejectedCirculations HrCirculation[] @relation("HrCirculationRejectedBy")
 
   // 19.12.0 — Policies & Training
   createdPolicies         HrPolicy[]          @relation("HrPolicyCreatedBy")
@@ -2572,7 +2579,8 @@ model SystemSettings {
   // Company Information
   companyName    String  @default("HEXA STEEL")
   companyTagline String  @default("THRIVE DIFFERENT")
-  companyLogo    String? // Path to logo file
+  companyLogo       String? // Path to logo file
+  ceoSignatureUrl   String? // Path to CEO signature image for letters
   companyAddress String? @db.Text
   companyPhone   String?
   companyEmail   String?
@@ -4211,6 +4219,9 @@ model Employee {
   // 18.16.0 — Letters & Correspondence
   letters HrLetter[] @relation("EmployeeLetters")
 
+  // 19.16.0 — Circulations
+  circulationRecipients HrCirculationRecipient[] @relation("EmployeeCirculationRecipients")
+
   // Audit fields (AssemblyPart pattern)
   createdById  String    @db.Char(36)
   createdBy    User      @relation("EmployeeCreatedBy", fields: [createdById], references: [id])
@@ -5500,6 +5511,7 @@ model HrLetter {
   employee       Employee         @relation("EmployeeLetters", fields: [employeeId], references: [id])
   subject        String           @db.VarChar(500)
   content        String?          @db.Text
+  contentEn      String?          @db.Text
   attachmentUrl  String?          @db.VarChar(1000)
   issuedAt       DateTime         @default(now()) @db.Date
   notes          String?          @db.VarChar(500)
@@ -5542,6 +5554,76 @@ model HrLetterSerialConfig {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   @@map("HrLetterSerialConfig")
+}
+
+model HrLetterTemplate {
+  id          String       @id @default(uuid()) @db.Char(36)
+  letterType  HrLetterType
+  reasonCode  String       @db.VarChar(80)
+  subjectAr   String       @db.VarChar(500)
+  subjectEn   String       @db.VarChar(500)
+  bodyAr      String?      @db.Text
+  bodyEn      String?      @db.Text
+  sortOrder   Int          @default(0)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  @@index([letterType])
+  @@map("HrLetterTemplate")
+}
+
+model HrCirculation {
+  id                 String              @id @default(uuid()) @db.Char(36)
+  circulationNumber  String              @unique @db.VarChar(30)
+  subject            String              @db.VarChar(500)
+  subjectEn          String?             @db.VarChar(500)
+  content            String?             @db.Text
+  contentEn          String?             @db.Text
+  language           HrLetterLanguage    @default(ARABIC)
+  status             HrLetterStatus      @default(PENDING_CEO)
+  targetType         String              @default("ALL") @db.VarChar(20)
+  attachmentUrl      String?             @db.VarChar(1000)
+  issuedAt           DateTime            @default(now()) @db.Date
+  notes              String?             @db.VarChar(500)
+
+  approvedById    String?   @db.Char(36)
+  approvedBy      User?     @relation("HrCirculationApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  rejectedById    String?   @db.Char(36)
+  rejectedBy      User?     @relation("HrCirculationRejectedBy", fields: [rejectedById], references: [id])
+  rejectedAt      DateTime?
+  rejectionReason String?   @db.VarChar(500)
+
+  createdById  String    @db.Char(36)
+  createdBy    User      @relation("HrCirculationCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedById  String?   @db.Char(36)
+  deletedBy    User?     @relation("HrCirculationDeletedBy", fields: [deletedById], references: [id])
+
+  recipients   HrCirculationRecipient[]
+
+  @@index([status])
+  @@index([deletedAt])
+  @@map("HrCirculation")
+}
+
+model HrCirculationRecipient {
+  id             String        @id @default(uuid()) @db.Char(36)
+  circulationId  String        @db.Char(36)
+  circulation    HrCirculation @relation(fields: [circulationId], references: [id], onDelete: Cascade)
+  employeeId     String?       @db.Char(36)
+  employee       Employee?     @relation("EmployeeCirculationRecipients", fields: [employeeId], references: [id])
+  departmentId   String?       @db.Char(36)
+  department     Department?   @relation("DepartmentCirculationRecipients", fields: [departmentId], references: [id])
+  readAt         DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@index([circulationId])
+  @@index([employeeId])
+  @@index([departmentId])
+  @@map("HrCirculationRecipient")
 }
 
 // ============================================================================

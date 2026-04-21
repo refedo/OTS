@@ -17,6 +17,7 @@ type Settings = {
   companyName: string;
   companyTagline: string;
   companyLogo: string | null;
+  ceoSignatureUrl?: string | null;
   companyAddress: string | null;
   companyPhone: string | null;
   companyEmail: string | null;
@@ -38,9 +39,11 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingLoginLogo, setUploadingLoginLogo] = useState(false);
+  const [uploadingCeoSig, setUploadingCeoSig] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loginLogoPreview, setLoginLogoPreview] = useState<string | null>(null);
+  const [ceoSigPreview, setCeoSigPreview] = useState<string | null>(null);
 
   // GitHub integration state
   const [githubToken, setGithubToken] = useState('');
@@ -67,6 +70,7 @@ export default function SettingsPage() {
         const data = await response.json();
         setSettings(data);
         setLogoPreview(data.companyLogo);
+        setCeoSigPreview(data.ceoSignatureUrl ?? null);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -171,6 +175,29 @@ export default function SettingsPage() {
       alert('Failed to upload logo');
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const handleCeoSigUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCeoSig(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'ceo-signature');
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (response.ok) {
+        const data = await response.json();
+        setSettings((prev) => prev ? { ...prev, ceoSignatureUrl: data.filePath } : null);
+        setCeoSigPreview(data.filePath);
+      } else {
+        alert('Failed to upload CEO signature');
+      }
+    } catch {
+      alert('Failed to upload CEO signature');
+    } finally {
+      setUploadingCeoSig(false);
     }
   };
 
@@ -381,6 +408,36 @@ export default function SettingsPage() {
                         <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                           <Loader2 className="h-3 w-3 animate-spin" />
                           Uploading...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* CEO Signature Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="ceoSig">CEO Signature (for HR letters)</Label>
+                  <div className="flex items-start gap-4">
+                    {ceoSigPreview && (
+                      <div className="h-16 w-40 border rounded-lg flex items-center justify-center bg-muted overflow-hidden">
+                        <img src={resolveUploadUrl(ceoSigPreview)} alt="CEO Signature" className="max-w-full max-h-full object-contain" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        id="ceoSig"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCeoSigUpload}
+                        disabled={uploadingCeoSig}
+                        className="cursor-pointer"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PNG with transparent background recommended — appears on approved letters
+                      </p>
+                      {uploadingCeoSig && (
+                        <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Uploading…
                         </p>
                       )}
                     </div>

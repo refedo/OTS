@@ -92,6 +92,8 @@ function getNotificationUrl(type: NotificationType, relatedEntityType?: string |
     document: '/documents',
     announcement: '/notifications/announcements',
     contract: '/hr/contracts',
+    hr_letter: '/hr/letters',
+    hr_circulation: '/hr/letters',
     user: '/notifications',
   };
 

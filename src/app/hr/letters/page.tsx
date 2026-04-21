@@ -17,25 +17,32 @@ export default async function LettersPage() {
   if (!session) redirect('/login');
 
   const permissions = await getCurrentUserPermissions();
-  const canView = permissions.includes('hr.letters.view') || permissions.includes('hr.letters.manage');
+  const canApproveCeo = permissions.includes('hr.letters.approveCeo') || permissions.includes('ALL');
+  const canView = permissions.includes('hr.letters.view') || permissions.includes('hr.letters.manage') || canApproveCeo;
   if (!canView) redirect('/unauthorized?from=/hr/letters');
 
   const canManage = permissions.includes('hr.letters.manage');
 
-  const employees = await prisma.employee.findMany({
-    where: { deletedAt: null, status: 'ACTIVE' },
-    select: { id: true, fullNameEn: true, employmentId: true },
-    orderBy: { fullNameEn: 'asc' },
-  });
+  const [employees, departments] = await Promise.all([
+    prisma.employee.findMany({
+      where: { deletedAt: null, status: 'ACTIVE' },
+      select: { id: true, fullNameEn: true, employmentId: true },
+      orderBy: { fullNameEn: 'asc' },
+    }),
+    prisma.department.findMany({
+      where: { archivedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ]);
 
   return (
     <LettersClient
-      employees={employees.map((e) => ({
-        id: e.id,
-        fullNameEn: e.fullNameEn,
-        employmentId: e.employmentId,
-      }))}
+      employees={employees.map((e) => ({ id: e.id, fullNameEn: e.fullNameEn, employmentId: e.employmentId }))}
+      departments={departments}
       canManage={canManage}
+      canApproveCeo={canApproveCeo}
     />
   );
 }
+
