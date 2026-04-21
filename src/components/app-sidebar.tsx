@@ -139,7 +139,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Delayed Tasks', href: '/notifications?tab=delayed-tasks', icon: AlertTriangle },
       { name: 'Approvals', href: '/notifications?tab=approvals', icon: CheckCircle },
       { name: 'Deadlines', href: '/notifications?tab=deadlines', icon: Clock },
-      { name: 'Announcements', href: '/notifications/announcements', icon: Megaphone, newSince: '2026-04-15' },
+      { name: 'Announcements', href: '/notifications?tab=announcements', icon: Megaphone, newSince: '2026-04-15' },
     ],
   },
   {
@@ -272,6 +272,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Manpower Invoices', href: '/hr/manpower-invoices', icon: Receipt, newSince: '2026-04-15' },
       { name: 'Contracts & Docs', href: '/hr/contracts', icon: FileText, newSince: '2026-04-15' },
       { name: 'Letters & Correspondence', href: '/hr/letters', icon: FileText, newSince: '2026-04-16' },
+      { name: 'Announcements', href: '/hr/letters?tab=announcements', icon: Megaphone, newSince: '2026-04-21' },
       { name: 'Company Policies', href: '/hr/policies', icon: BookOpen, newSince: '2026-04-19' },
       { name: 'Onboarding', href: '/hr/onboarding', icon: UserPlus, newSince: '2026-04-19' },
       { name: 'Training', href: '/hr/training', icon: GraduationCap, newSince: '2026-04-19' },

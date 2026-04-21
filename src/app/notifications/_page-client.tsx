@@ -27,6 +27,9 @@ import {
   User,
   Users,
   ChevronRight,
+  Megaphone,
+  Globe,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -89,6 +92,18 @@ interface UnderperformingSchedule {
     designation: string;
     name: string;
   };
+}
+
+interface ActiveAnnouncement {
+  id: string;
+  serialNumber: string;
+  subject: string;
+  content: string;
+  startDate: string;
+  endDate: string;
+  bannerEnabled: boolean;
+  targetType: 'ALL' | 'SPECIFIC';
+  createdBy: { name: string };
 }
 
 // Component to format AI summary with colors and structure
@@ -198,6 +213,8 @@ export default function NotificationsPage() {
   const [pushedTasks, setPushedTasks] = useState<Set<string>>(new Set());
   const [sendingNotifyAll, setSendingNotifyAll] = useState(false);
   const [notifyAllDone, setNotifyAllDone] = useState(false);
+  const [announcements, setAnnouncements] = useState<ActiveAnnouncement[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
 
   // Handle tab and severity parameters from URL
   useEffect(() => {
@@ -324,6 +341,21 @@ export default function NotificationsPage() {
     }
   };
 
+  const fetchAnnouncements = async () => {
+    try {
+      setLoadingAnnouncements(true);
+      const res = await fetch('/api/announcements/active');
+      if (res.ok) {
+        const data = await res.json();
+        setAnnouncements(data ?? []);
+      }
+    } catch {
+      // non-critical
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  };
+
   const fetchOperationsRisks = async () => {
     try {
       setLoadingOperations(true);
@@ -355,6 +387,7 @@ export default function NotificationsPage() {
     fetchDelayedTasks(true); // Default to personal tasks
     fetchUnderperformingSchedules();
     fetchOperationsRisks();
+    fetchAnnouncements();
   }, []);
 
   const handleTabChange = (tab: string) => {
@@ -374,6 +407,9 @@ export default function NotificationsPage() {
       case 'archived':
         filters = 'isArchived=true';
         break;
+      case 'announcements':
+        fetchAnnouncements();
+        return;
       default:
         filters = 'isArchived=false';
     }
@@ -617,6 +653,14 @@ export default function NotificationsPage() {
             {operationsStats.total > 0 && (
               <span className={`ml-2 px-2 py-0.5 text-xs rounded-full text-white ${operationsStats.critical > 0 ? 'bg-red-500' : 'bg-orange-500'}`}>
                 {operationsStats.total}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="announcements" className="relative">
+            Announcements
+            {announcements.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-violet-500 text-white">
+                {announcements.length}
               </span>
             )}
           </TabsTrigger>
@@ -1458,6 +1502,74 @@ export default function NotificationsPage() {
                 </Button>
               </div>
             </>
+          )}
+        </TabsContent>
+
+        {/* Announcements Tab Content */}
+        <TabsContent value="announcements">
+          {loadingAnnouncements ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500 mx-auto" />
+              <p className="mt-4 text-muted-foreground">Loading announcements…</p>
+            </div>
+          ) : announcements.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Megaphone className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-20" />
+                <h3 className="text-lg font-semibold mb-2">No active announcements</h3>
+                <p className="text-muted-foreground">
+                  Announcements visible to you will appear here.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {announcements.map((ann) => (
+                <Card key={ann.id} className="border-l-4 border-l-violet-500 bg-violet-50/20">
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="p-2 rounded-lg bg-violet-100">
+                          <Megaphone className="h-4 w-4 text-violet-600" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4 mb-2 flex-wrap">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-mono text-xs text-slate-400">{ann.serialNumber}</span>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium">
+                                Active
+                              </span>
+                              {ann.bannerEnabled && (
+                                <span className="px-2 py-0.5 text-xs rounded-full bg-violet-100 text-violet-700 border border-violet-200 font-medium">
+                                  Banner
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-base">{ann.subject}</h3>
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-3">
+                              {ann.content}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 mt-3 flex-wrap">
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Globe className="h-3 w-3" />
+                            {ann.targetType === 'ALL' ? 'All employees' : 'Selected employees'}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            Until {new Date(ann.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          <span className="text-xs text-muted-foreground">By {ann.createdBy.name}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
 
