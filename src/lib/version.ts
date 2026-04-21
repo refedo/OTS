@@ -9,8 +9,8 @@ const { version: pkgVersion } = require('../../package.json') as { version: stri
 
 export const APP_VERSION = {
   version: pkgVersion,
-  date: 'April 19, 2026',
-  type: 'patch' as const, // 19.4.2 — HR Letter enhancements: CEO approval, per-type serial config, bilingual print page, Letters tab on employee card, HR Setup Letter Serials tab
+  date: 'April 21, 2026',
+  type: 'minor' as const, // 19.16.1 — Employee self-profile access: /hr/employees/me, 6 viewOwn permissions, PBAC activation, RBAC sync scripts, permission matrix search
   name: 'Hexa Steel Operation Tracking System',
 };
 

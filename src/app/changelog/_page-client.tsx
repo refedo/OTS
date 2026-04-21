@@ -23,10 +23,44 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.16.1',
+    date: 'April 21, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Employee Self-Profile Access & PBAC Activation',
+    highlights: [
+      'Employees can now view their own HR profile at /hr/employees/me — accessible from the dashboard "Full Profile" button and the new "My Profile" sidebar entry. Read-only, no compensation fields.',
+      'Six new viewOwn permissions scope HR access to own records only: hr.employee.viewOwn, hr.loans.viewOwn, hr.custodies.viewOwn, hr.assets.viewOwn, hr.violations.viewOwn, hr.letters.viewOwn.',
+      'PBAC activated for all linked employees: self-service grants written to customPermissions for every user with an employeeId. Run scripts/run-permission-sync.js on an existing install to activate.',
+      'New RBAC+PBAC sync script (scripts/sync-rbac-and-activate-pbac.ts) idempotently merges role bundles and activates PBAC — safe to re-run at any time.',
+      'Permission matrix editor now has a live search — filter by permission name, description, or ID with per-category match counts.',
+    ],
+    changes: {
+      added: [
+        '/hr/employees/me — new self-service profile page; reads own employee record (profile, leaves, payslips, loans, custodies, assets, violations, letters) filtered strictly to the logged-in user; gated by hr.employee.viewOwn',
+        'src/components/hr/employee-self-profile.tsx — read-only self-service UI with hero banner, Overview KPI tiles, and 7 tabs (Profile Info, Leaves, Payslips, Finance, Assets, Letters)',
+        'Six new permissions: hr.employee.viewOwn, hr.loans.viewOwn, hr.custodies.viewOwn, hr.assets.viewOwn, hr.violations.viewOwn, hr.letters.viewOwn',
+        'Employee role bundle in DEFAULT_ROLE_PERMISSIONS — minimal base self-service role with all 11 self-service permissions',
+        'Sidebar "My Profile" entry (UserCircle2 icon) in the HR section — visible only to hr.employee.viewOwn holders',
+        'NAVIGATION_PERMISSIONS entry: /hr/employees/me mapped to [hr.employee.viewOwn]',
+        'scripts/sync-rbac-and-activate-pbac.ts — TypeScript 3-part RBAC+PBAC script: role sync, PBAC activation for linked employees, integrity report. Fully idempotent.',
+        'scripts/run-permission-sync.js — self-contained Node.js version for server execution without TypeScript: node scripts/run-permission-sync.js',
+        'Permission matrix search: live filter input with category-count badges, hidden empty categories, and clear (×) button',
+      ],
+      fixed: [],
+      changed: [
+        'GET /api/hr/employees/[id] — self-access allowed when caller has hr.employee.viewOwn and the ID matches their own employeeId; compensation always stripped in self-access',
+        'GET /api/hr/employees/[id]/payslips — hr.payroll.viewOwn now permits self-access to own payslips',
+        'Dashboard EmployeeSelfService widget "Full Profile" button now links to /hr/employees/me instead of a specific employee ID path',
+        'Engineer, Operator, Manager, Document Controller role bundles updated with all 9 viewOwn self-service permissions',
+      ],
+    },
+  },
+  {
     version: '19.13.4',
     date: 'April 21, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Ops Agent: Named Items in Module Breakdown & FULL_ACTOR Task Alerts',
     highlights: [
       'Module Breakdown now shows entity names/titles instead of raw UUIDs — IDs, boolean flags, and raw timestamps are hidden.',
@@ -144,6 +178,57 @@ const hardcodedVersions: ChangelogVersion[] = [
         '/hr/policies — fetches live from DB; New Policy / Edit / Delete dialogs; EN/AR language toggle',
         '/hr/onboarding — checklist loaded from DB; Manage Checklist dialog for full CRUD of tasks per employee',
         '/hr/training — programs fetched from DB; New Program / Edit / Delete dialogs; EN/AR language toggle',
+      ],
+    },
+  },
+  {
+    version: '19.12.0',
+    date: 'April 19, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Leave Balance Enhancements — Burn-Risk Highlighting',
+    highlights: [
+      'Vacation Balance tab now shows annual-leave-specific consumed days and balance (Entitled − Annual Consumed) instead of all-types total.',
+      'Burn-risk highlighting: rows with ≥ 21 days remaining flagged Must Take Leave (rose); rows with 14–20 days flagged Take Soon (amber). Five-tile KPI strip adds a Burn Risk counter.',
+      '"My balances" section on the leaves page now defaults to collapsed and is toggled via a chevron header.',
+      'Employee search in the leave balance tab has a clear (×) button.',
+    ],
+    changes: {
+      added: [
+        'Burn Risk KPI tile: counts employees with ≥ 14 days remaining annual leave balance',
+        'Must Take Leave row highlight (rose background): employees with ≥ 21 days remaining annual balance',
+        'Take Soon row highlight (amber background): employees with 14–20 days remaining annual balance',
+        'Status column with flame (≥21d) / warning badge (14–20d) in the vacation balance table',
+        'Clear (×) button in the employee search input on the vacation balance tab',
+      ],
+      fixed: [],
+      changed: [
+        'Vacation Balance tab: shows Annual Consumed column and Entitled − Annual Consumed balance instead of all-types totals',
+        'Simplified table removes per-type breakdown columns in favour of a single Annual Consumed column',
+        '"My balances" section defaults to collapsed; chevron header toggles visibility',
+      ],
+    },
+  },
+  {
+    version: '19.11.1',
+    date: 'April 19, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'COGS Supplier Map Redesign — Accordion Tree View',
+    highlights: [
+      'COGS Supplier Map now defaults to an accordion tree view instead of the treemap — full GL account names visible at a glance.',
+      'Expand any GL account to see ranked suppliers with spend amount, invoice count, and a % share bar.',
+      '"Visual Map" toggle preserves the original treemap; Expand All / Collapse All controls added.',
+    ],
+    changes: {
+      added: [
+        'Accordion tree view as default COGS Supplier Map layout: GL account rows expand to show ranked suppliers with spend, invoice count, and % share bar',
+        'Expand All / Collapse All buttons in the accordion view header',
+        '"Visual Map" toggle to switch back to the original treemap',
+      ],
+      fixed: [],
+      changed: [
+        'COGS Supplier Map default view changed from treemap to accordion tree — full GL account names now visible',
       ],
     },
   },
