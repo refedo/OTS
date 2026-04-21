@@ -602,6 +602,7 @@ export class FinancialReportService {
       }
 
       row.invoices.push({
+        invoiceId: Number(inv.dolibarr_id),
         ref: inv.ref,
         dateInvoice: inv.date_invoice ? new Date(inv.date_invoice).toISOString().slice(0, 10) : '',
         dateDue: inv.date_due ? new Date(inv.date_due).toISOString().slice(0, 10) : '',

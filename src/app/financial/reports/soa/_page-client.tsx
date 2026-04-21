@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, FileText, Download, ArrowLeft, Search, FileDown, Sheet, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { InvoiceDetailSheet } from '@/components/financial/invoice-detail-sheet';
 
 // ─── Thirdparty Combobox (mobile-friendly search + select) ───────────────────
 
@@ -410,6 +411,11 @@ export default function SOAReportPage() {
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [detailSheet, setDetailSheet] = useState<{
+    open: boolean;
+    invoiceId: number | null;
+    paymentContext?: { ref: string; amount: number; date: string; invoiceRef: string };
+  }>({ open: false, invoiceId: null });
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -597,6 +603,14 @@ export default function SOAReportPage() {
         </CardContent>
       </Card>
 
+      <InvoiceDetailSheet
+        open={detailSheet.open}
+        onOpenChange={open => setDetailSheet(s => ({ ...s, open }))}
+        invoiceId={detailSheet.invoiceId}
+        invoiceType={type}
+        paymentContext={detailSheet.paymentContext}
+      />
+
       {report && (
         <>
           <Card>
@@ -715,9 +729,33 @@ export default function SOAReportPage() {
                   </thead>
                   <tbody>
                     {sortedLines.map((line: any, i: number) => (
-                      <tr key={i} className={`border-b ${line.type === 'Payment' ? 'bg-green-50 dark:bg-green-950/20' : ''}`}>
+                      <tr
+                        key={i}
+                        className={cn(
+                          'border-b cursor-pointer hover:bg-muted/40 transition-colors',
+                          line.type === 'Payment' ? 'bg-green-50 dark:bg-green-950/20' : '',
+                        )}
+                        onClick={() => {
+                          if (line.type === 'Payment') {
+                            setDetailSheet({
+                              open: true,
+                              invoiceId: line.invoiceId ?? null,
+                              paymentContext: {
+                                ref: line.ref,
+                                amount: line.credit || line.debit,
+                                date: line.date,
+                                invoiceRef: line.invoiceRef || '',
+                              },
+                            });
+                          } else {
+                            setDetailSheet({ open: true, invoiceId: line.invoiceId ?? null });
+                          }
+                        }}
+                      >
                         <td className="p-3">{line.date}</td>
-                        <td className="p-3 font-mono text-xs">{line.ref}</td>
+                        <td className="p-3 font-mono text-xs text-blue-700 underline underline-offset-2 decoration-dotted">
+                          {line.ref}
+                        </td>
                         {type === 'ap' && (
                           <td className="p-3 font-mono text-xs text-muted-foreground">{line.refSupplier || '—'}</td>
                         )}

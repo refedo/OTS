@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Clock, Printer, ChevronDown, ChevronRight, ArrowLeft, Search } from 'lucide-react';
 import Link from 'next/link';
 import { cn, resolveUploadUrl } from '@/lib/utils';
+import { InvoiceDetailSheet } from '@/components/financial/invoice-detail-sheet';
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -25,6 +26,10 @@ export default function AgingReportPage() {
   const [search, setSearch] = useState('');
   const [bucketFilter, setBucketFilter] = useState<string | null>(null);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [detailSheet, setDetailSheet] = useState<{ open: boolean; invoiceId: number | null }>({
+    open: false,
+    invoiceId: null,
+  });
 
   React.useEffect(() => {
     fetch('/api/settings')
@@ -70,6 +75,13 @@ export default function AgingReportPage() {
 
   return (
     <div className="space-y-6 print:space-y-0">
+      <InvoiceDetailSheet
+        open={detailSheet.open}
+        onOpenChange={open => setDetailSheet(s => ({ ...s, open }))}
+        invoiceId={detailSheet.invoiceId}
+        invoiceType={type}
+      />
+
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
@@ -259,10 +271,16 @@ export default function AgingReportPage() {
                         <td className="p-3 text-right font-mono font-bold">{fmt(row.buckets.total)}</td>
                       </tr>
                       {expanded.has(row.thirdpartyId) && row.invoices.map((inv: any, j: number) => (
-                        <tr key={`inv-${row.thirdpartyId}-${j}`} className="border-b bg-muted/20 text-xs">
+                        <tr
+                          key={`inv-${row.thirdpartyId}-${j}`}
+                          className="border-b bg-muted/20 text-xs cursor-pointer hover:bg-muted/40 transition-colors"
+                          onClick={() => setDetailSheet({ open: true, invoiceId: inv.invoiceId ?? null })}
+                        >
                           <td className="p-2 pl-10" colSpan={3}>
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <span className="font-mono font-semibold">{inv.ref}</span>
+                              <span className="font-mono font-semibold text-blue-700 underline underline-offset-2 decoration-dotted">
+                                {inv.ref}
+                              </span>
                               <span className="text-muted-foreground">
                                 Inv: {inv.dateInvoice} | Due: {inv.dateDue}
                               </span>
