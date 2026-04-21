@@ -15,7 +15,7 @@ import {
 import {
   Mail, Plus, Search, Loader2, FileText, Eye, Pencil, Trash2,
   ExternalLink, User, Calendar, Hash, Upload, X, Building2, Printer,
-  CheckCircle, XCircle,
+  CheckCircle, XCircle, Languages,
 } from 'lucide-react';
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
@@ -74,10 +74,12 @@ type Letter = {
   letterNumber: string;
   letterType: string;
   classification: 'INTERNAL' | 'EXTERNAL';
+  language: string;
   employeeId: string;
   status: string;
   subject: string;
   content: string | null;
+  contentEn: string | null;
   attachmentUrl: string | null;
   issuedAt: string;
   notes: string | null;
@@ -101,9 +103,11 @@ const EMPTY_FORM = {
   empSearch: '',
   letterType: '',
   classification: 'INTERNAL' as 'INTERNAL' | 'EXTERNAL',
+  language: 'ARABIC' as 'ARABIC' | 'ENGLISH' | 'BILINGUAL',
   subject: '',
   contentMode: 'write' as 'write' | 'attach',
   content: '',
+  contentEn: '',
   attachmentUrl: '',
   issuedAt: new Date().toISOString().slice(0, 10),
   notes: '',
@@ -135,6 +139,7 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
   const [approveLetter, setApproveLetter] = useState<Letter | null>(null);
   const [rejectLetter, setRejectLetter] = useState<Letter | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [translating, setTranslating] = useState(false);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -178,9 +183,11 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
       empSearch: emp?.fullNameEn ?? '',
       letterType: l.letterType,
       classification: l.classification,
+      language: (l.language as 'ARABIC' | 'ENGLISH' | 'BILINGUAL') ?? 'ARABIC',
       subject: l.subject,
       contentMode: l.attachmentUrl ? 'attach' : 'write',
       content: l.content ?? '',
+      contentEn: l.contentEn ?? '',
       attachmentUrl: l.attachmentUrl ?? '',
       issuedAt: l.issuedAt.slice(0, 10),
       notes: l.notes ?? '',
@@ -205,6 +212,27 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
     }
   }
 
+  async function handleTranslate() {
+    if (!form.content.trim()) return setFormError('Write the content first before translating');
+    setTranslating(true);
+    setFormError(null);
+    try {
+      const sourceLang = form.language === 'ENGLISH' ? 'ENGLISH' : 'ARABIC';
+      const res = await fetch('/api/hr/letters/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: form.content, sourceLang }),
+      });
+      if (!res.ok) throw new Error('Translation failed');
+      const data = await res.json();
+      setForm((f) => ({ ...f, contentEn: data.translated }));
+    } catch {
+      setFormError('Auto-translation failed — check your connection or enter the translation manually');
+    } finally {
+      setTranslating(false);
+    }
+  }
+
   async function handleSave() {
     if (!form.employeeId) return setFormError('Select an employee');
     if (!form.letterType) return setFormError('Select a letter type');
@@ -217,8 +245,10 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
         employeeId: form.employeeId,
         letterType: form.letterType,
         classification: form.classification,
+        language: form.language,
         subject: form.subject.trim(),
         content: form.contentMode === 'write' && form.content.trim() ? form.content.trim() : undefined,
+        contentEn: form.contentMode === 'write' && form.contentEn.trim() ? form.contentEn.trim() : undefined,
         attachmentUrl: form.contentMode === 'attach' && form.attachmentUrl ? form.attachmentUrl : undefined,
         issuedAt: form.issuedAt,
         notes: form.notes.trim() || undefined,
@@ -438,9 +468,13 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
                   {filtered.map((l) => (
                     <tr key={l.id} className="hover:bg-blue-50/30 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                        <button
+                          className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-100 hover:border-blue-300 transition-colors cursor-pointer"
+                          onClick={() => window.open(`/hr/letters/${l.id}/print`, '_blank')}
+                          title="Open print view"
+                        >
                           {l.letterNumber}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3">{typeBadge(l.letterType)}</td>
                       <td className="px-4 py-3">
@@ -623,6 +657,23 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
               />
             </div>
 
+            {/* Language selector */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Language / اللغة</Label>
+              <div className="flex rounded-lg border overflow-hidden w-fit">
+                {([['ARABIC', 'Arabic (عربي)'], ['ENGLISH', 'English'], ['BILINGUAL', 'Bilingual (ثنائي)']] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={`px-4 py-1.5 text-sm transition-colors ${form.language === val ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                    onClick={() => setForm((f) => ({ ...f, language: val }))}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Content mode toggle */}
             <div>
               <Label className="text-sm font-medium mb-2 block">Letter Content</Label>
@@ -640,13 +691,44 @@ export function LettersClient({ employees, canManage, canApproveCeo }: Props) {
               </div>
 
               {form.contentMode === 'write' ? (
-                <textarea
-                  className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  rows={8}
-                  placeholder="Write the letter content here…"
-                  value={form.content}
-                  onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-                />
+                <>
+                  <Label className="text-xs text-slate-500 mb-1 block">
+                    {form.language === 'ENGLISH' ? 'English content' : 'Arabic content (المحتوى العربي)'}
+                  </Label>
+                  <textarea
+                    className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    rows={6}
+                    placeholder={form.language === 'ENGLISH' ? 'Write the letter content in English…' : 'اكتب محتوى الخطاب هنا…'}
+                    dir={form.language === 'ENGLISH' ? 'ltr' : 'rtl'}
+                    value={form.content}
+                    onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                  />
+                  {form.language === 'BILINGUAL' && (
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <Label className="text-xs text-slate-500">English translation (الترجمة الإنجليزية)</Label>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          onClick={handleTranslate}
+                          disabled={translating || !form.content.trim()}
+                        >
+                          {translating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                          {translating ? 'Translating…' : 'Auto-translate'}
+                        </button>
+                      </div>
+                      <textarea
+                        className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        rows={6}
+                        placeholder="English translation will appear here after auto-translate, or type manually…"
+                        dir="ltr"
+                        value={form.contentEn}
+                        onChange={(e) => setForm((f) => ({ ...f, contentEn: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </>
+
               ) : (
                 <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center">
                   {form.attachmentUrl ? (

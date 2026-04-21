@@ -79,6 +79,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Multi-template Onboarding Checklists (19.13.0) ────────────────────────
   'add_hr_onboarding_checklists.sql',
+
+  // ── Letter bilingual content + CEO signature (19.15.1) ───────────────────
+  'add_letter_bilingual_ceo_sig.sql',
 ];
 
 /**

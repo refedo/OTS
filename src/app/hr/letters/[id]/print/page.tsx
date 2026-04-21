@@ -10,7 +10,6 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import prisma from '@/lib/db';
-import { resolveUploadUrl } from '@/lib/utils';
 import { PrintLetterClient } from './print-client';
 
 export default async function PrintLetterPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,8 +41,5 @@ export default async function PrintLetterPage({ params }: { params: Promise<{ id
 
   if (!letter) notFound();
 
-  const settings = await prisma.systemSettings.findFirst({ select: { companyLogo: true } }).catch(() => null);
-  const logoUrl = resolveUploadUrl(settings?.companyLogo) || null;
-
-  return <PrintLetterClient letter={letter as Parameters<typeof PrintLetterClient>[0]['letter']} logoUrl={logoUrl} />;
+  return <PrintLetterClient letter={letter as Parameters<typeof PrintLetterClient>[0]['letter']} />;
 }

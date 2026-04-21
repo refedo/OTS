@@ -15,6 +15,7 @@ import { logger } from '@/lib/logger';
 const updateSchema = z.object({
   subject: z.string().min(1).max(500).optional(),
   content: z.string().max(50000).nullable().optional(),
+  contentEn: z.string().max(50000).nullable().optional(),
   attachmentUrl: z.string().max(1000).nullable().optional(),
   issuedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   notes: z.string().max(500).nullable().optional(),
@@ -69,6 +70,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx: RoutePa
       data: {
         ...(d.subject !== undefined ? { subject: d.subject } : {}),
         ...(d.content !== undefined ? { content: d.content } : {}),
+        ...(d.contentEn !== undefined ? { contentEn: d.contentEn } : {}),
         ...(d.attachmentUrl !== undefined ? { attachmentUrl: d.attachmentUrl } : {}),
         ...(d.issuedAt !== undefined ? { issuedAt: new Date(d.issuedAt) } : {}),
         ...(d.notes !== undefined ? { notes: d.notes } : {}),
