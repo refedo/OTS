@@ -7,14 +7,15 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 
 const CURRENT_VERSION = {
   version: pkgVersion,
-  date: 'April 19, 2026',
+  date: 'April 21, 2026',
   type: 'minor' as const,
-  mainTitle: 'Four HR & Payroll UX Improvements',
+  mainTitle: 'Employee Self-Profile Access & PBAC Activation',
   highlights: [
-    'Delete payroll periods — remove DRAFT or CALCULATED periods directly from the payroll table with a single click and confirmation.',
-    'Employee form locked by default — employee records open in read-only mode. Click Edit to make changes; Cancel reverts and re-locks the form.',
-    'Employee navigation — use the arrow buttons on any employee page to move alphabetically through your team, with a position counter showing where you are.',
-    'Leaves "All" tab + search — HR users land on the All tab by default and can instantly filter requests by employee name, ID, leave type, or status.',
+    'Employees can now view their own HR profile at /hr/employees/me — accessible from the dashboard "Full Profile" button and the new "My Profile" sidebar entry. Read-only, no compensation fields.',
+    'Six new viewOwn permissions scope HR access to own records only: hr.employee.viewOwn, hr.loans.viewOwn, hr.custodies.viewOwn, hr.assets.viewOwn, hr.violations.viewOwn, hr.letters.viewOwn.',
+    'PBAC activated for all linked employees: self-service grants written to customPermissions for every user with an employeeId. Run scripts/run-permission-sync.js to activate on an existing installation.',
+    'New RBAC+PBAC sync script (scripts/sync-rbac-and-activate-pbac.ts) idempotently merges role bundles and activates PBAC — safe to re-run at any time.',
+    'Permission matrix editor now has a live search — filter by permission name, description, or ID with per-category match counts.',
   ],
   changes: {
     added: [],
