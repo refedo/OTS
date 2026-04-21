@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.16.1] - 2026-04-21
+
+### Employee Self-Profile Access & PBAC Activation (Minor)
+
+#### Added
+
+- **`/hr/employees/me` page:** New self-service profile page — server component that reads the authenticated user's own employee record (profile, leaves, payslips, loans, custodies, assets, violations, letters) filtered strictly to their linked `employeeId`. Gated by `hr.employee.viewOwn`. No compensation fields, no edit controls.
+- **`src/components/hr/employee-self-profile.tsx`:** Read-only self-service UI with hero banner, Overview KPI tiles (leave balance, active loans, assigned assets, open letters), and tabs: Profile Info, Leaves, Payslips, Finance, Assets, Letters.
+- **Six new `viewOwn` permissions** in the HR permission category:
+  - `hr.employee.viewOwn` — access own HR profile page (read-only, no compensation)
+  - `hr.loans.viewOwn` — view own active and historical loan records
+  - `hr.custodies.viewOwn` — view own cash advances and custody records
+  - `hr.assets.viewOwn` — view assets currently or previously assigned to you
+  - `hr.violations.viewOwn` — view own traffic violations and infraction records
+  - `hr.letters.viewOwn` — view HR letters and correspondence issued to you
+- **`Employee` role bundle** added to `DEFAULT_ROLE_PERMISSIONS` — minimal self-service role with all 11 self-service permissions for base employee accounts without a functional role.
+- **Sidebar "My Profile" entry** (UserCircle2 icon) in the HR section — visible only to users with `hr.employee.viewOwn`.
+- **Navigation guard** `/hr/employees/me` added to `navigation-permissions.ts` mapped to `['hr.employee.viewOwn']`.
+- **`scripts/sync-rbac-and-activate-pbac.ts`** — TypeScript 3-part RBAC+PBAC sync script: (1) RBAC role sync — merges code bundles into DB roles additively; (2) PBAC activation — writes 11 self-service grants to `customPermissions.grants` for every user with a non-null `employeeId`; (3) Integrity report — lists users still lacking effective `hr.employee.viewOwn`. Fully idempotent, safe to re-run at any time.
+- **`scripts/run-permission-sync.js`** — Self-contained Node.js version (no TypeScript imports) for server-side execution: `node scripts/run-permission-sync.js`. Embeds all role bundles inline.
+- **Permission matrix search** — live search input in the role permissions editor filters by permission name, description, or ID; categories with no matches are hidden; match count shown per category; clear (×) button to reset.
+
+#### Changed
+
+- `GET /api/hr/employees/[id]` — self-access gate added: allowed when caller has `hr.employee.viewOwn` and the requested ID matches their own `employeeId`. Compensation fields always stripped in self-access regardless of `hr.employee.viewCompensation`.
+- `GET /api/hr/employees/[id]/payslips` — `hr.payroll.viewOwn` now permits self-access to own payslip history in addition to the existing `hr.payroll.view` full access.
+- Dashboard `EmployeeSelfService` widget "Full Profile" button now links to `/hr/employees/me` (stable self-service URL) instead of a hardcoded employee ID path.
+- `Engineer`, `Operator`, `Manager`, `Document Controller` role bundles in `DEFAULT_ROLE_PERMISSIONS` updated with all 9 `viewOwn` self-service permissions.
+
+---
+
+## [19.13.4] - 2026-04-21
+
+### Ops Agent: Named Items in Module Breakdown & FULL_ACTOR Task Alerts (Patch)
+
+#### Added
+
+- **Violet "Tasks Created by Agent" banner** at the top of the Ops Brief — appears whenever the agent calls `create_followup_task` in ANNOTATE or FULL_ACTOR mode; lists every created task with title, description (clamped to 2 lines), priority badge, and related entity type.
+
+#### Fixed
+
+- **Module Breakdown entity names:** Raw UUID fields (`id`, `jobId`, `projectId`) hidden; entity name/title displayed bold; nested objects (e.g. `assignee`) show only the human-readable name sub-field; date fields formatted "DD Mon YYYY"; `daysSince*` and `daysStuck` values auto-append "days"; boolean flags suppressed.
+
+---
+
+## [19.13.3] - 2026-04-20
+
+### Payment Timeline, Logo Double-Prefix, Ops Agent TPM & Sidebar Colors (Patch)
+
+#### Fixed
+
+- **Cash Flow Timeline:** Removed all month filters and slice limits — chart now shows every month that has pending or collected data; purely data-driven with no lookback or lookahead cutoff.
+- **Company logo double-prefix (`/ots/ots/uploads/...`):** Upload route no longer prepends `NEXT_PUBLIC_BASE_PATH` to stored paths; all render-time components (sidebar, aging report, settings, WPS export) now use `resolveUploadUrl()` which adds the basePath prefix exactly once.
+- **Ops Agent Groq TPM:** Tool result truncation tightened to 3 000 chars; `max_tokens` reduced to 2 000; estimated request budget ≈ 9 000 tokens, safely below the 12 000 TPM limit.
+- **EWS stale alert text:** `createRiskEvent` now updates `reason`/`recommendedAction` of existing unresolved events on re-detection — renamed tasks and other display changes propagate without waiting for alerts to expire. DOCUMENTATION WorkUnits with no mapped tracker activities auto-resolve to clear lingering `arch_approval` alerts.
+- **Sidebar visibility:** Collapse arrow and username now use `text-sidebar-foreground` tokens, visible on the dark navy background; role sub-text uses `text-sidebar-foreground/60`.
+
+---
+
+## [19.13.2] - 2026-04-20
+
+### Payment Timeline, Logo 404, Ops Agent TPM & Risk Dashboard Fixes (Patch)
+
+#### Fixed
+
+- **Cash Flow Timeline:** Month window anchors to today (−3 months → +15 months) instead of slicing the first 12 from sorted data — April 2026 and future months now appear.
+- **Company logo 404:** All `<img>` tags displaying uploaded logo paths now prepend `NEXT_PUBLIC_BASE_PATH` at render time (sidebar, aging report print header, settings preview, WPS export).
+- **Ops Agent Groq HTTP 413:** Tool results capped at 6 000 chars; OpenAI-path `max_tokens` reduced from 8 192 to 4 096.
+- **Risk dashboard:** EWS engine now batch-resolves Task titles for WorkUnits that reference Tasks — alert text shows the task name instead of the raw UUID.
+
+#### Changed
+
+- **Project Status Tracker:** Arch Drawing (`arch_approval`) column removed — tracker always starts from Design Stage; EWS no longer maps DOCUMENTATION WorkUnit type to `arch_approval`.
+
+---
+
+## [19.13.1] - 2026-04-20
+
+### Building Designation Extended to 5 Characters + Name Cascade (Patch)
+
+#### Changed
+
+- Building designation max length raised from 4 to 5 uppercase letters/numbers across all POST/PATCH API routes and form inputs.
+- `GET /api/projects/[id]/buildings/[buildingId]` now returns `_count` of linked child records (tasks, assembly parts, RFIs, NCRs, documents, work orders, LCR entries).
+- `PATCH` building endpoint now cascades a name change to `LcrEntry.buildingNameRaw` for all LCR entries linked to that building.
+- Building edit dialog fetches child counts on open and shows an amber warning listing affected record types before saving.
+
+---
+
 ## [19.13.0] - 2026-04-20
 
 ### DB-Backed HR Pages — Policies, Onboarding & Training CRUD (Minor)
@@ -48,9 +137,144 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.11.1] - 2026-04-19
+
+### COGS Supplier Map Redesign — Accordion Tree View (Patch)
+
+#### Added
+
+- **Accordion tree view** as the default COGS Supplier Map layout — GL account rows expand to show ranked suppliers with spend amount, invoice count, and a % share progress bar. Full GL account names visible at a glance.
+- **Expand All / Collapse All** controls in the accordion view header.
+- **"Visual Map" toggle** to switch back to the original treemap visualization.
+
+#### Changed
+
+- COGS Supplier Map default view changed from treemap to accordion tree.
+
+---
+
+## [19.11.0] - 2026-04-19
+
+### Three New HR Pages + Payroll/Payslip Fixes (Minor)
+
+#### Added
+
+- **Company Policies page (`/hr/policies`):** Lists all company policies organized by category (HR, Safety, Code of Conduct, IT, Finance) with search and category filter. (DB-backed CRUD dialogs added in v19.13.0.)
+- **Employee Onboarding page (`/hr/onboarding`):** Shows employees who joined in the last 3 months with an interactive 10-item onboarding checklist per employee — progress bar, expand/collapse, linked to employee profile. (DB-backed checklist management added in v19.13.0.)
+- **Employee Training page (`/hr/training`):** Lists training programs with category/status badges, duration, target audience, and upcoming schedule; shows active employee count and position-title coverage. (DB-backed CRUD added in v19.13.0.)
+- Navigation guards and sidebar entries for `/hr/policies`, `/hr/onboarding`, `/hr/training` (gated by `hr.employee.view`).
+
+#### Fixed
+
+- **Payroll period delete:** Replaced `window.confirm()` with a proper Dialog component — delete now works correctly on iOS Safari and PWA.
+- **Approved-only payslips:** `GET /api/hr/employees/[id]/payslips` now only returns OTS payroll lines from APPROVED, LOCKED, or PAID periods — removes DRAFT and CALCULATED noise from the widget and employee payslips tab.
+
+---
+
+## [19.10.0] - 2026-04-19
+
+### Employee List Enhancements (Minor)
+
+#### Added
+
+- **Excel export:** Hero button downloads the current filtered employee list as `.xlsx` with identity, employment, contract, and compensation columns.
+- **Full Details view:** Card grid showing all Dolibarr extra fields per employee (iqama, boarder number, passport, sponsor, contract end date, contract type, location, compensation breakdown). Compact / Full Details toggle in the filter bar.
+- **Boarder number search:** Employee search now matches `boarderNumber` in addition to name, ID, and national ID.
+- **Clickable KPI tiles:** Status tiles on the employee list are now clickable filter shortcuts.
+
+#### Fixed
+
+- **Employee form tabs locked:** `<fieldset disabled>` moved to wrap only `<TabsContent>` (not `<TabsList>`) — tabs remain clickable in read-only mode.
+
+#### Changed
+
+- Employees list default status filter changed from "all" to ACTIVE.
+
+---
+
+## [19.9.0] - 2026-04-19
+
+### HR & Payroll UX Improvements (Minor)
+
+#### Added
+
+- **Delete payroll periods:** Trash icon on DRAFT/CALCULATED payroll period rows — one-click hard-delete with confirmation dialog.
+- **Employee form locked by default:** Dolibarr-synced records open in read-only mode; Edit button unlocks, Cancel reverts and re-locks.
+- **Employee prev/next navigation:** Left/right arrow buttons in the employee detail hero banner navigate alphabetically through all employees with a position counter (N / total). New `GET /api/hr/employees/navigation` endpoint.
+- **Leaves "All" tab default + search:** Users with `hr.leaves.viewAll` now land on the All tab by default; live search filters by employee name, ID, leave type, or status.
+
+---
+
+## [19.8.0] - 2026-04-19
+
+### Previously Disbursed Salaries — Unified Employee Payslip History (Minor)
+
+#### Added
+
+- **Payslips tab on `/hr/employees/[id]`:** Unified payslip history combining Dolibarr historical disbursements (`fin_salaries`) and OTS Payroll lines — merged by date with source badges ("Dolibarr" / "OTS Payroll") and Print/Download buttons. Gated by `hr.payroll.view`.
+- **`GET /api/hr/employees/[id]/payslips`** — combined payslips list endpoint (Dolibarr from `fin_salaries` + OTS from `PayrollLine`).
+- **On-demand Dolibarr payslip PDF:** `GET /api/hr/employees/[id]/payslips/dolibarr/[id]/pdf` streams a branded A4 PDF in-memory without saving to disk.
+- **`src/lib/services/hr/dolibarr-payslip-pdf-generator.ts`** — jsPDF-based branded A4 PDF generator for Dolibarr salary records.
+- **Employee Self-Service widget payslips tab** now shows both sources merged by date with source badges and Print/Download buttons.
+
+---
+
+## [19.6.1] - 2026-04-19
+
+### DETAILING WorkUnit Type + Full 8-Stage Fabrication Sequence (Patch)
+
+#### Added
+
+- **`DETAILING` WorkUnit type** — shop drawings stage between Design approval and Procurement in the fabrication sequence.
+- **Four new WorkUnit types:** `DETAILING`, `COATING`, `DISPATCH`, `ERECTION` — each with its own EWS tracker activity mapping.
+- **Full 8-stage sequence** now modelable as distinct WorkUnits: Arch Approval → Design → Detailing → Procurement → Production → Coating → Dispatch → Erection.
+- **`add_work_unit_types.sql`** startup migration — idempotent `ALTER TABLE … MODIFY COLUMN` enum expansion for `work_units.type` and blueprint step types.
+- **Blueprint steps:** `DESIGN → DETAILING` (FS, lag 0, sequenceOrder 2) and corrected downstream chain through `COATING → DISPATCH → ERECTION`.
+
+#### Fixed
+
+- **EWS tracker mapping:** `DESIGN` was incorrectly mapped to `[design, detailing]` — now maps only to `[design]`; `DETAILING` maps to `[detailing]`.
+
+#### Changed
+
+- `dependency-blueprints-seed.ts` now idempotent per blueprint type — auto-detects and replaces stale blueprints missing the `DETAILING` step.
+
+---
+
+## [19.6.0] - 2026-04-19
+
+### EWS ↔ Project Status Tracker Integration (Minor)
+
+#### Added
+
+- **Shared service `src/lib/services/project-tracker.service.ts`** — all tracker computation logic (Tasks, LCR, AssemblyParts, ProductionLogs) extracted into a reusable service consumed by both the tracker UI and the EWS engine.
+- **EWS Rule 5: Tracker Progress Lag** — fires DELAY alerts when actual tracker progress lags more than 20 pp behind time-elapsed expected progress derived from WorkUnit planned dates. Severity: MEDIUM (gap ≥ 20 pp), HIGH (≥ 40 pp), CRITICAL (≥ 60 pp). Risk events carry `metadata.source = 'tracker'`.
+- **Rule 1 suppression:** Before firing a Late Start alert for a NOT_STARTED WorkUnit, the engine cross-checks tracker progress. If ≥ 75% complete, the alert is suppressed and any open alert is auto-resolved. If ≥ 40%, severity is downgraded one level.
+
+#### Fixed
+
+- EWS no longer fires false DELAY alerts for WorkUnits whose corresponding work is already complete in the tracker.
+
+---
+
+## [19.5.0] - 2026-04-19
+
+### Asset Creation Fix + Dolibarr Extended Employee Sync (Minor)
+
+#### Added
+
+- **15 new Employee columns** from Dolibarr extrafields: `nationality`, `employeeNo`, `boarderNumber`, `maritalStatus`, `occupationAr`, `gosiSubscriptionNo`, `contractEndDate`, `contractDuration`, `passportNumber`, `iqamaUrl`, `passportUrl`, `sponsorNumber`, `contractType`, `workingLocation`, `transferType`. Startup migration `add_employee_dolibarr_fields.sql`.
+
+#### Fixed
+
+- **Asset creation Zod schema:** `attachments` changed from `.optional()` to `.nullish()` — SIM cards and laptops no longer return HTTP 400 when no attachments are uploaded.
+- **Dolibarr 401 errors** now surface a clear fix message (regenerate API key in Dolibarr → Users & Groups).
+
+---
+
 ## [19.4.2] - 2026-04-19
 
-### HR Letter Enhancements — CEO Approval, Per-Type Serials, Bilingual Print (Patch)
+### HR Letter Enhancements — CEO Approval, Per-Type Serials & Bilingual Print (Patch)
 
 #### Added
 
@@ -74,6 +298,155 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `POST /api/hr/letters`: uses `HrLetterSerialConfig` when available; adds `language` field; status defaults to `PENDING_CEO`; notifies CEO approvers after creation.
 - `GET /api/hr/letters`: now returns `status`, `language`, `approvedBy`, `rejectedBy`, `approvedAt`, `rejectedAt`, `rejectionReason`, `employee.fullNameAr`, `employee.department`, `employee.occupation`; supports `?status=` filter.
 - Startup migrations: `add_hr_letter_enhancements.sql` registered.
+
+---
+
+## [19.4.1] - 2026-04-19
+
+### Loan Payment Recording Fix & Delete Payments (Patch)
+
+#### Added
+
+- `DELETE /api/hr/loans/[id]/payments/[paymentId]` — remove erroneous payment records; loan `installmentsPaid` and status auto-recalculate from remaining payments.
+- `GET /api/hr/loans/all` now returns `totalAmountPaid` per loan for accurate outstanding balance display.
+
+#### Fixed
+
+- `POST /api/hr/loans/[id]/payments` — completion calculated from cumulative total paid vs. principal using floor division; paying 1 SAR on a large loan no longer marks it complete.
+
+---
+
+## [19.4.0] - 2026-04-19
+
+### HR Absence Analytics Module (Minor)
+
+#### Added
+
+- **`/hr/analytics` page:** Behavioral pattern detection in team attendance and leave data. Detects four pattern types: Consecutive Absence (3+ consecutive ANP days), Weekend Extension (>60% ANP on Mon/Fri), Escalating Absences (monotonically increasing ANP over 3 months), Frequent Leaves (≥3 approved requests in a single month).
+- **`GET /api/hr/analytics/absence`** — analysis endpoint with `months`, `section`, `occupation` query params.
+- **Visualizations:** Absence Frequency Matrix heatmap (employee × month, white→amber→rose), ANP by Day-of-Week bar chart (Mon/Fri highlighted amber), Monthly Company Trend stacked bar chart (ANP/AP/Sick), Leave Request Frequency table.
+- **`hr.analytics.view` permission** added to HR role bundle.
+- "Absence Analytics" sidebar entry added to the HR section.
+
+---
+
+## [19.3.6] - 2026-04-19
+
+### Employee of the Month — 2nd & 3rd Place (Patch)
+
+#### Changed
+
+- Employee of the Month card now shows silver 🥈 and bronze 🥉 runners-up beneath the gold winner — smaller rows with medal icons and colored left-border highlights (silver/bronze).
+
+---
+
+## [19.3.5] - 2026-04-19
+
+### Total Hours Card in Attendance Grid (Patch)
+
+#### Added
+
+- **Total Hours card** in the attendance grid — three tiles: Our Staff hours, Manpower hours, and Combined total, each with regular + overtime breakdown.
+
+---
+
+## [19.3.4] - 2026-04-19
+
+### Collapsible Attendance Grid Cards (Patch)
+
+#### Changed
+
+- Attendance grid cards (Aggregate Totals, Employee of the Month, Employees, Manpower Slots) are now collapsible — each section has a toggle chevron header; collapsed state is per-session. Monthly Grid is now the default tab on the Attendance page.
+
+---
+
+## [19.3.3] - 2026-04-19
+
+### Employee of the Month Card in Attendance Grid (Patch)
+
+#### Added
+
+- **Employee of the Month card** in the production attendance grid — selects the employee with zero unexcused absences (ANP) and the highest total hours (regular + OT) for the viewed month. Trophy icon, total/OT hours, present-days count, leave days if any. Winner's row highlighted in amber with left-border accent and trophy icon in name column.
+
+---
+
+## [19.3.2] - 2026-04-19
+
+### Loan Payment Migration Fix + Delete Button on Loans/Custodies (Patch)
+
+#### Added
+
+- Delete button (trash icon) on Loans and Custodies standalone pages — per-row confirmation dialog requires a mandatory reason; calls existing soft-delete API endpoints.
+
+#### Fixed
+
+- `LoanPayment` migration registered in startup sequence — `loan_payments` table now created automatically on server start.
+
+---
+
+## [19.3.1] - 2026-04-19
+
+### Payroll Table Sort Fix, Info Note & Payslip PDF Beautification (Patch)
+
+#### Fixed
+
+- Payroll table sort now uses numeric localeCompare for employee IDs.
+
+#### Added
+
+- Dismissible info note on payroll detail page explaining cutoff/pay date and leave deduction logic.
+
+#### Changed
+
+- Payslip PDF beautified: company logo (auto-loaded from `uploads/company-logo`), dark navy header band, colour-coded totals row, and footer strip.
+- Leave-without-permission column color changed to rose/red.
+
+---
+
+## [19.3.0] - 2026-04-19
+
+### Employee Widget Fix, Leave Balances, Loan Payments & Attendance Monthly Grid (Minor)
+
+#### Added
+
+- **Employee Self-Service widget linkable:** Edit User dialog now includes a Linked Employee Record picker — any user account can be linked to an HR employee record so the dashboard widget shows their HR data.
+- **Dashboard widget Leaves tab:** Shows leave balance per type (available days, accrued, used) with progress bar for the current year.
+- **Loan payments:** Record Payment dialog on the Loans page — Scheduled (standard installment) or Adjusted (custom SAR amount); loan auto-completes when installmentsPaid reaches installmentsTotal.
+- **`POST /api/hr/loans/[id]/payments`** and **`GET /api/hr/loans/[id]/payments`** endpoints; `LoanPayment` Prisma model; `add_loan_payments.sql` startup migration.
+- **Attendance Monthly Grid tab** at `/hr/attendance` — month/year navigator, employees as rows, days 1–31 as columns, color-coded abbreviations (P/AP/A/AV/SL/WE/PH), summary totals per row. New `GET /api/hr/attendance/grid` endpoint.
+- **Payroll period detail:** Excel (xlsx) export, sortable headers, overtime hours column, leave deduction columns, violation deduction column, hero banner, KPI strip, totals footer.
+- New `absenceWithPermissionDeduction` and `violationDeduction` fields on `PayrollLine` (`add_payroll_leave_violation_deductions.sql`).
+
+---
+
+## [19.2.0] - 2026-04-17
+
+### UI Color System Redesign & Typography Standardization (Minor)
+
+#### Changed
+
+- **Primary color:** Updated from near-black gray to blue-600 equivalent (`oklch(0.546 0.245 264)`).
+- **Sidebar:** Switches from white `bg-card` to deep navy `bg-sidebar` (`oklch(0.19 0.06 264)`) — active nav items render as sky-blue pills; inactive items use blue-tinted muted text.
+- **Muted/secondary/accent tokens:** All gain subtle blue chroma replacing pure gray; page background gains a hairline cool tint so white cards lift off the surface.
+- **Table sticky headers:** Use `bg-secondary` (blue-tinted) instead of `bg-slate-100`.
+- **TopBar:** Frosted glass `bg-background/80 backdrop-blur-sm` strip.
+- **Typography:** `h1`–`h4` defaults standardized in `@layer base`.
+- **PWA `themeColor`:** Updated to `#1a2744` matching the new navy sidebar.
+
+---
+
+## [19.1.0] - 2026-04-17
+
+### Conversation Status Colors, Archive/Delete & Employee Dashboard Widget (Minor)
+
+#### Added
+
+- **Conversation status colors:** Task-linked conversations show a color-coded left border and status badge — Completed=emerald, In Progress=blue, delayed/past-due=red, Pending=amber, Waiting for Approval=violet.
+- **Archive conversations:** Hover any conversation to reveal a ⋮ context menu with Archive/Unarchive — archived per-user, persisted via new `archivedAt` column on `conversation_participants` and `task_conversation_participants`. "Show archived" toggle in the sidebar.
+- **Delete conversations:** Standalone discussions can be soft-deleted by their creator via the same context menu.
+- **New API endpoints:** `PATCH /api/conversations/[id]/archive`, `DELETE /api/conversations/[id]`, `PATCH /api/tasks/[id]/conversation/archive`.
+- **Employee Self-Service widget redesigned:** Gradient indigo hero banner, KPI strip (assets, loan balance, pending violations, expiring contracts), and 7-tab layout: Overview, Assets, Finance (loans + custodies with progress bars), Payslips (latest 3 approved), Violations, Letters, Contracts (with expiry color-coding).
+- DB migration `add_conversation_archive_delete.sql`: adds `archivedAt` to both participant tables and `deletedAt` to `conversations`.
 
 ---
 
