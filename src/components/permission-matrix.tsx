@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, CheckSquare, Square } from 'lucide-react';
+import { Loader2, Save, CheckSquare, Square, Search, X } from 'lucide-react';
 import { PERMISSIONS } from '@/lib/permissions';
 
 type Role = {
@@ -23,9 +24,9 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Initialize selected permissions from role
   const initialPermissions = Array.isArray(role.permissions) ? role.permissions : [];
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(initialPermissions);
+  const [search, setSearch] = useState('');
 
   const togglePermission = (permissionId: string) => {
     setSelectedPermissions(prev =>
@@ -43,16 +44,12 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
     const allSelected = categoryPermissionIds.every(id => selectedPermissions.includes(id));
 
     if (allSelected) {
-      // Deselect all in category
       setSelectedPermissions(prev => prev.filter(p => !categoryPermissionIds.includes(p)));
     } else {
-      // Select all in category
       setSelectedPermissions(prev => {
         const newPerms = [...prev];
         categoryPermissionIds.forEach(id => {
-          if (!newPerms.includes(id)) {
-            newPerms.push(id);
-          }
+          if (!newPerms.includes(id)) newPerms.push(id);
         });
         return newPerms;
       });
@@ -75,9 +72,7 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
     try {
       const response = await fetch(`/api/roles/${role.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ permissions: selectedPermissions }),
       });
 
@@ -95,6 +90,20 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
       setLoading(false);
     }
   };
+
+  const filteredPermissions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return PERMISSIONS;
+    return PERMISSIONS.map(cat => ({
+      ...cat,
+      permissions: cat.permissions.filter(
+        p =>
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(q)
+      ),
+    })).filter(cat => cat.permissions.length > 0);
+  }, [search]);
 
   const isCategoryFullySelected = (categoryId: string): boolean => {
     const category = PERMISSIONS.find(cat => cat.id === categoryId);
@@ -124,52 +133,63 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
           <Save className="size-4" />
           Save Permissions
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={loading}
-        >
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>
           Cancel
         </Button>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search permissions by name, description, or ID…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+
       {/* Quick Actions */}
       <div className="flex items-center gap-3 pb-4 border-b">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={selectAll}
-          disabled={loading}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={selectAll} disabled={loading}>
           <CheckSquare className="size-4" />
           Select All
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={deselectAll}
-          disabled={loading}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={deselectAll} disabled={loading}>
           <Square className="size-4" />
           Deselect All
         </Button>
         <div className="ml-auto text-sm text-muted-foreground">
           {selectedPermissions.length} permission{selectedPermissions.length !== 1 ? 's' : ''} selected
+          {search && (
+            <span className="ml-2 text-xs text-sky-600">
+              — {filteredPermissions.reduce((n, c) => n + c.permissions.length, 0)} match{filteredPermissions.reduce((n, c) => n + c.permissions.length, 0) !== 1 ? 'es' : ''}
+            </span>
+          )}
         </div>
       </div>
 
       {/* Permission Categories */}
       <div className="space-y-6">
-        {PERMISSIONS.map((category) => {
+        {filteredPermissions.length === 0 && (
+          <div className="py-12 text-center text-sm text-muted-foreground">
+            No permissions match &ldquo;{search}&rdquo;
+          </div>
+        )}
+        {filteredPermissions.map((category) => {
           const isFullySelected = isCategoryFullySelected(category.id);
           const isPartiallySelected = isCategoryPartiallySelected(category.id);
 
           return (
             <div key={category.id} className="space-y-4">
-              {/* Category Header */}
               <div className="flex items-center gap-3 pb-2 border-b">
                 <Checkbox
                   id={`category-${category.id}`}
@@ -178,18 +198,13 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
                   disabled={loading}
                   className={isPartiallySelected && !isFullySelected ? 'data-[state=unchecked]:bg-primary/20' : ''}
                 />
-                <Label
-                  htmlFor={`category-${category.id}`}
-                  className="text-base font-semibold cursor-pointer"
-                >
+                <Label htmlFor={`category-${category.id}`} className="text-base font-semibold cursor-pointer">
                   {category.name}
                 </Label>
                 <span className="text-xs text-muted-foreground">
                   ({category.permissions.filter(p => selectedPermissions.includes(p.id)).length}/{category.permissions.length})
                 </span>
               </div>
-
-              {/* Permissions in Category */}
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 pl-8">
                 {category.permissions.map((permission) => (
                   <div key={permission.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
@@ -201,10 +216,7 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
                       className="mt-0.5"
                     />
                     <div className="flex-1 min-w-0">
-                      <Label
-                        htmlFor={permission.id}
-                        className="text-sm font-medium cursor-pointer leading-tight"
-                      >
+                      <Label htmlFor={permission.id} className="text-sm font-medium cursor-pointer leading-tight">
                         {permission.name}
                       </Label>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -219,19 +231,14 @@ export function PermissionMatrix({ role }: PermissionMatrixProps) {
         })}
       </div>
 
-      {/* Actions */}
+      {/* Bottom Actions */}
       <div className="flex items-center gap-3 pt-6 border-t">
         <Button onClick={handleSubmit} disabled={loading}>
           {loading && <Loader2 className="size-4 animate-spin" />}
           <Save className="size-4" />
           Save Permissions
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={loading}
-        >
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>
           Cancel
         </Button>
       </div>
