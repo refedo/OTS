@@ -10,7 +10,7 @@ const { version: pkgVersion } = require('../../package.json') as { version: stri
 export const APP_VERSION = {
   version: pkgVersion,
   date: 'April 21, 2026',
-  type: 'minor' as const, // 19.16.1 — Employee self-profile access: /hr/employees/me, 6 viewOwn permissions, PBAC activation, RBAC sync scripts, permission matrix search
+  type: 'patch' as const, // 19.16.4 — Employee profile tabs, self-service dashboard, Excel import, viewOwn permission fixes
   name: 'Hexa Steel Operation Tracking System',
 };
 

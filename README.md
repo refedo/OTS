@@ -1,15 +1,14 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 19.4.2 | **Release Date:** April 19, 2026
+**Version:** 19.16.4 | **Release Date:** April 21, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 19.4.2 — HR Letter Enhancements (CEO Approval, Per-Type Serials, Bilingual Print)
-- **CEO approval cycle** — every issued letter is created with status `PENDING_CEO`; CEO receives a push notification and can approve or reject with a reason from the Letters page.
-- **Per-type serial numbers** — configure a prefix and mask per letter type (QST-26-0001, FW1-26-0001 …) in HR Setup → Letter Serials; yearly reset optional.
-- **Bilingual print page** — `/hr/letters/[id]/print` renders Arabic RTL, English LTR, or Bilingual layout and prints to A4 PDF natively via the browser.
-- **Letters tab on employee card** — all letters for an employee appear in a new Letters tab with KPI tiles, expandable detail, and inline print button.
-- **HR Setup → Letter Serials tab** — add, edit, reset counter, and delete per-type configs.
+### What's New in 19.16.4 — Employee Profile Tabs, Self-Service Dashboard & Excel Import
+- **Employee profile tabs** — Contracts, Training, Onboarding (interactive checklist), Announcements, Circulations, and Car Maintenance tabs added to `/hr/employees/[id]`; Assets and Car Maintenance tabs are hidden when the employee has no asset assignments.
+- **Self-service Dashboard tab** — one-stop hub on the employee profile: request a loan, custody, or leave; read company policies inline; and request an employment certificate — no navigation required.
+- **Excel import** — drag-and-drop the same `.xlsx` file produced by the export to bulk-upsert employees by Employment ID with column mapping and validation errors per row.
+- **viewOwn permission fixes** — `/hr/loans`, `/hr/custodies`, and `/hr/traffic-violations` now correctly allow access for users with `hr.loans.viewOwn`, `hr.custodies.viewOwn`, and `hr.violations.viewOwn` permissions.
 
 ### What's New in 18.1.0 — HR / Payroll Module Phase 2 (Attendance)
 - **Google Sheet → OTS attendance mirror** — one-way sync from the existing Hexa workbook's `Overtime` tab (same spreadsheet PTS sync uses); SHA-256 row-hash idempotency; Friday 1.5× OT auto-detection; orphans go to PARTIAL status, not failure
@@ -509,7 +508,7 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 19.4.2
-**Last Updated**: April 19, 2026
+**Version**: 19.16.4
+**Last Updated**: April 21, 2026
 **Repository**: https://github.com/refedo/OTS
 
