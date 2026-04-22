@@ -1,11 +1,5 @@
 'use client';
 
-/**
- * Thin client wrapper that gives /hr/employees/[id] top-level tabs.
- * Tabs: Overview, Record, History, Finance, Assets, Letters, Payslips,
- *       Contracts, Training, Onboarding, Announcements, Circulations, Car Maintenance, Dashboard
- */
-
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -22,10 +16,12 @@ import { EmployeeAnnouncementsTab } from './employee-announcements-tab';
 import { EmployeeCirculationsTab } from './employee-circulations-tab';
 import { EmployeeCarMaintenanceTab } from './employee-car-maintenance-tab';
 import { EmployeeSelfDashboardTab } from './employee-self-dashboard-tab';
+import { EmployeeLeavesTab } from './employee-leaves-tab';
 import { useSearchParams } from 'next/navigation';
 
 interface Props {
   recordTab: ReactNode;
+  isSelfView: boolean;
   showHistory: boolean;
   showFinance: boolean;
   showAssets: boolean;
@@ -47,18 +43,84 @@ interface Props {
   canManageViolations: boolean;
   canViewContracts: boolean;
   canManageLeaves: boolean;
+  canViewLeaves: boolean;
   employee: {
     fullNameEn: string;
+    fullNameAr?: string | null;
     dateOfJoining: string;
     dateOfLeaving?: string | null;
     status: string;
     occupation?: string | null;
     department?: string | null;
+    nationalId?: string | null;
+    nationality?: string | null;
+    dateOfBirth?: string | null;
+    maritalStatus?: string | null;
+    employeeNo?: string | null;
+    reportsTo?: string | null;
+    jobTitleEn?: string | null;
+    jobTitleAr?: string | null;
+    contractEndDate?: string | null;
+    contractType?: string | null;
+    workingLocation?: string | null;
+    section?: string | null;
+    division?: string | null;
   };
+}
+
+function fmt(s: string | null | undefined): string {
+  if (!s) return '—';
+  return new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value || value === '—') return null;
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-slate-400 uppercase tracking-wide">{label}</span>
+      <span className="text-sm font-medium text-slate-700">{value}</span>
+    </div>
+  );
+}
+
+function ProfileViewTab({ employee }: { employee: Props['employee'] }) {
+  return (
+    <div className="rounded-2xl border bg-white shadow-sm divide-y">
+      <div className="px-6 py-4">
+        <h3 className="text-sm font-semibold text-slate-700">Personal Information</h3>
+      </div>
+      <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <InfoRow label="Full Name (EN)" value={employee.fullNameEn} />
+        <InfoRow label="Full Name (AR)" value={employee.fullNameAr} />
+        <InfoRow label="National ID / Iqama" value={employee.nationalId} />
+        <InfoRow label="Nationality" value={employee.nationality} />
+        <InfoRow label="Date of Birth" value={fmt(employee.dateOfBirth)} />
+        <InfoRow label="Marital Status" value={employee.maritalStatus} />
+      </div>
+      <div className="px-6 py-4">
+        <h3 className="text-sm font-semibold text-slate-700">Employment Details</h3>
+      </div>
+      <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <InfoRow label="Employee No." value={employee.employeeNo} />
+        <InfoRow label="Position Title" value={employee.occupation ?? employee.jobTitleEn} />
+        <InfoRow label="Job Title (AR)" value={employee.jobTitleAr} />
+        <InfoRow label="Department" value={employee.department} />
+        <InfoRow label="Section" value={employee.section} />
+        <InfoRow label="Division" value={employee.division} />
+        <InfoRow label="Working Location" value={employee.workingLocation} />
+        <InfoRow label="Reports To" value={employee.reportsTo} />
+        <InfoRow label="Date of Joining" value={fmt(employee.dateOfJoining)} />
+        <InfoRow label="Contract Type" value={employee.contractType} />
+        <InfoRow label="Contract End Date" value={fmt(employee.contractEndDate)} />
+        {employee.dateOfLeaving && <InfoRow label="Date of Leaving" value={fmt(employee.dateOfLeaving)} />}
+      </div>
+    </div>
+  );
 }
 
 export function EmployeeDetailTabs({
   recordTab,
+  isSelfView,
   showHistory,
   showFinance,
   showAssets,
@@ -80,6 +142,7 @@ export function EmployeeDetailTabs({
   canManageViolations,
   canViewContracts,
   canManageLeaves,
+  canViewLeaves,
   employee,
 }: Props) {
   const searchParams = useSearchParams();
@@ -90,22 +153,25 @@ export function EmployeeDetailTabs({
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="flex-wrap h-auto gap-1">
         <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="record">Record</TabsTrigger>
-        <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-        {showHistory && <TabsTrigger value="history">History</TabsTrigger>}
+        {isSelfView && <TabsTrigger value="profile">Profile</TabsTrigger>}
+        <TabsTrigger value="leaves">Leaves</TabsTrigger>
+        {showPayslips && <TabsTrigger value="payslips">Payslips</TabsTrigger>}
         {showFinance && <TabsTrigger value="finance">Finance</TabsTrigger>}
         {showAssets && <TabsTrigger value="assets">Assets</TabsTrigger>}
-        {showCarMaintenance && <TabsTrigger value="car-maintenance">Car Maintenance</TabsTrigger>}
         {showLetters && <TabsTrigger value="letters">Letters</TabsTrigger>}
-        {showPayslips && <TabsTrigger value="payslips">Payslips</TabsTrigger>}
-        {showContracts && <TabsTrigger value="contracts">Contracts</TabsTrigger>}
-        <TabsTrigger value="training">Training</TabsTrigger>
-        <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
-        <TabsTrigger value="announcements">Announcements</TabsTrigger>
-        <TabsTrigger value="circulations">Circulations</TabsTrigger>
+        {/* Admin-only tabs */}
+        {!isSelfView && <TabsTrigger value="record">Record</TabsTrigger>}
+        {!isSelfView && showHistory && <TabsTrigger value="history">History</TabsTrigger>}
+        {!isSelfView && showContracts && <TabsTrigger value="contracts">Contracts</TabsTrigger>}
+        {!isSelfView && showCarMaintenance && <TabsTrigger value="car-maintenance">Car Maintenance</TabsTrigger>}
+        {!isSelfView && <TabsTrigger value="training">Training</TabsTrigger>}
+        {!isSelfView && <TabsTrigger value="onboarding">Onboarding</TabsTrigger>}
+        {!isSelfView && <TabsTrigger value="announcements">Announcements</TabsTrigger>}
+        {!isSelfView && <TabsTrigger value="circulations">Circulations</TabsTrigger>}
       </TabsList>
 
-      <TabsContent value="overview" className="mt-4">
+      {/* Overview — merged with self-service quick actions for isSelfView */}
+      <TabsContent value="overview" className="mt-6">
         <EmployeeOverviewTab
           employeeId={employeeId}
           employee={employee}
@@ -114,23 +180,77 @@ export function EmployeeDetailTabs({
           canViewAssets={showAssets}
           canViewContracts={canViewContracts}
           onEditClick={() => setActiveTab('record')}
+          showEditButton={!isSelfView}
         />
+        {isSelfView && (
+          <div className="mt-6">
+            <EmployeeSelfDashboardTab
+              employeeId={employeeId}
+              employeeName={employee.fullNameEn}
+              canManageLoans={canManageLoans}
+              canManageCustodies={canManageCustodies}
+              canManageLeaves={canManageLeaves}
+            />
+          </div>
+        )}
       </TabsContent>
 
-      <TabsContent value="record">{recordTab}</TabsContent>
+      {/* Profile — read-only personal info, self-view only */}
+      {isSelfView && (
+        <TabsContent value="profile" className="mt-6">
+          <ProfileViewTab employee={employee} />
+        </TabsContent>
+      )}
 
-      <TabsContent value="dashboard" className="mt-4">
-        <EmployeeSelfDashboardTab
+      {/* Leaves — always shown */}
+      <TabsContent value="leaves" className="mt-6">
+        <EmployeeLeavesTab
           employeeId={employeeId}
-          employeeName={employee.fullNameEn}
-          canManageLoans={canManageLoans}
-          canManageCustodies={canManageCustodies}
-          canManageLeaves={canManageLeaves}
+          dateOfJoining={employee.dateOfJoining}
+          isSelfView={isSelfView}
+          canViewLeaves={canViewLeaves}
         />
       </TabsContent>
 
-      {showHistory && (
-        <TabsContent value="history">
+      {showPayslips && (
+        <TabsContent value="payslips" className="mt-6">
+          <EmployeePayslipsTab employeeId={employeeId} />
+        </TabsContent>
+      )}
+
+      {showFinance && (
+        <TabsContent value="finance" className="mt-6">
+          <EmployeeFinanceTab
+            employeeId={employeeId}
+            canManageLoans={canManageLoans}
+            canManageCustodies={canManageCustodies}
+          />
+        </TabsContent>
+      )}
+
+      {showAssets && (
+        <TabsContent value="assets" className="mt-6">
+          <EmployeeAssetsTab
+            employeeId={employeeId}
+            canManageAssets={canManageAssets}
+            canManageViolations={canManageViolations}
+          />
+        </TabsContent>
+      )}
+
+      {showLetters && (
+        <TabsContent value="letters" className="mt-6">
+          <EmployeeLettersTab employeeId={employeeId} />
+        </TabsContent>
+      )}
+
+      {/* Admin-only tabs — hidden for self-view */}
+      {!isSelfView && (
+        <TabsContent value="record" className="mt-6">{recordTab}</TabsContent>
+      )}
+
+      {!isSelfView && showHistory && (
+        <TabsContent value="history" className="mt-6">
           <EmployeeHistoryTab
             employeeId={employeeId}
             departments={departments}
@@ -141,56 +261,42 @@ export function EmployeeDetailTabs({
           />
         </TabsContent>
       )}
-      {showFinance && (
-        <TabsContent value="finance">
-          <EmployeeFinanceTab
-            employeeId={employeeId}
-            canManageLoans={canManageLoans}
-            canManageCustodies={canManageCustodies}
-          />
-        </TabsContent>
-      )}
-      {showAssets && (
-        <TabsContent value="assets">
-          <EmployeeAssetsTab
-            employeeId={employeeId}
-            canManageAssets={canManageAssets}
-            canManageViolations={canManageViolations}
-          />
-        </TabsContent>
-      )}
-      {showCarMaintenance && (
-        <TabsContent value="car-maintenance" className="mt-4">
-          <EmployeeCarMaintenanceTab employeeId={employeeId} />
-        </TabsContent>
-      )}
-      {showLetters && (
-        <TabsContent value="letters" className="mt-4">
-          <EmployeeLettersTab employeeId={employeeId} />
-        </TabsContent>
-      )}
-      {showPayslips && (
-        <TabsContent value="payslips" className="mt-4">
-          <EmployeePayslipsTab employeeId={employeeId} />
-        </TabsContent>
-      )}
-      {showContracts && (
-        <TabsContent value="contracts" className="mt-4">
+
+      {!isSelfView && showContracts && (
+        <TabsContent value="contracts" className="mt-6">
           <EmployeeContractsTab employeeId={employeeId} />
         </TabsContent>
       )}
-      <TabsContent value="training" className="mt-4">
-        <EmployeeTrainingTab />
-      </TabsContent>
-      <TabsContent value="onboarding" className="mt-4">
-        <EmployeeOnboardingTab employeeId={employeeId} dateOfJoining={employee.dateOfJoining} />
-      </TabsContent>
-      <TabsContent value="announcements" className="mt-4">
-        <EmployeeAnnouncementsTab />
-      </TabsContent>
-      <TabsContent value="circulations" className="mt-4">
-        <EmployeeCirculationsTab employeeId={employeeId} />
-      </TabsContent>
+
+      {!isSelfView && showCarMaintenance && (
+        <TabsContent value="car-maintenance" className="mt-6">
+          <EmployeeCarMaintenanceTab employeeId={employeeId} />
+        </TabsContent>
+      )}
+
+      {!isSelfView && (
+        <TabsContent value="training" className="mt-6">
+          <EmployeeTrainingTab />
+        </TabsContent>
+      )}
+
+      {!isSelfView && (
+        <TabsContent value="onboarding" className="mt-6">
+          <EmployeeOnboardingTab employeeId={employeeId} dateOfJoining={employee.dateOfJoining} />
+        </TabsContent>
+      )}
+
+      {!isSelfView && (
+        <TabsContent value="announcements" className="mt-6">
+          <EmployeeAnnouncementsTab />
+        </TabsContent>
+      )}
+
+      {!isSelfView && (
+        <TabsContent value="circulations" className="mt-6">
+          <EmployeeCirculationsTab employeeId={employeeId} />
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

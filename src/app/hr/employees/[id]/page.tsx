@@ -19,8 +19,23 @@ export default async function EmployeeDetailPage({
   const session = token ? verifySession(token) : null;
   if (!session) redirect('/login');
 
-  const canView = await checkPermission('hr.employee.view');
-  if (!canView) redirect('/unauthorized?from=/hr/employees');
+  const canViewAll = await checkPermission('hr.employee.view');
+  const canViewOwn = !canViewAll ? await checkPermission('hr.employee.viewOwn') : false;
+  if (!canViewAll && !canViewOwn) redirect('/unauthorized?from=/hr/employees');
+
+  const { id } = await params;
+
+  // Detect self-view: compare logged-in user's employeeId to the profile being viewed
+  const me = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { employeeId: true },
+  });
+  const isSelfView = me?.employeeId === id;
+
+  // If user only has viewOwn but is trying to view someone else's profile, block
+  if (!canViewAll && canViewOwn && !isSelfView) {
+    redirect('/unauthorized?from=/hr/employees');
+  }
 
   const permissions = await getCurrentUserPermissions();
   const canViewCompensation = permissions.includes('hr.employee.viewCompensation');
@@ -31,22 +46,37 @@ export default async function EmployeeDetailPage({
   const canManageSalaryHistory = permissions.includes('hr.employee.salaryHistory.manage');
   const canApproveHr = permissions.includes('hr.employee.salaryHistory.approveHr');
   const canApproveCeo = permissions.includes('hr.employee.salaryHistory.approveCeo');
-  const canViewLoans = permissions.includes('hr.loans.view') || permissions.includes('hr.loans.manage');
-  const canManageLoans = permissions.includes('hr.loans.manage');
-  const canViewCustodies = permissions.includes('hr.custodies.view') || permissions.includes('hr.custodies.manage');
-  const canManageCustodies = permissions.includes('hr.custodies.manage');
-  const canViewAssets = permissions.includes('hr.assets.view') || permissions.includes('hr.assets.manage');
-  const canManageAssets = permissions.includes('hr.assets.manage');
-  const canViewViolations = permissions.includes('hr.violations.view') || permissions.includes('hr.violations.manage');
-  const canManageViolations = permissions.includes('hr.violations.manage');
-  const canViewContracts = permissions.includes('hr.contracts.view') || permissions.includes('hr.contracts.manage');
-  const canViewLetters = permissions.includes('hr.letters.view') || permissions.includes('hr.letters.manage') || permissions.includes('hr.letters.approveCeo');
-  const canViewPayslips = permissions.includes('hr.payroll.view') || permissions.includes('hr.payroll.calculate');
-  const canManageLeaves = permissions.includes('hr.leaves.manage') || permissions.includes('hr.leaves.viewAll');
 
-  const { id } = await params;
+  // Include viewOwn checks for self-view tabs
+  const canViewLoans = permissions.includes('hr.loans.view') || permissions.includes('hr.loans.manage')
+    || (isSelfView && permissions.includes('hr.loans.viewOwn'));
+  const canManageLoans = permissions.includes('hr.loans.manage');
+  const canViewCustodies = permissions.includes('hr.custodies.view') || permissions.includes('hr.custodies.manage')
+    || (isSelfView && permissions.includes('hr.custodies.viewOwn'));
+  const canManageCustodies = permissions.includes('hr.custodies.manage');
+  const canViewAssets = permissions.includes('hr.assets.view') || permissions.includes('hr.assets.manage')
+    || (isSelfView && permissions.includes('hr.assets.viewOwn'));
+  const canManageAssets = permissions.includes('hr.assets.manage');
+  const canViewViolations = permissions.includes('hr.violations.view') || permissions.includes('hr.violations.manage')
+    || (isSelfView && permissions.includes('hr.violations.viewOwn'));
+  const canManageViolations = permissions.includes('hr.violations.manage');
+  const canViewContracts = permissions.includes('hr.contracts.view') || permissions.includes('hr.contracts.manage')
+    || (isSelfView && permissions.includes('hr.contracts.viewOwn'));
+  const canViewLetters = permissions.includes('hr.letters.view') || permissions.includes('hr.letters.manage')
+    || permissions.includes('hr.letters.approveCeo')
+    || (isSelfView && permissions.includes('hr.letters.viewOwn'));
+  const canViewPayslips = permissions.includes('hr.payroll.view') || permissions.includes('hr.payroll.calculate')
+    || (isSelfView && permissions.includes('hr.payroll.viewOwn'));
+  const canManageLeaves = permissions.includes('hr.leaves.manage') || permissions.includes('hr.leaves.viewAll');
+  const canViewLeaves = isSelfView || canManageLeaves
+    || permissions.includes('hr.leaves.viewAll') || permissions.includes('hr.leaves.approve');
+
   const employee = await prisma.employee.findFirst({
     where: { id, deletedAt: null },
+    include: {
+      reportsTo: { select: { fullNameEn: true } },
+      departmentRef: { select: { name: true } },
+    },
   });
   if (!employee) notFound();
 
@@ -55,19 +85,21 @@ export default async function EmployeeDetailPage({
     orderBy: { name: 'asc' },
   });
 
-  // Prev / next navigation (ordered alphabetically, same as the list page)
-  const allEmployeeIds = await prisma.employee.findMany({
-    where: { deletedAt: null },
-    select: { id: true },
-    orderBy: { fullNameEn: 'asc' },
-  });
+  // Prev / next navigation (admin-only; not needed for self-view but kept for convenience)
+  const allEmployeeIds = !isSelfView
+    ? await prisma.employee.findMany({
+        where: { deletedAt: null },
+        select: { id: true },
+        orderBy: { fullNameEn: 'asc' },
+      })
+    : [];
   const navIndex = allEmployeeIds.findIndex((e) => e.id === id);
   const prevEmployeeId = navIndex > 0 ? allEmployeeIds[navIndex - 1].id : null;
   const nextEmployeeId = navIndex < allEmployeeIds.length - 1 ? allEmployeeIds[navIndex + 1].id : null;
   const navPosition = navIndex >= 0 ? `${navIndex + 1} / ${allEmployeeIds.length}` : null;
 
-  // Check if employee has any asset assignments (to conditionally show assets tab)
-  const assetAssignmentCount = canViewAssets
+  // Asset assignments check (for conditional tabs)
+  const assetAssignmentCount = (canViewAssets || isSelfView)
     ? await prisma.assetAssignment.count({ where: { employeeId: id } })
     : 0;
   const hasAssets = assetAssignmentCount > 0;
@@ -106,7 +138,6 @@ export default async function EmployeeDetailPage({
     bankIban: canViewCompensation ? (employee.bankIban ?? '') : '',
     isGosiSubject: canViewCompensation ? employee.isGosiSubject : false,
     gosiSalary: canViewCompensation && employee.gosiSalary ? employee.gosiSalary.toString() : '',
-    // Extended Dolibarr extrafields (19.5.0)
     employeeNo: (employee as Record<string, unknown>).employeeNo as string ?? '',
     boarderNumber: (employee as Record<string, unknown>).boarderNumber as string ?? '',
     maritalStatus: (employee as Record<string, unknown>).maritalStatus as string ?? '',
@@ -161,56 +192,61 @@ export default async function EmployeeDetailPage({
                 {employee.department && <span>· {employee.department}</span>}
                 {employee.occupation && <span>· {employee.occupation}</span>}
               </div>
-              <p className="text-sky-200 text-xs mt-2">
-                Last synced:{' '}
-                {employee.lastSyncedFromDolibarrAt
-                  ? new Date(employee.lastSyncedFromDolibarrAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
-                  : 'never'}
-              </p>
-            </div>
-            {/* Prev / Next navigation */}
-            <div className="flex items-center gap-1 shrink-0">
-              {prevEmployeeId ? (
-                <Link
-                  href={`/hr/employees/${prevEmployeeId}`}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
-                  title="Previous employee"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Link>
-              ) : (
-                <span className="p-2 bg-white/10 rounded-lg opacity-40 cursor-not-allowed">
-                  <ChevronLeft className="h-5 w-5" />
-                </span>
-              )}
-              {navPosition && (
-                <span className="text-xs text-sky-200 font-mono px-1 tabular-nums">{navPosition}</span>
-              )}
-              {nextEmployeeId ? (
-                <Link
-                  href={`/hr/employees/${nextEmployeeId}`}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
-                  title="Next employee"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Link>
-              ) : (
-                <span className="p-2 bg-white/10 rounded-lg opacity-40 cursor-not-allowed">
-                  <ChevronRight className="h-5 w-5" />
-                </span>
+              {!isSelfView && (
+                <p className="text-sky-200 text-xs mt-2">
+                  Last synced:{' '}
+                  {employee.lastSyncedFromDolibarrAt
+                    ? new Date(employee.lastSyncedFromDolibarrAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+                    : 'never'}
+                </p>
               )}
             </div>
+            {/* Prev / Next navigation (admin view only) */}
+            {!isSelfView && (
+              <div className="flex items-center gap-1 shrink-0">
+                {prevEmployeeId ? (
+                  <Link
+                    href={`/hr/employees/${prevEmployeeId}`}
+                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                    title="Previous employee"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Link>
+                ) : (
+                  <span className="p-2 bg-white/10 rounded-lg opacity-40 cursor-not-allowed">
+                    <ChevronLeft className="h-5 w-5" />
+                  </span>
+                )}
+                {navPosition && (
+                  <span className="text-xs text-sky-200 font-mono px-1 tabular-nums">{navPosition}</span>
+                )}
+                {nextEmployeeId ? (
+                  <Link
+                    href={`/hr/employees/${nextEmployeeId}`}
+                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                    title="Next employee"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Link>
+                ) : (
+                  <span className="p-2 bg-white/10 rounded-lg opacity-40 cursor-not-allowed">
+                    <ChevronRight className="h-5 w-5" />
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <EmployeeDetailTabs
-          showHistory={canViewPositionHistory || canViewSalaryHistory}
+          isSelfView={isSelfView}
+          showHistory={!isSelfView && (canViewPositionHistory || canViewSalaryHistory)}
           showFinance={canViewLoans || canViewCustodies}
           showAssets={(canViewAssets || canViewViolations) && hasAssets}
           showLetters={canViewLetters}
           showPayslips={canViewPayslips}
-          showContracts={canViewContracts}
-          showCarMaintenance={(canViewAssets || canViewViolations) && hasAssets}
+          showContracts={!isSelfView && canViewContracts}
+          showCarMaintenance={!isSelfView && (canViewAssets || canViewViolations) && hasAssets}
           recordTab={
             <EmployeeForm
               initial={initial}
@@ -233,13 +269,30 @@ export default async function EmployeeDetailPage({
           canManageViolations={canManageViolations}
           canViewContracts={canViewContracts}
           canManageLeaves={canManageLeaves}
+          canViewLeaves={canViewLeaves}
           employee={{
             fullNameEn: employee.fullNameEn,
+            fullNameAr: employee.fullNameAr,
             dateOfJoining: employee.dateOfJoining.toISOString().slice(0, 10),
             dateOfLeaving: employee.dateOfLeaving ? employee.dateOfLeaving.toISOString().slice(0, 10) : null,
             status: employee.status,
             occupation: employee.occupation,
             department: employee.department,
+            nationalId: employee.nationalId,
+            nationality: employee.nationality,
+            dateOfBirth: employee.dateOfBirth ? employee.dateOfBirth.toISOString().slice(0, 10) : null,
+            maritalStatus: (employee as Record<string, unknown>).maritalStatus as string ?? null,
+            employeeNo: (employee as Record<string, unknown>).employeeNo as string ?? null,
+            reportsTo: employee.reportsTo?.fullNameEn ?? null,
+            jobTitleEn: employee.jobTitleEn,
+            jobTitleAr: employee.jobTitleAr,
+            contractEndDate: (employee as Record<string, unknown>).contractEndDate
+              ? new Date((employee as Record<string, unknown>).contractEndDate as string).toISOString().slice(0, 10)
+              : null,
+            contractType: (employee as Record<string, unknown>).contractType as string ?? null,
+            workingLocation: (employee as Record<string, unknown>).workingLocation as string ?? null,
+            section: employee.section,
+            division: employee.division,
           }}
         />
       </div>

@@ -65,7 +65,8 @@ interface Props {
   canViewCustodies: boolean;
   canViewAssets: boolean;
   canViewContracts: boolean;
-  onEditClick: () => void;
+  onEditClick?: () => void;
+  showEditButton?: boolean;
 }
 
 function money(v: string | number) {
@@ -93,7 +94,7 @@ function ExpiryBadge({ days }: { days: number }) {
 }
 
 export function EmployeeOverviewTab({
-  employeeId, employee, canViewLoans, canViewCustodies, canViewAssets, canViewContracts, onEditClick,
+  employeeId, employee, canViewLoans, canViewCustodies, canViewAssets, canViewContracts, onEditClick, showEditButton = true,
 }: Props) {
   const [loans, setLoans] = useState<LoanRow[]>([]);
   const [custodies, setCustodies] = useState<CustodyRow[]>([]);
@@ -178,10 +179,12 @@ export function EmployeeOverviewTab({
             </div>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={onEditClick} className="gap-1.5">
-          <User className="h-3.5 w-3.5" />
-          Edit Record
-        </Button>
+        {showEditButton && (
+          <Button variant="outline" size="sm" onClick={onEditClick} className="gap-1.5">
+            <User className="h-3.5 w-3.5" />
+            Edit Record
+          </Button>
+        )}
       </div>
 
       {/* KPI tiles */}

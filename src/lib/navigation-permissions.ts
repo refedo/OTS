@@ -174,7 +174,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
 
   // HR Leaves & Payroll (Phase 3 of OTS-MSS-HR-PAYROLL-v1)
   '/hr/leaves': ['hr.leaves.view', 'hr.leaves.request', 'hr.leaves.viewAll', 'hr.leaves.approve'],
-  '/hr/payroll': ['hr.payroll.view', 'hr.payroll.viewOwn'],
+  '/hr/payroll': ['hr.payroll.view', 'hr.payroll.calculate'],
 
   // HR Asset Management (18.12.0)
   '/hr/assets': ['hr.assets.view', 'hr.assets.manage', 'hr.assets.viewOwn'],
