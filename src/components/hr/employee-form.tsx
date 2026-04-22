@@ -402,6 +402,7 @@ export function EmployeeForm({
                 <Select
                   value={form.watch('status')}
                   onValueChange={(v) => form.setValue('status', v as FormValues['status'])}
+                  disabled={locked}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -422,6 +423,7 @@ export function EmployeeForm({
                   onValueChange={(v) =>
                     form.setValue('occupation', v === '__none__' ? '' : v)
                   }
+                  disabled={locked}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select position title" />
@@ -443,6 +445,7 @@ export function EmployeeForm({
                   onValueChange={(v) =>
                     form.setValue('section', v === '__none__' ? '' : v)
                   }
+                  disabled={locked}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select section" />
@@ -464,6 +467,7 @@ export function EmployeeForm({
                   onValueChange={(v) =>
                     form.setValue('division', v === '__none__' ? '' : v)
                   }
+                  disabled={locked}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select division" />
@@ -485,6 +489,7 @@ export function EmployeeForm({
                   onValueChange={(v) =>
                     form.setValue('departmentId', v === '__none__' ? '' : v)
                   }
+                  disabled={locked}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />

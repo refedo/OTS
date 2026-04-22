@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.16.6] - 2026-04-23
+
+### HR Module Fixes & Enhancements
+
+#### Added
+- **HR Policies PDF Attachment** — policies now support PDF file uploads; upload button in create/edit dialog, download link in expanded view
+- **Default HR Policies** — 8 standard company policies seeded on startup (Leave, Code of Conduct, Safety, IT Security, Expense, Attendance, End of Service, Anti-Corruption)
+- **Employment Contract Type** — new "Employment Contract" option in contracts module
+- **Hexa Steel Issuing Authority** — added as first option in contracts issuing authority list
+- **Searchable Employee Select** — contracts employee picker now has search/filter with keyboard-friendly combobox
+- **Expanded Excel Export** — employee export now includes 15+ additional fields: nationality, date of birth, marital status, job titles (EN/AR), bank name, IBAN, GOSI info, contract duration, transfer type, daily hours, work week days
+- **Auto-Generated Asset Codes** — assets now auto-generate codes by category prefix (SIM-001, CAR-015, LAP-003, etc.); category selection moved first in the form
+
+#### Fixed
+- **HR Letter Unique Constraint** — P2002 errors now properly re-thrown from inner catch blocks so the outer retry loop handles duplicate letterNumber collisions
+- **Employee Payslip Access** — employees can now view their own payslips without requiring explicit `hr.payroll.viewOwn` permission; self-view check uses employeeId match
+- **Leave Request Access** — employees can now submit their own leave requests without `hr.leaves.request` permission; self-service detection via employeeId
+- **Locked Employee Form Selects** — all Select dropdowns (Status, Position, Section, Division, Department) now properly disabled when employee record is locked
+- **Duplicate Column Migration Error** — `ceoSignatureUrl` and `contentEn` ALTER TABLE statements now use information_schema checks to avoid error 1060 on re-runs
+
+#### Changed
+- Asset creation form redesigned: category first, asset code optional with auto-generation hint
+- Asset API `assetCode` field changed from required to optional
+
+---
+
 ## [19.16.5] - 2026-04-22
 
 ### Staff Profile Access Fix & /profile Shortcut Route (Patch)

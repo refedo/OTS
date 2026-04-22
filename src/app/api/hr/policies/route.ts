@@ -13,6 +13,7 @@ const createSchema = z.object({
   version: z.string().default('v1.0'),
   effectiveDate: z.string().min(1),
   status: z.enum(['ACTIVE', 'ARCHIVED']).default('ACTIVE'),
+  attachmentUrl: z.string().max(1000).optional(),
 });
 
 export const GET = withApiContext(async (_req: NextRequest, session) => {
@@ -22,6 +23,7 @@ export const GET = withApiContext(async (_req: NextRequest, session) => {
     select: {
       id: true, titleEn: true, titleAr: true, contentEn: true, contentAr: true,
       category: true, version: true, effectiveDate: true, status: true,
+      attachmentUrl: true,
       createdAt: true, updatedAt: true,
     },
   });
@@ -51,6 +53,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       version: d.version,
       effectiveDate: new Date(d.effectiveDate),
       status: d.status,
+      attachmentUrl: d.attachmentUrl || null,
       createdById: session!.userId,
     },
   });

@@ -17,7 +17,7 @@ const createSchema = z.object({
   type: z.enum([
     'HEALTH_INSURANCE', 'MEDICAL_INSURANCE', 'IQAMA', 'CAR_REGISTRATION',
     'VEHICLE_LICENSE', 'PROFESSIONAL_LICENSE', 'COMMERCIAL_REGISTRATION',
-    'LEGAL_DOCUMENT', 'OTHER',
+    'LEGAL_DOCUMENT', 'EMPLOYMENT_CONTRACT', 'OTHER',
   ]),
   employeeId: z.string().nullish(),
   issuingAuthority: z.string().max(200).nullish(),

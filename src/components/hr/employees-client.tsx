@@ -50,6 +50,21 @@ type EmployeeRow = {
   contractEndDate: string | null;
   contractType: string | null;
   workingLocation: string | null;
+  nationality: string | null;
+  dateOfBirth: string | null;
+  maritalStatus: string | null;
+  employeeNo: string | null;
+  jobTitleEn: string | null;
+  jobTitleAr: string | null;
+  gosiSubscriptionNo: string | null;
+  contractDuration: string | null;
+  transferType: string | null;
+  bankName: string | null;
+  bankIban: string | null;
+  isGosiSubject: boolean | null;
+  gosiSalary: string | null;
+  standardDailyHours: number;
+  workWeekDaysCount: number;
   status: string;
   department: string | null;
   section: string | null;
@@ -210,16 +225,22 @@ export function EmployeesClient({
   const exportExcel = async () => {
     const XLSX = await import('xlsx');
     const rows = filtered.map((e) => {
-      const base: Record<string, string | number | null> = {
+      const base: Record<string, string | number | boolean | null> = {
         'Employment ID': e.employmentId,
+        'Employee No': e.employeeNo ?? '',
         'Full Name (EN)': e.fullNameEn,
         'Full Name (AR)': e.fullNameAr ?? '',
         'National ID / Iqama': e.nationalId ?? '',
         'Boarder Number': e.boarderNumber ?? '',
         'Passport Number': e.passportNumber ?? '',
         'Sponsor Number': e.sponsorNumber ?? '',
+        'Nationality': e.nationality ?? '',
+        'Date of Birth': fmtDate(e.dateOfBirth),
+        'Marital Status': e.maritalStatus ?? '',
         'Status': STATUS_CONFIG[e.status]?.label ?? e.status,
         'Position Title': e.occupation ?? '',
+        'Job Title (EN)': e.jobTitleEn ?? '',
+        'Job Title (AR)': e.jobTitleAr ?? '',
         'Department': e.department ?? '',
         'Section': e.section ?? '',
         'Division': e.division ?? '',
@@ -227,7 +248,11 @@ export function EmployeesClient({
         'Date of Leaving': fmtDate(e.dateOfLeaving),
         'Contract Type': e.contractType ?? '',
         'Contract End Date': fmtDate(e.contractEndDate),
+        'Contract Duration': e.contractDuration ?? '',
         'Working Location': e.workingLocation ?? '',
+        'Transfer Type': e.transferType ?? '',
+        'Standard Daily Hours': e.standardDailyHours,
+        'Work Week Days': e.workWeekDaysCount,
         'Last Synced': e.lastSyncedFromDolibarrAt
           ? new Date(e.lastSyncedFromDolibarrAt).toLocaleDateString('en-GB')
           : 'Never',
@@ -247,6 +272,11 @@ export function EmployeesClient({
           (e.foodAllowance ? Number(e.foodAllowance) : 0) +
           (e.otherAllowances ? Number(e.otherAllowances) : 0);
         base['Total Package (SAR)'] = total;
+        base['Bank Name'] = e.bankName ?? '';
+        base['Bank IBAN'] = e.bankIban ?? '';
+        base['GOSI Subject'] = e.isGosiSubject ? 'Yes' : 'No';
+        base['GOSI Salary'] = e.gosiSalary ? Number(e.gosiSalary) : '';
+        base['GOSI Subscription No'] = e.gosiSubscriptionNo ?? '';
       }
       return base;
     });

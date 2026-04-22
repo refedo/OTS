@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
 import { resolveUserPermissions } from '@/lib/services/permission-resolution.service';
 
 const createSchema = z.object({
-  assetCode: z.string().min(1).max(50),
+  assetCode: z.string().max(50).optional(),
   name: z.string().min(1).max(200),
   category: z.enum(['CAR', 'SIM_CARD', 'LAPTOP', 'TABLET', 'PHONE', 'KEY', 'TOOL', 'EQUIPMENT', 'OTHER']),
   // Car-specific
@@ -143,9 +143,30 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
 
   const d = parsed.data;
 
-  const existing = await prisma.asset.findFirst({ where: { assetCode: d.assetCode, deletedAt: null } });
+  // Auto-generate asset code if not provided
+  const CATEGORY_PREFIX: Record<string, string> = {
+    CAR: 'CAR', SIM_CARD: 'SIM', LAPTOP: 'LAP', TABLET: 'TAB',
+    PHONE: 'PHN', KEY: 'KEY', TOOL: 'TL', EQUIPMENT: 'EQP', OTHER: 'OTH',
+  };
+  let assetCode = d.assetCode?.trim() || '';
+  if (!assetCode) {
+    const prefix = CATEGORY_PREFIX[d.category] || 'AST';
+    const lastInCategory = await prisma.asset.findFirst({
+      where: { category: d.category, assetCode: { startsWith: `${prefix}-` }, deletedAt: null },
+      orderBy: { assetCode: 'desc' },
+      select: { assetCode: true },
+    });
+    let nextNum = 1;
+    if (lastInCategory?.assetCode) {
+      const match = lastInCategory.assetCode.match(/-(\d+)$/);
+      if (match) nextNum = parseInt(match[1], 10) + 1;
+    }
+    assetCode = `${prefix}-${String(nextNum).padStart(3, '0')}`;
+  }
+
+  const existing = await prisma.asset.findFirst({ where: { assetCode, deletedAt: null } });
   if (existing) {
-    return NextResponse.json({ error: `Asset code "${d.assetCode}" is already in use` }, { status: 409 });
+    return NextResponse.json({ error: `Asset code "${assetCode}" is already in use` }, { status: 409 });
   }
 
   // Auto-assign sequential SN (continuous across all asset types)
@@ -160,7 +181,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
     const asset = await prisma.asset.create({
       data: {
         assetSn: nextSn,
-        assetCode: d.assetCode,
+        assetCode,
         name: d.name,
         category: d.category,
         status: 'AVAILABLE',

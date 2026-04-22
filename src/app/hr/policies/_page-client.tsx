@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   BookOpen, Search, Plus, FileText, Shield, Heart, Laptop,
   DollarSign, Users, Clock, ChevronRight, Pencil, Trash2,
-  Globe, X, ChevronDown, ChevronUp,
+  Globe, X, ChevronDown, ChevronUp, Upload, Loader2, Paperclip, Download,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ type Policy = {
   version: string;
   effectiveDate: string;
   status: string;
+  attachmentUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -50,7 +51,7 @@ const COLOR_MAP: Record<string, { badge: string; row: string; icon: string; head
 
 const BLANK_FORM = {
   titleEn: '', titleAr: '', contentEn: '', contentAr: '',
-  category: 'HR', version: 'v1.0', effectiveDate: '',
+  category: 'HR', version: 'v1.0', effectiveDate: '', attachmentUrl: '',
 };
 
 export function PoliciesClient() {
@@ -68,6 +69,7 @@ export function PoliciesClient() {
 
   const [deleteTarget, setDeleteTarget] = useState<Policy | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,6 +95,7 @@ export function PoliciesClient() {
       contentEn: p.contentEn ?? '', contentAr: p.contentAr ?? '',
       category: p.category, version: p.version,
       effectiveDate: p.effectiveDate.slice(0, 10),
+      attachmentUrl: p.attachmentUrl ?? '',
     });
     setEditTarget(p);
     setDialogMode('edit');
@@ -116,6 +119,7 @@ export function PoliciesClient() {
           category: form.category,
           version: form.version,
           effectiveDate: form.effectiveDate,
+          attachmentUrl: form.attachmentUrl || undefined,
         }),
       });
       if (res.ok) {
@@ -318,14 +322,28 @@ export function PoliciesClient() {
                                 : <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500" />}
                             </div>
                           </div>
-                          {isExpanded && content && (
+                          {isExpanded && (
                             <div className="px-6 pb-4 border-t border-slate-100 bg-slate-50/30">
-                              <p
-                                className={cn('text-sm text-slate-700 mt-4 leading-relaxed whitespace-pre-wrap', lang === 'ar' && 'text-right')}
-                                dir={lang === 'ar' ? 'rtl' : 'ltr'}
-                              >
-                                {content}
-                              </p>
+                              {content && (
+                                <p
+                                  className={cn('text-sm text-slate-700 mt-4 leading-relaxed whitespace-pre-wrap', lang === 'ar' && 'text-right')}
+                                  dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                                >
+                                  {content}
+                                </p>
+                              )}
+                              {policy.attachmentUrl && (
+                                <a
+                                  href={`/api/files?path=${encodeURIComponent(policy.attachmentUrl)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  Download Attachment (PDF)
+                                </a>
+                              )}
                             </div>
                           )}
                         </div>
@@ -393,6 +411,52 @@ export function PoliciesClient() {
                 dir="rtl"
                 rows={6}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5"><Paperclip className="h-3.5 w-3.5" />PDF Attachment</Label>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={uploading}
+                  onClick={() => {
+                    const inp = document.createElement('input');
+                    inp.type = 'file';
+                    inp.accept = '.pdf';
+                    inp.onchange = async (ev) => {
+                      const file = (ev.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+                      setUploading(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setForm(f => ({ ...f, attachmentUrl: data.filePath }));
+                        }
+                      } finally {
+                        setUploading(false);
+                      }
+                    };
+                    inp.click();
+                  }}
+                >
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  Upload PDF
+                </Button>
+                {form.attachmentUrl && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-600">
+                    <Paperclip className="h-3 w-3" />
+                    <span className="truncate max-w-[200px]">{form.attachmentUrl.split('/').pop()}</span>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, attachmentUrl: '' }))} className="text-slate-400 hover:text-rose-500">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>

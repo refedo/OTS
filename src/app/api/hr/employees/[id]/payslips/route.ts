@@ -26,7 +26,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   const canViewAll = permissions.includes('hr.payroll.view') || permissions.includes('hr.payroll.calculate');
   let allowed = canViewAll;
 
-  if (!allowed && permissions.includes('hr.payroll.viewOwn')) {
+  if (!allowed) {
     const me = await prisma.user.findUnique({ where: { id: session.sub }, select: { employeeId: true } });
     if (me?.employeeId === id) allowed = true;
   }

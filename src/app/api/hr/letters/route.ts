@@ -225,7 +225,9 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
             },
             include: LETTER_INCLUDE_SAFE,
           });
-        } catch {
+        } catch (err1: unknown) {
+          const isUnique1 = typeof err1 === 'object' && err1 !== null && 'code' in err1 && (err1 as { code: string }).code === 'P2002';
+          if (isUnique1) throw err1;
           try {
             // Tier-2: contentEn column missing — skip it but keep status/language
             return await tx.hrLetter.create({
@@ -245,7 +247,9 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
               },
               select: LETTER_SELECT_NO_CONTENT_EN,
             });
-          } catch {
+          } catch (err2: unknown) {
+            const isUnique2 = typeof err2 === 'object' && err2 !== null && 'code' in err2 && (err2 as { code: string }).code === 'P2002';
+            if (isUnique2) throw err2;
             // Tier-3: no enhancement fields at all
             return await tx.hrLetter.create({
               data: {

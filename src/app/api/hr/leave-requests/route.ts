@@ -105,8 +105,9 @@ export async function POST(req: NextRequest) {
     if (!canViewAll) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const isSelf = employeeId === me?.employeeId;
   const canRequest = await checkPermission('hr.leaves.request');
-  if (!canRequest) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!canRequest && !isSelf) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const startDate = new Date(d.startDate);
   const endDate = new Date(d.endDate);

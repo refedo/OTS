@@ -31,7 +31,7 @@ import { gregorianToHijri, hijriToGregorian } from '@/lib/utils/hijri';
 type ContractType =
   | 'HEALTH_INSURANCE' | 'MEDICAL_INSURANCE' | 'IQAMA' | 'CAR_REGISTRATION'
   | 'VEHICLE_LICENSE' | 'PROFESSIONAL_LICENSE' | 'COMMERCIAL_REGISTRATION'
-  | 'LEGAL_DOCUMENT' | 'OTHER';
+  | 'LEGAL_DOCUMENT' | 'EMPLOYMENT_CONTRACT' | 'OTHER';
 
 type ContractStatus = 'ACTIVE' | 'EXPIRED' | 'PENDING_RENEWAL' | 'CANCELLED';
 
@@ -92,11 +92,13 @@ const CONTRACT_TYPES: { value: ContractType; label: string; color: string }[] = 
   { value: 'PROFESSIONAL_LICENSE',    label: 'Professional License',      color: 'blue' },
   { value: 'COMMERCIAL_REGISTRATION', label: 'Commercial Registration',   color: 'indigo' },
   { value: 'LEGAL_DOCUMENT',          label: 'Legal Document',            color: 'rose' },
+  { value: 'EMPLOYMENT_CONTRACT',     label: 'Employment Contract',        color: 'teal' },
   { value: 'OTHER',                   label: 'Other',                     color: 'slate' },
 ];
 
 // Predefined issuing authorities (OTS-BL-077)
 const ISSUING_AUTHORITIES = [
+  'Hexa Steel',
   'Ministry of Interior',
   'Ministry of Human Resources',
   'Ministry of Commerce',
@@ -169,6 +171,83 @@ const EMPTY_FORM = {
   notifyDaysBefore: 30,
   description: '',
 };
+
+function EmployeeSearchSelect({ employees, value, onChange }: {
+  employees: EmployeeOption[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selected = employees.find(e => e.id === value);
+  const filtered = employees.filter(e => {
+    if (!q.trim()) return true;
+    const lq = q.toLowerCase();
+    return e.fullNameEn.toLowerCase().includes(lq) || e.employmentId.toLowerCase().includes(lq);
+  });
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={cn(
+          'flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors',
+          'focus:outline-none focus:ring-1 focus:ring-ring',
+          !selected && 'text-muted-foreground',
+        )}
+      >
+        <span className="truncate">{selected ? `${selected.fullNameEn} (${selected.employmentId})` : 'Company-level'}</span>
+        <ChevronsUpDown className="h-3.5 w-3.5 opacity-50 shrink-0 ml-2" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-lg max-h-64 overflow-hidden">
+          <div className="p-2 border-b">
+            <Input
+              placeholder="Search employee…"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              className="h-8 text-xs"
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto max-h-48">
+            <button
+              type="button"
+              onClick={() => { onChange(''); setOpen(false); setQ(''); }}
+              className={cn('w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors', !value && 'bg-slate-50 font-medium')}
+            >
+              Company-level
+            </button>
+            {filtered.map(e => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => { onChange(e.id); setOpen(false); setQ(''); }}
+                className={cn('w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors', value === e.id && 'bg-sky-50 text-sky-700 font-medium')}
+              >
+                {e.fullNameEn} <span className="text-xs text-slate-400">({e.employmentId})</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="px-3 py-4 text-xs text-slate-400 text-center">No employees found</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function resolveAuthority(val: string | null | undefined): { select: string; custom: string } {
   if (!val) return { select: '', custom: '' };
@@ -773,20 +852,14 @@ export function ContractsClient({ canManage, employees, initialContracts, carAss
               </Select>
             </div>
 
-            {/* Employee (optional) */}
+            {/* Employee (optional) — searchable */}
             <div className="space-y-1.5">
               <Label>Employee <span className="text-xs text-slate-400">(leave blank for company-level)</span></Label>
-              <Select value={form.employeeId || '__none__'} onValueChange={v => setForm(f => ({ ...f, employeeId: v === '__none__' ? '' : v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Company-level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Company-level</SelectItem>
-                  {employees.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.fullNameEn} ({e.employmentId})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmployeeSearchSelect
+                employees={employees}
+                value={form.employeeId}
+                onChange={(v: string) => setForm(f => ({ ...f, employeeId: v }))}
+              />
             </div>
 
             {/* Issuing Authority */}

@@ -23,10 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.16.6',
+    date: 'April 23, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'HR Module Fixes & Enhancements',
+    highlights: [
+      'HR Policies now support PDF file uploads with download links in the expanded view, plus 8 default company policies seeded automatically.',
+      'Asset creation redesigned: select category first, codes auto-generated per type (SIM-001, CAR-015, LAP-003).',
+      'Employee Excel export expanded with 15+ additional fields including nationality, banking, GOSI, and contract details.',
+      'Contracts page gains Employment Contract type, Hexa Steel authority, and a searchable employee combobox.',
+      'Multiple access fixes: employees can now view their own payslips and submit leave requests without extra permissions.',
+    ],
+    changes: {
+      added: [
+        'HR Policies PDF Attachment — upload button in create/edit dialog, download link in expanded view',
+        '8 default HR policies seeded on startup (Leave, Code of Conduct, Safety, IT Security, Expense, Attendance, End of Service, Anti-Corruption)',
+        'Employment Contract type added to contracts module',
+        'Hexa Steel added as first issuing authority option in contracts',
+        'Searchable employee combobox in contracts (replaces plain dropdown)',
+        'Employee Excel export expanded with nationality, DOB, marital status, job titles, bank info, GOSI, contract duration, transfer type, hours/week',
+        'Auto-generated asset codes by category prefix (SIM-001, CAR-015, LAP-003, etc.)',
+      ],
+      fixed: [
+        'HR Letter unique constraint — P2002 errors now re-thrown from inner catch blocks so retry loop handles duplicate letterNumber collisions',
+        'Employee payslip access — self-view check via employeeId match, no longer requires explicit hr.payroll.viewOwn permission',
+        'Leave request access — employees can submit own leave requests without hr.leaves.request permission',
+        'Locked employee form selects — Status, Position, Section, Division, Department dropdowns now properly disabled when record is locked',
+        'Duplicate column migration error — ceoSignatureUrl and contentEn ALTER TABLE now use information_schema checks to avoid error 1060',
+      ],
+      changed: [
+        'Asset creation form: category first, asset code optional with auto-generation',
+        'Asset API assetCode field changed from required to optional',
+      ],
+    },
+  },
+  {
     version: '19.16.5',
     date: 'April 22, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Staff Profile Access Fix & /profile Shortcut Route',
     highlights: [
       'Staff with "View Own Employee Profile" permission can now access their own profile via the dashboard widget — previously blocked by the client-side route guard.',

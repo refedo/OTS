@@ -85,6 +85,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Letter templates + Circulations (19.16.0) ────────────────────────────
   'add_hr_letter_templates_circulations.sql',
+
+  // ── HR Policy attachment + seed policies (19.17.0) ──────────────────────
+  'add_hr_policy_attachment.sql',
 ];
 
 /**

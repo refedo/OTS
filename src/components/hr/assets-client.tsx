@@ -330,7 +330,7 @@ function AssetFormDialog({
         notes: form.notes || null,
         attachments: attachments.length > 0 ? attachments : null,
       };
-      payload.assetCode = form.assetCode;
+      if (form.assetCode.trim()) payload.assetCode = form.assetCode.trim();
 
       const url = isEdit ? `/api/hr/assets/${initial!.id}` : '/api/hr/assets';
       const res = await fetch(url, {
@@ -364,14 +364,6 @@ function AssetFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label>Asset Code *</Label>
-              <Input value={form.assetCode} onChange={e => set('assetCode', e.target.value)} placeholder="e.g. CAR-001" required />
-            </div>
-            <div className="space-y-1">
-              <Label>Name / Description *</Label>
-              <Input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Toyota Hilux White" required />
-            </div>
-            <div className="space-y-1">
               <Label>Category *</Label>
               <Select value={form.category} onValueChange={v => set('category', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -381,6 +373,14 @@ function AssetFormDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Asset Code <span className="text-xs text-slate-400">(auto-generated)</span></Label>
+              <Input value={form.assetCode} onChange={e => set('assetCode', e.target.value)} placeholder="Auto — e.g. SIM-001" className="bg-slate-50" />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <Label>Name / Description *</Label>
+              <Input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Toyota Hilux White" required />
             </div>
           </div>
 

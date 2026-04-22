@@ -15,6 +15,7 @@ const updateSchema = z.object({
   version: z.string().optional(),
   effectiveDate: z.string().optional(),
   status: z.enum(['ACTIVE', 'ARCHIVED']).optional(),
+  attachmentUrl: z.string().max(1000).nullable().optional(),
 });
 
 export const PUT = withApiContext(async (req: NextRequest, session, ctx: RouteParams) => {
@@ -39,6 +40,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx: RoutePa
       ...(d.version !== undefined && { version: d.version }),
       ...(d.effectiveDate !== undefined && { effectiveDate: new Date(d.effectiveDate) }),
       ...(d.status !== undefined && { status: d.status }),
+      ...(d.attachmentUrl !== undefined && { attachmentUrl: d.attachmentUrl || null }),
       updatedById: session!.userId,
     },
   });
