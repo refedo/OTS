@@ -80,6 +80,60 @@ async function resolveLetterNumber(
   return { number: `${prefix}-${year}-${seq.toString().padStart(4, '0')}` };
 }
 
+/** Resolve letter number INSIDE a transaction — reads actual max from DB to avoid race conditions */
+async function resolveLetterNumberInTx(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  letterType: string,
+  classification: 'INTERNAL' | 'EXTERNAL',
+): Promise<{ number: string; configId?: string; newSeq?: number; newYear?: number }> {
+  // Try serial config table first
+  let config = null;
+  try {
+    config = await tx.hrLetterSerialConfig.findUnique({
+      where: { letterType: letterType as never },
+    });
+  } catch {
+    // Table not ready — use fallback
+  }
+
+  if (config) {
+    const year = new Date().getFullYear();
+    const twoDigitYear = year.toString().slice(-2);
+    const needsReset = config.resetYearly && config.lastResetYear !== null && config.lastResetYear !== year;
+    const newSeq = needsReset ? 1 : config.currentSeq + 1;
+    const nCount = (config.mask.match(/N+/) ?? ['NNNN'])[0].length;
+    const numStr = newSeq.toString().padStart(nCount, '0');
+    const number = config.mask
+      .replace('{PREFIX}', config.prefix)
+      .replace('{YYYY}', year.toString())
+      .replace('{YY}', twoDigitYear)
+      .replace(/N+/, numStr);
+    return { number, configId: config.id, newSeq, newYear: year };
+  }
+
+  // Fallback: query actual max inside tx using raw SQL to get correct current count
+  const prefix = classification === 'INTERNAL' ? 'INT' : 'EXT';
+  const year = new Date().getFullYear().toString().slice(-2);
+  const pattern = `${prefix}-${year}-%`;
+  type MaxRow = { maxNum: string | null };
+  let maxSeq = 0;
+  try {
+    const rows = await tx.$queryRaw<MaxRow[]>`
+      SELECT MAX(letterNumber) as maxNum FROM HrLetter
+      WHERE letterNumber LIKE ${pattern}
+    `;
+    const maxNum = rows[0]?.maxNum;
+    if (maxNum) {
+      const parts = maxNum.split('-');
+      maxSeq = parseInt(parts[2] ?? '0', 10) || 0;
+    }
+  } catch {
+    // HrLetter table might not exist on first deploy — start from 0
+  }
+  const seq = maxSeq + 1;
+  return { number: `${prefix}-${year}-${seq.toString().padStart(4, '0')}` };
+}
+
 /** Find all users who hold the hr.letters.approveCeo permission (or ALL) */
 async function findCeoApprovers(): Promise<{ id: string }[]> {
   const [withPerm, withAll] = await Promise.all([
@@ -186,12 +240,13 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
 
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
-      const resolved = await resolveLetterNumber(d.letterType, d.classification, attempt);
+      const { letter, letterNumber } = await prisma.$transaction(async (tx) => {
+        // Resolve letter number INSIDE the transaction to avoid race conditions.
+        // Re-query the actual current max seq from the DB while holding the tx lock.
+        const resolved = await resolveLetterNumberInTx(tx, d.letterType, d.classification);
 
-      const letter = await prisma.$transaction(async (tx) => {
         // If using a serial config, atomically update its sequence
         if (resolved.configId && resolved.newSeq !== undefined && resolved.newYear !== undefined) {
-          // Guard: HrLetterSerialConfig table might not exist yet
           try {
             await tx.hrLetterSerialConfig.update({
               where: { id: resolved.configId },
@@ -204,10 +259,9 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
 
         // Tier-1: Full create with all current fields (contentEn, language, status).
         // Tier-2: Without contentEn — add_letter_bilingual_ceo_sig not yet applied.
-        //         Uses explicit select to avoid Prisma reading contentEn from DB.
         // Tier-3: Without any enhancement fields — add_hr_letter_enhancements not yet applied.
         try {
-          return await tx.hrLetter.create({
+          const l1 = await tx.hrLetter.create({
             data: {
               letterNumber: resolved.number,
               letterType: d.letterType,
@@ -225,12 +279,13 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
             },
             include: LETTER_INCLUDE_SAFE,
           });
+          return { letter: l1, letterNumber: resolved.number };
         } catch (err1: unknown) {
           const isUnique1 = typeof err1 === 'object' && err1 !== null && 'code' in err1 && (err1 as { code: string }).code === 'P2002';
           if (isUnique1) throw err1;
           try {
             // Tier-2: contentEn column missing — skip it but keep status/language
-            return await tx.hrLetter.create({
+            const l2 = await tx.hrLetter.create({
               data: {
                 letterNumber: resolved.number,
                 letterType: d.letterType,
@@ -247,11 +302,12 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
               },
               select: LETTER_SELECT_NO_CONTENT_EN,
             });
+            return { letter: l2, letterNumber: resolved.number };
           } catch (err2: unknown) {
             const isUnique2 = typeof err2 === 'object' && err2 !== null && 'code' in err2 && (err2 as { code: string }).code === 'P2002';
             if (isUnique2) throw err2;
             // Tier-3: no enhancement fields at all
-            return await tx.hrLetter.create({
+            const l3 = await tx.hrLetter.create({
               data: {
                 letterNumber: resolved.number,
                 letterType: d.letterType,
@@ -266,11 +322,12 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
               },
               select: LETTER_SELECT_MINIMAL,
             });
+            return { letter: l3, letterNumber: resolved.number };
           }
         }
       });
 
-      logger.info({ letterId: letter.id, letterNumber: resolved.number, employeeId: d.employeeId }, '[Letters] Created');
+      logger.info({ letterId: letter.id, letterNumber, employeeId: d.employeeId }, '[Letters] Created');
 
       // Notify all CEO approvers (fire-and-forget)
       findCeoApprovers().then((ceos) => {
@@ -280,7 +337,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
             userId: ceo.id,
             type: 'APPROVAL_REQUIRED',
             title: 'Letter Approval Required',
-            message: `${creatorName} issued letter ${resolved.number} for ${employee.fullNameEn} — awaiting your approval`,
+            message: `${creatorName} issued letter ${letterNumber} for ${employee.fullNameEn} — awaiting your approval`,
             relatedEntityType: 'hr_letter',
             relatedEntityId: letter.id,
           }).catch((err) => logger.warn({ err, userId: ceo.id }, 'Failed to notify CEO about letter'));

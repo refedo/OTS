@@ -5720,6 +5720,7 @@ model HrPolicy {
   version       String    @default("v1.0") @db.VarChar(20)
   effectiveDate DateTime  @db.Date
   status        String    @default("ACTIVE") @db.VarChar(20)
+  attachmentUrl String?   @db.VarChar(1000)
 
   createdById  String    @db.Char(36)
   createdBy    User      @relation("HrPolicyCreatedBy", fields: [createdById], references: [id])
