@@ -27,6 +27,8 @@ interface Props {
   showAssets: boolean;
   showLetters: boolean;
   showPayslips: boolean;
+  showAnnouncements?: boolean;
+  showPolicies?: boolean;
   showContracts: boolean;
   showCarMaintenance: boolean;
   employeeId: string;
@@ -126,6 +128,8 @@ export function EmployeeDetailTabs({
   showAssets,
   showLetters,
   showPayslips,
+  showAnnouncements = false,
+  showPolicies = false,
   showContracts,
   showCarMaintenance,
   employeeId,
@@ -159,6 +163,8 @@ export function EmployeeDetailTabs({
         {showFinance && <TabsTrigger value="finance">Finance</TabsTrigger>}
         {showAssets && <TabsTrigger value="assets">Assets</TabsTrigger>}
         {showLetters && <TabsTrigger value="letters">Letters</TabsTrigger>}
+        {showPolicies && <TabsTrigger value="policies">Policies</TabsTrigger>}
+        {showAnnouncements && <TabsTrigger value="announcements">Announcements</TabsTrigger>}
         {/* Admin-only tabs */}
         {!isSelfView && <TabsTrigger value="record">Record</TabsTrigger>}
         {!isSelfView && showHistory && <TabsTrigger value="history">History</TabsTrigger>}
@@ -181,6 +187,7 @@ export function EmployeeDetailTabs({
           canViewContracts={canViewContracts}
           onEditClick={() => setActiveTab('record')}
           showEditButton={!isSelfView}
+          showLeaveBalance={isSelfView}
         />
         {isSelfView && (
           <div className="mt-6">
@@ -244,6 +251,18 @@ export function EmployeeDetailTabs({
         </TabsContent>
       )}
 
+      {showPolicies && (
+        <TabsContent value="policies" className="mt-6">
+          <EmployeeAnnouncementsTab mode="policies" />
+        </TabsContent>
+      )}
+
+      {showAnnouncements && (
+        <TabsContent value="announcements" className="mt-6">
+          <EmployeeAnnouncementsTab mode="announcements" />
+        </TabsContent>
+      )}
+
       {/* Admin-only tabs — hidden for self-view */}
       {!isSelfView && (
         <TabsContent value="record" className="mt-6">{recordTab}</TabsContent>
@@ -288,7 +307,7 @@ export function EmployeeDetailTabs({
 
       {!isSelfView && (
         <TabsContent value="announcements" className="mt-6">
-          <EmployeeAnnouncementsTab />
+          <EmployeeAnnouncementsTab mode="announcements" />
         </TabsContent>
       )}
 

@@ -10,6 +10,7 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { NotificationService } from '@/lib/services/notification.service';
+import { resolveUserPermissions } from '@/lib/services/permission-resolution.service';
 
 const rejectSchema = z.object({
   reason: z.string().min(1).max(500),
@@ -20,7 +21,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 export const POST = withApiContext(async (req: NextRequest, session, ctx: RouteParams) => {
   const { id } = await ctx.params;
 
-  const permissions: string[] = (session as unknown as { permissions?: string[] }).permissions ?? [];
+  const permissions = await resolveUserPermissions(session!.userId);
   if (!permissions.includes('hr.letters.approveCeo') && !permissions.includes('ALL')) {
     return NextResponse.json({ error: 'Forbidden — CEO approval permission required' }, { status: 403 });
   }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Loader2, Landmark, Wallet, PackageSearch, CalendarDays,
-  AlertTriangle, CheckCircle2, AlertCircle, ArrowRight, User, FileText,
+  AlertTriangle, CheckCircle2, AlertCircle, ArrowRight, User, FileText, Umbrella,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -50,6 +50,12 @@ interface ContractRow {
   status: string;
 }
 
+interface LeaveEntitlement {
+  entitledDays: number;
+  annualConsumed: number;
+  remaining: number;
+}
+
 interface Props {
   employeeId: string;
   employee: {
@@ -67,6 +73,7 @@ interface Props {
   canViewContracts: boolean;
   onEditClick?: () => void;
   showEditButton?: boolean;
+  showLeaveBalance?: boolean;
 }
 
 function money(v: string | number) {
@@ -94,18 +101,31 @@ function ExpiryBadge({ days }: { days: number }) {
 }
 
 export function EmployeeOverviewTab({
-  employeeId, employee, canViewLoans, canViewCustodies, canViewAssets, canViewContracts, onEditClick, showEditButton = true,
+  employeeId, employee, canViewLoans, canViewCustodies, canViewAssets, canViewContracts, onEditClick, showEditButton = true, showLeaveBalance = false,
 }: Props) {
   const [loans, setLoans] = useState<LoanRow[]>([]);
   const [custodies, setCustodies] = useState<CustodyRow[]>([]);
   const [assignments, setAssignments] = useState<AssetAssignment[]>([]);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
+  const [leaveEntitlement, setLeaveEntitlement] = useState<LeaveEntitlement | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const fetches: Promise<unknown>[] = [];
+
+      if (showLeaveBalance) {
+        fetches.push(
+          fetch(`/api/hr/leave-balance?employeeId=${employeeId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then((data: unknown) => {
+              if (data && typeof data === 'object' && 'entitledDays' in data) {
+                setLeaveEntitlement(data as LeaveEntitlement);
+              }
+            }),
+        );
+      }
 
       if (canViewLoans) {
         fetches.push(
@@ -139,7 +159,7 @@ export function EmployeeOverviewTab({
     } finally {
       setLoading(false);
     }
-  }, [employeeId, canViewLoans, canViewCustodies, canViewAssets, canViewContracts]);
+  }, [employeeId, canViewLoans, canViewCustodies, canViewAssets, canViewContracts, showLeaveBalance]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -189,11 +209,20 @@ export function EmployeeOverviewTab({
 
       {/* KPI tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
-          <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Active Loans</p>
-          <p className="text-2xl font-bold text-sky-700 mt-1">{activeLoans.length}</p>
-          {activeLoans.length > 0 && <p className="text-xs text-sky-500 mt-0.5">SAR {money(loanBalance)} remaining</p>}
-        </div>
+        {showLeaveBalance && (
+          <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
+            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide flex items-center gap-1"><Umbrella className="h-3 w-3" />Leave Balance</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">{leaveEntitlement?.remaining ?? '—'}</p>
+            <p className="text-xs text-emerald-500 mt-0.5">{leaveEntitlement ? `of ${leaveEntitlement.entitledDays} days entitled` : 'days remaining'}</p>
+          </div>
+        )}
+        {!showLeaveBalance && (
+          <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+            <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Active Loans</p>
+            <p className="text-2xl font-bold text-sky-700 mt-1">{activeLoans.length}</p>
+            {activeLoans.length > 0 && <p className="text-xs text-sky-500 mt-0.5">SAR {money(loanBalance)} remaining</p>}
+          </div>
+        )}
         <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm">
           <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Open Custodies</p>
           <p className="text-2xl font-bold text-amber-700 mt-1">{openCustodies.length}</p>

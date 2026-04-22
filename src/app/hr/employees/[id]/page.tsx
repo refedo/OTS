@@ -66,7 +66,7 @@ export default async function EmployeeDetailPage({
     || permissions.includes('hr.letters.approveCeo')
     || (isSelfView && permissions.includes('hr.letters.viewOwn'));
   const canViewPayslips = permissions.includes('hr.payroll.view') || permissions.includes('hr.payroll.calculate')
-    || (isSelfView && permissions.includes('hr.payroll.viewOwn'));
+    || isSelfView;
   const canManageLeaves = permissions.includes('hr.leaves.manage') || permissions.includes('hr.leaves.viewAll');
   const canViewLeaves = isSelfView || canManageLeaves
     || permissions.includes('hr.leaves.viewAll') || permissions.includes('hr.leaves.approve');
@@ -245,6 +245,8 @@ export default async function EmployeeDetailPage({
           showAssets={(canViewAssets || canViewViolations) && hasAssets}
           showLetters={canViewLetters}
           showPayslips={canViewPayslips}
+          showAnnouncements={isSelfView}
+          showPolicies={isSelfView}
           showContracts={!isSelfView && canViewContracts}
           showCarMaintenance={!isSelfView && (canViewAssets || canViewViolations) && hasAssets}
           recordTab={
