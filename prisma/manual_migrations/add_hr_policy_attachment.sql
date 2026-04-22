@@ -1,7 +1,11 @@
--- 19.17.0 — Add attachmentUrl to HrPolicy for PDF uploads
+-- 19.16.6 — Add attachmentUrl to HrPolicy for PDF uploads (idempotent)
 -- Add seed default policies
 
-ALTER TABLE HrPolicy ADD COLUMN attachmentUrl VARCHAR(1000) NULL;
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'HrPolicy' AND COLUMN_NAME = 'attachmentUrl');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE HrPolicy ADD COLUMN attachmentUrl VARCHAR(1000) NULL', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Seed default company policies (idempotent — skip if titleEn already exists)
 INSERT IGNORE INTO HrPolicy (id, titleEn, titleAr, contentEn, contentAr, category, version, effectiveDate, status, createdById, createdAt, updatedAt)
