@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.16.5] - 2026-04-22
+
+### Staff Profile Access Fix & /profile Shortcut Route (Patch)
+
+#### Added
+
+- **`/profile` shortcut route:** New page that reads the logged-in user's `employeeId` and redirects to `/hr/employees/{id}`. Gated by `hr.employee.viewOwn` permission.
+
+#### Fixed
+
+- **Staff blocked from own profile via dashboard widget:** The client-side `RouteGuard` resolved `/hr/employees/{uuid}` up to `/hr/employees` which required `hr.employee.view` (view ALL). Added `hr.employee.viewOwn` to the `/hr/employees` navigation permission entry so the guard lets self-view users through.
+- **Dashboard "Full profile" link** now points to `/profile` instead of `/hr/employees/me` for cleaner navigation.
+
+---
+
 ## [19.16.4] - 2026-04-21
 
 ### Employee Profile Tabs, Self-Service Dashboard, Excel Import, viewOwn Fixes (Patch)

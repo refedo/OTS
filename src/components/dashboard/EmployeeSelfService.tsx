@@ -212,7 +212,7 @@ export default function EmployeeSelfService({ data }: { data: SelfServiceData })
             {data.occupation && <p className="text-indigo-200 text-sm">{data.occupation}</p>}
           </div>
           <Link
-            href="/hr/employees/me"
+            href="/profile"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-medium transition-colors backdrop-blur-sm"
           >
             Full profile <ChevronRight className="h-3 w-3" />

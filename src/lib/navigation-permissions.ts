@@ -158,7 +158,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // HR Foundation (Phase 1 of OTS-MSS-HR-PAYROLL-v1)
   '/hr/dashboard': ['hr.employee.view'],
   '/hr/employees/me': ['hr.employee.viewOwn'],
-  '/hr/employees': ['hr.employee.view'],
+  '/hr/employees': ['hr.employee.view', 'hr.employee.viewOwn'],
   '/hr/employees/new': ['hr.employee.create'],
   '/hr/employees/sync': ['hr.employee.sync'],
   '/hr/agencies': ['hr.agency.view', 'hr.agency.manage'],
@@ -199,6 +199,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/policies': ['hr.employee.view'],
   '/hr/onboarding': ['hr.employee.view'],
   '/hr/training': ['hr.employee.view'],
+
+  // Employee self-service profile shortcut
+  '/profile': ['hr.employee.viewOwn'],
 
   '/admin/identity-reconciliation': ['admin.identity.reconcile'],
 

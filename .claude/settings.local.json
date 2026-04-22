@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm update *)",
+      "Bash(C:/Users/Walid/AppData/Roaming/Python/Python313/Scripts/graphify.exe install *)"
+    ]
+  }
+}

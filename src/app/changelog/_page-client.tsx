@@ -23,10 +23,33 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.16.5',
+    date: 'April 22, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Staff Profile Access Fix & /profile Shortcut Route',
+    highlights: [
+      'Staff with "View Own Employee Profile" permission can now access their own profile via the dashboard widget — previously blocked by the client-side route guard.',
+      'New /profile shortcut route provides a clean, HR-independent URL that redirects to the employee\'s own profile page.',
+    ],
+    changes: {
+      added: [
+        '/profile route — new shortcut page that reads the logged-in user\'s employeeId and redirects to /hr/employees/{id}; gated by hr.employee.viewOwn permission',
+      ],
+      fixed: [
+        'RouteGuard blocked staff from accessing /hr/employees/{uuid} — the path fallback resolved to /hr/employees which required hr.employee.view (view ALL). Added hr.employee.viewOwn to the /hr/employees navigation permission entry so the client-side guard lets self-view users through (server-side still enforces own-profile-only access)',
+        'Dashboard "Full profile" button now links to /profile instead of /hr/employees/me for a cleaner navigation path',
+      ],
+      changed: [
+        'navigation-permissions.ts: /hr/employees entry now includes hr.employee.viewOwn alongside hr.employee.view; new /profile entry added',
+      ],
+    },
+  },
+  {
     version: '19.16.4',
     date: 'April 21, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Employee Profile Tabs, Self-Service Dashboard, Excel Import, viewOwn Permission Fixes',
     highlights: [
       '7 new tabs on the employee profile page: Contracts, Training, Onboarding, Announcements, Circulations, Car Maintenance, and Dashboard — HR gets a one-stop view of every dimension of an employee\'s record.',
