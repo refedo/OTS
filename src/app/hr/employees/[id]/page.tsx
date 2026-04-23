@@ -159,6 +159,8 @@ export default async function EmployeeDetailPage({
       : [],
   };
 
+  const gender = (employee as Record<string, unknown>).gender as string ?? null;
+
   const statusConfig: Record<string, { label: string; cls: string }> = {
     ACTIVE:     { label: 'Active',     cls: 'bg-emerald-100/80 text-emerald-200 border-emerald-300/50' },
     ON_LEAVE:   { label: 'On Leave',   cls: 'bg-amber-100/80 text-amber-200 border-amber-300/50' },
@@ -173,7 +175,13 @@ export default async function EmployeeDetailPage({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Hero */}
-        <div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+        <div className={`rounded-2xl border p-6 md:p-8 text-white shadow-lg relative overflow-hidden ${
+          gender === 'FEMALE'
+            ? 'bg-gradient-to-br from-pink-500 via-pink-400 to-rose-500'
+            : gender === 'MALE'
+              ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900'
+              : 'bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600'
+        }`}>
           <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
           <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
           <div className="relative z-10 flex items-start gap-4">
@@ -247,8 +255,11 @@ export default async function EmployeeDetailPage({
           showPayslips={canViewPayslips}
           showAnnouncements={isSelfView}
           showPolicies={isSelfView}
-          showContracts={!isSelfView && canViewContracts}
+          showContracts={canViewContracts || isSelfView}
           showCarMaintenance={!isSelfView && (canViewAssets || canViewViolations) && hasAssets}
+          showTraining={true}
+          showOnboarding={true}
+          showCirculations={true}
           recordTab={
             <EmployeeForm
               initial={initial}

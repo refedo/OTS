@@ -28,6 +28,7 @@ const createSchema = z.object({
   subject: z.string().min(1).max(500),
   content: z.string().max(50000).optional(),
   contentEn: z.string().max(50000).optional(),
+  purpose: z.string().max(500).optional(),
   attachmentUrl: z.string().max(1000).optional(),
   issuedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(500).optional(),
@@ -134,30 +135,36 @@ async function resolveLetterNumberInTx(
   return { number: `${prefix}-${year}-${seq.toString().padStart(4, '0')}` };
 }
 
-/** Find all users who hold the hr.letters.approveCeo permission (or ALL) */
+/** Find all users who hold the hr.letters.approveCeo permission (or ALL).
+ *  Checks role permissions, isAdmin flag, and custom permission grants. */
 async function findCeoApprovers(): Promise<{ id: string }[]> {
-  const [withPerm, withAll] = await Promise.all([
-    prisma.user.findMany({
-      where: {
-        status: 'active',
-        role: { permissions: { path: '$', string_contains: 'hr.letters.approveCeo' } },
-      },
-      select: { id: true },
-    }),
-    prisma.user.findMany({
-      where: {
-        status: 'active',
-        role: { permissions: { path: '$', string_contains: '"ALL"' } },
-      },
-      select: { id: true },
-    }),
-  ]);
-  const seen = new Set<string>();
-  return [...withPerm, ...withAll].filter((u) => {
-    if (seen.has(u.id)) return false;
-    seen.add(u.id);
-    return true;
+  const activeUsers = await prisma.user.findMany({
+    where: { status: 'active' },
+    select: {
+      id: true,
+      isAdmin: true,
+      customPermissions: true,
+      role: { select: { permissions: true, restrictedModules: true } },
+    },
   });
+
+  const approvers: { id: string }[] = [];
+  for (const u of activeUsers) {
+    const rolePerms = (u.role?.permissions as string[]) || [];
+    const isAdmin = u.isAdmin;
+    const custom = u.customPermissions as Record<string, unknown> | null;
+    const grants = Array.isArray(custom?.grants) ? custom.grants as string[] : [];
+    const revokes = new Set(Array.isArray(custom?.revokes) ? custom.revokes as string[] : []);
+
+    const hasViaRole = rolePerms.includes('hr.letters.approveCeo') || rolePerms.includes('ALL');
+    const hasViaGrant = grants.includes('hr.letters.approveCeo') || grants.includes('ALL');
+    const revoked = revokes.has('hr.letters.approveCeo');
+
+    if ((isAdmin || hasViaRole || hasViaGrant) && !revoked) {
+      approvers.push({ id: u.id });
+    }
+  }
+  return approvers;
 }
 
 const LETTER_INCLUDE = {
@@ -272,6 +279,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
               subject: d.subject,
               content: d.content ?? null,
               contentEn: d.contentEn ?? null,
+              purpose: d.purpose ?? null,
               attachmentUrl: d.attachmentUrl ?? null,
               issuedAt: new Date(d.issuedAt),
               notes: d.notes ?? null,

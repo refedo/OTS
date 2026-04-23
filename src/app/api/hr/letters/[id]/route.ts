@@ -11,6 +11,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
+import { resolveUserPermissions } from '@/lib/services/permission-resolution.service';
 
 const updateSchema = z.object({
   subject: z.string().min(1).max(500).optional(),
@@ -93,7 +94,11 @@ export const DELETE = withApiContext(async (_req: NextRequest, session, ctx: Rou
   if (!letter) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   if (letter.status === 'APPROVED') {
-    return NextResponse.json({ error: 'Approved letters cannot be deleted' }, { status: 422 });
+    const perms = await resolveUserPermissions(session!.userId);
+    const isCeoOrAdmin = perms.includes('hr.letters.approveCeo') || perms.includes('ALL');
+    if (!isCeoOrAdmin) {
+      return NextResponse.json({ error: 'Approved letters cannot be deleted' }, { status: 422 });
+    }
   }
 
   try {
@@ -101,7 +106,7 @@ export const DELETE = withApiContext(async (_req: NextRequest, session, ctx: Rou
       where: { id },
       data: { deletedAt: new Date(), deletedById: session!.userId },
     });
-    logger.info({ id }, '[Letters] Deleted');
+    logger.info({ id, status: letter.status }, '[Letters] Deleted');
     return NextResponse.json({ ok: true });
   } catch (error) {
     logger.error({ error, id }, 'Failed to delete HR letter');

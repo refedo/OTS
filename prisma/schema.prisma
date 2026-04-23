@@ -4176,6 +4176,7 @@ model Employee {
   contractType    String?   @db.VarChar(100)
   workingLocation String?   @db.VarChar(100)
   transferType    String?   @db.VarChar(100)
+  gender          String?   @db.VarChar(10) // MALE or FEMALE — synced from Dolibarr
 
   // Sync state — set by syncDolibarrEmployees service
   lastSyncedFromDolibarrAt DateTime?
@@ -5512,6 +5513,7 @@ model HrLetter {
   subject        String           @db.VarChar(500)
   content        String?          @db.Text
   contentEn      String?          @db.Text
+  purpose        String?          @db.VarChar(500) // e.g. "embassy", "bank" — shown after subject on print
   attachmentUrl  String?          @db.VarChar(1000)
   issuedAt       DateTime         @default(now()) @db.Date
   notes          String?          @db.VarChar(500)

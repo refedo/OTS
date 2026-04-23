@@ -117,11 +117,22 @@ export function EmployeeOverviewTab({
 
       if (showLeaveBalance) {
         fetches.push(
-          fetch(`/api/hr/leave-balance?employeeId=${employeeId}`)
+          fetch(`/api/hr/leave-balances?employeeId=${employeeId}`)
             .then(r => r.ok ? r.json() : null)
             .then((data: unknown) => {
-              if (data && typeof data === 'object' && 'entitledDays' in data) {
-                setLeaveEntitlement(data as LeaveEntitlement);
+              if (Array.isArray(data)) {
+                const annual = data.find((b: Record<string, unknown>) =>
+                  (b.leaveType as Record<string, unknown>)?.code === 'ANNUAL',
+                );
+                if (annual) {
+                  const entitled = Number(annual.openingBalance ?? 0) + Number(annual.accruedYtd ?? 0) + Number(annual.manualAdjustment ?? 0);
+                  const consumed = Number(annual.usedYtd ?? 0);
+                  setLeaveEntitlement({
+                    entitledDays: Math.round(entitled * 10) / 10,
+                    annualConsumed: Math.round(consumed * 10) / 10,
+                    remaining: Math.round(Number(annual.available ?? 0) * 10) / 10,
+                  });
+                }
               }
             }),
         );

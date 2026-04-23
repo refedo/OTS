@@ -186,7 +186,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/contracts': ['hr.contracts.view', 'hr.contracts.manage', 'hr.contracts.viewOwn'],
 
   // HR Letters & Correspondence (18.17.0)
-  '/hr/letters': ['hr.letters.view', 'hr.letters.manage', 'hr.letters.approveCeo'],
+  '/hr/letters': ['hr.letters.view', 'hr.letters.manage', 'hr.letters.approveCeo', 'hr.letters.viewOwn'],
 
   // HR Loans & Custodies (18.18.1)
   '/hr/loans': ['hr.loans.view', 'hr.loans.manage', 'hr.loans.viewOwn'],

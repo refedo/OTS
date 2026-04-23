@@ -23,10 +23,45 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '19.16.6',
+    version: '19.17.0',
     date: 'April 23, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'HR Module — Letters, Self-Service & Gender',
+    highlights: [
+      'Employee profile header now shows gender-based colors (pink for female, navy for male), synced from Dolibarr.',
+      'Salary certificates auto-display full salary breakdown with bilingual disclaimer on printed letters.',
+      'Employees can now request leave, loan, and custody directly from their dashboard without admin permissions.',
+      'Contracts, Training, Onboarding, and Circulations tabs now visible for employees viewing their own profile.',
+      'CEO notification query fixed to properly detect admin users and custom permission grants.',
+    ],
+    changes: {
+      added: [
+        'Gender-based profile header — pink for female, navy for male (synced from Dolibarr)',
+        'Letter purpose field — separate DB column shown on print after subject',
+        'Salary details on SALARY_CERTIFICATE letters — full breakdown with total',
+        'Bilingual disclaimer on all printed letters',
+        'Logo moved to left side on printed letters',
+        'Purpose input in letter creation form',
+        'Self-service quick actions — leave/loan/custody without manage permissions',
+        'Self-view tabs — Contracts, Training, Onboarding, Circulations',
+      ],
+      fixed: [
+        'Leave balance URL — overview tab now calls plural endpoint and parses array response',
+        'CEO delete approved letters — approveCeo/ALL permission holders can now delete',
+        'Employee letter access — hr.letters.viewOwn added to route permissions',
+        'CEO notification query — findCeoApprovers checks isAdmin and custom grants',
+      ],
+      changed: [
+        'Employee Dolibarr sync maps gender field (man/woman to MALE/FEMALE)',
+      ],
+    },
+  },
+  {
+    version: '19.16.6',
+    date: 'April 23, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'HR Module Fixes & Enhancements',
     highlights: [
       'HR Policies now support PDF file uploads with download links in the expanded view, plus 8 default company policies seeded automatically.',

@@ -39,6 +39,7 @@ type Letter = {
   subject: string;
   content: string | null;
   contentEn: string | null;
+  purpose: string | null;
   issuedAt: Date | string;
   notes: string | null;
   approvedAt: Date | string | null;
@@ -51,11 +52,19 @@ type Letter = {
     occupation: string | null;
     nationalId: string | null;
     dateOfJoining: Date | string;
+    basicSalary: string | number | null;
+    housingAllowance: string | number | null;
+    transportAllowance: string | number | null;
+    mobileAllowance: string | number | null;
+    foodAllowance: string | number | null;
+    otherAllowances: string | number | null;
   };
   createdBy: { name: string } | null;
   approvedBy: { name: string } | null;
   rejectedBy: { name: string } | null;
 };
+
+const toNum = (v: string | number | null | undefined): number => Number(v ?? 0);
 
 const fmt = (d: Date | string | null | undefined) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
@@ -91,20 +100,34 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
   const bodyAr = letter.content;
   const bodyEn = letter.contentEn || letter.content;
 
+  const isSalaryCert = letter.letterType === 'SALARY_CERTIFICATE';
+  const basic = toNum(letter.employee.basicSalary);
+  const housing = toNum(letter.employee.housingAllowance);
+  const transport = toNum(letter.employee.transportAllowance);
+  const mobile = toNum(letter.employee.mobileAllowance);
+  const food = toNum(letter.employee.foodAllowance);
+  const other = toNum(letter.employee.otherAllowances);
+  const totalSalary = basic + housing + transport + mobile + food + other;
+  const fmtSar = (n: number) => n.toLocaleString('en-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   function Letterhead({ dir }: { dir: 'rtl' | 'ltr' }) {
     return (
-      <div className="text-center mb-8">
-        {logoUrl && (
-          <div className="flex justify-center mb-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt="Company Logo" className="h-16 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+      <div className="mb-8">
+        <div className={`flex items-center gap-4 mb-4 ${dir === 'rtl' ? 'flex-row-reverse' : ''}`}>
+          {logoUrl && (
+            <div className="shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="Company Logo" className="h-16 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            </div>
+          )}
+          <div className={dir === 'rtl' ? 'text-right' : 'text-left'}>
+            <div className="text-2xl font-bold text-slate-800">
+              {dir === 'rtl' ? 'هيكسا ستيل®' : 'Hexa Steel®'}
+            </div>
+            <div className="text-sm text-slate-500">
+              {dir === 'rtl' ? 'Hexa Steel®' : 'هيكسا ستيل®'}
+            </div>
           </div>
-        )}
-        <div className="text-2xl font-bold text-slate-800 mb-1">
-          {dir === 'rtl' ? 'هيكسا ستيل®' : 'Hexa Steel®'}
-        </div>
-        <div className="text-sm text-slate-500 mb-4">
-          {dir === 'rtl' ? 'Hexa Steel®' : 'هيكسا ستيل®'}
         </div>
         <div className="border-t-4 border-b border-slate-800 pt-2 pb-1 mb-1" />
         <div className="h-px bg-slate-300" />
@@ -258,19 +281,47 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
                 </div>
               </div>
 
-              <div className="mb-6">
+              <div className="mb-2">
                 <span className="font-bold text-slate-800">الموضوع: </span>
                 <span className="text-slate-700 font-medium">{letter.subject}</span>
               </div>
 
+              {letter.purpose && (
+                <div className="mb-6">
+                  <span className="font-bold text-slate-800">الغرض: </span>
+                  <span className="text-slate-700 font-medium">{letter.purpose}</span>
+                </div>
+              )}
+
+              {!letter.purpose && <div className="mb-4" />}
+
               {bodyAr && (
-                <div className="letter-body text-slate-800 text-sm leading-8 mb-10 text-justify">{bodyAr}</div>
+                <div className="letter-body text-slate-800 text-sm leading-8 mb-6 text-justify">{bodyAr}</div>
+              )}
+
+              {isSalaryCert && basic > 0 && (
+                <div className="border border-slate-300 rounded-lg p-4 mb-8 bg-slate-50">
+                  <div className="text-sm font-semibold text-slate-700 mb-3 border-b pb-2">تفاصيل الراتب (ريال سعودي)</div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div><span className="text-slate-500">الراتب الأساسي: </span><span className="font-mono font-medium">{fmtSar(basic)}</span></div>
+                    {housing > 0 && <div><span className="text-slate-500">بدل سكن: </span><span className="font-mono font-medium">{fmtSar(housing)}</span></div>}
+                    {transport > 0 && <div><span className="text-slate-500">بدل نقل: </span><span className="font-mono font-medium">{fmtSar(transport)}</span></div>}
+                    {mobile > 0 && <div><span className="text-slate-500">بدل جوال: </span><span className="font-mono font-medium">{fmtSar(mobile)}</span></div>}
+                    {food > 0 && <div><span className="text-slate-500">بدل طعام: </span><span className="font-mono font-medium">{fmtSar(food)}</span></div>}
+                    {other > 0 && <div><span className="text-slate-500">بدلات أخرى: </span><span className="font-mono font-medium">{fmtSar(other)}</span></div>}
+                    <div className="col-span-2 border-t pt-2 mt-1"><span className="text-slate-700 font-bold">إجمالي الراتب: </span><span className="font-mono font-bold text-emerald-700">{fmtSar(totalSalary)}</span></div>
+                  </div>
+                </div>
               )}
 
               <CeoSignatureArea dir="rtl" />
               <ApprovalStamp dir="rtl" />
 
-              <div className="mt-8 pt-4 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
+              <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 leading-relaxed text-justify">
+                تنويه: هذه الشهادة صادرة بناءً على طلب الموظف المذكور أعلاه ولا تتحمل الشركة أي مسؤولية تجاه أي جهة فيما يتعلق باستخدام هذه الشهادة.
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
                 <span>أُصدر بواسطة: قسم الموارد البشرية</span>
                 <span className="font-mono">{letter.letterNumber}</span>
               </div>
@@ -308,19 +359,47 @@ export function PrintLetterClient({ letter }: { letter: Letter }) {
                 </div>
               </div>
 
-              <div className="mb-6">
+              <div className="mb-2">
                 <span className="font-bold text-slate-800">Subject: </span>
                 <span className="text-slate-700 font-medium">{letter.subject}</span>
               </div>
 
+              {letter.purpose && (
+                <div className="mb-6">
+                  <span className="font-bold text-slate-800">Purpose: </span>
+                  <span className="text-slate-700 font-medium">{letter.purpose}</span>
+                </div>
+              )}
+
+              {!letter.purpose && <div className="mb-4" />}
+
               {bodyEn && (
-                <div className="letter-body text-slate-800 text-sm leading-8 mb-10 text-justify">{bodyEn}</div>
+                <div className="letter-body text-slate-800 text-sm leading-8 mb-6 text-justify">{bodyEn}</div>
+              )}
+
+              {isSalaryCert && basic > 0 && (
+                <div className="border border-slate-300 rounded-lg p-4 mb-8 bg-slate-50">
+                  <div className="text-sm font-semibold text-slate-700 mb-3 border-b pb-2">Salary Details (SAR)</div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div><span className="text-slate-500">Basic Salary: </span><span className="font-mono font-medium">{fmtSar(basic)}</span></div>
+                    {housing > 0 && <div><span className="text-slate-500">Housing Allowance: </span><span className="font-mono font-medium">{fmtSar(housing)}</span></div>}
+                    {transport > 0 && <div><span className="text-slate-500">Transport Allowance: </span><span className="font-mono font-medium">{fmtSar(transport)}</span></div>}
+                    {mobile > 0 && <div><span className="text-slate-500">Mobile Allowance: </span><span className="font-mono font-medium">{fmtSar(mobile)}</span></div>}
+                    {food > 0 && <div><span className="text-slate-500">Food Allowance: </span><span className="font-mono font-medium">{fmtSar(food)}</span></div>}
+                    {other > 0 && <div><span className="text-slate-500">Other Allowances: </span><span className="font-mono font-medium">{fmtSar(other)}</span></div>}
+                    <div className="col-span-2 border-t pt-2 mt-1"><span className="text-slate-700 font-bold">Total Salary: </span><span className="font-mono font-bold text-emerald-700">{fmtSar(totalSalary)}</span></div>
+                  </div>
+                </div>
               )}
 
               <CeoSignatureArea dir="ltr" />
               <ApprovalStamp dir="ltr" />
 
-              <div className="mt-8 pt-4 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
+              <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 leading-relaxed text-justify">
+                Disclaimer: This certificate is issued upon the request of the above-mentioned employee. The company bears no responsibility towards any party regarding the use of this certificate.
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
                 <span>Issued by: HR Department</span>
                 <span className="font-mono">{letter.letterNumber}</span>
               </div>

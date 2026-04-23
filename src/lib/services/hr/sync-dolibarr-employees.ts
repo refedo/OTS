@@ -162,6 +162,7 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
   contractType: string | null;
   workingLocation: string | null;
   transferType: string | null;
+  gender: string | null;
 } {
   const fullName = buildFullName(apiUser);
   const basic = parseDecimal(apiUser.salary) ?? '0.00';
@@ -200,6 +201,14 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
     contractType: extra(apiUser, 'options_contract_type'),
     workingLocation: extra(apiUser, 'options_working_location'),
     transferType: extra(apiUser, 'options_transfer_type'),
+    gender: (() => {
+      const g = typeof apiUser.gender === 'string' ? apiUser.gender.toLowerCase().trim() : null;
+      if (g === 'man' || g === 'male') return 'MALE';
+      if (g === 'woman' || g === 'female') return 'FEMALE';
+      return extra(apiUser, 'options_gender') === 'man' ? 'MALE'
+        : extra(apiUser, 'options_gender') === 'woman' ? 'FEMALE'
+        : null;
+    })(),
   };
 }
 

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [19.17.0] - 2026-04-23
+
+### HR Module — Letters, Self-Service & Gender
+
+#### Added
+- **Gender-based profile header** — employee hero banner now shows pink gradient for female, navy for male (synced from Dolibarr)
+- **Letter purpose field** — new `purpose` column on HrLetter (e.g. Embassy, Bank) shown on print after subject
+- **Salary details on certificates** — SALARY_CERTIFICATE letters now auto-display full salary breakdown (basic + allowances)
+- **Disclaimer on printed letters** — bilingual liability disclaimer added to Arabic and English print views
+- **Logo moved to left** — company logo in letter print now aligned left beside company name instead of centered
+- **Purpose input in letter form** — optional "Purpose / الغرض" field added to letter creation dialog
+- **Self-service quick actions** — employees can now request leave, loan, and custody from their own dashboard without manage permissions
+- **Self-view tabs** — Contracts, Training, Onboarding, and Circulations tabs now visible for employees viewing their own profile
+
+#### Fixed
+- **Leave balance URL** — overview tab now calls `/api/hr/leave-balances` (plural) and correctly parses the array response for ANNUAL leave
+- **CEO delete approved letters** — users with `hr.letters.approveCeo` or `ALL` permission can now delete APPROVED letters (was returning 422)
+- **Employee letter access** — added `hr.letters.viewOwn` to route permissions; employees can now view and print their own letters
+- **CEO notification query** — `findCeoApprovers` now checks `isAdmin` flag and custom permission grants, not just role JSON string matching
+
+#### Changed
+- Employee Dolibarr sync now maps `gender` field (`man`/`woman` → `MALE`/`FEMALE`)
+
+---
+
 ## [19.16.6] - 2026-04-23
 
 ### HR Module Fixes & Enhancements

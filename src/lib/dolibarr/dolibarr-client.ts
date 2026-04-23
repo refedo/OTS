@@ -320,6 +320,7 @@ export interface DolibarrUser {
   datec?: number | string | null;        // creation
   dateemployment?: number | string | null;    // joining
   dateemploymentend?: number | string | null; // leaving
+  gender?: string | null;        // 'man' or 'woman'
   // Dolibarr "array_options" holds extrafields keyed by "options_<fieldname>".
   // Hexa Steel uses these for Arabic name, IBAN, bank name, Iqama, etc.
   array_options?: Record<string, unknown> | null;

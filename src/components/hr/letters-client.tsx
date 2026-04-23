@@ -130,6 +130,7 @@ const EMPTY_FORM = {
   contentMode: 'write' as 'write' | 'attach',
   content: '',
   contentEn: '',
+  purpose: '',
   attachmentUrl: '',
   issuedAt: new Date().toISOString().slice(0, 10),
   notes: '',
@@ -365,6 +366,7 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
         subject: form.subject.trim(),
         content: form.contentMode === 'write' && form.content.trim() ? form.content.trim() : undefined,
         contentEn: form.contentMode === 'write' && form.contentEn.trim() ? form.contentEn.trim() : undefined,
+        purpose: form.purpose.trim() || undefined,
         attachmentUrl: form.contentMode === 'attach' && form.attachmentUrl ? form.attachmentUrl : undefined,
         issuedAt: form.issuedAt,
         notes: form.notes.trim() || undefined,
@@ -926,6 +928,17 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
                 placeholder="Brief subject of this letter…"
                 onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
               />
+            </div>
+
+            {/* Purpose */}
+            <div>
+              <Label className="text-sm font-medium mb-1.5 block">Purpose / الغرض</Label>
+              <Input
+                value={form.purpose}
+                placeholder="e.g. Embassy, Bank, Government entity…"
+                onChange={(e) => setForm((f) => ({ ...f, purpose: e.target.value }))}
+              />
+              <p className="text-xs text-slate-400 mt-1">Optional — shown on the printed letter after the subject</p>
             </div>
 
             {/* Language selector */}

@@ -10,6 +10,7 @@ import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { redirect, notFound } from 'next/navigation';
 import prisma from '@/lib/db';
+import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { PrintLetterClient } from './print-client';
 
 export default async function PrintLetterPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +25,7 @@ export default async function PrintLetterPage({ params }: { params: Promise<{ id
     include: {
       employee: {
         select: {
+          id: true,
           fullNameEn: true,
           fullNameAr: true,
           employmentId: true,
@@ -31,6 +33,12 @@ export default async function PrintLetterPage({ params }: { params: Promise<{ id
           occupation: true,
           nationalId: true,
           dateOfJoining: true,
+          basicSalary: true,
+          housingAllowance: true,
+          transportAllowance: true,
+          mobileAllowance: true,
+          foodAllowance: true,
+          otherAllowances: true,
         },
       },
       createdBy: { select: { name: true } },
@@ -40,6 +48,22 @@ export default async function PrintLetterPage({ params }: { params: Promise<{ id
   });
 
   if (!letter) notFound();
+
+  const permissions = await getCurrentUserPermissions();
+  const canViewAll = permissions.includes('hr.letters.view')
+    || permissions.includes('hr.letters.manage')
+    || permissions.includes('hr.letters.approveCeo')
+    || permissions.includes('ALL');
+
+  if (!canViewAll) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.sub },
+      select: { employeeId: true },
+    });
+    if (me?.employeeId !== letter.employee.id) {
+      redirect('/unauthorized?from=/hr/letters');
+    }
+  }
 
   return <PrintLetterClient letter={letter as Parameters<typeof PrintLetterClient>[0]['letter']} />;
 }

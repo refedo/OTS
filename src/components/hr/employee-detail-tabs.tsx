@@ -31,6 +31,9 @@ interface Props {
   showPolicies?: boolean;
   showContracts: boolean;
   showCarMaintenance: boolean;
+  showTraining?: boolean;
+  showOnboarding?: boolean;
+  showCirculations?: boolean;
   employeeId: string;
   departments: { id: string; name: string }[];
   canManagePosition: boolean;
@@ -132,6 +135,9 @@ export function EmployeeDetailTabs({
   showPolicies = false,
   showContracts,
   showCarMaintenance,
+  showTraining = false,
+  showOnboarding = false,
+  showCirculations = false,
   employeeId,
   departments,
   canManagePosition,
@@ -165,15 +171,16 @@ export function EmployeeDetailTabs({
         {showLetters && <TabsTrigger value="letters">Letters</TabsTrigger>}
         {showPolicies && <TabsTrigger value="policies">Policies</TabsTrigger>}
         {showAnnouncements && <TabsTrigger value="announcements">Announcements</TabsTrigger>}
+        {/* Shared tabs — visible for both self-view and admin */}
+        {showContracts && <TabsTrigger value="contracts">Contracts</TabsTrigger>}
+        {showTraining && <TabsTrigger value="training">Training</TabsTrigger>}
+        {showOnboarding && <TabsTrigger value="onboarding">Onboarding</TabsTrigger>}
+        {showCirculations && <TabsTrigger value="circulations">Circulations</TabsTrigger>}
         {/* Admin-only tabs */}
         {!isSelfView && <TabsTrigger value="record">Record</TabsTrigger>}
         {!isSelfView && showHistory && <TabsTrigger value="history">History</TabsTrigger>}
-        {!isSelfView && showContracts && <TabsTrigger value="contracts">Contracts</TabsTrigger>}
         {!isSelfView && showCarMaintenance && <TabsTrigger value="car-maintenance">Car Maintenance</TabsTrigger>}
-        {!isSelfView && <TabsTrigger value="training">Training</TabsTrigger>}
-        {!isSelfView && <TabsTrigger value="onboarding">Onboarding</TabsTrigger>}
         {!isSelfView && <TabsTrigger value="announcements">Announcements</TabsTrigger>}
-        {!isSelfView && <TabsTrigger value="circulations">Circulations</TabsTrigger>}
       </TabsList>
 
       {/* Overview — merged with self-service quick actions for isSelfView */}
@@ -197,6 +204,7 @@ export function EmployeeDetailTabs({
               canManageLoans={canManageLoans}
               canManageCustodies={canManageCustodies}
               canManageLeaves={canManageLeaves}
+              isSelfView={isSelfView}
             />
           </div>
         )}
@@ -281,7 +289,7 @@ export function EmployeeDetailTabs({
         </TabsContent>
       )}
 
-      {!isSelfView && showContracts && (
+      {showContracts && (
         <TabsContent value="contracts" className="mt-6">
           <EmployeeContractsTab employeeId={employeeId} />
         </TabsContent>
@@ -293,13 +301,13 @@ export function EmployeeDetailTabs({
         </TabsContent>
       )}
 
-      {!isSelfView && (
+      {showTraining && (
         <TabsContent value="training" className="mt-6">
           <EmployeeTrainingTab />
         </TabsContent>
       )}
 
-      {!isSelfView && (
+      {showOnboarding && (
         <TabsContent value="onboarding" className="mt-6">
           <EmployeeOnboardingTab employeeId={employeeId} dateOfJoining={employee.dateOfJoining} />
         </TabsContent>
@@ -311,7 +319,7 @@ export function EmployeeDetailTabs({
         </TabsContent>
       )}
 
-      {!isSelfView && (
+      {showCirculations && (
         <TabsContent value="circulations" className="mt-6">
           <EmployeeCirculationsTab employeeId={employeeId} />
         </TabsContent>

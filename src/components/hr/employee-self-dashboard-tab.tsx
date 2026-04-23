@@ -26,6 +26,7 @@ interface Props {
   canManageLoans: boolean;
   canManageCustodies: boolean;
   canManageLeaves: boolean;
+  isSelfView?: boolean;
 }
 
 function fmtDate(s: string) {
@@ -389,7 +390,7 @@ function EmploymentCertificateDialog({ open, onClose, employeeId, employeeName }
 
 // ─── Main Dashboard Tab ───────────────────────────────────────────────────────
 
-export function EmployeeSelfDashboardTab({ employeeId, employeeName, canManageLoans, canManageCustodies, canManageLeaves }: Props) {
+export function EmployeeSelfDashboardTab({ employeeId, employeeName, canManageLoans, canManageCustodies, canManageLeaves, isSelfView = false }: Props) {
   const [loanOpen, setLoanOpen] = useState(false);
   const [custodyOpen, setCustodyOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -404,7 +405,7 @@ export function EmployeeSelfDashboardTab({ employeeId, employeeName, canManageLo
       title: 'Request Loan',
       description: 'Create a new salary loan with installment plan',
       action: () => setLoanOpen(true),
-      disabled: !canManageLoans,
+      disabled: !canManageLoans && !isSelfView,
       disabledMsg: 'Requires loan management permission',
     },
     {
@@ -414,7 +415,7 @@ export function EmployeeSelfDashboardTab({ employeeId, employeeName, canManageLo
       title: 'Cash Advance / Custody',
       description: 'Create a cash advance or company custody record',
       action: () => setCustodyOpen(true),
-      disabled: !canManageCustodies,
+      disabled: !canManageCustodies && !isSelfView,
       disabledMsg: 'Requires custody management permission',
     },
     {
@@ -424,7 +425,7 @@ export function EmployeeSelfDashboardTab({ employeeId, employeeName, canManageLo
       title: 'Request Leave',
       description: 'Submit a leave request for approval',
       action: () => setLeaveOpen(true),
-      disabled: !canManageLeaves,
+      disabled: !canManageLeaves && !isSelfView,
       disabledMsg: 'Requires leave management permission',
     },
     {
