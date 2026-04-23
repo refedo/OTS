@@ -299,6 +299,7 @@ export async function runDolibarrEmployeeSync(
               contractType: projection.contractType,
               workingLocation: projection.workingLocation,
               transferType: projection.transferType,
+              gender: projection.gender,
               lastSyncedFromDolibarrAt: new Date(),
               manuallyEditedFields: [],
               createdById: opts.triggeredById,
@@ -341,6 +342,7 @@ export async function runDolibarrEmployeeSync(
             'contractType',
             'workingLocation',
             'transferType',
+            'gender',
           ];
           let anyChange = false;
           for (const field of fields) {
