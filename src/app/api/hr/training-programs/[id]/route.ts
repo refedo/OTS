@@ -6,6 +6,14 @@ import { logger } from '@/lib/logger';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+const attachmentSchema = z.object({
+  fileName: z.string(),
+  filePath: z.string(),
+  fileType: z.string(),
+  fileSize: z.number(),
+  uploadedAt: z.string(),
+});
+
 const updateSchema = z.object({
   titleEn: z.string().min(1).optional(),
   titleAr: z.string().optional(),
@@ -17,6 +25,7 @@ const updateSchema = z.object({
   scheduledDate: z.string().nullable().optional(),
   status: z.enum(['PLANNED', 'UPCOMING', 'ONGOING', 'COMPLETED']).optional(),
   notes: z.string().optional(),
+  attachments: z.array(attachmentSchema).nullable().optional(),
 });
 
 export const PUT = withApiContext(async (req: NextRequest, session, ctx: RouteParams) => {
@@ -43,6 +52,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx: RoutePa
       ...(d.scheduledDate !== undefined && { scheduledDate: d.scheduledDate ? new Date(d.scheduledDate) : null }),
       ...(d.status !== undefined && { status: d.status }),
       ...(d.notes !== undefined && { notes: d.notes || null }),
+      ...(d.attachments !== undefined && { attachments: d.attachments && d.attachments.length > 0 ? d.attachments : null }),
     },
   });
   logger.info({ id }, '[HR] Training program updated');

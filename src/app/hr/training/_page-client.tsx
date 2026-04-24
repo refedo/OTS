@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   GraduationCap, Search, Plus, Users, Clock, BookMarked, Award,
-  Calendar, Tag, Pencil, Trash2, Globe,
+  Calendar, Tag, Pencil, Trash2, Globe, Paperclip, Upload, X,
+  FileText, FileSpreadsheet, Presentation, File,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,14 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
+type TrainingAttachment = {
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: string;
+};
+
 type TrainingProgram = {
   id: string;
   titleEn: string;
@@ -29,6 +38,7 @@ type TrainingProgram = {
   scheduledDate: string | null;
   status: string;
   notes: string | null;
+  attachments: TrainingAttachment[] | null;
   createdAt: string;
 };
 
@@ -50,11 +60,28 @@ const CATEGORY_COLORS: Record<string, string> = {
   General:       'bg-slate-100 text-slate-600 border-slate-200',
 };
 
+const ACCEPTED_FILE_TYPES = '.pdf,.doc,.docx,.ppt,.pptx';
+const MAX_FILE_SIZE_MB = 10;
+
 const BLANK_FORM = {
   titleEn: '', titleAr: '', descriptionEn: '', descriptionAr: '',
   category: 'General', durationHours: 0, targetAudience: '',
   scheduledDate: '', status: 'PLANNED', notes: '',
 };
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentIcon({ fileType }: { fileType: string }) {
+  if (fileType.includes('pdf')) return <FileText className="h-4 w-4 text-rose-500" />;
+  if (fileType.includes('word') || fileType.includes('document')) return <File className="h-4 w-4 text-sky-500" />;
+  if (fileType.includes('sheet') || fileType.includes('excel')) return <FileSpreadsheet className="h-4 w-4 text-emerald-500" />;
+  if (fileType.includes('presentation') || fileType.includes('powerpoint')) return <Presentation className="h-4 w-4 text-amber-500" />;
+  return <FileText className="h-4 w-4 text-slate-400" />;
+}
 
 export function TrainingClient({
   activeEmployeeCount,
@@ -72,6 +99,10 @@ export function TrainingClient({
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null);
   const [editTarget, setEditTarget] = useState<TrainingProgram | null>(null);
   const [form, setForm] = useState({ ...BLANK_FORM });
+  const [attachments, setAttachments] = useState<TrainingAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TrainingProgram | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -90,6 +121,8 @@ export function TrainingClient({
 
   function openCreate() {
     setForm({ ...BLANK_FORM });
+    setAttachments([]);
+    setUploadError(null);
     setEditTarget(null);
     setDialogMode('create');
   }
@@ -103,8 +136,50 @@ export function TrainingClient({
       scheduledDate: p.scheduledDate ?? '',
       status: p.status, notes: p.notes ?? '',
     });
+    setAttachments(p.attachments ?? []);
+    setUploadError(null);
     setEditTarget(p);
     setDialogMode('edit');
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setUploadError(null);
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        setUploadError(`"${file.name}" exceeds the ${MAX_FILE_SIZE_MB} MB limit.`);
+        continue;
+      }
+      setUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('folder', 'training');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setUploadError(err.error ?? 'Upload failed. Please try again.');
+          continue;
+        }
+        const data = await res.json();
+        setAttachments(prev => [...prev, {
+          fileName: file.name,
+          filePath: data.filePath,
+          fileType: file.type,
+          fileSize: file.size,
+          uploadedAt: new Date().toISOString(),
+        }]);
+      } finally {
+        setUploading(false);
+      }
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function removeAttachment(index: number) {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   }
 
   async function save() {
@@ -127,6 +202,7 @@ export function TrainingClient({
           scheduledDate: form.scheduledDate || undefined,
           status: form.status,
           notes: form.notes || undefined,
+          attachments: attachments.length > 0 ? attachments : null,
         }),
       });
       if (res.ok) { setDialogMode(null); load(); }
@@ -160,7 +236,6 @@ export function TrainingClient({
   });
 
   const upcomingCount = programs.filter(p => p.status === 'UPCOMING').length;
-  const plannedCount = programs.filter(p => p.status === 'PLANNED').length;
 
   function statusConfig(status: string) {
     return STATUS_OPTIONS.find(s => s.value === status) ?? { label: status, cls: 'bg-slate-100 text-slate-600 border-slate-200' };
@@ -279,6 +354,7 @@ export function TrainingClient({
                 const sc = statusConfig(program.status);
                 const title = lang === 'ar' && program.titleAr ? program.titleAr : program.titleEn;
                 const description = lang === 'ar' && program.descriptionAr ? program.descriptionAr : (program.descriptionEn ?? '');
+                const attachmentCount = program.attachments?.length ?? 0;
                 return (
                   <div key={program.id} className="px-6 py-5 flex items-start gap-4 hover:bg-amber-50/20 transition-colors group">
                     <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 shrink-0">
@@ -295,6 +371,12 @@ export function TrainingClient({
                         <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full border', sc.cls)}>
                           {sc.label}
                         </span>
+                        {attachmentCount > 0 && (
+                          <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-slate-100 text-slate-600 border-slate-200">
+                            <Paperclip className="h-2.5 w-2.5" />
+                            {attachmentCount}
+                          </span>
+                        )}
                       </div>
                       {description && (
                         <p className={cn('text-xs text-slate-500 line-clamp-2 mb-2', lang === 'ar' && 'text-right')} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -321,6 +403,23 @@ export function TrainingClient({
                           </span>
                         )}
                       </div>
+                      {/* Inline attachment links */}
+                      {attachmentCount > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {program.attachments!.map((a, i) => (
+                            <a
+                              key={i}
+                              href={`/api/files?path=${encodeURIComponent(a.filePath)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-amber-600 border border-slate-200 hover:border-amber-300 bg-slate-50 hover:bg-amber-50 rounded-md px-2 py-1 transition-colors"
+                            >
+                              <AttachmentIcon fileType={a.fileType} />
+                              <span className="max-w-[140px] truncate">{a.fileName}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0 mt-1">
                       <button onClick={() => openEdit(program)} className="p-1.5 rounded hover:bg-amber-100 text-slate-400 hover:text-amber-600 transition-colors">
@@ -411,10 +510,71 @@ export function TrainingClient({
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Internal notes…" rows={2} />
             </div>
+
+            {/* File Attachments */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Paperclip className="h-3.5 w-3.5" />
+                Attachments
+                <span className="text-xs font-normal text-slate-400">(PDF, Word, PowerPoint — max {MAX_FILE_SIZE_MB} MB each)</span>
+              </Label>
+
+              {/* Uploaded files list */}
+              {attachments.length > 0 && (
+                <div className="space-y-1.5">
+                  {attachments.map((a, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 group/row">
+                      <AttachmentIcon fileType={a.fileType} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-slate-700 truncate">{a.fileName}</p>
+                        <p className="text-[10px] text-slate-400">{formatBytes(a.fileSize)}</p>
+                      </div>
+                      <a
+                        href={`/api/files?path=${encodeURIComponent(a.filePath)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-amber-600 hover:underline shrink-0"
+                      >
+                        View
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(i)}
+                        className="p-0.5 rounded hover:bg-rose-100 text-slate-300 hover:text-rose-500 transition-colors shrink-0"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border-2 border-dashed border-slate-200 hover:border-amber-300 bg-white hover:bg-amber-50/30 text-slate-500 hover:text-amber-600 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Upload className="h-4 w-4 shrink-0" />
+                {uploading ? 'Uploading…' : 'Click to attach files'}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_FILE_TYPES}
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {uploadError && (
+                <p className="text-xs text-rose-500">{uploadError}</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogMode(null)}>Cancel</Button>
-            <Button onClick={save} disabled={saving || !form.titleEn.trim()} className="bg-amber-500 hover:bg-amber-600 text-white">
+            <Button onClick={save} disabled={saving || uploading || !form.titleEn.trim()} className="bg-amber-500 hover:bg-amber-600 text-white">
               {saving ? 'Saving…' : dialogMode === 'edit' ? 'Save Changes' : 'Create Program'}
             </Button>
           </DialogFooter>
