@@ -294,6 +294,7 @@ export default async function EmployeeDetailPage({
             nationalId: employee.nationalId,
             nationality: employee.nationality,
             dateOfBirth: employee.dateOfBirth ? employee.dateOfBirth.toISOString().slice(0, 10) : null,
+            gender: (employee as Record<string, unknown>).gender as string ?? null,
             maritalStatus: (employee as Record<string, unknown>).maritalStatus as string ?? null,
             employeeNo: (employee as Record<string, unknown>).employeeNo as string ?? null,
             reportsTo: employee.reportsTo?.fullNameEn ?? null,

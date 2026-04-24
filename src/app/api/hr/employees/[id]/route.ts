@@ -73,6 +73,7 @@ const updateSchema = z.object({
   // Extended Dolibarr extrafields (19.5.0)
   employeeNo: z.string().max(20).nullable().optional(),
   boarderNumber: z.string().max(255).nullable().optional(),
+  gender: z.enum(['MALE','FEMALE']).nullable().optional(),
   maritalStatus: z.string().max(50).nullable().optional(),
   occupationAr: z.string().max(100).nullable().optional(),
   gosiSubscriptionNo: z.string().max(100).nullable().optional(),

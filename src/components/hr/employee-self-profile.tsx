@@ -53,6 +53,7 @@ type ProfileEmployee = {
   contractEndDate: string | null;
   contractType: string | null;
   workingLocation: string | null;
+  gender: string | null;
   maritalStatus: string | null;
   employeeNo: string | null;
   status: string;
@@ -249,6 +250,7 @@ function ProfileTab({ employee }: { employee: ProfileEmployee }) {
         <InfoRow label="National ID / Iqama" value={employee.nationalId} />
         <InfoRow label="Nationality" value={employee.nationality} />
         <InfoRow label="Date of Birth" value={fmt(employee.dateOfBirth)} />
+        <InfoRow label="Gender" value={employee.gender ? employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase() : null} />
         <InfoRow label="Marital Status" value={employee.maritalStatus} />
       </div>
       <div className="px-6 py-4">

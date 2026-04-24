@@ -64,6 +64,7 @@ const schema = z.object({
   // Extended Dolibarr extrafields (19.5.0)
   employeeNo: z.string().max(20).optional().or(z.literal('')),
   boarderNumber: z.string().max(255).optional().or(z.literal('')),
+  gender: z.enum(['MALE','FEMALE']).optional().or(z.literal('')),
   maritalStatus: z.string().max(50).optional().or(z.literal('')),
   occupationAr: z.string().max(100).optional().or(z.literal('')),
   gosiSubscriptionNo: z.string().max(100).optional().or(z.literal('')),
@@ -211,6 +212,7 @@ export function EmployeeForm({
       gosiSalary: initial?.gosiSalary ?? '',
       employeeNo: (initial as Record<string, unknown>)?.employeeNo as string ?? '',
       boarderNumber: (initial as Record<string, unknown>)?.boarderNumber as string ?? '',
+      gender: (initial as Record<string, unknown>)?.gender as string ?? '',
       maritalStatus: (initial as Record<string, unknown>)?.maritalStatus as string ?? '',
       occupationAr: (initial as Record<string, unknown>)?.occupationAr as string ?? '',
       gosiSubscriptionNo: (initial as Record<string, unknown>)?.gosiSubscriptionNo as string ?? '',
@@ -546,6 +548,14 @@ export function EmployeeForm({
                   <div>
                     <Label>Sponsor Number</Label>
                     <Input {...form.register('sponsorNumber')} />
+                  </div>
+                  <div>
+                    <Label>Gender</Label>
+                    <select {...form.register('gender')} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50">
+                      <option value="">Select gender</option>
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                    </select>
                   </div>
                   <div>
                     <Label>Marital Status</Label>
