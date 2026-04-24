@@ -5786,6 +5786,7 @@ model HrTrainingProgram {
   scheduledDate  DateTime? @db.Date
   status         String    @default("PLANNED") @db.VarChar(20)
   notes          String?   @db.Text
+  attachments    Json?
 
   createdById  String    @db.Char(36)
   createdBy    User      @relation("HrTrainingProgramCreatedBy", fields: [createdById], references: [id])

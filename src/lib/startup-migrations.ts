@@ -88,6 +88,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── HR Policy attachment + seed policies (19.17.0) ──────────────────────
   'add_hr_policy_attachment.sql',
+
+  // ── Training program file attachments (19.17.1) ──────────────────────────
+  'add_training_attachments.sql',
 ];
 
 /**

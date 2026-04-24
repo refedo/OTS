@@ -23,10 +23,36 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '19.17.1',
+    date: 'April 24, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Training Program File Attachments',
+    highlights: [
+      'Training programs now support file attachments — Word, PDF, and PowerPoint files up to 10 MB each.',
+      'Create/edit dialog shows a dashed upload zone with per-file preview, size info, inline View link, and remove button.',
+      'Uploaded files appear as clickable inline links on each program card in the training list.',
+      'Multiple files can be attached to a single training program.',
+    ],
+    changes: {
+      added: [
+        'File attachments for training programs — Word (.doc/.docx), PDF, and PowerPoint (.ppt/.pptx) supported',
+        'attachments Json? column on HrTrainingProgram (idempotent SQL migration on startup)',
+        'Upload zone in training create/edit dialog with file type icon, name, size, View link, and remove button',
+        'Attachment count badge on program cards in the list view',
+        'Inline clickable attachment links on each program card',
+      ],
+      fixed: [],
+      changed: [
+        'Training API GET/POST/PUT now include attachments field in schema validation and persistence',
+      ],
+    },
+  },
+  {
     version: '19.17.0',
     date: 'April 23, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'HR Module — Letters, Self-Service & Gender',
     highlights: [
       'Employee profile header now shows gender-based colors (pink for female, navy for male), synced from Dolibarr.',
