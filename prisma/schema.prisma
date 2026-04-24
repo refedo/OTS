@@ -4951,9 +4951,10 @@ model PayrollAdjustment {
   period     PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   employeeId String        @db.Char(36)
   employee   Employee      @relation("EmployeePayrollAdjustments", fields: [employeeId], references: [id])
-  kind       String        @db.VarChar(40) // BONUS | DEDUCTION | ADVANCE_REPAYMENT | FINE | OTHER
+  kind       String        @db.VarChar(40) // BONUS | DEDUCTION | ADVANCE_REPAYMENT | FINE | OTHER | ANNUAL_LEAVE_ALLOWANCE | TICKET_ALLOWANCE | EXIT_REENTRY_VISA
   amount     Decimal       @db.Decimal(12, 2) // always positive; `kind` dictates sign
   reason     String        @db.VarChar(500)
+  leaveDaysCompensated Decimal? @db.Decimal(6, 2) // populated for ANNUAL_LEAVE_ALLOWANCE; days deducted from leave balance
 
   createdById String    @db.Char(36)
   createdBy   User      @relation("PayrollAdjustmentCreatedBy", fields: [createdById], references: [id])

@@ -28,7 +28,9 @@ export default async function PayrollPeriodDetailPage({ params }: { params: Prom
         orderBy: { employee: { employmentId: 'asc' } },
       },
       adjustments: {
+        where: { deletedAt: null },
         include: { employee: { select: { id: true, employmentId: true, fullNameEn: true } } },
+        orderBy: { createdAt: 'desc' },
       },
       wpsExports: { orderBy: { generatedAt: 'desc' } },
     },
@@ -67,6 +69,16 @@ export default async function PayrollPeriodDetailPage({ params }: { params: Prom
       custodyDeduction: l.custodyDeduction.toString(),
       violationDeduction: l.violationDeduction.toString(),
       payslipPdfPath: l.payslipPdfPath,
+      dailyRate: l.dailyRate.toString(),
+    })),
+    adjustments: period.adjustments.map((a) => ({
+      id: a.id,
+      employeeId: a.employeeId,
+      kind: a.kind,
+      amount: a.amount.toString(),
+      reason: a.reason,
+      leaveDaysCompensated: a.leaveDaysCompensated?.toString() ?? null,
+      createdAt: a.createdAt.toISOString(),
     })),
     wpsExports: period.wpsExports.map((w) => ({
       id: w.id,
@@ -86,6 +98,7 @@ export default async function PayrollPeriodDetailPage({ params }: { params: Prom
       canApprove={perms.includes('hr.payroll.approve')}
       canLock={perms.includes('hr.payroll.lock')}
       canExport={perms.includes('hr.payroll.export')}
+      canAdjust={perms.includes('hr.payroll.adjust')}
     />
   );
 }

@@ -52,6 +52,12 @@ export type PayslipResult = {
   filePath: string;
 };
 
+const ENTITLEMENT_LABELS: Record<string, string> = {
+  ANNUAL_LEAVE_ALLOWANCE: 'Annual leave allowance',
+  TICKET_ALLOWANCE: 'Ticket allowance',
+  EXIT_REENTRY_VISA: 'Exit/Re-entry visa allowance',
+};
+
 export async function generatePayslipPdf(lineId: string): Promise<PayslipResult> {
   const line = await prisma.payrollLine.findUnique({
     where: { id: lineId },
@@ -72,6 +78,18 @@ export async function generatePayslipPdf(lineId: string): Promise<PayslipResult>
     },
   });
   if (!line) throw new Error('Payroll line not found');
+
+  // Load entitlement adjustments for this employee+period to show named line items
+  const entitlementAdjustments = await prisma.payrollAdjustment.findMany({
+    where: {
+      periodId: line.periodId,
+      employeeId: line.employeeId,
+      kind: { in: ['ANNUAL_LEAVE_ALLOWANCE', 'TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA', 'BONUS', 'OTHER'] },
+      deletedAt: null,
+    },
+    select: { kind: true, amount: true, leaveDaysCompensated: true, reason: true },
+    orderBy: { createdAt: 'asc' },
+  });
 
   const logo = await loadLogo();
   const periodLabel = `${MONTH_NAMES[line.period.month - 1]} ${line.period.year}`;
@@ -184,8 +202,32 @@ export async function generatePayslipPdf(lineId: string): Promise<PayslipResult>
     ['Other allowances', money(line.otherAllowances)],
     ['Overtime pay', money(line.overtimePay)],
   ];
-  if (Number(line.bonuses) > 0) earnings.push(['Bonuses', money(line.bonuses)]);
-  if (Number(line.otherAdditions) > 0) earnings.push(['Other additions', money(line.otherAdditions)]);
+  // Named entitlement adjustments shown individually
+  const namedEntitlementTotal = entitlementAdjustments.reduce((s, a) => {
+    if (['ANNUAL_LEAVE_ALLOWANCE', 'TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA'].includes(a.kind)) return s + Number(a.amount);
+    return s;
+  }, 0);
+  const namedBonusTotal = entitlementAdjustments.filter((a) => a.kind === 'BONUS').reduce((s, a) => s + Number(a.amount), 0);
+  for (const adj of entitlementAdjustments) {
+    if (adj.kind === 'ANNUAL_LEAVE_ALLOWANCE') {
+      const label = adj.leaveDaysCompensated
+        ? `Annual leave allowance (${Number(adj.leaveDaysCompensated)} days)`
+        : 'Annual leave allowance';
+      earnings.push([label, money(adj.amount)]);
+    } else if (adj.kind === 'TICKET_ALLOWANCE') {
+      earnings.push(['Ticket allowance', money(adj.amount)]);
+    } else if (adj.kind === 'EXIT_REENTRY_VISA') {
+      earnings.push(['Exit/Re-entry visa allowance', money(adj.amount)]);
+    } else if (adj.kind === 'BONUS') {
+      earnings.push(['Bonus', money(adj.amount)]);
+    }
+  }
+  // Remaining bonuses not from named adjustments
+  const residualBonuses = Number(line.bonuses) - namedBonusTotal;
+  if (residualBonuses > 0.005) earnings.push(['Bonuses', money(residualBonuses)]);
+  // Remaining other additions not from named entitlements
+  const residualOther = Number(line.otherAdditions) - namedEntitlementTotal;
+  if (residualOther > 0.005) earnings.push(['Other additions', money(residualOther)]);
 
   const deductions: string[][] = [
     ['GOSI (employee 10%)', money(line.gosiEmployee)],
