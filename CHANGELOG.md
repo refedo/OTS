@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [20.0.0] - 2026-04-24
+
+### Business Development Module
+
+#### Added
+- **Business Development section** — new top-level sidebar module for managing target companies and BD pipeline
+- **Company registry** — full CRUD with registration status (REGISTERED, IN_PROGRESS, NOT_STARTED, CLOSED_INACTIVE), contact details, and "What's Next / Required From Us" field
+- **Document tracking** — submitted documents per company with status (Submitted, Pending, Approved, Rejected)
+- **Requests pipeline** — RFQs and Inquiries per company with status flow (New → In Review → In Progress → Closed)
+- **Company archive** — four structured sections per company: General Information, Communication History, Notes, Evaluation History
+- **6 new permissions**: `bd.companies.view`, `bd.companies.manage`, `bd.documents.view`, `bd.documents.manage`, `bd.requests.view`, `bd.requests.manage`
+- **API routes**: `GET/POST /api/bd/companies`, `GET/PUT/DELETE /api/bd/companies/[id]`, documents, requests, and archive sub-routes
+
+#### Changed
+- Version bumped to **20.0.0** (major release)
+
+---
+
 ## [19.17.0] - 2026-04-23
 
 ### HR Module — Letters, Self-Service & Gender

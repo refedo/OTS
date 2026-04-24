@@ -5801,3 +5801,84 @@ model HrTrainingProgram {
   @@index([deletedAt])
   @@map("HrTrainingProgram")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Business Development module (v20.0.0)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model BdCompany {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  name               String    @db.VarChar(255)
+  logoUrl            String?   @db.VarChar(512)
+  contactName        String?   @db.VarChar(255)
+  contactEmail       String?   @db.VarChar(255)
+  contactPhone       String?   @db.VarChar(80)
+  registrationStatus String    @default("NOT_STARTED") @db.VarChar(30)
+  registrationDate   DateTime?
+  registrationExpiry DateTime?
+  whatNext           String?   @db.Text
+  notes              String?   @db.Text
+  deletedAt          DateTime?
+  deletedById        String?   @db.Char(36)
+  deleteReason       String?   @db.VarChar(512)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdById        String?   @db.Char(36)
+  updatedById        String?   @db.Char(36)
+
+  documents      BdDocument[]
+  requests       BdRequest[]
+  archiveEntries BdArchiveEntry[]
+
+  @@index([registrationStatus])
+  @@index([deletedAt])
+  @@map("BdCompany")
+}
+
+model BdDocument {
+  id          String    @id @default(uuid()) @db.Char(36)
+  companyId   String    @db.Char(36)
+  company     BdCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title       String    @db.VarChar(255)
+  fileUrl     String?   @db.VarChar(512)
+  status      String    @default("SUBMITTED") @db.VarChar(30)
+  submittedAt DateTime  @default(now())
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([deletedAt])
+  @@map("BdDocument")
+}
+
+model BdRequest {
+  id          String    @id @default(uuid()) @db.Char(36)
+  companyId   String    @db.Char(36)
+  company     BdCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title       String    @db.VarChar(255)
+  requestType String?   @db.VarChar(80)
+  status      String    @default("NEW") @db.VarChar(30)
+  receivedAt  DateTime  @default(now())
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([deletedAt])
+  @@map("BdRequest")
+}
+
+model BdArchiveEntry {
+  id        String    @id @default(uuid()) @db.Char(36)
+  companyId String    @db.Char(36)
+  company   BdCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entryType String    @db.VarChar(50)
+  content   String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([companyId, entryType])
+  @@index([companyId])
+  @@map("BdArchiveEntry")
+}

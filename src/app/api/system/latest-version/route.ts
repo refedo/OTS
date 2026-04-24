@@ -7,34 +7,30 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 
 const CURRENT_VERSION = {
   version: pkgVersion,
-  date: 'April 21, 2026',
-  type: 'patch' as const,
-  mainTitle: 'Employee Profile Tabs, Self-Service Dashboard & Excel Import',
+  date: 'April 24, 2026',
+  type: 'major' as const,
+  mainTitle: 'Business Development Module',
   highlights: [
-    'Employee profile page now has Contracts, Training, Onboarding, Announcements, Circulations, and Car Maintenance tabs — all accessible from /hr/employees/[id].',
-    'Assets and Car Maintenance tabs are conditionally hidden when an employee has no asset assignments.',
-    'New Dashboard tab on employee profile is a one-stop self-service hub: request a loan, custody, or leave; read company policies; and request an employment certificate — all without navigating away.',
-    'Employee list page now supports bulk Excel import — drag-and-drop the same file produced by the export, with column mapping, validation, and upsert by Employment ID.',
-    'Fixed: /hr/loans, /hr/custodies, and /hr/traffic-violations pages now correctly allow access for users with viewOwn permissions (hr.loans.viewOwn, hr.custodies.viewOwn, hr.violations.viewOwn).',
+    'New top-level Business Development section for tracking target companies, registration status, submitted documents, and received RFQs/Inquiries.',
+    'Full company registry with registration status (Registered, In Progress, Not Started, Closed/Inactive), contact details, and requirements tracking.',
+    'Document archive per company — log every submitted document with status badges (Submitted, Pending, Approved, Rejected).',
+    'Requests tracker for RFQs and Inquiries received from each company with status pipeline (New → In Review → In Progress → Closed).',
+    'Company archive with four structured sections: General Information, Communication History, Notes, and Evaluation History.',
   ],
   changes: {
     added: [
-      'Employee profile Contracts tab',
-      'Employee profile Training tab',
-      'Employee profile Onboarding tab (interactive checklist)',
-      'Employee profile Announcements tab',
-      'Employee profile Circulations tab',
-      'Employee profile Car Maintenance tab (conditional on asset assignments)',
-      'Employee profile Dashboard tab (self-service hub)',
-      'Excel import for employee list (/api/hr/employees/import)',
+      'Business Development sidebar section (visible to Admin, CEO, Manager)',
+      'BdCompany model — company registry with registration status, contact info, and requirements',
+      'BdDocument model — submitted documents per company with status tracking',
+      'BdRequest model — RFQs and Inquiries received from companies',
+      'BdArchiveEntry model — four-section archive per company',
+      'Full CRUD API at /api/bd/companies and sub-routes',
+      '6 new permissions: bd.companies.view/manage, bd.documents.view/manage, bd.requests.view/manage',
     ],
-    fixed: [
-      '/hr/loans inaccessible to users with hr.loans.viewOwn',
-      '/hr/custodies inaccessible to users with hr.custodies.viewOwn',
-      '/hr/traffic-violations inaccessible to users with hr.violations.viewOwn',
-      'Assets tab shown even when employee has no asset assignments',
+    fixed: [],
+    changed: [
+      'Version bumped to 20.0.0 (major release)',
     ],
-    changed: [],
   },
 };
 

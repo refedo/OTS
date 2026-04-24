@@ -9,8 +9,8 @@ const { version: pkgVersion } = require('../../package.json') as { version: stri
 
 export const APP_VERSION = {
   version: pkgVersion,
-  date: 'April 21, 2026',
-  type: 'patch' as const, // 19.16.4 — Employee profile tabs, self-service dashboard, Excel import, viewOwn permission fixes
+  date: 'April 24, 2026',
+  type: 'major' as const, // 20.0.0 — Business Development module
   name: 'Hexa Steel Operation Tracking System',
 };
 
