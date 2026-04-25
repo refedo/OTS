@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Info,
   X,
+  Gift,
 } from 'lucide-react';
 
 type Line = {
@@ -49,6 +50,13 @@ type Line = {
   payslipPdfPath: string | null;
 };
 
+type Adjustment = {
+  id: string;
+  employeeId: string;
+  kind: string;
+  amount: string;
+};
+
 type WpsExport = {
   id: string;
   filename: string;
@@ -70,8 +78,14 @@ type Period = {
   approvedAt: string | null;
   lockedAt: string | null;
   lines: Line[];
+  adjustments: Adjustment[];
   wpsExports: WpsExport[];
 };
+
+const COMPENSATION_KINDS = new Set([
+  'ANNUAL_LEAVE_ALLOWANCE', 'TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA',
+  'COMMISSION', 'INCENTIVE', 'BONUS', 'OTHER',
+]);
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -82,7 +96,7 @@ type SortKey = 'employmentId' | 'fullNameEn' | 'basicSalary' | 'overtimeHours' |
   'absentDaysWithPermission' | 'absenceWithPermissionDeduction' |
   'absentDaysWithoutPermission' | 'absenceDeduction' |
   'loanDeduction' | 'custodyDeduction' | 'violationDeduction' | 'gosiEmployee' |
-  'grossPay' | 'totalDeductions' | 'netPay';
+  'grossPay' | 'totalDeductions' | 'netPay' | 'compensation';
 
 type SortDir = 'asc' | 'desc';
 
@@ -115,12 +129,14 @@ export function PayrollPeriodDetailClient({
   canApprove,
   canLock,
   canExport,
+  canAdjust,
 }: {
   period: Period;
   canCalculate: boolean;
   canApprove: boolean;
   canLock: boolean;
   canExport: boolean;
+  canAdjust?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -128,6 +144,16 @@ export function PayrollPeriodDetailClient({
   const [sortKey, setSortKey] = useState<SortKey>('employmentId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [noteVisible, setNoteVisible] = useState(true);
+
+  const compensationByEmployee = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of period.adjustments) {
+      if (COMPENSATION_KINDS.has(a.kind)) {
+        map.set(a.employeeId, (map.get(a.employeeId) ?? 0) + Number(a.amount));
+      }
+    }
+    return map;
+  }, [period.adjustments]);
 
   async function run(label: string, path: string) {
     setBusy(label);
@@ -176,10 +202,11 @@ export function PayrollPeriodDetailClient({
         grossPay: Number(a.grossPay) - Number(b.grossPay),
         totalDeductions: Number(a.totalDeductions) - Number(b.totalDeductions),
         netPay: Number(a.netPay) - Number(b.netPay),
+        compensation: (compensationByEmployee.get(a.employee.id) ?? 0) - (compensationByEmployee.get(b.employee.id) ?? 0),
       };
       return dir * (numMap[sortKey] ?? 0);
     });
-  }, [period.lines, sortKey, sortDir]);
+  }, [period.lines, sortKey, sortDir, compensationByEmployee]);
 
   const totalGross = period.lines.reduce((s, l) => s + Number(l.grossPay) + Number(l.totalAdditions), 0);
   const totalDed = period.lines.reduce((s, l) => s + Number(l.totalDeductions), 0);
@@ -358,6 +385,17 @@ export function PayrollPeriodDetailClient({
                 Generate PDFs
               </Button>
             )}
+            <Link href={`/hr/payroll/${period.id}/compensations`}>
+              <Button variant="outline" className="border-violet-300 text-violet-700 hover:bg-violet-50">
+                <Gift className="h-4 w-4 mr-1.5" />
+                Compensations
+                {period.adjustments.length > 0 && (
+                  <span className="ml-1.5 bg-violet-100 text-violet-700 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                    {period.adjustments.length}
+                  </span>
+                )}
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -428,6 +466,7 @@ export function PayrollPeriodDetailClient({
                     <Th col="grossPay" className="text-right">Gross</Th>
                     <Th col="totalDeductions" className="text-right">Total Ded</Th>
                     <Th col="netPay" className="text-right">Net Pay</Th>
+                    <Th col="compensation" className="text-right bg-violet-50">Compensations</Th>
                     <th className="py-2 px-3 text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap">PDF</th>
                   </tr>
                 </thead>
@@ -478,6 +517,14 @@ export function PayrollPeriodDetailClient({
                       <td className="py-2.5 px-3 text-right tabular-nums font-medium">{fmt(l.grossPay)}</td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-rose-700 font-medium">{fmt(l.totalDeductions)}</td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-emerald-700 font-bold">{fmt(l.netPay)}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums bg-violet-50/40">
+                        {(() => {
+                          const comp = compensationByEmployee.get(l.employee.id) ?? 0;
+                          return comp > 0
+                            ? <span className="text-violet-700 font-medium">{fmt(comp)}</span>
+                            : <span className="text-slate-300">—</span>;
+                        })()}
+                      </td>
                       <td className="py-2.5 px-3 text-center">
                         {l.payslipPdfPath ? (
                           <a href={l.payslipPdfPath} download={l.payslipPdfPath.split('/').pop()}>
@@ -525,6 +572,9 @@ export function PayrollPeriodDetailClient({
                     <td className="py-3 px-3 text-right tabular-nums font-bold">{sar(totalGross)}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold text-rose-700">{sar(totalDed)}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold text-emerald-700">{sar(totalNet)}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-bold text-violet-700 bg-violet-50/40">
+                      {sar([...compensationByEmployee.values()].reduce((s, v) => s + v, 0))}
+                    </td>
                     <td />
                   </tr>
                 </tfoot>
