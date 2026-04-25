@@ -89,7 +89,13 @@ const STARTUP_MIGRATIONS = [
   // ── HR Policy attachment + seed policies (19.17.0) ──────────────────────
   'add_hr_policy_attachment.sql',
 
-  // ── Payroll entitlements: annual leave allowance, ticket, visa (19.16.5) ─
+  // ── Training program file attachments (19.17.1) ──────────────────────────
+  'add_training_attachments.sql',
+
+  // ── Business Development module (20.0.0) ─────────────────────────────────
+  'add_business_development.sql',
+
+  // ── Payroll entitlements: annual leave allowance, ticket, visa (20.1.0) ──
   'add_payroll_entitlements.sql',
 ];
 

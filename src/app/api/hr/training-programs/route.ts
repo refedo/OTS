@@ -4,6 +4,14 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
+const attachmentSchema = z.object({
+  fileName: z.string(),
+  filePath: z.string(),
+  fileType: z.string(),
+  fileSize: z.number(),
+  uploadedAt: z.string(),
+});
+
 const createSchema = z.object({
   titleEn: z.string().min(1),
   titleAr: z.string().optional(),
@@ -15,6 +23,7 @@ const createSchema = z.object({
   scheduledDate: z.string().optional(),
   status: z.enum(['PLANNED', 'UPCOMING', 'ONGOING', 'COMPLETED']).default('PLANNED'),
   notes: z.string().optional(),
+  attachments: z.array(attachmentSchema).nullish(),
 });
 
 export const GET = withApiContext(async (_req: NextRequest, _session) => {
@@ -24,7 +33,7 @@ export const GET = withApiContext(async (_req: NextRequest, _session) => {
     select: {
       id: true, titleEn: true, titleAr: true, descriptionEn: true, descriptionAr: true,
       category: true, durationHours: true, targetAudience: true,
-      scheduledDate: true, status: true, notes: true, createdAt: true,
+      scheduledDate: true, status: true, notes: true, attachments: true, createdAt: true,
     },
   });
   const serialized = programs.map(p => ({
@@ -54,6 +63,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       scheduledDate: d.scheduledDate ? new Date(d.scheduledDate) : null,
       status: d.status,
       notes: d.notes || null,
+      attachments: d.attachments && d.attachments.length > 0 ? d.attachments : null,
       createdById: session!.userId,
     },
   });
