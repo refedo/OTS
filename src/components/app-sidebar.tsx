@@ -73,6 +73,7 @@ import {
   UserPlus,
   UserCircle2,
   Handshake,
+  Gift,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -274,6 +275,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Loans', href: '/hr/loans', icon: Banknote, newSince: '2026-04-16' },
       { name: 'Custodies', href: '/hr/custodies', icon: PackageSearch, newSince: '2026-04-16' },
       { name: 'Payroll', href: '/hr/payroll', icon: Banknote, newSince: '2026-04-12' },
+      { name: 'Compensations', href: '/hr/compensations', icon: Gift, newSince: '2026-04-25' },
       { name: 'Assets', href: '/hr/assets', icon: PackageSearch, newSince: '2026-04-15' },
       { name: 'Traffic Violations', href: '/hr/traffic-violations', icon: AlertOctagon, newSince: '2026-04-15' },
       { name: 'Car Maintenance', href: '/hr/car-maintenance', icon: Wrench, newSince: '2026-04-15' },
