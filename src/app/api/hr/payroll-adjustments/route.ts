@@ -21,7 +21,7 @@ import { logger } from '@/lib/logger';
 import { verifySession } from '@/lib/jwt';
 import { checkPermission } from '@/lib/permission-checker';
 
-const ENTITLEMENT_KINDS = ['ANNUAL_LEAVE_ALLOWANCE', 'TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA'] as const;
+const ENTITLEMENT_KINDS = ['ANNUAL_LEAVE_ALLOWANCE', 'TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA', 'COMMISSION', 'INCENTIVE'] as const;
 const STANDARD_KINDS = ['BONUS', 'DEDUCTION', 'ADVANCE_REPAYMENT', 'FINE', 'OTHER'] as const;
 const ALL_KINDS = [...STANDARD_KINDS, ...ENTITLEMENT_KINDS] as const;
 
@@ -34,11 +34,11 @@ const createSchema = z.discriminatedUnion('kind', [
     leaveDaysCompensated: z.number().positive().max(365),
     reason: z.string().min(1).max(500),
   }),
-  // Ticket and visa allowances: manual amount
+  // Entitlement allowances with manual amount
   z.object({
     periodId: z.string().uuid(),
     employeeId: z.string().uuid(),
-    kind: z.enum(['TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA']),
+    kind: z.enum(['TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA', 'COMMISSION', 'INCENTIVE']),
     amount: z.number().positive(),
     reason: z.string().min(1).max(500),
   }),
@@ -112,7 +112,8 @@ export async function POST(req: Request) {
       );
     }
     leaveDaysCompensated = d.leaveDaysCompensated;
-    finalAmount = Math.round(Number(line.dailyRate) * leaveDaysCompensated * 100) / 100;
+    const days = leaveDaysCompensated;
+    finalAmount = Math.round(Number(line.dailyRate) * days * 100) / 100;
     if (finalAmount <= 0) {
       return NextResponse.json({ error: 'Computed amount must be positive' }, { status: 400 });
     }
@@ -131,8 +132,8 @@ export async function POST(req: Request) {
         await prisma.leaveBalance.update({
           where: { id: existing.id },
           data: {
-            manualAdjustment: { decrement: leaveDaysCompensated },
-            adjustmentReason: `Annual leave cash compensation — ${leaveDaysCompensated} days paid via payroll ${period.year}/${String(period.month).padStart(2, '0')}`,
+            manualAdjustment: { decrement: days },
+            adjustmentReason: `Annual leave cash compensation — ${days} days paid via payroll ${period.year}/${String(period.month).padStart(2, '0')}`,
             asOfDate: new Date(),
           },
         });
@@ -146,8 +147,8 @@ export async function POST(req: Request) {
             accruedYtd: 0,
             usedYtd: 0,
             carriedOver: 0,
-            manualAdjustment: -leaveDaysCompensated,
-            adjustmentReason: `Annual leave cash compensation — ${leaveDaysCompensated} days paid via payroll ${period.year}/${String(period.month).padStart(2, '0')}`,
+            manualAdjustment: -days,
+            adjustmentReason: `Annual leave cash compensation — ${days} days paid via payroll ${period.year}/${String(period.month).padStart(2, '0')}`,
             asOfDate: new Date(),
           },
         });
