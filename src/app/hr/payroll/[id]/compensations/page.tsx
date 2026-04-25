@@ -35,7 +35,7 @@ export default async function PayrollCompensationsPage({ params }: { params: Pro
         select: {
           employeeId: true,
           dailyRate: true,
-          employee: { select: { id: true, employmentId: true, fullNameEn: true } },
+          employee: { select: { id: true, employmentId: true, fullNameEn: true, dateOfJoining: true } },
         },
         orderBy: { employee: { fullNameEn: 'asc' } },
       },
@@ -43,24 +43,56 @@ export default async function PayrollCompensationsPage({ params }: { params: Pro
   });
   if (!period) notFound();
 
-  // Fetch annual leave balances for all employees in this period
+  // Compute annual leave balances using Formula A (all-time accrual, not year-scoped snapshot)
   const employeeIds = period.lines.map((l) => l.employeeId);
   const annualLeaveType = await prisma.leaveType.findFirst({
     where: { code: 'ANNUAL', archivedAt: null },
     select: { id: true },
   });
 
-  const leaveBalances = annualLeaveType && employeeIds.length > 0
-    ? await prisma.leaveBalance.findMany({
-        where: { employeeId: { in: employeeIds }, leaveTypeId: annualLeaveType.id, year: period.year },
-        select: { employeeId: true, openingBalance: true, accruedYtd: true, usedYtd: true, manualAdjustment: true },
-      })
-    : [];
+  const [approvedLeaveRequests, manualAdjustments] = await Promise.all([
+    annualLeaveType && employeeIds.length > 0
+      ? prisma.leaveRequest.findMany({
+          where: {
+            deletedAt: null,
+            status: 'APPROVED',
+            employeeId: { in: employeeIds },
+            leaveTypeId: annualLeaveType.id,
+          },
+          select: { employeeId: true, workingDays: true },
+        })
+      : Promise.resolve([]),
+    annualLeaveType && employeeIds.length > 0
+      ? prisma.leaveBalance.findMany({
+          where: { employeeId: { in: employeeIds }, leaveTypeId: annualLeaveType.id },
+          select: { employeeId: true, manualAdjustment: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
-  const balanceByEmployee = new Map(leaveBalances.map((b) => [
-    b.employeeId,
-    Math.max(0, Number(b.openingBalance) + Number(b.accruedYtd) - Number(b.usedYtd) + Number(b.manualAdjustment)),
-  ]));
+  const consumedMap = new Map<string, number>();
+  for (const req of approvedLeaveRequests) {
+    consumedMap.set(req.employeeId, (consumedMap.get(req.employeeId) ?? 0) + Number(req.workingDays));
+  }
+  const adjustmentMap = new Map<string, number>(
+    manualAdjustments.map((b) => [b.employeeId, Number(b.manualAdjustment ?? 0)]),
+  );
+
+  const today = new Date();
+  const MONTHLY_ACCRUAL = 1.75;
+
+  const balanceByEmployee = new Map<string, number>();
+  for (const line of period.lines) {
+    const joinDate = line.employee.dateOfJoining ? new Date(line.employee.dateOfJoining) : null;
+    let entitledDays = 0;
+    if (joinDate) {
+      const months = Math.max(0, Math.floor((today.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24 * 30.4375)));
+      entitledDays = Math.floor(months * MONTHLY_ACCRUAL * 10) / 10;
+    }
+    const consumed = consumedMap.get(line.employeeId) ?? 0;
+    const adjustment = adjustmentMap.get(line.employeeId) ?? 0;
+    balanceByEmployee.set(line.employeeId, Math.max(0, entitledDays - consumed + adjustment));
+  }
 
   const serialized = {
     id: period.id,
