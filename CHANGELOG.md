@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [20.1.1] - 2026-04-25
+
+### Business Development Module
+
+#### Fixed
+- **BD Client UI** — fully implemented `bd-client.tsx` with Companies table (search, pagination, actions), Archive/Document/Request summary panels, and full tab views (Archives, Documents, Requests) with company filters and add/edit/delete dialogs
+
+---
+
 ## [20.0.0] - 2026-04-24
 
 ### Business Development Module
