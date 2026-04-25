@@ -1,18 +1,17 @@
--- 19.16.5: Add leaveDaysCompensated column to PayrollAdjustment
--- Supports Annual Leave Allowance, Ticket Allowance, Exit/Re-entry Visa entitlements
-DROP PROCEDURE IF EXISTS add_payroll_entitlements;
-DELIMITER $$
-CREATE PROCEDURE add_payroll_entitlements()
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'PayrollAdjustment'
-      AND COLUMN_NAME = 'leaveDaysCompensated'
-  ) THEN
-    ALTER TABLE PayrollAdjustment ADD COLUMN leaveDaysCompensated DECIMAL(6,2) NULL;
-  END IF;
-END$$
-DELIMITER ;
-CALL add_payroll_entitlements();
-DROP PROCEDURE IF EXISTS add_payroll_entitlements;
+-- 20.1.0 — Add leaveDaysCompensated column to PayrollAdjustment (idempotent)
+-- Supports Annual Leave Allowance entitlement kind.
+-- Uses SET/PREPARE/EXECUTE pattern — stored procedures do not work via Prisma
+-- prepared-statement protocol (error 1295).
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME   = 'PayrollAdjustment'
+    AND COLUMN_NAME  = 'leaveDaysCompensated'
+);
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE PayrollAdjustment ADD COLUMN leaveDaysCompensated DECIMAL(6,2) NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
