@@ -27,7 +27,7 @@ export default async function PayrollCompensationsPage({ params }: { params: Pro
         where: { deletedAt: null },
         include: {
           employee: { select: { id: true, employmentId: true, fullNameEn: true } },
-          createdBy: { select: { id: true, username: true } },
+          createdBy: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
       },
@@ -77,7 +77,7 @@ export default async function PayrollCompensationsPage({ params }: { params: Pro
       reason: a.reason,
       leaveDaysCompensated: a.leaveDaysCompensated?.toString() ?? null,
       createdAt: a.createdAt.toISOString(),
-      createdBy: a.createdBy.username,
+      createdBy: a.createdBy.name,
     })),
     employees: period.lines.map((l) => {
       const dailyRate = Number(l.dailyRate);
