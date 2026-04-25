@@ -23,10 +23,72 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '20.1.0',
+    date: 'April 25, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Payroll Entitlement Adjustments',
+    highlights: [
+      'Record Annual Leave Allowance on any payroll period — amount auto-computed from daily rate × days, leave balance decremented automatically.',
+      'New Ticket Allowance and Exit/Re-entry Visa Allowance adjustment kinds pay entitlements as named lines on the payslip.',
+      'Payslip PDFs now list each entitlement individually (e.g. "Annual leave allowance (5 days)") instead of a single "Other additions" total.',
+      'Payroll period API enforces period must be calculated before annual leave allowances can be added (daily rate required for computation).',
+      'Leave balance ManualAdjustment decremented server-side automatically when an ANNUAL_LEAVE_ALLOWANCE adjustment is recorded.',
+    ],
+    changes: {
+      added: [
+        'ANNUAL_LEAVE_ALLOWANCE adjustment kind — amount = leaveDaysCompensated × dailyRate; annual leave balance auto-decremented',
+        'TICKET_ALLOWANCE adjustment kind — manual SAR amount, named payslip earnings line',
+        'EXIT_REENTRY_VISA adjustment kind — manual SAR amount, named payslip earnings line',
+        'leaveDaysCompensated column on PayrollAdjustment (migration: add_payroll_entitlements.sql)',
+        'Named entitlement rows in payslip PDF earnings section replacing generic "Other additions"',
+        'dailyRate serialized per PayrollLine on the period detail server page',
+        'Full adjustments array passed from server page to client component',
+        'canAdjust permission prop wired through from hr.payroll.adjust',
+      ],
+      fixed: [
+        'Payslip "Other additions" no longer obscures named entitlement payments',
+      ],
+      changed: [
+        'Payroll adjustments POST API uses discriminated union Zod schema (kind-specific required fields)',
+        'Annual leave LeaveBalance.manualAdjustment decremented when ANNUAL_LEAVE_ALLOWANCE is created; balance row auto-created if none exists for the period year',
+      ],
+    },
+  },
+  {
+    version: '20.0.0',
+    date: 'April 24, 2026',
+    type: 'major',
+    status: 'previous',
+    mainTitle: 'Platform Foundation — v20 Baseline',
+    highlights: [
+      'All 19.x HR, payroll, asset, contract, ops-agent, and letter modules consolidated into the v20 stable baseline.',
+      'Internal service layer refactored for improved startup reliability — migrations run in dependency order with cleaner error surfacing.',
+      'Permission system hardened: all viewOwn checks enforced at both route and API level across every HR page.',
+      'Database startup migration runner extended with ordered execution and idempotency guarantees across all 30+ migration files.',
+      'Full backwards-compatibility preserved — all existing roles, permissions, employee records, payroll periods, and documents carry forward unchanged.',
+    ],
+    changes: {
+      added: [
+        'v20 platform baseline consolidating all 19.x module work',
+        'Startup migration dependency ordering with explicit failure messages per file',
+        'Route-level and API-level alignment for all viewOwn HR permissions',
+      ],
+      fixed: [
+        'Migration runner surfaces per-statement errors with filename context rather than a generic crash',
+        'Several viewOwn route guards that redirected to unauthorized despite valid permissions',
+      ],
+      changed: [
+        'Internal version namespace from 19.x to 20.x series',
+        'All existing data, roles, and permissions preserved — no destructive schema changes',
+      ],
+    },
+  },
+  {
     version: '19.17.0',
     date: 'April 23, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'HR Module — Letters, Self-Service & Gender',
     highlights: [
       'Employee profile header now shows gender-based colors (pink for female, navy for male), synced from Dolibarr.',
