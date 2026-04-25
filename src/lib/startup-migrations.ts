@@ -94,6 +94,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Business Development module (20.0.0) ─────────────────────────────────
   'add_business_development.sql',
+
+  // ── Payroll entitlements: annual leave allowance, ticket, visa (20.1.0) ──
+  'add_payroll_entitlements.sql',
 ];
 
 /**

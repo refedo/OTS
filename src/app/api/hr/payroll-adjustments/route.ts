@@ -2,6 +2,15 @@
  * GET  /api/hr/payroll-adjustments?periodId=<uuid> — list adjustments for a period
  * POST /api/hr/payroll-adjustments — add one. If period was CALCULATED,
  *      flip it back to DRAFT so HR must recalc before approving.
+ *
+ * Entitlement kinds (additions):
+ *   ANNUAL_LEAVE_ALLOWANCE — compensates employee for N annual leave days (amount = N × dailyRate);
+ *                            automatically deducts N days from the employee's annual leave balance.
+ *   TICKET_ALLOWANCE       — travel ticket entitlement, manual SAR amount.
+ *   EXIT_REENTRY_VISA      — exit/re-entry visa entitlement, manual SAR amount.
+ *
+ * Standard kinds:
+ *   BONUS | DEDUCTION | ADVANCE_REPAYMENT | FINE | OTHER
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,13 +21,36 @@ import { logger } from '@/lib/logger';
 import { verifySession } from '@/lib/jwt';
 import { checkPermission } from '@/lib/permission-checker';
 
-const createSchema = z.object({
-  periodId: z.string().uuid(),
-  employeeId: z.string().uuid(),
-  kind: z.enum(['BONUS', 'DEDUCTION', 'ADVANCE_REPAYMENT', 'FINE', 'OTHER']),
-  amount: z.number().positive(),
-  reason: z.string().min(1).max(500),
-});
+const ENTITLEMENT_KINDS = ['ANNUAL_LEAVE_ALLOWANCE', 'TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA'] as const;
+const STANDARD_KINDS = ['BONUS', 'DEDUCTION', 'ADVANCE_REPAYMENT', 'FINE', 'OTHER'] as const;
+const ALL_KINDS = [...STANDARD_KINDS, ...ENTITLEMENT_KINDS] as const;
+
+const createSchema = z.discriminatedUnion('kind', [
+  // Annual leave allowance: days required, amount computed server-side from daily rate
+  z.object({
+    periodId: z.string().uuid(),
+    employeeId: z.string().uuid(),
+    kind: z.literal('ANNUAL_LEAVE_ALLOWANCE'),
+    leaveDaysCompensated: z.number().positive().max(365),
+    reason: z.string().min(1).max(500),
+  }),
+  // Ticket and visa allowances: manual amount
+  z.object({
+    periodId: z.string().uuid(),
+    employeeId: z.string().uuid(),
+    kind: z.enum(['TICKET_ALLOWANCE', 'EXIT_REENTRY_VISA']),
+    amount: z.number().positive(),
+    reason: z.string().min(1).max(500),
+  }),
+  // Standard kinds: manual amount
+  z.object({
+    periodId: z.string().uuid(),
+    employeeId: z.string().uuid(),
+    kind: z.enum(STANDARD_KINDS),
+    amount: z.number().positive(),
+    reason: z.string().min(1).max(500),
+  }),
+]);
 
 async function getSession() {
   const store = await cookies();
@@ -64,13 +96,75 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Period is locked' }, { status: 400 });
   }
 
+  let finalAmount: number;
+  let leaveDaysCompensated: number | null = null;
+
+  if (d.kind === 'ANNUAL_LEAVE_ALLOWANCE') {
+    // Compute amount from the employee's daily rate in this period's PayrollLine
+    const line = await prisma.payrollLine.findUnique({
+      where: { periodId_employeeId: { periodId: d.periodId, employeeId: d.employeeId } },
+      select: { dailyRate: true },
+    });
+    if (!line) {
+      return NextResponse.json(
+        { error: 'No payroll line found for this employee. Run Calculate first before adding Annual Leave Allowance.' },
+        { status: 400 },
+      );
+    }
+    leaveDaysCompensated = d.leaveDaysCompensated;
+    finalAmount = Math.round(Number(line.dailyRate) * leaveDaysCompensated * 100) / 100;
+    if (finalAmount <= 0) {
+      return NextResponse.json({ error: 'Computed amount must be positive' }, { status: 400 });
+    }
+
+    // Deduct days from the employee's annual leave balance
+    const annualLeaveType = await prisma.leaveType.findFirst({
+      where: { code: 'ANNUAL', archivedAt: null },
+      select: { id: true },
+    });
+    if (annualLeaveType) {
+      const balanceYear = period.year;
+      const existing = await prisma.leaveBalance.findUnique({
+        where: { employeeId_leaveTypeId_year: { employeeId: d.employeeId, leaveTypeId: annualLeaveType.id, year: balanceYear } },
+      });
+      if (existing) {
+        await prisma.leaveBalance.update({
+          where: { id: existing.id },
+          data: {
+            manualAdjustment: { decrement: leaveDaysCompensated },
+            adjustmentReason: `Annual leave cash compensation — ${leaveDaysCompensated} days paid via payroll ${period.year}/${String(period.month).padStart(2, '0')}`,
+            asOfDate: new Date(),
+          },
+        });
+      } else {
+        await prisma.leaveBalance.create({
+          data: {
+            employeeId: d.employeeId,
+            leaveTypeId: annualLeaveType.id,
+            year: balanceYear,
+            openingBalance: 0,
+            accruedYtd: 0,
+            usedYtd: 0,
+            carriedOver: 0,
+            manualAdjustment: -leaveDaysCompensated,
+            adjustmentReason: `Annual leave cash compensation — ${leaveDaysCompensated} days paid via payroll ${period.year}/${String(period.month).padStart(2, '0')}`,
+            asOfDate: new Date(),
+          },
+        });
+      }
+    }
+  } else {
+    finalAmount = (d as { amount: number }).amount;
+  }
+
   const created = await prisma.payrollAdjustment.create({
     data: {
       periodId: d.periodId,
       employeeId: d.employeeId,
       kind: d.kind,
-      amount: d.amount.toString(),
+      amount: finalAmount.toString(),
       reason: d.reason,
+      leaveDaysCompensated: leaveDaysCompensated !== null ? leaveDaysCompensated.toString() : null,
       createdById: session.sub,
     },
   });
@@ -83,6 +177,6 @@ export async function POST(req: Request) {
     });
   }
 
-  logger.info({ id: created.id, periodId: d.periodId, kind: d.kind }, '[Payroll] Adjustment added');
-  return NextResponse.json(created, { status: 201 });
+  logger.info({ id: created.id, periodId: d.periodId, kind: d.kind, amount: finalAmount }, '[Payroll] Adjustment added');
+  return NextResponse.json({ ...created, amount: finalAmount }, { status: 201 });
 }
