@@ -91,6 +91,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Training program file attachments (19.17.1) ──────────────────────────
   'add_training_attachments.sql',
+
+  // ── Business Development module (20.0.0) ─────────────────────────────────
+  'add_business_development.sql',
 ];
 
 /**

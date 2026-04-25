@@ -423,6 +423,17 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'ops_agent.resolve_flags', name: 'Resolve Risk Flags', description: 'Mark Ops Agent risk flags as resolved', category: 'ops_agent' },
     ],
   },
+  {
+    name: 'Business Development',
+    permissions: [
+      { id: 'bd.companies.view', name: 'View BD Companies', description: 'View business development companies, their status, and related records', category: 'business_development' },
+      { id: 'bd.companies.manage', name: 'Manage BD Companies', description: 'Create, edit, and delete business development companies', category: 'business_development' },
+      { id: 'bd.documents.view', name: 'View BD Documents', description: 'View submitted documents for BD companies', category: 'business_development' },
+      { id: 'bd.documents.manage', name: 'Manage BD Documents', description: 'Upload and delete documents for BD companies', category: 'business_development' },
+      { id: 'bd.requests.view', name: 'View BD Requests', description: 'View received RFQs and inquiries from BD companies', category: 'business_development' },
+      { id: 'bd.requests.manage', name: 'Manage BD Requests', description: 'Create, update, and delete BD company requests', category: 'business_development' },
+    ],
+  },
 ];
 
 // Flatten all permissions for easy lookup
@@ -684,6 +695,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
     'hr.contracts.viewOwn',
+    // 20.0.0 — Business Development (view access for managers)
+    'bd.companies.view',
+    'bd.documents.view',
+    'bd.requests.view',
   ],
   Engineer: [
     // Basic Access

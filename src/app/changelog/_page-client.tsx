@@ -23,10 +23,37 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '20.0.0',
+    date: 'April 24, 2026',
+    type: 'major',
+    status: 'current',
+    mainTitle: 'Business Development Module',
+    highlights: [
+      'New top-level Business Development section for tracking target companies, registration status, submitted documents, and received RFQs/Inquiries.',
+      'Full company registry with registration status badges (Registered, In Progress, Not Started, Closed/Inactive), contact details, and requirements tracking.',
+      'Document archive per company — log every submitted document with status tracking (Submitted, Pending, Approved, Rejected).',
+      'Requests tracker for RFQs and Inquiries received from each company with a full status pipeline.',
+      'Company archive with four structured sections: General Information, Communication History, Notes, and Evaluation History.',
+    ],
+    changes: {
+      added: [
+        'Business Development sidebar section (visible to Admin, CEO, Manager)',
+        'BdCompany — company registry with registration status, contact info, and requirements',
+        'BdDocument — submitted documents per company with status tracking',
+        'BdRequest — RFQs and Inquiries received from companies',
+        'BdArchiveEntry — four-section archive per company',
+        'Full CRUD API at /api/bd/companies and sub-routes',
+        '6 new permissions: bd.companies.view/manage, bd.documents.view/manage, bd.requests.view/manage',
+      ],
+      fixed: [],
+      changed: ['Version bumped to 20.0.0 (major release)'],
+    },
+  },
+  {
     version: '19.17.1',
     date: 'April 24, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Training Program File Attachments',
     highlights: [
       'Training programs now support file attachments — Word, PDF, and PowerPoint files up to 10 MB each.',

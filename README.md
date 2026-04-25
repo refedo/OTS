@@ -1,14 +1,15 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 19.16.4 | **Release Date:** April 21, 2026
+**Version:** 20.0.0 | **Release Date:** April 24, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 19.16.4 — Employee Profile Tabs, Self-Service Dashboard & Excel Import
-- **Employee profile tabs** — Contracts, Training, Onboarding (interactive checklist), Announcements, Circulations, and Car Maintenance tabs added to `/hr/employees/[id]`; Assets and Car Maintenance tabs are hidden when the employee has no asset assignments.
-- **Self-service Dashboard tab** — one-stop hub on the employee profile: request a loan, custody, or leave; read company policies inline; and request an employment certificate — no navigation required.
-- **Excel import** — drag-and-drop the same `.xlsx` file produced by the export to bulk-upsert employees by Employment ID with column mapping and validation errors per row.
-- **viewOwn permission fixes** — `/hr/loans`, `/hr/custodies`, and `/hr/traffic-violations` now correctly allow access for users with `hr.loans.viewOwn`, `hr.custodies.viewOwn`, and `hr.violations.viewOwn` permissions.
+### What's New in 20.0.0 — Business Development Module
+- **Business Development section** — new top-level module for tracking target companies, registration status, submitted documents, and received RFQs/Inquiries.
+- **Company registry** — manage companies with registration status (Registered, In Progress, Not Started, Closed/Inactive), contact details, and "What's Next" requirements.
+- **Document tracking** — log submitted documents per company with status badges (Submitted, Pending, Approved, Rejected).
+- **Requests pipeline** — track RFQs and Inquiries with status flow (New → In Review → In Progress → Closed).
+- **Company archive** — four structured sections per company: General Information, Communication History, Notes, and Evaluation History.
 
 ### What's New in 18.1.0 — HR / Payroll Module Phase 2 (Attendance)
 - **Google Sheet → OTS attendance mirror** — one-way sync from the existing Hexa workbook's `Overtime` tab (same spreadsheet PTS sync uses); SHA-256 row-hash idempotency; Friday 1.5× OT auto-detection; orphans go to PARTIAL status, not failure

@@ -219,6 +219,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/settings/sidebar': ['settings.edit'],
   '/settings/integrations': ['settings.view'],
   '/changelog': null, // Public - Everyone can view changelog
+
+  // Business Development (20.0.0)
+  '/business-development': ['bd.companies.view', 'bd.companies.manage'],
 };
 
 // Helper function to check if user has permission to access a route

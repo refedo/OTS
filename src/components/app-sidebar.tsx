@@ -72,6 +72,7 @@ import {
   GraduationCap,
   UserPlus,
   UserCircle2,
+  Handshake,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -220,6 +221,13 @@ const navigationSections: NavigationSection[] = [
       { name: 'Initiatives', href: '/business-planning/initiatives', icon: Lightbulb },
       { name: 'Department Plans', href: '/business-planning/departments', icon: Network },
       { name: 'Weekly Issues', href: '/business-planning/issues', icon: AlertTriangle },
+    ],
+  },
+  {
+    name: 'Business Development',
+    icon: Handshake,
+    items: [
+      { name: 'Overview', href: '/business-development', icon: Handshake, newSince: '2026-04-24' },
     ],
   },
   {
