@@ -5005,6 +5005,7 @@ enum LoanStatus {
   ACTIVE
   COMPLETED
   CANCELLED
+  PENDING_APPROVAL
 }
 
 enum CustodyStatus {
