@@ -334,6 +334,12 @@ model User {
   createdTrainingPrograms HrTrainingProgram[] @relation("HrTrainingProgramCreatedBy")
   deletedTrainingPrograms HrTrainingProgram[] @relation("HrTrainingProgramDeletedBy")
 
+  // Workflow Engine back-relations (21.0.0)
+  initiatedWorkflows  WorkflowInstance[] @relation("WorkflowInitiatedBy")
+  cancelledWorkflows  WorkflowInstance[] @relation("WorkflowCancelledBy")
+  workflowApprovals   WorkflowApproval[] @relation("WorkflowApprovalUser")
+  delegatedApprovals  WorkflowApproval[] @relation("WorkflowApprovalDelegatedTo")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -5882,4 +5888,130 @@ model BdArchiveEntry {
   @@unique([companyId, entryType])
   @@index([companyId])
   @@map("BdArchiveEntry")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Workflow Engine (21.0.0)
+// Generic reusable approval workflow engine for IMS, Procurement, HR, etc.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model WorkflowDefinition {
+  id          String  @id @default(uuid()) @db.Char(36)
+  key         String  @unique @db.VarChar(100)
+  name        String  @db.VarChar(200)
+  description String? @db.Text
+  entityType  String  @db.VarChar(100)
+  version     Int     @default(1)
+  isActive    Boolean @default(true)
+  siteId      String? @db.VarChar(100)
+
+  steps     WorkflowStep[]
+  instances WorkflowInstance[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([key])
+  @@index([entityType])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("WorkflowDefinition")
+}
+
+model WorkflowStep {
+  id               String             @id @default(uuid()) @db.Char(36)
+  definitionId     String             @db.Char(36)
+  definition       WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  sequence         Int
+  name             String             @db.VarChar(200)
+  approverResolver Json
+  minApprovals     Int                @default(1)
+  slaHours         Int?
+  onRejectBehavior String             @default("RETURN_PREVIOUS") @db.VarChar(30)
+  conditions       Json?
+
+  stepInstances WorkflowStepInstance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([definitionId, sequence])
+  @@map("WorkflowStep")
+}
+
+model WorkflowInstance {
+  id                String             @id @default(uuid()) @db.Char(36)
+  definitionId      String             @db.Char(36)
+  definition        WorkflowDefinition @relation(fields: [definitionId], references: [id])
+  definitionVersion Int
+  entityType        String             @db.VarChar(100)
+  entityId          String             @db.VarChar(100)
+  currentStepId     String?            @db.Char(36)
+  status            String             @default("PENDING") @db.VarChar(20)
+  initiatedById     String             @db.Char(36)
+  initiatedBy       User               @relation("WorkflowInitiatedBy", fields: [initiatedById], references: [id])
+  metadata          Json?
+  siteId            String?            @db.VarChar(100)
+  cancelReason      String?            @db.Text
+  cancelledById     String?            @db.Char(36)
+  cancelledBy       User?              @relation("WorkflowCancelledBy", fields: [cancelledById], references: [id])
+  cancelledAt       DateTime?
+  completedAt       DateTime?
+
+  stepInstances WorkflowStepInstance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([definitionId])
+  @@index([initiatedById])
+  @@map("WorkflowInstance")
+}
+
+model WorkflowStepInstance {
+  id                String           @id @default(uuid()) @db.Char(36)
+  instanceId        String           @db.Char(36)
+  instance          WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  stepId            String           @db.Char(36)
+  step              WorkflowStep     @relation(fields: [stepId], references: [id])
+  sequence          Int
+  status            String           @default("PENDING") @db.VarChar(20)
+  resolvedApprovers Json?
+  requiredApprovals Int              @default(1)
+  receivedApprovals Int              @default(0)
+  skipReason        String?          @db.Text
+  activatedAt       DateTime?
+  completedAt       DateTime?
+
+  approvals WorkflowApproval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instanceId, sequence])
+  @@index([status])
+  @@index([instanceId])
+  @@map("WorkflowStepInstance")
+}
+
+model WorkflowApproval {
+  id                String               @id @default(uuid()) @db.Char(36)
+  stepInstanceId    String               @db.Char(36)
+  stepInstance      WorkflowStepInstance @relation(fields: [stepInstanceId], references: [id], onDelete: Cascade)
+  userId            String               @db.Char(36)
+  user              User                 @relation("WorkflowApprovalUser", fields: [userId], references: [id])
+  decision          String               @db.VarChar(20)
+  comment           String?              @db.Text
+  delegatedToUserId String?              @db.Char(36)
+  delegatedTo       User?                @relation("WorkflowApprovalDelegatedTo", fields: [delegatedToUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stepInstanceId])
+  @@index([userId])
+  @@map("WorkflowApproval")
 }

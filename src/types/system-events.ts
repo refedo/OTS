@@ -326,6 +326,16 @@ export type OpsAgentEventType =
   | 'OPS_AGENT_TASK_CREATED'
   | 'OPS_AGENT_ESCALATION_TRIGGERED';
 
+// Workflow Engine Events (21.0.0)
+export type WorkflowEventType =
+  | 'WORKFLOW_STARTED'
+  | 'WORKFLOW_STEP_APPROVED'
+  | 'WORKFLOW_STEP_REJECTED'
+  | 'WORKFLOW_COMPLETED'
+  | 'WORKFLOW_CANCELLED'
+  | 'WORKFLOW_RESTARTED'
+  | 'WORKFLOW_DECISION_DELEGATED';
+
 // Combined Event Type
 export type EventType =
   | AuthEventType
@@ -344,7 +354,8 @@ export type EventType =
   | RiskEventType
   | KnowledgeEventType
   | ExportEventType
-  | OpsAgentEventType;
+  | OpsAgentEventType
+  | WorkflowEventType;
 
 // ============================================================================
 // SEVERITY LEVELS

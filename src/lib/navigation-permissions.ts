@@ -223,6 +223,10 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
 
   // Business Development (20.0.0)
   '/business-development': ['bd.companies.view', 'bd.companies.manage'],
+
+  // Workflow Engine (21.0.0)
+  '/workflow/definitions': ['workflow.definitions.view', 'workflow.definitions.manage'],
+  '/workflow/my-approvals': ['workflow.my-approvals.view'],
 };
 
 // Helper function to check if user has permission to access a route

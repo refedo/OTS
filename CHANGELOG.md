@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [21.0.0] - 2026-04-26
+
+### Workflow Engine
+
+#### Added
+- **Generic workflow / approval engine** — reusable multi-step, multi-approver flow system for IMS, Procurement, HR, and any future module
+- **WorkflowDefinition** — versioned blueprint with a unique `key` (e.g. `IMS_REVISION_APPROVAL`), entity type, and ordered steps
+- **WorkflowStep** — ordered step config with approver resolver, `minApprovals`, `slaHours`, `onRejectBehavior` (`RETURN_PREVIOUS` / `RESTART` / `TERMINATE`), and optional conditions
+- **WorkflowInstance** — running workflow attached to any entity; snapshots definition version so in-flight instances are unaffected by edits
+- **WorkflowStepInstance** — per-instance step snapshot with resolved approvers (evaluated at activation time), approval counters, and SLA tracking
+- **WorkflowApproval** — individual decisions (`APPROVE`, `REJECT`, `DELEGATE`, `COMMENT`) with optional comment and delegatee
+- **Six approver resolver types**: `ROLE`, `PBAC_PERMISSION`, `DEPARTMENT_HEAD`, `MANAGER_OF_INITIATOR`, `FIXED_USER`, `AMOUNT_BAND`
+- **Safe condition evaluator** — evaluates step conditions against entity metadata with comparison operators (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`, `contains`); no `eval()`
+- **WorkflowService** — `startWorkflow`, `recordDecision`, `cancelWorkflow`, `getWorkflowStatus`, `getPendingApprovalsForUser` with full state-machine logic
+- **Automatic step advancement** — on approval threshold, skips conditional steps whose conditions fail, auto-completes when all steps pass
+- **Reject behaviors** — `RETURN_PREVIOUS` reactivates prior step; `RESTART` resets all steps to step 1; `TERMINATE` marks instance rejected
+- **Delegation** — `DELEGATE` decision injects delegatee into resolvedApprovers for the active step
+- **API routes** under `/api/workflow/`: definitions CRUD, `POST /start`, `GET /instances/[id]`, `POST /instances/[id]/decide`, `POST /instances/[id]/cancel`, `GET /my-approvals`, `GET /entity/[type]/[id]`
+- **Admin page** at `/workflow/definitions` — CRUD with step editor (resolver type picker, min-approvals, SLA, on-reject behavior, JSON config, conditional steps)
+- **My Approvals page** at `/workflow/my-approvals` — full inbox with SLA countdown badges
+- **ApprovalInbox component** (`@/components/workflow/ApprovalInbox`) — embeddable inbox with approve/reject/delegate/comment actions and auto-refresh
+- **WorkflowTimeline component** (`@/components/workflow/WorkflowTimeline`) — embeddable step-progression visualization with color-coded status, approver lists, and decision history
+- **6 new PBAC permissions**: `workflow.definitions.view`, `workflow.definitions.manage`, `workflow.instances.view`, `workflow.instances.start`, `workflow.instances.cancel`, `workflow.my-approvals.view`
+- **Workflow sidebar section** — "Definitions" and "My Approvals" navigation items under new "Workflow" group
+- **SystemEventService integration** — all state transitions logged automatically (`WORKFLOW_STARTED`, `WORKFLOW_STEP_APPROVED`, `WORKFLOW_STEP_REJECTED`, `WORKFLOW_COMPLETED`, `WORKFLOW_CANCELLED`, `WORKFLOW_RESTARTED`, `WORKFLOW_DECISION_DELEGATED`)
+
+#### Changed
+- Version bumped to **21.0.0** (major release)
+
+---
+
 ## [20.1.1] - 2026-04-25
 
 ### Business Development Module

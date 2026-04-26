@@ -424,6 +424,19 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+  {
+    id: 'workflow',
+    name: 'Workflow Engine',
+    permissions: [
+      { id: 'workflow.definitions.view', name: 'View Workflow Definitions', description: 'View workflow definition templates and steps', category: 'workflow' },
+      { id: 'workflow.definitions.manage', name: 'Manage Workflow Definitions', description: 'Create, edit, and delete workflow definition templates', category: 'workflow' },
+      { id: 'workflow.instances.view', name: 'View Workflow Instances', description: 'View running and completed workflow instances', category: 'workflow' },
+      { id: 'workflow.instances.start', name: 'Start Workflows', description: 'Initiate new workflow instances for entities', category: 'workflow' },
+      { id: 'workflow.instances.cancel', name: 'Cancel Workflows', description: 'Cancel active workflow instances', category: 'workflow' },
+      { id: 'workflow.my-approvals.view', name: 'View My Approvals', description: 'View and act on pending approval steps assigned to the current user', category: 'workflow' },
+    ],
+  },
+  {
     name: 'Business Development',
     permissions: [
       { id: 'bd.companies.view', name: 'View BD Companies', description: 'View business development companies, their status, and related records', category: 'business_development' },
@@ -699,6 +712,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'bd.companies.view',
     'bd.documents.view',
     'bd.requests.view',
+    // 21.0.0 — Workflow Engine
+    'workflow.definitions.view',
+    'workflow.definitions.manage',
+    'workflow.instances.view',
+    'workflow.instances.start',
+    'workflow.instances.cancel',
+    'workflow.my-approvals.view',
   ],
   Engineer: [
     // Basic Access
