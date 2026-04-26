@@ -49,6 +49,12 @@ export class DolibarrDbNotConfiguredError extends Error {
  *  `date_approval`, and selecting them blows up the whole sync with
  *  "Unknown column … in 'field list'". So we stick to the columns that
  *  have existed in every Dolibarr release we care about. */
+/**
+ * A resolved key→label map for a single Dolibarr select extrafield.
+ * key is the stored value (often a numeric string like "3"), label is the display text.
+ */
+export type ExtraFieldSelectMap = Map<string, string>;
+
 export interface DolibarrHolidayDbRow {
   rowid: number;
   fk_user: number;
@@ -133,6 +139,78 @@ export interface PingResult {
   tablePrefix?: string;
   holidayCount?: number;
   error?: string;
+}
+
+/**
+ * Returns a Map<id, departmentName> from Dolibarr's hrm_department table.
+ * Used during employee sync to resolve the numeric `options_department` extrafield
+ * to a human-readable department name.
+ */
+export async function fetchDolibarrDepartmentMap(): Promise<Map<string, string>> {
+  const p = getDolibarrDbPool();
+  const prefix = getDolibarrTablePrefix();
+  const [rows] = await p.query<mysql.RowDataPacket[]>(
+    `SELECT rowid, label FROM \`${prefix}hrm_department\` WHERE active = 1`,
+  );
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    if (r.rowid != null && r.label != null) {
+      map.set(String(r.rowid), String(r.label));
+    }
+  }
+  return map;
+}
+
+/**
+ * Returns a Map<id, countryLabel> from Dolibarr's c_country table.
+ * Used during employee sync to resolve the numeric `options_nationality` extrafield.
+ */
+export async function fetchDolibarrCountryMap(): Promise<Map<string, string>> {
+  const p = getDolibarrDbPool();
+  const prefix = getDolibarrTablePrefix();
+  const [rows] = await p.query<mysql.RowDataPacket[]>(
+    `SELECT rowid, label FROM \`${prefix}c_country\` WHERE active = 1`,
+  );
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    if (r.rowid != null && r.label != null) {
+      map.set(String(r.rowid), String(r.label));
+    }
+  }
+  return map;
+}
+
+/**
+ * Returns a Map<fieldName, Map<key, label>> for all select-type user extrafields.
+ * Dolibarr stores select options in the `param` column as a JSON object:
+ * {"options":{"key1":"Label 1","key2":"Label 2"}}.
+ * Falls back gracefully if param is null or unparseable.
+ */
+export async function fetchDolibarrExtraFieldSelectMaps(): Promise<Map<string, ExtraFieldSelectMap>> {
+  const p = getDolibarrDbPool();
+  const prefix = getDolibarrTablePrefix();
+  const [rows] = await p.query<mysql.RowDataPacket[]>(
+    `SELECT name, type, param FROM \`${prefix}extrafields\`
+     WHERE elementtype = 'user' AND type IN ('select', 'sellist', 'radio', 'checkbox')`,
+  );
+  const result = new Map<string, ExtraFieldSelectMap>();
+  for (const r of rows) {
+    if (!r.name || !r.param) continue;
+    try {
+      const parsed = typeof r.param === 'string' ? JSON.parse(r.param) : r.param;
+      const options: Record<string, string> | undefined =
+        parsed?.options ?? (typeof parsed === 'object' ? parsed : undefined);
+      if (!options) continue;
+      const fieldMap = new Map<string, string>();
+      for (const [k, v] of Object.entries(options)) {
+        if (v != null) fieldMap.set(String(k), String(v));
+      }
+      if (fieldMap.size > 0) result.set(String(r.name), fieldMap);
+    } catch {
+      // unparseable param — skip this field
+    }
+  }
+  return result;
 }
 
 /**

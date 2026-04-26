@@ -29,6 +29,13 @@ import {
   DolibarrUser,
   createDolibarrClient,
 } from '@/lib/dolibarr/dolibarr-client';
+import {
+  fetchDolibarrDepartmentMap,
+  fetchDolibarrCountryMap,
+  fetchDolibarrExtraFieldSelectMaps,
+  DolibarrDbNotConfiguredError,
+  ExtraFieldSelectMap,
+} from '@/lib/dolibarr/dolibarr-db';
 
 // ============================================================================
 // TYPES
@@ -59,6 +66,29 @@ export class ReconciliationRequiredError extends Error {
     );
     this.name = 'ReconciliationRequiredError';
   }
+}
+
+// ============================================================================
+// LOOKUP MAPS
+// ============================================================================
+
+interface LookupMaps {
+  departments: Map<string, string>;
+  countries: Map<string, string>;
+  selectFields: Map<string, ExtraFieldSelectMap>;
+}
+
+const EMPTY_MAPS: LookupMaps = {
+  departments: new Map(),
+  countries: new Map(),
+  selectFields: new Map(),
+};
+
+/** If the raw value is a pure integer string, resolve it via the map; else return as-is. */
+function resolveLinked(raw: string | null, map: Map<string, string>): string | null {
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) return map.get(raw) ?? raw;
+  return raw;
 }
 
 // ============================================================================
@@ -133,7 +163,7 @@ function mapStatus(apiUser: DolibarrUser): EmployeeStatus {
  * a plain object with all columns the sync touches — the caller filters by
  * `manuallyEditedFields` on update, and passes the full object on create.
  */
-function projectFromDolibarr(apiUser: DolibarrUser): {
+function projectFromDolibarr(apiUser: DolibarrUser, maps: LookupMaps = EMPTY_MAPS): {
   employmentId: string;
   fullNameEn: string;
   fullNameAr: string | null;
@@ -181,15 +211,18 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
     // now maps to OTS Employee.occupation. The legacy `trade` column was
     // dropped, see prisma/manual_migrations/migrate_trade_to_occupation.sql.
     occupation: typeof apiUser.job === 'string' && apiUser.job.trim() !== '' ? apiUser.job.trim() : null,
-    department: extra(apiUser, 'options_department'),
+    department: resolveLinked(extra(apiUser, 'options_department'), maps.departments),
     basicSalary: basic,
     bankName: extra(apiUser, 'options_bank_name', 'options_bank'),
     bankIban: extra(apiUser, 'options_iban', 'options_bank_iban'),
     // Extended extrafields
-    nationality: extra(apiUser, 'options_nationality'),
+    nationality: resolveLinked(extra(apiUser, 'options_nationality'), maps.countries),
     employeeNo: extra(apiUser, 'options_employee_no'),
     boarderNumber: extra(apiUser, 'options_boarder_number'),
-    maritalStatus: extra(apiUser, 'options_marital_status'),
+    maritalStatus: resolveLinked(
+      extra(apiUser, 'options_marital_status'),
+      maps.selectFields.get('marital_status') ?? new Map(),
+    ),
     occupationAr: extra(apiUser, 'options_occupation_in_iqama_ar'),
     gosiSubscriptionNo: extra(apiUser, 'options_gosi_subscription'),
     contractEndDate: extraDate(apiUser, 'options_contract_ending_date'),
@@ -260,9 +293,28 @@ export async function runDolibarrEmployeeSync(
     apiResponseMs = Date.now() - apiStart;
     rowsRead = dolibarrUsers.length;
 
+    // Load extrafield lookup maps from Dolibarr MySQL (graceful if not configured)
+    let maps: LookupMaps = EMPTY_MAPS;
+    try {
+      const [departments, countries, selectFields] = await Promise.all([
+        fetchDolibarrDepartmentMap(),
+        fetchDolibarrCountryMap(),
+        fetchDolibarrExtraFieldSelectMaps(),
+      ]);
+      maps = { departments, countries, selectFields };
+      logger.info(
+        { depts: departments.size, countries: countries.size, selectFields: selectFields.size },
+        '[HR Sync] Extrafield lookup maps loaded',
+      );
+    } catch (e) {
+      if (!(e instanceof DolibarrDbNotConfiguredError)) {
+        logger.warn({ error: e }, '[HR Sync] Failed to load Dolibarr lookup maps — IDs stored as-is');
+      }
+    }
+
     for (const apiUser of dolibarrUsers) {
       try {
-        const projection = projectFromDolibarr(apiUser);
+        const projection = projectFromDolibarr(apiUser, maps);
 
         // -- Upsert by employmentId --
         const existing = await prisma.employee.findUnique({
@@ -427,6 +479,36 @@ export async function runDolibarrEmployeeSync(
         const empId = String(apiUser.id ?? 'unknown');
         hardErrors.push({ employmentId: empId, message: msg });
         logger.error({ employmentId: empId, error: rowError }, '[HR Sync] Row failed');
+      }
+    }
+
+    // ── Supervisor backfill: wire Employee.reportsToId + User.reportsToId ──────
+    // Uses Dolibarr fk_user_resp (supervisor's rowid). Runs after all employees
+    // are upserted so both sides of the relation are guaranteed to exist.
+    for (const apiUser of dolibarrUsers) {
+      const rawSupId = apiUser.fk_user_resp;
+      if (!rawSupId) continue;
+      const empKey = String(apiUser.id);
+      const supKey = String(rawSupId);
+      try {
+        const [emp, sup] = await Promise.all([
+          prisma.employee.findUnique({ where: { employmentId: empKey }, select: { id: true, reportsToId: true } }),
+          prisma.employee.findUnique({ where: { employmentId: supKey }, select: { id: true } }),
+        ]);
+        if (!emp || !sup) continue;
+        if (emp.reportsToId !== sup.id) {
+          await prisma.employee.update({ where: { id: emp.id }, data: { reportsToId: sup.id } });
+        }
+        // Also keep User.reportsToId in sync so workflow MANAGER_OF_INITIATOR resolver works
+        const [empUser, supUser] = await Promise.all([
+          prisma.user.findFirst({ where: { employeeId: emp.id }, select: { id: true, reportsToId: true } }),
+          prisma.user.findFirst({ where: { employeeId: sup.id }, select: { id: true } }),
+        ]);
+        if (empUser && supUser && empUser.reportsToId !== supUser.id) {
+          await prisma.user.update({ where: { id: empUser.id }, data: { reportsToId: supUser.id } });
+        }
+      } catch (supErr) {
+        logger.warn({ employmentId: empKey, error: supErr }, '[HR Sync] Supervisor link failed — skipped');
       }
     }
 
