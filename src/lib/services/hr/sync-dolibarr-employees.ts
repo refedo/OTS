@@ -29,6 +29,10 @@ import {
   DolibarrUser,
   createDolibarrClient,
 } from '@/lib/dolibarr/dolibarr-client';
+import {
+  fetchDolibarrUserExtrafields,
+  DolibarrDbNotConfiguredError,
+} from '@/lib/dolibarr/dolibarr-db';
 
 // ============================================================================
 // TYPES
@@ -87,16 +91,24 @@ function extra(apiUser: DolibarrUser, ...keys: string[]): string | null {
 }
 
 /**
- * Read a date extrafield from Dolibarr's array_options.
- * Dolibarr returns date extrafields as "YYYY-MM-DD" strings or Unix timestamps.
+ * Read an extrafield from the direct DB extrafields map first (text values),
+ * falling back to the REST API's array_options blob.
+ * `dbKey` is the column name in llx_user_extrafields (no `options_` prefix).
+ * `apiKeys` are the array_options keys (with `options_` prefix) as fallback.
  */
-function extraDate(apiUser: DolibarrUser, ...keys: string[]): Date | null {
-  const raw = extra(apiUser, ...keys);
-  if (!raw) return null;
-  const n = Number(raw);
-  if (Number.isFinite(n) && n > 0) return new Date(n * 1000);
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? null : d;
+function dbExtra(
+  userId: string,
+  dbFields: Map<string, Record<string, string>>,
+  dbKey: string,
+  apiUser: DolibarrUser,
+  ...apiKeys: string[]
+): string | null {
+  const row = dbFields.get(userId);
+  if (row) {
+    const val = row[dbKey];
+    if (val) return val;
+  }
+  return extra(apiUser, ...apiKeys);
 }
 
 function parseDecimal(value: unknown): string | null {
@@ -133,7 +145,10 @@ function mapStatus(apiUser: DolibarrUser): EmployeeStatus {
  * a plain object with all columns the sync touches — the caller filters by
  * `manuallyEditedFields` on update, and passes the full object on create.
  */
-function projectFromDolibarr(apiUser: DolibarrUser): {
+function projectFromDolibarr(
+  apiUser: DolibarrUser,
+  dbFields: Map<string, Record<string, string>> = new Map(),
+): {
   employmentId: string;
   fullNameEn: string;
   fullNameAr: string | null;
@@ -164,43 +179,48 @@ function projectFromDolibarr(apiUser: DolibarrUser): {
   transferType: string | null;
   gender: string | null;
 } {
+  const userId = String(apiUser.id);
   const fullName = buildFullName(apiUser);
   const basic = parseDecimal(apiUser.salary) ?? '0.00';
   return {
-    employmentId: String(apiUser.id),
+    employmentId: userId,
     fullNameEn: fullName || `Dolibarr user ${apiUser.id}`,
-    fullNameAr: extra(apiUser, 'options_name_in_arabic', 'options_name_ar', 'options_fullname_ar'),
+    fullNameAr: dbExtra(userId, dbFields, 'name_in_arabic', apiUser, 'options_name_in_arabic', 'options_name_ar', 'options_fullname_ar'),
     nationalId:
       (typeof apiUser.national_registration_number === 'string' && apiUser.national_registration_number.trim()) ||
-      extra(apiUser, 'options_iqama_number', 'options_iqama', 'options_national_id') ||
+      dbExtra(userId, dbFields, 'iqama_number', apiUser, 'options_iqama_number', 'options_iqama', 'options_national_id') ||
       null,
     dateOfJoining: tsToDate(apiUser.dateemployment) ?? tsToDate(apiUser.datec) ?? new Date(),
     dateOfLeaving: tsToDate(apiUser.dateemploymentend),
     status: mapStatus(apiUser),
-    // 18.7.0 — Dolibarr `job` (the worker's position title in llx_user.job)
-    // now maps to OTS Employee.occupation. The legacy `trade` column was
-    // dropped, see prisma/manual_migrations/migrate_trade_to_occupation.sql.
     occupation: typeof apiUser.job === 'string' && apiUser.job.trim() !== '' ? apiUser.job.trim() : null,
-    department: extra(apiUser, 'options_department'),
+    department: dbExtra(userId, dbFields, 'department', apiUser, 'options_department'),
     basicSalary: basic,
-    bankName: extra(apiUser, 'options_bank_name', 'options_bank'),
-    bankIban: extra(apiUser, 'options_iban', 'options_bank_iban'),
-    // Extended extrafields
-    nationality: extra(apiUser, 'options_nationality'),
-    employeeNo: extra(apiUser, 'options_employee_no'),
-    boarderNumber: extra(apiUser, 'options_boarder_number'),
-    maritalStatus: extra(apiUser, 'options_marital_status'),
-    occupationAr: extra(apiUser, 'options_occupation_in_iqama_ar'),
-    gosiSubscriptionNo: extra(apiUser, 'options_gosi_subscription'),
-    contractEndDate: extraDate(apiUser, 'options_contract_ending_date'),
-    contractDuration: extra(apiUser, 'options_contract_duration'),
-    passportNumber: extra(apiUser, 'options_passport_number'),
-    iqamaUrl: extra(apiUser, 'options_iqama_url'),
-    passportUrl: extra(apiUser, 'options_passport_url'),
-    sponsorNumber: extra(apiUser, 'options_sponsor_number'),
-    contractType: extra(apiUser, 'options_contract_type'),
-    workingLocation: extra(apiUser, 'options_working_location'),
-    transferType: extra(apiUser, 'options_transfer_type'),
+    bankName: dbExtra(userId, dbFields, 'bank_name', apiUser, 'options_bank_name', 'options_bank'),
+    bankIban: dbExtra(userId, dbFields, 'iban', apiUser, 'options_iban', 'options_bank_iban'),
+    // Extended extrafields — DB has correct text values; API fallback kept for safety
+    nationality: dbExtra(userId, dbFields, 'nationality', apiUser, 'options_nationality'),
+    employeeNo: dbExtra(userId, dbFields, 'employee_no', apiUser, 'options_employee_no'),
+    boarderNumber: dbExtra(userId, dbFields, 'boarder_number', apiUser, 'options_boarder_number'),
+    maritalStatus: dbExtra(userId, dbFields, 'marital_status', apiUser, 'options_marital_status'),
+    occupationAr: dbExtra(userId, dbFields, 'occupation_in_iqama_ar', apiUser, 'options_occupation_in_iqama_ar'),
+    gosiSubscriptionNo: dbExtra(userId, dbFields, 'gosi_subscription', apiUser, 'options_gosi_subscription'),
+    contractEndDate: (() => {
+      const raw = dbExtra(userId, dbFields, 'contract_ending_date', apiUser, 'options_contract_ending_date');
+      if (!raw) return null;
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return new Date(n * 1000);
+      const d = new Date(raw);
+      return isNaN(d.getTime()) ? null : d;
+    })(),
+    contractDuration: dbExtra(userId, dbFields, 'contract_duration', apiUser, 'options_contract_duration'),
+    passportNumber: dbExtra(userId, dbFields, 'passport_number', apiUser, 'options_passport_number'),
+    iqamaUrl: dbExtra(userId, dbFields, 'iqama_url', apiUser, 'options_iqama_url'),
+    passportUrl: dbExtra(userId, dbFields, 'passport_url', apiUser, 'options_passport_url'),
+    sponsorNumber: dbExtra(userId, dbFields, 'sponsor_number', apiUser, 'options_sponsor_number'),
+    contractType: dbExtra(userId, dbFields, 'contract_type', apiUser, 'options_contract_type'),
+    workingLocation: dbExtra(userId, dbFields, 'working_location', apiUser, 'options_working_location'),
+    transferType: dbExtra(userId, dbFields, 'transfer_type', apiUser, 'options_transfer_type'),
     gender: (() => {
       const g = typeof apiUser.gender === 'string' ? apiUser.gender.toLowerCase().trim() : null;
       if (g === 'man' || g === 'male') return 'MALE';
@@ -260,9 +280,20 @@ export async function runDolibarrEmployeeSync(
     apiResponseMs = Date.now() - apiStart;
     rowsRead = dolibarrUsers.length;
 
+    // Load user extrafields directly from Dolibarr DB (text values, one query)
+    let dbFields: Map<string, Record<string, string>> = new Map();
+    try {
+      dbFields = await fetchDolibarrUserExtrafields();
+      logger.info({ users: dbFields.size }, '[HR Sync] User extrafields loaded from Dolibarr DB');
+    } catch (e) {
+      if (!(e instanceof DolibarrDbNotConfiguredError)) {
+        logger.warn({ error: e }, '[HR Sync] Failed to load user_extrafields — falling back to API array_options');
+      }
+    }
+
     for (const apiUser of dolibarrUsers) {
       try {
-        const projection = projectFromDolibarr(apiUser);
+        const projection = projectFromDolibarr(apiUser, dbFields);
 
         // -- Upsert by employmentId --
         const existing = await prisma.employee.findUnique({
@@ -427,6 +458,36 @@ export async function runDolibarrEmployeeSync(
         const empId = String(apiUser.id ?? 'unknown');
         hardErrors.push({ employmentId: empId, message: msg });
         logger.error({ employmentId: empId, error: rowError }, '[HR Sync] Row failed');
+      }
+    }
+
+    // ── Supervisor backfill: wire Employee.reportsToId + User.reportsToId ──────
+    // Uses Dolibarr fk_user_resp (supervisor's rowid). Runs after all employees
+    // are upserted so both sides of the relation are guaranteed to exist.
+    for (const apiUser of dolibarrUsers) {
+      const rawSupId = apiUser.fk_user_resp;
+      if (!rawSupId) continue;
+      const empKey = String(apiUser.id);
+      const supKey = String(rawSupId);
+      try {
+        const [emp, sup] = await Promise.all([
+          prisma.employee.findUnique({ where: { employmentId: empKey }, select: { id: true, reportsToId: true } }),
+          prisma.employee.findUnique({ where: { employmentId: supKey }, select: { id: true } }),
+        ]);
+        if (!emp || !sup) continue;
+        if (emp.reportsToId !== sup.id) {
+          await prisma.employee.update({ where: { id: emp.id }, data: { reportsToId: sup.id } });
+        }
+        // Also keep User.reportsToId in sync so workflow MANAGER_OF_INITIATOR resolver works
+        const [empUser, supUser] = await Promise.all([
+          prisma.user.findFirst({ where: { employeeId: emp.id }, select: { id: true, reportsToId: true } }),
+          prisma.user.findFirst({ where: { employeeId: sup.id }, select: { id: true } }),
+        ]);
+        if (empUser && supUser && empUser.reportsToId !== supUser.id) {
+          await prisma.user.update({ where: { id: empUser.id }, data: { reportsToId: supUser.id } });
+        }
+      } catch (supErr) {
+        logger.warn({ employmentId: empKey, error: supErr }, '[HR Sync] Supervisor link failed — skipped');
       }
     }
 

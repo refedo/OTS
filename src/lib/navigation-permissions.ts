@@ -175,6 +175,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // HR Leaves & Payroll (Phase 3 of OTS-MSS-HR-PAYROLL-v1)
   '/hr/leaves': ['hr.leaves.view', 'hr.leaves.request', 'hr.leaves.viewAll', 'hr.leaves.approve'],
   '/hr/payroll': ['hr.payroll.view', 'hr.payroll.calculate'],
+  '/hr/compensations': ['hr.payroll.view'],
 
   // HR Asset Management (18.12.0)
   '/hr/assets': ['hr.assets.view', 'hr.assets.manage', 'hr.assets.viewOwn'],
@@ -222,6 +223,10 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
 
   // Business Development (20.0.0)
   '/business-development': ['bd.companies.view', 'bd.companies.manage'],
+
+  // Workflow Engine (21.0.0)
+  '/workflow/definitions': ['workflow.definitions.view', 'workflow.definitions.manage'],
+  '/workflow/my-approvals': ['workflow.my-approvals.view'],
 };
 
 // Helper function to check if user has permission to access a route

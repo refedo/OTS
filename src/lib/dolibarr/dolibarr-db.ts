@@ -49,6 +49,7 @@ export class DolibarrDbNotConfiguredError extends Error {
  *  `date_approval`, and selecting them blows up the whole sync with
  *  "Unknown column … in 'field list'". So we stick to the columns that
  *  have existed in every Dolibarr release we care about. */
+
 export interface DolibarrHolidayDbRow {
   rowid: number;
   fk_user: number;
@@ -133,6 +134,39 @@ export interface PingResult {
   tablePrefix?: string;
   holidayCount?: number;
   error?: string;
+}
+
+/**
+ * Fetches every row from `{prefix}user_extrafields` and returns a
+ * Map keyed by user rowid (as string). The value is a plain object of
+ * column → text value for all non-null, non-empty columns.
+ *
+ * Dolibarr stores all user extrafield values in this table with the
+ * actual text content (department name, nationality name, etc.) —
+ * not numeric IDs. The `fk_object` column is the llx_user.rowid.
+ *
+ * One query, no joins needed.
+ */
+export async function fetchDolibarrUserExtrafields(): Promise<Map<string, Record<string, string>>> {
+  const p = getDolibarrDbPool();
+  const prefix = getDolibarrTablePrefix();
+  const [rows] = await p.query<mysql.RowDataPacket[]>(
+    `SELECT * FROM \`${prefix}user_extrafields\``,
+  );
+  const map = new Map<string, Record<string, string>>();
+  for (const r of rows) {
+    if (r.fk_object == null) continue;
+    const userId = String(r.fk_object);
+    const fields: Record<string, string> = {};
+    for (const [col, val] of Object.entries(r)) {
+      if (col === 'rowid' || col === 'fk_object') continue;
+      if (val !== null && val !== undefined && String(val).trim() !== '') {
+        fields[col] = String(val).trim();
+      }
+    }
+    map.set(userId, fields);
+  }
+  return map;
 }
 
 /**

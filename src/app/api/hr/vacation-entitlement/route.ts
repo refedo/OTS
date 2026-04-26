@@ -11,11 +11,14 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
-export const GET = withApiContext(async () => {
+export const GET = withApiContext(async (req) => {
   try {
+    const { searchParams } = new URL(req.url);
+    const employeeId = searchParams.get('employeeId') ?? undefined;
+
     const [employees, leaveTypes, approvedRequests] = await Promise.all([
       prisma.employee.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, ...(employeeId ? { id: employeeId } : {}) },
         select: {
           id: true,
           fullNameEn: true,
@@ -33,6 +36,7 @@ export const GET = withApiContext(async () => {
         where: {
           deletedAt: null,
           status: 'APPROVED',
+          ...(employeeId ? { employeeId } : {}),
         },
         select: {
           employeeId: true,

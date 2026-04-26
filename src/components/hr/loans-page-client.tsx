@@ -17,7 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-type LoanStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+type LoanStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'PENDING_APPROVAL';
 
 interface LoanEntry {
   id: string;
@@ -52,6 +52,7 @@ function money(v: string | number) {
 function loanStatusBadge(status: LoanStatus) {
   if (status === 'ACTIVE') return <Badge className="bg-sky-100 text-sky-700 border-sky-200 border"><Clock className="h-3 w-3 mr-1" />Active</Badge>;
   if (status === 'COMPLETED') return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>;
+  if (status === 'PENDING_APPROVAL') return <Badge className="bg-amber-100 text-amber-700 border-amber-200 border"><Clock className="h-3 w-3 mr-1" />Pending Approval</Badge>;
   return <Badge className="bg-slate-100 text-slate-500 border-slate-200 border"><MinusCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
 }
 
