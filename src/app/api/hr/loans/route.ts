@@ -10,6 +10,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
+import { workflowService } from '@/lib/services/workflow.service';
 
 const createSchema = z.object({
   employeeId: z.string().uuid(),
@@ -86,13 +87,29 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         installmentsTotal: d.installmentsTotal,
         installmentsPaid: 0,
         startDate: new Date(d.startDate),
-        status: 'ACTIVE',
+        status: 'PENDING_APPROVAL',
         reason: d.reason ?? null,
         exceedsYearWarning: d.exceedsYearWarning,
         warningReason: d.warningReason ?? null,
         createdById: session!.userId,
       },
     });
+
+    // Start the approval workflow; fall back to ACTIVE if definition not yet seeded
+    try {
+      await workflowService.startWorkflow(
+        'hr-loan-approval',
+        'Loan',
+        loan.id,
+        session!.userId,
+        undefined,
+        { principal: d.principal, installmentsTotal: d.installmentsTotal },
+      );
+    } catch (wfErr) {
+      logger.warn({ loanId: loan.id, error: wfErr }, '[Loans] No workflow definition — activating directly');
+      await prisma.loan.update({ where: { id: loan.id }, data: { status: 'ACTIVE' } });
+    }
+
     logger.info({ loanId: loan.id, employeeId: d.employeeId }, '[Loans] Created');
     return NextResponse.json(loan, { status: 201 });
   } catch (error) {
