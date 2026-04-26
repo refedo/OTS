@@ -227,6 +227,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Workflow Engine (21.0.0)
   '/workflow/definitions': ['workflow.definitions.view', 'workflow.definitions.manage'],
   '/workflow/my-approvals': ['workflow.my-approvals.view'],
+  '/workflow/guide': null, // Public — anyone logged in can read the guide
 };
 
 // Helper function to check if user has permission to access a route
