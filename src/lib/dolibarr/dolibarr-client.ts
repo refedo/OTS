@@ -321,6 +321,7 @@ export interface DolibarrUser {
   dateemployment?: number | string | null;    // joining
   dateemploymentend?: number | string | null; // leaving
   gender?: string | null;        // 'man' or 'woman'
+  fk_user_resp?: number | string | null; // rowid of the direct supervisor (llx_user.rowid)
   // Dolibarr "array_options" holds extrafields keyed by "options_<fieldname>".
   // Hexa Steel uses these for Arabic name, IBAN, bank name, Iqama, etc.
   array_options?: Record<string, unknown> | null;
