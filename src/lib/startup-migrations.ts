@@ -97,6 +97,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Payroll entitlements: annual leave allowance, ticket, visa (20.1.0) ──
   'add_payroll_entitlements.sql',
+
+  // ── Workflow Engine (21.0.0) ──────────────────────────────────────────────
+  'add_workflow_engine.sql',
 ];
 
 /**

@@ -335,6 +335,14 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
+    name: 'Workflow',
+    icon: GitBranch,
+    items: [
+      { name: 'Definitions', href: '/workflow/definitions', icon: GitBranch, newSince: '2026-04-26' },
+      { name: 'My Approvals', href: '/workflow/my-approvals', icon: CheckCircle, newSince: '2026-04-26' },
+    ],
+  },
+  {
     name: 'Settings',
     icon: Settings,
     items: [

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 Hexa Steel® OTS — enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL. Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
 
-**Current version:** `20.1.0` — Payroll Entitlement Adjustments (`ANNUAL_LEAVE_ALLOWANCE`, `TICKET_ALLOWANCE`, `EXIT_REENTRY_VISA`). New `leaveDaysCompensated` column on `PayrollAdjustment` (migration `add_payroll_entitlements.sql`).
+**Current version:** `21.0.0` — Generic Workflow / Approval Engine. New models: `WorkflowDefinition`, `WorkflowStep`, `WorkflowInstance`, `WorkflowStepInstance`, `WorkflowApproval`. Migration `add_workflow_engine.sql`. Service at `@/lib/services/workflow.service.ts`. Reusable components: `ApprovalInbox`, `WorkflowTimeline`. Admin page at `/workflow/definitions`.
 
 ---
 
