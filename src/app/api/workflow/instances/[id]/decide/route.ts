@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { checkPermission } from '@/lib/permission-checker';
@@ -29,6 +30,16 @@ export const POST = withApiContext(async (req, session, ctx) => {
       parsed.data.comment,
       parsed.data.delegatedToUserId,
     );
+
+    // Propagate final workflow outcome to the owning entity
+    if (result?.entityType === 'Loan') {
+      if (result.status === 'APPROVED') {
+        await prisma.loan.update({ where: { id: result.entityId }, data: { status: 'ACTIVE' } });
+      } else if (result.status === 'REJECTED') {
+        await prisma.loan.update({ where: { id: result.entityId }, data: { status: 'CANCELLED' } });
+      }
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     logger.error({ error, id }, 'Failed to record workflow decision');
