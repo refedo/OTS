@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 Hexa Steel® OTS — enterprise ERP for steel fabrication projects. Next.js 15 App Router + TypeScript + Prisma + MySQL. Deployed at `hexasteel.sa/ots` with optional `NEXT_PUBLIC_BASE_PATH` subpath.
 
-**Current version:** `21.0.0` — Generic Workflow / Approval Engine. New models: `WorkflowDefinition`, `WorkflowStep`, `WorkflowInstance`, `WorkflowStepInstance`, `WorkflowApproval`. Migration `add_workflow_engine.sql`. Service at `@/lib/services/workflow.service.ts`. Reusable components: `ApprovalInbox`, `WorkflowTimeline`. Admin page at `/workflow/definitions`.
+**Current version:** `21.1.0` — Dolibarr extrafield resolution + Loan approval workflow. Dolibarr employee sync now resolves numeric extrafield IDs (department, nationality, marital status) to text labels via direct MySQL lookups, and wires `Employee.reportsToId` / `User.reportsToId` from `fk_user_resp`. Loan creation now starts the `hr-loan-approval` workflow (Manager → HR Manager); migration `loan_approval_workflow.sql` seeds the definition and adds `PENDING_APPROVAL` to `LoanStatus`.
 
 ---
 

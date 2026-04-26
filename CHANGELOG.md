@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [21.1.0] - 2026-04-26
+
+### Dolibarr Employee Sync — Extrafield Resolution
+#### Fixed
+- **Numeric extrafield IDs resolved to text** — department, nationality, and select-type extrafields (e.g. marital status) are now looked up against Dolibarr's `hrm_department`, `c_country`, and `extrafields` tables via the direct MySQL pool before being stored in OTS
+- **Supervisor hierarchy synced from Dolibarr** — a second pass after each sync run reads `fk_user_resp` from every Dolibarr user and wires both `Employee.reportsToId` and `User.reportsToId` so the `MANAGER_OF_INITIATOR` workflow resolver is always up-to-date
+#### Added
+- `fetchDolibarrDepartmentMap()`, `fetchDolibarrCountryMap()`, `fetchDolibarrExtraFieldSelectMaps()` helpers in `dolibarr-db.ts`
+- `fk_user_resp` field on the `DolibarrUser` interface
+
+### Loan Approval Workflow
+#### Added
+- **`PENDING_APPROVAL` loan status** — new loans are created in this state and transition to `ACTIVE` only after workflow approval, or `CANCELLED` on rejection
+- **`hr-loan-approval` workflow definition** seeded by `loan_approval_workflow.sql`: step 1 routes to the direct manager (`MANAGER_OF_INITIATOR`, 72 h SLA), step 2 to any user with `hr.loans.manage` permission (120 h SLA); both steps terminate on rejection
+- Loan creation API (`POST /api/hr/loans`) starts the approval workflow automatically; falls back to direct `ACTIVE` if the definition has not been seeded yet
+- Workflow decide endpoint (`POST /api/workflow/instances/[id]/decide`) propagates final `APPROVED`/`REJECTED` outcome to the loan record
+- Amber **Pending Approval** badge in the Loans UI
+
+---
+
 ## [21.0.0] - 2026-04-26
 
 ### Workflow Engine
