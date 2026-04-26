@@ -196,8 +196,8 @@ function projectFromDolibarr(
     occupation: typeof apiUser.job === 'string' && apiUser.job.trim() !== '' ? apiUser.job.trim() : null,
     department: dbExtra(userId, dbFields, 'department', apiUser, 'options_department'),
     basicSalary: basic,
-    bankName: dbExtra(userId, dbFields, 'bank_name', apiUser, 'options_bank_name', 'options_bank'),
-    bankIban: dbExtra(userId, dbFields, 'iban', apiUser, 'options_iban', 'options_bank_iban'),
+    bankName: extra(apiUser, 'options_bank_name', 'options_bank'),
+    bankIban: extra(apiUser, 'options_iban', 'options_bank_iban'),
     // Extended extrafields — DB has correct text values; API fallback kept for safety
     nationality: dbExtra(userId, dbFields, 'nationality', apiUser, 'options_nationality'),
     employeeNo: dbExtra(userId, dbFields, 'employee_no', apiUser, 'options_employee_no'),
