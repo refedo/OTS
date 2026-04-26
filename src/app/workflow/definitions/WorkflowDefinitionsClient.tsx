@@ -258,6 +258,111 @@ function ResolverConfigFields({ resolver, onChange, disabled }: ResolverConfigPr
   }
 }
 
+// ─── Conditions builder ───────────────────────────────────────────────────────
+
+interface Condition {
+  field: string;
+  operator: string;
+  value: string;
+}
+
+const CONDITION_OPERATORS = [
+  { value: 'eq',       label: '= equals' },
+  { value: 'ne',       label: '≠ not equals' },
+  { value: 'gt',       label: '> greater than' },
+  { value: 'gte',      label: '≥ ≥ or equal' },
+  { value: 'lt',       label: '< less than' },
+  { value: 'lte',      label: '≤ ≤ or equal' },
+  { value: 'contains', label: '∋ contains' },
+  { value: 'in',       label: '∈ in list' },
+  { value: 'nin',      label: '∉ not in list' },
+] as const;
+
+interface ConditionsBuilderProps {
+  conditions: Condition[] | null;
+  onChange: (conditions: Condition[] | null) => void;
+  disabled: boolean;
+}
+
+function ConditionsBuilder({ conditions, onChange, disabled }: ConditionsBuilderProps) {
+  const rows = (conditions as Condition[]) ?? [];
+
+  const add = () => onChange([...rows, { field: '', operator: 'eq', value: '' }]);
+
+  const remove = (i: number) => {
+    const updated = rows.filter((_, idx) => idx !== i);
+    onChange(updated.length === 0 ? null : updated);
+  };
+
+  const update = (i: number, changes: Partial<Condition>) =>
+    onChange(rows.map((r, idx) => (idx === i ? { ...r, ...changes } : r)));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-slate-500">
+          Skip conditions
+          <span className="ml-1 font-normal text-slate-400">(step skipped when ALL pass)</span>
+        </label>
+        {!disabled && (
+          <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={add}>
+            <Plus className="h-3 w-3 mr-1" /> Add condition
+          </Button>
+        )}
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-xs text-slate-400 italic">No conditions — step always runs.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map((row, i) => (
+            <div key={i} className="grid grid-cols-[1fr_7rem_1fr_auto] gap-2 items-center">
+              <Input
+                value={row.field}
+                onChange={e => update(i, { field: e.target.value })}
+                placeholder="metadata.field"
+                className="h-7 text-xs font-mono"
+                disabled={disabled}
+              />
+              <Select
+                value={row.operator}
+                onValueChange={val => update(i, { operator: val })}
+                disabled={disabled}
+              >
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONDITION_OPERATORS.map(op => (
+                    <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                value={row.value}
+                onChange={e => update(i, { value: e.target.value })}
+                placeholder="value"
+                className="h-7 text-xs"
+                disabled={disabled}
+              />
+              {!disabled && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-rose-400 hover:text-rose-600"
+                  onClick={() => remove(i)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Step editor row ─────────────────────────────────────────────────────────
 
 interface StepRowProps {
@@ -269,6 +374,10 @@ interface StepRowProps {
 }
 
 function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedJson, setAdvancedJson] = useState(() => JSON.stringify(step.approverResolver, null, 2));
+  const [jsonError, setJsonError] = useState('');
+
   const update = (field: keyof WorkflowStep, value: unknown) => {
     onChange(index, { ...step, [field]: value });
   };
@@ -282,6 +391,23 @@ function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
     if (val === 'FIXED_USER') base.userId = '';
     if (val === 'AMOUNT_BAND') { base.field = 'amount'; base.bands = []; }
     update('approverResolver', base);
+    setAdvancedJson(JSON.stringify(base, null, 2));
+    setJsonError('');
+  };
+
+  const handleResolverChange = (r: Record<string, unknown>) => {
+    update('approverResolver', r);
+    setAdvancedJson(JSON.stringify(r, null, 2));
+  };
+
+  const handleAdvancedJson = (val: string) => {
+    setAdvancedJson(val);
+    try {
+      update('approverResolver', JSON.parse(val));
+      setJsonError('');
+    } catch {
+      setJsonError('Invalid JSON');
+    }
   };
 
   return (
@@ -356,7 +482,7 @@ function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
         <div className="rounded-lg border border-slate-200 bg-white p-3">
           <ResolverConfigFields
             resolver={step.approverResolver}
-            onChange={r => update('approverResolver', r)}
+            onChange={handleResolverChange}
             disabled={!canManage}
           />
         </div>
@@ -376,6 +502,40 @@ function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Conditions builder */}
+      <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <ConditionsBuilder
+          conditions={step.conditions as Condition[] | null}
+          onChange={conds => update('conditions', conds)}
+          disabled={!canManage}
+        />
+      </div>
+
+      {/* Advanced JSON (power-user escape hatch) */}
+      {canManage && (
+        <div>
+          <button
+            type="button"
+            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"
+            onClick={() => setShowAdvanced(p => !p)}
+          >
+            {showAdvanced ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {showAdvanced ? 'Hide' : 'Show'} advanced resolver JSON
+          </button>
+          {showAdvanced && (
+            <div className="mt-2 space-y-1">
+              <Textarea
+                value={advancedJson}
+                onChange={e => handleAdvancedJson(e.target.value)}
+                rows={4}
+                className="text-xs font-mono"
+              />
+              {jsonError && <p className="text-xs text-rose-500">{jsonError}</p>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
