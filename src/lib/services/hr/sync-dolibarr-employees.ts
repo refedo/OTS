@@ -77,15 +77,14 @@ function tsToDate(value: unknown): Date | null {
   return new Date(n * 1000);
 }
 
-/** Safely read an extrafield from Dolibarr's array_options blob. */
+/** Safely read an extrafield from Dolibarr's array_options blob. Skips '0' (Dolibarr empty). */
 function extra(apiUser: DolibarrUser, ...keys: string[]): string | null {
   const opts = apiUser.array_options;
   if (!opts || typeof opts !== 'object') return null;
   for (const k of keys) {
     const raw = (opts as Record<string, unknown>)[k];
-    if (raw !== null && raw !== undefined && String(raw).trim() !== '') {
-      return String(raw).trim();
-    }
+    const s = raw !== null && raw !== undefined ? String(raw).trim() : '';
+    if (s !== '' && s !== '0') return s;
   }
   return null;
 }
@@ -106,7 +105,8 @@ function dbExtra(
   const row = dbFields.get(userId);
   if (row) {
     const val = row[dbKey];
-    if (val) return val;
+    // DB already filtered '0' in fetchDolibarrUserExtrafields; double-check here
+    if (val && val !== '0') return val;
   }
   return extra(apiUser, ...apiKeys);
 }
