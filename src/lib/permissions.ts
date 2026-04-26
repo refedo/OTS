@@ -424,7 +424,6 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
-  {
     id: 'workflow',
     name: 'Workflow Engine',
     permissions: [
