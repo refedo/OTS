@@ -159,9 +159,11 @@ export async function fetchDolibarrUserExtrafields(): Promise<Map<string, Record
     const userId = String(r.fk_object);
     const fields: Record<string, string> = {};
     for (const [col, val] of Object.entries(r)) {
-      if (col === 'rowid' || col === 'fk_object') continue;
-      if (val !== null && val !== undefined && String(val).trim() !== '') {
-        fields[col] = String(val).trim();
+      if (col === 'rowid' || col === 'fk_object' || col === 'tms' || col === 'import_key') continue;
+      const s = val !== null && val !== undefined ? String(val).trim() : '';
+      // Dolibarr writes '0' into unset extrafield columns — treat as empty
+      if (s !== '' && s !== '0') {
+        fields[col] = s;
       }
     }
     map.set(userId, fields);
