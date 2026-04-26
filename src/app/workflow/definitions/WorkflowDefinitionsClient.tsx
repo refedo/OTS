@@ -89,6 +89,175 @@ function resolverSummary(resolver: Record<string, unknown>): string {
   }
 }
 
+// ─── Resolver config fields ───────────────────────────────────────────────────
+
+interface AmountBand {
+  min: number;
+  max: number | null;
+  role?: string;
+  userId?: string;
+}
+
+interface ResolverConfigProps {
+  resolver: Record<string, unknown>;
+  onChange: (resolver: Record<string, unknown>) => void;
+  disabled: boolean;
+}
+
+function ResolverConfigFields({ resolver, onChange, disabled }: ResolverConfigProps) {
+  const type = resolver.type as string;
+  const set = (field: string, value: unknown) => onChange({ ...resolver, [field]: value });
+
+  switch (type) {
+    case 'ROLE':
+      return (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-slate-500">Role name</label>
+          <Input
+            value={(resolver.role as string) ?? ''}
+            onChange={e => set('role', e.target.value)}
+            placeholder="e.g. HR Manager"
+            className="h-8 text-sm"
+            disabled={disabled}
+          />
+        </div>
+      );
+
+    case 'PBAC_PERMISSION':
+      return (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-slate-500">Permission key</label>
+          <Input
+            value={(resolver.permission as string) ?? ''}
+            onChange={e => set('permission', e.target.value)}
+            placeholder="e.g. hr.payroll.approve"
+            className="h-8 text-sm font-mono"
+            disabled={disabled}
+          />
+        </div>
+      );
+
+    case 'DEPARTMENT_HEAD':
+    case 'MANAGER_OF_INITIATOR':
+      return (
+        <div className="rounded-lg bg-sky-50 border border-sky-100 px-3 py-2 text-xs text-sky-700">
+          Auto-resolved at runtime — no configuration needed.
+        </div>
+      );
+
+    case 'FIXED_USER':
+      return (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-slate-500">User ID</label>
+          <Input
+            value={(resolver.userId as string) ?? ''}
+            onChange={e => set('userId', e.target.value)}
+            placeholder="Paste user UUID"
+            className="h-8 text-sm font-mono"
+            disabled={disabled}
+          />
+          <p className="text-xs text-slate-400">Find the UUID on the Users page.</p>
+        </div>
+      );
+
+    case 'AMOUNT_BAND': {
+      const bands = (resolver.bands as AmountBand[]) ?? [];
+      return (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-500">Amount field in metadata</label>
+            <Input
+              value={(resolver.field as string) ?? 'amount'}
+              onChange={e => set('field', e.target.value)}
+              placeholder="amount"
+              className="h-8 text-sm font-mono"
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-slate-500">Bands</label>
+              {!disabled && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={() => set('bands', [...bands, { min: 0, max: null, role: '' }])}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add band
+                </Button>
+              )}
+            </div>
+            {bands.length === 0 && (
+              <p className="text-xs text-slate-400 italic">No bands defined — add at least one.</p>
+            )}
+            {bands.map((band, bi) => (
+              <div key={bi} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Min</label>
+                  <Input
+                    type="number"
+                    value={band.min ?? 0}
+                    onChange={e => {
+                      const updated = [...bands];
+                      updated[bi] = { ...updated[bi], min: Number(e.target.value) };
+                      set('bands', updated);
+                    }}
+                    className="h-7 text-xs"
+                    disabled={disabled}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Max</label>
+                  <Input
+                    type="number"
+                    value={band.max ?? ''}
+                    onChange={e => {
+                      const updated = [...bands];
+                      updated[bi] = { ...updated[bi], max: e.target.value ? Number(e.target.value) : null };
+                      set('bands', updated);
+                    }}
+                    placeholder="∞"
+                    className="h-7 text-xs"
+                    disabled={disabled}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Role</label>
+                  <Input
+                    value={band.role ?? ''}
+                    onChange={e => {
+                      const updated = [...bands];
+                      updated[bi] = { ...updated[bi], role: e.target.value };
+                      set('bands', updated);
+                    }}
+                    placeholder="e.g. CEO"
+                    className="h-7 text-xs"
+                    disabled={disabled}
+                  />
+                </div>
+                {!disabled && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-rose-400 hover:text-rose-600"
+                    onClick={() => set('bands', bands.filter((_, i) => i !== bi))}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    default:
+      return null;
+  }
+}
+
 // ─── Step editor row ─────────────────────────────────────────────────────────
 
 interface StepRowProps {
@@ -100,28 +269,24 @@ interface StepRowProps {
 }
 
 function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
-  const [resolverJson, setResolverJson] = useState(JSON.stringify(step.approverResolver, null, 2));
-  const [jsonError, setJsonError] = useState('');
-
   const update = (field: keyof WorkflowStep, value: unknown) => {
     onChange(index, { ...step, [field]: value });
   };
 
-  const handleResolverChange = (val: string) => {
-    setResolverJson(val);
-    try {
-      const parsed = JSON.parse(val);
-      setJsonError('');
-      update('approverResolver', parsed);
-    } catch {
-      setJsonError('Invalid JSON');
-    }
-  };
-
   const resolverType = (step.approverResolver.type as string) ?? '';
+
+  const handleResolverTypeChange = (val: string) => {
+    const base: Record<string, unknown> = { type: val };
+    if (val === 'ROLE') base.role = '';
+    if (val === 'PBAC_PERMISSION') base.permission = '';
+    if (val === 'FIXED_USER') base.userId = '';
+    if (val === 'AMOUNT_BAND') { base.field = 'amount'; base.bands = []; }
+    update('approverResolver', base);
+  };
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+      {/* Header */}
       <div className="flex items-center gap-2">
         <GripVertical className="h-4 w-4 text-slate-300 shrink-0" />
         <span className="text-xs font-bold text-slate-500 w-6">#{step.sequence}</span>
@@ -144,22 +309,11 @@ function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
         )}
       </div>
 
+      {/* Core config row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500">Resolver type</label>
-          <Select
-            value={resolverType}
-            onValueChange={val => {
-              const base: Record<string, unknown> = { type: val };
-              if (val === 'ROLE') base.role = '';
-              if (val === 'PBAC_PERMISSION') base.permission = '';
-              if (val === 'FIXED_USER') base.userId = '';
-              if (val === 'AMOUNT_BAND') base.field = 'amount';
-              update('approverResolver', base);
-              setResolverJson(JSON.stringify(base, null, 2));
-            }}
-            disabled={!canManage}
-          >
+          <label className="text-xs font-medium text-slate-500">Approver type</label>
+          <Select value={resolverType} onValueChange={handleResolverTypeChange} disabled={!canManage}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder="Select…" />
             </SelectTrigger>
@@ -197,36 +351,30 @@ function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500">On reject</label>
-          <Select
-            value={step.onRejectBehavior}
-            onValueChange={val => update('onRejectBehavior', val)}
-            disabled={!canManage}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="RETURN_PREVIOUS">Return to previous step</SelectItem>
-              <SelectItem value="RESTART">Restart from step 1</SelectItem>
-              <SelectItem value="TERMINATE">Terminate (rejected)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500">Resolver config (JSON)</label>
-          <Textarea
-            value={resolverJson}
-            onChange={e => handleResolverChange(e.target.value)}
-            rows={3}
-            className="text-xs font-mono"
+      {/* Resolver-specific fields */}
+      {resolverType && (
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
+          <ResolverConfigFields
+            resolver={step.approverResolver}
+            onChange={r => update('approverResolver', r)}
             disabled={!canManage}
           />
-          {jsonError && <p className="text-xs text-rose-500">{jsonError}</p>}
         </div>
+      )}
+
+      {/* On-reject */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-slate-500">On reject</label>
+        <Select value={step.onRejectBehavior} onValueChange={val => update('onRejectBehavior', val)} disabled={!canManage}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="RETURN_PREVIOUS">Return to previous step</SelectItem>
+            <SelectItem value="RESTART">Restart from step 1</SelectItem>
+            <SelectItem value="TERMINATE">Terminate (rejected)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
