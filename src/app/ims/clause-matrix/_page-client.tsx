@@ -205,17 +205,17 @@ function StandardGrid({ standardKey, clauses, documents, onToggle, togglingKey }
           </tr>
         </thead>
         <tbody>
-          {topLevelKeys.map((topKey) => {
-            const group = clausesByTop[topKey] ?? [];
+          {topLevelKeys.map((topKey: string) => {
+            const group: Clause[] = clausesByTop[topKey] ?? [];
 
             // Check if this top-level section has zero mapped documents across ALL its clauses
-            const hasAnyMapping = documents.some((doc) => {
+            const hasAnyMapping = documents.some((doc: MatrixDocument) => {
               const docSet = docClauseIds.get(doc.id);
               if (!docSet) return false;
-              return group.some((c) => docSet.has(c.id));
+              return group.some((c: Clause) => docSet.has(c.id));
             });
 
-            return group.map((clause, idx) => {
+            return group.map((clause: Clause, idx: number) => {
               const isFirstInGroup = idx === 0;
               const isGap = isFirstInGroup && !hasAnyMapping;
 
@@ -393,7 +393,7 @@ export function ImsClauseMatrixClient() {
 
       const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, STANDARD_LABELS[activeTab]);
+      XLSX.utils.book_append_sheet(wb, ws, STANDARD_LABELS[activeTab as Standard]);
       XLSX.writeFile(wb, `clause-matrix-${activeTab.toLowerCase().replace('_', '-')}.xlsx`);
     } catch {
       // Silent — export failure non-critical
@@ -482,9 +482,9 @@ export function ImsClauseMatrixClient() {
             </TabsList>
 
             {STANDARDS.map((std) => {
-              const clauses = data?.clauses[std.key] ?? [];
-              const documents = data?.documents ?? [];
-              const cov = data?.coverage.find((c) => c.standard === std.key);
+              const clauses: Clause[] = data?.clauses[std.key] ?? [];
+              const documents: MatrixDocument[] = data?.documents ?? [];
+              const cov = data?.coverage.find((c: Coverage) => c.standard === std.key);
 
               return (
                 <TabsContent key={std.key} value={std.key} className="space-y-4">

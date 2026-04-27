@@ -288,7 +288,7 @@ export function ImsReviewCalendarClient() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setOverdueOnly((v) => !v)}
+              onClick={() => setOverdueOnly((v: boolean) => !v)}
               className={cn(
                 'h-9 gap-1.5 text-sm font-medium border',
                 overdueOnly
@@ -330,7 +330,7 @@ export function ImsReviewCalendarClient() {
         ) : (
           /* Timeline */
           <div className="space-y-8">
-            {filteredGroups.map((group) => (
+            {filteredGroups.map((group: MonthGroup) => (
               <div key={group.month}>
                 {/* Month header */}
                 <div className="flex items-center gap-3 mb-4">
@@ -343,7 +343,7 @@ export function ImsReviewCalendarClient() {
                     </Badge>
                     {(() => {
                       const overdueInMonth = group.documents.filter(
-                        (d) => d.overdueDays != null && d.overdueDays > 0
+                        (d: ReviewDoc) => d.overdueDays != null && d.overdueDays > 0
                       ).length;
                       return overdueInMonth > 0 ? (
                         <Badge variant="outline" className="text-xs font-semibold bg-red-100 text-red-700 border-red-200">
@@ -357,11 +357,11 @@ export function ImsReviewCalendarClient() {
 
                 {/* Document cards grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {group.documents.map((doc) => (
+                  {group.documents.map((doc: ReviewDoc) => (
                     <DocCard
                       key={doc.id}
                       doc={doc}
-                      onClick={() => router.push(`/ims/documents/${doc.id}`)}
+                      onClick={() => { void router.push(`/ims/documents/${doc.id}`); }}
                     />
                   ))}
                 </div>
