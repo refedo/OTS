@@ -179,12 +179,12 @@ function reqStatusBadge(status: string) {
 function CompanyAvatar({ company }: { company: BdCompany }) {
   if (company.logoUrl) {
     return (
-      <img src={resolveUrl(company.logoUrl)!} alt={company.name} className="h-9 w-9 rounded-full object-cover border border-slate-200 flex-shrink-0" />
+      <img src={resolveUrl(company.logoUrl)!} alt={company.name} className="h-14 w-14 rounded-full object-cover border border-slate-200 flex-shrink-0" />
     );
   }
   const initials = company.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
   return (
-    <div className="h-9 w-9 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-xs font-bold border border-sky-200 flex-shrink-0">
+    <div className="h-14 w-14 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-bold border border-violet-200 flex-shrink-0">
       {initials}
     </div>
   );
@@ -481,10 +481,10 @@ type DocFormData = { companyId: string; title: string; fileUrl: string; status: 
 const EMPTY_DOC_FORM: DocFormData = { companyId: '', title: '', fileUrl: '', status: 'SUBMITTED', submittedAt: '' };
 
 function DocumentDialog({
-  open, onClose, companies, initial, onSave,
+  open, onClose, companies, initial, onSave, isEdit,
 }: {
   open: boolean; onClose: () => void; companies: BdCompany[];
-  initial: DocFormData; onSave: (d: DocFormData) => Promise<void>;
+  initial: DocFormData; onSave: (d: DocFormData) => Promise<void>; isEdit: boolean;
 }) {
   const [form, setForm] = useState<DocFormData>(initial);
   const [saving, setSaving] = useState(false);
@@ -534,11 +534,11 @@ function DocumentDialog({
   return (
     <Dialog open={open} onOpenChange={v => !saving && !v && onClose()}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Add Document</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? 'Edit Document' : 'Add Document'}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1">
             <Label>Company *</Label>
-            <select {...field('companyId')} className="w-full h-9 px-2 rounded-md border bg-background text-sm">
+            <select {...field('companyId')} disabled={isEdit} className="w-full h-9 px-2 rounded-md border bg-background text-sm disabled:opacity-60">
               <option value="">Select company…</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -584,7 +584,7 @@ function DocumentDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : 'Add Document'}
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : isEdit ? 'Save Changes' : 'Add Document'}
             </Button>
           </DialogFooter>
         </form>
@@ -599,10 +599,10 @@ type ReqFormData = { companyId: string; title: string; requestType: string; stat
 const EMPTY_REQ_FORM: ReqFormData = { companyId: '', title: '', requestType: 'RFQ', status: 'NEW', receivedAt: '' };
 
 function RequestDialog({
-  open, onClose, companies, initial, onSave,
+  open, onClose, companies, initial, onSave, isEdit,
 }: {
   open: boolean; onClose: () => void; companies: BdCompany[];
-  initial: ReqFormData; onSave: (d: ReqFormData) => Promise<void>;
+  initial: ReqFormData; onSave: (d: ReqFormData) => Promise<void>; isEdit: boolean;
 }) {
   const [form, setForm] = useState<ReqFormData>(initial);
   const [saving, setSaving] = useState(false);
@@ -629,11 +629,11 @@ function RequestDialog({
   return (
     <Dialog open={open} onOpenChange={v => !saving && !v && onClose()}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Add Request</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEdit ? 'Edit Request' : 'Add Request'}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1">
             <Label>Company *</Label>
-            <select {...field('companyId')} className="w-full h-9 px-2 rounded-md border bg-background text-sm">
+            <select {...field('companyId')} disabled={isEdit} className="w-full h-9 px-2 rounded-md border bg-background text-sm disabled:opacity-60">
               <option value="">Select company…</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -669,7 +669,7 @@ function RequestDialog({
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : 'Add Request'}
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : isEdit ? 'Save Changes' : 'Add Request'}
             </Button>
           </DialogFooter>
         </form>
@@ -838,6 +838,7 @@ export function BdClient({
   const [reqPanelCompanyId, setReqPanelCompanyId] = useState<string>(initialCompanies[0]?.id ?? '');
 
   // Tab filters
+  const [companyStatusFilter, setCompanyStatusFilter] = useState('');
   const [archivesFilter, setArchivesFilter] = useState('');
   const [docsFilter, setDocsFilter] = useState('');
   const [reqsFilter, setReqsFilter] = useState('');
@@ -846,10 +847,13 @@ export function BdClient({
   const [companyDialog, setCompanyDialog] = useState<{ open: boolean; editId: string | null; form: CompanyFormData }>({
     open: false, editId: null, form: EMPTY_COMPANY_FORM,
   });
-  const [docDialog, setDocDialog] = useState<{ open: boolean; form: DocFormData }>({ open: false, form: EMPTY_DOC_FORM });
-  const [reqDialog, setReqDialog] = useState<{ open: boolean; form: ReqFormData }>({ open: false, form: EMPTY_REQ_FORM });
+  const [docDialog, setDocDialog] = useState<{ open: boolean; editId: string | null; form: DocFormData }>({ open: false, editId: null, form: EMPTY_DOC_FORM });
+  const [reqDialog, setReqDialog] = useState<{ open: boolean; editId: string | null; form: ReqFormData }>({ open: false, editId: null, form: EMPTY_REQ_FORM });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; companyId: string; companyName: string }>({
     open: false, companyId: '', companyName: '',
+  });
+  const [itemDeleteDialog, setItemDeleteDialog] = useState<{ open: boolean; type: 'doc' | 'req'; id: string; label: string }>({
+    open: false, type: 'doc', id: '', label: '',
   });
 
   // ── Password visibility ───────────────────────────────────────────────────
@@ -878,11 +882,12 @@ export function BdClient({
   const filteredCompanies = useMemo(() => {
     const q = search.toLowerCase();
     return companies.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      (c.contactName?.toLowerCase().includes(q) ?? false) ||
-      (c.contactEmail?.toLowerCase().includes(q) ?? false),
+      (!companyStatusFilter || c.registrationStatus === companyStatusFilter) &&
+      (c.name.toLowerCase().includes(q) ||
+       (c.contactName?.toLowerCase().includes(q) ?? false) ||
+       (c.contactEmail?.toLowerCase().includes(q) ?? false)),
     );
-  }, [companies, search]);
+  }, [companies, search, companyStatusFilter]);
 
   const pagedCompanies = useMemo(() => {
     const start = (companyPage - 1) * PAGE_SIZE;
@@ -976,45 +981,66 @@ export function BdClient({
   }
 
   async function saveDocument(data: DocFormData) {
-    const res = await fetch(`/api/bd/companies/${data.companyId}/documents`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: data.title,
-        fileUrl: data.fileUrl || null,
-        status: data.status,
-        submittedAt: data.submittedAt || undefined,
-      }),
-    });
-    if (!res.ok) {
-      const e = await res.json().catch(() => ({}));
-      throw new Error(e.error ?? 'Failed to create document');
+    if (docDialog.editId) {
+      const res = await fetch(`/api/bd/companies/${data.companyId}/documents/${docDialog.editId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: data.title, fileUrl: data.fileUrl || null, status: data.status }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to update document'); }
+      setDocuments(prev => prev.map(d => d.id === docDialog.editId ? { ...d, title: data.title, fileUrl: data.fileUrl || null, status: data.status } : d));
+    } else {
+      const res = await fetch(`/api/bd/companies/${data.companyId}/documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: data.title, fileUrl: data.fileUrl || null, status: data.status, submittedAt: data.submittedAt || undefined }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to create document'); }
+      const created = await res.json();
+      const company = companies.find(c => c.id === data.companyId);
+      setDocuments(prev => [{ ...created, company: { id: data.companyId, name: company?.name ?? '' } }, ...prev]);
     }
-    const created = await res.json();
-    const company = companies.find(c => c.id === data.companyId);
-    setDocuments(prev => [{ ...created, company: { id: data.companyId, name: company?.name ?? '' } }, ...prev]);
     router.refresh();
   }
 
   async function saveRequest(data: ReqFormData) {
-    const res = await fetch(`/api/bd/companies/${data.companyId}/requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: data.title,
-        requestType: data.requestType || null,
-        status: data.status,
-        receivedAt: data.receivedAt || undefined,
-      }),
-    });
-    if (!res.ok) {
-      const e = await res.json().catch(() => ({}));
-      throw new Error(e.error ?? 'Failed to create request');
+    if (reqDialog.editId) {
+      const res = await fetch(`/api/bd/companies/${data.companyId}/requests/${reqDialog.editId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: data.title, requestType: data.requestType || null, status: data.status }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to update request'); }
+      setRequests(prev => prev.map(r => r.id === reqDialog.editId ? { ...r, title: data.title, requestType: data.requestType || null, status: data.status } : r));
+    } else {
+      const res = await fetch(`/api/bd/companies/${data.companyId}/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: data.title, requestType: data.requestType || null, status: data.status, receivedAt: data.receivedAt || undefined }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to create request'); }
+      const created = await res.json();
+      const company = companies.find(c => c.id === data.companyId);
+      setRequests(prev => [{ ...created, company: { id: data.companyId, name: company?.name ?? '' } }, ...prev]);
     }
-    const created = await res.json();
-    const company = companies.find(c => c.id === data.companyId);
-    setRequests(prev => [{ ...created, company: { id: data.companyId, name: company?.name ?? '' } }, ...prev]);
     router.refresh();
+  }
+
+  async function deleteItem() {
+    const { type, id, label } = itemDeleteDialog;
+    if (type === 'doc') {
+      const doc = documents.find(d => d.id === id);
+      const res = await fetch(`/api/bd/companies/${doc?.companyId}/documents/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to delete'); }
+      setDocuments(prev => prev.filter(d => d.id !== id));
+    } else {
+      const req = requests.find(r => r.id === id);
+      const res = await fetch(`/api/bd/companies/${req?.companyId}/requests/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to delete'); }
+      setRequests(prev => prev.filter(r => r.id !== id));
+    }
+    router.refresh();
+    void label;
   }
 
   async function deleteCompany(id: string) {
@@ -1038,7 +1064,7 @@ export function BdClient({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Hero */}
         <div className="rounded-2xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 35%, #7c3aed 65%, #9333ea 100%)' }}>
@@ -1059,48 +1085,19 @@ export function BdClient({
               <p className="text-violet-200 text-sm pl-1">Vendor registration, portal credentials, documents &amp; requests — all in one place.</p>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
-              <div className="text-center px-5 py-2.5 bg-white/10 rounded-xl border border-white/15 backdrop-blur-sm">
+              <button onClick={() => { setActiveTab('companies'); setCompanyStatusFilter(''); }} className="text-center px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl border border-white/15 backdrop-blur-sm transition-colors cursor-pointer">
                 <p className="text-2xl font-bold leading-none">{kpi.total}</p>
-                <p className="text-xs text-violet-200 mt-0.5">Vendors</p>
-              </div>
-              <div className="text-center px-5 py-2.5 bg-white/10 rounded-xl border border-white/15 backdrop-blur-sm">
+                <p className="text-xs text-violet-200 mt-0.5">All Vendors</p>
+              </button>
+              <button onClick={() => { setActiveTab('companies'); setCompanyStatusFilter('REGISTERED'); }} className="text-center px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl border border-white/15 backdrop-blur-sm transition-colors cursor-pointer">
                 <p className="text-2xl font-bold leading-none">{kpi.registered}</p>
                 <p className="text-xs text-violet-200 mt-0.5">Registered</p>
-              </div>
-              <div className="text-center px-5 py-2.5 bg-white/10 rounded-xl border border-white/15 backdrop-blur-sm">
+              </button>
+              <button onClick={() => { setActiveTab('companies'); setCompanyStatusFilter('IN_PROGRESS'); }} className="text-center px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl border border-white/15 backdrop-blur-sm transition-colors cursor-pointer">
                 <p className="text-2xl font-bold leading-none">{kpi.inProgress}</p>
                 <p className="text-xs text-violet-200 mt-0.5">In Progress</p>
-              </div>
+              </button>
             </div>
-          </div>
-        </div>
-
-        {/* KPI Tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <div className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Total</p>
-            <p className="text-2xl font-bold text-slate-700 mt-1">{kpi.total}</p>
-            <p className="text-xs text-slate-500 mt-0.5">Companies</p>
-          </div>
-          <div className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm">
-            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Registered</p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">{kpi.registered}</p>
-            <p className="text-xs text-emerald-500 mt-0.5">{kpi.pct(kpi.registered)}% of total</p>
-          </div>
-          <div className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm">
-            <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">In Progress</p>
-            <p className="text-2xl font-bold text-amber-700 mt-1">{kpi.inProgress}</p>
-            <p className="text-xs text-amber-500 mt-0.5">{kpi.pct(kpi.inProgress)}% of total</p>
-          </div>
-          <div className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm">
-            <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Not Started</p>
-            <p className="text-2xl font-bold text-rose-700 mt-1">{kpi.notStarted}</p>
-            <p className="text-xs text-rose-500 mt-0.5">{kpi.pct(kpi.notStarted)}% of total</p>
-          </div>
-          <div className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Closed</p>
-            <p className="text-2xl font-bold text-slate-700 mt-1">{kpi.closed}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{kpi.pct(kpi.closed)}% of total</p>
           </div>
         </div>
 
@@ -1144,6 +1141,17 @@ export function BdClient({
                   className="pl-8"
                 />
               </div>
+              <select
+                value={companyStatusFilter}
+                onChange={e => { setCompanyStatusFilter(e.target.value); setCompanyPage(1); }}
+                className="h-9 px-2 rounded-md border bg-background text-sm"
+              >
+                <option value="">All Statuses</option>
+                <option value="REGISTERED">Registered</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="NOT_STARTED">Not Started</option>
+                <option value="CLOSED_INACTIVE">Closed / Inactive</option>
+              </select>
               {canManage && (
                 <Button onClick={() => setCompanyDialog({ open: true, editId: null, form: EMPTY_COMPANY_FORM })}>
                   <Plus className="h-4 w-4 mr-1" /> Add Company
@@ -1479,7 +1487,7 @@ export function BdClient({
                 {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {canManage && (
-                <Button onClick={() => setDocDialog({ open: true, form: { ...EMPTY_DOC_FORM, companyId: docsFilter } })}>
+                <Button onClick={() => setDocDialog({ open: true, editId: null, form: { ...EMPTY_DOC_FORM, companyId: docsFilter } })}>
                   <Plus className="h-4 w-4 mr-1" /> Add Document
                 </Button>
               )}
@@ -1493,12 +1501,13 @@ export function BdClient({
                     <TableHead>Submitted</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">File</TableHead>
+                    {canManage && <TableHead className="w-[80px]" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDocs.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-10 text-center text-slate-400">No documents found</TableCell>
+                      <TableCell colSpan={canManage ? 6 : 5} className="py-10 text-center text-slate-400">No documents found</TableCell>
                     </TableRow>
                   ) : filteredDocs.map(doc => (
                     <TableRow key={doc.id}>
@@ -1520,6 +1529,14 @@ export function BdClient({
                           <span className="text-slate-300 text-xs">—</span>
                         )}
                       </TableCell>
+                      {canManage && (
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <button title="Edit" onClick={() => setDocDialog({ open: true, editId: doc.id, form: { companyId: doc.companyId, title: doc.title, fileUrl: doc.fileUrl ?? '', status: doc.status, submittedAt: doc.submittedAt ? doc.submittedAt.slice(0,10) : '' } })} className="p-1.5 rounded hover:bg-slate-100 text-slate-500"><Edit className="h-3.5 w-3.5" /></button>
+                            <button title="Delete" onClick={() => setItemDeleteDialog({ open: true, type: 'doc', id: doc.id, label: doc.title })} className="p-1.5 rounded hover:bg-rose-50 text-rose-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1541,7 +1558,7 @@ export function BdClient({
                 {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {canManage && (
-                <Button onClick={() => setReqDialog({ open: true, form: { ...EMPTY_REQ_FORM, companyId: reqsFilter } })}>
+                <Button onClick={() => setReqDialog({ open: true, editId: null, form: { ...EMPTY_REQ_FORM, companyId: reqsFilter } })}>
                   <Plus className="h-4 w-4 mr-1" /> Add Request
                 </Button>
               )}
@@ -1555,12 +1572,13 @@ export function BdClient({
                     <TableHead>Type</TableHead>
                     <TableHead>Received</TableHead>
                     <TableHead>Status</TableHead>
+                    {canManage && <TableHead className="w-[80px]" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredReqs.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-10 text-center text-slate-400">No requests found</TableCell>
+                      <TableCell colSpan={canManage ? 6 : 5} className="py-10 text-center text-slate-400">No requests found</TableCell>
                     </TableRow>
                   ) : filteredReqs.map(req => (
                     <TableRow key={req.id}>
@@ -1578,6 +1596,14 @@ export function BdClient({
                       </TableCell>
                       <TableCell className="text-xs text-slate-500">{fmt(req.receivedAt)}</TableCell>
                       <TableCell>{reqStatusBadge(req.status)}</TableCell>
+                      {canManage && (
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <button title="Edit" onClick={() => setReqDialog({ open: true, editId: req.id, form: { companyId: req.companyId, title: req.title, requestType: req.requestType ?? 'RFQ', status: req.status, receivedAt: req.receivedAt ? req.receivedAt.slice(0,10) : '' } })} className="p-1.5 rounded hover:bg-slate-100 text-slate-500"><Edit className="h-3.5 w-3.5" /></button>
+                            <button title="Delete" onClick={() => setItemDeleteDialog({ open: true, type: 'req', id: req.id, label: req.title })} className="p-1.5 rounded hover:bg-rose-50 text-rose-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1603,6 +1629,7 @@ export function BdClient({
         onClose={() => setDocDialog(d => ({ ...d, open: false }))}
         companies={companies}
         initial={docDialog.form}
+        isEdit={docDialog.editId !== null}
         onSave={saveDocument}
       />
 
@@ -1611,6 +1638,7 @@ export function BdClient({
         onClose={() => setReqDialog(d => ({ ...d, open: false }))}
         companies={companies}
         initial={reqDialog.form}
+        isEdit={reqDialog.editId !== null}
         onSave={saveRequest}
       />
 
@@ -1620,6 +1648,27 @@ export function BdClient({
         companyName={deleteDialog.companyName}
         onConfirm={() => deleteCompany(deleteDialog.companyId)}
       />
+
+      {/* Item delete (doc / req) */}
+      <Dialog open={itemDeleteDialog.open} onOpenChange={v => !v && setItemDeleteDialog(d => ({ ...d, open: false }))}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="h-5 w-5" /> Delete {itemDeleteDialog.type === 'doc' ? 'Document' : 'Request'}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600 py-2">
+            Are you sure you want to delete <strong>{itemDeleteDialog.label}</strong>? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setItemDeleteDialog(d => ({ ...d, open: false }))}>Cancel</Button>
+            <Button variant="destructive" onClick={async () => {
+              await deleteItem();
+              setItemDeleteDialog(d => ({ ...d, open: false }));
+            }}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -27,8 +27,10 @@ DROP PROCEDURE IF EXISTS seed_hr_loan_approval_workflow;
 DELIMITER $$
 CREATE PROCEDURE seed_hr_loan_approval_workflow()
 BEGIN
-  DECLARE def_id CHAR(36);
-  IF NOT EXISTS (
+  IF EXISTS (
+    SELECT 1 FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'WorkflowDefinition'
+  ) AND NOT EXISTS (
     SELECT 1 FROM WorkflowDefinition
     WHERE `key` = 'hr-loan-approval' AND deletedAt IS NULL
   ) THEN

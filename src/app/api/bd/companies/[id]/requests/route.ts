@@ -5,6 +5,7 @@ import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
+import { logActivity } from '@/lib/api-utils';
 
 const createSchema = z.object({
   title: z.string().min(1).max(255),
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         receivedAt: receivedAt ? new Date(receivedAt) : new Date(),
       },
     });
+
+    await logActivity({ action: 'CREATE', entityType: 'BdRequest', entityId: request.id, entityName: request.title, userId: session.sub });
 
     return NextResponse.json(request, { status: 201 });
   } catch (error) {

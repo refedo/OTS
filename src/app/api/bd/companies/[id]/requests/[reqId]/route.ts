@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
+import { logActivity } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
@@ -35,12 +36,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ reqI
       return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const request = await prisma.bdRequest.updateMany({
-      where: { id: reqId, deletedAt: null },
-      data: parsed.data,
-    });
+    const existing = await prisma.bdRequest.findFirst({ where: { id: reqId, deletedAt: null } });
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    if (request.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    await prisma.bdRequest.update({ where: { id: reqId }, data: parsed.data });
+    await logActivity({ action: 'UPDATE', entityType: 'BdRequest', entityId: reqId, entityName: existing.title, userId: session.sub });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -61,10 +61,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ r
 
     const { reqId } = await params;
 
-    await prisma.bdRequest.updateMany({
-      where: { id: reqId, deletedAt: null },
-      data: { deletedAt: new Date() },
-    });
+    const existing = await prisma.bdRequest.findFirst({ where: { id: reqId, deletedAt: null } });
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    await prisma.bdRequest.update({ where: { id: reqId }, data: { deletedAt: new Date() } });
+    await logActivity({ action: 'DELETE', entityType: 'BdRequest', entityId: reqId, entityName: existing.title, userId: session.sub });
 
     return NextResponse.json({ success: true });
   } catch (error) {
