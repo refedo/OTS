@@ -5815,24 +5815,29 @@ model HrTrainingProgram {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model BdCompany {
-  id                 String    @id @default(uuid()) @db.Char(36)
-  name               String    @db.VarChar(255)
-  logoUrl            String?   @db.VarChar(512)
-  contactName        String?   @db.VarChar(255)
-  contactEmail       String?   @db.VarChar(255)
-  contactPhone       String?   @db.VarChar(80)
-  registrationStatus String    @default("NOT_STARTED") @db.VarChar(30)
-  registrationDate   DateTime?
-  registrationExpiry DateTime?
-  whatNext           String?   @db.Text
-  notes              String?   @db.Text
-  deletedAt          DateTime?
-  deletedById        String?   @db.Char(36)
-  deleteReason       String?   @db.VarChar(512)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  createdById        String?   @db.Char(36)
-  updatedById        String?   @db.Char(36)
+  id                   String    @id @default(uuid()) @db.Char(36)
+  name                 String    @db.VarChar(255)
+  vendorId             String?   @db.VarChar(100)
+  portalUsername       String?   @db.VarChar(255)
+  portalPassword       String?   @db.VarChar(512)
+  registrationChannel  String?   @db.VarChar(50)
+  channelOther         String?   @db.VarChar(255)
+  logoUrl              String?   @db.VarChar(512)
+  contactName          String?   @db.VarChar(255)
+  contactEmail         String?   @db.VarChar(255)
+  contactPhone         String?   @db.VarChar(80)
+  registrationStatus   String    @default("NOT_STARTED") @db.VarChar(30)
+  registrationDate     DateTime?
+  registrationExpiry   DateTime?
+  whatNext             String?   @db.Text
+  notes                String?   @db.Text
+  deletedAt            DateTime?
+  deletedById          String?   @db.Char(36)
+  deleteReason         String?   @db.VarChar(512)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  createdById          String?   @db.Char(36)
+  updatedById          String?   @db.Char(36)
 
   documents      BdDocument[]
   requests       BdRequest[]

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [21.2.0] - 2026-04-27
+
+### Business Development — Vendor Portal Fields
+#### Added
+- **Vendor ID#** field on the company form for tracking the vendor's registration number
+- **Portal Username** field for storing the portal login username
+- **Portal Password** field with show/hide toggle; visibility restricted to the record creator and users with the CEO role — all other editors see a locked placeholder
+- New Prisma fields: `vendorId`, `portalUsername`, `portalPassword` on `BdCompany`
+- SQL migration `bd_vendor_fields.sql` adds the three columns to `BdCompany` idempotently via stored-procedure pattern
+
+---
+
 ## [21.1.0] - 2026-04-26
 
 ### Dolibarr Employee Sync — Extrafield Resolution

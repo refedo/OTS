@@ -8,6 +8,11 @@ import { getCurrentUserPermissions } from '@/lib/permission-checker';
 
 const createSchema = z.object({
   name: z.string().min(1).max(255),
+  vendorId: z.string().max(100).optional().nullable(),
+  portalUsername: z.string().max(255).optional().nullable(),
+  portalPassword: z.string().max(512).optional().nullable(),
+  registrationChannel: z.enum(['SAP', 'Oracle', 'Company Website', 'Email', 'Others']).optional().nullable(),
+  channelOther: z.string().max(255).optional().nullable(),
   logoUrl: z.string().max(512).optional().nullable(),
   contactName: z.string().max(255).optional().nullable(),
   contactEmail: z.string().email().max(255).optional().nullable().or(z.literal('')),
