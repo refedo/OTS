@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.0.0] - 2026-04-27
+
+### IMS — Integrated Management System Module
+
+#### Added
+- **IMS module** — full Integrated Management System covering ISO 9001:2015, ISO 14001:2015, and ISO 45001:2018 standards
+- **Document Control** — document registry with versioned revisions, controlled distribution, acknowledgement tracking, and document categories (QM, POL, SOP, PLN, WI, FRM, EXT, REC) with Arabic names
+- **Document Change Requests (DCR)** — full lifecycle management from draft through review, approval, and implementation with auto-numbered DCR codes
+- **Clause Matrix** — interactive coverage map across all three ISO standards; toggle document-to-clause mappings with Excel export via XLSX
+- **Review Calendar** — monthly timeline of upcoming document reviews grouped by month with overdue highlighting
+- **Risk Register** — full risk and opportunity register with 5×5 likelihood × severity scoring; supports RISK and OPPORTUNITY types
+- **Risk Assessments** — versioned assessment records per risk with inherent and residual rating calculation
+- **Risk Treatments** — treatment action tracking (mitigate, transfer, accept, eliminate, exploit, share, enhance) with responsible person, target dates, effectiveness ratings
+- **Hazard Identification** — OHS hazard log linked to risks with control measures and hierarchy of controls
+- **Risk Matrix** — interactive 5×5 heat map colour-coded by risk rating with filterable ISO standard views and drill-down cell detail
+- **Treatments Tracker** — cross-register treatment view with overdue detection, status filtering, and effectiveness summary
+- **IMS Dashboard** — aggregated KPIs across documents, risks, DCRs, and upcoming reviews
+- **Workflow definitions** — `IMS_REVISION_APPROVAL` (3-step: DC → Manager → CEO) and `IMS_CHANGE_REQUEST` (2-step: DC → Manager) seeded into the workflow engine
+- **ISO clause seed data** — all clauses §4–10 for ISO 9001, ISO 14001, and ISO 45001 seeded with proper parent-child hierarchy
+- **Sidebar navigation** — IMS section added with 8 navigation items (Dashboard, Documents, DCR, Clause Matrix, Review Calendar, Risk Register, Risk Matrix, Treatments)
+- **RBAC permissions** — 15 IMS permissions added across Admin, CEO, Manager, Engineer, and Document Controller roles
+- **Prisma schema** — 12 new models: `ImsCategory`, `ImsDocument`, `ImsRevision`, `ImsDistribution`, `ImsDistributionRecipient`, `ImsChangeRequest`, `ImsClause`, `ImsClauseMapping`, `ImsRisk`, `ImsRiskAssessment`, `ImsRiskTreatment`, `ImsHazardIdentification`
+
+#### Changed
+- Version bumped to **22.0.0**
+
+---
+
 ## [21.3.0] - 2026-04-27
 
 ### Business Development & Workflow UX Improvements

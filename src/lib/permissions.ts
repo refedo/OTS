@@ -446,6 +446,27 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'bd.requests.manage', name: 'Manage BD Requests', description: 'Create, update, and delete BD company requests', category: 'business_development' },
     ],
   },
+  {
+    id: 'ims',
+    name: 'IMS',
+    permissions: [
+      { id: 'ims.view', name: 'View IMS Module', description: 'View IMS module', category: 'ims' },
+      { id: 'ims.documents.view', name: 'View IMS Documents', description: 'View documents', category: 'ims' },
+      { id: 'ims.documents.manage', name: 'Manage IMS Documents', description: 'Create/edit/delete documents', category: 'ims' },
+      { id: 'ims.revisions.view', name: 'View Revisions', description: 'View revisions', category: 'ims' },
+      { id: 'ims.revisions.manage', name: 'Manage Revisions', description: 'Manage revisions', category: 'ims' },
+      { id: 'ims.revisions.approve', name: 'Approve Revisions', description: 'Approve revisions (QMR permission)', category: 'ims' },
+      { id: 'ims.dcr.view', name: 'View Change Requests', description: 'View change requests', category: 'ims' },
+      { id: 'ims.dcr.manage', name: 'Manage Change Requests', description: 'Manage change requests', category: 'ims' },
+      { id: 'ims.clauses.view', name: 'View Clause Matrix', description: 'View clause matrix', category: 'ims' },
+      { id: 'ims.clauses.manage', name: 'Manage Clause Mappings', description: 'Manage clause mappings', category: 'ims' },
+      { id: 'ims.risks.view', name: 'View Risk Register', description: 'View risk register', category: 'ims' },
+      { id: 'ims.risks.manage', name: 'Manage Risks', description: 'Create/edit risks', category: 'ims' },
+      { id: 'ims.risks.assess', name: 'Add Risk Assessments', description: 'Add risk assessments', category: 'ims' },
+      { id: 'ims.risks.treat', name: 'Manage Risk Treatments', description: 'Manage risk treatments', category: 'ims' },
+      { id: 'ims.dashboard.view', name: 'View IMS Dashboard', description: 'View IMS dashboard', category: 'ims' },
+    ],
+  },
 ];
 
 // Flatten all permissions for easy lookup
@@ -718,6 +739,19 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'workflow.instances.start',
     'workflow.instances.cancel',
     'workflow.my-approvals.view',
+    // IMS
+    'ims.view',
+    'ims.documents.view',
+    'ims.revisions.view',
+    'ims.revisions.approve',
+    'ims.dcr.view',
+    'ims.dcr.manage',
+    'ims.clauses.view',
+    'ims.risks.view',
+    'ims.risks.manage',
+    'ims.risks.assess',
+    'ims.risks.treat',
+    'ims.dashboard.view',
   ],
   Engineer: [
     // Basic Access
@@ -799,6 +833,15 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
     'hr.contracts.viewOwn',
+    // IMS
+    'ims.view',
+    'ims.documents.view',
+    'ims.revisions.view',
+    'ims.dcr.view',
+    'ims.dcr.manage',
+    'ims.clauses.view',
+    'ims.risks.view',
+    'ims.dashboard.view',
   ],
   Operator: [
     // Basic Access
@@ -911,5 +954,21 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'hr.violations.viewOwn',
     'hr.letters.viewOwn',
     'hr.contracts.viewOwn',
+    // IMS
+    'ims.view',
+    'ims.documents.view',
+    'ims.documents.manage',
+    'ims.revisions.view',
+    'ims.revisions.manage',
+    'ims.revisions.approve',
+    'ims.dcr.view',
+    'ims.dcr.manage',
+    'ims.clauses.view',
+    'ims.clauses.manage',
+    'ims.risks.view',
+    'ims.risks.manage',
+    'ims.risks.assess',
+    'ims.risks.treat',
+    'ims.dashboard.view',
   ],
 };

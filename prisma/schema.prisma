@@ -42,8 +42,10 @@ model Department {
   annualInitiatives AnnualInitiative[] @relation("AnnualInitiativeDepartment")
   weeklyIssues      WeeklyIssue[]      @relation("WeeklyIssueDept")
   circulationRecipients HrCirculationRecipient[] @relation("DepartmentCirculationRecipients")
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  imsDocuments          ImsDocument[]            @relation("ImsDepartmentDocuments")
+  imsRisks              ImsRisk[]                @relation("ImsRiskDepartment")
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
 }
 
 model HrSection {
@@ -339,6 +341,18 @@ model User {
   cancelledWorkflows  WorkflowInstance[] @relation("WorkflowCancelledBy")
   workflowApprovals   WorkflowApproval[] @relation("WorkflowApprovalUser")
   delegatedApprovals  WorkflowApproval[] @relation("WorkflowApprovalDelegatedTo")
+
+  // IMS back-relations (22.0.0)
+  ownedImsDocuments              ImsDocument[]              @relation("ImsDocumentOwner")
+  reviewedImsDocuments           ImsDocument[]              @relation("ImsDocumentReviewer")
+  preparedImsRevisions           ImsRevision[]              @relation("ImsRevisionPreparedBy")
+  reviewedImsRevisions           ImsRevision[]              @relation("ImsRevisionReviewedBy")
+  approvedImsRevisions           ImsRevision[]              @relation("ImsRevisionApprovedBy")
+  imsDistributionRecipients      ImsDistributionRecipient[] @relation("ImsDistributionRecipient")
+  imsChangeRequests              ImsChangeRequest[]         @relation("ImsChangeRequestBy")
+  ownedImsRisks                  ImsRisk[]                  @relation("ImsRiskOwner")
+  imsRiskAssessments             ImsRiskAssessment[]        @relation("ImsRiskAssessor")
+  imsRiskTreatments              ImsRiskTreatment[]         @relation("ImsRiskTreatmentResponsible")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6020,4 +6034,313 @@ model WorkflowApproval {
   @@index([stepInstanceId])
   @@index([userId])
   @@map("WorkflowApproval")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMS — Integrated Management System (22.0.0)
+// Document Control, Risk Register, ISO 9001/14001/45001
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ImsCategory {
+  id          String  @id @default(uuid()) @db.Char(36)
+  code        String  @unique @db.VarChar(10)
+  name        String  @db.VarChar(100)
+  nameAr      String? @db.VarChar(100)
+  level       Int     @default(1)
+  description String? @db.Text
+  isActive    Boolean @default(true)
+
+  documents ImsDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+  @@map("ImsCategory")
+}
+
+model ImsDocument {
+  id                  String       @id @default(uuid()) @db.Char(36)
+  documentNumber      String       @unique @db.VarChar(50)
+  title               String       @db.VarChar(255)
+  titleAr             String?      @db.VarChar(255)
+  categoryId          String       @db.Char(36)
+  category            ImsCategory  @relation(fields: [categoryId], references: [id])
+  departmentId        String?      @db.Char(36)
+  department          Department?  @relation("ImsDepartmentDocuments", fields: [departmentId], references: [id])
+  status              String       @default("DRAFT") @db.VarChar(30)
+  currentVersion      String       @default("1.0") @db.VarChar(20)
+  ownerId             String?      @db.Char(36)
+  owner               User?        @relation("ImsDocumentOwner", fields: [ownerId], references: [id])
+  reviewerId          String?      @db.Char(36)
+  reviewer            User?        @relation("ImsDocumentReviewer", fields: [reviewerId], references: [id])
+  applicableStandards Json?
+  scope               String?      @db.Text
+  purpose             String?      @db.Text
+  site                String?      @db.VarChar(100)
+  confidentiality     String       @default("INTERNAL") @db.VarChar(20)
+  reviewFrequencyDays Int          @default(365)
+  lastReviewDate      DateTime?
+  nextReviewDate      DateTime?
+  fileUrl             String?      @db.VarChar(512)
+  issuedAt            DateTime?
+
+  revisions      ImsRevision[]
+  distributions  ImsDistribution[]
+  changeRequests ImsChangeRequest[]
+  clauseMappings ImsClauseMapping[]
+
+  deletedAt   DateTime?
+  deletedById String?   @db.Char(36)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String?   @db.Char(36)
+  updatedById String?   @db.Char(36)
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([departmentId])
+  @@index([ownerId])
+  @@index([nextReviewDate])
+  @@index([deletedAt])
+  @@map("ImsDocument")
+}
+
+model ImsRevision {
+  id                String      @id @default(uuid()) @db.Char(36)
+  documentId        String      @db.Char(36)
+  document          ImsDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version           String      @db.VarChar(20)
+  changeDescription String?     @db.Text
+  changeType        String      @default("MINOR") @db.VarChar(20)
+  status            String      @default("DRAFT") @db.VarChar(30)
+  fileUrl           String?     @db.VarChar(512)
+  preparedById      String?     @db.Char(36)
+  preparedBy        User?       @relation("ImsRevisionPreparedBy", fields: [preparedById], references: [id])
+  reviewedById      String?     @db.Char(36)
+  reviewedBy        User?       @relation("ImsRevisionReviewedBy", fields: [reviewedById], references: [id])
+  approvedById      String?     @db.Char(36)
+  approvedBy        User?       @relation("ImsRevisionApprovedBy", fields: [approvedById], references: [id])
+  effectiveDate     DateTime?
+  workflowInstanceId String?    @db.Char(36)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([documentId])
+  @@index([status])
+  @@map("ImsRevision")
+}
+
+model ImsDistribution {
+  id         String      @id @default(uuid()) @db.Char(36)
+  documentId String      @db.Char(36)
+  document   ImsDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  revisionId String?     @db.Char(36)
+  issuedAt   DateTime    @default(now())
+  issuedById String?     @db.Char(36)
+  notes      String?     @db.Text
+
+  recipients ImsDistributionRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([documentId])
+  @@map("ImsDistribution")
+}
+
+model ImsDistributionRecipient {
+  id                String          @id @default(uuid()) @db.Char(36)
+  distributionId    String          @db.Char(36)
+  distribution      ImsDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  userId            String          @db.Char(36)
+  user              User            @relation("ImsDistributionRecipient", fields: [userId], references: [id])
+  acknowledgedAt    DateTime?
+  acknowledgeMethod String?         @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([distributionId, userId])
+  @@index([distributionId])
+  @@index([userId])
+  @@map("ImsDistributionRecipient")
+}
+
+model ImsChangeRequest {
+  id            String       @id @default(uuid()) @db.Char(36)
+  dcrNumber     String       @unique @db.VarChar(50)
+  title         String       @db.VarChar(255)
+  description   String?      @db.Text
+  reason        String?      @db.Text
+  documentId    String?      @db.Char(36)
+  document      ImsDocument? @relation(fields: [documentId], references: [id])
+  requestedById String       @db.Char(36)
+  requestedBy   User         @relation("ImsChangeRequestBy", fields: [requestedById], references: [id])
+  status        String       @default("SUBMITTED") @db.VarChar(30)
+  priority      String       @default("MEDIUM") @db.VarChar(20)
+  workflowInstanceId String? @db.Char(36)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status])
+  @@index([documentId])
+  @@index([requestedById])
+  @@index([deletedAt])
+  @@map("ImsChangeRequest")
+}
+
+model ImsClause {
+  id       String     @id @default(uuid()) @db.Char(36)
+  standard String     @db.VarChar(20)
+  clause   String     @db.VarChar(20)
+  title    String     @db.VarChar(255)
+  titleAr  String?    @db.VarChar(255)
+  parentId String?    @db.Char(36)
+  parent   ImsClause? @relation("ImsClauseParent", fields: [parentId], references: [id])
+  children ImsClause[] @relation("ImsClauseParent")
+  level    Int        @default(1)
+  isActive Boolean    @default(true)
+
+  mappings ImsClauseMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([standard, clause])
+  @@index([standard])
+  @@index([parentId])
+  @@map("ImsClause")
+}
+
+model ImsClauseMapping {
+  id         String      @id @default(uuid()) @db.Char(36)
+  clauseId   String      @db.Char(36)
+  clause     ImsClause   @relation(fields: [clauseId], references: [id], onDelete: Cascade)
+  documentId String      @db.Char(36)
+  document   ImsDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  notes      String?     @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clauseId, documentId])
+  @@index([clauseId])
+  @@index([documentId])
+  @@map("ImsClauseMapping")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMS Risk & Opportunity Register (22.0.0) — ISO 9001/14001/45001 Clause 6.1
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ImsRisk {
+  id                  String      @id @default(uuid()) @db.Char(36)
+  riskNumber          String      @unique @db.VarChar(50)
+  type                String      @default("RISK") @db.VarChar(20)
+  title               String      @db.VarChar(255)
+  titleAr             String?     @db.VarChar(255)
+  description         String?     @db.Text
+  source              String?     @db.VarChar(255)
+  applicableStandards Json?
+  category            String      @db.VarChar(50)
+  status              String      @default("OPEN") @db.VarChar(30)
+  ownerId             String?     @db.Char(36)
+  owner               User?       @relation("ImsRiskOwner", fields: [ownerId], references: [id])
+  departmentId        String?     @db.Char(36)
+  department          Department? @relation("ImsRiskDepartment", fields: [departmentId], references: [id])
+  currentLikelihood   Int         @default(1)
+  currentSeverity     Int         @default(1)
+  currentRiskLevel    Int         @default(1)
+  currentRiskRating   String      @default("LOW") @db.VarChar(20)
+  reviewFrequencyDays Int         @default(90)
+  nextReviewDate      DateTime?
+  lastReviewDate      DateTime?
+
+  assessments ImsRiskAssessment[]
+  treatments  ImsRiskTreatment[]
+  hazards     ImsHazardIdentification[]
+
+  deletedAt   DateTime?
+  deletedById String?   @db.Char(36)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String?   @db.Char(36)
+  updatedById String?   @db.Char(36)
+
+  @@index([type])
+  @@index([status])
+  @@index([category])
+  @@index([currentRiskRating])
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([nextReviewDate])
+  @@index([deletedAt])
+  @@map("ImsRisk")
+}
+
+model ImsRiskAssessment {
+  id               String  @id @default(uuid()) @db.Char(36)
+  riskId           String  @db.Char(36)
+  risk             ImsRisk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  likelihood       Int
+  severity         Int
+  riskLevel        Int
+  riskRating       String  @db.VarChar(20)
+  assessmentType   String  @default("PERIODIC") @db.VarChar(30)
+  existingControls String? @db.Text
+  recommendations  String? @db.Text
+  assessedById     String? @db.Char(36)
+  assessedBy       User?   @relation("ImsRiskAssessor", fields: [assessedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([riskId])
+  @@map("ImsRiskAssessment")
+}
+
+model ImsRiskTreatment {
+  id            String   @id @default(uuid()) @db.Char(36)
+  riskId        String   @db.Char(36)
+  risk          ImsRisk  @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  treatmentType String   @db.VarChar(30)
+  description   String?  @db.Text
+  responsibleId String?  @db.Char(36)
+  responsible   User?    @relation("ImsRiskTreatmentResponsible", fields: [responsibleId], references: [id])
+  targetDate    DateTime?
+  completedDate DateTime?
+  status        String   @default("PLANNED") @db.VarChar(20)
+  effectiveness String?  @db.VarChar(20)
+  notes         String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([riskId])
+  @@index([status])
+  @@index([responsibleId])
+  @@map("ImsRiskTreatment")
+}
+
+model ImsHazardIdentification {
+  id                String  @id @default(uuid()) @db.Char(36)
+  riskId            String  @db.Char(36)
+  risk              ImsRisk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  hazardType        String  @db.VarChar(30)
+  hazardDescription String? @db.Text
+  location          String? @db.VarChar(255)
+  affectedPersonnel String? @db.VarChar(255)
+  controlHierarchy  String  @db.VarChar(30)
+  controlMeasures   String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([riskId])
+  @@map("ImsHazardIdentification")
 }

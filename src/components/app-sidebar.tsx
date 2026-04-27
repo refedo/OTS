@@ -74,6 +74,13 @@ import {
   UserCircle2,
   Handshake,
   Gift,
+  ShieldCheck,
+  FileBarChart2,
+  GitPullRequest,
+  Grid3X3,
+  CalendarRange,
+  AlertCircle,
+  TrendingDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -229,6 +236,20 @@ const navigationSections: NavigationSection[] = [
     icon: Handshake,
     items: [
       { name: 'Overview', href: '/business-development', icon: Handshake, newSince: '2026-04-24' },
+    ],
+  },
+  {
+    name: 'IMS',
+    icon: ShieldCheck,
+    items: [
+      { name: 'IMS Dashboard', href: '/ims', icon: LayoutDashboard, newSince: '2026-04-27' },
+      { name: 'Document Registry', href: '/ims/documents', icon: FileText, newSince: '2026-04-27' },
+      { name: 'Change Requests', href: '/ims/change-requests', icon: GitPullRequest, newSince: '2026-04-27' },
+      { name: 'Clause Matrix', href: '/ims/clause-matrix', icon: Grid3X3, newSince: '2026-04-27' },
+      { name: 'Review Calendar', href: '/ims/review-calendar', icon: CalendarRange, newSince: '2026-04-27' },
+      { name: 'Risk Register', href: '/ims/risks', icon: AlertCircle, newSince: '2026-04-27' },
+      { name: 'Risk Matrix', href: '/ims/risks/matrix', icon: TrendingDown, newSince: '2026-04-27' },
+      { name: 'Treatments Tracker', href: '/ims/risks/treatments', icon: FileBarChart2, newSince: '2026-04-27' },
     ],
   },
   {
