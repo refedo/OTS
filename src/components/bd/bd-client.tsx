@@ -108,6 +108,12 @@ const ARCHIVE_TYPE_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 5;
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+function resolveUrl(p: string | null) {
+  if (!p) return p;
+  return BASE_PATH && !p.startsWith(BASE_PATH) && p.startsWith('/uploads/') ? `${BASE_PATH}${p}` : p;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function regStatusBadge(status: string) {
@@ -173,7 +179,7 @@ function reqStatusBadge(status: string) {
 function CompanyAvatar({ company }: { company: BdCompany }) {
   if (company.logoUrl) {
     return (
-      <img src={company.logoUrl} alt={company.name} className="h-9 w-9 rounded-full object-cover border border-slate-200 flex-shrink-0" />
+      <img src={resolveUrl(company.logoUrl)!} alt={company.name} className="h-9 w-9 rounded-full object-cover border border-slate-200 flex-shrink-0" />
     );
   }
   const initials = company.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -335,7 +341,7 @@ function CompanyDialog({
               <Label>Company Logo</Label>
               {form.logoUrl && (
                 <div className="flex items-center gap-2">
-                  <img src={form.logoUrl} alt="Logo" className="h-12 w-12 rounded-lg object-contain border bg-slate-50 p-0.5" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                  <img src={resolveUrl(form.logoUrl)!} alt="Logo" className="h-12 w-12 rounded-lg object-contain border bg-slate-50 p-0.5" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                   <span className="text-xs text-slate-500 truncate flex-1">{form.logoUrl.split('/').pop()}</span>
                   <button type="button" onClick={() => setForm(f => ({ ...f, logoUrl: '' }))} className="text-slate-400 hover:text-rose-500">
                     <X className="h-4 w-4" />
@@ -547,7 +553,7 @@ function DocumentDialog({
               <div className="flex items-center gap-2 p-2 rounded-lg border bg-slate-50 text-xs text-slate-600">
                 <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
                 <span className="truncate flex-1">{form.fileUrl.split('/').pop()}</span>
-                <a href={form.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-700 flex-shrink-0"><ExternalLink className="h-3.5 w-3.5" /></a>
+                <a href={resolveUrl(form.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-700 flex-shrink-0"><ExternalLink className="h-3.5 w-3.5" /></a>
                 <button type="button" onClick={() => setForm(f => ({ ...f, fileUrl: '' }))} className="text-slate-400 hover:text-rose-500 flex-shrink-0"><X className="h-3.5 w-3.5" /></button>
               </div>
             )}
@@ -1342,7 +1348,7 @@ export function BdClient({
                           <div className="flex items-center gap-1 flex-shrink-0">
                             {docStatusBadge(doc.status)}
                             {doc.fileUrl && (
-                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-sky-600">
+                              <a href={resolveUrl(doc.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-sky-600">
                                 <ExternalLink className="h-3 w-3" />
                               </a>
                             )}
@@ -1507,7 +1513,7 @@ export function BdClient({
                       <TableCell>{docStatusBadge(doc.status)}</TableCell>
                       <TableCell className="text-right">
                         {doc.fileUrl ? (
-                          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-800">
+                          <a href={resolveUrl(doc.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-800">
                             <ExternalLink className="h-4 w-4 inline" />
                           </a>
                         ) : (

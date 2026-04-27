@@ -100,6 +100,12 @@ const STARTUP_MIGRATIONS = [
 
   // ── Workflow Engine (21.0.0) ──────────────────────────────────────────────
   'add_workflow_engine.sql',
+
+  // ── Loan approval workflow + PENDING_APPROVAL status (21.1.0) ────────────
+  'loan_approval_workflow.sql',
+
+  // ── BD vendor portal fields: vendorId, portalUsername, portalPassword (21.2.0) ─
+  'bd_vendor_fields.sql',
 ];
 
 /**
