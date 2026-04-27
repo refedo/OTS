@@ -176,15 +176,22 @@ function reqStatusBadge(status: string) {
   );
 }
 
-function CompanyAvatar({ company }: { company: BdCompany }) {
-  if (company.logoUrl) {
+function CompanyAvatar({ company, size = 'md' }: { company: BdCompany; size?: 'sm' | 'md' | 'lg' }) {
+  const [imgError, setImgError] = React.useState(false);
+  const sizeClass = size === 'lg' ? 'h-24 w-24 text-xl' : size === 'sm' ? 'h-10 w-10 text-xs' : 'h-16 w-16 text-sm';
+  const initials = company.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  if (company.logoUrl && !imgError) {
     return (
-      <img src={resolveUrl(company.logoUrl)!} alt={company.name} className="h-14 w-14 rounded-full object-cover border border-slate-200 flex-shrink-0" />
+      <img
+        src={resolveUrl(company.logoUrl)!}
+        alt={company.name}
+        className={`${sizeClass} rounded-full object-contain border border-slate-200 flex-shrink-0 bg-white p-0.5`}
+        onError={() => setImgError(true)}
+      />
     );
   }
-  const initials = company.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
   return (
-    <div className="h-14 w-14 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-bold border border-violet-200 flex-shrink-0">
+    <div className={`${sizeClass} rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold border border-violet-200 flex-shrink-0`}>
       {initials}
     </div>
   );
@@ -722,11 +729,12 @@ function DeleteDialog({
 // ─── Archive Panel ────────────────────────────────────────────────────────────
 
 function ArchivePanel({
-  company, canManage, onRefresh,
+  company, canManage, onSave, onDelete,
 }: {
   company: BdCompany | null;
   canManage: boolean;
-  onRefresh: () => void;
+  onSave: (companyId: string, entryType: string, content: string) => Promise<void>;
+  onDelete: (companyId: string, entryType: string) => void;
 }) {
   const [editType, setEditType] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -738,20 +746,14 @@ function ArchivePanel({
 
   const entries = ARCHIVE_TYPES.map(t => {
     const found = company.archiveEntries.find(e => e.entryType === t);
-    return { type: t, content: found?.content ?? '', updatedAt: found?.updatedAt ?? null };
+    return { type: t, content: found?.content ?? '', updatedAt: found?.updatedAt ?? null, exists: !!found };
   });
 
-  async function saveEntry(type: string, content: string) {
+  async function handleSave(type: string, content: string) {
     setSaving(true);
     try {
-      const res = await fetch(`/api/bd/companies/${company!.id}/archive`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryType: type, content }),
-      });
-      if (!res.ok) throw new Error('Failed to save');
+      await onSave(company!.id, type, content);
       setEditType(null);
-      onRefresh();
     } finally {
       setSaving(false);
     }
@@ -774,7 +776,7 @@ function ArchivePanel({
                     placeholder="Enter content…"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => saveEntry(entry.type, editContent)} disabled={saving}>
+                    <Button size="sm" onClick={() => handleSave(entry.type, editContent)} disabled={saving}>
                       {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setEditType(null)} disabled={saving}>
@@ -792,18 +794,173 @@ function ArchivePanel({
               )}
             </div>
             {canManage && editType !== entry.type && (
-              <Button
-                size="sm" variant="ghost"
-                onClick={() => { setEditType(entry.type); setEditContent(entry.content); }}
-                className="h-7 w-7 p-0 flex-shrink-0"
-              >
-                <Edit className="h-3.5 w-3.5" />
-              </Button>
+              <div className="flex gap-1 flex-shrink-0">
+                <Button
+                  size="sm" variant="ghost"
+                  onClick={() => { setEditType(entry.type); setEditContent(entry.content); }}
+                  className="h-7 w-7 p-0"
+                  title="Edit"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
+                {entry.exists && (
+                  <Button
+                    size="sm" variant="ghost"
+                    onClick={() => onDelete(company.id, entry.type)}
+                    className="h-7 w-7 p-0 text-rose-400 hover:text-rose-600"
+                    title="Clear"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+// ─── Company Detail Modal ─────────────────────────────────────────────────────
+
+function CompanyDetailModal({
+  company,
+  open,
+  onClose,
+  canManage,
+  onEdit,
+}: {
+  company: BdCompany | null;
+  open: boolean;
+  onClose: () => void;
+  canManage: boolean;
+  onEdit: () => void;
+}) {
+  const [showPwd, setShowPwd] = React.useState(false);
+  if (!company) return null;
+
+  const row = (label: string, value: React.ReactNode) => value ? (
+    <div className="grid grid-cols-[140px_1fr] gap-2 py-1.5 border-b border-slate-100 last:border-0">
+      <span className="text-xs font-medium text-slate-500">{label}</span>
+      <span className="text-xs text-slate-800">{value}</span>
+    </div>
+  ) : null;
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <CompanyAvatar company={company} size="sm" />
+            <div>
+              <DialogTitle className="text-lg">{company.name}</DialogTitle>
+              <div className="mt-0.5">{regStatusBadge(company.registrationStatus)}</div>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Logo */}
+        {company.logoUrl && (
+          <div className="flex justify-center py-3 bg-slate-50 rounded-xl border">
+            <img
+              src={resolveUrl(company.logoUrl)!}
+              alt={company.name}
+              className="max-h-28 max-w-xs object-contain"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Vendor Portal */}
+          {(company.vendorId || company.portalUsername) && (
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Vendor Portal</p>
+              <div className="rounded-lg border p-3 space-y-0">
+                {row('Vendor ID', company.vendorId)}
+                {row('Username', company.portalUsername)}
+                {company.portalPassword && row('Password',
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-mono">{showPwd ? company.portalPassword : '••••••••'}</span>
+                    <button type="button" onClick={() => setShowPwd(v => !v)} className="text-slate-400 hover:text-slate-600">
+                      {showPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Contact */}
+          {(company.contactName || company.contactEmail || company.contactPhone) && (
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Contact</p>
+              <div className="rounded-lg border p-3 space-y-0">
+                {row('Name', company.contactName)}
+                {row('Email', company.contactEmail)}
+                {row('Phone', company.contactPhone)}
+              </div>
+            </div>
+          )}
+
+          {/* Registration */}
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Registration</p>
+            <div className="rounded-lg border p-3 space-y-0">
+              {row('Channel', company.registrationChannel === 'Others' ? (company.channelOther || 'Others') : company.registrationChannel)}
+              {row('Date', company.registrationDate ? fmt(company.registrationDate) : null)}
+              {row('Expiry', company.registrationExpiry ? fmt(company.registrationExpiry) : null)}
+            </div>
+          </div>
+
+          {/* Notes */}
+          {(company.whatNext || company.notes) && (
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Notes</p>
+              <div className="rounded-lg border p-3 space-y-2">
+                {company.whatNext && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-0.5">What&apos;s Next</p>
+                    <p className="text-xs text-slate-700 whitespace-pre-wrap">{company.whatNext}</p>
+                  </div>
+                )}
+                {company.notes && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-0.5">Notes</p>
+                    <p className="text-xs text-slate-700 whitespace-pre-wrap">{company.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Archive summary */}
+          {company.archiveEntries.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Archive</p>
+              <div className="rounded-lg border divide-y">
+                {company.archiveEntries.filter(e => e.content).map(e => (
+                  <div key={e.entryType} className="p-3">
+                    <p className="text-xs font-medium text-slate-600 mb-0.5">{ARCHIVE_TYPE_LABELS[e.entryType] ?? e.entryType}</p>
+                    <p className="text-xs text-slate-500 line-clamp-3 whitespace-pre-wrap">{e.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="pt-2">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+          {canManage && (
+            <Button onClick={() => { onClose(); onEdit(); }}>
+              <Edit className="h-4 w-4 mr-1.5" /> Edit Company
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -826,7 +983,7 @@ export function BdClient({
   const [companies, setCompanies] = useState<BdCompany[]>(initialCompanies);
   const [documents, setDocuments] = useState<BdDocument[]>(initialDocuments);
   const [requests, setRequests] = useState<BdRequest[]>(initialRequests);
-  const [archiveEntries] = useState<ArchiveEntry[]>(initialArchiveEntries);
+  const [archiveEntries, setArchiveEntries] = useState<ArchiveEntry[]>(initialArchiveEntries);
 
   const [activeTab, setActiveTab] = useState<'companies' | 'archives' | 'documents' | 'requests'>('companies');
   const [search, setSearch] = useState('');
@@ -842,6 +999,15 @@ export function BdClient({
   const [archivesFilter, setArchivesFilter] = useState('');
   const [docsFilter, setDocsFilter] = useState('');
   const [reqsFilter, setReqsFilter] = useState('');
+
+  // View detail modal
+  const [viewCompanyId, setViewCompanyId] = useState<string | null>(null);
+  const viewCompany = useMemo(() => companies.find(c => c.id === viewCompanyId) ?? null, [companies, viewCompanyId]);
+
+  // Archive delete dialog
+  const [archiveDeleteDialog, setArchiveDeleteDialog] = useState<{ open: boolean; companyId: string; entryType: string; label: string }>({
+    open: false, companyId: '', entryType: '', label: '',
+  });
 
   // Dialogs
   const [companyDialog, setCompanyDialog] = useState<{ open: boolean; editId: string | null; form: CompanyFormData }>({
@@ -1043,6 +1209,42 @@ export function BdClient({
     void label;
   }
 
+  async function saveArchiveEntry(companyId: string, entryType: string, content: string) {
+    const res = await fetch(`/api/bd/companies/${companyId}/archive`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entryType, content }),
+    });
+    if (!res.ok) throw new Error('Failed to save');
+    const updated = await res.json() as ArchiveEntry;
+    setArchiveEntries(prev => {
+      const idx = prev.findIndex(e => e.companyId === companyId && e.entryType === entryType);
+      return idx >= 0 ? prev.map((e, i) => i === idx ? updated : e) : [...prev, updated];
+    });
+    setCompanies(prev => prev.map(c => {
+      if (c.id !== companyId) return c;
+      const idx = c.archiveEntries.findIndex(e => e.entryType === entryType);
+      const newEntries = idx >= 0
+        ? c.archiveEntries.map((e, i) => i === idx ? updated : e)
+        : [...c.archiveEntries, updated];
+      return { ...c, archiveEntries: newEntries };
+    }));
+  }
+
+  async function deleteArchiveEntry(companyId: string, entryType: string) {
+    const res = await fetch(`/api/bd/companies/${companyId}/archive`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entryType }),
+    });
+    if (!res.ok) throw new Error('Failed to delete');
+    setArchiveEntries(prev => prev.filter(e => !(e.companyId === companyId && e.entryType === entryType)));
+    setCompanies(prev => prev.map(c => c.id !== companyId ? c : {
+      ...c,
+      archiveEntries: c.archiveEntries.filter(e => e.entryType !== entryType),
+    }));
+  }
+
   async function deleteCompany(id: string) {
     const res = await fetch(`/api/bd/companies/${id}`, { method: 'DELETE' });
     if (!res.ok) {
@@ -1229,6 +1431,13 @@ export function BdClient({
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button
+                              title="View Details"
+                              onClick={() => setViewCompanyId(company.id)}
+                              className="p-1.5 rounded hover:bg-violet-50 text-violet-500"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
                               title="View Archive"
                               onClick={() => { setArchivePanelCompanyId(company.id); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }}
                               className="p-1.5 rounded hover:bg-slate-100 text-slate-500"
@@ -1325,7 +1534,8 @@ export function BdClient({
                   <ArchivePanel
                     company={archivePanelCompany}
                     canManage={canManage}
-                    onRefresh={() => router.refresh()}
+                    onSave={saveArchiveEntry}
+                    onDelete={(companyId, entryType) => setArchiveDeleteDialog({ open: true, companyId, entryType, label: ARCHIVE_TYPE_LABELS[entryType] ?? entryType })}
                   />
                 </div>
 
@@ -1445,12 +1655,13 @@ export function BdClient({
                     <TableHead>Entry Type</TableHead>
                     <TableHead>Content</TableHead>
                     <TableHead>Last Updated</TableHead>
+                    {canManage && <TableHead className="w-[80px]" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredArchiveEntries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="py-10 text-center text-slate-400">No archive entries found</TableCell>
+                      <TableCell colSpan={canManage ? 5 : 4} className="py-10 text-center text-slate-400">No archive entries found</TableCell>
                     </TableRow>
                   ) : filteredArchiveEntries.map(entry => (
                     <TableRow key={entry.id}>
@@ -1466,6 +1677,30 @@ export function BdClient({
                         </p>
                       </TableCell>
                       <TableCell className="text-xs text-slate-500">{fmt(entry.updatedAt)}</TableCell>
+                      {canManage && (
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              title="Edit"
+                              onClick={() => {
+                                setArchivePanelCompanyId(entry.companyId);
+                                setActiveTab('companies');
+                                setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+                              }}
+                              className="p-1.5 rounded hover:bg-slate-100 text-slate-500"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              title="Delete"
+                              onClick={() => setArchiveDeleteDialog({ open: true, companyId: entry.companyId, entryType: entry.entryType, label: ARCHIVE_TYPE_LABELS[entry.entryType] ?? entry.entryType })}
+                              className="p-1.5 rounded hover:bg-rose-50 text-rose-500"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1669,6 +1904,59 @@ export function BdClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Archive entry delete */}
+      <Dialog open={archiveDeleteDialog.open} onOpenChange={v => !v && setArchiveDeleteDialog(d => ({ ...d, open: false }))}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="h-5 w-5" /> Clear Archive Entry
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600 py-2">
+            Clear <strong>{archiveDeleteDialog.label}</strong> for this company? The content will be permanently deleted.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setArchiveDeleteDialog(d => ({ ...d, open: false }))}>Cancel</Button>
+            <Button variant="destructive" onClick={async () => {
+              await deleteArchiveEntry(archiveDeleteDialog.companyId, archiveDeleteDialog.entryType);
+              setArchiveDeleteDialog(d => ({ ...d, open: false }));
+            }}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Company detail view modal */}
+      <CompanyDetailModal
+        company={viewCompany}
+        open={viewCompanyId !== null}
+        onClose={() => setViewCompanyId(null)}
+        canManage={canManage}
+        onEdit={() => {
+          if (!viewCompany) return;
+          setCompanyDialog({
+            open: true,
+            editId: viewCompany.id,
+            form: {
+              name: viewCompany.name,
+              logoUrl: viewCompany.logoUrl ?? '',
+              vendorId: viewCompany.vendorId ?? '',
+              portalUsername: viewCompany.portalUsername ?? '',
+              portalPassword: viewCompany.portalPassword ?? '',
+              registrationChannel: viewCompany.registrationChannel ?? '',
+              channelOther: viewCompany.channelOther ?? '',
+              contactName: viewCompany.contactName ?? '',
+              contactEmail: viewCompany.contactEmail ?? '',
+              contactPhone: viewCompany.contactPhone ?? '',
+              registrationStatus: viewCompany.registrationStatus,
+              registrationDate: viewCompany.registrationDate ? viewCompany.registrationDate.slice(0, 10) : '',
+              registrationExpiry: viewCompany.registrationExpiry ? viewCompany.registrationExpiry.slice(0, 10) : '',
+              whatNext: viewCompany.whatNext ?? '',
+              notes: viewCompany.notes ?? '',
+            },
+          });
+        }}
+      />
     </div>
   );
 }

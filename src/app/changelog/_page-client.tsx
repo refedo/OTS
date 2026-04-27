@@ -23,10 +23,119 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '21.2.0',
+    date: 'April 27, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Business Development — UX Improvements & Archive CRUD',
+    highlights: [
+      'Company logos now fall back gracefully to initials when an image cannot be loaded; logos display larger in the company table.',
+      'New "View Details" eye button on every company row opens a full read-only detail modal — including archive entries — with a one-click Edit shortcut.',
+      'Archive entries now support full CRUD: clear individual entries from the archive panel or the Archives tab.',
+      'Workflow permission picker replaces the raw permission-key text field with a grouped, searchable dropdown showing human-readable names.',
+      'Workflow fixed-user step now shows a user selector instead of requiring a raw UUID.',
+    ],
+    changes: {
+      added: [
+        'Company detail modal (eye icon button) — full read-only view of all fields with inline Edit button',
+        'Archive entry delete — clear button in archive panel and delete button in Archives tab; DELETE /api/bd/companies/[id]/archive endpoint',
+        'Workflow PBAC_PERMISSION picker — grouped select + live search by name or permission key with description preview',
+        'Workflow FIXED_USER selector — dropdown of active users fetched from /api/users',
+        'Workflow ROLE selector — dropdown of roles fetched from /api/roles',
+        'Vendor Portal Fields (v21.2.0-a) — Vendor ID#, portal username, and password (visibility restricted to creator and CEO)',
+      ],
+      fixed: [
+        'BD company logos: onError fallback renders initials instead of broken image icon',
+        'PM2 Prisma error: resolveUserPermissions now guards against empty userId before calling findUnique',
+      ],
+      changed: [
+        'Company avatar size increased to h-16 w-16 in company table (was h-14 w-14)',
+        'Archive panel save/delete now updates React state immediately without requiring a page refresh',
+        'resolverSummary shows human-readable permission name instead of raw permission key in workflow step list',
+      ],
+    },
+  },
+  {
+    version: '21.1.0',
+    date: 'April 26, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Dolibarr Employee Sync & Loan Approval Workflow',
+    highlights: [
+      'Numeric extrafield IDs (department, nationality, marital status) are now resolved to text labels before being stored in OTS.',
+      'Supervisor hierarchy synced from Dolibarr — Manager of Initiator workflow resolver is always up-to-date after each sync.',
+      'New PENDING_APPROVAL loan status — loans await two-step approval (direct manager → HR manager) before becoming active.',
+      'hr-loan-approval workflow seeded automatically: step 1 is direct manager (72 h SLA), step 2 is any user with Manage Employee Loans permission (120 h SLA).',
+    ],
+    changes: {
+      added: [
+        'fetchDolibarrDepartmentMap(), fetchDolibarrCountryMap(), fetchDolibarrExtraFieldSelectMaps() in dolibarr-db.ts',
+        'fk_user_resp field on DolibarrUser interface for supervisor hierarchy sync',
+        'PENDING_APPROVAL loan status — transitions to ACTIVE on approval or CANCELLED on rejection',
+        'hr-loan-approval workflow definition seeded by loan_approval_workflow.sql',
+        'Loan creation API starts approval workflow automatically with fallback to ACTIVE',
+        'Amber Pending Approval badge in Loans UI',
+      ],
+      fixed: [
+        'Department, nationality, and select-type extrafields now stored as text labels instead of numeric IDs',
+        'Supervisor hierarchy (reportsToId) now synced from Dolibarr fk_user_resp field',
+      ],
+      changed: [],
+    },
+  },
+  {
+    version: '21.0.0',
+    date: 'April 26, 2026',
+    type: 'major',
+    status: 'previous',
+    mainTitle: 'Workflow Engine',
+    highlights: [
+      'New generic multi-step approval workflow engine — reusable across IMS, HR, Procurement, and any future module.',
+      'Six approver resolver types: by Role, by Permission, Department Head, Manager of Initiator, Fixed User, and Amount Band.',
+      'Safe condition evaluator skips steps whose conditions fail — no eval(), pure comparison logic.',
+      'My Approvals inbox with SLA countdown badges; embeddable ApprovalInbox and WorkflowTimeline components.',
+      'All workflow state transitions logged to System Events automatically.',
+    ],
+    changes: {
+      added: [
+        'WorkflowDefinition, WorkflowStep, WorkflowInstance, WorkflowStepInstance, WorkflowApproval database models',
+        'Six approver resolver types: ROLE, PBAC_PERMISSION, DEPARTMENT_HEAD, MANAGER_OF_INITIATOR, FIXED_USER, AMOUNT_BAND',
+        'WorkflowService with startWorkflow, recordDecision, cancelWorkflow, getWorkflowStatus, getPendingApprovalsForUser',
+        'API routes under /api/workflow/ — definitions CRUD, start, decide, cancel, my-approvals, entity status',
+        'Admin page at /workflow/definitions — step editor with resolver picker, SLA, on-reject behavior, conditions builder',
+        'My Approvals page at /workflow/my-approvals — inbox with SLA countdown',
+        'ApprovalInbox and WorkflowTimeline embeddable components',
+        '6 new PBAC permissions: workflow.definitions.view/manage, workflow.instances.view/start/cancel, workflow.my-approvals.view',
+        'Workflow sidebar section with Definitions and My Approvals navigation',
+        'SystemEventService integration — all state transitions logged automatically',
+      ],
+      fixed: [],
+      changed: ['Version bumped to 21.0.0 (major release)'],
+    },
+  },
+  {
+    version: '20.1.1',
+    date: 'April 25, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Business Development UI Implementation',
+    highlights: [
+      'Fully implemented Business Development client with Companies table, Archive/Document/Request summary panels, and complete tab views.',
+      'All CRUD dialogs for companies, documents, and requests are operational with search, pagination, and filters.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'BD Client UI — fully implemented bd-client.tsx with Companies table (search, pagination, actions), Archive/Document/Request summary panels, and full tab views with company filters and CRUD dialogs',
+      ],
+      changed: [],
+    },
+  },
+  {
     version: '20.1.0',
     date: 'April 25, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Payroll Entitlement Adjustments',
     highlights: [
       'Record Annual Leave Allowance on any payroll period — amount auto-computed from daily rate × days, leave balance decremented automatically.',

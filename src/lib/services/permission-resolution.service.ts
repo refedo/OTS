@@ -100,6 +100,10 @@ export function parseCustomPermissions(raw: unknown): CustomPermissions | null {
  * Fetches user + role from DB, then delegates to pure function.
  */
 export async function resolveUserPermissions(userId: string): Promise<string[]> {
+  if (!userId) {
+    logger.warn('[PBAC] resolveUserPermissions called with empty userId');
+    return [];
+  }
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { role: true },
