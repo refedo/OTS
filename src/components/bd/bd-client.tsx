@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Handshake, Search, Plus, Trash2, Edit, FileText,
   MoreVertical, ChevronLeft, ChevronRight, Loader2, X, Building2,
   Mail, Phone, User, FileCheck, AlertCircle, Archive,
-  Inbox, ExternalLink, Eye, EyeOff, Hash, Lock,
+  Inbox, ExternalLink, Eye, EyeOff, Hash, Lock, Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -216,7 +216,7 @@ function Pagination({ page, total, pageSize, onChange }: { page: number; total: 
           <button
             key={p}
             onClick={() => onChange(p)}
-            className={cn('w-7 h-7 rounded text-xs font-medium', p === page ? 'bg-sky-600 text-white' : 'hover:bg-slate-100')}
+            className={cn('w-7 h-7 rounded text-xs font-medium', p === page ? 'bg-violet-600 text-white' : 'hover:bg-slate-100')}
           >
             {p}
           </button>
@@ -267,8 +267,31 @@ function CompanyDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState('');
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => { setForm(initial); setError(''); }, [open, initial]);
+  React.useEffect(() => { setForm(initial); setError(''); setLogoUploadError(''); }, [open, initial]);
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true); setLogoUploadError('');
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'bd-logos');
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed');
+      setForm(f => ({ ...f, logoUrl: data.filePath }));
+    } catch (err) {
+      setLogoUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  }
 
   const field = (key: keyof CompanyFormData) => ({
     value: form[key],
@@ -303,9 +326,24 @@ function CompanyDialog({
               <Label htmlFor="c-name">Company Name *</Label>
               <Input id="c-name" {...field('name')} placeholder="e.g. Saudi Aramco" />
             </div>
-            <div className="col-span-2 space-y-1">
-              <Label htmlFor="c-logo">Logo URL</Label>
-              <Input id="c-logo" {...field('logoUrl')} placeholder="https://..." />
+            <div className="col-span-2 space-y-2">
+              <Label>Company Logo</Label>
+              {form.logoUrl && (
+                <div className="flex items-center gap-2">
+                  <img src={form.logoUrl} alt="Logo" className="h-12 w-12 rounded-lg object-contain border bg-slate-50 p-0.5" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                  <span className="text-xs text-slate-500 truncate flex-1">{form.logoUrl.split('/').pop()}</span>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, logoUrl: '' }))} className="text-slate-400 hover:text-rose-500">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}>
+                  {logoUploading ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Uploading…</> : <><Upload className="h-3.5 w-3.5 mr-1" />{form.logoUrl ? 'Replace Logo' : 'Upload Logo'}</>}
+                </Button>
+                {logoUploadError && <span className="text-xs text-rose-600">{logoUploadError}</span>}
+              </div>
             </div>
 
             {/* ── Vendor credentials ── */}
@@ -422,8 +460,31 @@ function DocumentDialog({
   const [form, setForm] = useState<DocFormData>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => { setForm(initial); setError(''); }, [open, initial]);
+  React.useEffect(() => { setForm(initial); setError(''); setFileUploadError(''); }, [open, initial]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileUploading(true); setFileUploadError('');
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'bd-documents');
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed');
+      setForm(f => ({ ...f, fileUrl: data.filePath }));
+    } catch (err) {
+      setFileUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setFileUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
 
   const field = (key: keyof DocFormData) => ({
     value: form[key],
@@ -457,9 +518,23 @@ function DocumentDialog({
             <Label>Document Title *</Label>
             <Input {...field('title')} placeholder="e.g. VAT Certificate" />
           </div>
-          <div className="space-y-1">
-            <Label>File URL</Label>
-            <Input {...field('fileUrl')} placeholder="https://..." />
+          <div className="space-y-2">
+            <Label>Attachment</Label>
+            {form.fileUrl && (
+              <div className="flex items-center gap-2 p-2 rounded-lg border bg-slate-50 text-xs text-slate-600">
+                <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                <span className="truncate flex-1">{form.fileUrl.split('/').pop()}</span>
+                <a href={form.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-700 flex-shrink-0"><ExternalLink className="h-3.5 w-3.5" /></a>
+                <button type="button" onClick={() => setForm(f => ({ ...f, fileUrl: '' }))} className="text-slate-400 hover:text-rose-500 flex-shrink-0"><X className="h-3.5 w-3.5" /></button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip" className="hidden" onChange={handleFileUpload} />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={fileUploading}>
+                {fileUploading ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Uploading…</> : <><Upload className="h-3.5 w-3.5 mr-1" />{form.fileUrl ? 'Replace File' : 'Attach File'}</>}
+              </Button>
+              {fileUploadError && <span className="text-xs text-rose-600">{fileUploadError}</span>}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -935,17 +1010,37 @@ export function BdClient({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Hero */}
-        <div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
-          <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-          <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <Handshake className="h-5 w-5" />
+        <div className="rounded-2xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 35%, #7c3aed 65%, #9333ea 100%)' }}>
+          {/* Decorative rings */}
+          <div className="absolute -top-12 -right-12 w-56 h-56 rounded-full border border-white/10" />
+          <div className="absolute -top-6 -right-6 w-40 h-40 rounded-full border border-white/10" />
+          <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-white/5 blur-2xl" />
+          {/* Subtle grid */}
+          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(white 1px,transparent 1px),linear-gradient(90deg,white 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1.5">
+                <div className="p-2.5 bg-white/15 rounded-xl backdrop-blur-sm border border-white/20 shadow-inner">
+                  <Handshake className="h-6 w-6" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight">Business Development</h1>
               </div>
-              <h1 className="text-2xl font-bold">Business Development</h1>
+              <p className="text-violet-200 text-sm pl-1">Vendor registration, portal credentials, documents &amp; requests — all in one place.</p>
             </div>
-            <p className="text-sky-100 text-sm">Manage companies, registration status, requirements, and all related documents &amp; requests.</p>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="text-center px-5 py-2.5 bg-white/10 rounded-xl border border-white/15 backdrop-blur-sm">
+                <p className="text-2xl font-bold leading-none">{kpi.total}</p>
+                <p className="text-xs text-violet-200 mt-0.5">Vendors</p>
+              </div>
+              <div className="text-center px-5 py-2.5 bg-white/10 rounded-xl border border-white/15 backdrop-blur-sm">
+                <p className="text-2xl font-bold leading-none">{kpi.registered}</p>
+                <p className="text-xs text-violet-200 mt-0.5">Registered</p>
+              </div>
+              <div className="text-center px-5 py-2.5 bg-white/10 rounded-xl border border-white/15 backdrop-blur-sm">
+                <p className="text-2xl font-bold leading-none">{kpi.inProgress}</p>
+                <p className="text-xs text-violet-200 mt-0.5">In Progress</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -988,14 +1083,14 @@ export function BdClient({
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors',
                   activeTab === t.key
-                    ? 'border-sky-600 text-sky-700'
+                    ? 'border-violet-600 text-violet-700'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300',
                 )}
               >
                 {t.label}
                 <span className={cn(
                   'inline-flex items-center justify-center rounded-full text-xs px-1.5 min-w-[1.25rem] h-5',
-                  activeTab === t.key ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-600',
+                  activeTab === t.key ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600',
                 )}>
                   {t.count}
                 </span>
@@ -1232,7 +1327,7 @@ export function BdClient({
                   {docPanelDocs.length > 0 && (
                     <button
                       onClick={() => { setDocsFilter(docPanelCompanyId); setActiveTab('documents'); }}
-                      className="text-xs text-sky-600 hover:underline flex items-center gap-1"
+                      className="text-xs text-violet-600 hover:underline flex items-center gap-1"
                     >
                       View All Documents <ExternalLink className="h-3 w-3" />
                     </button>
@@ -1277,7 +1372,7 @@ export function BdClient({
                   {reqPanelReqs.length > 0 && (
                     <button
                       onClick={() => { setReqsFilter(reqPanelCompanyId); setActiveTab('requests'); }}
-                      className="text-xs text-sky-600 hover:underline flex items-center gap-1"
+                      className="text-xs text-violet-600 hover:underline flex items-center gap-1"
                     >
                       View All Requests <ExternalLink className="h-3 w-3" />
                     </button>
