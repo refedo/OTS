@@ -62,6 +62,8 @@ type BdCompany = {
   vendorId: string | null;
   portalUsername: string | null;
   portalPassword: string | null;
+  registrationChannel: string | null;
+  channelOther: string | null;
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
@@ -237,6 +239,8 @@ type CompanyFormData = {
   vendorId: string;
   portalUsername: string;
   portalPassword: string;
+  registrationChannel: string;
+  channelOther: string;
   contactName: string;
   contactEmail: string;
   contactPhone: string;
@@ -249,6 +253,7 @@ type CompanyFormData = {
 
 const EMPTY_COMPANY_FORM: CompanyFormData = {
   name: '', logoUrl: '', vendorId: '', portalUsername: '', portalPassword: '',
+  registrationChannel: '', channelOther: '',
   contactName: '', contactEmail: '', contactPhone: '',
   registrationStatus: 'NOT_STARTED', registrationDate: '', registrationExpiry: '',
   whatNext: '', notes: '',
@@ -394,6 +399,24 @@ function CompanyDialog({
                 </div>
               </div>
             </div>
+
+            <div className="col-span-2 space-y-1">
+              <Label htmlFor="c-channel">Registration Channel</Label>
+              <select id="c-channel" {...field('registrationChannel')} className="w-full h-9 px-2 rounded-md border bg-background text-sm">
+                <option value="">— Select channel —</option>
+                <option value="SAP">SAP</option>
+                <option value="Oracle">Oracle</option>
+                <option value="Company Website">Company Website</option>
+                <option value="Email">Email</option>
+                <option value="Others">Others (specify)</option>
+              </select>
+            </div>
+            {form.registrationChannel === 'Others' && (
+              <div className="col-span-2 space-y-1">
+                <Label htmlFor="c-channel-other">Specify Channel</Label>
+                <Input id="c-channel-other" {...field('channelOther')} placeholder="e.g. Phone, In-person…" />
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label htmlFor="c-cname">Contact Name</Label>
@@ -906,6 +929,8 @@ export function BdClient({
       vendorId: data.vendorId || null,
       portalUsername: data.portalUsername || null,
       portalPassword: data.portalPassword || null,
+      registrationChannel: data.registrationChannel || null,
+      channelOther: data.channelOther || null,
       contactName: data.contactName || null,
       contactEmail: data.contactEmail || null,
       contactPhone: data.contactPhone || null,
@@ -1229,6 +1254,8 @@ export function BdClient({
                                           vendorId: company.vendorId ?? '',
                                           portalUsername: company.portalUsername ?? '',
                                           portalPassword: company.portalPassword ?? '',
+                                          registrationChannel: company.registrationChannel ?? '',
+                                          channelOther: company.channelOther ?? '',
                                           contactName: company.contactName ?? '',
                                           contactEmail: company.contactEmail ?? '',
                                           contactPhone: company.contactPhone ?? '',
