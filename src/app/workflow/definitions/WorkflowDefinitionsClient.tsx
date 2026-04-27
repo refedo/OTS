@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   GitBranch, Plus, Pencil, Trash2, ChevronDown, ChevronUp,
   GripVertical, Save, X, Check, AlertCircle, Power, PowerOff, Search,
+  Info, Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -735,51 +736,120 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit' : 'New'} Workflow Definition</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-violet-600" />
+            {isEdit ? 'Edit' : 'New'} Workflow Definition
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-5 py-2">
+
+          {/* Module linkage explainer */}
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-sky-600 shrink-0" />
+              <p className="text-xs font-semibold text-sky-800">How workflows link to modules</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-sky-700">
+              <div className="rounded-lg border border-sky-200 bg-white p-3 space-y-1">
+                <p className="font-semibold text-sky-900">Workflow Key</p>
+                <p>The exact code identifier. The module calls <code className="bg-sky-100 px-1 rounded">startWorkflow(&apos;KEY&apos;, …)</code> with this string — it must match precisely.</p>
+                <p className="text-sky-500 italic">Example: <code>HR_LOAN_APPROVAL</code></p>
+              </div>
+              <div className="rounded-lg border border-sky-200 bg-white p-3 space-y-1">
+                <p className="font-semibold text-sky-900">Entity Type</p>
+                <p>Labels the kind of record being approved. Used to query workflow status for a specific record. Free-form text.</p>
+                <p className="text-sky-500 italic">Example: <code>Loan</code>, <code>IMS_DOCUMENT</code></p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-sky-200 bg-white p-3">
+              <p className="text-xs font-semibold text-sky-800 mb-2 flex items-center gap-1.5"><Info className="h-3.5 w-3.5" /> Active module integrations</p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-sky-600 border-b border-sky-100">
+                    <th className="text-left pb-1 font-medium">Module</th>
+                    <th className="text-left pb-1 font-medium">Workflow Key</th>
+                    <th className="text-left pb-1 font-medium">Entity Type</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sky-50">
+                  <tr>
+                    <td className="py-1 text-slate-700">HR → Employee Loans</td>
+                    <td className="py-1"><code className="bg-sky-100 text-sky-800 px-1.5 rounded font-mono">hr-loan-approval</code></td>
+                    <td className="py-1"><code className="bg-sky-100 text-sky-800 px-1.5 rounded font-mono">Loan</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Basic fields */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Display name</label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. HR Loan Approval" />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Description <span className="font-normal text-slate-400">(optional)</span></label>
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Brief description of what this workflow approves…" />
+          </div>
+
+          {/* Key + Entity Type — only editable on create */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Key <span className="text-slate-400">(UPPER_SNAKE)</span></label>
+              <label className="text-xs font-semibold text-slate-700">
+                Workflow key
+                {isEdit && <span className="ml-1.5 text-slate-400 font-normal">(locked after creation)</span>}
+              </label>
               <Input
                 value={key}
                 onChange={e => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))}
-                placeholder="IMS_REVISION_APPROVAL"
+                placeholder="HR_LOAN_APPROVAL"
                 disabled={isEdit}
                 className="font-mono text-sm"
               />
+              {!isEdit && (
+                <p className="text-xs text-slate-400">Uppercase + underscores only. Must match the key in module code exactly.</p>
+              )}
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-600">Entity type</label>
-              <Input
-                value={entityType}
-                onChange={e => setEntityType(e.target.value)}
-                placeholder="IMS_DOCUMENT"
-                disabled={isEdit}
-                className="font-mono text-sm"
-              />
+              <label className="text-xs font-semibold text-slate-700">
+                Entity type
+                {isEdit && <span className="ml-1.5 text-slate-400 font-normal">(locked after creation)</span>}
+              </label>
+              <div className="relative">
+                <Input
+                  list="entity-type-suggestions"
+                  value={entityType}
+                  onChange={e => setEntityType(e.target.value)}
+                  placeholder="Loan"
+                  disabled={isEdit}
+                  className="font-mono text-sm"
+                />
+                <datalist id="entity-type-suggestions">
+                  <option value="Loan" />
+                  <option value="IMS_DOCUMENT" />
+                  <option value="ASSET_REQUEST" />
+                  <option value="QC_DOCUMENT" />
+                  <option value="SALARY_HISTORY" />
+                  <option value="PROCUREMENT_REQUEST" />
+                </datalist>
+              </div>
+              {!isEdit && (
+                <p className="text-xs text-slate-400">Free-form label for the record type being approved.</p>
+              )}
             </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-600">Name</label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="IMS Revision Approval" />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-600">Description</label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Optional description…" />
           </div>
 
           {/* Steps */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-700">Steps ({steps.length})</p>
+              <p className="text-sm font-semibold text-slate-700">Approval steps ({steps.length})</p>
               <Button variant="outline" size="sm" onClick={addStep} className="h-7 text-xs gap-1">
                 <Plus className="h-3.5 w-3.5" /> Add step
               </Button>
             </div>
+            <p className="text-xs text-slate-400 -mt-1">Steps run in sequence. Each step must be approved before the next begins.</p>
             {steps.map((step, idx) => (
               <StepRow
                 key={idx}
