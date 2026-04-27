@@ -113,8 +113,9 @@ export async function GET(request: Request) {
       orderBy: { updatedAt: 'desc' },
     });
 
+    type DocRow = (typeof documents)[number];
     const now = new Date();
-    const result = documents.map((doc) => {
+    const result = documents.map((doc: DocRow) => {
       let overdueDays: number | null = null;
       if (doc.nextReviewDate && doc.nextReviewDate < now && doc.status === 'APPROVED') {
         overdueDays = Math.floor(
