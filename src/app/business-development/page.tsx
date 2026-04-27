@@ -69,6 +69,8 @@ export default async function BusinessDevelopmentPage() {
       totalDocs={totalDocs}
       totalRequests={totalRequests}
       canManage={canManage}
+      currentUserId={session.sub}
+      currentUserRole={session.role}
     />
   );
 }

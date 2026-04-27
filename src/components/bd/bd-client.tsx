@@ -6,7 +6,7 @@ import {
   Handshake, Search, Plus, Trash2, Edit, FileText,
   MoreVertical, ChevronLeft, ChevronRight, Loader2, X, Building2,
   Mail, Phone, User, FileCheck, AlertCircle, Archive,
-  Inbox, ExternalLink,
+  Inbox, ExternalLink, Eye, EyeOff, Hash, Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,9 @@ type BdCompany = {
   id: string;
   name: string;
   logoUrl: string | null;
+  vendorId: string | null;
+  portalUsername: string | null;
+  portalPassword: string | null;
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
@@ -68,6 +71,7 @@ type BdCompany = {
   whatNext: string | null;
   notes: string | null;
   updatedAt: string;
+  createdById: string | null;
   _count: { documents: number; requests: number };
   archiveEntries: ArchiveEntry[];
 };
@@ -80,6 +84,8 @@ interface BdClientProps {
   totalDocs: number;
   totalRequests: number;
   canManage: boolean;
+  currentUserId: string;
+  currentUserRole: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -228,6 +234,9 @@ function Pagination({ page, total, pageSize, onChange }: { page: number; total: 
 type CompanyFormData = {
   name: string;
   logoUrl: string;
+  vendorId: string;
+  portalUsername: string;
+  portalPassword: string;
   contactName: string;
   contactEmail: string;
   contactPhone: string;
@@ -239,22 +248,25 @@ type CompanyFormData = {
 };
 
 const EMPTY_COMPANY_FORM: CompanyFormData = {
-  name: '', logoUrl: '', contactName: '', contactEmail: '', contactPhone: '',
+  name: '', logoUrl: '', vendorId: '', portalUsername: '', portalPassword: '',
+  contactName: '', contactEmail: '', contactPhone: '',
   registrationStatus: 'NOT_STARTED', registrationDate: '', registrationExpiry: '',
   whatNext: '', notes: '',
 };
 
 function CompanyDialog({
-  open, onClose, initial, onSave,
+  open, onClose, initial, onSave, canSeePassword,
 }: {
   open: boolean;
   onClose: () => void;
   initial: CompanyFormData;
   onSave: (data: CompanyFormData) => Promise<void>;
+  canSeePassword: boolean;
 }) {
   const [form, setForm] = useState<CompanyFormData>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   React.useEffect(() => { setForm(initial); setError(''); }, [open, initial]);
 
@@ -295,6 +307,56 @@ function CompanyDialog({
               <Label htmlFor="c-logo">Logo URL</Label>
               <Input id="c-logo" {...field('logoUrl')} placeholder="https://..." />
             </div>
+
+            {/* ── Vendor credentials ── */}
+            <div className="col-span-2 border-t pt-3 mt-1">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Vendor Portal</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 space-y-1">
+                  <Label htmlFor="c-vid" className="flex items-center gap-1.5">
+                    <Hash className="h-3.5 w-3.5 text-slate-400" /> Vendor ID#
+                  </Label>
+                  <Input id="c-vid" {...field('vendorId')} placeholder="e.g. VND-00123" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="c-uname" className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-slate-400" /> Username
+                  </Label>
+                  <Input id="c-uname" {...field('portalUsername')} placeholder="portal username" autoComplete="off" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="c-pwd" className="flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-slate-400" /> Password
+                  </Label>
+                  {canSeePassword ? (
+                    <div className="relative">
+                      <Input
+                        id="c-pwd"
+                        type={showPassword ? 'text' : 'password'}
+                        {...field('portalPassword')}
+                        placeholder="portal password"
+                        autoComplete="new-password"
+                        className="pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-slate-50 text-slate-400 text-xs select-none">
+                      <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+                      Restricted — visible to creator &amp; CEO only
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-1">
               <Label htmlFor="c-cname">Contact Name</Label>
               <Input id="c-cname" {...field('contactName')} placeholder="John Doe" />
@@ -651,6 +713,8 @@ export function BdClient({
   totalDocs,
   totalRequests,
   canManage,
+  currentUserId,
+  currentUserRole,
 }: BdClientProps) {
   const router = useRouter();
 
@@ -683,6 +747,15 @@ export function BdClient({
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; companyId: string; companyName: string }>({
     open: false, companyId: '', companyName: '',
   });
+
+  // ── Password visibility ───────────────────────────────────────────────────
+
+  const canSeePassword = useMemo(() => {
+    if (companyDialog.editId === null) return true;
+    if (currentUserRole === 'CEO') return true;
+    const company = companies.find(c => c.id === companyDialog.editId);
+    return company?.createdById === currentUserId;
+  }, [companyDialog.editId, companies, currentUserId, currentUserRole]);
 
   // ── KPI ──────────────────────────────────────────────────────────────────────
 
@@ -755,6 +828,9 @@ export function BdClient({
     const body = {
       name: data.name,
       logoUrl: data.logoUrl || null,
+      vendorId: data.vendorId || null,
+      portalUsername: data.portalUsername || null,
+      portalPassword: data.portalPassword || null,
       contactName: data.contactName || null,
       contactEmail: data.contactEmail || null,
       contactPhone: data.contactPhone || null,
@@ -1055,6 +1131,9 @@ export function BdClient({
                                         form: {
                                           name: company.name,
                                           logoUrl: company.logoUrl ?? '',
+                                          vendorId: company.vendorId ?? '',
+                                          portalUsername: company.portalUsername ?? '',
+                                          portalPassword: company.portalPassword ?? '',
                                           contactName: company.contactName ?? '',
                                           contactEmail: company.contactEmail ?? '',
                                           contactPhone: company.contactPhone ?? '',
@@ -1387,6 +1466,7 @@ export function BdClient({
         open={companyDialog.open}
         onClose={() => setCompanyDialog(d => ({ ...d, open: false }))}
         initial={companyDialog.form}
+        canSeePassword={canSeePassword}
         onSave={saveCompany}
       />
 
