@@ -83,3 +83,35 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Failed to update archive' }, { status: 500 });
   }
 }
+
+const deleteSchema = z.object({
+  entryType: z.enum(ARCHIVE_TYPES),
+});
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const userPermissions = await getCurrentUserPermissions();
+    if (!userPermissions.includes('bd.companies.manage')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const body = await req.json();
+    const parsed = deleteSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
+    }
+
+    await prisma.bdArchiveEntry.deleteMany({
+      where: { companyId: id, entryType: parsed.data.entryType },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    logger.error({ error }, 'Failed to delete BD archive entry');
+    return NextResponse.json({ error: 'Failed to delete archive entry' }, { status: 500 });
+  }
+}

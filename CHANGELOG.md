@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [21.3.0] - 2026-04-27
+
+### Business Development & Workflow UX Improvements
+
+#### Added
+- **Company detail modal** — eye icon button on every company row opens a full read-only view of all fields (logo, vendor portal, contact, registration, notes, archive summary) with inline Edit button
+- **Archive entry delete** — clear individual archive entries via trash button in archive panel or Archives tab; `DELETE /api/bd/companies/[id]/archive` endpoint added
+- **Workflow permission picker** — `PBAC_PERMISSION` resolver type now uses a grouped, searchable dropdown showing human-readable permission names with description; replaces raw permission key input
+- **Workflow user/role selectors** — `FIXED_USER` shows a user dropdown (fetched from `/api/users`), `ROLE` shows a role dropdown (fetched from `/api/roles`)
+
+#### Fixed
+- **BD logos 404** — `CompanyAvatar` now has an `onError` fallback to initials when the image file is missing or unreachable
+- **PM2 Prisma error** — `resolveUserPermissions` guards against empty `userId` before calling `prisma.user.findUnique`, preventing `UserWhereUniqueInput` validation errors
+- **Changelog page sync** — `/changelog` page now reflects all entries from CHANGELOG.md including v21.2.0, v21.1.0, v21.0.0, v20.1.1
+
+#### Changed
+- Company logo size increased to `h-16 w-16` in company table (was `h-14 w-14`)
+- Archive panel save/delete updates React state immediately without requiring a full page refresh
+- `resolverSummary` now shows human-readable permission name in workflow step list view
+- Version bumped to **21.3.0**
+
+---
+
 ## [21.2.0] - 2026-04-27
 
 ### Business Development — Vendor Portal Fields

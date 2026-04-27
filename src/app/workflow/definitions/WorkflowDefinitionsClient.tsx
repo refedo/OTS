@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   GitBranch, Plus, Pencil, Trash2, ChevronDown, ChevronUp,
-  GripVertical, Save, X, Check, AlertCircle, Power, PowerOff,
+  GripVertical, Save, X, Check, AlertCircle, Power, PowerOff, Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PERMISSIONS, ALL_PERMISSIONS } from '@/lib/permissions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,10 +81,13 @@ function resolverSummary(resolver: Record<string, unknown>): string {
   const type = resolver.type as string;
   switch (type) {
     case 'ROLE':             return `Role: ${resolver.role}`;
-    case 'PBAC_PERMISSION':  return `Permission: ${resolver.permission}`;
-    case 'DEPARTMENT_HEAD':  return 'Department Head';
-    case 'MANAGER_OF_INITIATOR': return 'Manager of Initiator';
-    case 'FIXED_USER':       return `User: ${resolver.userId}`;
+    case 'PBAC_PERMISSION': {
+      const perm = ALL_PERMISSIONS.find(p => p.id === resolver.permission);
+      return `Permission: ${perm?.name ?? resolver.permission}`;
+    }
+    case 'DEPARTMENT_HEAD':  return 'Department Head (auto)';
+    case 'MANAGER_OF_INITIATOR': return 'Manager of Initiator (auto)';
+    case 'FIXED_USER':       return `Fixed User: ${resolver.userName ?? resolver.userId}`;
     case 'AMOUNT_BAND':      return `Amount band on "${resolver.field}"`;
     default:                 return type ?? 'Unknown';
   }
@@ -102,9 +106,75 @@ interface ResolverConfigProps {
   resolver: Record<string, unknown>;
   onChange: (resolver: Record<string, unknown>) => void;
   disabled: boolean;
+  users?: { id: string; name: string; email: string }[];
+  roles?: { id: string; name: string }[];
 }
 
-function ResolverConfigFields({ resolver, onChange, disabled }: ResolverConfigProps) {
+function PermissionPicker({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled: boolean }) {
+  const [search, setSearch] = useState('');
+  const filtered = search
+    ? ALL_PERMISSIONS.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase()))
+    : null;
+
+  const currentPerm = ALL_PERMISSIONS.find(p => p.id === value);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search permissions…"
+          className="h-8 text-xs pl-7"
+          disabled={disabled}
+        />
+      </div>
+      {filtered ? (
+        <div className="max-h-48 overflow-y-auto rounded border bg-white divide-y">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-slate-400 px-3 py-2">No match</p>
+          ) : filtered.map(p => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => { onChange(p.id); setSearch(''); }}
+              className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-start gap-2"
+              disabled={disabled}
+            >
+              <span className={`flex-1 text-xs ${value === p.id ? 'font-semibold text-violet-700' : 'text-slate-700'}`}>{p.name}</span>
+              <span className="text-xs text-slate-400 font-mono shrink-0">{p.id}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <select
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+          disabled={disabled}
+        >
+          <option value="">— Select permission —</option>
+          {PERMISSIONS.map(cat => (
+            <optgroup key={cat.id} label={cat.name}>
+              {cat.permissions.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      )}
+      {value && currentPerm && (
+        <p className="text-xs text-slate-400">
+          <span className="font-mono text-slate-500">{value}</span>
+          {' — '}{currentPerm.description}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ResolverConfigFields({ resolver, onChange, disabled, users = [], roles = [] }: ResolverConfigProps) {
   const type = resolver.type as string;
   const set = (field: string, value: unknown) => onChange({ ...resolver, [field]: value });
 
@@ -112,26 +182,36 @@ function ResolverConfigFields({ resolver, onChange, disabled }: ResolverConfigPr
     case 'ROLE':
       return (
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500">Role name</label>
-          <Input
-            value={(resolver.role as string) ?? ''}
-            onChange={e => set('role', e.target.value)}
-            placeholder="e.g. HR Manager"
-            className="h-8 text-sm"
-            disabled={disabled}
-          />
+          <label className="text-xs font-medium text-slate-500">Role</label>
+          {roles.length > 0 ? (
+            <select
+              value={(resolver.role as string) ?? ''}
+              onChange={e => set('role', e.target.value)}
+              className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+              disabled={disabled}
+            >
+              <option value="">— Select role —</option>
+              {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+            </select>
+          ) : (
+            <Input
+              value={(resolver.role as string) ?? ''}
+              onChange={e => set('role', e.target.value)}
+              placeholder="e.g. HR Manager"
+              className="h-8 text-sm"
+              disabled={disabled}
+            />
+          )}
         </div>
       );
 
     case 'PBAC_PERMISSION':
       return (
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500">Permission key</label>
-          <Input
+          <label className="text-xs font-medium text-slate-500">Who should approve?</label>
+          <PermissionPicker
             value={(resolver.permission as string) ?? ''}
-            onChange={e => set('permission', e.target.value)}
-            placeholder="e.g. hr.payroll.approve"
-            className="h-8 text-sm font-mono"
+            onChange={v => set('permission', v)}
             disabled={disabled}
           />
         </div>
@@ -148,15 +228,32 @@ function ResolverConfigFields({ resolver, onChange, disabled }: ResolverConfigPr
     case 'FIXED_USER':
       return (
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500">User ID</label>
-          <Input
-            value={(resolver.userId as string) ?? ''}
-            onChange={e => set('userId', e.target.value)}
-            placeholder="Paste user UUID"
-            className="h-8 text-sm font-mono"
-            disabled={disabled}
-          />
-          <p className="text-xs text-slate-400">Find the UUID on the Users page.</p>
+          <label className="text-xs font-medium text-slate-500">Specific user</label>
+          {users.length > 0 ? (
+            <select
+              value={(resolver.userId as string) ?? ''}
+              onChange={e => {
+                const u = users.find(u => u.id === e.target.value);
+                onChange({ ...resolver, userId: e.target.value, userName: u?.name ?? '' });
+              }}
+              className="w-full h-9 px-2 rounded-md border bg-background text-sm"
+              disabled={disabled}
+            >
+              <option value="">— Select user —</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+            </select>
+          ) : (
+            <>
+              <Input
+                value={(resolver.userId as string) ?? ''}
+                onChange={e => set('userId', e.target.value)}
+                placeholder="User UUID"
+                className="h-8 text-sm font-mono"
+                disabled={disabled}
+              />
+              <p className="text-xs text-slate-400">Loading users…</p>
+            </>
+          )}
         </div>
       );
 
@@ -371,9 +468,11 @@ interface StepRowProps {
   onChange: (index: number, step: WorkflowStep) => void;
   onRemove: (index: number) => void;
   canManage: boolean;
+  users: { id: string; name: string; email: string }[];
+  roles: { id: string; name: string }[];
 }
 
-function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
+function StepRow({ step, index, onChange, onRemove, canManage, users, roles }: StepRowProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedJson, setAdvancedJson] = useState(() => JSON.stringify(step.approverResolver, null, 2));
   const [jsonError, setJsonError] = useState('');
@@ -484,6 +583,8 @@ function StepRow({ step, index, onChange, onRemove, canManage }: StepRowProps) {
             resolver={step.approverResolver}
             onChange={handleResolverChange}
             disabled={!canManage}
+            users={users}
+            roles={roles}
           />
         </div>
       )}
@@ -559,6 +660,17 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/users').then(r => r.ok ? r.json() : null).then(d => {
+      if (Array.isArray(d)) setUsers(d.map((u: { id: string; name: string; email: string }) => ({ id: u.id, name: u.name, email: u.email })));
+    }).catch(() => {});
+    fetch('/api/roles').then(r => r.ok ? r.json() : null).then(d => {
+      if (Array.isArray(d)) setRoles(d.map((r: { id: string; name: string }) => ({ id: r.id, name: r.name })));
+    }).catch(() => {});
+  }, []);
 
   const addStep = () => {
     setSteps(prev => [...prev, {
@@ -676,6 +788,8 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
                 onChange={updateStep}
                 onRemove={removeStep}
                 canManage
+                users={users}
+                roles={roles}
               />
             ))}
           </div>
