@@ -23,10 +23,48 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.0.0',
+    date: 'April 27, 2026',
+    type: 'major',
+    status: 'current',
+    mainTitle: 'IMS — Integrated Management System',
+    highlights: [
+      'Full ISO 9001:2015, ISO 14001:2015, and ISO 45001:2018 integrated management system module.',
+      'Document Control with versioned revisions, controlled distribution, and acknowledgement tracking.',
+      'Risk Register with 5×5 likelihood × severity scoring, treatment tracking, and interactive risk matrix.',
+      'Clause Matrix for mapping documents to ISO standard clauses with Excel export.',
+      'Review Calendar for upcoming document review scheduling.',
+      'Seeded all ISO 9001/14001/45001 clauses (§4–10) and two workflow definitions.',
+    ],
+    changes: {
+      added: [
+        'IMS Document Control — registry, versioned revisions, controlled distribution, DCR lifecycle',
+        'IMS Clause Matrix — document-to-clause coverage map with Excel export (XLSX)',
+        'IMS Review Calendar — monthly document review timeline with overdue highlighting',
+        'IMS Risk Register — full risk and opportunity register (ISO 9001 §6.1, ISO 14001 §6.1, ISO 45001 §6.1)',
+        'IMS Risk Assessments — versioned per-risk assessments with inherent/residual rating',
+        'IMS Risk Treatments — action tracking with responsible, target date, effectiveness rating',
+        'IMS Hazard Identification — OHS hazard log with hierarchy of controls (ISO 45001)',
+        'IMS Risk Matrix — interactive 5×5 heat map with ISO standard filter and drill-down',
+        'IMS Treatments Tracker — cross-register treatment view with overdue detection',
+        'IMS Dashboard — aggregated KPIs: documents, risks, DCRs, overdue reviews',
+        'Workflow definitions: IMS_REVISION_APPROVAL (3-step) and IMS_CHANGE_REQUEST (2-step)',
+        '12 new Prisma models: ImsCategory, ImsDocument, ImsRevision, ImsDistribution, ImsDistributionRecipient, ImsChangeRequest, ImsClause, ImsClauseMapping, ImsRisk, ImsRiskAssessment, ImsRiskTreatment, ImsHazardIdentification',
+        '15 IMS RBAC permissions across Admin, CEO, Manager, Engineer, Document Controller roles',
+        'Sidebar IMS section with 8 navigation items',
+        'All ISO 9001/14001/45001 clauses §4–10 seeded with parent-child hierarchy',
+      ],
+      fixed: [],
+      changed: [
+        'Version bumped to 22.0.0',
+      ],
+    },
+  },
+  {
     version: '21.2.0',
     date: 'April 27, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Business Development — UX Improvements & Archive CRUD',
     highlights: [
       'Company logos now fall back gracefully to initials when an image cannot be loaded; logos display larger in the company table.',
