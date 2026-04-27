@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   GitBranch, Plus, Pencil, Trash2, ChevronDown, ChevronUp,
-  GripVertical, Save, X, Check, AlertCircle, Power, PowerOff, Search,
-  Info, Link2,
+  GripVertical, Save, X, AlertCircle, Power, PowerOff, Search,
+  ChevronRight, Users, ClipboardCheck, TrendingUp, Package,
+  Layers, FileText, Wrench, Zap, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,102 @@ interface WorkflowDefinition {
 interface Props {
   canManage: boolean;
 }
+
+// ─── Module presets ──────────────────────────────────────────────────────────
+
+interface ModulePreset {
+  id: string;
+  name: string;
+  description: string;
+  key: string;
+  entityType: string;
+  isLive: boolean; // already wired in module code
+}
+
+interface ModuleCategory {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  color: string;
+  presets: ModulePreset[];
+}
+
+const MODULE_CATEGORIES: ModuleCategory[] = [
+  {
+    id: 'hr',
+    name: 'HR',
+    icon: <Users className="h-4 w-4" />,
+    color: 'violet',
+    presets: [
+      { id: 'hr-loan', name: 'Employee Loan Approval', description: 'Approve employee loan requests', key: 'hr-loan-approval', entityType: 'Loan', isLive: true },
+      { id: 'hr-leave', name: 'Leave Request Approval', description: 'Approve employee leave requests', key: 'HR_LEAVE_APPROVAL', entityType: 'LeaveRequest', isLive: false },
+      { id: 'hr-eos', name: 'End of Service Approval', description: 'Approve end-of-service settlements', key: 'HR_END_OF_SERVICE', entityType: 'EndOfService', isLive: false },
+      { id: 'hr-salary', name: 'Salary Revision Approval', description: 'Approve salary change requests', key: 'HR_SALARY_REVISION', entityType: 'SalaryHistory', isLive: false },
+    ],
+  },
+  {
+    id: 'qc',
+    name: 'QC / Inspection',
+    icon: <ClipboardCheck className="h-4 w-4" />,
+    color: 'sky',
+    presets: [
+      { id: 'itp', name: 'ITP Document Approval', description: 'Approve Inspection & Test Plans before release', key: 'ITP_DOCUMENT_APPROVAL', entityType: 'ITP_DOCUMENT', isLive: false },
+      { id: 'wps', name: 'WPS Document Approval', description: 'Approve Welding Procedure Specifications', key: 'WPS_DOCUMENT_APPROVAL', entityType: 'WPS_DOCUMENT', isLive: false },
+      { id: 'ncr', name: 'NCR Approval', description: 'Approve Non-Conformance Reports', key: 'QC_NCR_APPROVAL', entityType: 'NCR', isLive: false },
+      { id: 'rfi', name: 'RFI Approval', description: 'Approve Requests for Information', key: 'QC_RFI_APPROVAL', entityType: 'RFI', isLive: false },
+    ],
+  },
+  {
+    id: 'supply-chain',
+    name: 'Supply Chain',
+    icon: <Package className="h-4 w-4" />,
+    color: 'amber',
+    presets: [
+      { id: 'lcr', name: 'Purchase Order Approval', description: 'Approve purchase orders before issuing', key: 'SUPPLY_CHAIN_PO_APPROVAL', entityType: 'PurchaseOrder', isLive: false },
+      { id: 'lcr-contract', name: 'Supplier Contract Approval', description: 'Approve supplier contracts', key: 'SUPPLY_CHAIN_CONTRACT_APPROVAL', entityType: 'SupplierContract', isLive: false },
+    ],
+  },
+  {
+    id: 'financial',
+    name: 'Financial',
+    icon: <TrendingUp className="h-4 w-4" />,
+    color: 'emerald',
+    presets: [
+      { id: 'invoice', name: 'Invoice Approval', description: 'Approve outgoing invoices', key: 'FINANCIAL_INVOICE_APPROVAL', entityType: 'Invoice', isLive: false },
+      { id: 'payment', name: 'Payment Approval', description: 'Approve payment transactions', key: 'FINANCIAL_PAYMENT_APPROVAL', entityType: 'Payment', isLive: false },
+      { id: 'journal', name: 'Journal Entry Approval', description: 'Approve manual journal entries', key: 'FINANCIAL_JOURNAL_APPROVAL', entityType: 'JournalEntry', isLive: false },
+    ],
+  },
+  {
+    id: 'production',
+    name: 'Production',
+    icon: <Wrench className="h-4 w-4" />,
+    color: 'orange',
+    presets: [
+      { id: 'work-order', name: 'Work Order Approval', description: 'Approve production work orders', key: 'PRODUCTION_WORK_ORDER_APPROVAL', entityType: 'WorkOrder', isLive: false },
+      { id: 'dispatch', name: 'Dispatch Approval', description: 'Approve material dispatch reports', key: 'PRODUCTION_DISPATCH_APPROVAL', entityType: 'DispatchReport', isLive: false },
+    ],
+  },
+  {
+    id: 'documents',
+    name: 'Documents',
+    icon: <FileText className="h-4 w-4" />,
+    color: 'indigo',
+    presets: [
+      { id: 'doc-revision', name: 'Document Revision Approval', description: 'Approve document revisions', key: 'DOCUMENT_REVISION_APPROVAL', entityType: 'Document', isLive: false },
+      { id: 'doc-submission', name: 'Document Submission Approval', description: 'Approve external document submissions', key: 'DOCUMENT_SUBMISSION_APPROVAL', entityType: 'DocumentSubmission', isLive: false },
+    ],
+  },
+];
+
+const COLOR_MAP: Record<string, { bg: string; border: string; text: string; badge: string; selectedBg: string; selectedBorder: string }> = {
+  violet: { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', badge: 'bg-violet-100 text-violet-700', selectedBg: 'bg-violet-600', selectedBorder: 'border-violet-600' },
+  sky:    { bg: 'bg-sky-50',    border: 'border-sky-200',    text: 'text-sky-700',    badge: 'bg-sky-100 text-sky-700',    selectedBg: 'bg-sky-600',    selectedBorder: 'border-sky-600' },
+  amber:  { bg: 'bg-amber-50',  border: 'border-amber-200',  text: 'text-amber-700',  badge: 'bg-amber-100 text-amber-700',  selectedBg: 'bg-amber-500',  selectedBorder: 'border-amber-500' },
+  emerald:{ bg: 'bg-emerald-50',border: 'border-emerald-200',text: 'text-emerald-700',badge: 'bg-emerald-100 text-emerald-700',selectedBg: 'bg-emerald-600',selectedBorder: 'border-emerald-600' },
+  orange: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', badge: 'bg-orange-100 text-orange-700', selectedBg: 'bg-orange-500', selectedBorder: 'border-orange-500' },
+  indigo: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', badge: 'bg-indigo-100 text-indigo-700', selectedBg: 'bg-indigo-600', selectedBorder: 'border-indigo-600' },
+};
 
 // ─── Resolver type display ────────────────────────────────────────────────────
 
@@ -652,17 +749,25 @@ interface DefinitionFormProps {
 
 function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
   const isEdit = !!initial?.id;
+
+  // Find preset that matches existing key (for edit display)
+  const existingPreset = MODULE_CATEGORIES.flatMap(c => c.presets).find(p => p.key === initial?.key);
+  const existingCategory = existingPreset ? MODULE_CATEGORIES.find(c => c.presets.some(p => p.id === existingPreset.id)) : null;
+
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(existingPreset?.id ?? null);
+  const [isCustom, setIsCustom] = useState(!isEdit && !existingPreset ? false : !existingPreset);
   const [key, setKey] = useState(initial?.key ?? '');
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [entityType, setEntityType] = useState(initial?.entityType ?? '');
   const [steps, setSteps] = useState<WorkflowStep[]>(
-    initial?.steps ?? [{ sequence: 1, name: '', approverResolver: { type: 'ROLE', role: '' }, minApprovals: 1, slaHours: null, onRejectBehavior: 'RETURN_PREVIOUS', conditions: null }]
+    initial?.steps ?? [{ sequence: 1, name: '', approverResolver: { type: 'MANAGER_OF_INITIATOR' }, minApprovals: 1, slaHours: 72, onRejectBehavior: 'TERMINATE', conditions: null }]
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+  const [showTechnical, setShowTechnical] = useState(false);
 
   useEffect(() => {
     fetch('/api/users').then(r => r.ok ? r.json() : null).then(d => {
@@ -673,11 +778,27 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
     }).catch(() => {});
   }, []);
 
+  const selectPreset = (preset: ModulePreset) => {
+    setSelectedPresetId(preset.id);
+    setIsCustom(false);
+    setKey(preset.key);
+    setEntityType(preset.entityType);
+    if (!name || name === '') setName(preset.name);
+    if (!description || description === '') setDescription(preset.description);
+  };
+
+  const selectCustom = () => {
+    setSelectedPresetId(null);
+    setIsCustom(true);
+    setKey('');
+    setEntityType('');
+  };
+
   const addStep = () => {
     setSteps(prev => [...prev, {
       sequence: prev.length + 1,
       name: '',
-      approverResolver: { type: 'ROLE', role: '' },
+      approverResolver: { type: 'MANAGER_OF_INITIATOR' },
       minApprovals: 1,
       slaHours: null,
       onRejectBehavior: 'RETURN_PREVIOUS',
@@ -699,14 +820,12 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
     try {
       let res: Response;
       if (isEdit) {
-        // Update definition metadata
         res = await fetch(`/api/workflow/definitions/${initial!.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, description: description || undefined }),
         });
         if (res.ok) {
-          // Replace steps
           res = await fetch(`/api/workflow/definitions/${initial!.id}/steps`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -732,137 +851,228 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
     }
   };
 
+  const canSave = !!key && !!name && !!entityType && steps.length > 0;
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-violet-600" />
-            {isEdit ? 'Edit' : 'New'} Workflow Definition
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-5 py-2">
-
-          {/* Module linkage explainer */}
-          <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-sky-600 shrink-0" />
-              <p className="text-xs font-semibold text-sky-800">How workflows link to modules</p>
+        {/* Gradient header */}
+        <div className="-mx-6 -mt-6 px-6 pt-6 pb-5 mb-2 bg-gradient-to-br from-violet-600 via-violet-500 to-purple-600 rounded-t-lg text-white">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="p-1.5 bg-white/20 rounded-md">
+              <GitBranch className="h-4 w-4" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-sky-700">
-              <div className="rounded-lg border border-sky-200 bg-white p-3 space-y-1">
-                <p className="font-semibold text-sky-900">Workflow Key</p>
-                <p>The exact code identifier. The module calls <code className="bg-sky-100 px-1 rounded">startWorkflow(&apos;KEY&apos;, …)</code> with this string — it must match precisely.</p>
-                <p className="text-sky-500 italic">Example: <code>HR_LOAN_APPROVAL</code></p>
+            <DialogTitle className="text-base font-semibold text-white">
+              {isEdit ? 'Edit Workflow Definition' : 'New Workflow Definition'}
+            </DialogTitle>
+          </div>
+          <p className="text-violet-200 text-xs">
+            {isEdit ? 'Update the name, description, and approval steps.' : 'Select a module and configure approval steps.'}
+          </p>
+        </div>
+
+        <div className="space-y-6 py-1">
+
+          {/* ── STEP 1: Module selection (create only) ── */}
+          {!isEdit ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center h-5 w-5 rounded-full bg-violet-600 text-white text-xs font-bold shrink-0">1</span>
+                <p className="text-sm font-semibold text-slate-800">Which module should this workflow govern?</p>
               </div>
-              <div className="rounded-lg border border-sky-200 bg-white p-3 space-y-1">
-                <p className="font-semibold text-sky-900">Entity Type</p>
-                <p>Labels the kind of record being approved. Used to query workflow status for a specific record. Free-form text.</p>
-                <p className="text-sky-500 italic">Example: <code>Loan</code>, <code>IMS_DOCUMENT</code></p>
+
+              <div className="space-y-3">
+                {MODULE_CATEGORIES.map(cat => {
+                  const colors = COLOR_MAP[cat.color] ?? COLOR_MAP.violet;
+                  return (
+                    <div key={cat.id} className="space-y-1.5">
+                      <div className={`flex items-center gap-1.5 text-xs font-semibold ${colors.text}`}>
+                        {cat.icon}
+                        {cat.name}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
+                        {cat.presets.map(preset => {
+                          const isSelected = selectedPresetId === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => selectPreset(preset)}
+                              className={`
+                                text-left rounded-xl border p-3 transition-all duration-150 group
+                                ${isSelected
+                                  ? `${colors.selectedBg} border-transparent text-white shadow-md`
+                                  : `bg-white ${colors.border} hover:${colors.bg} hover:border-opacity-80`
+                                }
+                              `}
+                            >
+                              <div className="flex items-start justify-between gap-1">
+                                <p className={`text-xs font-semibold leading-tight ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                                  {preset.name}
+                                </p>
+                                {isSelected
+                                  ? <CheckCircle2 className="h-3.5 w-3.5 text-white shrink-0 mt-0.5" />
+                                  : <ChevronRight className={`h-3.5 w-3.5 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 ${colors.text}`} />
+                                }
+                              </div>
+                              <p className={`text-xs mt-0.5 leading-tight ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>
+                                {preset.description}
+                              </p>
+                              {preset.isLive && (
+                                <span className={`inline-flex items-center gap-0.5 mt-1.5 text-xs px-1.5 py-0.5 rounded-full font-medium ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                                  <Zap className="h-2.5 w-2.5" /> Live
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Custom option */}
+                <button
+                  type="button"
+                  onClick={selectCustom}
+                  className={`
+                    w-full text-left rounded-xl border p-3 transition-all duration-150
+                    ${isCustom
+                      ? 'bg-slate-700 border-slate-700 text-white shadow-md'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-2">
+                    <Layers className={`h-4 w-4 ${isCustom ? 'text-white' : 'text-slate-500'}`} />
+                    <div>
+                      <p className={`text-xs font-semibold ${isCustom ? 'text-white' : 'text-slate-700'}`}>Custom / New Integration</p>
+                      <p className={`text-xs ${isCustom ? 'text-white/70' : 'text-slate-400'}`}>Define your own workflow key for any other module</p>
+                    </div>
+                    {isCustom && <CheckCircle2 className="h-4 w-4 text-white ml-auto shrink-0" />}
+                  </div>
+                </button>
               </div>
-            </div>
-            <div className="rounded-lg border border-sky-200 bg-white p-3">
-              <p className="text-xs font-semibold text-sky-800 mb-2 flex items-center gap-1.5"><Info className="h-3.5 w-3.5" /> Active module integrations</p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-sky-600 border-b border-sky-100">
-                    <th className="text-left pb-1 font-medium">Module</th>
-                    <th className="text-left pb-1 font-medium">Workflow Key</th>
-                    <th className="text-left pb-1 font-medium">Entity Type</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-sky-50">
-                  <tr>
-                    <td className="py-1 text-slate-700">HR → Employee Loans</td>
-                    <td className="py-1"><code className="bg-sky-100 text-sky-800 px-1.5 rounded font-mono">hr-loan-approval</code></td>
-                    <td className="py-1"><code className="bg-sky-100 text-sky-800 px-1.5 rounded font-mono">Loan</code></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
 
-          {/* Basic fields */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700">Display name</label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. HR Loan Approval" />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700">Description <span className="font-normal text-slate-400">(optional)</span></label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Brief description of what this workflow approves…" />
-          </div>
-
-          {/* Key + Entity Type — only editable on create */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">
-                Workflow key
-                {isEdit && <span className="ml-1.5 text-slate-400 font-normal">(locked after creation)</span>}
-              </label>
-              <Input
-                value={key}
-                onChange={e => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))}
-                placeholder="HR_LOAN_APPROVAL"
-                disabled={isEdit}
-                className="font-mono text-sm"
-              />
-              {!isEdit && (
-                <p className="text-xs text-slate-400">Uppercase + underscores only. Must match the key in module code exactly.</p>
+              {/* Custom key/entityType inputs */}
+              {isCustom && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Workflow key <span className="font-normal text-slate-400">(matches module code)</span></label>
+                    <Input
+                      value={key}
+                      onChange={e => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))}
+                      placeholder="MY_MODULE_APPROVAL"
+                      className="font-mono text-sm bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Entity type</label>
+                    <Input
+                      value={entityType}
+                      onChange={e => setEntityType(e.target.value)}
+                      placeholder="MyEntity"
+                      className="font-mono text-sm bg-white"
+                    />
+                  </div>
+                </div>
               )}
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">
-                Entity type
-                {isEdit && <span className="ml-1.5 text-slate-400 font-normal">(locked after creation)</span>}
-              </label>
-              <div className="relative">
-                <Input
-                  list="entity-type-suggestions"
-                  value={entityType}
-                  onChange={e => setEntityType(e.target.value)}
-                  placeholder="Loan"
-                  disabled={isEdit}
-                  className="font-mono text-sm"
+          ) : (
+            /* Edit mode: show selected module as badge */
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              {existingCategory && (
+                <div className={`p-2 rounded-lg ${COLOR_MAP[existingCategory.color]?.bg ?? 'bg-slate-100'}`}>
+                  <span className={COLOR_MAP[existingCategory.color]?.text ?? 'text-slate-600'}>
+                    {existingCategory.icon}
+                  </span>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-slate-500">Module</p>
+                <p className="text-sm font-semibold text-slate-800">
+                  {existingPreset?.name ?? initial?.key ?? 'Custom'}
+                </p>
+              </div>
+              <span className="ml-auto text-xs text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded">{initial?.entityType}</span>
+            </div>
+          )}
+
+          {/* ── STEP 2: Name & Description ── */}
+          {(selectedPresetId !== null || isCustom || isEdit) && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center h-5 w-5 rounded-full bg-violet-600 text-white text-xs font-bold shrink-0">{isEdit ? '1' : '2'}</span>
+                <p className="text-sm font-semibold text-slate-800">Details</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Workflow name</label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. HR Loan Approval" className="bg-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Description <span className="font-normal text-slate-400">(optional)</span></label>
+                  <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="What does this workflow approve?" className="bg-white" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: Approval steps ── */}
+          {(selectedPresetId !== null || isCustom || isEdit) && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-violet-600 text-white text-xs font-bold shrink-0">{isEdit ? '2' : '3'}</span>
+                  <p className="text-sm font-semibold text-slate-800">Approval steps ({steps.length})</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={addStep} className="h-7 text-xs gap-1 border-violet-200 text-violet-700 hover:bg-violet-50">
+                  <Plus className="h-3.5 w-3.5" /> Add step
+                </Button>
+              </div>
+              <p className="text-xs text-slate-400">Steps run in sequence — each must be approved before the next begins.</p>
+              {steps.map((step, idx) => (
+                <StepRow
+                  key={idx}
+                  step={step}
+                  index={idx}
+                  onChange={updateStep}
+                  onRemove={removeStep}
+                  canManage
+                  users={users}
+                  roles={roles}
                 />
-                <datalist id="entity-type-suggestions">
-                  <option value="Loan" />
-                  <option value="IMS_DOCUMENT" />
-                  <option value="ASSET_REQUEST" />
-                  <option value="QC_DOCUMENT" />
-                  <option value="SALARY_HISTORY" />
-                  <option value="PROCUREMENT_REQUEST" />
-                </datalist>
-              </div>
-              {!isEdit && (
-                <p className="text-xs text-slate-400">Free-form label for the record type being approved.</p>
+              ))}
+            </div>
+          )}
+
+          {/* ── Technical details (collapsed) ── */}
+          {(selectedPresetId !== null || isEdit) && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowTechnical(p => !p)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-left text-xs text-slate-500 hover:bg-slate-100 transition-colors"
+              >
+                <span className="font-medium">Technical details (workflow key &amp; entity type)</span>
+                {showTechnical ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {showTechnical && (
+                <div className="px-4 pb-4 pt-1 grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500 font-medium">Workflow key</p>
+                    <code className="block text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-700">{key || '—'}</code>
+                    <p className="text-xs text-slate-400">Must match <code className="font-mono">startWorkflow(&#39;key&#39;)</code> in module code</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-500 font-medium">Entity type</p>
+                    <code className="block text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-700">{entityType || '—'}</code>
+                    <p className="text-xs text-slate-400">Used to query workflow status by record type</p>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-
-          {/* Steps */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-700">Approval steps ({steps.length})</p>
-              <Button variant="outline" size="sm" onClick={addStep} className="h-7 text-xs gap-1">
-                <Plus className="h-3.5 w-3.5" /> Add step
-              </Button>
-            </div>
-            <p className="text-xs text-slate-400 -mt-1">Steps run in sequence. Each step must be approved before the next begins.</p>
-            {steps.map((step, idx) => (
-              <StepRow
-                key={idx}
-                step={step}
-                index={idx}
-                onChange={updateStep}
-                onRemove={removeStep}
-                canManage
-                users={users}
-                roles={roles}
-              />
-            ))}
-          </div>
+          )}
 
           {error && (
             <div className="flex items-center gap-2 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3">
@@ -872,15 +1082,15 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t pt-4 mt-2">
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button
-            className="bg-violet-600 hover:bg-violet-700 text-white"
+            className="bg-violet-600 hover:bg-violet-700 text-white shadow"
             onClick={handleSave}
-            disabled={saving || !key || !name || !entityType || steps.length === 0}
+            disabled={saving || !canSave || (!selectedPresetId && !isCustom && !isEdit)}
           >
             <Save className="h-3.5 w-3.5 mr-1.5" />
-            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create'}
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create workflow'}
           </Button>
         </DialogFooter>
       </DialogContent>
