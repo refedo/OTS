@@ -23,10 +23,37 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '22.0.1',
+    version: '22.0.2',
     date: 'April 28, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'IMS Sidebar, Workflow Fix & Seed Repair',
+    highlights: [
+      'Workflow edit no longer shows "Invalid input" — Zod schema now accepts null conditions from the form.',
+      'IMS Quick Guide now visible in sidebar — added to navigation permissions.',
+      'All IMS pages now have an IMS Dashboard back-link breadcrumb.',
+      'IMS seed SQL workflow section corrected (key, sequence, approverResolver columns).',
+      '/ims/change-requests/new route added to navigation permissions.',
+    ],
+    changes: {
+      added: [
+        '/ims/guide and /ims/change-requests/new added to NAVIGATION_PERMISSIONS',
+        'IMS Dashboard back-link breadcrumb added to all IMS pages',
+      ],
+      fixed: [
+        'Workflow steps PUT + POST: conditions .nullable() fix — null no longer causes "Invalid input"',
+        'seed_ims_data.sql workflow section: correct column names (key, sequence, approverResolver, entityType)',
+      ],
+      changed: [
+        'Version bumped to 22.0.2',
+      ],
+    },
+  },
+  {
+    version: '22.0.1',
+    date: 'April 28, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'IMS Module Fixes & Quick Guide',
     highlights: [
       'IMS sidebar navigation now appears on all IMS pages — fixed missing ResponsiveLayout wrapper in IMS layout.',

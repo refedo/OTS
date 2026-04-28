@@ -234,11 +234,13 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/ims/documents': ['ims.documents.view', 'ims.documents.manage'],
   '/ims/documents/new': ['ims.documents.manage'],
   '/ims/change-requests': ['ims.dcr.view', 'ims.dcr.manage'],
+  '/ims/change-requests/new': ['ims.dcr.manage'],
   '/ims/clause-matrix': ['ims.clauses.view', 'ims.clauses.manage'],
   '/ims/review-calendar': ['ims.documents.view', 'ims.documents.manage'],
   '/ims/risks': ['ims.risks.view', 'ims.risks.manage'],
   '/ims/risks/matrix': ['ims.risks.view'],
   '/ims/risks/treatments': ['ims.risks.treat', 'ims.risks.manage'],
+  '/ims/guide': null, // Public — anyone with IMS access
 };
 
 // Helper function to check if user has permission to access a route
