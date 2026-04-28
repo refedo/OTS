@@ -106,6 +106,12 @@ const STARTUP_MIGRATIONS = [
 
   // ── BD vendor portal fields: vendorId, portalUsername, portalPassword (21.2.0) ─
   'bd_vendor_fields.sql',
+
+  // ── IMS module: 12 new models for ISO 9001/14001/45001 (22.0.0) ──────────
+  'add_ims_module.sql',
+
+  // ── IMS seed: categories, ISO clauses, workflow definitions (22.0.0) ─────
+  'seed_ims_data.sql',
 ];
 
 /**

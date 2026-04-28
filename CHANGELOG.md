@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.0.1] - 2026-04-28
+
+### IMS Module Fixes & Quick Guide
+
+#### Added
+- **`/ims/documents/new`** — full new-document creation page: title (EN/AR), category, confidentiality, owner, reviewer, department, site, scope, purpose, applicable ISO standards, review frequency, and file URL; document number is auto-generated on save
+- **`/ims/change-requests/new`** — new DCR submission page: title, priority, related document (optional), reason, and description of changes; routes through the IMS_CHANGE_REQUEST workflow on submission
+- **`/ims/guide`** — IMS Quick Guide covering Document Control, DCR lifecycle, Risk & Opportunity Register, Clause Matrix, Review Calendar, roles/permissions, and ISO standards reference
+- **IMS Quick Guide** added to IMS sidebar navigation section
+- **`add_ims_module.sql`** and **`seed_ims_data.sql`** registered in `startup-migrations.ts` — IMS schema (12 models) and seed data (categories, ISO clauses, workflow definitions) now apply automatically on first server boot
+
+#### Fixed
+- **IMS sidebar missing** — `src/app/ims/layout.tsx` now wraps children in `<ResponsiveLayout>` (was an empty passthrough)
+- **Risk Register page refresh loop** — `risks/_page-client.tsx` used `export default` but `risks/page.tsx` imported it as a named export (`{ ImsRisksClient }`); changed to `export function ImsRisksClient`
+
+#### Changed
+- Version bumped to **22.0.1**
+
+---
+
 ## [22.0.0] - 2026-04-27
 
 ### IMS — Integrated Management System Module

@@ -48,7 +48,7 @@ function statusBadge(s: string) {
   return <span className={`text-xs px-2 py-0.5 rounded font-medium ${map[s] ?? 'bg-gray-100 text-gray-600'}`}>{s.replace('_',' ')}</span>;
 }
 
-export default function ImsRisksClient() {
+export function ImsRisksClient() {
   const [risks, setRisks] = useState<Risk[]>([]);
   const [filtered, setFiltered] = useState<Risk[]>([]);
   const [loading, setLoading] = useState(true);

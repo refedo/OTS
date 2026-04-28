@@ -1,3 +1,7 @@
+'use client';
+
+import { ResponsiveLayout } from '@/components/ResponsiveLayout';
+
 export default function ImsLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <ResponsiveLayout>{children}</ResponsiveLayout>;
 }

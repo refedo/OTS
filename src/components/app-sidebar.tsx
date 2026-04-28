@@ -250,6 +250,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Risk Register', href: '/ims/risks', icon: AlertCircle, newSince: '2026-04-27' },
       { name: 'Risk Matrix', href: '/ims/risks/matrix', icon: TrendingDown, newSince: '2026-04-27' },
       { name: 'Treatments Tracker', href: '/ims/risks/treatments', icon: FileBarChart2, newSince: '2026-04-27' },
+      { name: 'Quick Guide', href: '/ims/guide', icon: BookOpen, newSince: '2026-04-28' },
     ],
   },
   {
