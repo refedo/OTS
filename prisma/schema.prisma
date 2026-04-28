@@ -44,6 +44,7 @@ model Department {
   circulationRecipients HrCirculationRecipient[] @relation("DepartmentCirculationRecipients")
   imsDocuments          ImsDocument[]            @relation("ImsDepartmentDocuments")
   imsRisks              ImsRisk[]                @relation("ImsRiskDepartment")
+  meetings              Meeting[]                @relation("MeetingDepartment")
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 }
@@ -353,6 +354,13 @@ model User {
   ownedImsRisks                  ImsRisk[]                  @relation("ImsRiskOwner")
   imsRiskAssessments             ImsRiskAssessment[]        @relation("ImsRiskAssessor")
   imsRiskTreatments              ImsRiskTreatment[]         @relation("ImsRiskTreatmentResponsible")
+
+  // Meetings back-relations (22.1.0)
+  organizedMeetings    Meeting[]         @relation("MeetingOrganizer")
+  meetingAttendances   MeetingAttendee[] @relation("MeetingAttendees")
+  createdMeetings      Meeting[]         @relation("MeetingCreatedBy")
+  updatedMeetings      Meeting[]         @relation("MeetingUpdatedBy")
+  deletedMeetings      Meeting[]         @relation("MeetingDeletedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -788,6 +796,7 @@ model Task {
   paymentScheduleLinks     ProjectPaymentSchedule[]
   messages                 TaskMessage[]
   conversationParticipants TaskConversationParticipant[]
+  meetingTasks             MeetingTask[]
 }
 
 model TaskAttachment {
@@ -6343,4 +6352,93 @@ model ImsHazardIdentification {
 
   @@index([riskId])
   @@map("ImsHazardIdentification")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Meetings Module (22.1.0)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Meeting {
+  id             String  @id @default(uuid()) @db.Char(36)
+  /// Predefined category key: 'sales' | 'operations' | 'project' | 'management_review' | 'hr' | 'quality_safety' | 'board' | 'client' | 'supplier' | 'planning' | 'other'
+  category       String  @db.VarChar(50)
+  /// Free-text label when category = 'other'
+  categoryCustom String? @db.VarChar(150)
+  /// Specific topic / subject of this meeting
+  subject        String  @db.VarChar(255)
+  status         String  @default("scheduled") @db.VarChar(30) // scheduled | in_progress | completed | cancelled
+  scheduledAt    DateTime
+  endsAt         DateTime
+  /// Physical room / address, or null if fully online
+  location       String? @db.VarChar(255)
+  /// Google Meet / Zoom / Teams link
+  meetLink       String? @db.VarChar(500)
+  /// Google Calendar event ID (for sync / cancellation)
+  googleEventId  String? @db.VarChar(255)
+  agenda         String? @db.Text
+  /// Filled after the meeting completes
+  minutes        String? @db.Text
+  /// Key decisions recorded post-meeting
+  decisions      String? @db.Text
+  isPrivate      Boolean @default(false)
+
+  organizerId  String      @db.Char(36)
+  organizer    User        @relation("MeetingOrganizer", fields: [organizerId], references: [id])
+  departmentId String?     @db.Char(36)
+  department   Department? @relation("MeetingDepartment", fields: [departmentId], references: [id])
+
+  attendees MeetingAttendee[]
+  tasks     MeetingTask[]
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("MeetingCreatedBy", fields: [createdById], references: [id])
+  updatedById String?  @db.Char(36)
+  updatedBy   User?    @relation("MeetingUpdatedBy", fields: [updatedById], references: [id])
+  deletedAt   DateTime?
+  deletedById String?  @db.Char(36)
+  deletedBy   User?    @relation("MeetingDeletedBy", fields: [deletedById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([organizerId])
+  @@index([departmentId])
+  @@index([deletedAt])
+  @@map("Meeting")
+}
+
+model MeetingAttendee {
+  id        String  @id @default(uuid()) @db.Char(36)
+  meetingId String  @db.Char(36)
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String  @db.Char(36)
+  user      User    @relation("MeetingAttendees", fields: [userId], references: [id])
+  /// invited | accepted | declined | attended | absent
+  status     String  @default("invited") @db.VarChar(30)
+  isRequired Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([meetingId, userId])
+  @@index([meetingId])
+  @@index([userId])
+  @@map("MeetingAttendee")
+}
+
+model MeetingTask {
+  id        String  @id @default(uuid()) @db.Char(36)
+  meetingId String  @db.Char(36)
+  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  taskId    String  @db.Char(36)
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /// Optional discussion note for this specific task in this meeting
+  notes     String? @db.Text
+  createdAt DateTime @default(now())
+
+  @@unique([meetingId, taskId])
+  @@index([meetingId])
+  @@index([taskId])
+  @@map("MeetingTask")
 }

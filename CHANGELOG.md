@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.1.0] - 2026-04-28
+
+### Meetings Module
+
+#### Added
+- **Meetings module** — full end-to-end module to record and control all company meetings across every department
+- **Meeting categories** (dropdown): Sales, Operations, Project, Management Review, HR, Quality & Safety, Board, Client, Supplier, Planning, Other (with free-text override) — enables reporting by type (e.g. "20 sales meetings this year")
+- **Schedule form** — subject, category, date/time, duration, location, department, agenda, attendees (multi-select from OTS users), linked OTS tasks for discussion, and optional Google Meet link generation
+- **Meeting detail sheet** — full read view with attendee RSVP status, linked tasks, agenda, minutes, and decisions; organiser can edit or cancel the meeting
+- **Post-meeting minutes editor** — organiser records minutes and key decisions after the meeting and marks it Completed
+- **Inline RSVP** — attendees can accept or decline directly from the meeting card without opening the detail view
+- **KPI strip** — total meetings this year, completed count, upcoming count, and top-category breakdown
+- **Filters** — filter by category and status with live text search
+- **Google Calendar integration** — optional Meet link auto-generation via Google Calendar API (service account); graceful no-op when `GOOGLE_CALENDAR_CREDENTIALS` is not configured
+- **Permissions**: `meetings.view`, `meetings.view_all`, `meetings.create`, `meetings.edit`, `meetings.edit_all`, `meetings.delete`, `meetings.record_minutes`
+- **Navigation** — Meetings section added to sidebar with "New" badge
+- **Database** — three new tables: `Meeting`, `MeetingAttendee`, `MeetingTask`; migration at `prisma/manual_migrations/add_meetings_module.sql`
+- **New env vars**: `GOOGLE_CALENDAR_CREDENTIALS` (service-account JSON), `GOOGLE_CALENDAR_IMPERSONATE_EMAIL`
+
+#### Changed
+- Version bumped to **22.1.0**
+
+---
+
 ## [22.0.3] - 2026-04-28
 
 ### Workflow Step Replacement Fix

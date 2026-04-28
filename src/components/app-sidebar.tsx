@@ -128,6 +128,14 @@ const navigationSections: NavigationSection[] = [
     ],
   },
   {
+    name: 'Meetings',
+    icon: Calendar,
+    items: [
+      { name: 'All Meetings', href: '/meetings', icon: Calendar, newSince: '2026-04-28' },
+      { name: 'Schedule Meeting', href: '/meetings/new', icon: Plus, newSince: '2026-04-28' },
+    ],
+  },
+  {
     name: 'Operations Control',
     icon: AlertTriangle,
     items: [
