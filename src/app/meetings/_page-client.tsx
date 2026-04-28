@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import MeetingFormSheet from '@/components/meetings/meeting-form-sheet';
 import MeetingDetailSheet from '@/components/meetings/meeting-detail-sheet';
-import { MEETING_CATEGORIES } from '@/lib/services/meeting.service';
+import { MEETING_CATEGORIES } from '@/lib/services/meeting.constants';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
