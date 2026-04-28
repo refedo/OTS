@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.0.2] - 2026-04-28
+
+### IMS Sidebar, Workflow Fix & Seed Repair
+
+#### Added
+- **IMS Dashboard back-link** added to all IMS pages (documents, change-requests, clause-matrix, review-calendar, risks, risk matrix, treatments tracker, risk detail, document detail)
+- **`/ims/guide`** and **`/ims/change-requests/new`** added to `navigation-permissions.ts` — both routes now appear in the sidebar and are accessible
+
+#### Fixed
+- **Workflow "Invalid input"** — Zod schema for workflow step `conditions` field changed from `.optional()` to `.optional().nullable()`; forms sending `null` no longer fail validation (both PUT `/steps` and POST `/definitions`)
+- **IMS seed data workflow section** — `seed_ims_data.sql` workflow `INSERT` statements rewrote to use correct column names: `key` (not `code`), `sequence` (not `stepOrder`), `approverResolver` JSON (not `approverRole`), added missing `entityType` — seed will now run cleanly on server restart
+
+#### Changed
+- Version bumped to **22.0.2**
+
+---
+
 ## [22.0.1] - 2026-04-28
 
 ### IMS Module Fixes & Quick Guide

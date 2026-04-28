@@ -12,7 +12,7 @@ const stepSchema = z.object({
   minApprovals: z.number().int().min(1).default(1),
   slaHours: z.number().int().positive().optional(),
   onRejectBehavior: z.enum(['RETURN_PREVIOUS', 'RESTART', 'TERMINATE']).default('RETURN_PREVIOUS'),
-  conditions: z.array(z.record(z.unknown())).optional(),
+  conditions: z.array(z.record(z.unknown())).optional().nullable(),
 });
 
 const createSchema = z.object({

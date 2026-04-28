@@ -189,9 +189,14 @@ export default function ImsDocumentDetailClient({ documentId }: { documentId: st
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/ims/documents')}>
-          <ArrowLeft className="size-4 mr-1" /> Document Registry
+      <div className="flex items-center gap-3">
+        <Link href="/ims" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          IMS Dashboard
+        </Link>
+        <span className="text-muted-foreground text-xs">/</span>
+        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground" onClick={() => router.push('/ims/documents')}>
+          <ArrowLeft className="size-3 mr-1" /> Document Registry
         </Button>
       </div>
 

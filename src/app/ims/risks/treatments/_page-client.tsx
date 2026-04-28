@@ -85,6 +85,10 @@ export default function ImsRiskTreatmentsClient() {
 
   return (
     <div className="p-6 space-y-6">
+      <Link href="/ims" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+        IMS Dashboard
+      </Link>
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-br from-emerald-950 to-teal-900 p-6 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-teal-700/30 via-transparent to-transparent" />

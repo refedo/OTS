@@ -568,42 +568,42 @@ BEGIN
   DECLARE st2 VARCHAR(36) DEFAULT NULL;
   DECLARE st3 VARCHAR(36) DEFAULT NULL;
 
-  -- IMS_REVISION_APPROVAL workflow
-  IF NOT EXISTS (SELECT 1 FROM WorkflowDefinition WHERE code='IMS_REVISION_APPROVAL') THEN
+  -- IMS_REVISION_APPROVAL workflow (3-step: DC → Manager → CEO)
+  IF NOT EXISTS (SELECT 1 FROM WorkflowDefinition WHERE `key`='IMS_REVISION_APPROVAL') THEN
     SET wf1 = UUID();
-    INSERT INTO WorkflowDefinition (id,code,name,description,isActive,createdAt,updatedAt)
+    INSERT INTO WorkflowDefinition (id,`key`,name,description,entityType,version,isActive,createdAt,updatedAt)
     VALUES (wf1,'IMS_REVISION_APPROVAL','IMS Document Revision Approval',
-      'Approval workflow for IMS document revisions — Preparer → Reviewer → Approver',
-      1,NOW(),NOW());
+      'Approval workflow for IMS document revisions — Document Controller → Manager → CEO',
+      'ImsRevision',1,1,NOW(),NOW());
 
     SET st1 = UUID();
-    INSERT INTO WorkflowStep (id,definitionId,stepOrder,name,description,approverRole,requiredApprovals,isParallel,isFinal,createdAt,updatedAt)
-    VALUES (st1,wf1,1,'Document Review','Document Controller or Technical SME reviews the revised document','DOCUMENT_CONTROLLER',1,0,0,NOW(),NOW());
+    INSERT INTO WorkflowStep (id,definitionId,sequence,name,approverResolver,minApprovals,slaHours,onRejectBehavior,createdAt,updatedAt)
+    VALUES (st1,wf1,1,'Document Controller Review','{"type":"MANAGER_OF_INITIATOR"}',1,72,'TERMINATE',NOW(),NOW());
 
     SET st2 = UUID();
-    INSERT INTO WorkflowStep (id,definitionId,stepOrder,name,description,approverRole,requiredApprovals,isParallel,isFinal,createdAt,updatedAt)
-    VALUES (st2,wf1,2,'Management Approval','Department Manager or Management Representative approves the document','MANAGER',1,0,0,NOW(),NOW());
+    INSERT INTO WorkflowStep (id,definitionId,sequence,name,approverResolver,minApprovals,slaHours,onRejectBehavior,createdAt,updatedAt)
+    VALUES (st2,wf1,2,'Manager Approval','{"type":"MANAGER_OF_INITIATOR"}',1,72,'TERMINATE',NOW(),NOW());
 
     SET st3 = UUID();
-    INSERT INTO WorkflowStep (id,definitionId,stepOrder,name,description,approverRole,requiredApprovals,isParallel,isFinal,createdAt,updatedAt)
-    VALUES (st3,wf1,3,'Top Management Sign-off','CEO or designated top management provides final approval','CEO',1,0,1,NOW(),NOW());
+    INSERT INTO WorkflowStep (id,definitionId,sequence,name,approverResolver,minApprovals,slaHours,onRejectBehavior,createdAt,updatedAt)
+    VALUES (st3,wf1,3,'CEO Sign-off','{"type":"MANAGER_OF_INITIATOR"}',1,72,'TERMINATE',NOW(),NOW());
   END IF;
 
-  -- IMS_CHANGE_REQUEST workflow
-  IF NOT EXISTS (SELECT 1 FROM WorkflowDefinition WHERE code='IMS_CHANGE_REQUEST') THEN
+  -- IMS_CHANGE_REQUEST workflow (2-step: DC → Manager)
+  IF NOT EXISTS (SELECT 1 FROM WorkflowDefinition WHERE `key`='IMS_CHANGE_REQUEST') THEN
     SET wf2 = UUID();
-    INSERT INTO WorkflowDefinition (id,code,name,description,isActive,createdAt,updatedAt)
+    INSERT INTO WorkflowDefinition (id,`key`,name,description,entityType,version,isActive,createdAt,updatedAt)
     VALUES (wf2,'IMS_CHANGE_REQUEST','IMS Document Change Request',
       'Review and approval workflow for IMS document change requests (DCR)',
-      1,NOW(),NOW());
+      'ImsChangeRequest',1,1,NOW(),NOW());
 
     SET st1 = UUID();
-    INSERT INTO WorkflowStep (id,definitionId,stepOrder,name,description,approverRole,requiredApprovals,isParallel,isFinal,createdAt,updatedAt)
-    VALUES (st1,wf2,1,'Change Impact Review','Document Controller assesses impact and feasibility of proposed change','DOCUMENT_CONTROLLER',1,0,0,NOW(),NOW());
+    INSERT INTO WorkflowStep (id,definitionId,sequence,name,approverResolver,minApprovals,slaHours,onRejectBehavior,createdAt,updatedAt)
+    VALUES (st1,wf2,1,'Document Controller Review','{"type":"MANAGER_OF_INITIATOR"}',1,72,'TERMINATE',NOW(),NOW());
 
     SET st2 = UUID();
-    INSERT INTO WorkflowStep (id,definitionId,stepOrder,name,description,approverRole,requiredApprovals,isParallel,isFinal,createdAt,updatedAt)
-    VALUES (st2,wf2,2,'Manager Approval','Responsible manager reviews and approves the change request','MANAGER',1,0,1,NOW(),NOW());
+    INSERT INTO WorkflowStep (id,definitionId,sequence,name,approverResolver,minApprovals,slaHours,onRejectBehavior,createdAt,updatedAt)
+    VALUES (st2,wf2,2,'Manager Approval','{"type":"MANAGER_OF_INITIATOR"}',1,72,'TERMINATE',NOW(),NOW());
   END IF;
 END$$
 DELIMITER ;
