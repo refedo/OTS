@@ -23,10 +23,41 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.0.1',
+    date: 'April 28, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'IMS Module Fixes & Quick Guide',
+    highlights: [
+      'IMS sidebar navigation now appears on all IMS pages — fixed missing ResponsiveLayout wrapper in IMS layout.',
+      'Risk Register page no longer loops/refreshes — fixed named-export mismatch that caused the component to render as undefined.',
+      'ISO clause and category seed data now loads automatically on server start.',
+      'New document creation page at /ims/documents/new with full form.',
+      'New DCR submission page at /ims/change-requests/new.',
+      'IMS Quick Guide added covering all modules with ISO standards reference.',
+    ],
+    changes: {
+      added: [
+        '/ims/documents/new — new document creation page with all fields and auto-number generation',
+        '/ims/change-requests/new — new DCR submission page with workflow note',
+        '/ims/guide — IMS Quick Guide covering all seven modules with ISO clause reference',
+        'Quick Guide added to IMS sidebar navigation',
+        'add_ims_module.sql and seed_ims_data.sql registered in startup-migrations.ts',
+      ],
+      fixed: [
+        'IMS layout.tsx now wraps children in ResponsiveLayout — sidebar was missing on all IMS pages',
+        'risks/_page-client.tsx: changed export default to named export — was causing blank/refresh loop',
+      ],
+      changed: [
+        'Version bumped to 22.0.1',
+      ],
+    },
+  },
+  {
     version: '22.0.0',
     date: 'April 27, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'IMS — Integrated Management System',
     highlights: [
       'Full ISO 9001:2015, ISO 14001:2015, and ISO 45001:2018 integrated management system module.',

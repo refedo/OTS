@@ -9,8 +9,8 @@ const { version: pkgVersion } = require('../../package.json') as { version: stri
 
 export const APP_VERSION = {
   version: pkgVersion,
-  date: 'April 27, 2026',
-  type: 'major' as const, // 22.0.0 — IMS module
+  date: 'April 28, 2026',
+  type: 'patch' as const, // 22.0.1 — IMS fixes
   name: 'Hexa Steel Operation Tracking System',
 };
 
