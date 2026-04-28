@@ -28,7 +28,7 @@ import {
   Loader2,
   ExternalLink,
 } from 'lucide-react';
-import { MEETING_CATEGORIES } from '@/lib/services/meeting.service';
+import { MEETING_CATEGORIES } from '@/lib/services/meeting.constants';
 import {
   AlertDialog,
   AlertDialogAction,
