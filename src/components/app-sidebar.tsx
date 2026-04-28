@@ -875,7 +875,7 @@ export function AppSidebar() {
       {/* Overlay for mobile */}
       {!collapsed && (
         <div
-          className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
+          className="lg:hidden print:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
           onClick={() => setCollapsed(true)}
         />
       )}

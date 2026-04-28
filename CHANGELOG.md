@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.2.0] - 2026-04-28
+
+### Business Development, Aging Report, Workflow
+
+#### Added
+- **BD multi-file attachments** — each submitted document can now hold multiple named file attachments; existing single-file records remain backward-compatible
+- **Aging report Excel export** — "Export Excel" button generates a two-sheet XLSX (Summary + Invoice Detail) for both AR and AP aging reports
+
+#### Fixed
+- **Aging report print with expanded sidebar** — semi-transparent sidebar overlay no longer bleeds through when printing with the menu open
+- **Workflow edit error** — saving name/description now always succeeds even when workflow instances are in progress; steps are only sent to the server if changed, and a 409 conflict is shown as an informational warning rather than a hard failure
+
+#### Changed
+- Version bumped to **22.2.0**
+- **Database migration**: `prisma/manual_migrations/bd_document_attachments.sql` — adds `attachments` column to `BdDocument`
+
+---
+
 ## [22.1.0] - 2026-04-28
 
 ### Meetings Module

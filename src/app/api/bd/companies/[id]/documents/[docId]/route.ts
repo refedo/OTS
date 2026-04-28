@@ -7,9 +7,15 @@ import { logger } from '@/lib/logger';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
 
+const attachmentSchema = z.object({
+  name: z.string().min(1).max(255),
+  url: z.string().min(1).max(512),
+});
+
 const updateSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   fileUrl: z.string().max(512).optional().nullable(),
+  attachments: z.array(attachmentSchema).optional().nullable(),
   status: z.enum(['SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED']).optional(),
   submittedAt: z.string().optional().nullable(),
 });
@@ -40,11 +46,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const existing = await prisma.bdDocument.findFirst({ where: { id: docId, deletedAt: null } });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const { submittedAt, ...rest } = parsed.data;
+    const { submittedAt, attachments, ...rest } = parsed.data;
     const updated = await prisma.bdDocument.update({
       where: { id: docId },
       data: {
         ...rest,
+        ...(attachments !== undefined ? { attachments: attachments ? JSON.stringify(attachments) : null } : {}),
         ...(submittedAt !== undefined ? { submittedAt: submittedAt ? new Date(submittedAt) : existing.submittedAt } : {}),
       },
     });
