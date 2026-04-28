@@ -6005,7 +6005,7 @@ model WorkflowStepInstance {
   instanceId        String           @db.Char(36)
   instance          WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   stepId            String           @db.Char(36)
-  step              WorkflowStep     @relation(fields: [stepId], references: [id])
+  step              WorkflowStep     @relation(fields: [stepId], references: [id], onDelete: Cascade)
   sequence          Int
   status            String           @default("PENDING") @db.VarChar(20)
   resolvedApprovers Json?

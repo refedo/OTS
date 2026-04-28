@@ -31,6 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.0.3] - 2026-04-28
+
+### Workflow Step Replacement Fix
+
+#### Fixed
+- **"Failed to replace workflow steps"** — `WorkflowStepInstance.stepId` FK was `RESTRICT`, causing `deleteMany` on `WorkflowStep` to fail with a FK constraint violation whenever the workflow had been used (completed step instances existed). Added migration `fix_workflow_step_fk_cascade.sql` to change FK to `ON DELETE CASCADE`; updated Prisma schema to match.
+- **In-progress guard** — API route now returns `409` with a clear message when IN_PROGRESS workflow instances exist, instead of silently attempting an operation that would corrupt in-flight state.
+
+#### Changed
+- Version bumped to **22.0.3**
+
+---
+
 ## [22.0.2] - 2026-04-28
 
 ### IMS Sidebar, Workflow Fix & Seed Repair
