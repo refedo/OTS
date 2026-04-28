@@ -43,6 +43,10 @@ interface EnvConfig {
   ENABLE_RISK_SCHEDULER: string | undefined;
   GOOGLE_SHEETS_CREDENTIALS: string | undefined;
 
+  // Google Calendar — Meetings module Meet link generation
+  GOOGLE_CALENDAR_CREDENTIALS: string | undefined;
+  GOOGLE_CALENDAR_IMPERSONATE_EMAIL: string | undefined;
+
   // Push notifications (VAPID keys)
   VAPID_PUBLIC_KEY: string | undefined;
   VAPID_PRIVATE_KEY: string | undefined;
@@ -117,6 +121,8 @@ function validateEnv(): EnvConfig {
     NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,
     ENABLE_RISK_SCHEDULER: process.env.ENABLE_RISK_SCHEDULER,
     GOOGLE_SHEETS_CREDENTIALS: process.env.GOOGLE_SHEETS_CREDENTIALS,
+    GOOGLE_CALENDAR_CREDENTIALS: process.env.GOOGLE_CALENDAR_CREDENTIALS,
+    GOOGLE_CALENDAR_IMPERSONATE_EMAIL: process.env.GOOGLE_CALENDAR_IMPERSONATE_EMAIL,
 
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,

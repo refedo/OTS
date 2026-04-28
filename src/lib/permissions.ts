@@ -212,6 +212,19 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'meetings',
+    name: 'Meetings',
+    permissions: [
+      { id: 'meetings.view', name: 'View Meetings', description: 'View meetings you are invited to or organised', category: 'meetings' },
+      { id: 'meetings.view_all', name: 'View All Meetings', description: 'View all company meetings regardless of attendance', category: 'meetings' },
+      { id: 'meetings.create', name: 'Schedule Meeting', description: 'Create and schedule new meetings', category: 'meetings' },
+      { id: 'meetings.edit', name: 'Edit Own Meetings', description: 'Edit meetings you organised', category: 'meetings' },
+      { id: 'meetings.edit_all', name: 'Edit Any Meeting', description: 'Edit any meeting regardless of organiser', category: 'meetings' },
+      { id: 'meetings.delete', name: 'Delete Meeting', description: 'Cancel and delete meetings', category: 'meetings' },
+      { id: 'meetings.record_minutes', name: 'Record Minutes', description: 'Add meeting minutes and decisions after a meeting', category: 'meetings' },
+    ],
+  },
+  {
     id: 'product_backlog',
     name: 'Product Backlog & Development',
     permissions: [

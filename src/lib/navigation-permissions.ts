@@ -96,6 +96,10 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/business-planning/departments': ['business.view_dept_plans', 'business.manage_dept_plans'],
   '/business-planning/issues': ['business.view_issues', 'business.manage_issues'],
   
+  // Meetings
+  '/meetings': ['meetings.view'],
+  '/meetings/new': ['meetings.create'],
+
   // Knowledge Center
   '/knowledge-center': ['knowledge.view'],
   '/knowledge-center/new': ['knowledge.create'],
