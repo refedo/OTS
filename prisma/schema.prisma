@@ -5877,6 +5877,7 @@ model BdDocument {
   company     BdCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title       String    @db.VarChar(255)
   fileUrl     String?   @db.VarChar(512)
+  attachments String?   @db.MediumText
   status      String    @default("SUBMITTED") @db.VarChar(30)
   submittedAt DateTime  @default(now())
   deletedAt   DateTime?

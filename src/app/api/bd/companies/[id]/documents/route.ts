@@ -7,9 +7,15 @@ import { logger } from '@/lib/logger';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
 
+const attachmentSchema = z.object({
+  name: z.string().min(1).max(255),
+  url: z.string().min(1).max(512),
+});
+
 const createSchema = z.object({
   title: z.string().min(1).max(255),
   fileUrl: z.string().max(512).optional().nullable(),
+  attachments: z.array(attachmentSchema).optional().nullable(),
   status: z.enum(['SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED']).default('SUBMITTED'),
   submittedAt: z.string().optional(),
 });
@@ -64,12 +70,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { submittedAt, ...rest } = parsed.data;
+    const { submittedAt, attachments, ...rest } = parsed.data;
 
     const document = await prisma.bdDocument.create({
       data: {
         ...rest,
         companyId: id,
+        attachments: attachments ? JSON.stringify(attachments) : null,
         submittedAt: submittedAt ? new Date(submittedAt) : new Date(),
       },
     });
