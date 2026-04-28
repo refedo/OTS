@@ -33,9 +33,16 @@ export const PUT = withApiContext(async (req, session, ctx) => {
     const definition = await prisma.workflowDefinition.findFirst({ where: { id, deletedAt: null } });
     if (!definition) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const hasInFlight = await prisma.workflowInstance.count({
+    const inFlightCount = await prisma.workflowInstance.count({
       where: { definitionId: id, status: 'IN_PROGRESS' },
     });
+
+    if (inFlightCount > 0) {
+      return NextResponse.json(
+        { error: 'Cannot replace steps while workflow instances are in progress. Cancel or complete them first.' },
+        { status: 409 },
+      );
+    }
 
     await prisma.$transaction([
       prisma.workflowStep.deleteMany({ where: { definitionId: id } }),
@@ -53,9 +60,6 @@ export const PUT = withApiContext(async (req, session, ctx) => {
           },
         })
       ),
-      ...(hasInFlight
-        ? [prisma.workflowDefinition.update({ where: { id }, data: { version: { increment: 1 } } })]
-        : []),
     ]);
 
     const updated = await prisma.workflowDefinition.findUnique({
