@@ -9,13 +9,16 @@ export async function GET(req: Request) {
   if ('error' in auth) return auth.error;
 
   const { searchParams } = new URL(req.url);
-  const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString(), 10);
-  const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString(), 10);
+  const now = new Date();
+  const year  = parseInt(searchParams.get('year')  || now.getFullYear().toString(), 10);
+  const month = parseInt(searchParams.get('month') || (now.getMonth() + 1).toString(), 10);
+  const toYear  = parseInt(searchParams.get('toYear')  || year.toString(), 10);
+  const toMonth = parseInt(searchParams.get('toMonth') || month.toString(), 10);
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const monthEnd = month === 12
-    ? `${year}-12-31`
-    : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const monthEnd = toMonth === 12
+    ? `${toYear + 1}-01-01`
+    : `${toYear}-${String(toMonth + 1).padStart(2, '0')}-01`;
 
   try {
     // ── Income: customer payments grouped by client ──────────────────────────
@@ -56,7 +59,7 @@ export async function GET(req: Request) {
       `, monthStart, monthEnd);
     } catch { /* table may be empty */ }
 
-    // ── Salaries for the month ─────────────────────────────────────────────────
+    // ── Salaries for the period ─────────────────────────────────────────────────
     let salaryRows: any[] = [];
     try {
       salaryRows = await prisma.$queryRawUnsafe(`
@@ -102,6 +105,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       year,
       month,
+      toYear,
+      toMonth,
       monthStart,
       income,
       expenses,

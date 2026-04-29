@@ -176,8 +176,10 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
 
 export default function MonthlyFinancialReportPage() {
   const now = new Date();
-  const [year, setYear]   = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear]       = useState(now.getFullYear());
+  const [month, setMonth]     = useState(now.getMonth() + 1);
+  const [toYear, setToYear]   = useState(now.getFullYear());
+  const [toMonth, setToMonth] = useState(now.getMonth() + 1);
   const [data, setData]   = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [incomeSearch,  setIncomeSearch]  = useState('');
@@ -189,11 +191,11 @@ export default function MonthlyFinancialReportPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/financial/reports/monthly-report?year=${year}&month=${month}`);
+      const res = await fetch(`/api/financial/reports/monthly-report?year=${year}&month=${month}&toYear=${toYear}&toMonth=${toMonth}`);
       if (res.ok) setData(await res.json());
     } catch { /* silent */ }
     finally { setLoading(false); }
-  }, [year, month]);
+  }, [year, month, toYear, toMonth]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -258,7 +260,9 @@ export default function MonthlyFinancialReportPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Monthly Financial Report</h1>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Income &amp; expenses for {MONTH_NAMES[month - 1]} {year}
+                {year === toYear && month === toMonth
+                  ? `Income & expenses for ${MONTH_NAMES[month - 1]} ${year}`
+                  : `Income & expenses from ${MONTH_NAMES[month - 1]} ${year} to ${MONTH_NAMES[toMonth - 1]} ${toYear}`}
               </p>
             </div>
           </div>
@@ -268,6 +272,7 @@ export default function MonthlyFinancialReportPage() {
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={prevMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
+            <span className="text-xs text-muted-foreground font-medium">From</span>
             <Select value={month.toString()} onValueChange={v => setMonth(Number(v))}>
               <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -277,6 +282,21 @@ export default function MonthlyFinancialReportPage() {
               </SelectContent>
             </Select>
             <Select value={year.toString()} onValueChange={v => setYear(Number(v))}>
+              <SelectTrigger className="w-[90px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {yearOptions.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground font-medium">To</span>
+            <Select value={toMonth.toString()} onValueChange={v => setToMonth(Number(v))}>
+              <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MONTH_NAMES.map((name, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={toYear.toString()} onValueChange={v => setToYear(Number(v))}>
               <SelectTrigger className="w-[90px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {yearOptions.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
@@ -580,7 +600,11 @@ export default function MonthlyFinancialReportPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <BarChart3 className="h-4 w-4" />
-                    <span className="font-medium">Period Summary — {MONTH_NAMES[month - 1]} {year}</span>
+                    <span className="font-medium">
+                      {year === toYear && month === toMonth
+                        ? `Period Summary — ${MONTH_NAMES[month - 1]} ${year}`
+                        : `Period Summary — ${MONTH_NAMES[month - 1]} ${year} → ${MONTH_NAMES[toMonth - 1]} ${toYear}`}
+                    </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-6">
                     <div className="flex items-center gap-2">

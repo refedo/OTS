@@ -466,14 +466,18 @@ export class FinancialSyncService {
           // Sync payments for this invoice
           try {
             const payments = await this.client.getInvoicePayments(dolibarrId);
+            const activeRefs = new Set<string>();
             for (const pmt of payments) {
               paymentsTotal++;
               const pmtDate = formatDate(parseDateString(pmt.date));
               if (!pmtDate) continue;
 
+              const ref = pmt.ref || `PAY-${dolibarrId}`;
+              activeRefs.add(ref);
+
               const existingPmt: any[] = await prisma.$queryRawUnsafe(
                 `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'customer' AND invoice_dolibarr_id = ?`,
-                pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+                ref, dolibarrId
               );
 
               if (existingPmt.length > 0) {
@@ -489,11 +493,25 @@ export class FinancialSyncService {
                   `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
                    payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
                    VALUES (?, 'customer', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                  pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                  ref, dolibarrId, pf(pmt.amount), pmtDate,
                   pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
                 );
                 paymentsCreated++;
               }
+            }
+            // Remove OTS payments that no longer exist in Dolibarr
+            if (activeRefs.size > 0) {
+              const placeholders = Array.from(activeRefs).map(() => '?').join(',');
+              await prisma.$executeRawUnsafe(
+                `DELETE FROM fin_payments WHERE payment_type = 'customer' AND invoice_dolibarr_id = ? AND dolibarr_ref NOT IN (${placeholders})`,
+                dolibarrId, ...Array.from(activeRefs)
+              );
+            } else {
+              // No payments in Dolibarr — remove all OTS payments for this invoice
+              await prisma.$executeRawUnsafe(
+                `DELETE FROM fin_payments WHERE payment_type = 'customer' AND invoice_dolibarr_id = ?`,
+                dolibarrId
+              );
             }
           } catch (e: any) {
             console.error(`[FinSync] Error fetching payments for invoice ${dolibarrId}:`, e.message);
@@ -640,14 +658,18 @@ export class FinancialSyncService {
           // Sync payments for this supplier invoice
           try {
             const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
+            const activeRefs = new Set<string>();
             for (const pmt of payments) {
               paymentsTotal++;
               const pmtDate = formatDate(parseDateString(pmt.date));
               if (!pmtDate) continue;
 
+              const ref = pmt.ref || `PAY-${dolibarrId}`;
+              activeRefs.add(ref);
+
               const existingPmt: any[] = await prisma.$queryRawUnsafe(
                 `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
-                pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+                ref, dolibarrId
               );
 
               if (existingPmt.length > 0) {
@@ -663,11 +685,25 @@ export class FinancialSyncService {
                   `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
                    payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
                    VALUES (?, 'supplier', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                  pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                  ref, dolibarrId, pf(pmt.amount), pmtDate,
                   pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
                 );
                 paymentsCreated++;
               }
+            }
+            // Remove OTS payments that no longer exist in Dolibarr
+            if (activeRefs.size > 0) {
+              const placeholders = Array.from(activeRefs).map(() => '?').join(',');
+              await prisma.$executeRawUnsafe(
+                `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ? AND dolibarr_ref NOT IN (${placeholders})`,
+                dolibarrId, ...Array.from(activeRefs)
+              );
+            } else {
+              // No payments in Dolibarr — remove all OTS payments for this invoice
+              await prisma.$executeRawUnsafe(
+                `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
+                dolibarrId
+              );
             }
           } catch (e: any) {
             console.error(`[FinSync] Error fetching payments for supplier invoice ${dolibarrId}:`, e.message);
@@ -727,14 +763,18 @@ export class FinancialSyncService {
         }
         try {
           const payments = await this.client.getInvoicePayments(dolibarrId);
+          const activeRefs = new Set<string>();
           for (const pmt of payments) {
             custTotal++;
             const pmtDate = formatDate(parseDateString(pmt.date));
             if (!pmtDate) continue;
 
+            const ref = pmt.ref || `PAY-${dolibarrId}`;
+            activeRefs.add(ref);
+
             const existingPmt: any[] = await prisma.$queryRawUnsafe(
               `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'customer' AND invoice_dolibarr_id = ?`,
-              pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+              ref, dolibarrId
             );
 
             if (existingPmt.length > 0) {
@@ -750,11 +790,24 @@ export class FinancialSyncService {
                 `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
                  payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
                  VALUES (?, 'customer', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                ref, dolibarrId, pf(pmt.amount), pmtDate,
                 pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
               );
               custCreated++;
             }
+          }
+          // Remove OTS payments that no longer exist in Dolibarr
+          if (activeRefs.size > 0) {
+            const placeholders = Array.from(activeRefs).map(() => '?').join(',');
+            await prisma.$executeRawUnsafe(
+              `DELETE FROM fin_payments WHERE payment_type = 'customer' AND invoice_dolibarr_id = ? AND dolibarr_ref NOT IN (${placeholders})`,
+              dolibarrId, ...Array.from(activeRefs)
+            );
+          } else {
+            await prisma.$executeRawUnsafe(
+              `DELETE FROM fin_payments WHERE payment_type = 'customer' AND invoice_dolibarr_id = ?`,
+              dolibarrId
+            );
           }
         } catch (e: any) {
           // 404 = no payments for this invoice, skip silently
@@ -770,7 +823,7 @@ export class FinancialSyncService {
       const suppInvoices: any[] = await prisma.$queryRawUnsafe(
         `SELECT dolibarr_id FROM fin_supplier_invoices WHERE is_active = 1`
       );
-      
+
       for (let i = 0; i < suppInvoices.length; i++) {
         const dolibarrId = suppInvoices[i].dolibarr_id;
         if (i > 0 && i % 500 === 0) {
@@ -778,14 +831,18 @@ export class FinancialSyncService {
         }
         try {
           const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
+          const activeRefs = new Set<string>();
           for (const pmt of payments) {
             suppTotal++;
             const pmtDate = formatDate(parseDateString(pmt.date));
             if (!pmtDate) continue;
 
+            const ref = pmt.ref || `PAY-${dolibarrId}`;
+            activeRefs.add(ref);
+
             const existingPmt: any[] = await prisma.$queryRawUnsafe(
               `SELECT id FROM fin_payments WHERE dolibarr_ref = ? AND payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
-              pmt.ref || `PAY-${dolibarrId}`, dolibarrId
+              ref, dolibarrId
             );
 
             if (existingPmt.length > 0) {
@@ -801,11 +858,24 @@ export class FinancialSyncService {
                 `INSERT INTO fin_payments (dolibarr_ref, payment_type, invoice_dolibarr_id, amount,
                  payment_date, payment_method, fk_bank_line, bank_account_id, first_synced_at, last_synced_at)
                  VALUES (?, 'supplier', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                pmt.ref || `PAY-${dolibarrId}`, dolibarrId, pf(pmt.amount), pmtDate,
+                ref, dolibarrId, pf(pmt.amount), pmtDate,
                 pmt.type || null, pi(pmt.fk_bank_line), pi(pmt.fk_bank_account)
               );
               suppCreated++;
             }
+          }
+          // Remove OTS payments that no longer exist in Dolibarr
+          if (activeRefs.size > 0) {
+            const placeholders = Array.from(activeRefs).map(() => '?').join(',');
+            await prisma.$executeRawUnsafe(
+              `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ? AND dolibarr_ref NOT IN (${placeholders})`,
+              dolibarrId, ...Array.from(activeRefs)
+            );
+          } else {
+            await prisma.$executeRawUnsafe(
+              `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
+              dolibarrId
+            );
           }
         } catch (e: any) {
           if (!e.message?.includes('404')) {

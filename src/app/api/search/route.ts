@@ -23,7 +23,7 @@ export const GET = withApiContext(async (req) => {
   }
 
   try {
-    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries, buildings, users, employees, assets, contracts, hrLetters] =
+    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries, buildings, users, employees, assets, contracts, hrLetters, thirdparties, customerInvoices, supplierInvoices, payments] =
       await Promise.all([
         safe(() => prisma.task.findMany({
           where: {
@@ -248,6 +248,92 @@ export const GET = withApiContext(async (req) => {
           take: MAX_PER_CATEGORY,
           orderBy: { issuedAt: 'desc' },
         })),
+
+        safe(() => prisma.$queryRaw<Array<{
+          id: number;
+          name: string | null;
+          code_client: string | null;
+          code_supplier: string | null;
+          client_type: number;
+          supplier_type: number;
+        }>>`
+          SELECT id, name, code_client, code_supplier, client_type, supplier_type
+          FROM dolibarr_thirdparties
+          WHERE is_active = 1
+            AND (name LIKE ${`%${q}%`}
+              OR name_alias LIKE ${`%${q}%`}
+              OR code_client LIKE ${`%${q}%`}
+              OR code_supplier LIKE ${`%${q}%`}
+              OR email LIKE ${`%${q}%`})
+          ORDER BY name ASC
+          LIMIT 5
+        `),
+
+        safe(() => prisma.$queryRaw<Array<{
+          dolibarr_id: number;
+          ref: string | null;
+          socid: number | null;
+          status: number | null;
+          is_paid: number;
+          entity_name: string | null;
+        }>>`
+          SELECT ci.dolibarr_id, ci.ref, ci.socid, ci.status, ci.is_paid,
+                 COALESCE(dt.name, CONCAT('Client #', ci.socid)) AS entity_name
+          FROM fin_customer_invoices ci
+          LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = ci.socid
+          WHERE ci.is_active = 1
+            AND (ci.ref LIKE ${`%${q}%`}
+              OR ci.ref_client LIKE ${`%${q}%`}
+              OR dt.name LIKE ${`%${q}%`}
+              OR dt.code_client LIKE ${`%${q}%`})
+          ORDER BY ci.last_synced_at DESC
+          LIMIT 5
+        `),
+
+        safe(() => prisma.$queryRaw<Array<{
+          dolibarr_id: number;
+          ref: string | null;
+          socid: number | null;
+          status: number | null;
+          is_paid: number;
+          entity_name: string | null;
+        }>>`
+          SELECT si.dolibarr_id, si.ref, si.socid, si.status, si.is_paid,
+                 COALESCE(dt.name, CONCAT('Supplier #', si.socid)) AS entity_name
+          FROM fin_supplier_invoices si
+          LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = si.socid
+          WHERE si.is_active = 1
+            AND (si.ref LIKE ${`%${q}%`}
+              OR si.ref_supplier LIKE ${`%${q}%`}
+              OR dt.name LIKE ${`%${q}%`}
+              OR dt.code_supplier LIKE ${`%${q}%`})
+          ORDER BY si.last_synced_at DESC
+          LIMIT 5
+        `),
+
+        safe(() => prisma.$queryRaw<Array<{
+          id: number;
+          dolibarr_ref: string | null;
+          payment_type: string;
+          amount: number | null;
+          payment_date: string | null;
+          entity_name: string | null;
+        }>>`
+          SELECT fp.id, fp.dolibarr_ref, fp.payment_type, fp.amount, fp.payment_date,
+                 COALESCE(dt.name,
+                   CASE fp.payment_type
+                     WHEN 'customer' THEN CONCAT('Client #', ci.socid)
+                     ELSE CONCAT('Supplier #', si.socid)
+                   END
+                 ) AS entity_name
+          FROM fin_payments fp
+          LEFT JOIN fin_customer_invoices ci ON fp.payment_type = 'customer' AND ci.dolibarr_id = fp.invoice_dolibarr_id
+          LEFT JOIN fin_supplier_invoices si ON fp.payment_type = 'supplier' AND si.dolibarr_id = fp.invoice_dolibarr_id
+          LEFT JOIN dolibarr_thirdparties dt ON dt.dolibarr_id = COALESCE(ci.socid, si.socid)
+          WHERE fp.dolibarr_ref LIKE ${`%${q}%`}
+          ORDER BY fp.payment_date DESC
+          LIMIT 5
+        `),
       ]);
 
     const taskArr = Array.isArray(tasks) ? tasks : [];
@@ -265,6 +351,10 @@ export const GET = withApiContext(async (req) => {
     const assetArr = Array.isArray(assets) ? assets : [];
     const contractArr = Array.isArray(contracts) ? contracts : [];
     const hrLetterArr = Array.isArray(hrLetters) ? hrLetters : [];
+    const thirdpartyArr = Array.isArray(thirdparties) ? thirdparties : [];
+    const customerInvoiceArr = Array.isArray(customerInvoices) ? customerInvoices : [];
+    const supplierInvoiceArr = Array.isArray(supplierInvoices) ? supplierInvoices : [];
+    const paymentArr = Array.isArray(payments) ? payments : [];
 
     return NextResponse.json({
       results: {
@@ -393,6 +483,44 @@ export const GET = withApiContext(async (req) => {
           badge: l.classification,
           url: `/hr/letters`,
           type: 'Letter',
+        })),
+        thirdparties: thirdpartyArr.map((t) => {
+          const isCustomer = Number(t.client_type) > 0;
+          const isSupplier = Number(t.supplier_type) > 0;
+          const role = isCustomer && isSupplier ? 'Customer & Supplier' : isCustomer ? 'Customer' : 'Supplier';
+          const code = isCustomer ? t.code_client : t.code_supplier;
+          return {
+            id: String(t.id),
+            title: t.name || `Party #${t.id}`,
+            subtitle: code ? `${code} · ${role}` : role,
+            badge: role,
+            url: `/financial/thirdparties`,
+            type: 'Thirdparty',
+          };
+        }),
+        customerInvoices: customerInvoiceArr.map((i) => ({
+          id: String(i.dolibarr_id),
+          title: i.ref || `Invoice #${i.dolibarr_id}`,
+          subtitle: i.entity_name || 'Unknown client',
+          badge: i.is_paid ? 'Paid' : 'Unpaid',
+          url: `/financial/invoices/customer`,
+          type: 'Customer Invoice',
+        })),
+        supplierInvoices: supplierInvoiceArr.map((i) => ({
+          id: String(i.dolibarr_id),
+          title: i.ref || `Invoice #${i.dolibarr_id}`,
+          subtitle: i.entity_name || 'Unknown supplier',
+          badge: i.is_paid ? 'Paid' : 'Unpaid',
+          url: `/financial/invoices/supplier`,
+          type: 'Supplier Invoice',
+        })),
+        payments: paymentArr.map((p) => ({
+          id: String(p.id),
+          title: p.dolibarr_ref || `Payment #${p.id}`,
+          subtitle: p.entity_name || 'Unknown',
+          badge: p.payment_type === 'customer' ? 'Income' : 'Expense',
+          url: `/financial/payments`,
+          type: 'Payment',
         })),
       },
     });
