@@ -150,8 +150,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Detailed Planner
   '/detailed-project-planner': ['planning.view', 'projects.view'],
 
-  // Executive Command Center
+  // CEO Arena (22.3.0)
   '/executive': ['executive.view'],
+  '/ceo-arena/brainstorm': ['executive.view'],
 
   // Ops Agent
   '/ops-agent': ['ops_agent.view', 'ops_agent.run', 'ops_agent.configure'],

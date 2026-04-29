@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.3.0] - 2026-04-29
+
+### CEO Arena — Private Command Room
+
+#### Added
+- **CEO Arena sidebar section** — new collapsible sidebar group `CEO Arena` (crown icon) with two entries: *CEO Dashboard* and *Brainstorm Board*; the existing standalone CEO Dashboard link has been moved into this section
+- **Brainstorm Board** (`/ceo-arena/brainstorm`) — private CEO-only workspace with three kanban-style columns:
+  - 💡 **Brainstorm Board** — capture ideas, insights, and creative sparks as colorable sticky notes
+  - 🤯 **Headaches** — log problems, blockers, and pain points with priority tagging
+  - 🔄 **Open Loops** — Zeigarnik-effect tracker for unfinished thoughts that occupy mental bandwidth; shows a live callout when open loops are detected to prompt closure
+- **Sticky notes UI** — each note has a color picker (10 pastel shades), editable title/content inline, priority badge (Low / Medium / High / Critical), tags, and a one-click status cycle (Open → In Progress → Resolved)
+- **Note actions** — dropdown menu per card: edit, change status, change priority, recolor, delete
+- **KPI strip** — Open Items, Critical count, Resolved, and Total Notes across the workspace
+- **Database** — new table `CeoNote`; migration at `prisma/manual_migrations/ceo_arena_notes.sql`
+- **API** — `GET /api/ceo-arena/notes`, `POST /api/ceo-arena/notes`, `PATCH /api/ceo-arena/notes/[id]`, `DELETE /api/ceo-arena/notes/[id]`; all scoped to the requesting user
+- **Permission** — gated behind `executive.view` (same as CEO Dashboard)
+
+#### Changed
+- Version bumped to **22.3.0**
+
+---
+
 ## [22.2.0] - 2026-04-28
 
 ### Business Development, Aging Report, Workflow
