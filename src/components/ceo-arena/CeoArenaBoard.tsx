@@ -41,22 +41,22 @@ interface CeoNote {
 }
 
 const STICKY_COLORS = [
-  '#fef08a', // yellow
-  '#bbf7d0', // green
-  '#bfdbfe', // blue
-  '#fde68a', // amber
-  '#fecaca', // red
-  '#e9d5ff', // purple
-  '#fed7aa', // orange
-  '#f5d0fe', // pink
-  '#cffafe', // cyan
-  '#d1fae5', // emerald
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#3b82f6', // blue
+  '#f97316', // orange
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#64748b', // slate
+  '#84cc16', // lime
 ];
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  low:      { label: 'Low',      icon: ArrowDownCircle, color: 'text-slate-500',  bg: 'bg-slate-100'  },
-  medium:   { label: 'Medium',   icon: MinusCircle,     color: 'text-blue-500',   bg: 'bg-blue-50'    },
-  high:     { label: 'High',     icon: ArrowUpCircle,   color: 'text-orange-500', bg: 'bg-orange-50'  },
+  low:      { label: 'Low',      icon: ArrowDownCircle, color: 'text-slate-400',  bg: 'bg-slate-100'  },
+  medium:   { label: 'Medium',   icon: MinusCircle,     color: 'text-slate-500',  bg: 'bg-slate-100'  },
+  high:     { label: 'High',     icon: ArrowUpCircle,   color: 'text-amber-600',  bg: 'bg-amber-50'   },
   critical: { label: 'Critical', icon: Flame,           color: 'text-red-500',    bg: 'bg-red-50'     },
 };
 
@@ -69,31 +69,31 @@ const STATUS_CONFIG: Record<NoteStatus, { label: string; icon: React.ElementType
 
 const SECTION_META: Record<NoteType, {
   label: string; emoji: string; description: string;
-  icon: React.ElementType; gradient: string; accent: string; defaultColor: string;
+  icon: React.ElementType; iconCls: string; borderTop: string; defaultColor: string;
 }> = {
   brainstorm: {
     label: 'Brainstorm Board', emoji: '💡',
     description: 'Capture ideas, insights, and creative sparks',
     icon: Lightbulb,
-    gradient: 'from-amber-50 via-yellow-50 to-orange-50',
-    accent: 'border-amber-200 bg-amber-50',
-    defaultColor: '#fef08a',
+    iconCls: 'bg-amber-50 text-amber-600',
+    borderTop: 'border-t-amber-400',
+    defaultColor: '#f59e0b',
   },
   headache: {
     label: 'Headaches', emoji: '🤯',
     description: 'Problems, blockers, and pain points that need solving',
     icon: HeartCrack,
-    gradient: 'from-red-50 via-rose-50 to-pink-50',
-    accent: 'border-red-200 bg-red-50',
-    defaultColor: '#fecaca',
+    iconCls: 'bg-rose-50 text-rose-600',
+    borderTop: 'border-t-rose-400',
+    defaultColor: '#ef4444',
   },
   zeigarnik: {
     label: 'Open Loops', emoji: '🔄',
     description: 'Unfinished thoughts and tasks that occupy mental bandwidth',
     icon: Brain,
-    gradient: 'from-violet-50 via-purple-50 to-indigo-50',
-    accent: 'border-violet-200 bg-violet-50',
-    defaultColor: '#e9d5ff',
+    iconCls: 'bg-indigo-50 text-indigo-600',
+    borderTop: 'border-t-indigo-400',
+    defaultColor: '#8b5cf6',
   },
 };
 
@@ -138,11 +138,11 @@ function NoteCard({
   return (
     <div
       className={cn(
-        'group relative rounded-xl border border-black/5 shadow-sm hover:shadow-md transition-all duration-200',
-        'flex flex-col gap-2 p-4 text-sm',
-        isDone && 'opacity-60',
+        'group relative rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200',
+        'flex flex-col gap-2 p-4 text-sm border-l-[3px]',
+        isDone && 'opacity-50',
       )}
-      style={{ backgroundColor: note.color }}
+      style={{ borderLeftColor: note.color }}
     >
       {/* Header row */}
       <div className="flex items-start gap-2">
@@ -158,11 +158,11 @@ function NoteCard({
           <Input
             value={editTitle}
             onChange={e => setEditTitle(e.target.value)}
-            className="h-6 py-0 text-sm font-semibold bg-white/70 border-black/10 flex-1"
+            className="h-6 py-0 text-sm font-semibold bg-gray-50 border-gray-200 flex-1"
             autoFocus
           />
         ) : (
-          <p className={cn('font-semibold text-gray-800 flex-1 leading-snug cursor-pointer', isDone && 'line-through')}
+          <p className={cn('font-semibold text-gray-900 flex-1 leading-snug cursor-pointer', isDone && 'line-through')}
             onClick={() => setEditing(true)}>
             {note.title}
           </p>
@@ -219,12 +219,12 @@ function NoteCard({
         <Textarea
           value={editContent}
           onChange={e => setEditContent(e.target.value)}
-          className="text-sm bg-white/70 border-black/10 resize-none min-h-[60px]"
+          className="text-sm bg-gray-50 border-gray-200 resize-none min-h-[60px]"
           rows={3}
         />
       ) : (
         note.content && (
-          <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-wrap cursor-pointer"
+          <p className="text-gray-500 text-xs leading-relaxed whitespace-pre-wrap cursor-pointer"
             onClick={() => setEditing(true)}>
             {note.content}
           </p>
@@ -301,20 +301,20 @@ function AddNoteForm({
   };
 
   return (
-    <div className="rounded-xl border border-black/10 shadow-md p-4 flex flex-col gap-3 mt-2"
-      style={{ backgroundColor: color }}>
+    <div className="rounded-xl border border-gray-200 bg-white shadow-md p-4 flex flex-col gap-3 mt-2 border-l-[3px]"
+      style={{ borderLeftColor: color }}>
       <Input
         placeholder="Note title…"
         value={title}
         onChange={e => setTitle(e.target.value)}
-        className="bg-white/70 border-black/10 font-semibold text-sm"
+        className="bg-gray-50 border-gray-200 font-semibold text-sm"
         autoFocus
       />
       <Textarea
         placeholder="Details, context, or anything on your mind…"
         value={content}
         onChange={e => setContent(e.target.value)}
-        className="bg-white/70 border-black/10 text-sm resize-none min-h-[70px]"
+        className="bg-gray-50 border-gray-200 text-sm resize-none min-h-[70px]"
         rows={3}
       />
 
@@ -322,7 +322,7 @@ function AddNoteForm({
         {/* Priority */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 text-xs bg-white/70 border-black/10 gap-1">
+            <Button variant="outline" size="sm" className="h-7 text-xs bg-white border-gray-200 gap-1">
               {PRIORITY_CONFIG[priority].label} <ChevronDown className="size-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -360,7 +360,7 @@ function AddNoteForm({
             value={tagInput}
             onChange={e => setTagInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addTag()}
-            className="h-6 text-xs w-28 bg-white/70 border-black/10"
+            className="h-6 text-xs w-28 bg-gray-50 border-gray-200"
           />
           <Button variant="ghost" size="icon" className="size-6" onClick={addTag}>
             <Tag className="size-3" />
@@ -401,22 +401,22 @@ function SectionColumn({
   const resolved = notes.filter(n => n.status === 'resolved' || n.status === 'dismissed');
 
   return (
-    <div className={cn('flex flex-col rounded-2xl p-5 min-h-[500px] bg-gradient-to-b', meta.gradient,
-      'border border-black/5 shadow-sm')}>
+    <div className={cn('flex flex-col rounded-xl p-5 min-h-[500px] bg-white border-t-2',
+      meta.borderTop, 'border border-gray-200 shadow-sm')}>
       {/* Column header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
-          <div className={cn('p-2 rounded-xl', meta.accent)}>
-            <SectionIcon className="size-4 text-gray-700" />
+          <div className={cn('p-2 rounded-lg', meta.iconCls)}>
+            <SectionIcon className="size-4" />
           </div>
           <div>
-            <h2 className="font-bold text-gray-800 text-base leading-tight">
-              {meta.emoji} {meta.label}
+            <h2 className="font-semibold text-gray-800 text-sm leading-tight tracking-wide">
+              {meta.label}
             </h2>
-            <p className="text-xs text-gray-500 leading-tight mt-0.5">{meta.description}</p>
+            <p className="text-xs text-gray-400 leading-tight mt-0.5">{meta.description}</p>
           </div>
         </div>
-        <Badge variant="secondary" className="text-xs font-semibold">
+        <Badge variant="outline" className="text-xs font-semibold text-gray-500 border-gray-200">
           {active.length}
         </Badge>
       </div>
@@ -425,7 +425,7 @@ function SectionColumn({
       {!adding ? (
         <Button
           variant="outline"
-          className="w-full border-dashed border-black/20 bg-white/50 hover:bg-white/80 text-gray-600 text-sm mb-4 gap-2"
+          className="w-full border-dashed border-gray-300 bg-transparent hover:bg-gray-50 text-gray-400 hover:text-gray-600 text-sm mb-4 gap-2"
           onClick={() => setAdding(true)}
         >
           <Plus className="size-4" /> Add {type === 'brainstorm' ? 'Idea' : type === 'headache' ? 'Headache' : 'Open Loop'}
@@ -442,7 +442,7 @@ function SectionColumn({
       {/* Active notes */}
       <div className="flex flex-col gap-3 flex-1">
         {active.length === 0 && !adding && (
-          <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
+          <div className="flex flex-col items-center justify-center py-12 text-center text-gray-300">
             <SectionIcon className="size-10 mb-3" />
             <p className="text-sm font-medium">Nothing here yet</p>
             <p className="text-xs mt-1">Click &ldquo;Add&rdquo; to capture your first entry</p>
@@ -455,9 +455,9 @@ function SectionColumn({
 
       {/* Resolved / dismissed */}
       {resolved.length > 0 && (
-        <div className="mt-4 border-t border-black/10 pt-3">
+        <div className="mt-4 border-t border-gray-100 pt-3">
           <button
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 mb-2"
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 mb-2"
             onClick={() => setShowResolved(!showResolved)}
           >
             <ChevronDown className={cn('size-3 transition-transform', showResolved && 'rotate-180')} />
@@ -539,7 +539,7 @@ export function CeoArenaBoard() {
   const notesFor = (type: NoteType) => notes.filter(n => n.type === type);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-screen-2xl mx-auto px-6 py-8">
 
         {/* Hero */}
@@ -547,12 +547,12 @@ export function CeoArenaBoard() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-200">
+                <div className="p-2.5 rounded-xl bg-slate-900 shadow-sm">
                   <Brain className="size-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 tracking-tight">CEO Arena</h1>
-                  <p className="text-sm text-gray-500 mt-0.5">Your private command room for thought leadership</p>
+                  <h1 className="text-2xl font-bold text-gray-900 tracking-tight">CEO Arena</h1>
+                  <p className="text-sm text-gray-400 mt-0.5">Private command room for thought leadership</p>
                 </div>
               </div>
             </div>
@@ -571,20 +571,20 @@ export function CeoArenaBoard() {
           {/* KPI strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             {[
-              { label: 'Open Items', value: totalOpen, icon: Circle, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-              { label: 'Critical', value: criticalCount, icon: Flame, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' },
-              { label: 'Resolved', value: totalResolved, icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
-              { label: 'Total Notes', value: notes.length, icon: Sparkles, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100' },
+              { label: 'Open Items', value: totalOpen, icon: Circle, color: 'text-slate-600' },
+              { label: 'Critical', value: criticalCount, icon: Flame, color: 'text-red-500' },
+              { label: 'Resolved', value: totalResolved, icon: CheckCircle2, color: 'text-emerald-500' },
+              { label: 'Total Notes', value: notes.length, icon: Sparkles, color: 'text-slate-500' },
             ].map(kpi => {
               const KpiIcon = kpi.icon;
               return (
-                <div key={kpi.label} className={cn('rounded-xl border p-4 flex items-center gap-3', kpi.bg, kpi.border)}>
-                  <div className={cn('p-2 rounded-lg bg-white/80 shadow-sm')}>
+                <div key={kpi.label} className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gray-50">
                     <KpiIcon className={cn('size-4', kpi.color)} />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-800">{kpi.value}</p>
-                    <p className="text-xs text-gray-500">{kpi.label}</p>
+                    <p className="text-2xl font-bold text-gray-800 tabular-nums">{kpi.value}</p>
+                    <p className="text-xs text-gray-400">{kpi.label}</p>
                   </div>
                 </div>
               );
@@ -593,14 +593,14 @@ export function CeoArenaBoard() {
 
           {/* Zeigarnik effect callout */}
           {notes.filter(n => n.type === 'zeigarnik' && n.status === 'open').length > 0 && (
-            <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 flex items-start gap-3">
-              <Zap className="size-4 text-violet-600 mt-0.5 shrink-0" />
+            <div className="mt-4 rounded-xl border border-gray-200 bg-slate-900 px-4 py-3 flex items-start gap-3">
+              <Zap className="size-4 text-amber-400 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-violet-800">
+                <p className="text-sm font-semibold text-white">
                   {notes.filter(n => n.type === 'zeigarnik' && n.status === 'open').length} open loop
                   {notes.filter(n => n.type === 'zeigarnik' && n.status === 'open').length > 1 ? 's' : ''} detected
                 </p>
-                <p className="text-xs text-violet-600 mt-0.5">
+                <p className="text-xs text-slate-400 mt-0.5">
                   The Zeigarnik effect means unfinished tasks occupy your mind. Close these loops to free cognitive bandwidth.
                 </p>
               </div>
@@ -611,7 +611,7 @@ export function CeoArenaBoard() {
         {/* Three-column board */}
         {loading ? (
           <div className="flex items-center justify-center py-32">
-            <Loader2 className="size-8 animate-spin text-violet-400" />
+            <Loader2 className="size-8 animate-spin text-slate-400" />
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -629,9 +629,9 @@ export function CeoArenaBoard() {
         )}
 
         {/* Footer tip */}
-        <div className="mt-8 flex items-center gap-2 text-xs text-gray-400 justify-center">
+        <div className="mt-8 flex items-center gap-2 text-xs text-gray-300 justify-center">
           <AlertCircle className="size-3.5" />
-          <span>Only visible to you — this is your private CEO workspace. Click any note to edit.</span>
+          <span>Private workspace — visible only to you. Click any note to edit.</span>
         </div>
       </div>
     </div>
