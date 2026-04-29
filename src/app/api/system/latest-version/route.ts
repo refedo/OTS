@@ -7,29 +7,27 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 
 const CURRENT_VERSION = {
   version: pkgVersion,
-  date: 'April 28, 2026',
+  date: 'April 29, 2026',
   type: 'patch' as const,
-  mainTitle: 'IMS Sidebar, Workflow Fix & Seed Repair',
+  mainTitle: 'Search, Payment Sync, Date-Range Reports & CEO Board',
   highlights: [
-    'Workflow definition save (edit mode) no longer shows "Invalid input" — fixed Zod schema to accept null conditions.',
-    'IMS Quick Guide now appears in sidebar — added /ims/guide to navigation-permissions.ts.',
-    'All IMS pages now have an IMS Dashboard back-link in the breadcrumb area.',
-    'IMS seed SQL workflow section rewritten with correct column names (key, sequence, approverResolver) — seed data will now apply correctly on server restart.',
-    'Added /ims/change-requests/new to navigation permissions so the route is accessible.',
+    'Global search now finds customers, suppliers, invoice numbers, payment references, and customer/supplier codes.',
+    'Payments deleted in Dolibarr are now automatically removed from OTS on next sync — financial reports no longer show stale data.',
+    'Monthly Financial Report supports date ranges (e.g. January → April) instead of a single month only.',
+    'CEO Tasks from the main task system appear directly on the Brainstorm Board with an inline "Done" button.',
   ],
   changes: {
     added: [
-      '/ims/guide added to NAVIGATION_PERMISSIONS with null (open to any logged-in user)',
-      '/ims/change-requests/new added to NAVIGATION_PERMISSIONS',
-      'IMS Dashboard back-link breadcrumb added to all IMS pages (documents, change-requests, clause-matrix, review-calendar, risks, risk matrix, treatments, risk detail, document detail)',
+      'Global search: customers, suppliers, customer invoices, supplier invoices, and payments added as result categories',
+      'Monthly Financial Report: "From / To" month+year selectors for multi-month range reporting',
+      'CEO Tasks panel on Brainstorm Board — shows active tasks assigned to or created by the CEO with inline Mark Complete',
+      'GET /api/ceo-arena/tasks — endpoint returning active CEO tasks (isCeoTask flag or assigned to/created by Walid Dami)',
     ],
     fixed: [
-      'Workflow steps PUT API: conditions schema changed from .optional() to .optional().nullable() — null conditions from the form no longer cause "Invalid input"',
-      'Workflow definitions POST API: same nullable fix applied',
-      'seed_ims_data.sql workflow section: rewrote INSERT statements to use correct column names (key, sequence, approverResolver, entityType) instead of old names (code, stepOrder, approverRole)',
+      'Payment deletion sync: payments deleted in Dolibarr now deleted from OTS fin_payments on the next invoice sync — applies to syncCustomerInvoices, syncSupplierInvoices, and syncAllPayments',
     ],
     changed: [
-      'Version bumped to 22.0.2',
+      'Version bumped to 22.4.1',
     ],
   },
 };

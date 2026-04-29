@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.4.1] - 2026-04-29
+
+### Search, Payment Sync, Date-Range Reports & CEO Board
+
+#### Added
+- **Global search** now returns five new result categories: **Customers & Suppliers** (searched by name, alias, code_client, code_supplier, email), **Customer Invoices** (by ref, ref_client, client name/code), **Supplier Invoices** (by ref, ref_supplier, supplier name/code), and **Payments** (by dolibarr_ref)
+- **Monthly Financial Report date range** — "From / To" month+year selector pair added; the API accepts `toYear` / `toMonth` params so any span (e.g. January → April) can be reported in a single view; single-month mode unchanged when From = To
+- **CEO Tasks panel on Brainstorm Board** — active tasks assigned to or created by the CEO (Walid Dami) plus any `isCeoTask`-flagged tasks rendered as an inline panel below the three-column sticky-note board; each row has an inline **Done** button that marks the task `Completed` without leaving the page
+- **`GET /api/ceo-arena/tasks`** — new endpoint returning active (non-completed) CEO tasks with project, assignee, due date, and priority
+
+#### Fixed
+- **Payment deletion sync** — after each invoice sync, OTS now deletes `fin_payments` rows whose `dolibarr_ref` is no longer returned by Dolibarr; previously, payments deleted in Dolibarr remained in OTS and inflated financial report totals; fix applied to all three sync paths: `syncCustomerInvoices`, `syncSupplierInvoices`, and `syncAllPayments`
+
+#### Changed
+- Version bumped to **22.4.1**
+
+---
+
 ## [22.4.0] - 2026-04-29
 
 ### Monthly Financial Report Dashboard

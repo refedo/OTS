@@ -6,7 +6,7 @@ import {
   Plus, Trash2, CheckCircle2, Circle, Clock, Flame,
   Lightbulb, HeartCrack, RefreshCw, X, ChevronDown,
   Tag, Sparkles, Brain, AlertCircle, Loader2, MoreVertical,
-  ArrowUpCircle, MinusCircle, ArrowDownCircle, Zap,
+  ArrowUpCircle, MinusCircle, ArrowDownCircle, Zap, ListTodo,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -476,6 +476,115 @@ function SectionColumn({
   );
 }
 
+interface CeoTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate: string | null;
+  project: { name: string; projectNumber: string } | null;
+  assignedTo: { name: string } | null;
+}
+
+const TASK_PRIORITY_COLOR: Record<string, string> = {
+  High:   'bg-red-100 text-red-700',
+  Medium: 'bg-amber-100 text-amber-700',
+  Low:    'bg-slate-100 text-slate-600',
+};
+
+const TASK_STATUS_COLOR: Record<string, string> = {
+  'Pending':     'text-slate-500',
+  'In Progress': 'text-blue-600',
+};
+
+function CeoTasksPanel() {
+  const [tasks, setTasks] = useState<CeoTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [completing, setCompleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/ceo-arena/tasks')
+      .then(r => r.ok ? r.json() : { tasks: [] })
+      .then(d => setTasks(d.tasks || []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const markComplete = async (id: string) => {
+    setCompleting(id);
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Completed' }),
+      });
+      if (res.ok) setTasks(prev => prev.filter(t => t.id !== id));
+    } finally {
+      setCompleting(null);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-10">
+      <Loader2 className="size-5 animate-spin text-slate-400" />
+    </div>
+  );
+
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="mt-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
+        <div className="p-1.5 rounded-lg bg-slate-100">
+          <ListTodo className="size-4 text-slate-600" />
+        </div>
+        <div>
+          <p className="font-semibold text-gray-800 text-sm">CEO Tasks</p>
+          <p className="text-xs text-gray-400">Active tasks assigned to or created by the CEO</p>
+        </div>
+        <span className="ml-auto text-xs font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+          {tasks.length}
+        </span>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {tasks.map(task => {
+          const StatusIcon = task.status === 'In Progress' ? Clock : Circle;
+          const isCompleting = completing === task.id;
+          return (
+            <div key={task.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors group">
+              <StatusIcon className={cn('size-4 shrink-0', TASK_STATUS_COLOR[task.status] ?? 'text-slate-400')} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>
+                {task.project && (
+                  <p className="text-xs text-gray-400 truncate">{task.project.projectNumber} · {task.project.name}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {task.dueDate && (
+                  <span className="text-xs text-gray-400">
+                    {new Date(task.dueDate).toLocaleDateString('en-SA', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+                <span className={cn('text-[11px] font-medium px-1.5 py-0.5 rounded', TASK_PRIORITY_COLOR[task.priority] ?? 'bg-slate-100 text-slate-600')}>
+                  {task.priority}
+                </span>
+                <button
+                  onClick={() => markComplete(task.id)}
+                  disabled={isCompleting}
+                  title="Mark as complete"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded disabled:opacity-50"
+                >
+                  {isCompleting ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+                  Done
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function CeoArenaBoard() {
   const [notes, setNotes] = useState<CeoNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -627,6 +736,8 @@ export function CeoArenaBoard() {
             ))}
           </div>
         )}
+
+        <CeoTasksPanel />
 
         {/* Footer tip */}
         <div className="mt-8 flex items-center gap-2 text-xs text-gray-300 justify-center">

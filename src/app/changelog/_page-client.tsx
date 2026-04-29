@@ -23,10 +23,68 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.4.1',
+    date: 'April 29, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Search, Payment Sync, Date-Range Reports & CEO Board',
+    highlights: [
+      'Global search now finds customers, suppliers, invoice numbers, payment references, and customer/supplier codes — all linked to the financial pages.',
+      'Payments deleted in Dolibarr are now automatically removed from OTS on next sync — financial reports no longer show stale totals.',
+      'Monthly Financial Report now supports full date ranges (e.g. January → April) with "From / To" month+year selectors.',
+      'CEO Tasks appear directly on the Brainstorm Board as an inline panel with an "Done" button to mark complete without leaving the page.',
+    ],
+    changes: {
+      added: [
+        'Global search: Customers & Suppliers (name, alias, code_client, code_supplier, email), Customer Invoices (ref, client name/code), Supplier Invoices (ref, supplier name/code), and Payments (dolibarr_ref) added as search result categories',
+        'Monthly Financial Report: "From / To" month+year selector pair; API accepts toYear/toMonth params; any span can be reported in one view',
+        'CEO Tasks panel on Brainstorm Board — active tasks assigned to or created by CEO (Walid Dami) plus isCeoTask-flagged tasks; inline Done button marks task Completed',
+        'GET /api/ceo-arena/tasks — endpoint returning active CEO tasks with project, assignee, due date, and priority',
+      ],
+      fixed: [
+        'Payment deletion sync — after each invoice sync, fin_payments rows whose dolibarr_ref is no longer in Dolibarr are deleted; fix applied to syncCustomerInvoices, syncSupplierInvoices, and syncAllPayments',
+      ],
+      changed: [
+        'Version bumped to 22.4.1',
+      ],
+    },
+  },
+  {
+    version: '22.4.0',
+    date: 'April 29, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Monthly Financial Report Dashboard',
+    highlights: [
+      'New full-page Monthly Financial Report showing income and expenses side by side for any selected month/year.',
+      'KPI tiles for Total Income, Total Expenses, Net Profit, and Salaries & Wages with compact SAR formatting.',
+      'Income panel groups all client payments by client name with proportional progress bars.',
+      'Supplier Payments and Salaries & Wages panels with live search/filter within each section.',
+      'Dedicated left-sidebar navigation for quick access to all financial reports.',
+    ],
+    changes: {
+      added: [
+        '/financial/reports/monthly-report — full-page report with KPI tiles, income vs expenses columns, and salary breakdown',
+        'Income panel: client payments grouped by client with payment count, invoice count, and proportional progress bar',
+        'Supplier Payments panel: supplier payments grouped by supplier with proportional breakdown',
+        'Salaries & Wages panel: salary records for the month with Paid/Pending status badges',
+        'In-page sidebar navigation listing all financial reports (visible lg+ screens)',
+        'Month/year navigation with prev/next buttons and dropdowns; live search within each panel',
+        'Summary bar: income vs expenses vs net overview with cash-flow link',
+        'API endpoint: GET /api/financial/reports/monthly-report?year=&month=',
+        '"Monthly Report" added to Financial Reports section in the main app sidebar',
+      ],
+      fixed: [],
+      changed: [
+        'Version bumped to 22.4.0',
+      ],
+    },
+  },
+  {
     version: '22.3.0',
     date: 'April 29, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'CEO Arena — Private Command Room',
     highlights: [
       'New CEO Arena sidebar section groups CEO Dashboard and the new Brainstorm Board under a single crown menu.',
@@ -49,6 +107,59 @@ const hardcodedVersions: ChangelogVersion[] = [
       changed: [
         'CEO Dashboard moved from top-level single nav into the CEO Arena collapsible section',
         'Version bumped to 22.3.0',
+      ],
+    },
+  },
+  {
+    version: '22.2.0',
+    date: 'April 28, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Business Development, Aging Report & Workflow Fixes',
+    highlights: [
+      'Each submitted BD document can now hold multiple named file attachments; existing single-file records remain backward-compatible.',
+      'Aging report gains an "Export Excel" button that generates a two-sheet XLSX (Summary + Invoice Detail) for both AR and AP.',
+      'Aging report print no longer bleeds a semi-transparent sidebar overlay when the menu is open.',
+      'Workflow edit now always succeeds even when workflow instances are in progress — step changes send only when changed, 409 shown as informational warning.',
+    ],
+    changes: {
+      added: [
+        'BD multi-file attachments — each submitted document can hold multiple named file attachments; bd_document_attachments.sql migration adds attachments column',
+        'Aging report Excel export — Export Excel button generates two-sheet XLSX (Summary + Invoice Detail) for AR and AP aging',
+      ],
+      fixed: [
+        'Aging report print with expanded sidebar — semi-transparent overlay no longer bleeds through when printing with sidebar open',
+        'Workflow edit error — saving name/description now always succeeds even with in-progress instances; steps only sent if changed; 409 shown as informational warning',
+      ],
+      changed: [
+        'Version bumped to 22.2.0',
+      ],
+    },
+  },
+  {
+    version: '22.1.0',
+    date: 'April 28, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'IMS Sidebar, Workflow Fix & Seed Repair',
+    highlights: [
+      'Workflow edit no longer shows "Invalid input" — Zod schema now accepts null conditions from the form.',
+      'IMS Quick Guide now visible in sidebar — added to navigation permissions.',
+      'All IMS pages now have an IMS Dashboard back-link breadcrumb.',
+      'IMS seed SQL workflow section corrected (key, sequence, approverResolver columns).',
+      '/ims/change-requests/new route added to navigation permissions.',
+    ],
+    changes: {
+      added: [
+        '/ims/guide and /ims/change-requests/new added to NAVIGATION_PERMISSIONS',
+        'IMS Dashboard back-link breadcrumb added to all IMS pages',
+      ],
+      fixed: [
+        'Workflow steps PUT + POST: conditions .nullable() fix — null no longer causes "Invalid input"',
+        'seed_ims_data.sql workflow section: correct column names (key, sequence, approverResolver, entityType)',
+      ],
+      changed: [
+        'Version bumped to 22.1.0',
       ],
     },
   },
@@ -145,6 +256,40 @@ const hardcodedVersions: ChangelogVersion[] = [
       fixed: [],
       changed: [
         'Version bumped to 22.0.0',
+      ],
+    },
+  },
+  {
+    version: '21.3.0',
+    date: 'April 27, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Business Development & Workflow UX Improvements',
+    highlights: [
+      'Company detail modal — eye icon on every company row opens a full read-only view with inline Edit button.',
+      'Archive entries now support full CRUD: clear individual entries from the archive panel or the Archives tab.',
+      'Workflow PBAC_PERMISSION picker replaces raw text input with a grouped, searchable dropdown showing human-readable names.',
+      'Workflow FIXED_USER step now shows a user selector; ROLE step shows a role dropdown.',
+      'Vendor Portal fields added: Vendor ID#, portal username, and password (visibility restricted to creator and CEO).',
+    ],
+    changes: {
+      added: [
+        'Company detail modal (eye icon button) — full read-only view of all fields with inline Edit button',
+        'Archive entry delete — clear button in archive panel and delete button in Archives tab; DELETE /api/bd/companies/[id]/archive endpoint',
+        'Workflow PBAC_PERMISSION picker — grouped select + live search by name or permission key with description preview',
+        'Workflow FIXED_USER selector — dropdown of active users fetched from /api/users',
+        'Workflow ROLE selector — dropdown of roles fetched from /api/roles',
+        'Vendor Portal Fields — Vendor ID#, portal username, and password (visibility restricted to creator and CEO)',
+      ],
+      fixed: [
+        'BD company logos: onError fallback renders initials instead of broken image icon',
+        'PM2 Prisma error: resolveUserPermissions now guards against empty userId before calling findUnique',
+      ],
+      changed: [
+        'Company avatar size increased to h-16 w-16 in company table (was h-14 w-14)',
+        'Archive panel save/delete updates React state immediately without full page refresh',
+        'resolverSummary shows human-readable permission name instead of raw permission key in workflow step list',
+        'Version bumped to 21.3.0',
       ],
     },
   },
@@ -8513,18 +8658,24 @@ export default function ChangelogPage() {
                 key={version.version}
                 className={cn(
                   'rounded-2xl border bg-white shadow-sm overflow-hidden transition-shadow hover:shadow-md',
-                  isCurrent && 'border-sky-300 ring-1 ring-sky-200'
+                  isCurrent && 'border-sky-300 ring-1 ring-sky-200',
+                  !isCurrent && version.type === 'major' && 'border-amber-300 ring-1 ring-amber-100'
                 )}
               >
                 {/* Header row */}
                 <button
-                  className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-slate-50/60 transition-colors"
+                  className={cn(
+                    'w-full flex items-center gap-4 px-5 py-4 text-left transition-colors',
+                    version.type === 'major' && !isCurrent ? 'hover:bg-amber-50/40' : 'hover:bg-slate-50/60'
+                  )}
                   onClick={() => toggle(version.version)}
                 >
                   {/* Version badge */}
                   <div className={cn(
                     'shrink-0 rounded-xl px-3 py-2 text-center min-w-[72px]',
-                    isCurrent ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600'
+                    isCurrent ? 'bg-sky-600 text-white'
+                    : version.type === 'major' ? 'bg-amber-500 text-white'
+                    : 'bg-slate-100 text-slate-600'
                   )}>
                     <div className="text-xs font-medium opacity-75">v</div>
                     <div className="text-sm font-bold leading-tight">{version.version}</div>

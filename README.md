@@ -1,16 +1,14 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 22.0.1 | **Release Date:** April 28, 2026
+**Version:** 22.4.1 | **Release Date:** April 29, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 22.0.1 — IMS Module Fixes & Quick Guide
-- **IMS sidebar** fixed — all IMS pages now show the sidebar navigation.
-- **Risk Register** page refresh loop fixed.
-- **IMS seed data** (categories, ISO clauses, workflow definitions) now runs automatically on server start.
-- **New Document** creation page at `/ims/documents/new`.
-- **New DCR** submission page at `/ims/change-requests/new`.
-- **IMS Quick Guide** at `/ims/guide`.
+### What's New in 22.4.1 — Search, Payment Sync, Date-Range Reports & CEO Board
+- **Global search** now finds customers, suppliers, invoice numbers, payment references, and customer/supplier codes.
+- **Payment deletion sync** — payments deleted in Dolibarr are now automatically removed from OTS on next sync.
+- **Monthly Financial Report** now supports date ranges (January → April) instead of a single month.
+- **CEO Tasks** appear directly on the Brainstorm Board with an inline "Done" button.
 
 ### What's New in 22.0.0 — IMS (Integrated Management System) Module
 - **Business Development section** — new top-level module for tracking target companies, registration status, submitted documents, and received RFQs/Inquiries.
