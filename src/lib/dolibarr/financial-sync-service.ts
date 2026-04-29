@@ -665,6 +665,7 @@ export class FinancialSyncService {
           try {
             const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
             const activeRefs = new Set<string>();
+            console.log(`[FinSync] Supplier invoice ${dolibarrId}: Dolibarr returned ${payments.length} payment(s): [${payments.map(p => p.ref || '(no ref)').join(', ')}]`);
             for (const pmt of payments) {
               paymentsTotal++;
               const pmtDate = formatDate(parseDateString(pmt.date));
@@ -700,19 +701,21 @@ export class FinancialSyncService {
             // Remove OTS payments that no longer exist in Dolibarr
             if (activeRefs.size > 0) {
               const placeholders = Array.from(activeRefs).map(() => '?').join(',');
-              await prisma.$executeRawUnsafe(
+              const deleted = await prisma.$executeRawUnsafe(
                 `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ? AND dolibarr_ref NOT IN (${placeholders})`,
                 dolibarrId, ...Array.from(activeRefs)
               );
+              if (deleted) console.log(`[FinSync] Supplier invoice ${dolibarrId}: deleted ${deleted} orphaned payment(s)`);
             } else {
               // No payments in Dolibarr — remove all OTS payments for this invoice
-              await prisma.$executeRawUnsafe(
+              const deleted = await prisma.$executeRawUnsafe(
                 `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ?`,
                 dolibarrId
               );
+              if (deleted) console.log(`[FinSync] Supplier invoice ${dolibarrId}: deleted all ${deleted} payment(s) — none in Dolibarr`);
             }
           } catch (e: any) {
-            console.error(`[FinSync] Error fetching payments for supplier invoice ${dolibarrId}:`, e.message);
+            console.error(`[FinSync] Error syncing payments for supplier invoice ${dolibarrId}:`, e.message);
           }
         }
 
