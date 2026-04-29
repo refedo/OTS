@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.5.3] - 2026-04-29
+
+### Stability & Version Alignment
+
+#### Changed
+- Confirms **22.5.2** features as stable in production: Account Invoice Report, orphan purge (`POST /api/financial/purge-orphans`), and sidebar double-render fix
+- All financial report in-page sidebar link lists updated to include the Account Invoice Report entry
+- `README.md` version header and footer updated to **22.5.3**
+- Version bumped to **22.5.3**
+
+---
+
 ## [22.5.2] - 2026-04-29
 
 ### PO–Invoice Linkage, COA Credit Balance, Date Fix & Dashboard Reports

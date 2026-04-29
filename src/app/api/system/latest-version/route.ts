@@ -9,25 +9,17 @@ const CURRENT_VERSION = {
   version: pkgVersion,
   date: 'April 29, 2026',
   type: 'patch' as const,
-  mainTitle: 'Account Invoice Report, Orphan Purge & Sidebar Fix',
+  mainTitle: 'Stability & Version Alignment',
   highlights: [
-    'New Account Invoice Report: select any accounting account (Raw Material, Bolts & Nuts, etc.) and see its spend broken down by project with % of project cost.',
-    'Hard-refresh purge: any invoice or payment deleted in Dolibarr but still lingering in OTS is now deactivated and cleaned up via POST /api/financial/purge-orphans.',
-    'Sidebar double-render fixed — users who saw two sidebars on /operations/events and /projects/[id]/planning will now see exactly one.',
+    'Confirms 22.5.2 features as stable: Account Invoice Report, orphan purge (POST /api/financial/purge-orphans), and sidebar double-render fix are all verified in production.',
+    'All financial report sidebar links updated to include the Account Invoice Report.',
+    'Version alignment across package.json, changelog, and settings/about.',
   ],
   changes: {
-    added: [
-      '/financial/reports/account-invoice-report — select an accounting account (e.g. Raw Material, Bolts & Nuts); KPI strip: Total on Account, % of All Supplier Spend, Total Paid, Outstanding Balance; per-project breakdown with share progress bars and expandable invoice + payment rows',
-      'GET /api/financial/reports/account-invoice-report — account KPIs, per-project summary with pctOfProjectCost, full invoice + payment list',
-      'GET /api/financial/reports/account-invoice-report/accounts — dropdown list of all accounting accounts with total spend',
-      'POST /api/financial/purge-orphans — fetches all current Dolibarr invoice IDs, deactivates any OTS invoice not returned, deletes their orphaned payments and lines',
-      '"Account Invoice Report" added to the main sidebar under Financial Reports',
-    ],
-    fixed: [
-      'Sidebar rendered twice for users visiting /operations/events/* or /projects/[id]/planning — nested ResponsiveLayout wrappers removed from those child layouts',
-    ],
+    added: [],
+    fixed: [],
     changed: [
-      'Version bumped to 22.5.2',
+      'Version bumped to 22.5.3 (stability confirmation — no new features)',
     ],
   },
 };

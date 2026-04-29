@@ -1,14 +1,20 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 22.4.1 | **Release Date:** April 29, 2026
+**Version:** 22.5.3 | **Release Date:** April 29, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 22.4.1 — Search, Payment Sync, Date-Range Reports & CEO Board
-- **Global search** now finds customers, suppliers, invoice numbers, payment references, and customer/supplier codes.
-- **Payment deletion sync** — payments deleted in Dolibarr are now automatically removed from OTS on next sync.
-- **Monthly Financial Report** now supports date ranges (January → April) instead of a single month.
-- **CEO Tasks** appear directly on the Brainstorm Board with an inline "Done" button.
+### What's New in 22.5.3 — Stability & Version Alignment
+- Confirms **22.5.2** features as stable: Account Invoice Report, orphan purge, and sidebar double-render fix.
+
+### What's New in 22.5.2 — Account Invoice Report, Orphan Purge & Sidebar Fix
+- **Account Invoice Report** (`/financial/reports/account-invoice-report`) — select any accounting account (Raw Material, Bolts & Nuts, etc.) and see spend per project with % of project cost.
+- **Orphan purge** (`POST /api/financial/purge-orphans`) — hard-refreshes OTS by deactivating invoices and deleting payments deleted in Dolibarr.
+- **Sidebar double-render** fixed — `/operations/events` and `/projects/[id]/planning` no longer render two sidebars.
+
+### What's New in 22.5.1 — Supplier Invoice Report, Meetings Table View & Sidebar
+- **Supplier Invoice Report** — search any supplier, see invoices/payments as a % of project cost and total supplier spend.
+- **Meetings module** now shows the main app sidebar; All Meetings page has a grid/table toggle.
 
 ### What's New in 22.0.0 — IMS (Integrated Management System) Module
 - **Business Development section** — new top-level module for tracking target companies, registration status, submitted documents, and received RFQs/Inquiries.
@@ -515,7 +521,7 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 19.16.4
-**Last Updated**: April 21, 2026
+**Version**: 22.5.3
+**Last Updated**: April 29, 2026
 **Repository**: https://github.com/refedo/OTS
 

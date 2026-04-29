@@ -23,30 +23,29 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '22.5.2',
+    version: '22.5.3',
     date: 'April 29, 2026',
     type: 'patch',
     status: 'current',
-    mainTitle: 'PO–Invoice Linkage, COA Credit Balance & Date Fix',
+    mainTitle: 'Account Invoice Report, Orphan Purge & Sidebar Fix',
     highlights: [
-      'New PO–Invoice Linkage report groups purchase orders with their supplier invoices side-by-side, with variance indicator per group.',
-      'New COA Credit Balance report shows full chart of accounts with opening, period, and closing debit/credit columns.',
-      'All Hijri dates fixed — en-SA-u-ca-gregory enforced across meetings, HR, CEO arena, and financial reports.',
-      'Supplier Invoice Report now appears in the sidebar and financial dashboard (navigation-permissions fixed).',
+      'New Account Invoice Report: select any accounting account (Raw Material, Bolts & Nuts, etc.) and see spend broken down by project with % of project cost.',
+      'Hard-refresh purge: POST /api/financial/purge-orphans deactivates invoices and deletes payments no longer in Dolibarr.',
+      'Sidebar double-render fixed — /operations/events and /projects/[id]/planning no longer render two sidebars.',
     ],
     changes: {
       added: [
-        '/financial/reports/po-invoice-linkage — groups invoices with POs by supplier+project; PO table + invoice table with variance alert per group',
-        '/financial/reports/coa-credit-balance — COA with opening/period/closing debit & credit columns, grouped by account type, live search, expand/collapse',
-        'Both reports added to app sidebar (Financial Reports section) and financial dashboard reports grid',
-        'Supplier Invoice Report added to navigation-permissions.ts and financial dashboard (was hidden)',
+        '/financial/reports/account-invoice-report — select an accounting account; KPI strip: Total on Account, % of All Supplier Spend, Total Paid, Outstanding Balance; per-project breakdown with share progress bars and expandable invoice + payment rows',
+        'GET /api/financial/reports/account-invoice-report — account KPIs, per-project summary with pctOfProjectCost, full invoice + payment list',
+        'GET /api/financial/reports/account-invoice-report/accounts — dropdown list of all accounting accounts with total spend',
+        'POST /api/financial/purge-orphans — fetches all Dolibarr invoice IDs, deactivates orphaned OTS invoices, deletes their payments and lines; blocked during active sync',
+        '"Account Invoice Report" added to main sidebar under Financial Reports',
       ],
       fixed: [
-        'All en-SA date locale calls changed to en-SA-u-ca-gregory — fixes Hijri calendar display in meetings, calendar, HR components, CEO arena, Google Calendar settings, and meetings API notification text',
+        'Sidebar rendered twice on /operations/events/* and /projects/[id]/planning — redundant ResponsiveLayout removed from child layouts',
       ],
       changed: [
-        'CLAUDE.md updated with date locale rule (always use en-SA-u-ca-gregory for dates)',
-        'Version bumped to 22.5.2',
+        'Version bumped to 22.5.3',
       ],
     },
   },
