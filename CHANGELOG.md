@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.5.2] - 2026-04-29
+
+### PO–Invoice Linkage, COA Credit Balance, Date Fix & Dashboard Reports
+
+#### Added
+- **PO–Invoice Linkage Report** (`/financial/reports/po-invoice-linkage`) — groups supplier invoices with their purchase orders by supplier + project; each group shows both PO table and invoice table side-by-side with a variance indicator (over-invoiced / pending invoices); filters by supplier name and invoice date range
+- **COA Credit Balance Report** (`/financial/reports/coa-credit-balance`) — full chart of accounts with opening debit/credit, period debit/credit, and closing debit/credit columns; grouped by account type (Assets, Liabilities, Equity, Revenue, Expenses, COGS); live search, expand/collapse all; grand totals footer
+- Both new reports added to the main app sidebar under **Financial Reports** and to the financial dashboard reports grid
+- **Supplier Invoice Report** added to `navigation-permissions.ts` and the financial dashboard reports grid (was previously missing, causing sidebar hide)
+- All three new reports have a full in-page financial reports sidebar with back-to-dashboard link
+
+#### Fixed
+- **Hijri dates** — all `en-SA` locale calls for dates changed to `en-SA-u-ca-gregory` to force the Gregorian calendar; affected: supplier invoice report, meetings page, meetings calendar, meeting detail sheet, HR components (car maintenance, traffic violations, public holidays, employee assets), Google Calendar settings, CEO arena board, and meetings API notification formatters
+
+#### Changed
+- **CLAUDE.md** — documented the date locale rule: always use `'en-SA-u-ca-gregory'` for date formatting, never plain `'en-SA'`
+- Version bumped to **22.5.2**
+
+---
+
 ## [22.5.1] - 2026-04-29
 
 ### Supplier Invoice Report, Meetings Table View & Sidebar

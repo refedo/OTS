@@ -359,6 +359,8 @@ const navigationSections: NavigationSection[] = [
       { name: 'Projects Financial', href: '/financial/reports/projects-dashboard', icon: Building2 },
       { name: 'Cost Structure', href: '/financial/reports/project-cost-structure', icon: Package },
       { name: 'Supplier Invoice Report', href: '/financial/reports/supplier-invoice-report', icon: Truck, newSince: '2026-04-29' },
+      { name: 'PO–Invoice Linkage', href: '/financial/reports/po-invoice-linkage', icon: GitMerge, newSince: '2026-04-29' },
+      { name: 'COA Credit Balance', href: '/financial/reports/coa-credit-balance', icon: BarChart3, newSince: '2026-04-29' },
       { name: 'Expenses Analysis', href: '/financial/reports/expenses-analysis', icon: Truck },
       { name: 'Expenses by Account', href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet },
       { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen },

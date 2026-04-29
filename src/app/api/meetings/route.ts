@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     userId: session.sub,
   });
 
-  const scheduledFormatted = new Date(meeting.scheduledAt).toLocaleDateString('en-SA', {
+  const scheduledFormatted = new Date(meeting.scheduledAt).toLocaleDateString('en-SA-u-ca-gregory', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
   const notifyAttendees = meeting.attendees.filter((a) => a.userId !== session.sub);

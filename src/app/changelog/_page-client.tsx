@@ -23,10 +23,38 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '22.5.1',
+    version: '22.5.2',
     date: 'April 29, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'PO–Invoice Linkage, COA Credit Balance & Date Fix',
+    highlights: [
+      'New PO–Invoice Linkage report groups purchase orders with their supplier invoices side-by-side, with variance indicator per group.',
+      'New COA Credit Balance report shows full chart of accounts with opening, period, and closing debit/credit columns.',
+      'All Hijri dates fixed — en-SA-u-ca-gregory enforced across meetings, HR, CEO arena, and financial reports.',
+      'Supplier Invoice Report now appears in the sidebar and financial dashboard (navigation-permissions fixed).',
+    ],
+    changes: {
+      added: [
+        '/financial/reports/po-invoice-linkage — groups invoices with POs by supplier+project; PO table + invoice table with variance alert per group',
+        '/financial/reports/coa-credit-balance — COA with opening/period/closing debit & credit columns, grouped by account type, live search, expand/collapse',
+        'Both reports added to app sidebar (Financial Reports section) and financial dashboard reports grid',
+        'Supplier Invoice Report added to navigation-permissions.ts and financial dashboard (was hidden)',
+      ],
+      fixed: [
+        'All en-SA date locale calls changed to en-SA-u-ca-gregory — fixes Hijri calendar display in meetings, calendar, HR components, CEO arena, Google Calendar settings, and meetings API notification text',
+      ],
+      changed: [
+        'CLAUDE.md updated with date locale rule (always use en-SA-u-ca-gregory for dates)',
+        'Version bumped to 22.5.2',
+      ],
+    },
+  },
+  {
+    version: '22.5.1',
+    date: 'April 29, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Supplier Invoice Report, Meetings Table View & Sidebar',
     highlights: [
       'New Supplier Invoice Report: search any supplier and see their invoices/payments as a % of project cost and total supplier spend.',

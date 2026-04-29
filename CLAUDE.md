@@ -126,6 +126,13 @@ Constraints:
 - Always apply soft-delete filter
 - Do not implement without clear understanding
 
+## Date Formatting Rule
+**Always use `'en-SA-u-ca-gregory'` (not `'en-SA'`) for all date/time locale calls.**  
+`'en-SA'` uses the Islamic/Hijri calendar by default and will show dates like "9 Dhu'l-Q. 1447 AH".  
+`'en-SA-u-ca-gregory'` forces the Gregorian calendar with Arabic-region formatting (SAR currency, etc.).  
+This applies to: `toLocaleDateString`, `toLocaleString`, `toLocaleTimeString`, and `Intl.DateTimeFormat`.  
+Currency/number formatting (`Intl.NumberFormat`, `toLocaleString` with `style: 'currency'`) may keep `'en-SA'` since it only affects number symbols, not calendars.
+
 ---
 
 ## Anti-Patterns

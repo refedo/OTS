@@ -131,7 +131,7 @@ export function GoogleCalendarSettings() {
               </div>
               {status.updatedAt && (
                 <p className="text-xs text-slate-400">
-                  Last authorized {new Date(status.updatedAt).toLocaleDateString('en-SA', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  Last authorized {new Date(status.updatedAt).toLocaleDateString('en-SA-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
               )}
               <div className="flex gap-2">

@@ -565,7 +565,7 @@ function CeoTasksPanel() {
               <div className="flex items-center gap-2 shrink-0">
                 {task.dueDate && (
                   <span className="text-xs text-gray-400">
-                    {new Date(task.dueDate).toLocaleDateString('en-SA', { month: 'short', day: 'numeric' })}
+                    {new Date(task.dueDate).toLocaleDateString('en-SA-u-ca-gregory', { month: 'short', day: 'numeric' })}
                   </span>
                 )}
                 <span className={cn('text-[11px] font-medium px-1.5 py-0.5 rounded', TASK_PRIORITY_COLOR[task.priority] ?? 'bg-slate-100 text-slate-600')}>

@@ -82,7 +82,7 @@ function categoryIcon(cat: AssetCategory, cls = 'h-4 w-4') {
 
 function fmtDate(d: string | null) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-SA', { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString('en-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function money(v: string | number) {
