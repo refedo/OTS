@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.3.0',
+    date: 'April 29, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'CEO Arena — Private Command Room',
+    highlights: [
+      'New CEO Arena sidebar section groups CEO Dashboard and the new Brainstorm Board under a single crown menu.',
+      'Brainstorm Board gives the CEO a private three-column workspace: Ideas, Headaches, and Open Loops (Zeigarnik effect).',
+      'Sticky notes with 10 pastel colors, inline editing, priority levels (Low → Critical), tags, and status cycling.',
+      'Zeigarnik callout banner appears whenever open loops exist, nudging closure to free mental bandwidth.',
+      'KPI strip shows Open Items, Critical count, Resolved, and Total Notes at a glance.',
+    ],
+    changes: {
+      added: [
+        'CEO Arena sidebar section with CEO Dashboard + Brainstorm Board entries',
+        '/ceo-arena/brainstorm — three-column sticky-note board (Brainstorm, Headaches, Open Loops)',
+        'CeoNote database table and SQL migration (prisma/manual_migrations/ceo_arena_notes.sql)',
+        'API: GET/POST /api/ceo-arena/notes and PATCH/DELETE /api/ceo-arena/notes/[id]',
+        'Zeigarnik open-loop callout banner with live count',
+        'Sticky notes: 10 pastel color palette, priority badges, tag editor, inline edit, status cycle',
+        'KPI strip: Open Items, Critical, Resolved, Total Notes',
+      ],
+      fixed: [],
+      changed: [
+        'CEO Dashboard moved from top-level single nav into the CEO Arena collapsible section',
+        'Version bumped to 22.3.0',
+      ],
+    },
+  },
+  {
     version: '22.0.2',
     date: 'April 28, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'IMS Sidebar, Workflow Fix & Seed Repair',
     highlights: [
       'Workflow edit no longer shows "Invalid input" — Zod schema now accepts null conditions from the form.',
