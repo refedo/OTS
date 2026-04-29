@@ -594,6 +594,16 @@ export class FinancialSyncService {
 
           const fkProjet = pi(inv.fk_project || inv.fk_projet);
 
+          // Extract direct PO link: prefer origin_id (invoice created from PO),
+          // fall back to first entry in linked_objects.order_supplier (manually linked)
+          let linkedPoDolibarrId: number | null = null;
+          if (inv.origin_type === 'order_supplier' && pi(inv.origin_id)) {
+            linkedPoDolibarrId = pi(inv.origin_id) ?? null;
+          } else if (inv.linked_objects?.order_supplier) {
+            const keys = Object.keys(inv.linked_objects.order_supplier);
+            if (keys.length > 0) linkedPoDolibarrId = Number(keys[0]) || null;
+          }
+
           const lineProductSig = Array.isArray(inv.lines)
             ? inv.lines.map((l: any) => `${pi(l.rowid)}:${pi(l.fk_product) ?? 0}`).sort().join(',')
             : '';
@@ -622,17 +632,18 @@ export class FinancialSyncService {
           // Use INSERT...ON DUPLICATE KEY UPDATE for upsert
           const rawJson = JSON.stringify(inv);
           await prisma.$executeRawUnsafe(
-            `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, fk_projet, type, status, is_paid,
+            `INSERT INTO fin_supplier_invoices (dolibarr_id, ref, ref_supplier, socid, fk_projet, linked_po_dolibarr_id, type, status, is_paid,
              total_ht, total_tva, total_ttc, date_invoice, date_due, date_creation, dolibarr_raw,
              first_synced_at, last_synced_at, sync_hash, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, 1)
              ON DUPLICATE KEY UPDATE
-             ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), fk_projet=VALUES(fk_projet), type=VALUES(type),
+             ref=VALUES(ref), ref_supplier=VALUES(ref_supplier), socid=VALUES(socid), fk_projet=VALUES(fk_projet),
+             linked_po_dolibarr_id=VALUES(linked_po_dolibarr_id), type=VALUES(type),
              status=VALUES(status), is_paid=VALUES(is_paid), total_ht=VALUES(total_ht), total_tva=VALUES(total_tva),
              total_ttc=VALUES(total_ttc), date_invoice=VALUES(date_invoice), date_due=VALUES(date_due),
              date_creation=VALUES(date_creation), dolibarr_raw=VALUES(dolibarr_raw), last_synced_at=NOW(), sync_hash=VALUES(sync_hash), is_active=1`,
-            dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), fkProjet || null, pi(inv.type),
-            pi(inv.statut || inv.status), (inv.paye === '1' || inv.paid === '1') ? 1 : 0,
+            dolibarrId, inv.ref, inv.ref_supplier, pi(inv.socid), fkProjet || null, linkedPoDolibarrId,
+            pi(inv.type), pi(inv.statut || inv.status), (inv.paye === '1' || inv.paid === '1') ? 1 : 0,
             pf(inv.total_ht), pf(inv.total_tva), pf(inv.total_ttc),
             invoiceDate, dueDate, creationDate, rawJson, newHash
           );

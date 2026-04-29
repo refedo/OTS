@@ -92,6 +92,8 @@ interface Invoice {
   isPaid: boolean;
   totalPaid: number;
   balance: number;
+  linkedPoId: number | null;
+  linkedPoRef: string | null;
 }
 
 interface Group {
@@ -346,6 +348,7 @@ export default function PoInvoiceLinkagePage() {
                                   <tr>
                                     <th className="px-3 py-2 text-left">Invoice Ref</th>
                                     <th className="px-3 py-2 text-left">Supplier Ref</th>
+                                    <th className="px-3 py-2 text-left">Linked PO</th>
                                     <th className="px-3 py-2 text-left">Date</th>
                                     <th className="px-3 py-2 text-left">Due</th>
                                     <th className="px-3 py-2 text-right">Amount (excl.)</th>
@@ -359,6 +362,11 @@ export default function PoInvoiceLinkagePage() {
                                     <tr key={inv.id} className="hover:bg-slate-50">
                                       <td className="px-3 py-2 font-medium text-indigo-700">{inv.ref}</td>
                                       <td className="px-3 py-2 text-slate-500">{inv.refSupplier ?? '—'}</td>
+                                      <td className="px-3 py-2">
+                                        {inv.linkedPoRef
+                                          ? <span className="font-medium text-violet-700">{inv.linkedPoRef}</span>
+                                          : <span className="text-xs text-amber-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" />Not linked</span>}
+                                      </td>
                                       <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{fmtDate(inv.dateInvoice)}</td>
                                       <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{fmtDate(inv.dateDue)}</td>
                                       <td className="px-3 py-2 text-right font-semibold">{fmt(inv.totalHT)}</td>
@@ -374,7 +382,7 @@ export default function PoInvoiceLinkagePage() {
                                 </tbody>
                                 <tfoot className="bg-indigo-50 border-t">
                                   <tr>
-                                    <td colSpan={4} className="px-3 py-2 text-xs font-semibold text-slate-600">Invoice Subtotal</td>
+                                    <td colSpan={5} className="px-3 py-2 text-xs font-semibold text-slate-600">Invoice Subtotal</td>
                                     <td className="px-3 py-2 text-right font-bold text-indigo-700">{fmt(g.invTotalHT)}</td>
                                     <td className="px-3 py-2 text-right font-bold text-emerald-600">{fmt(g.totalPaid)}</td>
                                     <td className="px-3 py-2 text-right font-bold text-red-600">{fmt(g.invTotalHT - g.totalPaid)}</td>
