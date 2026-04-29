@@ -1574,4 +1574,136 @@ export class FinancialSyncService {
       return { lastFullSync: null, counts: {}, recentLogs: [], error: error.message };
     }
   }
+
+  // ============================================
+  // PURGE ORPHANED RECORDS
+  // ============================================
+
+  async purgeOrphanedRecords(triggeredBy: string = 'manual'): Promise<{
+    customerInvoicesDeactivated: number;
+    supplierInvoicesDeactivated: number;
+    paymentsDeleted: number;
+    invoiceLinesDeleted: number;
+    durationMs: number;
+    error?: string;
+  }> {
+    const startTime = Date.now();
+    let customerInvoicesDeactivated = 0;
+    let supplierInvoicesDeactivated = 0;
+    let paymentsDeleted = 0;
+    let invoiceLinesDeleted = 0;
+
+    console.log('[FinSync] Starting orphan purge...');
+
+    try {
+      // ── Customer invoices ───────────────────────────────────────────────────
+      console.log('[FinSync] Fetching all customer invoice IDs from Dolibarr...');
+      const BATCH = 500;
+      const dolibarrCustIds = new Set<number>();
+      let page = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const batch = await this.client.getInvoices({ limit: BATCH, page });
+        for (const inv of batch) {
+          const id = pi(inv.id);
+          if (id) dolibarrCustIds.add(id);
+        }
+        hasMore = batch.length === BATCH;
+        page++;
+      }
+      console.log(`[FinSync] Dolibarr has ${dolibarrCustIds.size} customer invoices`);
+
+      const otsCustomerRows: { dolibarr_id: number }[] = await prisma.$queryRawUnsafe(
+        `SELECT dolibarr_id FROM fin_customer_invoices WHERE is_active = 1`
+      );
+      const orphanCustIds = otsCustomerRows
+        .map((r) => Number(r.dolibarr_id))
+        .filter((id) => !dolibarrCustIds.has(id));
+
+      if (orphanCustIds.length > 0) {
+        console.log(`[FinSync] Deactivating ${orphanCustIds.length} orphaned customer invoices...`);
+        for (const id of orphanCustIds) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE fin_customer_invoices SET is_active = 0, last_synced_at = NOW() WHERE dolibarr_id = ?`, id
+          );
+          const deleted: number = await prisma.$executeRawUnsafe(
+            `DELETE FROM fin_payments WHERE payment_type = 'customer' AND invoice_dolibarr_id = ?`, id
+          );
+          await prisma.$executeRawUnsafe(
+            `DELETE FROM fin_customer_invoice_lines WHERE invoice_dolibarr_id = ?`, id
+          );
+          paymentsDeleted += deleted;
+          invoiceLinesDeleted += 1;
+        }
+        customerInvoicesDeactivated = orphanCustIds.length;
+      }
+
+      // ── Supplier invoices ───────────────────────────────────────────────────
+      console.log('[FinSync] Fetching all supplier invoice IDs from Dolibarr...');
+      const dolibarrSuppIds = new Set<number>();
+      page = 0;
+      hasMore = true;
+      while (hasMore) {
+        const batch = await this.client.getSupplierInvoices({ limit: BATCH, page });
+        for (const inv of batch) {
+          const id = pi(inv.id);
+          if (id) dolibarrSuppIds.add(id);
+        }
+        hasMore = batch.length === BATCH;
+        page++;
+      }
+      console.log(`[FinSync] Dolibarr has ${dolibarrSuppIds.size} supplier invoices`);
+
+      const otsSupplierRows: { dolibarr_id: number }[] = await prisma.$queryRawUnsafe(
+        `SELECT dolibarr_id FROM fin_supplier_invoices WHERE is_active = 1`
+      );
+      const orphanSuppIds = otsSupplierRows
+        .map((r) => Number(r.dolibarr_id))
+        .filter((id) => !dolibarrSuppIds.has(id));
+
+      if (orphanSuppIds.length > 0) {
+        console.log(`[FinSync] Deactivating ${orphanSuppIds.length} orphaned supplier invoices...`);
+        for (const id of orphanSuppIds) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE fin_supplier_invoices SET is_active = 0, last_synced_at = NOW() WHERE dolibarr_id = ?`, id
+          );
+          const deleted: number = await prisma.$executeRawUnsafe(
+            `DELETE FROM fin_payments WHERE payment_type = 'supplier' AND invoice_dolibarr_id = ?`, id
+          );
+          await prisma.$executeRawUnsafe(
+            `DELETE FROM fin_supplier_invoice_lines WHERE invoice_dolibarr_id = ?`, id
+          );
+          paymentsDeleted += deleted;
+          invoiceLinesDeleted += 1;
+        }
+        supplierInvoicesDeactivated = orphanSuppIds.length;
+      }
+
+      const durationMs = Date.now() - startTime;
+      console.log(`[FinSync] Orphan purge complete in ${durationMs}ms — deactivated ${customerInvoicesDeactivated} customer + ${supplierInvoicesDeactivated} supplier invoices, deleted ${paymentsDeleted} payments`);
+
+      await this.logSync({
+        entityType: 'orphan_purge',
+        status: 'success',
+        created: 0,
+        updated: 0,
+        unchanged: 0,
+        total: customerInvoicesDeactivated + supplierInvoicesDeactivated,
+        durationMs,
+      }, triggeredBy);
+
+      return { customerInvoicesDeactivated, supplierInvoicesDeactivated, paymentsDeleted, invoiceLinesDeleted, durationMs };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[FinSync] Orphan purge failed:', message);
+      return {
+        customerInvoicesDeactivated,
+        supplierInvoicesDeactivated,
+        paymentsDeleted,
+        invoiceLinesDeleted,
+        durationMs: Date.now() - startTime,
+        error: message,
+      };
+    }
+  }
 }

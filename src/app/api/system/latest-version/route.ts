@@ -9,25 +9,25 @@ const CURRENT_VERSION = {
   version: pkgVersion,
   date: 'April 29, 2026',
   type: 'patch' as const,
-  mainTitle: 'Search, Payment Sync, Date-Range Reports & CEO Board',
+  mainTitle: 'Account Invoice Report, Orphan Purge & Sidebar Fix',
   highlights: [
-    'Global search now finds customers, suppliers, invoice numbers, payment references, and customer/supplier codes.',
-    'Payments deleted in Dolibarr are now automatically removed from OTS on next sync — financial reports no longer show stale data.',
-    'Monthly Financial Report supports date ranges (e.g. January → April) instead of a single month only.',
-    'CEO Tasks from the main task system appear directly on the Brainstorm Board with an inline "Done" button.',
+    'New Account Invoice Report: select any accounting account (Raw Material, Bolts & Nuts, etc.) and see its spend broken down by project with % of project cost.',
+    'Hard-refresh purge: any invoice or payment deleted in Dolibarr but still lingering in OTS is now deactivated and cleaned up via POST /api/financial/purge-orphans.',
+    'Sidebar double-render fixed — users who saw two sidebars on /operations/events and /projects/[id]/planning will now see exactly one.',
   ],
   changes: {
     added: [
-      'Global search: customers, suppliers, customer invoices, supplier invoices, and payments added as result categories',
-      'Monthly Financial Report: "From / To" month+year selectors for multi-month range reporting',
-      'CEO Tasks panel on Brainstorm Board — shows active tasks assigned to or created by the CEO with inline Mark Complete',
-      'GET /api/ceo-arena/tasks — endpoint returning active CEO tasks (isCeoTask flag or assigned to/created by Walid Dami)',
+      '/financial/reports/account-invoice-report — select an accounting account (e.g. Raw Material, Bolts & Nuts); KPI strip: Total on Account, % of All Supplier Spend, Total Paid, Outstanding Balance; per-project breakdown with share progress bars and expandable invoice + payment rows',
+      'GET /api/financial/reports/account-invoice-report — account KPIs, per-project summary with pctOfProjectCost, full invoice + payment list',
+      'GET /api/financial/reports/account-invoice-report/accounts — dropdown list of all accounting accounts with total spend',
+      'POST /api/financial/purge-orphans — fetches all current Dolibarr invoice IDs, deactivates any OTS invoice not returned, deletes their orphaned payments and lines',
+      '"Account Invoice Report" added to the main sidebar under Financial Reports',
     ],
     fixed: [
-      'Payment deletion sync: payments deleted in Dolibarr now deleted from OTS fin_payments on the next invoice sync — applies to syncCustomerInvoices, syncSupplierInvoices, and syncAllPayments',
+      'Sidebar rendered twice for users visiting /operations/events/* or /projects/[id]/planning — nested ResponsiveLayout wrappers removed from those child layouts',
     ],
     changed: [
-      'Version bumped to 22.4.1',
+      'Version bumped to 22.5.2',
     ],
   },
 };

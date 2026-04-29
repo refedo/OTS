@@ -51,6 +51,7 @@ const REPORT_LINKS = [
   { href: '/financial/reports/projects-dashboard',             icon: Banknote,        label: 'Projects Financial' },
   { href: '/financial/reports/project-cost-structure',         icon: Package,         label: 'Cost Structure' },
   { href: '/financial/reports/supplier-invoice-report',        icon: Truck,           label: 'Supplier Invoice Report', active: true },
+  { href: '/financial/reports/account-invoice-report',         icon: Receipt,         label: 'Account Invoice Report' },
   { href: '/financial/reports/cogs-supplier-map',              icon: Layers,          label: 'COGS Supplier Map' },
   { href: '/financial/reports/ots-journal-entries',            icon: BookOpen,        label: 'OTS Journal Entries' },
   { href: '/financial/journal-entries',                        icon: List,            label: 'Journal Entries' },
