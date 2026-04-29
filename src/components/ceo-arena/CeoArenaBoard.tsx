@@ -585,6 +585,7 @@ function CeoTasksPanel() {
           );
         })}
       </div>
+    )}
     </div>
   );
 }
