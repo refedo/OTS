@@ -57,10 +57,10 @@ export async function GET(req: Request) {
     const accounts = openingRows.map((r: any) => {
       const openDebit = Number(r.open_debit);
       const openCredit = Number(r.open_credit);
-      const openBalance = openDebit - openCredit; // positive = debit balance, negative = credit balance
+      const openingBalance = openDebit - openCredit; // positive = debit balance, negative = credit balance
 
       const period = periodMap.get(r.account_code) ?? { debit: 0, credit: 0 };
-      const closingBalance = openBalance + period.debit - period.credit;
+      const closingBalance = openingBalance + period.debit - period.credit;
 
       // Net credit = net credit closing balance (positive means credit-normal)
       const netCredit = openCredit + period.credit;
