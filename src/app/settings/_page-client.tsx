@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Smartphone, Github, Eye, EyeOff, CheckCircle2, XCircle, GitCommitHorizontal } from 'lucide-react';
+import { Loader2, Save, Upload, Building2, FileText, Bell, Globe, Trash2, GitBranch, Smartphone, Github, Eye, EyeOff, CheckCircle2, XCircle, GitCommitHorizontal, Plug } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { NotificationPreferences } from '@/components/notifications/NotificationPreferences';
+import { GoogleCalendarSettings } from '@/components/settings/google-calendar-settings';
 
 type Settings = {
   id: string;
@@ -35,6 +36,7 @@ type Settings = {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('company');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -63,6 +65,11 @@ export default function SettingsPage() {
     fetchSettings();
     fetchLoginLogo();
     fetchGithubStatus();
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) setActiveTab(tab);
+    }
   }, []);
 
   const fetchSettings = async () => {
@@ -375,7 +382,7 @@ export default function SettingsPage() {
           </Button>
         </div>
 
-        <Tabs defaultValue="company" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="company">
               <Building2 className="mr-2 h-4 w-4" />
@@ -404,6 +411,10 @@ export default function SettingsPage() {
             <TabsTrigger value="commits">
               <GitCommitHorizontal className="mr-2 h-4 w-4" />
               Commits
+            </TabsTrigger>
+            <TabsTrigger value="integrations">
+              <Plug className="mr-2 h-4 w-4" />
+              Integrations
             </TabsTrigger>
           </TabsList>
 
@@ -930,6 +941,11 @@ export default function SettingsPage() {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Integrations */}
+          <TabsContent value="integrations" className="space-y-6">
+            <GoogleCalendarSettings />
           </TabsContent>
 
         </Tabs>

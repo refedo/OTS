@@ -10,6 +10,7 @@ import {
   deleteMeeting,
   MEETING_CATEGORIES,
 } from '@/lib/services/meeting.service';
+import { NotificationService } from '@/lib/services/notification.service';
 
 const CATEGORY_VALUES = MEETING_CATEGORIES.map((c) => c.value) as [string, ...string[]];
 
@@ -97,6 +98,43 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     userId: session.sub,
   });
 
+  const attendeesToNotify = meeting.attendees.filter((a) => a.userId !== session.sub);
+  if (input.status === 'cancelled' && existing.status !== 'cancelled') {
+    await Promise.allSettled(
+      attendeesToNotify.map((a) =>
+        NotificationService.createNotification({
+          userId: a.userId,
+          type: 'MEETING_CANCELLED',
+          title: 'Meeting cancelled',
+          message: `"${meeting.subject}" has been cancelled`,
+          relatedEntityType: 'Meeting',
+          relatedEntityId: id,
+          metadata: { category: meeting.category },
+        }),
+      ),
+    );
+  } else if (
+    (input.scheduledAt && new Date(input.scheduledAt).getTime() !== new Date(existing.scheduledAt).getTime()) ||
+    (input.location !== undefined && input.location !== existing.location)
+  ) {
+    const updatedFormatted = new Date(meeting.scheduledAt).toLocaleDateString('en-SA', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    await Promise.allSettled(
+      attendeesToNotify.map((a) =>
+        NotificationService.createNotification({
+          userId: a.userId,
+          type: 'MEETING_UPDATED',
+          title: 'Meeting updated',
+          message: `"${meeting.subject}" has been updated — now on ${updatedFormatted}${meeting.location ? ` at ${meeting.location}` : ''}`,
+          relatedEntityType: 'Meeting',
+          relatedEntityId: id,
+          metadata: { category: meeting.category, meetLink: meeting.meetLink },
+        }),
+      ),
+    );
+  }
+
   return NextResponse.json(meeting);
 }
 
@@ -117,6 +155,21 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (!canDelete && existing.organizerId !== session.sub) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  const attendeesToCancel = existing.attendees.filter((a) => a.userId !== session.sub);
+  await Promise.allSettled(
+    attendeesToCancel.map((a) =>
+      NotificationService.createNotification({
+        userId: a.userId,
+        type: 'MEETING_CANCELLED',
+        title: 'Meeting cancelled',
+        message: `"${existing.subject}" has been cancelled`,
+        relatedEntityType: 'Meeting',
+        relatedEntityId: id,
+        metadata: { category: existing.category },
+      }),
+    ),
+  );
 
   await deleteMeeting(id, session.sub);
 

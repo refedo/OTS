@@ -222,6 +222,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'meetings.edit_all', name: 'Edit Any Meeting', description: 'Edit any meeting regardless of organiser', category: 'meetings' },
       { id: 'meetings.delete', name: 'Delete Meeting', description: 'Cancel and delete meetings', category: 'meetings' },
       { id: 'meetings.record_minutes', name: 'Record Minutes', description: 'Add meeting minutes and decisions after a meeting', category: 'meetings' },
+      { id: 'meetings.google_calendar', name: 'Manage Google Calendar', description: 'Connect and disconnect the Google Calendar integration for Meet link generation', category: 'meetings' },
     ],
   },
   {

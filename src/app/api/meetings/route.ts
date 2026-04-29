@@ -10,6 +10,7 @@ import {
   createMeeting,
   MEETING_CATEGORIES,
 } from '@/lib/services/meeting.service';
+import { NotificationService } from '@/lib/services/notification.service';
 
 const CATEGORY_VALUES = MEETING_CATEGORIES.map((c) => c.value) as [string, ...string[]];
 
@@ -109,6 +110,24 @@ export async function POST(req: Request) {
     entityName: meeting.subject,
     userId: session.sub,
   });
+
+  const scheduledFormatted = new Date(meeting.scheduledAt).toLocaleDateString('en-SA', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+  const notifyAttendees = meeting.attendees.filter((a) => a.userId !== session.sub);
+  await Promise.allSettled(
+    notifyAttendees.map((a) =>
+      NotificationService.createNotification({
+        userId: a.userId,
+        type: 'MEETING_INVITED',
+        title: 'You have been invited to a meeting',
+        message: `${meeting.organizer.name} invited you to "${meeting.subject}" on ${scheduledFormatted}`,
+        relatedEntityType: 'Meeting',
+        relatedEntityId: meeting.id,
+        metadata: { category: meeting.category, meetLink: meeting.meetLink },
+      }),
+    ),
+  );
 
   return NextResponse.json(meeting, { status: 201 });
 }
