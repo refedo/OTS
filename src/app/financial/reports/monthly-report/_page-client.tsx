@@ -197,13 +197,40 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
 
 function DrillDownPanel({
   loading,
-  invoices,
+  invoices: initialInvoices,
   accentColor,
+  entityType,
 }: {
   loading: boolean;
   invoices: DrillInvoice[] | null;
   accentColor: 'green' | 'red';
+  entityType: 'customer' | 'supplier';
 }) {
+  const [invoices, setInvoices] = useState<DrillInvoice[] | null>(initialInvoices);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  useEffect(() => { setInvoices(initialInvoices); }, [initialInvoices]);
+
+  const deletePayment = async (ref: string) => {
+    if (!confirm(`Remove payment ${ref} from OTS? This only removes it from the local database — it will not be re-synced unless it still exists in Dolibarr.`)) return;
+    setDeleting(ref);
+    try {
+      const res = await fetch('/api/financial/payments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refs: [ref], type: entityType }),
+      });
+      if (res.ok) {
+        setInvoices(prev => prev ? prev.map(inv => ({
+          ...inv,
+          payments: inv.payments.filter(p => p.ref !== ref),
+        })).filter(inv => inv.payments.length > 0) : prev);
+      }
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const bg    = accentColor === 'green' ? 'bg-green-50/80 dark:bg-green-950/20'  : 'bg-red-50/80 dark:bg-red-950/20';
   const text  = accentColor === 'green' ? 'text-green-700 dark:text-green-300'   : 'text-red-700 dark:text-red-300';
   const badge = accentColor === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
@@ -249,7 +276,7 @@ function DrillDownPanel({
           </div>
           <div className="space-y-1 pl-2 border-l-2 border-black/10">
             {inv.payments.map((pmt, pi) => (
-              <div key={pi} className="flex items-center justify-between gap-3">
+              <div key={pi} className="flex items-center justify-between gap-3 group/pmt">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
                   <span className="text-[11px] font-mono text-muted-foreground">{pmt.ref}</span>
@@ -260,9 +287,19 @@ function DrillDownPanel({
                     <span className="text-[11px] text-muted-foreground capitalize hidden sm:inline">· {pmt.method}</span>
                   )}
                 </div>
-                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground shrink-0">
-                  {formatSAR(pmt.amount)}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+                    {formatSAR(pmt.amount)}
+                  </span>
+                  <button
+                    onClick={() => deletePayment(pmt.ref)}
+                    disabled={deleting === pmt.ref}
+                    title="Remove this payment from OTS (use when deleted in Dolibarr)"
+                    className="opacity-0 group-hover/pmt:opacity-100 transition-opacity text-[10px] font-medium text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded disabled:opacity-50"
+                  >
+                    {deleting === pmt.ref ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : 'Remove'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -568,6 +605,7 @@ export default function MonthlyFinancialReportPage() {
                                 loading={drillLoading}
                                 invoices={drillData}
                                 accentColor="green"
+                                entityType="customer"
                               />
                             )}
                           </div>
@@ -671,6 +709,7 @@ export default function MonthlyFinancialReportPage() {
                                   loading={drillLoading}
                                   invoices={drillData}
                                   accentColor="red"
+                                  entityType="supplier"
                                 />
                               )}
                             </div>
