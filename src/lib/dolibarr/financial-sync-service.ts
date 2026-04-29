@@ -407,12 +407,14 @@ export class FinancialSyncService {
           };
           const newHash = computeHash(hashFields);
 
-          // Skip unchanged invoices — this also skips the payment API call
-          if (existingMap.has(dolibarrId) && existingMap.get(dolibarrId) === newHash) {
+          // Payment deletions in Dolibarr don't change the invoice hash — always sync payments
+          const invoiceChanged = !existingMap.has(dolibarrId) || existingMap.get(dolibarrId) !== newHash;
+          if (!invoiceChanged) {
             unchanged++;
-            continue;
+            // Fall through to payment sync below
           }
 
+          if (invoiceChanged) {
           const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
           const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
           const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
@@ -462,8 +464,9 @@ export class FinancialSyncService {
               );
             }
           }
+          } // end invoiceChanged
 
-          // Sync payments for this invoice
+          // Sync payments for this invoice — always runs, even when invoice data is unchanged
           try {
             const payments = await this.client.getInvoicePayments(dolibarrId);
             const activeRefs = new Set<string>();
@@ -602,12 +605,14 @@ export class FinancialSyncService {
           };
           const newHash = computeHash(hashFields);
 
-          // Check if unchanged
-          if (existingMap.has(dolibarrId) && existingMap.get(dolibarrId) === newHash) {
+          // Check if unchanged — still sync payments even if invoice data is identical
+          const invoiceChanged = !existingMap.has(dolibarrId) || existingMap.get(dolibarrId) !== newHash;
+          if (!invoiceChanged) {
             unchanged++;
-            continue;
+            // Fall through to payment sync below — payment deletions don't affect the invoice hash
           }
 
+          if (invoiceChanged) {
           const invoiceDate = formatDate(parseDolibarrDate(inv.date_validation || inv.date || inv.date_creation));
           const dueDate = formatDate(parseDolibarrDate(inv.date_echeance));
           const creationDate = formatDateTime(parseDolibarrDate(inv.date_creation));
@@ -636,7 +641,7 @@ export class FinancialSyncService {
           await prisma.$executeRawUnsafe(
             `DELETE FROM fin_supplier_invoice_lines WHERE invoice_dolibarr_id = ?`, dolibarrId
           );
-          
+
           if (inv.lines && Array.isArray(inv.lines) && inv.lines.length > 0) {
             const linePlaceholders = inv.lines.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
             const lineParams = inv.lines.flatMap(line => [
@@ -646,7 +651,7 @@ export class FinancialSyncService {
               pf(line.total_ht), pf(line.total_tva), pf(line.total_ttc),
               line.fk_accounting_account ? String(line.fk_accounting_account) : null
             ]);
-            
+
             await prisma.$executeRawUnsafe(
               `INSERT INTO fin_supplier_invoice_lines (invoice_dolibarr_id, line_id, fk_product, product_ref,
                product_label, qty, unit_price_ht, vat_rate, total_ht, total_tva, total_ttc, accounting_code)
@@ -654,8 +659,9 @@ export class FinancialSyncService {
               ...lineParams
             );
           }
+          } // end invoiceChanged
 
-          // Sync payments for this supplier invoice
+          // Sync payments for this supplier invoice — always runs, even when invoice data is unchanged
           try {
             const payments = await this.client.getSupplierInvoicePayments(dolibarrId);
             const activeRefs = new Set<string>();
