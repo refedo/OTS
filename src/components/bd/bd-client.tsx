@@ -35,11 +35,14 @@ type ArchiveEntry = {
   company?: { id: string; name: string };
 };
 
+type DocAttachment = { name: string; url: string };
+
 type BdDocument = {
   id: string;
   companyId: string;
   title: string;
   fileUrl: string | null;
+  attachments: string | null;
   status: string;
   submittedAt: string;
   company?: { id: string; name: string };
@@ -484,8 +487,8 @@ function CompanyDialog({
 
 // ─── Document Dialog ──────────────────────────────────────────────────────────
 
-type DocFormData = { companyId: string; title: string; fileUrl: string; status: string; submittedAt: string };
-const EMPTY_DOC_FORM: DocFormData = { companyId: '', title: '', fileUrl: '', status: 'SUBMITTED', submittedAt: '' };
+type DocFormData = { companyId: string; title: string; fileUrl: string; attachments: DocAttachment[]; status: string; submittedAt: string };
+const EMPTY_DOC_FORM: DocFormData = { companyId: '', title: '', fileUrl: '', attachments: [], status: 'SUBMITTED', submittedAt: '' };
 
 function DocumentDialog({
   open, onClose, companies, initial, onSave, isEdit,
@@ -498,9 +501,10 @@ function DocumentDialog({
   const [error, setError] = useState('');
   const [fileUploading, setFileUploading] = useState(false);
   const [fileUploadError, setFileUploadError] = useState('');
+  const [pendingName, setPendingName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => { setForm(initial); setError(''); setFileUploadError(''); }, [open, initial]);
+  React.useEffect(() => { setForm(initial); setError(''); setFileUploadError(''); setPendingName(''); }, [open, initial]);
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -513,7 +517,9 @@ function DocumentDialog({
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Upload failed');
-      setForm(f => ({ ...f, fileUrl: data.filePath }));
+      const name = pendingName.trim() || file.name.replace(/\.[^.]+$/, '');
+      setForm(f => ({ ...f, attachments: [...f.attachments, { name, url: data.filePath }] }));
+      setPendingName('');
     } catch (err) {
       setFileUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -522,8 +528,16 @@ function DocumentDialog({
     }
   }
 
+  function removeAttachment(idx: number) {
+    setForm(f => ({ ...f, attachments: f.attachments.filter((_, i) => i !== idx) }));
+  }
+
+  function renameAttachment(idx: number, name: string) {
+    setForm(f => ({ ...f, attachments: f.attachments.map((a, i) => i === idx ? { ...a, name } : a) }));
+  }
+
   const field = (key: keyof DocFormData) => ({
-    value: form[key],
+    value: form[key] as string,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [key]: e.target.value })),
   });
@@ -540,7 +554,7 @@ function DocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => !saving && !v && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>{isEdit ? 'Edit Document' : 'Add Document'}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1">
@@ -554,24 +568,46 @@ function DocumentDialog({
             <Label>Document Title *</Label>
             <Input {...field('title')} placeholder="e.g. VAT Certificate" />
           </div>
+
+          {/* ── Multi-attachment section ── */}
           <div className="space-y-2">
-            <Label>Attachment</Label>
-            {form.fileUrl && (
-              <div className="flex items-center gap-2 p-2 rounded-lg border bg-slate-50 text-xs text-slate-600">
-                <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                <span className="truncate flex-1">{form.fileUrl.split('/').pop()}</span>
-                <a href={resolveUrl(form.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-700 flex-shrink-0"><ExternalLink className="h-3.5 w-3.5" /></a>
-                <button type="button" onClick={() => setForm(f => ({ ...f, fileUrl: '' }))} className="text-slate-400 hover:text-rose-500 flex-shrink-0"><X className="h-3.5 w-3.5" /></button>
+            <Label>Attachments</Label>
+            {form.attachments.length > 0 && (
+              <div className="space-y-1.5">
+                {form.attachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border bg-slate-50">
+                    <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                    <Input
+                      value={att.name}
+                      onChange={e => renameAttachment(idx, e.target.value)}
+                      className="h-7 text-xs flex-1 min-w-0"
+                      placeholder="File name"
+                    />
+                    <a href={resolveUrl(att.url)!} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-700 flex-shrink-0">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                    <button type="button" onClick={() => removeAttachment(idx)} className="text-slate-400 hover:text-rose-500 flex-shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input
+                value={pendingName}
+                onChange={e => setPendingName(e.target.value)}
+                placeholder="Optional file label…"
+                className="h-8 text-xs flex-1 min-w-[140px]"
+              />
               <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip" className="hidden" onChange={handleFileUpload} />
               <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={fileUploading}>
-                {fileUploading ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Uploading…</> : <><Upload className="h-3.5 w-3.5 mr-1" />{form.fileUrl ? 'Replace File' : 'Attach File'}</>}
+                {fileUploading ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />Uploading…</> : <><Upload className="h-3.5 w-3.5 mr-1" />Add File</>}
               </Button>
-              {fileUploadError && <span className="text-xs text-rose-600">{fileUploadError}</span>}
             </div>
+            {fileUploadError && <p className="text-xs text-rose-600">{fileUploadError}</p>}
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label>Status</Label>
@@ -1147,19 +1183,22 @@ export function BdClient({
   }
 
   async function saveDocument(data: DocFormData) {
+    const attachmentsPayload = data.attachments.length > 0 ? data.attachments : null;
     if (docDialog.editId) {
       const res = await fetch(`/api/bd/companies/${data.companyId}/documents/${docDialog.editId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: data.title, fileUrl: data.fileUrl || null, status: data.status }),
+        body: JSON.stringify({ title: data.title, attachments: attachmentsPayload, status: data.status }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to update document'); }
-      setDocuments(prev => prev.map(d => d.id === docDialog.editId ? { ...d, title: data.title, fileUrl: data.fileUrl || null, status: data.status } : d));
+      setDocuments(prev => prev.map(d => d.id === docDialog.editId ? {
+        ...d, title: data.title, attachments: attachmentsPayload ? JSON.stringify(attachmentsPayload) : null, status: data.status,
+      } : d));
     } else {
       const res = await fetch(`/api/bd/companies/${data.companyId}/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: data.title, fileUrl: data.fileUrl || null, status: data.status, submittedAt: data.submittedAt || undefined }),
+        body: JSON.stringify({ title: data.title, attachments: attachmentsPayload, status: data.status, submittedAt: data.submittedAt || undefined }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to create document'); }
       const created = await res.json();
@@ -1565,11 +1604,20 @@ export function BdClient({
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
                             {docStatusBadge(doc.status)}
-                            {doc.fileUrl && (
-                              <a href={resolveUrl(doc.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-sky-600">
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
+                            {(() => {
+                              const atts: DocAttachment[] = (() => { try { return doc.attachments ? JSON.parse(doc.attachments) : []; } catch { return []; } })();
+                              if (atts.length > 0) return (
+                                <a href={resolveUrl(atts[0].url)!} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-sky-600" title={`${atts.length} file(s)`}>
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              );
+                              if (doc.fileUrl) return (
+                                <a href={resolveUrl(doc.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-sky-600">
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              );
+                              return null;
+                            })()}
                           </div>
                         </div>
                       ))}
@@ -1756,18 +1804,32 @@ export function BdClient({
                       <TableCell className="text-xs text-slate-500">{fmt(doc.submittedAt)}</TableCell>
                       <TableCell>{docStatusBadge(doc.status)}</TableCell>
                       <TableCell className="text-right">
-                        {doc.fileUrl ? (
-                          <a href={resolveUrl(doc.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-800">
-                            <ExternalLink className="h-4 w-4 inline" />
-                          </a>
-                        ) : (
-                          <span className="text-slate-300 text-xs">—</span>
-                        )}
+                        {(() => {
+                          const atts: DocAttachment[] = (() => { try { return doc.attachments ? JSON.parse(doc.attachments) : []; } catch { return []; } })();
+                          if (atts.length > 0) return (
+                            <div className="flex flex-col items-end gap-0.5">
+                              {atts.map((a, i) => (
+                                <a key={i} href={resolveUrl(a.url)!} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-600 hover:text-sky-800 flex items-center gap-1">
+                                  <ExternalLink className="h-3 w-3" />{a.name}
+                                </a>
+                              ))}
+                            </div>
+                          );
+                          if (doc.fileUrl) return (
+                            <a href={resolveUrl(doc.fileUrl)!} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-800">
+                              <ExternalLink className="h-4 w-4 inline" />
+                            </a>
+                          );
+                          return <span className="text-slate-300 text-xs">—</span>;
+                        })()}
                       </TableCell>
                       {canManage && (
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
-                            <button title="Edit" onClick={() => setDocDialog({ open: true, editId: doc.id, form: { companyId: doc.companyId, title: doc.title, fileUrl: doc.fileUrl ?? '', status: doc.status, submittedAt: doc.submittedAt ? doc.submittedAt.slice(0,10) : '' } })} className="p-1.5 rounded hover:bg-slate-100 text-slate-500"><Edit className="h-3.5 w-3.5" /></button>
+                            <button title="Edit" onClick={() => {
+                              const atts: DocAttachment[] = (() => { try { return doc.attachments ? JSON.parse(doc.attachments) : []; } catch { return []; } })();
+                              setDocDialog({ open: true, editId: doc.id, form: { companyId: doc.companyId, title: doc.title, fileUrl: doc.fileUrl ?? '', attachments: atts, status: doc.status, submittedAt: doc.submittedAt ? doc.submittedAt.slice(0,10) : '' } });
+                            }} className="p-1.5 rounded hover:bg-slate-100 text-slate-500"><Edit className="h-3.5 w-3.5" /></button>
                             <button title="Delete" onClick={() => setItemDeleteDialog({ open: true, type: 'doc', id: doc.id, label: doc.title })} className="p-1.5 rounded hover:bg-rose-50 text-rose-500"><Trash2 className="h-3.5 w-3.5" /></button>
                           </div>
                         </TableCell>

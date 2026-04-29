@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, Clock, Printer, ChevronDown, ChevronRight, ArrowLeft, Search } from 'lucide-react';
+import { Loader2, Clock, Printer, ChevronDown, ChevronRight, ArrowLeft, Search, FileSpreadsheet } from 'lucide-react';
 import Link from 'next/link';
 import { cn, resolveUploadUrl } from '@/lib/utils';
 import { InvoiceDetailSheet } from '@/components/financial/invoice-detail-sheet';
@@ -93,9 +93,21 @@ export default function AgingReportPage() {
             <p className="text-sm text-muted-foreground">Accounts Receivable / Payable aging by due date</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
-          <Printer className="h-4 w-4 mr-2" /> Print
-        </Button>
+        <div className="flex items-center gap-2">
+          {report && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="print:hidden"
+              onClick={() => { window.open(`/api/financial/reports/aging/export-xlsx?type=${type}&as_of=${asOfDate}`, '_blank'); }}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+            <Printer className="h-4 w-4 mr-2" /> Print
+          </Button>
+        </div>
       </div>
 
       {/* ── Filters ───────────────────────────────────────────────────────────── */}

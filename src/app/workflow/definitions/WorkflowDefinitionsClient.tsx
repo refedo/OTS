@@ -814,6 +814,18 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
     setSteps(prev => prev.filter((_, i) => i !== index).map((s, i) => ({ ...s, sequence: i + 1 })));
   };
 
+  const stepsChanged = isEdit && JSON.stringify(
+    (initial?.steps ?? []).map(s => ({
+      sequence: s.sequence, name: s.name, approverResolver: s.approverResolver,
+      minApprovals: s.minApprovals, slaHours: s.slaHours, onRejectBehavior: s.onRejectBehavior, conditions: s.conditions,
+    }))
+  ) !== JSON.stringify(
+    steps.map(s => ({
+      sequence: s.sequence, name: s.name, approverResolver: s.approverResolver,
+      minApprovals: s.minApprovals, slaHours: s.slaHours, onRejectBehavior: s.onRejectBehavior, conditions: s.conditions,
+    }))
+  );
+
   const handleSave = async () => {
     setError('');
     setSaving(true);
@@ -825,12 +837,25 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, description: description || undefined }),
         });
-        if (res.ok) {
-          res = await fetch(`/api/workflow/definitions/${initial!.id}/steps`, {
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error ?? 'Save failed');
+        }
+        if (stepsChanged) {
+          const stepsRes = await fetch(`/api/workflow/definitions/${initial!.id}/steps`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ steps }),
           });
+          if (!stepsRes.ok) {
+            const err = await stepsRes.json();
+            if (stepsRes.status === 409) {
+              setError(`Name and description saved. Steps were not updated: ${err.error}`);
+              onSave();
+              return;
+            }
+            throw new Error(err.error ?? 'Failed to update steps');
+          }
         }
       } else {
         res = await fetch('/api/workflow/definitions', {
@@ -838,10 +863,10 @@ function DefinitionForm({ initial, onClose, onSave }: DefinitionFormProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, name, description: description || undefined, entityType, steps }),
         });
-      }
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? 'Save failed');
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error ?? 'Save failed');
+        }
       }
       onSave();
     } catch (e) {

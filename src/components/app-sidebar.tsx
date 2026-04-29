@@ -81,6 +81,8 @@ import {
   CalendarRange,
   AlertCircle,
   TrendingDown,
+  Brain,
+  HeartCrack,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -107,7 +109,6 @@ type NavigationSection = {
 
 const singleNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'CEO Dashboard', href: '/executive', icon: Crown },
   { name: 'Ops Agent', href: '/ops-agent', icon: Radar, newSince: '2026-04-16' },
   { name: 'Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
@@ -115,6 +116,14 @@ const singleNavigation: NavigationItem[] = [
 ];
 
 const navigationSections: NavigationSection[] = [
+  {
+    name: 'CEO Arena',
+    icon: Crown,
+    items: [
+      { name: 'CEO Dashboard', href: '/executive', icon: BarChart3 },
+      { name: 'Brainstorm Board', href: '/ceo-arena/brainstorm', icon: Brain, newSince: '2026-04-29' },
+    ],
+  },
   {
     name: 'Tasks',
     icon: ListChecks,
@@ -334,6 +343,7 @@ const navigationSections: NavigationSection[] = [
     icon: TrendingUp,
     items: [
       { name: 'Financial Dashboard', href: '/financial', icon: TrendingUp },
+      { name: 'Monthly Report', href: '/financial/reports/monthly-report', icon: CalendarClock, newSince: '2026-04-29' },
       { name: 'Chart of Accounts', href: '/financial/chart-of-accounts', icon: FileText },
       { name: 'Trial Balance', href: '/financial/reports/trial-balance', icon: FileSpreadsheet },
       { name: 'Income Statement', href: '/financial/reports/income-statement', icon: TrendingUp },
@@ -876,7 +886,7 @@ export function AppSidebar() {
       {/* Overlay for mobile */}
       {!collapsed && (
         <div
-          className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
+          className="lg:hidden print:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-30"
           onClick={() => setCollapsed(true)}
         />
       )}

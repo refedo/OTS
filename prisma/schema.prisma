@@ -362,6 +362,9 @@ model User {
   updatedMeetings      Meeting[]         @relation("MeetingUpdatedBy")
   deletedMeetings      Meeting[]         @relation("MeetingDeletedBy")
 
+  // CEO Arena back-relations (22.3.0)
+  ceoNotes             CeoNote[]         @relation("CeoNoteCreatedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -5880,6 +5883,7 @@ model BdDocument {
   company     BdCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title       String    @db.VarChar(255)
   fileUrl     String?   @db.VarChar(512)
+  attachments String?   @db.MediumText
   status      String    @default("SUBMITTED") @db.VarChar(30)
   submittedAt DateTime  @default(now())
   deletedAt   DateTime?
@@ -6460,4 +6464,33 @@ model GoogleOAuthToken {
   updatedAt    DateTime @updatedAt
 
   @@map("GoogleOAuthToken")
+}
+
+// CEO Arena — private CEO workspace for brainstorming, headaches, and open loops
+model CeoNote {
+  id          String    @id @default(uuid()) @db.Char(36)
+  /// brainstorm | headache | zeigarnik
+  type        String    @db.VarChar(30)
+  title       String    @db.VarChar(255)
+  content     String    @db.Text
+  /// hex color for sticky note (#fbbf24, #f87171, etc.)
+  color       String    @default("#fef08a") @db.VarChar(20)
+  /// low | medium | high | critical
+  priority    String    @default("medium") @db.VarChar(20)
+  /// open | in_progress | resolved | dismissed
+  status      String    @default("open") @db.VarChar(30)
+  /// JSON array of tag strings
+  tags        String?   @db.Text
+  /// Sort order within its type column
+  position    Int       @default(0)
+  createdById String    @db.Char(36)
+  createdBy   User      @relation("CeoNoteCreatedBy", fields: [createdById], references: [id])
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([type, status])
+  @@index([createdById])
+  @@map("CeoNote")
 }

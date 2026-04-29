@@ -112,6 +112,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Financial Reports
   '/financial': ['financial.view'],
   '/financial/chart-of-accounts': ['financial.manage', 'financial.view'],
+  '/financial/reports/monthly-report': ['financial.view'],
   '/financial/reports/trial-balance': ['financial.view'],
   '/financial/reports/income-statement': ['financial.view'],
   '/financial/reports/balance-sheet': ['financial.view'],
@@ -150,8 +151,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Detailed Planner
   '/detailed-project-planner': ['planning.view', 'projects.view'],
 
-  // Executive Command Center
+  // CEO Arena (22.3.0)
   '/executive': ['executive.view'],
+  '/ceo-arena/brainstorm': ['executive.view'],
 
   // Ops Agent
   '/ops-agent': ['ops_agent.view', 'ops_agent.run', 'ops_agent.configure'],

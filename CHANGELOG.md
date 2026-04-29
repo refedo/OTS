@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [22.2.0] - 2026-04-29
+## [22.5.0] - 2026-04-29
 
 ### Meetings Module — OAuth & UI Enhancements
 
@@ -26,48 +26,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Meeting form** (`MeetingFormSheet`) — widened to `sm:max-w-2xl`, two-column layout on desktop, section dividers (Meeting Details, Schedule, Location & Department, People, Discussion, Options), avatar-initials chips for attendees (color-coded by name hash), better empty states, gradient submit button
 - **Environment variables**: removed `GOOGLE_CALENDAR_CREDENTIALS` and `GOOGLE_CALENDAR_IMPERSONATE_EMAIL`; added `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
 - **Database**: new `GoogleOAuthToken` table; `NotificationType` enum extended with `MEETING_INVITED`, `MEETING_UPDATED`, `MEETING_CANCELLED`
+- Version bumped to **22.5.0**
+
+---
+
+## [22.4.1] - 2026-04-29
+
+### Search, Payment Sync, Date-Range Reports & CEO Board
+
+#### Added
+- **Global search** now returns five new result categories: **Customers & Suppliers** (searched by name, alias, code_client, code_supplier, email), **Customer Invoices** (by ref, ref_client, client name/code), **Supplier Invoices** (by ref, ref_supplier, supplier name/code), and **Payments** (by dolibarr_ref)
+- **Monthly Financial Report date range** — "From / To" month+year selector pair added; the API accepts `toYear` / `toMonth` params so any span (e.g. January → April) can be reported in a single view; single-month mode unchanged when From = To
+- **CEO Tasks panel on Brainstorm Board** — active tasks assigned to or created by the CEO (Walid Dami) plus any `isCeoTask`-flagged tasks rendered as an inline panel below the three-column sticky-note board; each row has an inline **Done** button that marks the task `Completed` without leaving the page
+- **`GET /api/ceo-arena/tasks`** — new endpoint returning active (non-completed) CEO tasks with project, assignee, due date, and priority
+
+#### Fixed
+- **Payment deletion sync** — after each invoice sync, OTS now deletes `fin_payments` rows whose `dolibarr_ref` is no longer returned by Dolibarr; previously, payments deleted in Dolibarr remained in OTS and inflated financial report totals; fix applied to all three sync paths: `syncCustomerInvoices`, `syncSupplierInvoices`, and `syncAllPayments`
+
+#### Changed
+- Version bumped to **22.4.1**
+
+---
+
+## [22.4.0] - 2026-04-29
+
+### Monthly Financial Report Dashboard
+
+#### Added
+- **Monthly Financial Report** (`/financial/reports/monthly-report`) — new full-page report showing income and expenses side by side for any selected month/year
+  - **KPI tiles**: Total Income (green), Total Expenses (red), Net Profit (blue/red), Salaries & Wages (amber)
+  - **Income panel**: all client payments grouped by client name with amount, payment count, and proportional progress bars
+  - **Supplier Payments panel**: all supplier payments grouped by supplier name with proportional breakdown
+  - **Salaries & Wages panel**: salary records for the month with paid/pending status badges
+  - **In-page sidebar navigation**: dedicated left-sidebar listing all financial reports for quick access (visible on lg+ screens)
+  - Month/year navigation with prev/next buttons and dropdowns
+  - Live search/filter within each panel
+  - Summary bar at the bottom with income vs expenses vs net overview
+  - API endpoint: `GET /api/financial/reports/monthly-report?year=&month=`
+- **Sidebar entry**: "Monthly Report" added to the Financial Reports section in the main app sidebar (with new-item star indicator)
+
+#### Changed
+- Version bumped to **22.4.0**
+
+---
+
+## [22.3.0] - 2026-04-29
+
+### CEO Arena — Private Command Room
+
+#### Added
+- **CEO Arena sidebar section** — new collapsible sidebar group `CEO Arena` (crown icon) with two entries: *CEO Dashboard* and *Brainstorm Board*; the existing standalone CEO Dashboard link has been moved into this section
+- **Brainstorm Board** (`/ceo-arena/brainstorm`) — private CEO-only workspace with three kanban-style columns:
+  - 💡 **Brainstorm Board** — capture ideas, insights, and creative sparks as colorable sticky notes
+  - 🤯 **Headaches** — log problems, blockers, and pain points with priority tagging
+  - 🔄 **Open Loops** — Zeigarnik-effect tracker for unfinished thoughts that occupy mental bandwidth; shows a live callout when open loops are detected to prompt closure
+- **Sticky notes UI** — each note has a color picker (10 pastel shades), editable title/content inline, priority badge (Low / Medium / High / Critical), tags, and a one-click status cycle (Open → In Progress → Resolved)
+- **Note actions** — dropdown menu per card: edit, change status, change priority, recolor, delete
+- **KPI strip** — Open Items, Critical count, Resolved, and Total Notes across the workspace
+- **Database** — new table `CeoNote`; migration at `prisma/manual_migrations/ceo_arena_notes.sql`
+- **API** — `GET /api/ceo-arena/notes`, `POST /api/ceo-arena/notes`, `PATCH /api/ceo-arena/notes/[id]`, `DELETE /api/ceo-arena/notes/[id]`; all scoped to the requesting user
+- **Permission** — gated behind `executive.view` (same as CEO Dashboard)
+
+#### Changed
+- Version bumped to **22.3.0**
+
+---
+
+## [22.2.0] - 2026-04-28
+
+### Business Development, Aging Report, Workflow
+
+#### Added
+- **BD multi-file attachments** — each submitted document can now hold multiple named file attachments; existing single-file records remain backward-compatible
+- **Aging report Excel export** — "Export Excel" button generates a two-sheet XLSX (Summary + Invoice Detail) for both AR and AP aging reports
+
+#### Fixed
+- **Aging report print with expanded sidebar** — semi-transparent sidebar overlay no longer bleeds through when printing with the menu open
+- **Workflow edit error** — saving name/description now always succeeds even when workflow instances are in progress; steps are only sent to the server if changed, and a 409 conflict is shown as an informational warning rather than a hard failure
+
+#### Changed
 - Version bumped to **22.2.0**
+- **Database migration**: `prisma/manual_migrations/bd_document_attachments.sql` — adds `attachments` column to `BdDocument`
 
 ---
 
 ## [22.1.0] - 2026-04-28
-
-### Meetings Module
-
-#### Added
-- **Meetings module** — full end-to-end module to record and control all company meetings across every department
-- **Meeting categories** (dropdown): Sales, Operations, Project, Management Review, HR, Quality & Safety, Board, Client, Supplier, Planning, Other (with free-text override) — enables reporting by type (e.g. "20 sales meetings this year")
-- **Schedule form** — subject, category, date/time, duration, location, department, agenda, attendees (multi-select from OTS users), linked OTS tasks for discussion, and optional Google Meet link generation
-- **Meeting detail sheet** — full read view with attendee RSVP status, linked tasks, agenda, minutes, and decisions; organiser can edit or cancel the meeting
-- **Post-meeting minutes editor** — organiser records minutes and key decisions after the meeting and marks it Completed
-- **Inline RSVP** — attendees can accept or decline directly from the meeting card without opening the detail view
-- **KPI strip** — total meetings this year, completed count, upcoming count, and top-category breakdown
-- **Filters** — filter by category and status with live text search
-- **Google Calendar integration** — optional Meet link auto-generation via Google Calendar API (service account); graceful no-op when `GOOGLE_CALENDAR_CREDENTIALS` is not configured
-- **Permissions**: `meetings.view`, `meetings.view_all`, `meetings.create`, `meetings.edit`, `meetings.edit_all`, `meetings.delete`, `meetings.record_minutes`
-- **Navigation** — Meetings section added to sidebar with "New" badge
-- **Database** — three new tables: `Meeting`, `MeetingAttendee`, `MeetingTask`; migration at `prisma/manual_migrations/add_meetings_module.sql`
-- **New env vars**: `GOOGLE_CALENDAR_CREDENTIALS` (service-account JSON), `GOOGLE_CALENDAR_IMPERSONATE_EMAIL`
-
-#### Changed
-- Version bumped to **22.1.0**
-
----
-
-## [22.0.3] - 2026-04-28
-
-### Workflow Step Replacement Fix
-
-#### Fixed
-- **"Failed to replace workflow steps"** — `WorkflowStepInstance.stepId` FK was `RESTRICT`, causing `deleteMany` on `WorkflowStep` to fail with a FK constraint violation whenever the workflow had been used (completed step instances existed). Added migration `fix_workflow_step_fk_cascade.sql` to change FK to `ON DELETE CASCADE`; updated Prisma schema to match.
-- **In-progress guard** — API route now returns `409` with a clear message when IN_PROGRESS workflow instances exist, instead of silently attempting an operation that would corrupt in-flight state.
-
-#### Changed
-- Version bumped to **22.0.3**
-
----
-
-## [22.0.2] - 2026-04-28
 
 ### IMS Sidebar, Workflow Fix & Seed Repair
 
