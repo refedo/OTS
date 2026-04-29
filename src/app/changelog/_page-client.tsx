@@ -23,10 +23,64 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '22.4.1',
+    version: '22.5.1',
     date: 'April 29, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'Supplier Invoice Report, Meetings Table View & Sidebar',
+    highlights: [
+      'New Supplier Invoice Report: search any supplier and see their invoices/payments as a % of project cost and total supplier spend.',
+      'Drill down by project — each project shows this supplier\'s share of total project cost via progress bars.',
+      'All Meetings page now has a grid/table toggle: table view lists subject, category, status, date, duration, organiser, attendees, department, and location.',
+      'Meetings module now shows the main app sidebar (layout.tsx added).',
+    ],
+    changes: {
+      added: [
+        '/financial/reports/supplier-invoice-report — search a supplier, select date range; KPI strip: Total Invoiced, Total Paid, Outstanding Balance, % of Total Supplier Cost; per-project breakdown with share progress bars and expandable invoice + payment rows',
+        'GET /api/financial/reports/supplier-invoice-report — supplier KPIs, per-project summary with pctOfProjectCost, and full invoice + payment list',
+        'GET /api/financial/reports/supplier-invoice-report/suppliers — supplier autocomplete (search by name or code)',
+        '"Supplier Invoice Report" added to the main sidebar under Financial Reports',
+        'Meetings layout.tsx — wraps /meetings and /meetings/calendar in ResponsiveLayout so the main sidebar is visible',
+        'Table view toggle on All Meetings page — grid/table switch; table columns: subject, category, status, date/time, duration, organiser, attendees, department, location/Meet',
+      ],
+      fixed: [],
+      changed: [
+        'Version bumped to 22.5.1',
+      ],
+    },
+  },
+  {
+    version: '22.5.0',
+    date: 'April 29, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Meetings Module — OAuth & UI Enhancements',
+    highlights: [
+      'Google Calendar OAuth 2.0 integration — works with any Google account; token stored as a singleton row and auto-refreshed.',
+      'Settings → Integrations tab with a GoogleCalendarSettings card: connect / re-authorize / disconnect.',
+      'Meeting Calendar page — full month-grid built with CSS Grid + Tailwind; color-coded chips, detail side panel, mobile list fallback.',
+      'Meeting notifications for attendees: MEETING_INVITED, MEETING_UPDATED, MEETING_CANCELLED.',
+    ],
+    changes: {
+      added: [
+        'Google Calendar OAuth 2.0 flow; GoogleOAuthToken table; Settings → Integrations tab',
+        '/meetings/calendar — month grid with color-coded chips, day side panel, prev/next navigation',
+        'Meeting notifications: MEETING_INVITED, MEETING_UPDATED, MEETING_CANCELLED',
+        'Permission: meetings.google_calendar',
+      ],
+      fixed: [],
+      changed: [
+        'MeetingFormSheet widened to sm:max-w-2xl, two-column layout, avatar-initials attendee chips',
+        'Removed GOOGLE_CALENDAR_CREDENTIALS / GOOGLE_CALENDAR_IMPERSONATE_EMAIL; added GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET',
+        'Version bumped to 22.5.0',
+      ],
+    },
+  },
+  {
+    version: '22.4.1',
+    date: 'April 29, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'Search, Payment Sync, Date-Range Reports & CEO Board',
     highlights: [
       'Global search now finds customers, suppliers, invoice numbers, payment references, and customer/supplier codes — all linked to the financial pages.',
