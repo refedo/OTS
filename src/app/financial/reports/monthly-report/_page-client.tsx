@@ -10,10 +10,10 @@ import {
 } from '@/components/ui/select';
 import {
   TrendingUp, TrendingDown, DollarSign, Users, Building2,
-  ChevronLeft, ChevronRight, Search, ArrowRight, BarChart3,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search, ArrowRight, BarChart3,
   FileText, Receipt, Clock, Package, FolderOpen, Wallet,
   FileSpreadsheet, BookOpen, List, Layers, Settings, Banknote,
-  CalendarClock, ArrowUpDown, Truck, Loader2, ArrowLeft,
+  CalendarClock, ArrowUpDown, Truck, Loader2, ArrowLeft, CreditCard,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -81,6 +81,26 @@ interface SalaryRow {
   ref: string;
   amount: number;
   isPaid: boolean;
+}
+
+interface DrillPayment {
+  ref: string;
+  date: string | null;
+  amount: number;
+  method: string | null;
+}
+
+interface DrillInvoice {
+  invoiceRef: string;
+  invoiceSupplierRef: string | null;
+  invoiceDate: string | null;
+  invoiceAmount: number;
+  payments: DrillPayment[];
+}
+
+interface DrillState {
+  entityName: string;
+  type: 'customer' | 'supplier';
 }
 
 interface ReportData {
@@ -172,6 +192,85 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
   );
 }
 
+// ─── DrillDown Panel ─────────────────────────────────────────────────────────
+
+function DrillDownPanel({
+  loading,
+  invoices,
+  accentColor,
+}: {
+  loading: boolean;
+  invoices: DrillInvoice[] | null;
+  accentColor: 'green' | 'red';
+}) {
+  const bg    = accentColor === 'green' ? 'bg-green-50/80 dark:bg-green-950/20'  : 'bg-red-50/80 dark:bg-red-950/20';
+  const text  = accentColor === 'green' ? 'text-green-700 dark:text-green-300'   : 'text-red-700 dark:text-red-300';
+  const badge = accentColor === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+
+  if (loading) {
+    return (
+      <div className={`px-6 py-4 ${bg} border-t flex items-center gap-2`}>
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">Loading details…</span>
+      </div>
+    );
+  }
+
+  if (!invoices || invoices.length === 0) {
+    return (
+      <div className={`px-6 py-4 ${bg} border-t`}>
+        <p className="text-xs text-muted-foreground">No invoice details found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${bg} border-t divide-y divide-black/5`}>
+      {invoices.map(inv => (
+        <div key={inv.invoiceRef} className="px-6 py-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs font-semibold font-mono px-2 py-0.5 rounded ${badge}`}>
+                {inv.invoiceRef}
+              </span>
+              {inv.invoiceSupplierRef && (
+                <span className="text-xs text-muted-foreground font-mono">
+                  ({inv.invoiceSupplierRef})
+                </span>
+              )}
+              {inv.invoiceDate && (
+                <span className="text-xs text-muted-foreground">{inv.invoiceDate}</span>
+              )}
+            </div>
+            <span className={`text-xs font-bold tabular-nums shrink-0 ${text}`}>
+              {formatSAR(inv.invoiceAmount)}
+            </span>
+          </div>
+          <div className="space-y-1 pl-2 border-l-2 border-black/10">
+            {inv.payments.map((pmt, pi) => (
+              <div key={pi} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="text-[11px] font-mono text-muted-foreground">{pmt.ref}</span>
+                  {pmt.date && (
+                    <span className="text-[11px] text-muted-foreground hidden sm:inline">· {pmt.date}</span>
+                  )}
+                  {pmt.method && (
+                    <span className="text-[11px] text-muted-foreground capitalize hidden sm:inline">· {pmt.method}</span>
+                  )}
+                </div>
+                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground shrink-0">
+                  {formatSAR(pmt.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MonthlyFinancialReportPage() {
@@ -185,6 +284,9 @@ export default function MonthlyFinancialReportPage() {
   const [incomeSearch,  setIncomeSearch]  = useState('');
   const [expenseSearch, setExpenseSearch] = useState('');
   const [salarySearch,  setSalarySearch]  = useState('');
+  const [drillDown,     setDrillDown]     = useState<DrillState | null>(null);
+  const [drillData,     setDrillData]     = useState<DrillInvoice[] | null>(null);
+  const [drillLoading,  setDrillLoading]  = useState(false);
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => now.getFullYear() - i);
 
@@ -198,6 +300,30 @@ export default function MonthlyFinancialReportPage() {
   }, [year, month, toYear, toMonth]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const openDrill = useCallback(async (entityName: string, type: 'customer' | 'supplier') => {
+    if (drillDown?.entityName === entityName && drillDown.type === type) {
+      setDrillDown(null);
+      setDrillData(null);
+      return;
+    }
+    setDrillDown({ entityName, type });
+    setDrillData(null);
+    setDrillLoading(true);
+    try {
+      const params = new URLSearchParams({
+        type, entityName,
+        year: year.toString(), month: month.toString(),
+        toYear: toYear.toString(), toMonth: toMonth.toString(),
+      });
+      const res = await fetch(`/api/financial/reports/monthly-report/detail?${params}`);
+      if (res.ok) {
+        const json = await res.json();
+        setDrillData(json.invoices || []);
+      }
+    } catch { /* silent */ }
+    finally { setDrillLoading(false); }
+  }, [drillDown, year, month, toYear, toMonth]);
 
   const prevMonth = () => {
     if (month === 1) { setMonth(12); setYear((y: number) => y - 1); }
@@ -386,34 +512,49 @@ export default function MonthlyFinancialReportPage() {
                     </div>
                   ) : (
                     <div className="divide-y">
-                      {filteredIncome.map((row, idx) => (
-                        <div
-                          key={idx}
-                          className="px-5 py-3.5 hover:bg-green-50/50 dark:hover:bg-green-950/10 transition-colors group"
-                        >
-                          <div className="flex items-start justify-between gap-3 mb-1.5">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="h-7 w-7 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center shrink-0 text-green-600 dark:text-green-400 font-semibold text-xs">
-                                {row.entityName.charAt(0).toUpperCase()}
+                      {filteredIncome.map((row, idx) => {
+                        const isOpen = drillDown?.entityName === row.entityName && drillDown.type === 'customer';
+                        return (
+                          <div key={idx}>
+                            <button
+                              onClick={() => openDrill(row.entityName, 'customer')}
+                              className="w-full px-5 py-3.5 hover:bg-green-50/50 dark:hover:bg-green-950/10 transition-colors text-left"
+                            >
+                              <div className="flex items-start justify-between gap-3 mb-1.5">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="h-7 w-7 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center shrink-0 text-green-600 dark:text-green-400 font-semibold text-xs">
+                                    {row.entityName.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-sm truncate" title={row.entityName}>{row.entityName}</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {row.paymentCount} payment{row.paymentCount !== 1 ? 's' : ''}
+                                      {row.invoiceCount > 0 && ` · ${row.invoiceCount} invoice${row.invoiceCount !== 1 ? 's' : ''}`}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <div className="text-right">
+                                    <p className="font-bold text-sm text-green-600 dark:text-green-400 tabular-nums">{formatSAR(row.totalAmount)}</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {t && t.totalIncome > 0 ? ((row.totalAmount / t.totalIncome) * 100).toFixed(1) : 0}%
+                                    </p>
+                                  </div>
+                                  {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm truncate" title={row.entityName}>{row.entityName}</p>
-                                <p className="text-[11px] text-muted-foreground">
-                                  {row.paymentCount} payment{row.paymentCount !== 1 ? 's' : ''}
-                                  {row.invoiceCount > 0 && ` · ${row.invoiceCount} invoice${row.invoiceCount !== 1 ? 's' : ''}`}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="font-bold text-sm text-green-600 dark:text-green-400 tabular-nums">{formatSAR(row.totalAmount)}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {t && t.totalIncome > 0 ? ((row.totalAmount / t.totalIncome) * 100).toFixed(1) : 0}%
-                              </p>
-                            </div>
+                              <ProgressBar value={row.totalAmount} max={maxIncome} color="bg-green-400 dark:bg-green-500" />
+                            </button>
+                            {isOpen && (
+                              <DrillDownPanel
+                                loading={drillLoading}
+                                invoices={drillData}
+                                accentColor="green"
+                              />
+                            )}
                           </div>
-                          <ProgressBar value={row.totalAmount} max={maxIncome} color="bg-green-400 dark:bg-green-500" />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
@@ -467,34 +608,49 @@ export default function MonthlyFinancialReportPage() {
                       </div>
                     ) : (
                       <div className="divide-y">
-                        {filteredExpenses.map((row, idx) => (
-                          <div
-                            key={idx}
-                            className="px-5 py-3.5 hover:bg-red-50/50 dark:hover:bg-red-950/10 transition-colors"
-                          >
-                            <div className="flex items-start justify-between gap-3 mb-1.5">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="h-7 w-7 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0 text-red-600 dark:text-red-400 font-semibold text-xs">
-                                  {row.entityName.charAt(0).toUpperCase()}
+                        {filteredExpenses.map((row, idx) => {
+                          const isOpen = drillDown?.entityName === row.entityName && drillDown.type === 'supplier';
+                          return (
+                            <div key={idx}>
+                              <button
+                                onClick={() => openDrill(row.entityName, 'supplier')}
+                                className="w-full px-5 py-3.5 hover:bg-red-50/50 dark:hover:bg-red-950/10 transition-colors text-left"
+                              >
+                                <div className="flex items-start justify-between gap-3 mb-1.5">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="h-7 w-7 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0 text-red-600 dark:text-red-400 font-semibold text-xs">
+                                      {row.entityName.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-sm truncate" title={row.entityName}>{row.entityName}</p>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        {row.paymentCount} payment{row.paymentCount !== 1 ? 's' : ''}
+                                        {row.invoiceCount > 0 && ` · ${row.invoiceCount} invoice${row.invoiceCount !== 1 ? 's' : ''}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <div className="text-right">
+                                      <p className="font-bold text-sm text-red-600 dark:text-red-400 tabular-nums">{formatSAR(row.totalAmount)}</p>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        {t && t.totalExpenses > 0 ? ((row.totalAmount / t.totalExpenses) * 100).toFixed(1) : 0}%
+                                      </p>
+                                    </div>
+                                    {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate" title={row.entityName}>{row.entityName}</p>
-                                  <p className="text-[11px] text-muted-foreground">
-                                    {row.paymentCount} payment{row.paymentCount !== 1 ? 's' : ''}
-                                    {row.invoiceCount > 0 && ` · ${row.invoiceCount} invoice${row.invoiceCount !== 1 ? 's' : ''}`}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className="font-bold text-sm text-red-600 dark:text-red-400 tabular-nums">{formatSAR(row.totalAmount)}</p>
-                                <p className="text-[11px] text-muted-foreground">
-                                  {t && t.totalExpenses > 0 ? ((row.totalAmount / t.totalExpenses) * 100).toFixed(1) : 0}%
-                                </p>
-                              </div>
+                                <ProgressBar value={row.totalAmount} max={maxExpense} color="bg-red-400 dark:bg-red-500" />
+                              </button>
+                              {isOpen && (
+                                <DrillDownPanel
+                                  loading={drillLoading}
+                                  invoices={drillData}
+                                  accentColor="red"
+                                />
+                              )}
                             </div>
-                            <ProgressBar value={row.totalAmount} max={maxExpense} color="bg-red-400 dark:bg-red-500" />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                     {data && data.expenses.length > 0 && (
