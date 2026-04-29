@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.4.0] - 2026-04-29
+
+### Monthly Financial Report Dashboard
+
+#### Added
+- **Monthly Financial Report** (`/financial/reports/monthly-report`) — new full-page report showing income and expenses side by side for any selected month/year
+  - **KPI tiles**: Total Income (green), Total Expenses (red), Net Profit (blue/red), Salaries & Wages (amber)
+  - **Income panel**: all client payments grouped by client name with amount, payment count, and proportional progress bars
+  - **Supplier Payments panel**: all supplier payments grouped by supplier name with proportional breakdown
+  - **Salaries & Wages panel**: salary records for the month with paid/pending status badges
+  - **In-page sidebar navigation**: dedicated left-sidebar listing all financial reports for quick access (visible on lg+ screens)
+  - Month/year navigation with prev/next buttons and dropdowns
+  - Live search/filter within each panel
+  - Summary bar at the bottom with income vs expenses vs net overview
+  - API endpoint: `GET /api/financial/reports/monthly-report?year=&month=`
+- **Sidebar entry**: "Monthly Report" added to the Financial Reports section in the main app sidebar (with new-item star indicator)
+
+#### Changed
+- Version bumped to **22.4.0**
+
+---
+
 ## [22.3.0] - 2026-04-29
 
 ### CEO Arena — Private Command Room
@@ -48,43 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [22.1.0] - 2026-04-28
-
-### Meetings Module
-
-#### Added
-- **Meetings module** — full end-to-end module to record and control all company meetings across every department
-- **Meeting categories** (dropdown): Sales, Operations, Project, Management Review, HR, Quality & Safety, Board, Client, Supplier, Planning, Other (with free-text override) — enables reporting by type (e.g. "20 sales meetings this year")
-- **Schedule form** — subject, category, date/time, duration, location, department, agenda, attendees (multi-select from OTS users), linked OTS tasks for discussion, and optional Google Meet link generation
-- **Meeting detail sheet** — full read view with attendee RSVP status, linked tasks, agenda, minutes, and decisions; organiser can edit or cancel the meeting
-- **Post-meeting minutes editor** — organiser records minutes and key decisions after the meeting and marks it Completed
-- **Inline RSVP** — attendees can accept or decline directly from the meeting card without opening the detail view
-- **KPI strip** — total meetings this year, completed count, upcoming count, and top-category breakdown
-- **Filters** — filter by category and status with live text search
-- **Google Calendar integration** — optional Meet link auto-generation via Google Calendar API (service account); graceful no-op when `GOOGLE_CALENDAR_CREDENTIALS` is not configured
-- **Permissions**: `meetings.view`, `meetings.view_all`, `meetings.create`, `meetings.edit`, `meetings.edit_all`, `meetings.delete`, `meetings.record_minutes`
-- **Navigation** — Meetings section added to sidebar with "New" badge
-- **Database** — three new tables: `Meeting`, `MeetingAttendee`, `MeetingTask`; migration at `prisma/manual_migrations/add_meetings_module.sql`
-- **New env vars**: `GOOGLE_CALENDAR_CREDENTIALS` (service-account JSON), `GOOGLE_CALENDAR_IMPERSONATE_EMAIL`
-
-#### Changed
-- Version bumped to **22.1.0**
-
----
-
-## [22.0.3] - 2026-04-28
-
-### Workflow Step Replacement Fix
-
-#### Fixed
-- **"Failed to replace workflow steps"** — `WorkflowStepInstance.stepId` FK was `RESTRICT`, causing `deleteMany` on `WorkflowStep` to fail with a FK constraint violation whenever the workflow had been used (completed step instances existed). Added migration `fix_workflow_step_fk_cascade.sql` to change FK to `ON DELETE CASCADE`; updated Prisma schema to match.
-- **In-progress guard** — API route now returns `409` with a clear message when IN_PROGRESS workflow instances exist, instead of silently attempting an operation that would corrupt in-flight state.
-
-#### Changed
-- Version bumped to **22.0.3**
-
----
-
-## [22.0.2] - 2026-04-28
 
 ### IMS Sidebar, Workflow Fix & Seed Repair
 

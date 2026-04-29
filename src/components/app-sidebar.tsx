@@ -342,6 +342,7 @@ const navigationSections: NavigationSection[] = [
     icon: TrendingUp,
     items: [
       { name: 'Financial Dashboard', href: '/financial', icon: TrendingUp },
+      { name: 'Monthly Report', href: '/financial/reports/monthly-report', icon: CalendarClock, newSince: '2026-04-29' },
       { name: 'Chart of Accounts', href: '/financial/chart-of-accounts', icon: FileText },
       { name: 'Trial Balance', href: '/financial/reports/trial-balance', icon: FileSpreadsheet },
       { name: 'Income Statement', href: '/financial/reports/income-statement', icon: TrendingUp },
