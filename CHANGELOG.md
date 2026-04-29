@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.2.0] - 2026-04-29
+
+### Meetings Module — OAuth & UI Enhancements
+
+#### Added
+- **Google Calendar OAuth 2.0 integration** — replaced service-account (Google Workspace-only) flow with a standard OAuth 2.0 refresh-token flow that works with any Google account; token stored as a singleton row in `GoogleOAuthToken` table and auto-refreshed on expiry
+- **Settings → Integrations tab** — new tab in System Settings with a `GoogleCalendarSettings` card: connect / re-authorize / disconnect Google Calendar, shows connected email and status badge; OAuth callback redirects back to this tab automatically
+- **Meeting Calendar page** (`/meetings/calendar`) — full month-grid calendar built with CSS Grid + Tailwind (no external libraries): color-coded meeting chips by category, click chip to open detail sheet, click day to expand a side panel with all meetings for that day; previous/next month navigation; mobile collapses to a list below the grid
+- **Calendar View** added to sidebar Meetings section
+- **Meeting notifications** — attendees now receive in-app notifications:
+  - `MEETING_INVITED` when a new meeting is created
+  - `MEETING_UPDATED` when time or location changes
+  - `MEETING_CANCELLED` when a meeting is deleted or its status changes to cancelled
+- **Permissions**: `meetings.google_calendar` — manage the Google Calendar OAuth integration
+
+#### Changed
+- **Meeting form** (`MeetingFormSheet`) — widened to `sm:max-w-2xl`, two-column layout on desktop, section dividers (Meeting Details, Schedule, Location & Department, People, Discussion, Options), avatar-initials chips for attendees (color-coded by name hash), better empty states, gradient submit button
+- **Environment variables**: removed `GOOGLE_CALENDAR_CREDENTIALS` and `GOOGLE_CALENDAR_IMPERSONATE_EMAIL`; added `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+- **Database**: new `GoogleOAuthToken` table; `NotificationType` enum extended with `MEETING_INVITED`, `MEETING_UPDATED`, `MEETING_CANCELLED`
+- Version bumped to **22.2.0**
+
+---
+
 ## [22.1.0] - 2026-04-28
 
 ### Meetings Module

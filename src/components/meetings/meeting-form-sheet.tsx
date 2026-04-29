@@ -17,10 +17,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { MEETING_CATEGORIES } from '@/lib/services/meeting.constants';
-import { Loader2, X, Search, Video } from 'lucide-react';
+import {
+  Loader2,
+  X,
+  Search,
+  Video,
+  Calendar,
+  MapPin,
+  Building2,
+  Users,
+  ClipboardList,
+  Lock,
+  AlignLeft,
+} from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,6 +96,33 @@ function fromLocalDatetimeInput(local: string): string {
   return new Date(local).toISOString();
 }
 
+function nameToColor(name: string): string {
+  const colors = [
+    'bg-indigo-500', 'bg-violet-500', 'bg-sky-500', 'bg-emerald-500',
+    'bg-amber-500', 'bg-rose-500', 'bg-teal-500', 'bg-orange-500',
+    'bg-pink-500', 'bg-cyan-500',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function initials(name: string): string {
+  return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+}
+
+// ─── Section Header ────────────────────────────────────────────────────────────
+
+function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <Icon className="h-4 w-4 text-indigo-500 shrink-0" />
+      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
 // ─── Multi-select with search ──────────────────────────────────────────────────
 
 function MultiSearchSelect<T extends { id: string; name: string; sub?: string }>({
@@ -93,12 +131,14 @@ function MultiSearchSelect<T extends { id: string; name: string; sub?: string }>
   selected,
   onToggle,
   placeholder,
+  showAvatars = false,
 }: {
   label: string;
   items: T[];
   selected: string[];
   onToggle: (id: string) => void;
   placeholder: string;
+  showAvatars?: boolean;
 }) {
   const [q, setQ] = useState('');
   const filtered = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
@@ -106,18 +146,28 @@ function MultiSearchSelect<T extends { id: string; name: string; sub?: string }>
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
-      {selectedItems.length > 0 && (
+      <Label className="text-sm font-medium">{label}</Label>
+      {selectedItems.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {selectedItems.map((i) => (
-            <Badge key={i.id} variant="secondary" className="flex items-center gap-1 text-xs">
+            <span
+              key={i.id}
+              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 pl-1 pr-2 py-0.5 text-xs font-medium text-indigo-800"
+            >
+              {showAvatars ? (
+                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-white text-[9px] font-bold shrink-0 ${nameToColor(i.name)}`}>
+                  {initials(i.name)}
+                </span>
+              ) : null}
               {i.name}
-              <button type="button" onClick={() => onToggle(i.id)}>
-                <X className="h-3 w-3 hover:text-red-500" />
+              <button type="button" onClick={() => onToggle(i.id)} className="text-indigo-400 hover:text-red-500 transition-colors">
+                <X className="h-3 w-3" />
               </button>
-            </Badge>
+            </span>
           ))}
         </div>
+      ) : (
+        <p className="text-xs text-slate-400 italic">{showAvatars ? 'No attendees added yet' : 'No tasks linked yet'}</p>
       )}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -128,22 +178,32 @@ function MultiSearchSelect<T extends { id: string; name: string; sub?: string }>
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
-      <div className="max-h-40 overflow-y-auto rounded-md border divide-y text-sm">
-        {filtered.length === 0 && <p className="p-2 text-slate-400 text-xs text-center">No results</p>}
-        {filtered.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onToggle(item.id)}
-            className={`w-full flex items-center justify-between px-3 py-1.5 text-left hover:bg-slate-50 transition-colors ${selected.includes(item.id) ? 'bg-indigo-50' : ''}`}
-          >
-            <span className="font-medium text-slate-700">{item.name}</span>
-            <div className="flex items-center gap-2">
-              {item.sub && <span className="text-slate-400 text-xs">{item.sub}</span>}
-              {selected.includes(item.id) && <span className="text-indigo-600 text-xs">✓</span>}
-            </div>
-          </button>
-        ))}
+      <div className="max-h-36 overflow-y-auto rounded-md border divide-y text-sm bg-white">
+        {filtered.length === 0 && (
+          <p className="p-3 text-slate-400 text-xs text-center">
+            {q ? `No results for "${q}"` : 'Nothing available'}
+          </p>
+        )}
+        {filtered.map((item) => {
+          const isSelected = selected.includes(item.id);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onToggle(item.id)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50' : ''}`}
+            >
+              {showAvatars && (
+                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-white text-[10px] font-bold shrink-0 ${nameToColor(item.name)}`}>
+                  {initials(item.name)}
+                </span>
+              )}
+              <span className="flex-1 font-medium text-slate-700 truncate">{item.name}</span>
+              {item.sub && <span className="text-slate-400 text-xs shrink-0">{item.sub}</span>}
+              {isSelected && <span className="text-indigo-600 text-xs font-semibold shrink-0">✓</span>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -203,7 +263,6 @@ export default function MeetingFormSheet({ open, onOpenChange, meeting, onSucces
   const attendeeIds = watch('attendeeIds');
   const taskIds = watch('taskIds');
 
-  // Populate form on edit
   useEffect(() => {
     if (meeting) {
       reset({
@@ -238,7 +297,6 @@ export default function MeetingFormSheet({ open, onOpenChange, meeting, onSucces
     }
   }, [meeting, reset, open]);
 
-  // Load reference data
   useEffect(() => {
     if (!open) return;
     Promise.all([
@@ -301,122 +359,142 @@ export default function MeetingFormSheet({ open, onOpenChange, meeting, onSucces
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto" side="right">
-        <SheetHeader className="pb-4">
-          <SheetTitle>{isEdit ? 'Edit Meeting' : 'Schedule Meeting'}</SheetTitle>
-          <SheetDescription>Fill in the details below to {isEdit ? 'update the' : 'schedule a new'} meeting.</SheetDescription>
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto" side="right">
+        <SheetHeader className="pb-4 border-b">
+          <SheetTitle className="text-lg">{isEdit ? 'Edit Meeting' : 'Schedule a Meeting'}</SheetTitle>
+          <SheetDescription>
+            {isEdit ? 'Update the meeting details below.' : 'Fill in the details to schedule a new meeting.'}
+          </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Category */}
-          <div className="space-y-2">
-            <Label htmlFor="category">Meeting Type <span className="text-red-500">*</span></Label>
-            <Controller
-              name="category"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select meeting type..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MEETING_CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.category && <p className="text-xs text-red-500">{errors.category.message}</p>}
-          </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-5 pb-8">
 
-          {/* Custom category label */}
-          {category === 'other' && (
-            <div className="space-y-2">
-              <Label htmlFor="categoryCustom">Custom Category Name</Label>
-              <Input id="categoryCustom" placeholder="e.g. Board Advisory Session" {...register('categoryCustom')} />
+          {/* ── Meeting Details ── */}
+          <SectionHeader icon={Calendar} title="Meeting Details" />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="category">Meeting Type <span className="text-red-500">*</span></Label>
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Select meeting type…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MEETING_CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.category && <p className="text-xs text-red-500">{errors.category.message}</p>}
             </div>
-          )}
 
-          {/* Subject */}
-          <div className="space-y-2">
-            <Label htmlFor="subject">Meeting Subject <span className="text-red-500">*</span></Label>
-            <Input id="subject" placeholder="e.g. Q2 Sales Review — Central Region" {...register('subject')} />
-            {errors.subject && <p className="text-xs text-red-500">{errors.subject.message}</p>}
+            {category === 'other' && (
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="categoryCustom">Custom Category Name</Label>
+                <Input id="categoryCustom" placeholder="e.g. Board Advisory Session" {...register('categoryCustom')} />
+              </div>
+            )}
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="subject">Meeting Subject <span className="text-red-500">*</span></Label>
+              <Input id="subject" placeholder="e.g. Q2 Sales Review — Central Region" {...register('subject')} />
+              {errors.subject && <p className="text-xs text-red-500">{errors.subject.message}</p>}
+            </div>
           </div>
 
-          {/* Date/time row */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* ── Schedule ── */}
+          <SectionHeader icon={Calendar} title="Schedule" />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="scheduledAt">Start Date & Time <span className="text-red-500">*</span></Label>
+              <Label htmlFor="scheduledAt">Start <span className="text-red-500">*</span></Label>
               <Input id="scheduledAt" type="datetime-local" {...register('scheduledAt')} />
               {errors.scheduledAt && <p className="text-xs text-red-500">{errors.scheduledAt.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endsAt">End Date & Time <span className="text-red-500">*</span></Label>
+              <Label htmlFor="endsAt">End <span className="text-red-500">*</span></Label>
               <Input id="endsAt" type="datetime-local" {...register('endsAt')} />
               {errors.endsAt && <p className="text-xs text-red-500">{errors.endsAt.message}</p>}
             </div>
           </div>
 
-          {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location">Location <span className="text-slate-400 font-normal">(optional)</span></Label>
-            <Input id="location" placeholder="e.g. Conference Room A, or leave blank for online-only" {...register('location')} />
+          {/* ── Location & Department ── */}
+          <SectionHeader icon={MapPin} title="Location & Department" />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="location">Location <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+              <Input id="location" placeholder="Conference Room A, or blank for online" {...register('location')} />
+            </div>
+            <div className="space-y-2">
+              <Label>Department <span className="text-slate-400 font-normal text-xs">(optional)</span></Label>
+              <Controller
+                name="departmentId"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No specific department</SelectItem>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
           </div>
 
-          {/* Department */}
-          <div className="space-y-2">
-            <Label>Department <span className="text-slate-400 font-normal">(optional)</span></Label>
-            <Controller
-              name="departmentId"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No specific department</SelectItem>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
+          {/* ── People ── */}
+          <SectionHeader icon={Users} title="People" />
 
-          {/* Attendees */}
           <MultiSearchSelect
             label="Attendees"
             items={userItems}
             selected={attendeeIds}
             onToggle={toggleAttendee}
-            placeholder="Search employees..."
+            placeholder="Search employees…"
+            showAvatars
           />
 
-          {/* Linked Tasks */}
+          {/* ── Discussion ── */}
+          <SectionHeader icon={ClipboardList} title="Discussion" />
+
           <MultiSearchSelect
             label="OTS Tasks for Discussion"
             items={taskItems}
             selected={taskIds}
             onToggle={toggleTask}
-            placeholder="Search tasks..."
+            placeholder="Search tasks…"
           />
 
-          {/* Agenda */}
           <div className="space-y-2">
-            <Label htmlFor="agenda">Agenda <span className="text-slate-400 font-normal">(optional)</span></Label>
-            <Textarea id="agenda" placeholder="List agenda items..." rows={4} {...register('agenda')} />
+            <Label htmlFor="agenda">
+              <span className="flex items-center gap-1.5">
+                <AlignLeft className="h-3.5 w-3.5 text-slate-400" />
+                Agenda <span className="text-slate-400 font-normal text-xs">(optional)</span>
+              </span>
+            </Label>
+            <Textarea id="agenda" placeholder="List the agenda items for this meeting…" rows={4} {...register('agenda')} />
           </div>
 
-          {/* Toggles */}
-          <div className="space-y-3 rounded-lg border p-4 bg-slate-50">
-            <div className="flex items-center justify-between">
+          {/* ── Options ── */}
+          <SectionHeader icon={Lock} title="Options" />
+
+          <div className="rounded-xl border bg-slate-50/80 divide-y overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3">
               <div>
-                <p className="text-sm font-medium">Private Meeting</p>
-                <p className="text-xs text-slate-500">Only visible to organiser and attendees</p>
+                <p className="text-sm font-medium text-slate-800">Private Meeting</p>
+                <p className="text-xs text-slate-500 mt-0.5">Only visible to organiser and attendees</p>
               </div>
               <Controller
                 name="isPrivate"
@@ -425,12 +503,14 @@ export default function MeetingFormSheet({ open, onOpenChange, meeting, onSucces
               />
             </div>
             {!isEdit && (
-              <div className="flex items-center justify-between border-t pt-3">
-                <div className="flex items-center gap-2">
-                  <Video className="h-4 w-4 text-blue-500" />
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="rounded-md bg-blue-50 p-1.5">
+                    <Video className="h-4 w-4 text-blue-600" />
+                  </div>
                   <div>
-                    <p className="text-sm font-medium">Generate Google Meet Link</p>
-                    <p className="text-xs text-slate-500">Auto-creates a Meet link via Google Calendar</p>
+                    <p className="text-sm font-medium text-slate-800">Generate Google Meet Link</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Auto-creates a Meet link via Google Calendar</p>
                   </div>
                 </div>
                 <Controller
@@ -442,12 +522,16 @@ export default function MeetingFormSheet({ open, onOpenChange, meeting, onSucces
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
+          {/* ── Actions ── */}
+          <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700" disabled={saving}>
+            <Button
+              type="submit"
+              className="flex-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-sm"
+              disabled={saving}
+            >
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
               {isEdit ? 'Save Changes' : 'Schedule Meeting'}
             </Button>

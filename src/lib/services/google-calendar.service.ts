@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import prisma from '@/lib/db';
 
 interface MeetLinkResult {
   meetLink: string;
@@ -17,30 +18,122 @@ interface CreateEventParams {
   organizerEmail?: string;
 }
 
-function buildAuth() {
-  const raw = env.GOOGLE_CALENDAR_CREDENTIALS;
-  if (!raw) return null;
+// ─── OAuth2 client factory ────────────────────────────────────────────────────
 
+function getOAuth2Client() {
+  return new google.auth.OAuth2(
+    env.GOOGLE_OAUTH_CLIENT_ID,
+    env.GOOGLE_OAUTH_CLIENT_SECRET,
+    `${env.NEXT_PUBLIC_APP_URL}/api/settings/google-calendar/callback`,
+  );
+}
+
+async function getAuthenticatedClient() {
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    return null;
+  }
+
+  const token = await prisma.googleOAuthToken.findUnique({ where: { id: 1 } });
+  if (!token) return null;
+
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({
+    access_token: token.accessToken,
+    refresh_token: token.refreshToken,
+    expiry_date: token.expiresAt.getTime(),
+  });
+
+  // Auto-persist refreshed access token
+  oauth2Client.on('tokens', async (tokens) => {
+    try {
+      await prisma.googleOAuthToken.update({
+        where: { id: 1 },
+        data: {
+          accessToken: tokens.access_token!,
+          ...(tokens.expiry_date && { expiresAt: new Date(tokens.expiry_date) }),
+        },
+      });
+      logger.info({ service: 'google-calendar' }, 'Access token auto-refreshed and persisted');
+    } catch (err) {
+      logger.warn({ service: 'google-calendar', err }, 'Failed to persist refreshed access token');
+    }
+  });
+
+  return oauth2Client;
+}
+
+// ─── Public: generate OAuth consent URL ──────────────────────────────────────
+
+export function generateAuthUrl(): string | null {
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return null;
+
+  const oauth2Client = getOAuth2Client();
+  return oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/calendar.events'],
+  });
+}
+
+// ─── Public: exchange code for tokens and persist ────────────────────────────
+
+export async function exchangeCodeAndStore(code: string): Promise<{ email: string } | null> {
+  if (!env.GOOGLE_OAUTH_CLIENT_ID || !env.GOOGLE_OAUTH_CLIENT_SECRET) return null;
+
+  const oauth2Client = getOAuth2Client();
   try {
-    const credentials = JSON.parse(raw) as {
-      client_email: string;
-      private_key: string;
-    };
-    const auth = new google.auth.JWT({
-      email: credentials.client_email,
-      key: credentials.private_key,
-      scopes: ['https://www.googleapis.com/auth/calendar'],
-      subject: env.GOOGLE_CALENDAR_IMPERSONATE_EMAIL,
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const { data: userInfo } = await oauth2.userinfo.get();
+
+    await prisma.googleOAuthToken.upsert({
+      where: { id: 1 },
+      create: {
+        id: 1,
+        accessToken: tokens.access_token!,
+        refreshToken: tokens.refresh_token!,
+        expiresAt: new Date(tokens.expiry_date!),
+        email: userInfo.email!,
+      },
+      update: {
+        accessToken: tokens.access_token!,
+        refreshToken: tokens.refresh_token!,
+        expiresAt: new Date(tokens.expiry_date!),
+        email: userInfo.email!,
+      },
     });
-    return auth;
-  } catch {
-    logger.warn({ service: 'google-calendar' }, 'Failed to parse GOOGLE_CALENDAR_CREDENTIALS');
+
+    logger.info({ service: 'google-calendar', email: userInfo.email }, 'Google Calendar OAuth token stored');
+    return { email: userInfo.email! };
+  } catch (err) {
+    logger.error({ service: 'google-calendar', err }, 'Failed to exchange OAuth code for tokens');
     return null;
   }
 }
 
+// ─── Public: disconnect (delete stored token) ────────────────────────────────
+
+export async function revokeOAuthToken(): Promise<void> {
+  await prisma.googleOAuthToken.deleteMany({});
+  logger.info({ service: 'google-calendar' }, 'Google Calendar OAuth token revoked');
+}
+
+// ─── Public: connection status ────────────────────────────────────────────────
+
+export async function getOAuthStatus(): Promise<{ connected: boolean; email: string | null; updatedAt: Date | null }> {
+  const token = await prisma.googleOAuthToken.findUnique({
+    where: { id: 1 },
+    select: { email: true, updatedAt: true },
+  });
+  return { connected: !!token, email: token?.email ?? null, updatedAt: token?.updatedAt ?? null };
+}
+
+// ─── Public: create a Google Calendar event with Meet link ───────────────────
+
 export async function createGoogleMeetLink(params: CreateEventParams): Promise<MeetLinkResult | null> {
-  const auth = buildAuth();
+  const auth = await getAuthenticatedClient();
   if (!auth) {
     logger.info({ service: 'google-calendar' }, 'Google Calendar not configured — skipping Meet link generation');
     return null;
@@ -85,8 +178,10 @@ export async function createGoogleMeetLink(params: CreateEventParams): Promise<M
   }
 }
 
+// ─── Public: delete a Google Calendar event ──────────────────────────────────
+
 export async function deleteGoogleCalendarEvent(googleEventId: string): Promise<void> {
-  const auth = buildAuth();
+  const auth = await getAuthenticatedClient();
   if (!auth) return;
 
   try {

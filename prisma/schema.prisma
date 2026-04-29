@@ -2707,6 +2707,9 @@ enum NotificationType {
   SYSTEM
   TASK_MESSAGE
   ANNOUNCEMENT
+  MEETING_INVITED
+  MEETING_UPDATED
+  MEETING_CANCELLED
 }
 
 enum AnnouncementTargetType {
@@ -6441,4 +6444,20 @@ model MeetingTask {
   @@index([meetingId])
   @@index([taskId])
   @@map("MeetingTask")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Google OAuth Token — singleton row (id=1) for Calendar / Meet integration
+// ─────────────────────────────────────────────────────────────────────────────
+
+model GoogleOAuthToken {
+  id           Int      @id @default(autoincrement())
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  expiresAt    DateTime
+  email        String   @db.VarChar(255)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("GoogleOAuthToken")
 }
