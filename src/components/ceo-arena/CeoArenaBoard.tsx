@@ -500,6 +500,7 @@ const TASK_STATUS_COLOR: Record<string, string> = {
 function CeoTasksPanel() {
   const [tasks, setTasks] = useState<CeoTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completing, setCompleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/ceo-arena/tasks')
@@ -507,6 +508,20 @@ function CeoTasksPanel() {
       .then(d => setTasks(d.tasks || []))
       .finally(() => setLoading(false));
   }, []);
+
+  const markComplete = async (id: string) => {
+    setCompleting(id);
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Completed' }),
+      });
+      if (res.ok) setTasks(prev => prev.filter(t => t.id !== id));
+    } finally {
+      setCompleting(null);
+    }
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center py-10">
@@ -533,8 +548,9 @@ function CeoTasksPanel() {
       <div className="divide-y divide-gray-50">
         {tasks.map(task => {
           const StatusIcon = task.status === 'In Progress' ? Clock : Circle;
+          const isCompleting = completing === task.id;
           return (
-            <div key={task.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors">
+            <div key={task.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors group">
               <StatusIcon className={cn('size-4 shrink-0', TASK_STATUS_COLOR[task.status] ?? 'text-slate-400')} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>
@@ -551,6 +567,15 @@ function CeoTasksPanel() {
                 <span className={cn('text-[11px] font-medium px-1.5 py-0.5 rounded', TASK_PRIORITY_COLOR[task.priority] ?? 'bg-slate-100 text-slate-600')}>
                   {task.priority}
                 </span>
+                <button
+                  onClick={() => markComplete(task.id)}
+                  disabled={isCompleting}
+                  title="Mark as complete"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded disabled:opacity-50"
+                >
+                  {isCompleting ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+                  Done
+                </button>
               </div>
             </div>
           );
