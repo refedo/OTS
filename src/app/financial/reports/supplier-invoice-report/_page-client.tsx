@@ -26,7 +26,7 @@ function formatPct(n: number) {
 
 function formatDate(d: string | null) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-SA', { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString('en-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────

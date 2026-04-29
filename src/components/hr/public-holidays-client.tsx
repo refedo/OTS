@@ -54,7 +54,7 @@ function calcDays(start: string, end: string | null): number {
 }
 
 function fmtDate(d: string) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-SA', {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-SA-u-ca-gregory', {
     year: 'numeric', month: 'short', day: 'numeric',
   });
 }

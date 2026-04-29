@@ -117,7 +117,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     (input.scheduledAt && new Date(input.scheduledAt).getTime() !== new Date(existing.scheduledAt).getTime()) ||
     (input.location !== undefined && input.location !== existing.location)
   ) {
-    const updatedFormatted = new Date(meeting.scheduledAt).toLocaleDateString('en-SA', {
+    const updatedFormatted = new Date(meeting.scheduledAt).toLocaleDateString('en-SA-u-ca-gregory', {
       day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
     await Promise.allSettled(

@@ -11,7 +11,7 @@ import {
   RefreshCw, TrendingUp, TrendingDown, DollarSign, Landmark, Receipt,
   FileText, BarChart3, Clock, Loader2, CalendarClock,
   ArrowRight, CheckCircle, Building2, CreditCard, ChevronDown, ChevronUp,
-  Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package, BookOpen, FileSpreadsheet, Layers,
+  Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package, BookOpen, FileSpreadsheet, Layers, Truck, GitMerge,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -401,6 +401,9 @@ export default function FinancialDashboardPage() {
           { href: '/financial/reports/ots-journal-entries', icon: BookOpen, color: 'emerald', title: 'OTS Journal Entries', desc: 'Double-entry journal from supplier invoices' },
           { href: '/financial/reports/assets', icon: Package, color: 'indigo', title: 'Asset Report', desc: 'All asset accounts and balances' },
           { href: '/financial/reports/salaries', icon: Users, color: 'teal', title: 'Salaries & Wages', desc: 'Salary records synced from Dolibarr' },
+          { href: '/financial/reports/supplier-invoice-report', icon: Truck, color: 'blue', title: 'Supplier Invoice Report', desc: 'Supplier invoices & payments as % of project cost' },
+          { href: '/financial/reports/po-invoice-linkage', icon: GitMerge, color: 'violet', title: 'PO–Invoice Linkage', desc: 'Match purchase orders to their supplier invoices' },
+          { href: '/financial/reports/coa-credit-balance', icon: BarChart3, color: 'rose', title: 'COA Credit Balance', desc: 'Chart of accounts with credit balance per account' },
           { href: '/financial/journal-entries', icon: FileText, color: 'slate', title: 'Journal Entries', desc: 'Browse auto-generated entries' },
         ].map((link) => (
           <Link key={link.href} href={link.href}>

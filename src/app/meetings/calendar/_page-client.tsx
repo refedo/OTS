@@ -243,7 +243,7 @@ export default function CalendarPageClient() {
                     <div className="space-y-0.5">
                       {dayMtgs.slice(0, 3).map((m) => {
                         const col = getCategoryColor(m.category);
-                        const time = new Date(m.scheduledAt).toLocaleTimeString('en-SA', { hour: '2-digit', minute: '2-digit' });
+                        const time = new Date(m.scheduledAt).toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' });
                         return (
                           <button
                             key={m.id}
@@ -284,7 +284,7 @@ export default function CalendarPageClient() {
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b bg-slate-50">
                   <p className="text-sm font-semibold text-slate-800">
-                    {selectedDay.toLocaleDateString('en-SA', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {selectedDay.toLocaleDateString('en-SA-u-ca-gregory', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </p>
                   <p className="text-xs text-slate-500 mt-0.5">{dayMeetings.length} meeting{dayMeetings.length !== 1 ? 's' : ''}</p>
                 </div>
@@ -297,8 +297,8 @@ export default function CalendarPageClient() {
                   )}
                   {dayMeetings.map((m) => {
                     const col = getCategoryColor(m.category);
-                    const start = new Date(m.scheduledAt).toLocaleTimeString('en-SA', { hour: '2-digit', minute: '2-digit' });
-                    const end = new Date(m.endsAt).toLocaleTimeString('en-SA', { hour: '2-digit', minute: '2-digit' });
+                    const start = new Date(m.scheduledAt).toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' });
+                    const end = new Date(m.endsAt).toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' });
                     return (
                       <button
                         key={m.id}
@@ -327,14 +327,14 @@ export default function CalendarPageClient() {
           <div className="lg:hidden mt-4 rounded-xl border bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b bg-slate-50">
               <p className="text-sm font-semibold text-slate-800">
-                {selectedDay.toLocaleDateString('en-SA', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {selectedDay.toLocaleDateString('en-SA-u-ca-gregory', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
             <div className="divide-y">
               {dayMeetings.map((m) => {
                 const col = getCategoryColor(m.category);
-                const start = new Date(m.scheduledAt).toLocaleTimeString('en-SA', { hour: '2-digit', minute: '2-digit' });
-                const end = new Date(m.endsAt).toLocaleTimeString('en-SA', { hour: '2-digit', minute: '2-digit' });
+                const start = new Date(m.scheduledAt).toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' });
+                const end = new Date(m.endsAt).toLocaleTimeString('en-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' });
                 return (
                   <button
                     key={m.id}

@@ -100,7 +100,7 @@ function getCategoryLabel(meeting: Meeting): string {
 }
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-SA', {
+  return new Date(iso).toLocaleString('en-SA-u-ca-gregory', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
