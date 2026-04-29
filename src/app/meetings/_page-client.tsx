@@ -15,6 +15,8 @@ import {
   AlertCircle,
   BarChart3,
   RefreshCw,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -246,6 +248,7 @@ export default function MeetingsPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   const fetchMeetings = useCallback(async () => {
     setLoading(true);
@@ -415,6 +418,22 @@ export default function MeetingsPage() {
               {filtered.length} of {meetings.length} meetings
             </div>
           )}
+          <div className="flex items-center rounded-lg border bg-white overflow-hidden shrink-0">
+            <button
+              className={`p-2 ${viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              className={`p-2 ${viewMode === 'table' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              onClick={() => setViewMode('table')}
+              title="Table view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Meeting List */}
@@ -438,7 +457,7 @@ export default function MeetingsPage() {
               Schedule Meeting
             </Button>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((m) => (
               <MeetingCard
@@ -449,6 +468,70 @@ export default function MeetingsPage() {
                 currentUserId={currentUserId}
               />
             ))}
+          </div>
+        ) : (
+          /* Table view */
+          <div className="rounded-xl border bg-white shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide border-b">
+                <tr>
+                  <th className="px-4 py-2.5 text-left">Subject</th>
+                  <th className="px-4 py-2.5 text-left">Category</th>
+                  <th className="px-4 py-2.5 text-left">Status</th>
+                  <th className="px-4 py-2.5 text-left">Date & Time</th>
+                  <th className="px-4 py-2.5 text-left">Duration</th>
+                  <th className="px-4 py-2.5 text-left">Organiser</th>
+                  <th className="px-4 py-2.5 text-left">Attendees</th>
+                  <th className="px-4 py-2.5 text-left">Department</th>
+                  <th className="px-4 py-2.5 text-left">Location</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filtered.map((m) => {
+                  const catLabel = getCategoryLabel(m);
+                  const catColor = CATEGORY_COLORS[m.category] ?? CATEGORY_COLORS.other;
+                  const statusCfg = STATUS_CONFIG[m.status] ?? STATUS_CONFIG.scheduled;
+                  return (
+                    <tr
+                      key={m.id}
+                      className="hover:bg-slate-50 cursor-pointer transition-colors"
+                      onClick={() => setSelectedMeeting(m)}
+                    >
+                      <td className="px-4 py-2.5">
+                        <p className="font-medium text-slate-800 max-w-[220px] truncate">{m.subject}</p>
+                        {m.isPrivate && <span className="text-xs text-slate-400">Private</span>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Badge variant="outline" className={`text-xs border ${catColor}`}>{catLabel}</Badge>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Badge className={`text-xs flex items-center gap-1 w-fit ${statusCfg.color} border-0`}>
+                          {statusCfg.icon}{statusCfg.label}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap text-slate-600">{formatDateTime(m.scheduledAt)}</td>
+                      <td className="px-4 py-2.5 text-slate-500">{formatDuration(m.scheduledAt, m.endsAt)}</td>
+                      <td className="px-4 py-2.5 text-slate-600">{m.organizer.name}</td>
+                      <td className="px-4 py-2.5 text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5" />{m.attendees.length}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-500">{m.department?.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-slate-500 max-w-[140px] truncate">
+                        {m.meetLink ? (
+                          <a href={m.meetLink} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-blue-600 hover:underline"
+                            onClick={(e) => e.stopPropagation()}>
+                            <Video className="h-3.5 w-3.5" />Meet
+                          </a>
+                        ) : m.location ?? '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

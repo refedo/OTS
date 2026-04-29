@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.5.1] - 2026-04-29
+
+### Supplier Invoice Report, Meetings Table View & Sidebar
+
+#### Added
+- **Supplier Invoice Report** (`/financial/reports/supplier-invoice-report`) — new financial report: search for any supplier and see a full breakdown of their invoices and payments as a percentage of total project cost and grand total supplier spend; drill down by project with per-project cost share progress bars; click any project row to expand its invoices; click any invoice to see individual payment records
+- **API**: `GET /api/financial/reports/supplier-invoice-report` — returns supplier KPIs, per-project summary with `pctOfProjectCost`, and full invoice + payment list for the selected period
+- **API**: `GET /api/financial/reports/supplier-invoice-report/suppliers` — autocomplete endpoint for supplier search (name or code)
+- **Supplier Invoice Report** added to the main sidebar under **Financial Reports** and to the in-page financial reports sidebar
+- **Meetings sidebar** — `/meetings` and `/meetings/calendar` now render inside `ResponsiveLayout` so the main app sidebar is visible; a `layout.tsx` was added to the meetings module
+- **Table view for Meetings** — grid/table toggle on the All Meetings page; table view shows subject, category, status, date/time, duration, organiser, attendees count, department, and location/Meet link in a compact sortable row
+
+#### Changed
+- Version bumped to **22.5.1**
+
+---
+
 ## [22.5.0] - 2026-04-29
 
 ### Meetings Module — OAuth & UI Enhancements
