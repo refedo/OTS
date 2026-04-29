@@ -529,8 +529,6 @@ function CeoTasksPanel() {
     </div>
   );
 
-  if (tasks.length === 0) return null;
-
   return (
     <div className="mt-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
@@ -538,14 +536,20 @@ function CeoTasksPanel() {
           <ListTodo className="size-4 text-slate-600" />
         </div>
         <div>
-          <p className="font-semibold text-gray-800 text-sm">CEO Tasks</p>
-          <p className="text-xs text-gray-400">Active tasks assigned to or created by the CEO</p>
+          <p className="font-semibold text-gray-800 text-sm">My Tasks</p>
+          <p className="text-xs text-gray-400">Active tasks assigned to or created by you</p>
         </div>
         <span className="ml-auto text-xs font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
           {tasks.length}
         </span>
       </div>
-      <div className="divide-y divide-gray-50">
+      {tasks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-slate-300">
+          <CheckCircle2 className="size-8 mb-2" />
+          <p className="text-sm">No active tasks</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-50">
         {tasks.map(task => {
           const StatusIcon = task.status === 'In Progress' ? Clock : Circle;
           const isCompleting = completing === task.id;

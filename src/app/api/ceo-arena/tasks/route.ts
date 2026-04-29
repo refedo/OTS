@@ -9,17 +9,14 @@ export async function GET() {
   const session = token ? verifySession(token) : null;
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Find Walid Dami's user ID by name
-  const ceoUser = await prisma.user.findFirst({
-    where: { name: { contains: 'Walid' }, isActive: true },
-    select: { id: true, name: true },
-  });
-
+  // Show: tasks flagged as CEO tasks, tasks assigned to the viewer, or tasks created by the viewer.
+  // The CEO Arena requires executive.view, so whoever is viewing IS the CEO.
   const tasks = await prisma.task.findMany({
     where: {
       OR: [
         { isCeoTask: true },
-        ...(ceoUser ? [{ assignedToId: ceoUser.id }, { createdById: ceoUser.id }] : []),
+        { assignedToId: session.sub },
+        { createdById: session.sub },
       ],
       status: { not: 'Completed' },
     },
