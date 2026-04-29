@@ -112,6 +112,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Financial Reports
   '/financial': ['financial.view'],
   '/financial/chart-of-accounts': ['financial.manage', 'financial.view'],
+  '/financial/reports/monthly-report': ['financial.view'],
   '/financial/reports/trial-balance': ['financial.view'],
   '/financial/reports/income-statement': ['financial.view'],
   '/financial/reports/balance-sheet': ['financial.view'],

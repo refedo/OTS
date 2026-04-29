@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/select';
 import {
   RefreshCw, TrendingUp, TrendingDown, DollarSign, Landmark, Receipt,
-  FileText, BarChart3, Clock, Loader2,
+  FileText, BarChart3, Clock, Loader2, CalendarClock,
   ArrowRight, CheckCircle, Building2, CreditCard, ChevronDown, ChevronUp,
   Users, Wallet, FolderOpen, ArrowUpDown, Banknote, Package, BookOpen, FileSpreadsheet, Layers,
 } from 'lucide-react';
@@ -382,6 +382,7 @@ export default function FinancialDashboardPage() {
       <h2 className="text-xl font-semibold mt-2">Reports</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
+          { href: '/financial/reports/monthly-report', icon: CalendarClock, color: 'teal', title: 'Monthly Financial Report', desc: 'Income vs expenses side-by-side by month — clients, suppliers & salaries' },
           { href: '/financial/reports/trial-balance', icon: BarChart3, color: 'blue', title: 'Trial Balance', desc: 'Debit & credit balances for all accounts' },
           { href: '/financial/reports/income-statement', icon: TrendingUp, color: 'green', title: 'Income Statement (P&L)', desc: 'Revenue, expenses, and net profit' },
           { href: '/financial/reports/balance-sheet', icon: Building2, color: 'purple', title: 'Balance Sheet', desc: 'Assets, liabilities, and equity' },
