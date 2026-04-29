@@ -9,25 +9,17 @@ const CURRENT_VERSION = {
   version: pkgVersion,
   date: 'April 29, 2026',
   type: 'patch' as const,
-  mainTitle: 'Search, Payment Sync, Date-Range Reports & CEO Board',
+  mainTitle: 'Stability & Version Alignment',
   highlights: [
-    'Global search now finds customers, suppliers, invoice numbers, payment references, and customer/supplier codes.',
-    'Payments deleted in Dolibarr are now automatically removed from OTS on next sync — financial reports no longer show stale data.',
-    'Monthly Financial Report supports date ranges (e.g. January → April) instead of a single month only.',
-    'CEO Tasks from the main task system appear directly on the Brainstorm Board with an inline "Done" button.',
+    'Confirms 22.5.2 features as stable: Account Invoice Report, orphan purge (POST /api/financial/purge-orphans), and sidebar double-render fix are all verified in production.',
+    'All financial report sidebar links updated to include the Account Invoice Report.',
+    'Version alignment across package.json, changelog, and settings/about.',
   ],
   changes: {
-    added: [
-      'Global search: customers, suppliers, customer invoices, supplier invoices, and payments added as result categories',
-      'Monthly Financial Report: "From / To" month+year selectors for multi-month range reporting',
-      'CEO Tasks panel on Brainstorm Board — shows active tasks assigned to or created by the CEO with inline Mark Complete',
-      'GET /api/ceo-arena/tasks — endpoint returning active CEO tasks (isCeoTask flag or assigned to/created by Walid Dami)',
-    ],
-    fixed: [
-      'Payment deletion sync: payments deleted in Dolibarr now deleted from OTS fin_payments on the next invoice sync — applies to syncCustomerInvoices, syncSupplierInvoices, and syncAllPayments',
-    ],
+    added: [],
+    fixed: [],
     changed: [
-      'Version bumped to 22.4.1',
+      'Version bumped to 22.5.3 (stability confirmation — no new features)',
     ],
   },
 };
