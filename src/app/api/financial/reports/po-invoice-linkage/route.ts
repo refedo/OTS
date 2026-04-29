@@ -32,6 +32,7 @@ export async function GET(req: Request) {
         si.ref_supplier,
         si.socid,
         si.fk_projet,
+        si.linked_po_dolibarr_id,
         si.total_ht,
         si.total_tva,
         si.total_ttc,
@@ -81,7 +82,7 @@ export async function GET(req: Request) {
         ref: o.ref,
         refSupplier: o.ref_supplier ?? null,
         socid: Number(o.socid),
-        projectId: o.fk_projet ? Number(o.fk_projet) : null,
+        projectId: (o.fk_projet || o.fk_project) ? Number(o.fk_projet || o.fk_project) : null,
         status: String(o.statut ?? o.status ?? '0'),
         totalHT: Number(o.total_ht ?? 0),
         totalTTC: Number(o.total_ttc ?? 0),
@@ -97,6 +98,10 @@ export async function GET(req: Request) {
     } catch {
       // Dolibarr unavailable — continue with invoices only
     }
+
+    // ── Build PO lookup for direct invoice→PO resolution ─────────────────
+    const poRefMap = new Map<number, string>();
+    for (const po of allPOs) poRefMap.set(po.id, po.ref);
 
     // ── Group by supplier + project ────────────────────────────────────────
     type GroupKey = string;
@@ -137,6 +142,7 @@ export async function GET(req: Request) {
       }
       const g = groups.get(key)!;
       const paid = paidMap.get(Number(inv.dolibarr_id)) ?? 0;
+      const linkedPoId = inv.linked_po_dolibarr_id ? Number(inv.linked_po_dolibarr_id) : null;
       g.invoices.push({
         id: Number(inv.dolibarr_id),
         ref: inv.ref,
@@ -148,6 +154,8 @@ export async function GET(req: Request) {
         isPaid: inv.is_paid === 1,
         totalPaid: paid,
         balance: Number(inv.total_ttc) - paid,
+        linkedPoId,
+        linkedPoRef: linkedPoId ? (poRefMap.get(linkedPoId) ?? null) : null,
       });
       g.invTotalHT += Number(inv.total_ht);
       g.totalPaid += paid;
