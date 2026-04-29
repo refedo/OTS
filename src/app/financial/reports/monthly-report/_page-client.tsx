@@ -114,6 +114,7 @@ interface ReportData {
     totalSupplier: number;
     totalSalaries: number;
     totalExpenses: number;
+    grossProfit: number;
     netProfit: number;
     netMarginPct: number;
   };
@@ -287,6 +288,8 @@ export default function MonthlyFinancialReportPage() {
   const [drillDown,     setDrillDown]     = useState<DrillState | null>(null);
   const [drillData,     setDrillData]     = useState<DrillInvoice[] | null>(null);
   const [drillLoading,  setDrillLoading]  = useState(false);
+  const [incomeOpen,    setIncomeOpen]    = useState(true);
+  const [expenseOpen,   setExpenseOpen]   = useState(true);
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => now.getFullYear() - i);
 
@@ -441,7 +444,7 @@ export default function MonthlyFinancialReportPage() {
         ) : (
           <>
             {/* ── KPI Tiles ───────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <KpiTile
                 label="Total Income"
                 value={formatCompact(t?.totalIncome || 0)}
@@ -451,12 +454,27 @@ export default function MonthlyFinancialReportPage() {
                 trend="up"
               />
               <KpiTile
-                label="Total Expenses"
-                value={formatCompact(t?.totalExpenses || 0)}
-                sub={`Suppliers + Salaries`}
-                icon={TrendingDown}
+                label="Supplier Payments"
+                value={formatCompact(t?.totalSupplier || 0)}
+                sub={formatSAR(t?.totalSupplier || 0)}
+                icon={Truck}
                 color="red"
                 trend="down"
+              />
+              <KpiTile
+                label="Gross Profit"
+                value={formatCompact(t?.grossProfit || 0)}
+                sub={`Income − Suppliers`}
+                icon={BarChart3}
+                color={(t?.grossProfit || 0) >= 0 ? 'blue' : 'red'}
+                trend={(t?.grossProfit || 0) >= 0 ? 'up' : 'down'}
+              />
+              <KpiTile
+                label="Salaries & Wages"
+                value={formatCompact(t?.totalSalaries || 0)}
+                sub={`${data?.salaries?.length || 0} records`}
+                icon={Users}
+                color="amber"
               />
               <KpiTile
                 label="Net Profit"
@@ -465,13 +483,6 @@ export default function MonthlyFinancialReportPage() {
                 icon={DollarSign}
                 color={(t?.netProfit || 0) >= 0 ? 'blue' : 'red'}
                 trend={(t?.netProfit || 0) >= 0 ? 'up' : 'down'}
-              />
-              <KpiTile
-                label="Salaries & Wages"
-                value={formatCompact(t?.totalSalaries || 0)}
-                sub={`${data?.salaries?.length || 0} records`}
-                icon={Users}
-                color="amber"
               />
             </div>
 
@@ -489,22 +500,29 @@ export default function MonthlyFinancialReportPage() {
                       </div>
                       Income — Clients
                     </CardTitle>
-                    <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 border-0">
-                      {formatCompact(t?.totalIncome || 0)}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 border-0">
+                        {formatCompact(t?.totalIncome || 0)}
+                      </Badge>
+                      <button onClick={() => setIncomeOpen(o => !o)} className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors">
+                        {incomeOpen ? <ChevronUp className="h-4 w-4 text-green-600 dark:text-green-400" /> : <ChevronDown className="h-4 w-4 text-green-600 dark:text-green-400" />}
+                      </button>
+                    </div>
                   </div>
-                  <div className="relative mt-2">
-                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      placeholder="Search clients…"
-                      value={incomeSearch}
-                      onChange={e => setIncomeSearch(e.target.value)}
-                      className="pl-8 h-8 text-sm bg-white/80 dark:bg-background/50 border-green-200 dark:border-green-900/50 focus-visible:ring-green-400"
-                    />
-                  </div>
+                  {incomeOpen && (
+                    <div className="relative mt-2">
+                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Search clients…"
+                        value={incomeSearch}
+                        onChange={e => setIncomeSearch(e.target.value)}
+                        className="pl-8 h-8 text-sm bg-white/80 dark:bg-background/50 border-green-200 dark:border-green-900/50 focus-visible:ring-green-400"
+                      />
+                    </div>
+                  )}
                 </CardHeader>
 
-                <CardContent className="flex-1 p-0">
+                {incomeOpen && <CardContent className="flex-1 p-0">
                   {filteredIncome.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                       <TrendingUp className="h-10 w-10 mb-3 opacity-20" />
@@ -569,7 +587,7 @@ export default function MonthlyFinancialReportPage() {
                       </span>
                     </div>
                   )}
-                </CardContent>
+                </CardContent>}
               </Card>
 
               {/* ── Expenses Column ──────────────────────────────────────── */}
@@ -585,22 +603,29 @@ export default function MonthlyFinancialReportPage() {
                         </div>
                         Supplier Payments
                       </CardTitle>
-                      <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border-0">
-                        {formatCompact(t?.totalSupplier || 0)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border-0">
+                          {formatCompact(t?.totalSupplier || 0)}
+                        </Badge>
+                        <button onClick={() => setExpenseOpen(o => !o)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
+                          {expenseOpen ? <ChevronUp className="h-4 w-4 text-red-600 dark:text-red-400" /> : <ChevronDown className="h-4 w-4 text-red-600 dark:text-red-400" />}
+                        </button>
+                      </div>
                     </div>
-                    <div className="relative mt-2">
-                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                      <Input
-                        placeholder="Search suppliers…"
-                        value={expenseSearch}
-                        onChange={e => setExpenseSearch(e.target.value)}
-                        className="pl-8 h-8 text-sm bg-white/80 dark:bg-background/50 border-red-200 dark:border-red-900/50 focus-visible:ring-red-400"
-                      />
-                    </div>
+                    {expenseOpen && (
+                      <div className="relative mt-2">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          placeholder="Search suppliers…"
+                          value={expenseSearch}
+                          onChange={e => setExpenseSearch(e.target.value)}
+                          className="pl-8 h-8 text-sm bg-white/80 dark:bg-background/50 border-red-200 dark:border-red-900/50 focus-visible:ring-red-400"
+                        />
+                      </div>
+                    )}
                   </CardHeader>
 
-                  <CardContent className="flex-1 p-0">
+                  {expenseOpen && <CardContent className="flex-1 p-0">
                     {filteredExpenses.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                         <Truck className="h-10 w-10 mb-3 opacity-20" />
@@ -663,7 +688,7 @@ export default function MonthlyFinancialReportPage() {
                         </span>
                       </div>
                     )}
-                  </CardContent>
+                  </CardContent>}
                 </Card>
 
                 {/* Salaries */}

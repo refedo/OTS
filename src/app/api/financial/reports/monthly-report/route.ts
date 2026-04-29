@@ -100,6 +100,7 @@ export async function GET(req: Request) {
     const totalSupplier = expenses.reduce((s, r) => s + r.totalAmount, 0);
     const totalSalaries = salaries.reduce((s, r) => s + r.amount, 0);
     const totalExpenses = totalSupplier + totalSalaries;
+    const grossProfit   = totalIncome - totalSupplier;
     const netProfit     = totalIncome - totalExpenses;
 
     return NextResponse.json({
@@ -116,6 +117,7 @@ export async function GET(req: Request) {
         totalSupplier,
         totalSalaries,
         totalExpenses,
+        grossProfit,
         netProfit,
         netMarginPct: totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0,
       },
