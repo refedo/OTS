@@ -153,45 +153,57 @@ export async function GET(req: Request) {
       g.totalPaid += paid;
     }
 
-    // Add PO groups
+    // Build a lookup of supplierId → all group keys that have invoices for that supplier
+    const supplierGroupKeys = new Map<number, string[]>();
+    for (const key of groups.keys()) {
+      const sid = Number(key.split('__')[0]);
+      if (!supplierGroupKeys.has(sid)) supplierGroupKeys.set(sid, []);
+      supplierGroupKeys.get(sid)!.push(key);
+    }
+
+    // Add POs to groups — exact supplier+project match first, then supplier-only fallback
     for (const po of allPOs) {
       const sid = po.socid;
-      const pid = po.projectId ?? 0;
-      const key = `${sid}__${pid}`;
-      if (!groups.has(key)) {
-        // Only add PO-only groups if they match filter
+      const exactKey = `${sid}__${po.projectId ?? 0}`;
+
+      if (groups.has(exactKey)) {
+        // Exact match: PO project aligns with an invoice group
+        const g = groups.get(exactKey)!;
+        if (!g.purchaseOrders.find((p: any) => p.id === po.id)) {
+          g.purchaseOrders.push(po);
+          g.poTotalHT += po.totalHT;
+        }
+        continue;
+      }
+
+      // No exact match — add PO to all invoice groups for this supplier so the
+      // link is visible even when the PO has no project or a different project
+      const invoiceKeys = supplierGroupKeys.get(sid);
+      if (invoiceKeys && invoiceKeys.length > 0) {
+        for (const key of invoiceKeys) {
+          const g = groups.get(key)!;
+          if (!g.purchaseOrders.find((p: any) => p.id === po.id)) {
+            g.purchaseOrders.push(po);
+            g.poTotalHT += po.totalHT;
+          }
+        }
+      } else {
+        // No invoice groups for this supplier — create a standalone PO-only group
         if (supplierIdParam && sid !== parseInt(supplierIdParam, 10)) continue;
         if (projectIdParam && (po.projectId ?? 0) !== parseInt(projectIdParam, 10)) continue;
-        groups.set(key, {
+        groups.set(exactKey, {
           supplierName: po.supplierName ?? `Supplier #${sid}`,
           supplierId: sid,
           projectRef: po.projectRef ?? '—',
           projectTitle: po.projectTitle ?? '',
           projectId: po.projectId,
-          purchaseOrders: [],
+          purchaseOrders: [po],
           invoices: [],
-          poTotalHT: 0,
+          poTotalHT: po.totalHT,
           invTotalHT: 0,
           totalPaid: 0,
           variance: 0,
         });
-      }
-      const g = groups.get(key)!;
-      if (!g.purchaseOrders.find((p: any) => p.id === po.id)) {
-        g.purchaseOrders.push(po);
-        g.poTotalHT += po.totalHT;
-      }
-    }
-
-    // Match POs to their groups (already grouped by supplier+project)
-    for (const po of allPOs) {
-      const sid = po.socid;
-      const pid = po.projectId ?? 0;
-      const key = `${sid}__${pid}`;
-      const g = groups.get(key);
-      if (g && !g.purchaseOrders.find((p: any) => p.id === po.id)) {
-        g.purchaseOrders.push(po);
-        g.poTotalHT += po.totalHT;
       }
     }
 
