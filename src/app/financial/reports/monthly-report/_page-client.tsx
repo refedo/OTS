@@ -38,35 +38,6 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-// ─── Sidebar nav data ──────────────────────────────────────────────────────────
-
-const REPORT_LINKS = [
-  { href: '/financial',                                      icon: BarChart3,      label: 'Financial Dashboard' },
-  { href: '/financial/reports/monthly-report',               icon: CalendarClock,  label: 'Monthly Report',      active: true },
-  { href: '/financial/reports/income-statement',             icon: TrendingUp,     label: 'Income Statement' },
-  { href: '/financial/reports/cash-flow',                    icon: ArrowUpDown,    label: 'Cash In / Out' },
-  { href: '/financial/reports/expenses-analysis',            icon: TrendingDown,   label: 'Expenses Analysis' },
-  { href: '/financial/reports/expenses-by-account',          icon: FileSpreadsheet,label: 'Expenses by Account' },
-  { href: '/financial/reports/salaries',                     icon: Users,          label: 'Salaries & Wages' },
-  { href: '/financial/reports/trial-balance',                icon: FileSpreadsheet,label: 'Trial Balance' },
-  { href: '/financial/reports/balance-sheet',                icon: Building2,      label: 'Balance Sheet' },
-  { href: '/financial/reports/vat',                          icon: Receipt,        label: 'VAT Report' },
-  { href: '/financial/reports/aging',                        icon: Clock,          label: 'Aging Report' },
-  { href: '/financial/reports/soa',                          icon: FileText,       label: 'Statement of Account' },
-  { href: '/financial/reports/cash-flow-forecast',           icon: TrendingUp,     label: 'Cash Flow Forecast' },
-  { href: '/financial/reports/payment-schedule',             icon: CalendarClock,  label: 'Payment Schedule' },
-  { href: '/financial/reports/project-analysis',             icon: FolderOpen,     label: 'Project Analysis' },
-  { href: '/financial/reports/wip',                          icon: Wallet,         label: 'WIP Report' },
-  { href: '/financial/reports/projects-dashboard',           icon: Banknote,       label: 'Projects Financial' },
-  { href: '/financial/reports/project-cost-structure',       icon: Package,        label: 'Cost Structure' },
-  { href: '/financial/reports/cogs-supplier-map',            icon: Layers,         label: 'COGS Supplier Map' },
-  { href: '/financial/reports/ots-journal-entries',          icon: BookOpen,       label: 'OTS Journal Entries' },
-  { href: '/financial/journal-entries',                      icon: List,           label: 'Journal Entries' },
-  { href: '/financial/chart-of-accounts',                    icon: FileText,       label: 'Chart of Accounts' },
-  { href: '/financial/product-coa-mapping',                  icon: Layers,         label: 'Cost Classification' },
-  { href: '/financial/settings',                             icon: Settings,       label: 'Settings' },
-];
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EntityRow {
@@ -384,36 +355,9 @@ export default function MonthlyFinancialReportPage() {
   const maxSalary  = Math.max(...(data?.salaries?.map(r => r.amount)      || [1]), 1);
 
   return (
-    <div className="flex gap-0 min-h-screen">
-      {/* ── Left Sidebar ───────────────────────────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r bg-muted/30 dark:bg-muted/10 sticky top-0 h-screen overflow-y-auto">
-        <div className="px-4 py-5 border-b">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Financial Reports</p>
-        </div>
-        <nav className="flex-1 py-2 px-2 space-y-0.5">
-          {REPORT_LINKS.map(link => {
-            const Icon = link.icon;
-            const isActive = (link as { active?: boolean }).active;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground font-medium shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{link.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-
+    <div className="min-h-screen">
       {/* ── Main Content ───────────────────────────────────────────────────── */}
-      <div className="flex-1 min-w-0 p-6 space-y-6">
+      <div className="p-6 space-y-6">
 
         {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-4">

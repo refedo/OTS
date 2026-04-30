@@ -29,37 +29,6 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString('en-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-
-const REPORT_LINKS = [
-  { href: '/financial',                                        icon: BarChart3,       label: 'Financial Dashboard' },
-  { href: '/financial/reports/monthly-report',                 icon: CalendarClock,   label: 'Monthly Report' },
-  { href: '/financial/reports/income-statement',               icon: TrendingUp,      label: 'Income Statement' },
-  { href: '/financial/reports/cash-flow',                      icon: ArrowUpDown,     label: 'Cash In / Out' },
-  { href: '/financial/reports/expenses-analysis',              icon: TrendingDown,    label: 'Expenses Analysis' },
-  { href: '/financial/reports/expenses-by-account',            icon: FileSpreadsheet, label: 'Expenses by Account' },
-  { href: '/financial/reports/salaries',                       icon: Users,           label: 'Salaries & Wages' },
-  { href: '/financial/reports/trial-balance',                  icon: FileSpreadsheet, label: 'Trial Balance' },
-  { href: '/financial/reports/balance-sheet',                  icon: Building2,       label: 'Balance Sheet' },
-  { href: '/financial/reports/vat',                            icon: Receipt,         label: 'VAT Report' },
-  { href: '/financial/reports/aging',                          icon: Clock,           label: 'Aging Report' },
-  { href: '/financial/reports/soa',                            icon: FileText,        label: 'Statement of Account' },
-  { href: '/financial/reports/cash-flow-forecast',             icon: TrendingUp,      label: 'Cash Flow Forecast' },
-  { href: '/financial/reports/payment-schedule',               icon: CalendarClock,   label: 'Payment Schedule' },
-  { href: '/financial/reports/project-analysis',               icon: FolderOpen,      label: 'Project Analysis' },
-  { href: '/financial/reports/wip',                            icon: Wallet,          label: 'WIP Report' },
-  { href: '/financial/reports/projects-dashboard',             icon: Banknote,        label: 'Projects Financial' },
-  { href: '/financial/reports/project-cost-structure',         icon: Package,         label: 'Cost Structure' },
-  { href: '/financial/reports/supplier-invoice-report',        icon: Truck,           label: 'Supplier Invoice Report', active: true },
-  { href: '/financial/reports/account-invoice-report',         icon: Receipt,         label: 'Account Invoice Report' },
-  { href: '/financial/reports/cogs-supplier-map',              icon: Layers,          label: 'COGS Supplier Map' },
-  { href: '/financial/reports/ots-journal-entries',            icon: BookOpen,        label: 'OTS Journal Entries' },
-  { href: '/financial/journal-entries',                        icon: List,            label: 'Journal Entries' },
-  { href: '/financial/chart-of-accounts',                      icon: FileText,        label: 'Chart of Accounts' },
-  { href: '/financial/product-coa-mapping',                    icon: Layers,          label: 'Cost Classification' },
-  { href: '/financial/settings',                               icon: Settings,        label: 'Settings' },
-];
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Payment {
@@ -224,35 +193,8 @@ export default function SupplierInvoiceReportPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* ── Sidebar ── */}
-      <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r bg-white p-3 gap-0.5 overflow-y-auto">
-        <div className="mb-3 px-2">
-          <Link href="/financial" className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Financial
-          </Link>
-        </div>
-        {REPORT_LINKS.map((l) => {
-          const Icon = l.icon;
-          return (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
-                l.active
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{l.label}</span>
-            </Link>
-          );
-        })}
-      </aside>
-
-      {/* ── Main content ── */}
-      <div className="flex-1 min-w-0">
+    <div className="min-h-screen bg-slate-50">
+      <div className="min-w-0">
         {/* Hero */}
         <div className="rounded-2xl border bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 p-6 m-4 text-white shadow-lg">
           <div className="flex items-center gap-3">
