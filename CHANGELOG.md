@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.6.1] - 2026-04-30
+
+### PO–Invoice Linkage — Complete Redesign
+
+#### Fixed
+- **SQL error** — `Unknown column 'si.linked_po_dolibarr_id'` crash resolved by registering `add_linked_po_to_supplier_invoices.sql` in the startup migration list so the column is created on server start
+- **Duplicate sidebar** — removed the page-local `<aside>` navigation that was duplicating the main app sidebar
+
+#### Changed
+- **PO-centric report** — the report now starts from all Purchase Orders (instead of invoices) and matches invoices to them; every PO is visible regardless of whether it has an invoice
+- **Invoice status per PO** — each PO row carries a clear badge: `No Invoice`, `Partial`, `Fully Invoiced`, or `Over-invoiced`
+- **Received — No Invoice highlight** — POs with status "Received" or "Partially Received" that have no invoice are flagged with a red row tint and a "Received — No Invoice" badge — the most actionable view for chasing supplier invoices
+- **PO date filter** — date range now filters by PO order date (not invoice date)
+- **Show dropdown** — new client-side filter: All POs / Missing Invoice / Received — No Invoice
+- **KPI strip** — four counters: Total POs, Invoiced, No Invoice, Received without Invoice
+- **Auto-expand** — supplier groups with urgent (received, no invoice) POs auto-expand on report load
+- **Expandable invoice detail** — clicking a PO row expands its linked invoices inline
+- Version bumped to **22.6.1**
+
+---
+
 ## [22.6.0] - 2026-04-30
 
 ### HR Letters — CEO Edit & Cancel, Purpose Bug Fix

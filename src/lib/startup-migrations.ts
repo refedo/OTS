@@ -112,6 +112,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── IMS seed: categories, ISO clauses, workflow definitions (22.0.0) ─────
   'seed_ims_data.sql',
+
+  // ── PO–Invoice linkage column on fin_supplier_invoices (22.5.x) ──────────
+  'add_linked_po_to_supplier_invoices.sql',
 ];
 
 /**
