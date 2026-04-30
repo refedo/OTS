@@ -1,9 +1,9 @@
 /**
  * GET    /api/hr/letters/[id]
- * PUT    /api/hr/letters/[id]  — only editable while PENDING_CEO or REJECTED
+ * PUT    /api/hr/letters/[id]  — editable while PENDING_CEO or REJECTED; CEO can also edit APPROVED
  * DELETE /api/hr/letters/[id]  — soft delete
  *
- * 19.1.0
+ * 22.6.0
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,6 +17,7 @@ const updateSchema = z.object({
   subject: z.string().min(1).max(500).optional(),
   content: z.string().max(50000).nullable().optional(),
   contentEn: z.string().max(50000).nullable().optional(),
+  purpose: z.string().max(500).nullable().optional(),
   attachmentUrl: z.string().max(1000).nullable().optional(),
   issuedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   notes: z.string().max(500).nullable().optional(),
@@ -55,7 +56,11 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx: RoutePa
   if (!letter) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   if (letter.status === 'APPROVED') {
-    return NextResponse.json({ error: 'Approved letters cannot be edited' }, { status: 422 });
+    const perms = await resolveUserPermissions(session!.userId);
+    const isCeo = perms.includes('hr.letters.approveCeo') || perms.includes('ALL');
+    if (!isCeo) {
+      return NextResponse.json({ error: 'Approved letters cannot be edited' }, { status: 422 });
+    }
   }
 
   const body: unknown = await req.json();
@@ -72,6 +77,7 @@ export const PUT = withApiContext(async (req: NextRequest, session, ctx: RoutePa
         ...(d.subject !== undefined ? { subject: d.subject } : {}),
         ...(d.content !== undefined ? { content: d.content } : {}),
         ...(d.contentEn !== undefined ? { contentEn: d.contentEn } : {}),
+        ...(d.purpose !== undefined ? { purpose: d.purpose } : {}),
         ...(d.attachmentUrl !== undefined ? { attachmentUrl: d.attachmentUrl } : {}),
         ...(d.issuedAt !== undefined ? { issuedAt: new Date(d.issuedAt) } : {}),
         ...(d.notes !== undefined ? { notes: d.notes } : {}),
