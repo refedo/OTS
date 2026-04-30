@@ -65,6 +65,18 @@ function pf(val: string | number | null | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
+interface InvoiceDbRow {
+  dolibarr_id: number;
+  ref: string;
+  ref_supplier: string | null;
+  total_ht: number;
+  total_ttc: number;
+  date_invoice: string | null;
+  date_due: string | null;
+  is_paid: number;
+  origin_po_id: number | null;
+}
+
 export async function GET(req: Request) {
   const auth = await requireFinancialPermission('financial.view');
   if ('error' in auth) return auth.error;
@@ -76,27 +88,19 @@ export async function GET(req: Request) {
   try {
     const client = createDolibarrClient();
 
-    // ── Fetch POs and Invoices from Dolibarr concurrently ─────────────────
+    // ── Fetch POs from Dolibarr ───────────────────────────────────────────
     const sqlFilterParts: string[] = [];
     if (from) sqlFilterParts.push(`(t.date_commande:>=:${Math.floor(new Date(from).getTime() / 1000)})`);
     if (to) sqlFilterParts.push(`(t.date_commande:<=:${Math.floor(new Date(to + 'T23:59:59').getTime() / 1000)})`);
 
     let rawOrders: Awaited<ReturnType<typeof client.getPurchaseOrders>>;
-    let rawInvoices: Awaited<ReturnType<typeof client.getSupplierInvoices>>;
     try {
-      [rawOrders, rawInvoices] = await Promise.all([
-        client.getPurchaseOrders({
-          sortfield: 't.date_commande',
-          sortorder: 'DESC',
-          limit: 500,
-          sqlfilters: sqlFilterParts.length > 0 ? sqlFilterParts.join(' AND ') : undefined,
-        }),
-        // Fetch all supplier invoices — used to resolve PO↔Invoice linkage
-        // using both origin_id (created-from-PO) and linked_objects.order_supplier
-        // (manually linked). Limit 1000 covers most deployments; extend with
-        // getAllSupplierInvoices if volumes grow.
-        client.getSupplierInvoices({ limit: 1000, sortfield: 't.rowid', sortorder: 'DESC' }),
-      ]);
+      rawOrders = await client.getPurchaseOrders({
+        sortfield: 't.date_commande',
+        sortorder: 'DESC',
+        limit: 500,
+        sqlfilters: sqlFilterParts.length > 0 ? sqlFilterParts.join(' AND ') : undefined,
+      });
     } catch {
       return NextResponse.json({ error: 'Unable to reach Dolibarr — check connection' }, { status: 503 });
     }
@@ -132,92 +136,153 @@ export async function GET(req: Request) {
         : Promise.resolve([]),
     ]);
 
-    const supplierNameMap = new Map<number, string>((supplierRows as Array<{ dolibarr_id: number; name: string }>).map(s => [pi(s.dolibarr_id), s.name]));
+    const supplierNameMap = new Map<number, string>(
+      (supplierRows as Array<{ dolibarr_id: number; name: string }>).map(s => [pi(s.dolibarr_id), s.name]),
+    );
     const projectMap = new Map<number, { ref: string; title: string }>();
     for (const p of (projectRows as Array<{ dolibarr_id: number; ref: string; title: string }>)) {
       projectMap.set(pi(p.dolibarr_id), { ref: p.ref, title: p.title });
     }
 
-    // ── Build PO-ID → invoices map using Dolibarr linkage data ───────────
-    // Two linkage strategies (mirrors the sync service logic):
-    //   1. origin_type='order_supplier' + origin_id  →  invoice created from PO
-    //   2. linked_objects.order_supplier              →  manually linked via Related Objects
-    const invoicesByPO = new Map<number, { inv: typeof rawInvoices[0]; }[]>();
-    const allDolibarrInvoiceIds: number[] = [];
+    // ── Strategy A: extract linked invoice IDs from PO's linked_objects ──
+    // The Dolibarr /supplierorders list API includes linked_objects with
+    // 'facture_fourn' keys pointing to linked supplier invoice Dolibarr IDs.
+    // This is the primary linkage method for manually-linked invoices.
+    const poToInvoiceIds = new Map<number, Set<number>>();
+    const linkedInvoiceIds = new Set<number>();
+    const allPoDolibarrIds: number[] = rawOrders.map(o => pi(o.id)).filter(Boolean);
 
-    for (const inv of rawInvoices) {
-      const invId = pi(inv.id);
-      if (!invId) continue;
-      allDolibarrInvoiceIds.push(invId);
-
-      let linkedPoId: number | null = null;
-      if (inv.origin_type === 'order_supplier' && pi(inv.origin_id) > 0) {
-        linkedPoId = pi(inv.origin_id);
-      } else if (inv.linked_objects?.order_supplier) {
-        const keys = Object.keys(inv.linked_objects.order_supplier as Record<string, unknown>);
-        if (keys.length > 0) linkedPoId = Number(keys[0]) || null;
-      }
-
-      if (linkedPoId) {
-        if (!invoicesByPO.has(linkedPoId)) invoicesByPO.set(linkedPoId, []);
-        invoicesByPO.get(linkedPoId)!.push({ inv });
+    for (const po of rawOrders) {
+      const poId = pi(po.id);
+      const lo = po.linked_objects as Record<string, Record<string, unknown>> | null | undefined;
+      if (lo && typeof lo === 'object') {
+        // Dolibarr element type for supplier invoices is 'facture_fourn'
+        for (const key of ['facture_fourn', 'supplierinvoice', 'invoice_supplier']) {
+          const section = lo[key];
+          if (section && typeof section === 'object') {
+            for (const idStr of Object.keys(section)) {
+              const invId = Number(idStr);
+              if (invId > 0) {
+                if (!poToInvoiceIds.has(poId)) poToInvoiceIds.set(poId, new Set());
+                poToInvoiceIds.get(poId)!.add(invId);
+                linkedInvoiceIds.add(invId);
+              }
+            }
+          }
+        }
       }
     }
 
-    // ── Payment data from DB ──────────────────────────────────────────────
+    // ── Query DB for invoices — Strategy A + Strategy B ───────────────────
+    // Strategy A: invoices whose dolibarr_id is in linkedInvoiceIds (from linked_objects above)
+    // Strategy B: invoices created directly from a PO (origin_type='order_supplier' in dolibarr_raw)
+    const linkedIdsArr = [...linkedInvoiceIds];
+    const linkedPlaceholders = linkedIdsArr.length > 0
+      ? linkedIdsArr.map(() => '?').join(',')
+      : 'NULL';
+    const poPlaceholders = allPoDolibarrIds.map(() => '?').join(',');
+
+    const invoiceRows = (await prisma.$queryRawUnsafe(
+      `SELECT
+         si.dolibarr_id,
+         si.ref,
+         si.ref_supplier,
+         CAST(si.total_ht AS DOUBLE) AS total_ht,
+         CAST(si.total_ttc AS DOUBLE) AS total_ttc,
+         DATE_FORMAT(si.date_invoice, '%Y-%m-%d') AS date_invoice,
+         DATE_FORMAT(si.date_due, '%Y-%m-%d') AS date_due,
+         si.is_paid,
+         CASE
+           WHEN JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_type')) = 'order_supplier'
+             AND CAST(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_id')), '0') AS UNSIGNED) > 0
+           THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_id')) AS UNSIGNED)
+           ELSE NULL
+         END AS origin_po_id
+       FROM fin_supplier_invoices si
+       WHERE si.is_active = 1
+         AND (
+           si.dolibarr_id IN (${linkedPlaceholders})
+           OR (
+             JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_type')) = 'order_supplier'
+             AND CAST(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_id')), '0') AS UNSIGNED) > 0
+             AND CAST(JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_id')) AS UNSIGNED) IN (${poPlaceholders})
+           )
+         )`,
+      ...linkedIdsArr,
+      ...allPoDolibarrIds,
+    )) as InvoiceDbRow[];
+
+    // ── Merge Strategy B into poToInvoiceIds ─────────────────────────────
+    for (const row of invoiceRows) {
+      if (row.origin_po_id && pi(row.origin_po_id) > 0) {
+        const poId = pi(row.origin_po_id);
+        const invId = pi(row.dolibarr_id);
+        if (!poToInvoiceIds.has(poId)) poToInvoiceIds.set(poId, new Set());
+        poToInvoiceIds.get(poId)!.add(invId);
+      }
+    }
+
+    // ── Invoice + payment lookup maps ─────────────────────────────────────
+    const invoiceMap = new Map<number, InvoiceDbRow>();
+    for (const row of invoiceRows) {
+      invoiceMap.set(pi(row.dolibarr_id), row);
+    }
+
+    const allInvoiceIds = [...invoiceMap.keys()];
     const paidMap = new Map<number, number>();
-    if (allDolibarrInvoiceIds.length > 0) {
+    if (allInvoiceIds.length > 0) {
       const paymentRows = (await prisma.$queryRawUnsafe(
         `SELECT invoice_dolibarr_id, SUM(amount) AS total_paid
          FROM fin_payments
          WHERE payment_type = 'supplier'
-           AND invoice_dolibarr_id IN (${allDolibarrInvoiceIds.map(() => '?').join(',')})
+           AND invoice_dolibarr_id IN (${allInvoiceIds.map(() => '?').join(',')})
          GROUP BY invoice_dolibarr_id`,
-        ...allDolibarrInvoiceIds,
+        ...allInvoiceIds,
       )) as Array<{ invoice_dolibarr_id: number; total_paid: number }>;
       for (const p of paymentRows) paidMap.set(pi(p.invoice_dolibarr_id), pf(p.total_paid));
     }
 
     // ── Build typed PO records ────────────────────────────────────────────
+    const toDateStrUnix = (v: number | string | null | undefined): string | null => {
+      if (!v) return null;
+      const ts = typeof v === 'number' ? v : parseInt(String(v), 10);
+      if (!isNaN(ts) && ts > 0) return new Date(ts * 1000).toISOString().slice(0, 10);
+      return null;
+    };
+
     const poRecords: PORecord[] = rawOrders.map(o => {
+      const poId = pi(o.id);
       const socid = pi(o.socid);
       const projId = (o.fk_projet ?? o.fk_project) ? pi(o.fk_projet ?? o.fk_project) : null;
       const supplierName = supplierNameMap.get(socid) ?? (o.supplier_name as string | null) ?? `Supplier #${socid}`;
       const project = projId ? (projectMap.get(projId) ?? { ref: '—', title: '' }) : { ref: '—', title: '' };
 
-      const linked = invoicesByPO.get(pi(o.id)) ?? [];
-      const invoices: LinkedInvoice[] = linked.map(({ inv }) => {
-        const invId = pi(inv.id);
-        const ttc = pf(inv.total_ttc);
+      const linkedIds = poToInvoiceIds.get(poId) ?? new Set<number>();
+      const invoices: LinkedInvoice[] = [...linkedIds].flatMap(invId => {
+        const row = invoiceMap.get(invId);
+        if (!row) return [];
+        const ttc = pf(row.total_ttc);
         const paid = paidMap.get(invId) ?? 0;
-        // Parse date from unix timestamp or date string
-        const toDateStr = (v: number | string | null | undefined) => {
-          if (!v) return null;
-          const ts = typeof v === 'number' ? v : parseInt(String(v), 10);
-          if (!isNaN(ts) && ts > 0) return new Date(ts * 1000).toISOString().slice(0, 10);
-          const d = new Date(String(v));
-          return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
-        };
-        return {
+        return [{
           id: invId,
-          ref: inv.ref,
-          refSupplier: (inv.ref_supplier as string | null) ?? null,
-          dateInvoice: toDateStr(inv.date_validation ?? inv.date),
-          dateDue: toDateStr(inv.date_echeance),
-          totalHT: pf(inv.total_ht),
+          ref: row.ref,
+          refSupplier: row.ref_supplier,
+          dateInvoice: row.date_invoice ?? null,
+          dateDue: row.date_due ?? null,
+          totalHT: pf(row.total_ht),
           totalTTC: ttc,
-          isPaid: inv.paye === '1' || inv.paid === '1',
+          isPaid: Number(row.is_paid) === 1,
           totalPaid: paid,
           balance: ttc - paid,
-        };
+        }];
       });
 
       const invoiceTotalHT = invoices.reduce((s, i) => s + i.totalHT, 0);
       const invoiceTotalPaid = invoices.reduce((s, i) => s + i.totalPaid, 0);
       const invoiceBalance = invoices.reduce((s, i) => s + i.balance, 0);
 
-      let invoicingStatus: InvoicingStatus;
       const poHT = pf(o.total_ht);
+      let invoicingStatus: InvoicingStatus;
       if (invoices.length === 0) {
         invoicingStatus = 'no_invoice';
       } else if (invoiceTotalHT > poHT + 0.01) {
@@ -228,15 +293,8 @@ export async function GET(req: Request) {
         invoicingStatus = 'partial';
       }
 
-      const toDateStr2 = (v: number | string | null | undefined) => {
-        if (!v) return null;
-        const ts = typeof v === 'number' ? v : parseInt(String(v), 10);
-        if (!isNaN(ts) && ts > 0) return new Date(ts * 1000).toISOString().slice(0, 10);
-        return null;
-      };
-
       return {
-        id: pi(o.id),
+        id: poId,
         ref: o.ref,
         refSupplier: (o.ref_supplier as string | null) ?? null,
         supplierId: socid,
@@ -245,9 +303,9 @@ export async function GET(req: Request) {
         projectRef: project.ref,
         projectTitle: project.title,
         status: String(o.statut ?? o.status ?? '0'),
-        totalHT: pf(o.total_ht),
+        totalHT: poHT,
         totalTTC: pf(o.total_ttc),
-        dateOrder: toDateStr2(o.date_commande),
+        dateOrder: toDateStrUnix(o.date_commande),
         billed: String(o.billed) === '1',
         note: (o.note_public as string | null) ?? null,
         invoices,
@@ -285,7 +343,10 @@ export async function GET(req: Request) {
     }
 
     const groups = [...supplierGroupMap.values()].sort(
-      (a, b) => b.receivedNoInvoiceCount - a.receivedNoInvoiceCount || b.noInvoiceCount - a.noInvoiceCount || b.poTotalHT - a.poTotalHT,
+      (a, b) =>
+        b.receivedNoInvoiceCount - a.receivedNoInvoiceCount ||
+        b.noInvoiceCount - a.noInvoiceCount ||
+        b.poTotalHT - a.poTotalHT,
     );
 
     const stats = {
@@ -298,7 +359,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       groups,
       poCount: rawOrders.length,
-      invoiceCount: rawInvoices.length,
+      invoiceCount: allInvoiceIds.length,
       stats,
     });
   } catch (error: unknown) {

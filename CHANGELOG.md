@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.6.3] - 2026-04-30
+
+### PO–Invoice Linkage — Fix Linkage via PO Side linked_objects
+
+#### Fixed
+- **All POs still showing "No Invoice" despite Dolibarr links existing** — root cause: the Dolibarr `/supplierinvoices` list API does **not** return `linked_objects` data, so reading linkage from the invoice side always yielded null. Fix: read linkage from the **PO side** instead — `po.linked_objects.facture_fourn` (Dolibarr's element type for supplier invoices) is included in the `/supplierorders` list API response. Invoice data is then fetched from the local `fin_supplier_invoices` DB (which is synced) rather than the API.
+- **Two-strategy linkage** now correctly covers both cases:
+  1. **Strategy A** (PO side): `po.linked_objects.facture_fourn` — manually linked invoices via Dolibarr "Related Objects"
+  2. **Strategy B** (DB side): `dolibarr_raw.origin_type = 'order_supplier'` — invoices created directly from a PO
+- Version bumped to **22.6.3**
+
+---
+
 ## [22.6.2] - 2026-04-30
 
 ### PO–Invoice Linkage — Live Dolibarr Linkage + Flat View + Search
