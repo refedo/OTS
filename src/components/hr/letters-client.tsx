@@ -16,6 +16,7 @@ import {
   Mail, Plus, Search, Loader2, FileText, Eye, Pencil, Trash2,
   ExternalLink, User, Calendar, Hash, Upload, X, Building2, Printer,
   CheckCircle, XCircle, Languages, ClipboardList, AlertTriangle, Megaphone,
+  Ban,
 } from 'lucide-react';
 import { CirculationsTab } from './circulations-tab';
 import { AnnouncementsTab } from './announcements-tab';
@@ -25,6 +26,7 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   PENDING_CEO: { label: 'Pending CEO', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
   APPROVED:    { label: 'Approved',    cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   REJECTED:    { label: 'Rejected',    cls: 'bg-rose-100 text-rose-700 border-rose-200' },
+  CANCELLED:   { label: 'Cancelled',   cls: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ type Letter = {
   employeeId: string;
   status: string;
   subject: string;
+  purpose: string | null;
   content: string | null;
   contentEn: string | null;
   attachmentUrl: string | null;
@@ -168,6 +171,9 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
   const [approveLetter, setApproveLetter] = useState<Letter | null>(null);
   const [rejectLetter, setRejectLetter] = useState<Letter | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [cancelLetter, setCancelLetter] = useState<Letter | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -302,14 +308,20 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
       classification: l.classification,
       language: (l.language as 'ARABIC' | 'ENGLISH' | 'BILINGUAL') ?? 'ARABIC',
       subject: l.subject,
+      purpose: l.purpose ?? '',
       contentMode: l.attachmentUrl ? 'attach' : 'write',
       content: l.content ?? '',
       contentEn: l.contentEn ?? '',
       attachmentUrl: l.attachmentUrl ?? '',
       issuedAt: l.issuedAt.slice(0, 10),
       notes: l.notes ?? '',
+      templateId: '',
     });
     setFormError(null);
+    setTypeTemplates([]);
+    setOverdueTasks([]);
+    setSelectedTaskIds(new Set());
+    setTaskInjectOpen(false);
     setDialogOpen(true);
   }
 
@@ -446,6 +458,31 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
       setActionError(e instanceof Error ? e.message : 'Rejection failed');
     } finally {
       setRejecting(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!cancelLetter) return;
+    setCancelling(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/hr/letters/${cancelLetter.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: cancelReason.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? 'Cancel failed');
+      }
+      setCancelLetter(null);
+      setCancelReason('');
+      fetchLetters();
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Cancel failed');
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -685,11 +722,23 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
                               </Button>
                             </>
                           )}
-                          {canManage && (
+                          {canApproveCeo && l.status === 'APPROVED' && (
                             <>
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700" onClick={() => openEdit(l)}>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700" title="Edit approved letter" onClick={() => openEdit(l)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600 hover:bg-slate-50" title="Cancel letter" onClick={() => { setCancelLetter(l); setCancelReason(''); setActionError(null); }}>
+                                <Ban className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                          {canManage && (
+                            <>
+                              {l.status !== 'APPROVED' && (
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700" onClick={() => openEdit(l)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50" onClick={() => setDeleteLetter(l)}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -1190,6 +1239,36 @@ export function LettersClient({ employees, departments, canManage, canApproveCeo
               <Button variant="outline" onClick={() => setRejectLetter(null)}>Cancel</Button>
               <Button variant="destructive" onClick={handleReject} disabled={rejecting || !rejectReason.trim()}>
                 {rejecting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reject Letter
+              </Button>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Cancel letter dialog (CEO only) */}
+      <Dialog open={!!cancelLetter} onOpenChange={() => setCancelLetter(null)}>
+        {cancelLetter && (
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-slate-700 flex items-center gap-2">
+                <Ban className="h-5 w-5" /> Cancel Letter
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600 py-2">
+              Cancel letter <strong>{cancelLetter.letterNumber}</strong> for <strong>{cancelLetter.employee.fullNameEn}</strong>? The letter will be voided and marked as cancelled.
+            </p>
+            <textarea
+              className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-slate-300"
+              rows={3}
+              placeholder="Reason for cancellation (optional)…"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+            {actionError && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded px-3 py-2">{actionError}</p>}
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setCancelLetter(null)}>Back</Button>
+              <Button variant="outline" className="border-slate-400 text-slate-700 hover:bg-slate-100" onClick={handleCancel} disabled={cancelling}>
+                {cancelling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Confirm Cancel
               </Button>
             </div>
           </DialogContent>

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.6.0] - 2026-04-30
+
+### HR Letters — CEO Edit & Cancel, Purpose Bug Fix
+
+#### Added
+- **CEO edit approved letters** — users with `hr.letters.approveCeo` permission can now edit a letter even after it has been approved (all fields including purpose, content, type, language, etc.)
+- **CEO cancel letters** — new cancel action (Ban icon) on approved letters for CEO users; sets status to `CANCELLED` with an optional reason; letter remains visible in history with a grey "Cancelled" badge
+- **Cancel API** (`POST /api/hr/letters/[id]/cancel`) — CEO-only endpoint that sets status to `CANCELLED` and stores the reason in the notes field
+- **CANCELLED status** — new `HrLetterStatus` enum value added to Prisma schema and MySQL (`add_letter_cancelled_status.sql` migration)
+
+#### Fixed
+- **Purpose field crash** — editing an existing letter caused a runtime error (`undefined is not an object (evaluating 'e_.purpose.trim')`) because `purpose` was missing from the `Letter` TypeScript type and was not populated in `openEdit()`; both fixed
+- **Purpose not saved on edit** — `purpose` field was absent from the `updateSchema` Zod schema in the PUT API route, so it was silently dropped on every save; now included and persisted
+
+#### Changed
+- `PUT /api/hr/letters/[id]` — CEO users (`hr.letters.approveCeo`) can now edit `APPROVED` letters; non-CEO users still receive a 422 for approved letters
+- HR manage users no longer see the edit (pencil) button for `APPROVED` letters — only CEO can edit approved letters
+- Version bumped to **22.6.0**
+
+---
+
 ## [22.5.3] - 2026-04-29
 
 ### Stability & Version Alignment

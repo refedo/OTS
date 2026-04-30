@@ -5530,6 +5530,7 @@ enum HrLetterStatus {
   PENDING_CEO
   APPROVED
   REJECTED
+  CANCELLED
 }
 
 enum HrLetterLanguage {
