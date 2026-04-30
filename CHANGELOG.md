@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.6.2] - 2026-04-30
+
+### PO–Invoice Linkage — Live Dolibarr Linkage + Flat View + Search
+
+#### Fixed
+- **POs showing "No Invoice" when invoices exist** — root cause was that the report was reading a DB column (`linked_po_dolibarr_id`) that does not exist yet. The route now fetches supplier invoices **directly from the Dolibarr API** (same source as the sync service) and resolves the PO↔Invoice link using two strategies:
+  1. `origin_type = 'order_supplier'` + `origin_id` — invoices created directly from a PO
+  2. `linked_objects.order_supplier` — invoices manually linked to a PO via Dolibarr "Related Objects"
+- Payments are still read from the OTS DB for speed; linkage is always fresh from Dolibarr
+
+#### Added
+- **"All POs" flat view** — second view toggle ("By Supplier" / "All POs") shows every PO in a single sortable flat table with a Supplier column; useful for scanning all POs across all suppliers at once
+- **Search bar** — real-time filter across PO ref, supplier name, supplier reference, project ref, and linked invoice refs; works in both views
+- Version bumped to **22.6.2**
+
+---
+
 ## [22.6.1] - 2026-04-30
 
 ### PO–Invoice Linkage — Complete Redesign
