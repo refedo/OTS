@@ -140,6 +140,9 @@ export async function GET(req: Request) {
     }
 
     // ── Supplier invoices for these suppliers ─────────────────────────────
+    // linked_po_dolibarr_id may not exist yet (migration pending restart).
+    // Derive it directly from dolibarr_raw JSON as a fallback so the report
+    // works immediately, even before the column is created.
     type InvoiceRow = {
       dolibarr_id: number;
       ref: string;
@@ -153,8 +156,23 @@ export async function GET(req: Request) {
       is_paid: number;
     };
     const invoiceRows = (await prisma.$queryRawUnsafe(
-      `SELECT si.dolibarr_id, si.ref, si.ref_supplier, si.socid, si.linked_po_dolibarr_id,
-              si.total_ht, si.total_ttc, si.date_invoice, si.date_due, si.is_paid
+      `SELECT
+         si.dolibarr_id,
+         si.ref,
+         si.ref_supplier,
+         si.socid,
+         CASE
+           WHEN si.dolibarr_raw IS NOT NULL
+             AND JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_type')) = 'order_supplier'
+             AND CAST(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_id')), '0') AS UNSIGNED) > 0
+           THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(si.dolibarr_raw, '$.origin_id')) AS UNSIGNED)
+           ELSE NULL
+         END AS linked_po_dolibarr_id,
+         si.total_ht,
+         si.total_ttc,
+         si.date_invoice,
+         si.date_due,
+         si.is_paid
        FROM fin_supplier_invoices si
        WHERE si.is_active = 1 AND si.status >= 1
          AND si.socid IN (${supplierIds.map(() => '?').join(',')})`,
