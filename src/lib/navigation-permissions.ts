@@ -250,6 +250,12 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/ims/risks/matrix': ['ims.risks.view'],
   '/ims/risks/treatments': ['ims.risks.treat', 'ims.risks.manage'],
   '/ims/guide': null, // Public — anyone with IMS access
+  // IMS Gap-fill pages (22.2.0)
+  '/ims/legal-register': ['ims.legalRegister.view', 'ims.legalRegister.manage'],
+  '/ims/management-review': ['ims.managementReview.view', 'ims.managementReview.manage'],
+  '/ims/audit-plans': ['ims.audits.view', 'ims.audits.manage'],
+  '/ims/audit-plans/[id]': ['ims.audits.view', 'ims.audits.manage'],
+  '/ims/competence-matrix': ['ims.competence.view', 'ims.competence.manage'],
 };
 
 // Helper function to check if user has permission to access a route

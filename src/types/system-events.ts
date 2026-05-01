@@ -26,7 +26,8 @@ export type EventCategory =
   | 'RISK'
   | 'KNOWLEDGE'
   | 'EXPORT'
-  | 'OPS_AGENT';
+  | 'OPS_AGENT'
+  | 'IMS';
 
 // ============================================================================
 // EVENT TYPES BY CATEGORY
@@ -133,6 +134,8 @@ export type QCEventType =
   | 'QC_NCR_STATUS_CHANGED'
   | 'QC_NCR_CLOSED'
   | 'QC_NCR_ESCALATED'
+  | 'QC_NCR_CA_UPDATED'
+  | 'QC_NCR_CA_WORKFLOW_STARTED'
   | 'QC_MIR_CREATED'
   | 'QC_MIR_UPDATED'
   | 'QC_MIR_COMPLETED'
@@ -336,6 +339,32 @@ export type WorkflowEventType =
   | 'WORKFLOW_RESTARTED'
   | 'WORKFLOW_DECISION_DELEGATED';
 
+// IMS Module Events (22.0.0)
+export type ImsEventType =
+  | 'IMS_RISK_CREATED'
+  | 'IMS_RISK_UPDATED'
+  | 'IMS_RISK_DELETED'
+  | 'IMS_RISK_ASSESSED'
+  | 'IMS_RISK_TREATMENT_CREATED'
+  | 'IMS_RISK_TREATMENT_UPDATED'
+  | 'IMS_RISK_TREATMENT_DELETED'
+  | 'IMS_HAZARD_CREATED'
+  | 'IMS_HAZARD_UPDATED'
+  | 'IMS_HAZARD_DELETED'
+  | 'IMS_LEGAL_REGISTER_CREATED'
+  | 'IMS_LEGAL_REGISTER_UPDATED'
+  | 'IMS_LEGAL_REGISTER_DELETED'
+  | 'IMS_MANAGEMENT_REVIEW_CREATED'
+  | 'IMS_MANAGEMENT_REVIEW_UPDATED'
+  | 'IMS_MANAGEMENT_REVIEW_POPULATED'
+  | 'IMS_AUDIT_PLAN_CREATED'
+  | 'IMS_AUDIT_PLAN_UPDATED'
+  | 'IMS_AUDIT_CREATED'
+  | 'IMS_AUDIT_UPDATED'
+  | 'IMS_AUDIT_FINDING_CREATED'
+  | 'IMS_AUDIT_FINDING_CLOSED'
+  | 'IMS_CALIBRATION_REMINDERS_SENT';
+
 // Combined Event Type
 export type EventType =
   | AuthEventType
@@ -355,7 +384,8 @@ export type EventType =
   | KnowledgeEventType
   | ExportEventType
   | OpsAgentEventType
-  | WorkflowEventType;
+  | WorkflowEventType
+  | ImsEventType;
 
 // ============================================================================
 // SEVERITY LEVELS
@@ -719,6 +749,35 @@ export const EVENT_TYPE_TO_CATEGORY: Record<string, EventCategory> = {
   OPS_AGENT_ACTION_BLOCKED: 'OPS_AGENT',
   OPS_AGENT_TASK_CREATED: 'OPS_AGENT',
   OPS_AGENT_ESCALATION_TRIGGERED: 'OPS_AGENT',
+
+  // IMS events (22.0.0)
+  IMS_RISK_CREATED: 'IMS',
+  IMS_RISK_UPDATED: 'IMS',
+  IMS_RISK_DELETED: 'IMS',
+  IMS_RISK_ASSESSED: 'IMS',
+  IMS_RISK_TREATMENT_CREATED: 'IMS',
+  IMS_RISK_TREATMENT_UPDATED: 'IMS',
+  IMS_RISK_TREATMENT_DELETED: 'IMS',
+  IMS_HAZARD_CREATED: 'IMS',
+  IMS_HAZARD_UPDATED: 'IMS',
+  IMS_HAZARD_DELETED: 'IMS',
+  IMS_LEGAL_REGISTER_CREATED: 'IMS',
+  IMS_LEGAL_REGISTER_UPDATED: 'IMS',
+  IMS_LEGAL_REGISTER_DELETED: 'IMS',
+  IMS_MANAGEMENT_REVIEW_CREATED: 'IMS',
+  IMS_MANAGEMENT_REVIEW_UPDATED: 'IMS',
+  IMS_MANAGEMENT_REVIEW_POPULATED: 'IMS',
+  IMS_AUDIT_PLAN_CREATED: 'IMS',
+  IMS_AUDIT_PLAN_UPDATED: 'IMS',
+  IMS_AUDIT_CREATED: 'IMS',
+  IMS_AUDIT_UPDATED: 'IMS',
+  IMS_AUDIT_FINDING_CREATED: 'IMS',
+  IMS_AUDIT_FINDING_CLOSED: 'IMS',
+  IMS_CALIBRATION_REMINDERS_SENT: 'IMS',
+
+  // QC NCR CA events (22.2.0)
+  QC_NCR_CA_UPDATED: 'QC',
+  QC_NCR_CA_WORKFLOW_STARTED: 'QC',
 };
 
 // ============================================================================
@@ -750,6 +809,7 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
   KNOWLEDGE: 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300',
   EXPORT: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-300',
   OPS_AGENT: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
+  IMS: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
 };
 
 export const EVENT_TYPE_COLORS: Record<string, string> = {
