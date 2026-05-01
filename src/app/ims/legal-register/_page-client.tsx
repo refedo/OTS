@@ -172,6 +172,7 @@ export function LegalRegisterClient() {
           <div>
             <h1 className="text-2xl font-bold">Legal & Regulatory Register</h1>
             <p className="text-slate-300 text-sm">ISO 9001 / 14001 / 45001 §6.1.3 — Compliance obligations register</p>
+            <p className="text-slate-500 text-xs font-mono mt-0.5">Form: HEXA-FRM-027 · Procedure: Hexa-ISP-007</p>
           </div>
         </div>
       </div>

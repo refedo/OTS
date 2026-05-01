@@ -154,6 +154,7 @@ export function ImsRisksClient() {
             <div>
               <h1 className="text-2xl font-bold">Risk & Opportunity Register</h1>
               <p className="text-red-200 text-sm mt-0.5">ISO 9001/14001/45001 — Clause 6.1</p>
+              <p className="text-red-300/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-015, HEXA-FRM-023 · Procedure: Hexa-ISP-005, Hexa-ISP-006</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

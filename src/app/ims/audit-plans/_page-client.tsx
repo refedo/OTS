@@ -88,6 +88,7 @@ export function AuditPlansClient() {
           <div>
             <h1 className="text-2xl font-bold">Internal Audit Tracker</h1>
             <p className="text-indigo-200 text-sm">ISO 9001 / 14001 / 45001 §9.2 — Audit programme management</p>
+            <p className="text-indigo-300/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-006, HEXA-FRM-007, HEXA-FRM-009 · Procedure: Hexa-ISP-002</p>
           </div>
         </div>
       </div>

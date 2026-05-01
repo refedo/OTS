@@ -217,6 +217,7 @@ export default function NCRListPage() {
             <p className="text-muted-foreground mt-1">
               Manage Non-Conformance Reports
             </p>
+            <p className="text-muted-foreground/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-008, HEXA-FRM-010 · Procedure: Hexa-ISP-002 · ISO §8.7, §10.2</p>
           </div>
           <Link href="/qc/ncr/new">
             <Button className="bg-orange-600 hover:bg-orange-700">

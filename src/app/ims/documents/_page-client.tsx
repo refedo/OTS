@@ -326,6 +326,7 @@ export function ImsDocumentsClient() {
                 <p className="text-slate-400 text-sm font-medium">
                   IMS · Controlled Document Register
                 </p>
+                <p className="text-slate-500 text-xs font-mono mt-0.5">Form: HEXA-FRM-002, HEXA-FRM-004 · Procedure: Hexa-ISP-001 · ISO §4.4, §7.5.3</p>
               </div>
             </div>
             <Link href="/ims/documents/new">

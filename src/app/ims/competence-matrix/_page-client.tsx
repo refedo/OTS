@@ -166,6 +166,7 @@ export function CompetenceMatrixClient() {
           <div>
             <h1 className="text-2xl font-bold">Competence Matrix</h1>
             <p className="text-teal-200 text-sm">ISO 9001 §7.2 — Employee competence tracking and gap analysis</p>
+            <p className="text-teal-300/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-014 · Procedure: Hexa-ISP-015</p>
           </div>
         </div>
       </div>

@@ -125,6 +125,7 @@ export default function DimensionalInspectionPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2"><Ruler className="h-8 w-8" />Dimensional QC Inspection</h1>
           <p className="text-muted-foreground mt-1">Dimensional accuracy and tolerance verification</p>
+          <p className="text-muted-foreground/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-021 · Procedure: Hexa-ISP-013 · ISO §8.5.1, §8.6</p>
         </div>
         <Button onClick={() => setShowCreateDialog(true)}><Plus className="mr-2 h-4 w-4" />New Inspection</Button>
       </div>

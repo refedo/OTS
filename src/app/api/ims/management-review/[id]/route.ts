@@ -17,6 +17,12 @@ const UpdateSchema = z.object({
   inputResourceStatus: z.string().optional().nullable(),
   inputCustomerFeedback: z.string().optional().nullable(),
   inputSupplierPerf: z.string().optional().nullable(),
+  inputObjectiveStatus: z.unknown().optional().nullable(),
+  inputContextChanges: z.string().optional().nullable(),
+  inputDesignPerformance: z.string().optional().nullable(),
+  inputEnvironmentalPerf: z.string().optional().nullable(),
+  inputPreviousActions: z.unknown().optional().nullable(),
+  inputOhsPerformance: z.unknown().optional().nullable(),
   outputDecisions: z.array(z.object({
     decision: z.string(),
     responsible: z.string(),

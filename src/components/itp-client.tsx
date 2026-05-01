@@ -135,6 +135,7 @@ export function ITPClient({ initialITPs, userPermissions }: ITPClientProps) {
             <p className="text-muted-foreground mt-1">
               Manage quality control inspection and test plans
             </p>
+            <p className="text-muted-foreground/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-019 · Procedure: Hexa-ISP-013 · ISO §8.5.1</p>
           </div>
           {canCreate && (
             <Button asChild>

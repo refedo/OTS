@@ -416,6 +416,7 @@ export function ImsDcrClient() {
                 <p className="text-slate-400 text-sm font-medium">
                   IMS · Document Change Requests
                 </p>
+                <p className="text-slate-500 text-xs font-mono mt-0.5">Form: HEXA-FRM-001 · Procedure: Hexa-ISP-001 · ISO §7.5</p>
               </div>
             </div>
             <Button
