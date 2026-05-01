@@ -83,6 +83,11 @@ import {
   TrendingDown,
   Brain,
   HeartCrack,
+  Scale,
+  ClipboardList,
+  Gauge,
+  TableProperties,
+  SearchCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -268,6 +273,11 @@ const navigationSections: NavigationSection[] = [
       { name: 'Risk Register', href: '/ims/risks', icon: AlertCircle, newSince: '2026-04-27' },
       { name: 'Risk Matrix', href: '/ims/risks/matrix', icon: TrendingDown, newSince: '2026-04-27' },
       { name: 'Treatments Tracker', href: '/ims/risks/treatments', icon: FileBarChart2, newSince: '2026-04-27' },
+      { name: 'Legal Register', href: '/ims/legal-register', icon: Scale, newSince: '2026-05-01' },
+      { name: 'Management Review', href: '/ims/management-review', icon: ClipboardList, newSince: '2026-05-01' },
+      { name: 'Audit Plans', href: '/ims/audit-plans', icon: SearchCheck, newSince: '2026-05-01' },
+      { name: 'Calibration Register', href: '/hr/assets?tab=calibration', icon: Gauge, newSince: '2026-05-01' },
+      { name: 'Competence Matrix', href: '/ims/competence-matrix', icon: TableProperties, newSince: '2026-05-01' },
       { name: 'Quick Guide', href: '/ims/guide', icon: BookOpen, newSince: '2026-04-28' },
     ],
   },

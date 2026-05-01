@@ -115,6 +115,14 @@ const STARTUP_MIGRATIONS = [
 
   // ── PO–Invoice linkage column on fin_supplier_invoices (22.5.x) ──────────
   'add_linked_po_to_supplier_invoices.sql',
+
+  // ── IMS Gap-Fill (22.2.0) — ISO §6.1.3 / §7.1.5 / §7.2 / §9.2 / §9.3 / §10.2 ──
+  'add_ims_ncr_corrective_action.sql',  // Gap 6: CA workflow on NCR
+  'add_ims_legal_register.sql',         // Gap 1: Legal & Regulatory Register
+  'add_ims_management_review.sql',      // Gap 2: Management Review Report
+  'add_ims_audit_tracker.sql',          // Gap 3: Internal Audit Tracker
+  'add_ims_calibration.sql',            // Gap 4: Calibration Register (Asset ext.)
+  'add_ims_competence_matrix.sql',      // Gap 5: Competence Matrix
 ];
 
 /**

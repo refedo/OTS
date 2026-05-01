@@ -5,7 +5,8 @@ export type CronJobId =
   | 'deadline-reminders'
   | 'early-warning'
   | 'ops-agent'
-  | 'attendance-sync';
+  | 'attendance-sync'
+  | 'calibration-reminder';
 
 export interface CronJobDef {
   id: CronJobId;
@@ -104,6 +105,18 @@ export const CRON_JOB_REGISTRY: CronJobDef[] = [
     enabledEnvVar: 'ENABLE_ATTENDANCE_SYNC_SCHEDULER',
     intervalEnvVar: null,
     category: 'sync',
+  },
+  {
+    id: 'calibration-reminder',
+    name: 'Calibration Due Reminders',
+    description: 'ISO 9001 §7.1.5 — Daily scan for measuring equipment with calibration due within 30 days. Notifies asset managers to arrange recalibration.',
+    scheduleExpression: '0 8 * * *',
+    scheduleHuman: 'Daily at 08:00 (Asia/Riyadh)',
+    endpoint: '/api/cron/calibration-reminder',
+    authMode: 'bearer',
+    enabledEnvVar: 'ENABLE_CALIBRATION_REMINDER_SCHEDULER',
+    intervalEnvVar: null,
+    category: 'notifications',
   },
 ];
 
