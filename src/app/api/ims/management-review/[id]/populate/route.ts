@@ -20,7 +20,7 @@ export async function POST(_req: Request, { params }: Params) {
     if (review.status === 'LOCKED') return NextResponse.json({ error: 'Review is locked' }, { status: 400 });
 
     // Gather live data from OTS modules in parallel
-    const [ncrGroups, risks, openDCRs, legalIssues, kpiDefs] = await Promise.allSettled([
+    const [ncrGroups, risks, openDCRs, legalIssues, kpiDefs, auditFindings, prevReview, ohsRisks] = await Promise.allSettled([
       // NCR summary by status
       prisma.nCRReport.groupBy({
         by: ['status'],
@@ -39,7 +39,7 @@ export async function POST(_req: Request, { params }: Params) {
         orderBy: { currentRiskLevel: 'desc' },
         take: 20,
       }),
-      // Open change requests (proxy for audit findings)
+      // Open change requests (for DCR count in audit results)
       prisma.imsChangeRequest.count({ where: { deletedAt: null, status: { in: ['OPEN', 'PENDING', 'SUBMITTED'] } } }),
       // Non-compliant legal items
       prisma.imsLegalRegister.findMany({
@@ -52,6 +52,28 @@ export async function POST(_req: Request, { params }: Params) {
         select: { id: true, name: true, frequency: true, target: true, unit: true },
         take: 20,
       }),
+      // Open audit findings (replaces DCR-only proxy)
+      prisma.imsAuditFinding.findMany({
+        where: { status: { not: 'CLOSED' } },
+        select: { findingNumber: true, type: true, clause: true, description: true, status: true, targetDate: true },
+        take: 30,
+      }),
+      // Most recent prior management review (for §9.3.2 item 1 — previous actions)
+      prisma.imsManagementReview.findFirst({
+        where: {
+          deletedAt: null,
+          id: { not: id },
+          reviewDate: { lt: review.reviewDate },
+        },
+        orderBy: { reviewDate: 'desc' },
+        select: { reviewNumber: true, outputDecisions: true, reviewDate: true },
+      }),
+      // All risks by status (used for OH&S performance summary §9.3.2 item 10)
+      prisma.imsRisk.groupBy({
+        by: ['status'],
+        where: { deletedAt: null },
+        _count: { id: true },
+      }),
     ]);
 
     const inputNcrSummary = ncrGroups.status === 'fulfilled'
@@ -62,9 +84,11 @@ export async function POST(_req: Request, { params }: Params) {
       ? { totalHighCritical: risks.value.length, risks: risks.value }
       : { error: 'Risk data unavailable' };
 
-    const inputAuditResults = openDCRs.status === 'fulfilled'
-      ? { openDCRs: openDCRs.value, note: 'Open document change requests pending approval' }
-      : { error: 'DCR data unavailable' };
+    const inputAuditResults = (() => {
+      const findings = auditFindings.status === 'fulfilled' ? auditFindings.value : [];
+      const dcrCount = openDCRs.status === 'fulfilled' ? openDCRs.value : null;
+      return { openFindings: findings, openDCRs: dcrCount, note: 'Open audit findings and document change requests' };
+    })();
 
     const inputLegalChanges = legalIssues.status === 'fulfilled'
       ? legalIssues.value
@@ -74,6 +98,18 @@ export async function POST(_req: Request, { params }: Params) {
       ? { kpis: kpiDefs.value, note: 'KPI current values — refer to Business Planning module for measurements' }
       : { error: 'KPI data unavailable' };
 
+    const inputPreviousActions = prevReview.status === 'fulfilled' && prevReview.value
+      ? {
+          reviewNumber: prevReview.value.reviewNumber,
+          reviewDate: prevReview.value.reviewDate,
+          decisions: prevReview.value.outputDecisions,
+        }
+      : { note: 'No prior management review found' };
+
+    const inputOhsPerformance = ohsRisks.status === 'fulfilled'
+      ? { byStatus: ohsRisks.value.map((g: { status: string; _count: { id: number } }) => ({ status: g.status, count: g._count.id })), note: 'All IMS risks by status — review OH&S-specific items in the Risk Register' }
+      : { error: 'Risk data unavailable' };
+
     const populated = await prisma.imsManagementReview.update({
       where: { id },
       data: {
@@ -82,6 +118,8 @@ export async function POST(_req: Request, { params }: Params) {
         inputAuditResults,
         inputLegalChanges,
         inputKpiStatus,
+        inputPreviousActions,
+        inputOhsPerformance,
       },
     });
 

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.6.4] - 2026-05-01
+
+### IMS Audit Compliance Alignment — HEXA-FRM References & Management Review Expansion
+
+#### Added
+- **HEXA-FRM / Hexa-ISP / ISO clause reference badges** added to the hero section of every IMS and QC module page, enabling auditors to trace each screen directly to its governing form template and procedure:
+  - `ims/change-requests` → HEXA-FRM-001 · Hexa-ISP-001 · ISO §7.5
+  - `ims/documents` → HEXA-FRM-002, 004 · Hexa-ISP-001 · ISO §4.4, §7.5.3
+  - `ims/audit-plans` → HEXA-FRM-006, 007, 009 · Hexa-ISP-002 · ISO §9.2
+  - `ims/management-review` → HEXA-FRM-011, 012 · Hexa-ISP-003 · ISO §9.3
+  - `ims/risks` → HEXA-FRM-015, 023 · Hexa-ISP-005, 006 · ISO §6.1, §6.1.2
+  - `ims/legal-register` → HEXA-FRM-027 · Hexa-ISP-007 · ISO §6.1.3
+  - `ims/competence-matrix` → HEXA-FRM-014 · Hexa-ISP-015 · ISO §7.2
+  - `itp` → HEXA-FRM-019 · Hexa-ISP-013 · ISO §8.5.1
+  - `qc/material` → HEXA-FRM-020 · Hexa-ISP-013 · ISO §8.4
+  - `qc/dimensional` → HEXA-FRM-021 · Hexa-ISP-013 · ISO §8.5.1, §8.6
+  - `qc/ncr` → HEXA-FRM-008, 010 · Hexa-ISP-002 · ISO §8.7, §10.2
+- **HEXA-FRM-011 reference** added to the management review report header (screen and print)
+- **Attendees section** (§9.3.1) added to management review detail view — Name, Role/Title, Present; read-only when APPROVED/LOCKED
+- **§9.3.2 Review Inputs expanded** from 6 to all 12 ISO-required items (auto-populated: 1, 3, 5, 6, 10 — manual: 2, 4, 7, 8, 9, 11)
+- **§9.3.3 Outputs** note added linking item 12 to the decisions section
+- **5 new DB columns** on `ImsManagementReview`: `inputPreviousActions`, `inputContextChanges`, `inputDesignPerformance`, `inputOhsPerformance`, `inputEnvironmentalPerf`
+- **Migration** `ims_management_review_iso_inputs.sql`
+- **Populate route** now fetches: previous review decisions, real audit findings (replacing DCR proxy), risk-by-status grouping
+
+#### Reference: IMS Forms Not Yet in OTS (future sprints)
+HEXA-FRM-002, 003, 004, 005, 013, 016, 017, 018, 022, 024, 025, 026, HEXA-ORG-001, HEXA-ORG-002
+
+---
+
 ## [22.6.3] - 2026-04-30
 
 ### PO–Invoice Linkage — Fix Linkage via PO Side linked_objects

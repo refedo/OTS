@@ -6581,6 +6581,11 @@ model ImsManagementReview {
   inputResourceStatus   Json?
   inputLegalChanges     Json?
   inputCustomerFeedback Json?
+  inputPreviousActions  Json?
+  inputContextChanges   String?   @db.LongText
+  inputDesignPerformance String?  @db.LongText
+  inputOhsPerformance   Json?
+  inputEnvironmentalPerf String?  @db.LongText
   outputDecisions       Json?
   outputObjectives      Json?
   outputResourceNeeds   Json?

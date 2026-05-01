@@ -367,6 +367,7 @@ export default function MaterialInspectionReceiptPage() {
           <p className="text-muted-foreground mt-1">
             Receive and inspect materials from purchase orders
           </p>
+          <p className="text-muted-foreground/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-020 · Procedure: Hexa-ISP-013 · ISO §8.4</p>
         </div>
         <Button onClick={() => setShowPOLookup(true)}>
           <Plus className="mr-2 h-4 w-4" />
