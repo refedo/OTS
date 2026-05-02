@@ -123,6 +123,16 @@ const STARTUP_MIGRATIONS = [
   'add_ims_audit_tracker.sql',          // Gap 3: Internal Audit Tracker
   'add_ims_calibration.sql',            // Gap 4: Calibration Register (Asset ext.)
   'add_ims_competence_matrix.sql',      // Gap 5: Competence Matrix
+
+  // ── Sprint 22.7.0 — New Forms (FRM-002/003/005/016/017/022/024/025/026) ──
+  'add_ims_qms_processes.sql',          // FRM-002/004: QMS Process List
+  'add_sc_approved_suppliers.sql',      // FRM-003: Approved Supplier List
+  'add_hr_training_needs.sql',          // FRM-005: Training Needs Analysis
+  'add_project_kickoff.sql',            // FRM-016: Project Kickoff Checklist
+  'add_qc_welder_qualification.sql',    // FRM-017: Welder Qualification (WQT)
+  'add_qc_coating_inspection.sql',      // FRM-022: Coating Inspection (DFT)
+  'add_ims_safety.sql',                 // FRM-024/025/026: Incidents, Drills, Toolbox Talks
+  'seed_sprint_2270_data.sql',          // Demo seed data for all Sprint 22.7.0 tables
 ];
 
 /**
