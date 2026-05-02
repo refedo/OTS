@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Workflow, Plus, RefreshCw, Pencil, Trash2, CheckCircle2, RotateCcw, Archive } from 'lucide-react';
+import { Workflow, Plus, RefreshCw, Pencil, Trash2, CheckCircle2, RotateCcw, Archive, FileDown, Loader2 } from 'lucide-react';
+import { generateProcessesPDF, type ProcessPDFData } from '@/lib/ims-pdf-generator';
 
 type Process = {
   id: string;
@@ -59,6 +60,7 @@ export function QmsProcessesClient() {
   const [editing, setEditing] = useState<Process | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [filterType, setFilterType] = useState('');
 
@@ -127,22 +129,55 @@ export function QmsProcessesClient() {
 
   const f = (k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v }));
 
+  const downloadPDF = async () => {
+    setDownloading(true);
+    try {
+      const pdfData: ProcessPDFData[] = records.map(r => ({
+        processNumber: r.processNumber,
+        name: r.name,
+        processOwner: r.owner?.name ?? r.processOwner,
+        processType: r.processType,
+        inputs: r.inputs,
+        outputs: r.outputs,
+        kpis: r.kpis,
+        isoClause: r.isoClause,
+        status: r.status,
+      }));
+      await generateProcessesPDF(pdfData);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Hero */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Workflow className="h-6 w-6 text-blue-600" />
-            <h1 className="text-2xl font-bold text-slate-900">QMS Process List</h1>
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-002</span>
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-004</span>
+      <div className="relative overflow-hidden rounded-xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 60%, #2c3e50 100%)' }}>
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
+        <div className="relative flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
+              <Workflow className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h1 className="text-2xl font-bold tracking-tight">QMS Process List</h1>
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">HEXA-FRM-002</span>
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">HEXA-FRM-004</span>
+              </div>
+              <p className="text-slate-300 text-sm">ISO 9001:2015 §4.4 — Quality Management System and its processes</p>
+              <p className="text-slate-400/70 text-xs font-mono mt-1">Process turtle diagrams · SIPOC register · ISO §4.4</p>
+            </div>
           </div>
-          <p className="text-sm text-slate-500">ISO 9001:2015 §4.4 — Quality Management System and its processes</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchRecords}><RefreshCw className="h-4 w-4" /></Button>
-          <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" />Add Process</Button>
+          <Button
+            variant="outline" size="sm"
+            className="border-white/30 text-white hover:bg-white hover:text-[#2c3e50] transition-colors gap-1.5 shrink-0"
+            onClick={downloadPDF}
+            disabled={downloading}
+          >
+            {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+            Download PDF
+          </Button>
         </div>
       </div>
 
@@ -155,29 +190,47 @@ export function QmsProcessesClient() {
       />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total Processes', value: kpi.total, color: 'text-slate-700', icon: <Workflow className="h-4 w-4 text-slate-400" /> },
-          { label: 'Active', value: kpi.active, color: 'text-green-700', icon: <CheckCircle2 className="h-4 w-4 text-green-400" /> },
-          { label: 'Under Review', value: kpi.underReview, color: 'text-amber-700', icon: <RotateCcw className="h-4 w-4 text-amber-400" /> },
-          { label: 'Outsourced', value: kpi.outsourced, color: 'text-orange-700', icon: <Archive className="h-4 w-4 text-orange-400" /> },
+          { label: 'Total Processes', value: kpi.total, color: 'text-[#2c3e50]', bg: 'bg-white border border-slate-200', icon: '⚙️' },
+          { label: 'Active', value: kpi.active, color: 'text-emerald-600', bg: 'bg-emerald-50 border border-emerald-200', icon: '✅' },
+          { label: 'Under Review', value: kpi.underReview, color: 'text-amber-600', bg: 'bg-amber-50 border border-amber-200', icon: '🔄' },
+          { label: 'Outsourced', value: kpi.outsourced, color: 'text-orange-600', bg: 'bg-orange-50 border border-orange-200', icon: '🔗' },
         ].map(k => (
-          <Card key={k.label}>
-            <CardContent className="pt-4 pb-3 px-4">
-              <div className="flex items-center justify-between mb-1">{k.icon}<span className="text-xs text-slate-500">{k.label}</span></div>
-              <p className={`text-2xl font-bold ${k.color}`}>{k.value}</p>
-            </CardContent>
-          </Card>
+          <div key={k.label} className={`rounded-xl border p-4 ${k.bg} hover:shadow-sm transition-shadow`}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-slate-500 font-medium">{k.label}</p>
+              <span className="text-base">{k.icon}</span>
+            </div>
+            <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
+          </div>
         ))}
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-3 flex-wrap">
-        {['', 'CORE', 'SUPPORT', 'OUTSOURCED', 'IN_HOUSE'].map(t => (
-          <Button key={t} variant={filterType === t ? 'default' : 'outline'} size="sm" onClick={() => setFilterType(t)}>
-            {t === '' ? 'All' : t.replace('_', ' ')}
+      {/* Filter + Controls */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          {['', 'CORE', 'SUPPORT', 'OUTSOURCED', 'IN_HOUSE'].map(t => (
+            <Button
+              key={t}
+              variant={filterType === t ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilterType(t)}
+              className={filterType === t ? 'text-white' : ''}
+              style={filterType === t ? { backgroundColor: '#2c3e50' } : {}}
+            >
+              {t === '' ? 'All' : t.replace('_', ' ')}
+            </Button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={fetchRecords} className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
-        ))}
+          <Button size="sm" onClick={openCreate} className="gap-1.5 text-white" style={{ backgroundColor: '#2c3e50' }}>
+            <Plus className="h-4 w-4" /> Add Process
+          </Button>
+        </div>
       </div>
 
       {/* Table */}

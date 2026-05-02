@@ -11,9 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Target, Plus, TrendingUp, Activity, X, Pencil, Trash2 } from 'lucide-react';
+import { Target, Plus, TrendingUp, Activity, X, Pencil, Trash2, FileDown, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { generateObjectivesPDF, type ObjectivePDFData } from '@/lib/ims-pdf-generator';
 
 export default function ObjectivesPage() {
   const { toast } = useToast();
@@ -28,6 +29,7 @@ export default function ObjectivesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [objectiveToDelete, setObjectiveToDelete] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
   
   const [formData, setFormData] = useState({
     year: new Date().getFullYear(),
@@ -211,6 +213,30 @@ export default function ObjectivesPage() {
     }
   };
 
+  const downloadPDF = async () => {
+    setDownloadingPDF(true);
+    try {
+      const pdfData: ObjectivePDFData[] = filteredObjectives.map((o: any) => ({
+        title: o.title,
+        category: o.category,
+        status: o.status,
+        priority: o.priority,
+        progress: o.progress,
+        owner: o.owner?.name,
+        keyResults: (o.keyResults ?? []).map((kr: any) => ({
+          title: kr.title,
+          currentValue: kr.currentValue,
+          targetValue: kr.targetValue,
+          unit: kr.unit,
+          status: kr.status,
+        })),
+      }));
+      await generateObjectivesPDF(pdfData, selectedYear);
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
+
   const handleDialogClose = (open: boolean) => {
     setDialogOpen(open);
     if (!open) {
@@ -278,38 +304,54 @@ export default function ObjectivesPage() {
         ]}
       />
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Target className="h-8 w-8" />
-            Company Objectives (OKRs) <span className="text-sm font-normal text-muted-foreground ml-2">HEXA-FRM-013</span>
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Strategic objectives defining WHAT Hexa Steel must achieve
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Progress is measured by Key Results. Initiatives support objectives but don't directly measure them.
-          </p>
+      <div className="relative overflow-hidden rounded-xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 60%, #2c3e50 100%)' }}>
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
+              <Target className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h1 className="text-2xl font-bold tracking-tight">Company Objectives (OKRs)</h1>
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">HEXA-FRM-013</span>
+              </div>
+              <p className="text-slate-300 text-sm">Strategic objectives defining WHAT Hexa Steel must achieve · ISO §6.2</p>
+              <p className="text-slate-400/70 text-xs font-mono mt-1">Key Results · Quarterly Actions · Balanced Scorecard</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+              <SelectTrigger className="w-28 h-8 text-xs bg-white/10 border-white/30 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline" size="sm"
+              className="border-white/30 text-white hover:bg-white hover:text-[#2c3e50] transition-colors gap-1.5"
+              onClick={downloadPDF}
+              disabled={downloadingPDF}
+            >
+              {downloadingPDF ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+              PDF
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Year Selector */}
-          <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
+      </div>
+
+      {/* Create / Edit section */}
+      <div className="flex items-center justify-between">
+        <div></div>
+        <div className="flex items-center gap-2">
           <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button className="gap-1.5 text-white" style={{ backgroundColor: '#2c3e50' }}>
+                <Plus className="h-4 w-4" />
                 New Objective
               </Button>
             </DialogTrigger>

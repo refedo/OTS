@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.8.0] - 2026-05-02
+
+### IMS PDF Downloads, Seed Data & Global Search Expansion
+
+#### Added
+- **PDF Downloads — Audit Plans (FRM-006/007/009)** (`/ims/audit-plans`): Per-row and detail-page "Download PDF" buttons generate a branded report with company logo, audit plan metadata, schedule table, and NCR/finding summary. Uses `#2c3e50` steel theme via `PDFReportBuilder`.
+- **PDF Downloads — NCR Reports (FRM-008)**: Audit finding detail included automatically in Audit Plan PDF (findings section with type, description, root cause, corrective action, due date, status).
+- **PDF Downloads — Management Review MOM (FRM-011)** (`/ims/management-review`): Generates FRM-011 minutes-of-meeting PDF with attendees, agenda, audit results, NCR summary, customer feedback, resource review, and signed-off decisions.
+- **PDF Downloads — Management Review Report (FRM-012)**: Generates FRM-012 formal report PDF with full input/output fields, improvement actions, continual improvement section, and signature block.
+- **PDF Downloads — QMS Process List (FRM-002/004)** (`/ims/processes`): Landscape PDF with all processes, owner, type, ISO clause, KPIs, and status. "Download PDF" button in hero section.
+- **PDF Downloads — Objectives Register (FRM-013)** (`/business-planning/objectives`): PDF grouped by objective category with key result sub-table (baseline, target, actual, % progress). "Download PDF" button in hero header.
+- **Unified `ims-pdf-generator.ts`** (`src/lib/ims-pdf-generator.ts`): New central PDF generation library for all IMS reports. Loads company logo from `/api/settings` and embeds it in all PDF headers. All reports use `steel` theme (`#2c3e50`) via `PDFReportBuilder`.
+- **`steel` theme in `pdf-builder.ts`**: New theme entry with `primaryColor: '#2c3e50'`, `secondaryColor: '#34495e'`, consistent header/text colors used across all IMS PDFs.
+- **Global Search Expansion** (`/api/search`): Search now covers 7 additional entity types:
+  - IMS Audit Plans (by plan number, title, auditor, standard)
+  - IMS Management Reviews (by review number, period, chairperson)
+  - IMS Audit Findings/NCRs (by finding number, title, description)
+  - QMS Processes (by process number, name, owner, ISO clause)
+  - Approved Suppliers (by supplier number, company, category)
+  - Company Objectives (by title, category, owner)
+  - BD Companies / Accounts (by company name, industry, contact)
+- **UI Beautification — Gradient Heroes**: All updated IMS pages now use `linear-gradient(135deg, #2c3e50 0%, #34495e 60%, #2c3e50 100%)` hero with a subtle texture overlay, white text, and FRM badge chips.
+- **UI Beautification — KPI Strips**: KPI cards on Audit Plans, Processes, Management Review, and Objectives pages redesigned with emoji icons, coloured borders, and hover-shadow.
+- **Seed Data — Sprint 22.8.0** (`prisma/manual_migrations/seed_sprint_2280_data.sql`):
+  - 3 Audit Plans: AP-25-001 (Internal, Completed), AP-25-002 (Surveillance, Completed), AP-26-001 (Internal, In Progress) with associated audit records and findings
+  - NCR Findings: NCR-25-001 through NCR-26-001 (NC type) plus OFI and Observation findings
+  - Management Reviews: MR-25-001 (H1 2025, Approved) and MR-26-001 (H2 2025, Approved) with full JSON fields for attendees, inputs, outputs, and decisions
+  - 5 Company Objectives for 2026 (on-time delivery, NCR rate, ISO compliance, SASO certification, zero LTI) with key results under each
+
+#### Changed
+- Version bumped to **22.8.0**
+- Audit Plans list page hero fully rewritten with gradient, FRM badges, and per-row PDF download actions
+- Management Review page actions bar updated with separate FRM-011 and FRM-012 download buttons
+- Processes page hero updated with inline "Download PDF" button and FRM-002/004 badge chips
+- Objectives page hero updated with year selector and inline "Download PDF" button
+
+---
+
 ## [22.7.1] - 2026-05-02
 
 ### PO–Invoice Linkage — Fix "Related Objects" Links via Individual PO Fetch

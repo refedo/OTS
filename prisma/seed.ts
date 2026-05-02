@@ -1,6 +1,7 @@
 import prisma from '../src/lib/db';
 import { hashPassword } from '../src/lib/password';
 import { seedSprint2270 } from './seeds/sprint-22-7-0-seed';
+import { seedSprint2280 } from './seeds/sprint-22-8-0-seed';
 
 async function main() {
   // Roles - CEO is superadmin, higher than Admin
@@ -203,6 +204,7 @@ async function main() {
   });
 
   await seedSprint2270();
+  await seedSprint2280();
 
   console.log('Seed completed');
 }
