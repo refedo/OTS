@@ -594,14 +594,24 @@ export class FinancialSyncService {
 
           const fkProjet = pi(inv.fk_project || inv.fk_projet);
 
-          // Extract direct PO link: prefer origin_id (invoice created from PO),
-          // fall back to first entry in linked_objects.order_supplier (manually linked)
+          // Extract direct PO link.
+          // The list API (/supplierinvoices) does NOT return linked_objects, so we must
+          // fetch the individual invoice record to get linked_objects.order_supplier
+          // for manually-linked invoices (Dolibarr "Related Objects").
           let linkedPoDolibarrId: number | null = null;
           if (inv.origin_type === 'order_supplier' && pi(inv.origin_id)) {
             linkedPoDolibarrId = pi(inv.origin_id) ?? null;
-          } else if (inv.linked_objects?.order_supplier) {
-            const keys = Object.keys(inv.linked_objects.order_supplier);
-            if (keys.length > 0) linkedPoDolibarrId = Number(keys[0]) || null;
+          }
+          if (!linkedPoDolibarrId) {
+            try {
+              const fullInv = await this.client.getSupplierInvoiceById(dolibarrId);
+              if (fullInv?.linked_objects?.order_supplier) {
+                const keys = Object.keys(fullInv.linked_objects.order_supplier as Record<string, unknown>);
+                if (keys.length > 0) linkedPoDolibarrId = Number(keys[0]) || null;
+              }
+            } catch {
+              // non-fatal — leave linkedPoDolibarrId as null
+            }
           }
 
           const lineProductSig = Array.isArray(inv.lines)

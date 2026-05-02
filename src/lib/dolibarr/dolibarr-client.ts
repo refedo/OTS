@@ -822,6 +822,20 @@ export class DolibarrClient {
   }
 
   /**
+   * Fetch a single supplier invoice by Dolibarr ID — returns full record including linked_objects,
+   * which the list API (/supplierinvoices) does not include.
+   */
+  async getSupplierInvoiceById(invoiceId: number | string): Promise<DolibarrSupplierInvoice | null> {
+    try {
+      const result = await this.request<DolibarrSupplierInvoice>(`supplierinvoices/${invoiceId}`);
+      return result;
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message?.includes('404')) return null;
+      throw error;
+    }
+  }
+
+  /**
    * Fetch payments for a specific supplier invoice
    */
   async getSupplierInvoicePayments(invoiceId: number): Promise<DolibarrPayment[]> {
