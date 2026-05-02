@@ -2,6 +2,10 @@
 -- PEB / Steel fabrication industry sample records
 -- All inserts are idempotent (IF NOT EXISTS guards on unique keys)
 
+-- Force connection collation to match table collation (utf8mb4_unicode_ci)
+-- Avoids "Illegal mix of collations" error when server default is utf8mb4_0900_ai_ci
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci';
+
 -- ──────────────────────────────────────────────────────────────────────────────
 -- 1. QMS Process List (FRM-002 / FRM-004)
 -- ──────────────────────────────────────────────────────────────────────────────
