@@ -197,16 +197,16 @@ BEGIN
       JSON_OBJECT('openFindings',2,'closedFindings',8,'note','Internal audits AUD-25-001 and AUD-25-002 completed. All major NCRs closed within target dates.'),
       JSON_OBJECT('total',4,'open',1,'closed',3,'overdue',0,'note','NCR closure rate 75%.'),
       JSON_OBJECT('onTrack',8,'atRisk',2,'behind',1,'note','Drawing accuracy rate at 96.8% (target >=98%). Corrective action in progress.'),
-      'All Tier-1 suppliers (SUP-001 to SUP-007) maintained A rating. SUP-010 approval expired — renewal in progress.',
-      'Workshop capacity at 85%. Additional CNC operator hired Q2.',
-      'Client satisfaction score: 4.2/5.0 (target >=4.0). Delivery on-time rate: 91% (target >=93%).',
+      JSON_QUOTE('All Tier-1 suppliers (SUP-001 to SUP-007) maintained A rating. SUP-010 approval expired — renewal in progress.'),
+      JSON_QUOTE('Workshop capacity at 85%. Additional CNC operator hired Q2.'),
+      JSON_QUOTE('Client satisfaction score: 4.2/5.0 (target >=4.0). Delivery on-time rate: 91% (target >=93%).'),
       JSON_ARRAY(
         JSON_OBJECT('decision','Increase ITP training for inspectors','responsible','QC Manager','targetDate','2025-09-30','status','IN_PROGRESS'),
         JSON_OBJECT('decision','Complete SUP-010 re-approval or identify alternative abrasive supplier','responsible','Supply Chain Manager','targetDate','2025-08-31','status','CLOSED'),
         JSON_OBJECT('decision','Initiate SASO certification process','responsible','Chief Engineer','targetDate','2025-12-31','status','IN_PROGRESS')
       ),
-      'Maintain ISO certification through H2 2025 surveillance audit. Achieve delivery on-time rate >=93% by Q3 2025.',
-      'Additional QC inspector hire approved for Q3 2025. Coating gauge calibration budget approved (SAR 8,500).',
+      JSON_QUOTE('Maintain ISO certification through H2 2025 surveillance audit. Achieve delivery on-time rate >=93% by Q3 2025.'),
+      JSON_QUOTE('Additional QC inspector hire approved for Q3 2025. Coating gauge calibration budget approved (SAR 8,500).'),
       'Next management review scheduled for January 2026 to cover H2 2025 performance.',
       NOW()
     );
@@ -231,16 +231,16 @@ BEGIN
       JSON_OBJECT('openFindings',4,'closedFindings',12,'note','Surveillance audit by TUV Rheinland completed September 2025. Two NCRs raised and closed within 30 days. Certification maintained.'),
       JSON_OBJECT('total',6,'open',2,'closed',4,'overdue',0,'note','Excellent NCR closure performance in H2. Average closure time: 18 days.'),
       JSON_OBJECT('onTrack',9,'atRisk',1,'behind',0,'note','All KPIs within target except delivery on-time rate (92% vs 93% target).'),
-      'All Tier-1 suppliers maintaining A rating. SUP-010 re-approved November 2025. SUP-008 upgraded to full Approved status.',
-      'Workshop capacity stable at 87%. New QC inspector onboarded September 2025.',
-      'Client satisfaction improved to 4.4/5.0. Zero formal complaints in H2 2025.',
+      JSON_QUOTE('All Tier-1 suppliers maintaining A rating. SUP-010 re-approved November 2025. SUP-008 upgraded to full Approved status.'),
+      JSON_QUOTE('Workshop capacity stable at 87%. New QC inspector onboarded September 2025.'),
+      JSON_QUOTE('Client satisfaction improved to 4.4/5.0. Zero formal complaints in H2 2025.'),
       JSON_ARRAY(
         JSON_OBJECT('decision','Finalize SASO certification process and prepare for site inspection','responsible','Chief Engineer','targetDate','2026-06-30','status','IN_PROGRESS'),
         JSON_OBJECT('decision','Launch 2026 internal audit programme','responsible','IMS Manager','targetDate','2026-02-01','status','CLOSED'),
         JSON_OBJECT('decision','Introduce digital ITP sign-off to eliminate paper-based inspection records','responsible','QC Manager','targetDate','2026-04-30','status','IN_PROGRESS')
       ),
-      'Achieve ISO 9001/14001/45001 full re-certification in 2027 cycle. Target delivery on-time rate >=95% by Q4 2026.',
-      'Digital ITP system implementation budget approved: SAR 45,000. Additional IT infrastructure: SAR 12,000.',
+      JSON_QUOTE('Achieve ISO 9001/14001/45001 full re-certification in 2027 cycle. Target delivery on-time rate >=95% by Q4 2026.'),
+      JSON_QUOTE('Digital ITP system implementation budget approved: SAR 45,000. Additional IT infrastructure: SAR 12,000.'),
       'Next review: July 2026 for H1 2026.',
       NOW()
     );
