@@ -88,6 +88,10 @@ import {
   Gauge,
   TableProperties,
   SearchCheck,
+  Siren,
+  HardHat,
+  Workflow,
+  Award,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -182,6 +186,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'List Projects', href: '/projects', icon: FolderKanban },
       { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
+      { name: 'Kickoff Checklists', href: '/projects/kickoff', icon: ClipboardCheck, newSince: '2026-05-02' },
       { name: 'Project Planning', href: '/planning', icon: Calendar },
       { name: 'Timeline', href: '/timeline', icon: Calendar },
       { name: 'Operations Timeline', href: '/operations/dashboard', icon: Clock },
@@ -227,6 +232,8 @@ const navigationSections: NavigationSection[] = [
       { name: 'Create ITP', href: '/itp/new', icon: Plus },
       { name: 'WPS List', href: '/wps', icon: FileCheck },
       { name: 'Create WPS', href: '/wps/new', icon: Plus },
+      { name: 'Welder Qualification', href: '/qc/welder-qualification', icon: Award, newSince: '2026-05-02' },
+      { name: 'Coating Inspection', href: '/qc/coating', icon: Layers, newSince: '2026-05-02' },
     ],
   },
   {
@@ -278,6 +285,10 @@ const navigationSections: NavigationSection[] = [
       { name: 'Audit Plans', href: '/ims/audit-plans', icon: SearchCheck, newSince: '2026-05-01' },
       { name: 'Calibration Register', href: '/hr/assets?tab=calibration', icon: Gauge, newSince: '2026-05-01' },
       { name: 'Competence Matrix', href: '/ims/competence-matrix', icon: TableProperties, newSince: '2026-05-01' },
+      { name: 'QMS Process List', href: '/ims/processes', icon: Workflow, newSince: '2026-05-02' },
+      { name: 'Incidents / Near-Miss', href: '/ims/safety/incidents', icon: AlertOctagon, newSince: '2026-05-02' },
+      { name: 'Emergency Drills', href: '/ims/safety/drills', icon: Siren, newSince: '2026-05-02' },
+      { name: 'Toolbox Talks', href: '/ims/safety/toolbox-talks', icon: HardHat, newSince: '2026-05-02' },
       { name: 'Quick Guide', href: '/ims/guide', icon: BookOpen, newSince: '2026-04-28' },
     ],
   },
@@ -296,6 +307,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'LCR', href: '/supply-chain/lcr', icon: FileSpreadsheet },
       { name: 'Reports', href: '/supply-chain/lcr/reports', icon: BarChart3 },
       { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch },
+      { name: 'Approved Suppliers', href: '/supply-chain/approved-suppliers', icon: ShieldCheck, newSince: '2026-05-02' },
       { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck },
       { name: 'AP Aging Report', href: '/financial/reports/aging?type=payable', icon: Clock },
       { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText },

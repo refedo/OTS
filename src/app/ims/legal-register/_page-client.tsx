@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Scale, Plus, Search, RefreshCw, CheckCircle2, AlertTriangle, Clock, XCircle } from 'lucide-react';
+import { Scale, Plus, Search, RefreshCw, CheckCircle2, AlertTriangle, Clock, XCircle, Eye, FileText, CalendarCheck, User } from 'lucide-react';
 
 type LegalEntry = {
   id: string;
@@ -83,6 +84,8 @@ export function LegalRegisterClient() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialog, setDialog] = useState(false);
+  const [viewDialog, setViewDialog] = useState(false);
+  const [viewEntry, setViewEntry] = useState<LegalEntry | null>(null);
   const [editEntry, setEditEntry] = useState<LegalEntry | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
@@ -111,6 +114,11 @@ export function LegalRegisterClient() {
     partial: entries.filter(e => e.complianceStatus === 'Partial').length,
     nonCompliant: entries.filter(e => e.complianceStatus === 'Non-Compliant').length,
     dueForReview: entries.filter(e => e.nextReviewDue && new Date(e.nextReviewDue) <= new Date(Date.now() + 30 * 864e5)).length,
+  };
+
+  const openView = (entry: LegalEntry) => {
+    setViewEntry(entry);
+    setViewDialog(true);
   };
 
   const openCreate = async () => {
@@ -176,6 +184,15 @@ export function LegalRegisterClient() {
           </div>
         </div>
       </div>
+
+      <IsoClauseNote
+        storageKey="ims-legal-register"
+        clauses={[
+          { standard: 'ISO 9001:2015', clause: '§6.1.3', title: 'Compliance obligations' },
+          { standard: 'ISO 14001:2015', clause: '§6.1.3', title: 'Compliance obligations' },
+          { standard: 'ISO 45001:2018', clause: '§6.1.3', title: 'Compliance obligations' },
+        ]}
+      />
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -249,7 +266,7 @@ export function LegalRegisterClient() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">No regulations found</td></tr>
                 ) : filtered.map(e => (
-                  <tr key={e.id} className="border-b hover:bg-slate-50 transition-colors">
+                  <tr key={e.id} className="border-b hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openView(e)}>
                     <td className="px-4 py-3 font-mono text-xs text-slate-500">{e.referenceNumber}</td>
                     <td className="px-4 py-3 font-medium max-w-xs">
                       <p className="truncate">{e.title}</p>
@@ -269,8 +286,11 @@ export function LegalRegisterClient() {
                         : '—'}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{e.reviewFrequency}</td>
-                    <td className="px-4 py-3">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(e)}>Edit</Button>
+                    <td className="px-4 py-3" onClick={ev => ev.stopPropagation()}>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => openView(e)}><Eye className="w-4 h-4" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(e)}>Edit</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -279,6 +299,81 @@ export function LegalRegisterClient() {
           </div>
         </CardContent>
       </Card>
+
+      {/* View Dialog */}
+      <Dialog open={viewDialog} onOpenChange={setViewDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-slate-500" />
+              {viewEntry?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {viewEntry && (
+            <div className="space-y-4 py-2">
+              <div className="flex flex-wrap gap-2">
+                <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">{viewEntry.referenceNumber}</span>
+                {statusBadge(viewEntry.complianceStatus)}
+                <span className="inline-flex items-center text-xs bg-slate-100 px-2 py-1 rounded gap-1">
+                  {isoDot(viewEntry.isoStandard)}{viewEntry.isoStandard}
+                </span>
+                <span className="text-xs bg-slate-100 px-2 py-1 rounded">{viewEntry.category}</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1"><FileText className="w-3 h-3" /> Regulation / Standard</p>
+                  <p className="text-slate-800">{viewEntry.standard || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Applicable To</p>
+                  <p className="text-slate-800">{viewEntry.applicableTo}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1"><CalendarCheck className="w-3 h-3" /> Last Reviewed</p>
+                  <p className="text-slate-800">{viewEntry.lastReviewedAt ? new Date(viewEntry.lastReviewedAt).toLocaleDateString('en-SA-u-ca-gregory') : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Next Review Due</p>
+                  <p className={viewEntry.nextReviewDue && new Date(viewEntry.nextReviewDue) < new Date() ? 'text-red-600 font-semibold' : 'text-slate-800'}>
+                    {viewEntry.nextReviewDue ? new Date(viewEntry.nextReviewDue).toLocaleDateString('en-SA-u-ca-gregory') : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Review Frequency</p>
+                  <p className="text-slate-800">{viewEntry.reviewFrequency}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1"><User className="w-3 h-3" /> Responsible</p>
+                  <p className="text-slate-800">{viewEntry.responsible?.name ?? '—'}</p>
+                </div>
+              </div>
+
+              {viewEntry.evidenceInOts && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Evidence in OTS</p>
+                  <p className="text-sm text-slate-700 bg-slate-50 rounded p-3 border">{viewEntry.evidenceInOts}</p>
+                </div>
+              )}
+
+              {viewEntry.notes && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Notes</p>
+                  <p className="text-sm text-slate-700 bg-slate-50 rounded p-3 border whitespace-pre-wrap">{viewEntry.notes}</p>
+                </div>
+              )}
+
+              {!viewEntry.notes && !viewEntry.evidenceInOts && (
+                <p className="text-sm text-slate-400 italic text-center py-2">No additional notes or evidence recorded.</p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialog(false)}>Close</Button>
+            <Button onClick={() => { setViewDialog(false); if (viewEntry) openEdit(viewEntry); }}>Edit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>

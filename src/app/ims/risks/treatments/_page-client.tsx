@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -117,6 +118,15 @@ export default function ImsRiskTreatmentsClient() {
           </div>
         </div>
       </div>
+
+      <IsoClauseNote
+        storageKey="ims-risk-treatments"
+        clauses={[
+          { standard: 'ISO 9001:2015', clause: '§6.1', title: 'Actions to address risks and opportunities' },
+          { standard: 'ISO 14001:2015', clause: '§6.1', title: 'Actions to address risks and opportunities' },
+          { standard: 'ISO 45001:2018', clause: '§6.1', title: 'Actions to address risks and opportunities' },
+        ]}
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">

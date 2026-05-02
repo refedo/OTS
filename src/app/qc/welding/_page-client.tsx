@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -272,12 +273,19 @@ export default function WeldingInspectionPage() {
 
   return (
     <div className="space-y-6">
+      <IsoClauseNote
+        storageKey="qc-welding"
+        clauses={[
+          { standard: 'ISO 9001:2015', clause: '§8.5.1', title: 'Control of production and service provision' },
+          { standard: 'ISO 45001:2018', clause: '§8.5.1', title: 'Control of production and service provision' },
+        ]}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Flame className="h-8 w-8" />
-            Welding QC Inspection
+            Welding QC Inspection <span className="text-sm font-normal text-muted-foreground ml-2">HEXA-FRM-018</span>
           </h1>
           <p className="text-muted-foreground mt-1">
             Welding quality control and visual inspection records

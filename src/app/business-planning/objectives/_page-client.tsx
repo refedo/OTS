@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -268,12 +269,20 @@ export default function ObjectivesPage() {
 
   return (
     <div className="p-8 space-y-6">
+      <IsoClauseNote
+        storageKey="bp-objectives"
+        clauses={[
+          { standard: 'ISO 9001:2015', clause: '§6.2', title: 'Quality objectives and planning' },
+          { standard: 'ISO 14001:2015', clause: '§6.2', title: 'Environmental objectives and planning' },
+          { standard: 'ISO 45001:2018', clause: '§6.2', title: 'OH&S objectives and planning' },
+        ]}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Target className="h-8 w-8" />
-            Company Objectives (OKRs)
+            Company Objectives (OKRs) <span className="text-sm font-normal text-muted-foreground ml-2">HEXA-FRM-013</span>
           </h1>
           <p className="text-muted-foreground mt-2">
             Strategic objectives defining WHAT Hexa Steel must achieve

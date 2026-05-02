@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -514,6 +515,15 @@ export function ManagementReviewClient() {
           </div>
         </div>
       </div>
+
+      <IsoClauseNote
+        storageKey="ims-management-review"
+        clauses={[
+          { standard: 'ISO 9001:2015', clause: '§9.3', title: 'Management review' },
+          { standard: 'ISO 14001:2015', clause: '§9.3', title: 'Management review' },
+          { standard: 'ISO 45001:2018', clause: '§9.3', title: 'Management review' },
+        ]}
+      />
 
       {/* Controls */}
       <div className="flex justify-between items-center">

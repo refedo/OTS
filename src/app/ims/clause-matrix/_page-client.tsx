@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import {
   BookOpen,
   AlertTriangle,
@@ -451,6 +452,15 @@ export function ImsClauseMatrixClient() {
       </div>
 
       <div className="px-6 py-6 md:px-10 space-y-5 max-w-screen-2xl mx-auto">
+
+        <IsoClauseNote
+          storageKey="ims-clause-matrix"
+          clauses={[
+            { standard: 'ISO 9001:2015', clause: '§7.5', title: 'Documented information — clause mapping' },
+            { standard: 'ISO 14001:2015', clause: '§7.5', title: 'Documented information — clause mapping' },
+            { standard: 'ISO 45001:2018', clause: '§7.5', title: 'Documented information — clause mapping' },
+          ]}
+        />
 
         {/* ── Error banner ── */}
         {error && (

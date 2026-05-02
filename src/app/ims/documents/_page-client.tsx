@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import {
   FileText,
   Eye,
@@ -343,6 +344,15 @@ export function ImsDocumentsClient() {
       </div>
 
       <div className="px-6 py-6 md:px-10 space-y-5 max-w-screen-2xl mx-auto">
+
+        <IsoClauseNote
+          storageKey="ims-documents"
+          clauses={[
+            { standard: 'ISO 9001:2015', clause: '§7.5', title: 'Documented information' },
+            { standard: 'ISO 14001:2015', clause: '§7.5', title: 'Documented information' },
+            { standard: 'ISO 45001:2018', clause: '§7.5', title: 'Documented information' },
+          ]}
+        />
 
         {/* ── Error banner ── */}
         {error && (

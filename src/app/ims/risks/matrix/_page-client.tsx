@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Grid3X3 } from 'lucide-react';
@@ -65,6 +66,15 @@ export default function ImsRiskMatrixClient() {
           <Button size="sm" variant="secondary" onClick={() => fetchMatrix(standard)}><RefreshCw className="size-4" /></Button>
         </div>
       </div>
+
+      <IsoClauseNote
+        storageKey="ims-risk-matrix"
+        clauses={[
+          { standard: 'ISO 9001:2015', clause: '§6.1', title: 'Actions to address risks and opportunities' },
+          { standard: 'ISO 14001:2015', clause: '§6.1', title: 'Actions to address risks and opportunities' },
+          { standard: 'ISO 45001:2018', clause: '§6.1', title: 'Actions to address risks and opportunities' },
+        ]}
+      />
 
       {/* Standard filter + summary */}
       <div className="flex flex-wrap items-center gap-3">
