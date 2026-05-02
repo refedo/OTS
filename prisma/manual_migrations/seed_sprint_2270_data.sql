@@ -433,6 +433,7 @@ INSERT IGNORE INTO QcWelderQualification (id, wqtNumber, welderName, welderCode,
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- 8. Coating Inspections (FRM-022)  — UNIQUE: inspectionNumber
+-- INSERT IGNORE handles duplicates via the unique index; no WHERE NOT EXISTS needed
 -- ──────────────────────────────────────────────────────────────────────────────
 INSERT IGNORE INTO QcCoatingInspection (id, inspectionNumber, projectId, coatingSystem, coatLayer, surfacePrep, ambientTemp, relativeHumidity, dewPoint, nominalDft, minDft, maxDft, readings, averageDft, result, inspectionDate, witnessedBy, remarks, updatedAt)
 SELECT UUID(), 'COAT-2025-0001', p.id, 'Jotun Barrier 80 Epoxy Primer', 'PRIMER',
@@ -440,8 +441,7 @@ SELECT UUID(), 'COAT-2025-0001', p.id, 'Jotun Barrier 80 Epoxy Primer', 'PRIMER'
  '[{"point":"F1","value":78},{"point":"F2","value":82},{"point":"F3","value":74},{"point":"F4","value":79},{"point":"F5","value":83}]',
  79.20, 'ACCEPTED', '2025-02-14', 'Client Rep — SABIC Inspection',
  'All 5 readings within specified range. Sa 2.5 confirmed by replica tape. Application temperature and humidity within spec.', NOW()
-FROM (SELECT id FROM Project WHERE projectNumber = '277' LIMIT 1) p
-WHERE NOT EXISTS (SELECT 1 FROM QcCoatingInspection WHERE inspectionNumber = 'COAT-2025-0001');
+FROM (SELECT id FROM Project LIMIT 1) p;
 
 INSERT IGNORE INTO QcCoatingInspection (id, inspectionNumber, projectId, coatingSystem, coatLayer, surfacePrep, ambientTemp, relativeHumidity, dewPoint, nominalDft, minDft, maxDft, readings, averageDft, result, inspectionDate, witnessedBy, remarks, updatedAt)
 SELECT UUID(), 'COAT-2025-0002', p.id, 'Jotun Hardtop AX Alkyd Topcoat (RAL 9002)', 'TOP_COAT',
@@ -449,8 +449,7 @@ SELECT UUID(), 'COAT-2025-0002', p.id, 'Jotun Hardtop AX Alkyd Topcoat (RAL 9002
  '[{"point":"F1","value":52},{"point":"F2","value":48},{"point":"F3","value":55},{"point":"F4","value":46},{"point":"F5","value":53}]',
  50.80, 'ACCEPTED', '2025-02-21', 'Client Rep — SABIC Inspection',
  'RAL 9002 (off-white) colour confirmed against standard. DFT readings satisfactory. Overcoat time interval complied.', NOW()
-FROM (SELECT id FROM Project WHERE projectNumber = '277' LIMIT 1) p
-WHERE NOT EXISTS (SELECT 1 FROM QcCoatingInspection WHERE inspectionNumber = 'COAT-2025-0002');
+FROM (SELECT id FROM Project LIMIT 1) p;
 
 INSERT IGNORE INTO QcCoatingInspection (id, inspectionNumber, projectId, coatingSystem, coatLayer, surfacePrep, ambientTemp, relativeHumidity, dewPoint, nominalDft, minDft, maxDft, readings, averageDft, result, inspectionDate, witnessedBy, remarks, updatedAt)
 SELECT UUID(), 'COAT-2025-0003', p.id, 'Jotun Barrier 80 Epoxy Primer', 'PRIMER',
@@ -458,8 +457,7 @@ SELECT UUID(), 'COAT-2025-0003', p.id, 'Jotun Barrier 80 Epoxy Primer', 'PRIMER'
  '[{"point":"C1","value":58},{"point":"C2","value":55},{"point":"C3","value":62},{"point":"C4","value":57},{"point":"C5","value":59}]',
  58.20, 'REJECTED', '2025-03-05', 'Internal QC',
  'REJECTED — all 5 DFT readings below 60 um minimum. Rework required: re-blast and re-apply primer.', NOW()
-FROM (SELECT id FROM Project WHERE projectNumber = '277' LIMIT 1) p
-WHERE NOT EXISTS (SELECT 1 FROM QcCoatingInspection WHERE inspectionNumber = 'COAT-2025-0003');
+FROM (SELECT id FROM Project LIMIT 1) p;
 
 INSERT IGNORE INTO QcCoatingInspection (id, inspectionNumber, projectId, coatingSystem, coatLayer, surfacePrep, ambientTemp, relativeHumidity, dewPoint, nominalDft, minDft, maxDft, readings, averageDft, result, inspectionDate, witnessedBy, remarks, updatedAt)
 SELECT UUID(), 'COAT-2025-0004', p.id, 'Jotun Barrier 80 Epoxy Primer — Rework (after COAT-2025-0003 rejection)', 'PRIMER',
@@ -467,8 +465,7 @@ SELECT UUID(), 'COAT-2025-0004', p.id, 'Jotun Barrier 80 Epoxy Primer — Rework
  '[{"point":"C1","value":77},{"point":"C2","value":80},{"point":"C3","value":74},{"point":"C4","value":78},{"point":"C5","value":81}]',
  78.00, 'ACCEPTED', '2025-03-12', 'Client Rep — SABIC Inspection',
  'Rework accepted. All readings within range. Sa 2.5 re-confirmed. Steel temperature 3 C above dew point (compliant).', NOW()
-FROM (SELECT id FROM Project WHERE projectNumber = '277' LIMIT 1) p
-WHERE NOT EXISTS (SELECT 1 FROM QcCoatingInspection WHERE inspectionNumber = 'COAT-2025-0004');
+FROM (SELECT id FROM Project LIMIT 1) p;
 
 INSERT IGNORE INTO QcCoatingInspection (id, inspectionNumber, projectId, coatingSystem, coatLayer, surfacePrep, ambientTemp, relativeHumidity, dewPoint, nominalDft, minDft, maxDft, readings, averageDft, result, inspectionDate, witnessedBy, remarks, updatedAt)
 SELECT UUID(), 'COAT-2025-0005', p.id, 'Interzone 954 — Epoxy Intermediate Coat (industrial zone specification)', 'MID_COAT',
@@ -476,41 +473,35 @@ SELECT UUID(), 'COAT-2025-0005', p.id, 'Interzone 954 — Epoxy Intermediate Coa
  '[{"point":"P1","value":128},{"point":"P2","value":132},{"point":"P3","value":119},{"point":"P4","value":141},{"point":"P5","value":124}]',
  128.80, 'ACCEPTED', '2025-04-02', 'TUV Rheinland — Third Party',
  'Jotun Interzone 954 high-build epoxy for corrosivity category C3 specification. DFT satisfactory.', NOW()
-FROM (SELECT id FROM Project WHERE projectNumber = '277' LIMIT 1) p
-WHERE NOT EXISTS (SELECT 1 FROM QcCoatingInspection WHERE inspectionNumber = 'COAT-2025-0005');
+FROM (SELECT id FROM Project LIMIT 1) p;
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- 9. Project Kickoff Checklists (FRM-016)  — no UNIQUE key; guard by COUNT = 0
+-- 9. Project Kickoff Checklists (FRM-016)
+-- Plain INSERT ... SELECT outside any procedure (SET NAMES applies here).
+-- No unique key on this table — safe to re-run on a fresh DB; idempotent enough
+-- for demo data since the tables start empty after migration.
 -- ──────────────────────────────────────────────────────────────────────────────
-DROP PROCEDURE IF EXISTS seed_kickoffs;
-DELIMITER $$
-CREATE PROCEDURE seed_kickoffs()
-BEGIN
-  IF (SELECT COUNT(*) FROM ProjectKickoffChecklist) = 0 THEN
-    INSERT INTO ProjectKickoffChecklist (id, projectId, meetingDate, location, attendees, agendaItems, deliverablesDiscussed, openItems, nextSteps, status, signedOffAt, notes, updatedAt)
-    SELECT UUID(), p.id, '2025-01-08 09:00:00', 'Hexa Steel HQ — Conference Room A',
-      'Ahmed Al-Rashidi (QC Manager), Khalid Al-Dossari (IMS Coordinator), Nasser Al-Shahrani (Production Manager), Client: Mr. Saud Al-Ghamdi (Project Director), Client: Ms. Fatima Al-Khaldi (Resident Engineer), Consultant: Mr. James O Brien (Project Manager)',
-      '1. Project scope and drawing package review\n2. Engineering deliverable schedule\n3. Material procurement status and lead times\n4. Quality plan and ITP review\n5. HSE plan and site safety requirements\n6. Erection sequence and on-site interface\n7. Communication protocols and submittals register\n8. Open items and action register',
-      'Structural design drawings IFC: 28 sheets — approved\nBOM and material take-off: finalized\nWPS (WPS-001 to WPS-004) submitted for client approval\nInspection and Test Plan (ITP): submitted — client review within 7 days\nHSE Plan: approved by client HSE',
-      'OPEN-001: Client to confirm final column anchor bolt layout by 15-Jan\nOPEN-002: Engineer to resubmit Drawing HSG-277-S-007 (connection detail revision)\nOPEN-003: Procurement to confirm PPGI coil delivery date for cladding campaign',
-      'Weekly progress meetings every Monday 09:00\nFirst steel delivery scheduled 20-Jan\nProduction kickoff for primary frames: 22-Jan',
-      'SIGNED_OFF', '2025-01-09 14:00:00',
-      'Client expressed satisfaction with preparation. Fast-track schedule confirmed: delivery in 16 weeks.',
-      NOW()
-    FROM (SELECT id FROM Project WHERE projectNumber = '277' LIMIT 1) p;
+INSERT INTO ProjectKickoffChecklist (id, projectId, meetingDate, location, attendees, agendaItems, deliverablesDiscussed, openItems, nextSteps, status, signedOffAt, notes, updatedAt)
+SELECT UUID(), p.id, '2025-01-08 09:00:00', 'Hexa Steel HQ — Conference Room A',
+  'Ahmed Al-Rashidi (QC Manager), Khalid Al-Dossari (IMS Coordinator), Nasser Al-Shahrani (Production Manager), Client: Mr. Saud Al-Ghamdi (Project Director), Consultant: Mr. James O Brien (Project Manager)',
+  '1. Project scope and drawing package review\n2. Engineering deliverable schedule\n3. Material procurement status and lead times\n4. Quality plan and ITP review\n5. HSE plan and site safety requirements\n6. Communication protocols and submittals register',
+  'Structural design drawings IFC: 28 sheets approved. BOM finalized. WPS-001 to WPS-004 submitted for client approval. ITP submitted — client review within 7 days.',
+  'OPEN-001: Client to confirm final column anchor bolt layout by 15-Jan\nOPEN-002: Engineer to resubmit Drawing HSG-277-S-007 (connection detail revision)',
+  'Weekly progress meetings every Monday 09:00\nFirst steel delivery scheduled 20-Jan\nProduction kickoff for primary frames: 22-Jan',
+  'SIGNED_OFF', '2025-01-09 14:00:00',
+  'Client expressed satisfaction with preparation. Fast-track schedule confirmed: delivery in 16 weeks.',
+  NOW()
+FROM (SELECT id FROM Project LIMIT 1) p
+WHERE (SELECT COUNT(*) FROM ProjectKickoffChecklist) = 0;
 
-    INSERT INTO ProjectKickoffChecklist (id, projectId, meetingDate, location, attendees, agendaItems, deliverablesDiscussed, openItems, nextSteps, status, notes, updatedAt)
-    SELECT UUID(), p.id, '2025-02-17 10:00:00', 'Hexa Steel HQ — Board Room',
-      'Nasser Al-Shahrani (Production Manager), Mohammed Al-Qahtani (QC Inspector), Client: Eng. Walid Al-Hamdan (Project Engineer), Consultant: Ms. Sarah Mitchell (Structural Lead)',
-      '1. Drawing package status\n2. ITP and quality requirements\n3. Delivery schedule\n4. Safety induction requirements for on-site activities\n5. Open items from pre-contract stage',
-      'IFC drawings: 18 sheets — under review\nWPS: WPS-001, WPS-002 submitted\nITP draft: under client review',
-      'OPEN-001: Confirm hot-dip galvanizing requirement for secondary members\nOPEN-002: Client to provide anchor bolt setting drawings',
-      'ITP approval expected within 5 working days\nProcurement of primary structural steel to commence immediately',
-      'DRAFT', 'Meeting minutes to be signed off by client by 20-Feb.',
-      NOW()
-    FROM (SELECT id FROM Project WHERE projectNumber = '257' LIMIT 1) p;
-  END IF;
-END$$
-DELIMITER ;
-CALL seed_kickoffs();
-DROP PROCEDURE IF EXISTS seed_kickoffs;
+INSERT INTO ProjectKickoffChecklist (id, projectId, meetingDate, location, attendees, agendaItems, deliverablesDiscussed, openItems, nextSteps, status, notes, updatedAt)
+SELECT UUID(), p.id, '2025-02-17 10:00:00', 'Hexa Steel HQ — Board Room',
+  'Nasser Al-Shahrani (Production Manager), Mohammed Al-Qahtani (QC Inspector), Client: Eng. Walid Al-Hamdan (Project Engineer), Consultant: Ms. Sarah Mitchell (Structural Lead)',
+  '1. Drawing package status\n2. ITP and quality requirements\n3. Delivery schedule\n4. Safety induction requirements\n5. Open items from pre-contract stage',
+  'IFC drawings: 18 sheets — under review. WPS-001, WPS-002 submitted. ITP draft: under client review.',
+  'OPEN-001: Confirm hot-dip galvanizing requirement for secondary members\nOPEN-002: Client to provide anchor bolt setting drawings',
+  'ITP approval expected within 5 working days\nProcurement of primary structural steel to commence immediately',
+  'DRAFT', 'Meeting minutes to be signed off by client by 20-Feb.',
+  NOW()
+FROM (SELECT id FROM Project LIMIT 1 OFFSET 1) p
+WHERE (SELECT COUNT(*) FROM ProjectKickoffChecklist) < 2;
