@@ -1,6 +1,8 @@
 -- Migration: Add QcWelderQualification table (HEXA-FRM-017 Welder Qualification Test Record)
 -- Sprint 22.7.0
 
+DROP PROCEDURE IF EXISTS add_qc_welder_qualification;
+DELIMITER $$
 CREATE PROCEDURE add_qc_welder_qualification()
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.TABLES
@@ -48,7 +50,8 @@ BEGIN
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
   END IF;
-END;
+END$$
+DELIMITER ;
 
 CALL add_qc_welder_qualification();
 DROP PROCEDURE IF EXISTS add_qc_welder_qualification;

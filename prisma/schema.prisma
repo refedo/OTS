@@ -6724,8 +6724,9 @@ model ImsCompetenceEntry {
 
 model HrTrainingNeed {
   id               String    @id @default(uuid()) @db.Char(36)
-  department       String    @db.VarChar(100)
-  roleTitle        String    @db.VarChar(255)
+  employeeName     String    @db.VarChar(255)
+  department       String?   @db.VarChar(100)
+  roleTitle        String?   @db.VarChar(255)
   competencyGap    String    @db.Text
   requiredTraining String    @db.Text
   priority         String    @default("MEDIUM") @db.VarChar(20)

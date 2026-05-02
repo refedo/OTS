@@ -6,8 +6,9 @@ import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const UpdateSchema = z.object({
-  department: z.string().min(1).optional(),
-  roleTitle: z.string().min(1).optional(),
+  employeeName: z.string().min(1).optional(),
+  department: z.string().optional().nullable(),
+  roleTitle: z.string().optional().nullable(),
   competencyGap: z.string().min(1).optional(),
   requiredTraining: z.string().min(1).optional(),
   priority: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
