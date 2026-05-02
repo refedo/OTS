@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.7.1] - 2026-05-02
+
+### PO–Invoice Linkage — Fix "Related Objects" Links via Individual PO Fetch
+
+#### Fixed
+- **All POs still showing "No Invoice"** — confirmed root cause: both the `/supplierorders` and `/supplierinvoices` list APIs omit `linked_objects` from their responses. The correct approach is to call `GET /supplierorders/{id}` individually for each PO, which returns the full record including `linked_objects.facture_fourn` (Dolibarr's element type name for supplier invoices).
+- Report now fetches individual PO details in **parallel batches of 20** after the initial list fetch. This adds a few seconds to report generation but resolves all manually-linked invoices correctly.
+- **Financial sync service** updated to call `GET /supplierinvoices/{id}` for each invoice where `origin_id` is absent, so `linked_po_dolibarr_id` is correctly populated for manually-linked invoices going forward.
+- Added `getSupplierInvoiceById` method to `DolibarrClient` for individual invoice record fetches.
+- Version bumped to **22.7.1**
+
+---
+
 ## [22.7.0] - 2026-05-02
 
 ### Missing Forms Sprint — FRM-002 through FRM-026 + Safety & HSE Module

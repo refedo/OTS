@@ -93,9 +93,10 @@ export async function GET(req: Request) {
     if (from) sqlFilterParts.push(`(t.date_commande:>=:${Math.floor(new Date(from).getTime() / 1000)})`);
     if (to) sqlFilterParts.push(`(t.date_commande:<=:${Math.floor(new Date(to + 'T23:59:59').getTime() / 1000)})`);
 
-    let rawOrders: Awaited<ReturnType<typeof client.getPurchaseOrders>>;
+    // Step 1 — list fetch (fast, no linked_objects)
+    let listOrders: Awaited<ReturnType<typeof client.getPurchaseOrders>>;
     try {
-      rawOrders = await client.getPurchaseOrders({
+      listOrders = await client.getPurchaseOrders({
         sortfield: 't.date_commande',
         sortorder: 'DESC',
         limit: 500,
@@ -105,12 +106,29 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unable to reach Dolibarr — check connection' }, { status: 503 });
     }
 
-    if (rawOrders.length === 0) {
+    if (listOrders.length === 0) {
       return NextResponse.json({
         groups: [],
         poCount: 0,
         invoiceCount: 0,
         stats: { totalPOs: 0, posWithInvoice: 0, posWithoutInvoice: 0, receivedWithoutInvoice: 0 },
+      });
+    }
+
+    // Step 2 — individual PO fetches in parallel batches to get linked_objects.facture_fourn.
+    // The list API (/supplierorders) does NOT return linked_objects; only GET /supplierorders/{id} does.
+    // Batches of 20 keep Dolibarr load reasonable while completing in a few seconds.
+    const BATCH = 20;
+    const rawOrders = [...listOrders];
+    for (let i = 0; i < listOrders.length; i += BATCH) {
+      const slice = listOrders.slice(i, i + BATCH);
+      const details = await Promise.allSettled(
+        slice.map(po => client.getPurchaseOrderById(pi(po.id))),
+      );
+      details.forEach((result, j) => {
+        if (result.status === 'fulfilled' && result.value) {
+          rawOrders[i + j] = result.value;
+        }
       });
     }
 
