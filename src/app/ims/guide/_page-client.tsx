@@ -6,6 +6,7 @@ import {
   Grid3X3, Calendar, BarChart3, CheckCircle2, ArrowRight,
   BookOpen, Layers, RefreshCw, Users, ChevronRight,
   Info, Zap, TrendingDown, ClipboardList,
+  AlertOctagon, Siren, HardHat, Workflow,
 } from 'lucide-react';
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
@@ -100,6 +101,10 @@ export function ImsGuideClient() {
           { href: '/ims/review-calendar', icon: Calendar, label: 'Review Calendar', color: 'bg-orange-500' },
           { href: '/ims/risks/matrix', icon: TrendingDown, label: 'Risk Matrix', color: 'bg-rose-500' },
           { href: '/ims/risks/treatments', icon: ClipboardList, label: 'Treatments', color: 'bg-amber-500' },
+          { href: '/ims/safety/incidents', icon: AlertOctagon, label: 'Incidents', color: 'bg-red-600' },
+          { href: '/ims/safety/drills', icon: Siren, label: 'Drills', color: 'bg-orange-500' },
+          { href: '/ims/safety/toolbox-talks', icon: HardHat, label: 'Toolbox Talks', color: 'bg-yellow-600' },
+          { href: '/ims/processes', icon: Workflow, label: 'QMS Processes', color: 'bg-sky-500' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link
             key={href}
@@ -338,6 +343,76 @@ export function ImsGuideClient() {
         </div>
       </Section>
 
+      {/* 08. Safety & HSE */}
+      <Section num="08" title="Safety & HSE" sub="ISO 45001:2018 — Incident management, emergency preparedness, and safety awareness.">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            The Safety & HSE sub-module covers three mandatory ISO 45001 records. All forms are auto-numbered and stored with soft-delete audit trails.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-xl border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertOctagon className="size-4 text-red-500" />
+                <p className="font-semibold text-sm">Incidents / Near-Miss</p>
+                <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-mono">FRM-024</span>
+              </div>
+              <p className="text-xs text-muted-foreground">ISO 45001 §10.2.1 — Report, investigate, and track corrective actions for workplace incidents and near-misses.</p>
+              <p className="text-xs font-mono text-muted-foreground">Auto-number: INC-YYYY-NNNN</p>
+            </div>
+            <div className="rounded-xl border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Siren className="size-4 text-orange-500" />
+                <p className="font-semibold text-sm">Emergency Drills</p>
+                <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-mono">FRM-025</span>
+              </div>
+              <p className="text-xs text-muted-foreground">ISO 45001 §8.8 — Plan and record emergency evacuation drills, first aid exercises, and chemical spill responses.</p>
+              <p className="text-xs font-mono text-muted-foreground">Auto-number: DRILL-YYYY-NNNN</p>
+            </div>
+            <div className="rounded-xl border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <HardHat className="size-4 text-yellow-600" />
+                <p className="font-semibold text-sm">Toolbox Talks</p>
+                <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-mono">FRM-026</span>
+              </div>
+              <p className="text-xs text-muted-foreground">ISO 45001 §7.3 — Record short safety briefings conducted on the shop floor. Track topic, attendees, duration, and follow-up actions.</p>
+              <p className="text-xs font-mono text-muted-foreground">Auto-number: TBT-YYYY-NNNN</p>
+            </div>
+          </div>
+          <div className="rounded-lg bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 p-4 flex gap-3">
+            <Info className="size-4 text-orange-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-orange-700 dark:text-orange-300">
+              All three pages are under <strong>IMS → Safety & HSE</strong> in the sidebar. Incident records require a severity classification (Low / Medium / High / Critical) and must have corrective and preventive actions documented before closing.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      {/* 09. QMS Process List */}
+      <Section num="09" title="QMS Process List" sub="ISO 9001:2015 §4.4 / ISO 14001 §4.4 — Define and manage your quality management system processes.">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            The QMS Process List covers both <strong>FRM-002</strong> (Master List of QMS Processes) and <strong>FRM-004</strong> (In-house &amp; Outsourced Processes) in a single register.
+            Use the <em>Process Type</em> field to distinguish Core / Support / In-House / Outsourced processes.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Workflow className="size-4 text-sky-500" />
+                <p className="font-semibold text-sm">FRM-002 — Master List</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Defines all QMS processes with owner, inputs, outputs, KPIs, and ISO clause reference. Auto-number: PROC-NNN.</p>
+            </div>
+            <div className="rounded-xl border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Workflow className="size-4 text-teal-500" />
+                <p className="font-semibold text-sm">FRM-004 — Outsourced Processes</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Filter the QMS Process List by type = OUTSOURCED to view all externally provided processes subject to §8.4 controls.</p>
+            </div>
+          </div>
+        </div>
+      </Section>
+
       {/* Footer nav */}
       <div className="flex flex-wrap gap-3 pt-4 border-t">
         <Link href="/ims">
@@ -365,6 +440,27 @@ export function ImsGuideClient() {
           <button className="flex items-center gap-1.5 text-sm text-primary hover:underline">
             <AlertTriangle className="size-4" />
             Risk Register
+          </button>
+        </Link>
+        <span className="text-muted-foreground">·</span>
+        <Link href="/ims/safety/incidents">
+          <button className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+            <AlertOctagon className="size-4" />
+            Incidents
+          </button>
+        </Link>
+        <span className="text-muted-foreground">·</span>
+        <Link href="/ims/safety/toolbox-talks">
+          <button className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+            <HardHat className="size-4" />
+            Toolbox Talks
+          </button>
+        </Link>
+        <span className="text-muted-foreground">·</span>
+        <Link href="/ims/processes">
+          <button className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+            <Workflow className="size-4" />
+            QMS Processes
           </button>
         </Link>
       </div>

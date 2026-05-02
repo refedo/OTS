@@ -17,6 +17,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
 
 type TrainingAttachment = {
   fileName: string;
@@ -106,6 +108,78 @@ export function TrainingClient({
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TrainingProgram | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // TNA state
+  type TNA = {
+    id: string; employeeName: string; department: string | null; roleTitle: string | null;
+    competencyGap: string | null; requiredTraining: string; priority: string; targetDate: string | null;
+    status: string; notes: string | null; createdAt: string;
+  };
+  const [tnaRecords, setTnaRecords] = useState<TNA[]>([]);
+  const [tnaLoading, setTnaLoading] = useState(false);
+  const [tnaDialog, setTnaDialog] = useState(false);
+  const [tnaEditing, setTnaEditing] = useState<TNA | null>(null);
+  const [tnaSaving, setTnaSaving] = useState(false);
+  const [tnaDeleting, setTnaDeleting] = useState<string | null>(null);
+  const [tnaForm, setTnaForm] = useState({
+    employeeName: '', department: '', roleTitle: '', competencyGap: '',
+    requiredTraining: '', priority: 'MEDIUM', targetDate: '', status: 'OPEN', notes: '',
+  });
+
+  const loadTna = useCallback(async () => {
+    setTnaLoading(true);
+    const res = await fetch('/api/hr/training-needs');
+    if (res.ok) setTnaRecords(await res.json());
+    setTnaLoading(false);
+  }, []);
+
+  function openTnaCreate() {
+    setTnaEditing(null);
+    setTnaForm({ employeeName: '', department: '', roleTitle: '', competencyGap: '', requiredTraining: '', priority: 'MEDIUM', targetDate: '', status: 'OPEN', notes: '' });
+    setTnaDialog(true);
+  }
+
+  function openTnaEdit(r: TNA) {
+    setTnaEditing(r);
+    setTnaForm({
+      employeeName: r.employeeName, department: r.department ?? '', roleTitle: r.roleTitle ?? '',
+      competencyGap: r.competencyGap ?? '', requiredTraining: r.requiredTraining,
+      priority: r.priority, targetDate: r.targetDate ? r.targetDate.slice(0, 10) : '',
+      status: r.status, notes: r.notes ?? '',
+    });
+    setTnaDialog(true);
+  }
+
+  async function saveTna() {
+    setTnaSaving(true);
+    try {
+      const payload = { ...tnaForm, targetDate: tnaForm.targetDate ? new Date(tnaForm.targetDate).toISOString() : null };
+      const url = tnaEditing ? `/api/hr/training-needs/${tnaEditing.id}` : '/api/hr/training-needs';
+      const method = tnaEditing ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (res.ok) { setTnaDialog(false); loadTna(); }
+    } finally {
+      setTnaSaving(false);
+    }
+  }
+
+  async function deleteTna(id: string) {
+    if (!confirm('Delete this training need?')) return;
+    setTnaDeleting(id);
+    try {
+      await fetch(`/api/hr/training-needs/${id}`, { method: 'DELETE' });
+      loadTna();
+    } finally {
+      setTnaDeleting(null);
+    }
+  }
+
+  const TNA_PRIORITY_CFG: Record<string, string> = {
+    HIGH: 'bg-red-100 text-red-700', MEDIUM: 'bg-amber-100 text-amber-700', LOW: 'bg-green-100 text-green-700',
+  };
+  const TNA_STATUS_CFG: Record<string, string> = {
+    OPEN: 'bg-blue-100 text-blue-700', IN_PROGRESS: 'bg-amber-100 text-amber-700', CLOSED: 'bg-green-100 text-green-700',
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -299,6 +373,14 @@ export function TrainingClient({
           </div>
         </div>
 
+        {/* Tabbed Content */}
+        <Tabs defaultValue="programs" onValueChange={v => { if (v === 'tna') loadTna(); }}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="programs">Training Programs</TabsTrigger>
+            <TabsTrigger value="tna">Training Needs Analysis — HEXA-FRM-005 §7.2</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="programs">
         {/* Programs */}
         <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
           {/* Filter bar */}
@@ -447,6 +529,72 @@ export function TrainingClient({
             </div>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="tna">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-500">ISO 9001:2015 §7.2 — Identify competency gaps and plan required training per role.</p>
+                <Button size="sm" onClick={openTnaCreate}><Plus className="h-4 w-4 mr-1" />Add Need</Button>
+              </div>
+              <Card>
+                <CardContent className="p-0">
+                  {tnaLoading ? (
+                    <div className="py-12 text-center text-slate-400 text-sm">Loading…</div>
+                  ) : tnaRecords.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-sm">No training needs recorded. Click &quot;Add Need&quot; to start.</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b">
+                          <tr>
+                            {['Employee / Dept', 'Role', 'Competency Gap', 'Required Training', 'Priority', 'Target Date', 'Status', 'Actions'].map(h => (
+                              <th key={h} className="px-4 py-3 text-left font-medium text-slate-600 whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {tnaRecords.map(r => (
+                            <tr key={r.id} className="hover:bg-slate-50">
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-slate-900">{r.employeeName}</div>
+                                {r.department && <div className="text-xs text-slate-500">{r.department}</div>}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">{r.roleTitle ?? '—'}</td>
+                              <td className="px-4 py-3 text-slate-600 max-w-[150px] truncate">{r.competencyGap ?? '—'}</td>
+                              <td className="px-4 py-3 font-medium text-slate-900 max-w-[180px] truncate">{r.requiredTraining}</td>
+                              <td className="px-4 py-3">
+                                <span className={`text-xs px-2 py-0.5 rounded font-medium ${TNA_PRIORITY_CFG[r.priority] ?? 'bg-gray-100 text-gray-600'}`}>
+                                  {r.priority}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                                {r.targetDate ? new Date(r.targetDate).toLocaleDateString('en-SA-u-ca-gregory') : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`text-xs px-2 py-0.5 rounded font-medium ${TNA_STATUS_CFG[r.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                                  {r.status.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openTnaEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                  <Button variant="ghost" size="sm" onClick={() => deleteTna(r.id)} disabled={tnaDeleting === r.id}>
+                                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Create / Edit Dialog */}
@@ -594,6 +742,73 @@ export function TrainingClient({
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
               {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* TNA Dialog */}
+      <Dialog open={tnaDialog} onOpenChange={setTnaDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{tnaEditing ? 'Edit Training Need' : 'Add Training Need — FRM-005'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            <div>
+              <Label>Employee Name *</Label>
+              <Input value={tnaForm.employeeName} onChange={e => setTnaForm(p => ({ ...p, employeeName: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Department</Label>
+              <Input value={tnaForm.department} onChange={e => setTnaForm(p => ({ ...p, department: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Role / Title</Label>
+              <Input value={tnaForm.roleTitle} onChange={e => setTnaForm(p => ({ ...p, roleTitle: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Select value={tnaForm.priority} onValueChange={v => setTnaForm(p => ({ ...p, priority: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Competency Gap</Label>
+              <Textarea value={tnaForm.competencyGap} onChange={e => setTnaForm(p => ({ ...p, competencyGap: e.target.value }))} rows={2} placeholder="What skill/knowledge is missing?" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Required Training *</Label>
+              <Input value={tnaForm.requiredTraining} onChange={e => setTnaForm(p => ({ ...p, requiredTraining: e.target.value }))} placeholder="e.g. ISO 9001 Internal Auditor" />
+            </div>
+            <div>
+              <Label>Target Date</Label>
+              <Input type="date" value={tnaForm.targetDate} onChange={e => setTnaForm(p => ({ ...p, targetDate: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={tnaForm.status} onValueChange={v => setTnaForm(p => ({ ...p, status: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OPEN">Open</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Notes</Label>
+              <Textarea value={tnaForm.notes} onChange={e => setTnaForm(p => ({ ...p, notes: e.target.value }))} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTnaDialog(false)}>Cancel</Button>
+            <Button onClick={saveTna} disabled={tnaSaving || !tnaForm.employeeName.trim() || !tnaForm.requiredTraining.trim()}>
+              {tnaSaving ? 'Saving…' : tnaEditing ? 'Update' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

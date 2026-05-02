@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.7.0] - 2026-05-02
+
+### Missing Forms Sprint — FRM-002 through FRM-026 + Safety & HSE Module
+
+#### Added
+- **FRM-002 / FRM-004 — QMS Process List** (`/ims/processes`): Master list of quality management system processes. Single register covering both Core/Support (FRM-002) and In-House/Outsourced (FRM-004) processes. Auto-number: `PROC-NNN`. ISO 9001/14001 §4.4.
+- **FRM-003 — Approved Supplier List** (`/supply-chain/approved-suppliers`): ISO 8.4 dedicated supplier register with approval status (Approved / Conditional / Suspended / Expired), rating (A/B/C), audit frequency, and expiry tracking. Auto-number: `SUP-NNN`.
+- **FRM-005 — Training Needs Analysis** (second tab in `/hr/training`): TNA records per employee/department — competency gap, required training, priority, target date, and status (Open / In Progress / Closed). ISO 9001 §7.2.
+- **FRM-016 — Project Kickoff Meeting Checklist** (`/projects/kickoff`): Kickoff meeting record linked to a project. Captures attendees, agenda items, deliverables discussed, open items, next steps, and sign-off. ISO 9001 §8.1, §8.2.3.
+- **FRM-017 — Welder Qualification Test Record (WQT)** (`/qc/welder-qualification`): Full welder qualification register with welding process, position, material, test results (visual/bend/RT), certification number, validity, and expiry. Auto-number: `WQT-YYYY-NNNN`. ISO 9001 §7.2, §8.5.1.
+- **FRM-022 — Coating Inspection Record (DFT)** (`/qc/coating`): Dry Film Thickness inspection records with coat layer, surface prep, ambient conditions, nominal/min/max/average DFT, and result (Accepted / Conditional / Rejected). Auto-number: `COAT-YYYY-NNNN`. ISO 9001 §8.5.1.
+- **FRM-024 — Incident / Near-Miss Report** (`/ims/safety/incidents`): ISO 45001 §10.2.1 incident reporting with type classification, severity, root cause, corrective action, and preventive action. Auto-number: `INC-YYYY-NNNN`.
+- **FRM-025 — Emergency Drill Record** (`/ims/safety/drills`): ISO 45001 §8.8 drill planning and recording with type, scheduled/conducted dates, participants, objectives, findings, and corrective actions. Auto-number: `DRILL-YYYY-NNNN`.
+- **FRM-026 — Toolbox Talk Record** (`/ims/safety/toolbox-talks`): ISO 45001 §7.3 safety awareness sessions with topic, attendee count, duration, content, and follow-up actions. Auto-number: `TBT-YYYY-NNNN`.
+- **IsoClauseNote component** (`src/components/ims/IsoClauseNote.tsx`): Dismissible ISO reference banner added to all IMS, QC, and relevant pages showing applicable standard and clause. State persisted in localStorage per page key.
+- **ISO clause notes** added to: Risk Register, Risk Matrix, Risk Treatments, Review Calendar, Audit Plans, Management Review, Competence Matrix, Document Registry, Change Requests, Clause Matrix, Legal Register, QMS Processes, all Safety pages, Welder Qualification, Coating Inspection, WQT, Objectives (§6.2 + FRM-013 badge), Welding QC (§8.5.1 + FRM-018 badge).
+- **Legal Register** (`/ims/legal-register`): Added read-only View dialog (eye icon + row click) showing all fields including notes, evidence, responsible, and compliance status. Rows are now clickable.
+- **Clause Matrix** (`/ims/clause-matrix`): Fixed crash caused by missing `Link` import.
+- **Quick Guide** (`/ims/guide`): Added sections 08 Safety & HSE and 09 QMS Process List. Added quick-links for Incidents, Emergency Drills, Toolbox Talks, and QMS Processes.
+- **Sidebar**: Added Kickoff Checklists (Projects), Welder Qualification (QC), Coating Inspection (QC), Approved Suppliers (Supply Chain), QMS Process List (IMS), Incidents/Near-Miss (IMS), Emergency Drills (IMS), Toolbox Talks (IMS).
+
+#### Database Migrations (7 new SQL files in `prisma/manual_migrations/`)
+- `add_hr_training_needs.sql` — `HrTrainingNeed` model
+- `add_ims_qms_processes.sql` — `ImsQmsProcess` model
+- `add_sc_approved_suppliers.sql` — `ScApprovedSupplier` model
+- `add_ims_safety.sql` — `ImsIncident`, `ImsEmergencyDrill`, `ImsToolboxTalk` models
+- `add_project_kickoff.sql` — `ProjectKickoffChecklist` model
+- `add_qc_welder_qualification.sql` — `QcWelderQualification` model
+- `add_qc_coating_inspection.sql` — `QcCoatingInspection` model
+
+---
+
 ## [22.6.4] - 2026-05-01
 
 ### IMS Audit Compliance Alignment — HEXA-FRM References & Management Review Expansion

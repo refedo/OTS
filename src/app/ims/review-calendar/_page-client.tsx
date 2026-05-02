@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import { useRouter } from 'next/navigation';
 import {
   CalendarCheck,
@@ -260,6 +261,15 @@ export function ImsReviewCalendarClient() {
       </div>
 
       <div className="px-6 py-6 md:px-10 space-y-6 max-w-screen-2xl mx-auto">
+
+        <IsoClauseNote
+          storageKey="ims-review-calendar"
+          clauses={[
+            { standard: 'ISO 9001:2015', clause: '§7.5', title: 'Documented information — control of documents' },
+            { standard: 'ISO 14001:2015', clause: '§7.5', title: 'Documented information — control of documents' },
+            { standard: 'ISO 45001:2018', clause: '§7.5', title: 'Documented information — control of documents' },
+          ]}
+        />
 
         {/* ── Error banner ── */}
         {error && (

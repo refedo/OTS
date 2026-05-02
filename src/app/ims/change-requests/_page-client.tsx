@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 import {
   GitPullRequest,
   Plus,
@@ -432,6 +433,15 @@ export function ImsDcrClient() {
       </div>
 
       <div className="px-6 py-6 md:px-10 space-y-5 max-w-screen-2xl mx-auto">
+
+        <IsoClauseNote
+          storageKey="ims-change-requests"
+          clauses={[
+            { standard: 'ISO 9001:2015', clause: '§7.5', title: 'Documented information — change control' },
+            { standard: 'ISO 14001:2015', clause: '§7.5', title: 'Documented information — change control' },
+            { standard: 'ISO 45001:2018', clause: '§7.5', title: 'Documented information — change control' },
+          ]}
+        />
 
         {/* ── Error banner ── */}
         {error && (

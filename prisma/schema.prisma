@@ -373,6 +373,26 @@ model User {
   // CEO Arena back-relations (22.3.0)
   ceoNotes             CeoNote[]         @relation("CeoNoteCreatedBy")
 
+  // Sprint 22.7.0 — Missing Forms back-relations
+  hrTrainingNeedsResponsible  HrTrainingNeed[]          @relation("HrTrainingNeedResponsible")
+  hrTrainingNeedsCreated      HrTrainingNeed[]          @relation("HrTrainingNeedCreatedBy")
+  imsQmsProcessesOwned        ImsQmsProcess[]           @relation("ImsQmsProcessOwner")
+  imsQmsProcessesCreated      ImsQmsProcess[]           @relation("ImsQmsProcessCreatedBy")
+  scApprovedSuppliersCreated  ScApprovedSupplier[]      @relation("ScApprovedSupplierCreatedBy")
+  imsIncidentsReported        ImsIncident[]             @relation("ImsIncidentReportedBy")
+  imsIncidentsCreated         ImsIncident[]             @relation("ImsIncidentCreatedBy")
+  imsEmergencyDrillsConducted ImsEmergencyDrill[]       @relation("ImsEmergencyDrillConductedBy")
+  imsEmergencyDrillsCreated   ImsEmergencyDrill[]       @relation("ImsEmergencyDrillCreatedBy")
+  imsToolboxTalksConducted    ImsToolboxTalk[]          @relation("ImsToolboxTalkConductedBy")
+  imsToolboxTalksCreated      ImsToolboxTalk[]          @relation("ImsToolboxTalkCreatedBy")
+  kickoffsFacilitated         ProjectKickoffChecklist[] @relation("KickoffFacilitatedBy")
+  kickoffsSignedOff           ProjectKickoffChecklist[] @relation("KickoffSignedOffBy")
+  kickoffsCreated             ProjectKickoffChecklist[] @relation("KickoffCreatedBy")
+  wqtInspections              QcWelderQualification[]   @relation("WQTInspector")
+  wqtCreated                  QcWelderQualification[]   @relation("WQTCreatedBy")
+  coatingInspections          QcCoatingInspection[]     @relation("CoatingInspector")
+  coatingInspectionsCreated   QcCoatingInspection[]     @relation("CoatingInspectionCreatedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -544,6 +564,8 @@ model Project {
   knowledgeApplications      KnowledgeApplication[]
   lcrEntries                 LcrEntry[]
   paymentSchedules           ProjectPaymentSchedule[]
+  kickoffChecklists          ProjectKickoffChecklist[]
+  coatingInspectionRecords   QcCoatingInspection[]     @relation("CoatingInspectionProject")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6693,4 +6715,281 @@ model ImsCompetenceEntry {
   @@index([employeeId])
   @@index([competenceArea])
   @@map("ImsCompetenceEntry")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sprint 22.7.0 — Missing Forms: Safety & HSE, QMS Processes, Approved
+// Suppliers, Training Needs Analysis, Kickoff Checklist, WQT, Coating
+// ─────────────────────────────────────────────────────────────────────────────
+
+model HrTrainingNeed {
+  id               String    @id @default(uuid()) @db.Char(36)
+  department       String    @db.VarChar(100)
+  roleTitle        String    @db.VarChar(255)
+  competencyGap    String    @db.Text
+  requiredTraining String    @db.Text
+  priority         String    @default("MEDIUM") @db.VarChar(20)
+  targetDate       DateTime?
+  status           String    @default("OPEN") @db.VarChar(20)
+  responsibleId    String?   @db.Char(36)
+  responsible      User?     @relation("HrTrainingNeedResponsible", fields: [responsibleId], references: [id])
+  notes            String?   @db.Text
+  deletedAt        DateTime?
+  deletedById      String?   @db.Char(36)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdById      String?   @db.Char(36)
+  createdBy        User?     @relation("HrTrainingNeedCreatedBy", fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([priority])
+  @@index([deletedAt])
+  @@map("HrTrainingNeed")
+}
+
+model ImsQmsProcess {
+  id                     String    @id @default(uuid()) @db.Char(36)
+  processNumber          String    @unique @db.VarChar(20)
+  name                   String    @db.VarChar(255)
+  processOwner           String?   @db.VarChar(255)
+  ownerId                String?   @db.Char(36)
+  owner                  User?     @relation("ImsQmsProcessOwner", fields: [ownerId], references: [id])
+  processType            String    @default("CORE") @db.VarChar(30)
+  inputs                 String?   @db.Text
+  outputs                String?   @db.Text
+  kpis                   String?   @db.Text
+  relatedDocumentNumbers String?   @db.Text
+  isoClause              String?   @db.VarChar(50)
+  status                 String    @default("ACTIVE") @db.VarChar(20)
+  notes                  String?   @db.Text
+  deletedAt              DateTime?
+  deletedById            String?   @db.Char(36)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  createdById            String?   @db.Char(36)
+  createdBy              User?     @relation("ImsQmsProcessCreatedBy", fields: [createdById], references: [id])
+
+  @@index([processType])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("ImsQmsProcess")
+}
+
+model ScApprovedSupplier {
+  id                 String    @id @default(uuid()) @db.Char(36)
+  supplierCode       String    @unique @db.VarChar(20)
+  name               String    @db.VarChar(255)
+  category           String?   @db.VarChar(100)
+  scopeOfApproval    String?   @db.Text
+  approvalStatus     String    @default("APPROVED") @db.VarChar(20)
+  approvalDate       DateTime?
+  expiryDate         DateTime?
+  lastAuditDate      DateTime?
+  auditFrequencyDays Int?
+  rating             String?   @db.VarChar(10)
+  notes              String?   @db.Text
+  deletedAt          DateTime?
+  deletedById        String?   @db.Char(36)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdById        String?   @db.Char(36)
+  createdBy          User?     @relation("ScApprovedSupplierCreatedBy", fields: [createdById], references: [id])
+
+  @@index([approvalStatus])
+  @@index([deletedAt])
+  @@map("ScApprovedSupplier")
+}
+
+model ImsIncident {
+  id               String    @id @default(uuid()) @db.Char(36)
+  incidentNumber   String    @unique @db.VarChar(30)
+  title            String    @db.VarChar(255)
+  incidentType     String    @db.VarChar(40)
+  incidentDate     DateTime
+  location         String?   @db.VarChar(255)
+  description      String?   @db.Text
+  immediateAction  String?   @db.Text
+  rootCause        String?   @db.Text
+  correctiveAction String?   @db.Text
+  preventiveAction String?   @db.Text
+  reportedById     String?   @db.Char(36)
+  reportedBy       User?     @relation("ImsIncidentReportedBy", fields: [reportedById], references: [id])
+  severity         String    @default("LOW") @db.VarChar(20)
+  status           String    @default("OPEN") @db.VarChar(30)
+  closedAt         DateTime?
+  deletedAt        DateTime?
+  deletedById      String?   @db.Char(36)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdById      String?   @db.Char(36)
+  createdBy        User?     @relation("ImsIncidentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([incidentType])
+  @@index([severity])
+  @@index([status])
+  @@index([incidentDate])
+  @@index([deletedAt])
+  @@map("ImsIncident")
+}
+
+model ImsEmergencyDrill {
+  id                String    @id @default(uuid()) @db.Char(36)
+  drillNumber       String    @unique @db.VarChar(30)
+  drillType         String    @db.VarChar(50)
+  scheduledDate     DateTime?
+  conductedDate     DateTime?
+  location          String?   @db.VarChar(255)
+  participantCount  Int?
+  objectives        String?   @db.Text
+  findings          String?   @db.Text
+  correctiveActions String?   @db.Text
+  conductedById     String?   @db.Char(36)
+  conductedBy       User?     @relation("ImsEmergencyDrillConductedBy", fields: [conductedById], references: [id])
+  status            String    @default("PLANNED") @db.VarChar(20)
+  notes             String?   @db.Text
+  deletedAt         DateTime?
+  deletedById       String?   @db.Char(36)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdById       String?   @db.Char(36)
+  createdBy         User?     @relation("ImsEmergencyDrillCreatedBy", fields: [createdById], references: [id])
+
+  @@index([drillType])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("ImsEmergencyDrill")
+}
+
+model ImsToolboxTalk {
+  id              String    @id @default(uuid()) @db.Char(36)
+  talkNumber      String    @unique @db.VarChar(30)
+  topic           String    @db.VarChar(255)
+  conductedDate   DateTime?
+  location        String?   @db.VarChar(255)
+  attendeeCount   Int?
+  durationMinutes Int?
+  content         String?   @db.Text
+  followUpActions String?   @db.Text
+  conductedById   String?   @db.Char(36)
+  conductedBy     User?     @relation("ImsToolboxTalkConductedBy", fields: [conductedById], references: [id])
+  status          String    @default("PLANNED") @db.VarChar(20)
+  notes           String?   @db.Text
+  deletedAt       DateTime?
+  deletedById     String?   @db.Char(36)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdById     String?   @db.Char(36)
+  createdBy       User?     @relation("ImsToolboxTalkCreatedBy", fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([conductedDate])
+  @@index([deletedAt])
+  @@map("ImsToolboxTalk")
+}
+
+model ProjectKickoffChecklist {
+  id                    String    @id @default(uuid()) @db.Char(36)
+  projectId             String    @db.Char(36)
+  project               Project   @relation(fields: [projectId], references: [id])
+  meetingDate           DateTime?
+  location              String?   @db.VarChar(255)
+  facilitatedById       String?   @db.Char(36)
+  facilitatedBy         User?     @relation("KickoffFacilitatedBy", fields: [facilitatedById], references: [id])
+  attendees             String?   @db.MediumText
+  agendaItems           String?   @db.Text
+  deliverablesDiscussed String?   @db.Text
+  openItems             String?   @db.Text
+  nextSteps             String?   @db.Text
+  status                String    @default("DRAFT") @db.VarChar(20)
+  signedOffAt           DateTime?
+  signedOffById         String?   @db.Char(36)
+  signedOffBy           User?     @relation("KickoffSignedOffBy", fields: [signedOffById], references: [id])
+  notes                 String?   @db.Text
+  deletedAt             DateTime?
+  deletedById           String?   @db.Char(36)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  createdById           String?   @db.Char(36)
+  createdBy             User?     @relation("KickoffCreatedBy", fields: [createdById], references: [id])
+
+  @@index([projectId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("ProjectKickoffChecklist")
+}
+
+model QcWelderQualification {
+  id                  String    @id @default(uuid()) @db.Char(36)
+  wqtNumber           String    @unique @db.VarChar(30)
+  welderName          String    @db.VarChar(255)
+  welderCode          String?   @db.VarChar(100)
+  weldingProcess      String    @db.VarChar(30)
+  position            String?   @db.VarChar(20)
+  baseMaterial        String?   @db.VarChar(255)
+  fillMaterial        String?   @db.VarChar(255)
+  thickness           String?   @db.VarChar(50)
+  diameter            String?   @db.VarChar(50)
+  testDate            DateTime?
+  testLocation        String?   @db.VarChar(255)
+  inspectorId         String?   @db.Char(36)
+  inspector           User?     @relation("WQTInspector", fields: [inspectorId], references: [id])
+  visualResult        String?   @db.VarChar(10)
+  bendTestResult      String?   @db.VarChar(10)
+  radiographyResult   String?   @db.VarChar(10)
+  overallResult       String    @default("NOT_QUALIFIED") @db.VarChar(20)
+  qualificationRange  String?   @db.Text
+  certificationNumber String?   @db.VarChar(100)
+  validFrom           DateTime?
+  expiryDate          DateTime?
+  renewalDate         DateTime?
+  notes               String?   @db.Text
+  deletedAt           DateTime?
+  deletedById         String?   @db.Char(36)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  createdById         String?   @db.Char(36)
+  createdBy           User?     @relation("WQTCreatedBy", fields: [createdById], references: [id])
+
+  @@index([overallResult])
+  @@index([expiryDate])
+  @@index([weldingProcess])
+  @@index([deletedAt])
+  @@map("QcWelderQualification")
+}
+
+model QcCoatingInspection {
+  id               String    @id @default(uuid()) @db.Char(36)
+  inspectionNumber String    @unique @db.VarChar(30)
+  projectId        String?   @db.Char(36)
+  project          Project?  @relation("CoatingInspectionProject", fields: [projectId], references: [id])
+  coatingSystem    String?   @db.VarChar(255)
+  coatLayer        String    @db.VarChar(30)
+  surfacePrep      String?   @db.VarChar(100)
+  ambientTemp      Decimal?  @db.Decimal(5, 1)
+  relativeHumidity Decimal?  @db.Decimal(5, 1)
+  dewPoint         Decimal?  @db.Decimal(5, 1)
+  nominalDft       Int?
+  minDft           Int?
+  maxDft           Int?
+  readings         String?   @db.Text
+  averageDft       Decimal?  @db.Decimal(8, 2)
+  result           String    @default("CONDITIONAL") @db.VarChar(20)
+  inspectorId      String?   @db.Char(36)
+  inspector        User?     @relation("CoatingInspector", fields: [inspectorId], references: [id])
+  inspectionDate   DateTime?
+  witnessedBy      String?   @db.VarChar(255)
+  remarks          String?   @db.Text
+  attachments      String?   @db.Text
+  deletedAt        DateTime?
+  deletedById      String?   @db.Char(36)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdById      String?   @db.Char(36)
+  createdBy        User?     @relation("CoatingInspectionCreatedBy", fields: [createdById], references: [id])
+
+  @@index([projectId])
+  @@index([result])
+  @@index([coatLayer])
+  @@index([deletedAt])
+  @@map("QcCoatingInspection")
 }
