@@ -23,7 +23,13 @@ export const GET = withApiContext(async (req) => {
   }
 
   try {
-    const [tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis, assemblyParts, lcrEntries, buildings, users, employees, assets, contracts, hrLetters, thirdparties, customerInvoices, supplierInvoices, payments] =
+    const [
+      tasks, projects, initiatives, weeklyIssues, backlogItems, ncrs, rfis,
+      assemblyParts, lcrEntries, buildings, users, employees, assets, contracts, hrLetters,
+      thirdparties, customerInvoices, supplierInvoices, payments,
+      auditPlans, managementReviews, auditFindings, qmsProcesses, approvedSuppliers,
+      companyObjectives, bdCompanies,
+    ] =
       await Promise.all([
         safe(() => prisma.task.findMany({
           where: {
@@ -334,6 +340,103 @@ export const GET = withApiContext(async (req) => {
           ORDER BY fp.payment_date DESC
           LIMIT 5
         `),
+
+        // ─── IMS & Business Planning ───────────────────────────────────────────
+        safe(() => prisma.imsAuditPlan.findMany({
+          where: {
+            OR: [
+              { planNumber: { contains: q } },
+              { auditType: { contains: q } },
+            ],
+          },
+          select: { id: true, planNumber: true, year: true, auditType: true, status: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { year: 'desc' },
+        })),
+
+        safe(() => prisma.imsManagementReview.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { reviewNumber: { contains: q } },
+              { period: { contains: q } },
+              { chairperson: { contains: q } },
+            ],
+          },
+          select: { id: true, reviewNumber: true, period: true, chairperson: true, status: true, reviewDate: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { reviewDate: 'desc' },
+        })),
+
+        safe(() => prisma.imsAuditFinding.findMany({
+          where: {
+            OR: [
+              { findingNumber: { contains: q } },
+              { description: { contains: q } },
+              { clause: { contains: q } },
+            ],
+          },
+          select: { id: true, findingNumber: true, type: true, clause: true, description: true, status: true, auditId: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { createdAt: 'desc' },
+        })),
+
+        safe(() => prisma.imsQmsProcess.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { processNumber: { contains: q } },
+              { name: { contains: q } },
+              { processOwner: { contains: q } },
+              { isoClause: { contains: q } },
+            ],
+          },
+          select: { id: true, processNumber: true, name: true, processOwner: true, processType: true, status: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { processNumber: 'asc' },
+        })),
+
+        safe(() => prisma.scApprovedSupplier.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { supplierCode: { contains: q } },
+              { name: { contains: q } },
+              { category: { contains: q } },
+            ],
+          },
+          select: { id: true, supplierCode: true, name: true, category: true, approvalStatus: true, rating: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { name: 'asc' },
+        })),
+
+        safe(() => prisma.companyObjective.findMany({
+          where: {
+            OR: [
+              { title: { contains: q } },
+              { description: { contains: q } },
+              { category: { contains: q } },
+            ],
+          },
+          select: { id: true, title: true, year: true, category: true, status: true, priority: true, progress: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { year: 'desc' },
+        })),
+
+        safe(() => prisma.bdCompany.findMany({
+          where: {
+            deletedAt: null,
+            OR: [
+              { name: { contains: q } },
+              { vendorId: { contains: q } },
+              { contactName: { contains: q } },
+              { contactEmail: { contains: q } },
+            ],
+          },
+          select: { id: true, name: true, vendorId: true, registrationStatus: true, contactName: true },
+          take: MAX_PER_CATEGORY,
+          orderBy: { updatedAt: 'desc' },
+        })),
       ]);
 
     const taskArr = Array.isArray(tasks) ? tasks : [];
@@ -355,6 +458,13 @@ export const GET = withApiContext(async (req) => {
     const customerInvoiceArr = Array.isArray(customerInvoices) ? customerInvoices : [];
     const supplierInvoiceArr = Array.isArray(supplierInvoices) ? supplierInvoices : [];
     const paymentArr = Array.isArray(payments) ? payments : [];
+    const auditPlanArr = Array.isArray(auditPlans) ? auditPlans : [];
+    const managementReviewArr = Array.isArray(managementReviews) ? managementReviews : [];
+    const auditFindingArr = Array.isArray(auditFindings) ? auditFindings : [];
+    const qmsProcessArr = Array.isArray(qmsProcesses) ? qmsProcesses : [];
+    const approvedSupplierArr = Array.isArray(approvedSuppliers) ? approvedSuppliers : [];
+    const companyObjectiveArr = Array.isArray(companyObjectives) ? companyObjectives : [];
+    const bdCompanyArr = Array.isArray(bdCompanies) ? bdCompanies : [];
 
     return NextResponse.json({
       results: {
@@ -521,6 +631,62 @@ export const GET = withApiContext(async (req) => {
           badge: p.payment_type === 'customer' ? 'Income' : 'Expense',
           url: `/financial/payments`,
           type: 'Payment',
+        })),
+        auditPlans: auditPlanArr.map((a) => ({
+          id: a.id,
+          title: a.planNumber,
+          subtitle: `${a.auditType} · ${a.year}`,
+          badge: a.status,
+          url: `/ims/audit-plans/${a.id}`,
+          type: 'Audit Plan',
+        })),
+        managementReviews: managementReviewArr.map((r) => ({
+          id: r.id,
+          title: r.reviewNumber,
+          subtitle: `${r.period} · ${r.chairperson}`,
+          badge: r.status,
+          url: `/ims/management-review`,
+          type: 'Management Review',
+        })),
+        auditFindings: auditFindingArr.map((f) => ({
+          id: f.id,
+          title: `${f.findingNumber} — ${f.type}`,
+          subtitle: f.description.length > 60 ? f.description.slice(0, 57) + '…' : f.description,
+          badge: f.status,
+          url: `/ims/audit-plans`,
+          type: 'Audit Finding',
+        })),
+        qmsProcesses: qmsProcessArr.map((p) => ({
+          id: p.id,
+          title: p.name,
+          subtitle: `${p.processNumber} · ${p.processType.replace('_', ' ')}`,
+          badge: p.status,
+          url: `/ims/processes`,
+          type: 'QMS Process',
+        })),
+        approvedSuppliers: approvedSupplierArr.map((s) => ({
+          id: s.id,
+          title: s.name,
+          subtitle: `${s.supplierCode} · ${s.category ?? 'General'}`,
+          badge: s.approvalStatus,
+          url: `/supply-chain/approved-suppliers`,
+          type: 'Approved Supplier',
+        })),
+        companyObjectives: companyObjectiveArr.map((o) => ({
+          id: o.id,
+          title: o.title,
+          subtitle: `${o.year} · ${o.category} · ${Math.round(o.progress)}%`,
+          badge: o.status,
+          url: `/business-planning/objectives`,
+          type: 'Objective',
+        })),
+        bdCompanies: bdCompanyArr.map((c) => ({
+          id: c.id,
+          title: c.name,
+          subtitle: c.vendorId ? `${c.vendorId} · ${c.contactName ?? ''}` : (c.contactName ?? 'Business Dev'),
+          badge: c.registrationStatus.replace(/_/g, ' '),
+          url: `/business-development`,
+          type: 'BD Company',
         })),
       },
     });

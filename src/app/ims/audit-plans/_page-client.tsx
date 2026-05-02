@@ -6,13 +6,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import Link from 'next/link';
 import {
-  SearchCheck, Plus, RefreshCw, ChevronRight, CheckCircle2, Clock, XCircle, AlertTriangle,
+  SearchCheck, Plus, RefreshCw, ChevronRight, CheckCircle2, Clock, FileDown, Loader2,
 } from 'lucide-react';
+import { generateAuditPlanPDF, type AuditPlanPDFData } from '@/lib/ims-pdf-generator';
 
 type Plan = {
   id: string;
@@ -24,26 +24,35 @@ type Plan = {
   _count: { audits: number };
 };
 
-const PLAN_STATUS_CFG: Record<string, string> = {
-  PLANNED: 'bg-blue-100 text-blue-700',
-  IN_PROGRESS: 'bg-amber-100 text-amber-700',
-  COMPLETED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-slate-100 text-slate-500',
+const STATUS_CFG: Record<string, { cls: string; dot: string }> = {
+  PLANNED: { cls: 'bg-blue-100 text-blue-700 border border-blue-200', dot: 'bg-blue-400' },
+  IN_PROGRESS: { cls: 'bg-amber-100 text-amber-700 border border-amber-200', dot: 'bg-amber-400' },
+  COMPLETED: { cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-400' },
+  CANCELLED: { cls: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-400' },
 };
 
-function planStatusBadge(s: string) {
+function PlanBadge({ s }: { s: string }) {
+  const cfg = STATUS_CFG[s] ?? { cls: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' };
   return (
-    <span className={`text-xs px-2 py-0.5 rounded font-medium ${PLAN_STATUS_CFG[s] ?? 'bg-gray-100 text-gray-600'}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${cfg.cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {s.replace('_', ' ')}
     </span>
   );
 }
+
+const TYPE_COLORS: Record<string, string> = {
+  Internal: 'bg-indigo-100 text-indigo-700',
+  External: 'bg-purple-100 text-purple-700',
+  Surveillance: 'bg-cyan-100 text-cyan-700',
+};
 
 export function AuditPlansClient() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [form, setForm] = useState({
     year: new Date().getFullYear(),
     auditType: 'Internal' as 'Internal' | 'External' | 'Surveillance',
@@ -80,16 +89,59 @@ export function AuditPlansClient() {
     }
   };
 
+  const downloadPDF = async (plan: Plan) => {
+    setDownloading(plan.id);
+    try {
+      const res = await fetch(`/api/ims/audit-plans/${plan.id}`);
+      if (!res.ok) return;
+      const detail = await res.json();
+
+      const findingsMap: Record<string, AuditPlanPDFData['audits'][0]['findings']> = {};
+      for (const a of (detail.audits ?? [])) {
+        const fr = await fetch(`/api/ims/audit-findings?auditId=${a.id}`);
+        findingsMap[a.id] = fr.ok ? await fr.json() : [];
+      }
+
+      const pdfData: AuditPlanPDFData = {
+        planNumber: plan.planNumber,
+        year: plan.year,
+        auditType: plan.auditType,
+        status: plan.status,
+        audits: (detail.audits ?? []).map((a: {
+          id: string; auditNumber: string; scope: string;
+          scheduledDate: string; actualDate?: string | null; status: string;
+          auditor?: { name: string } | null; auditee?: { name: string } | null;
+        }) => ({
+          auditNumber: a.auditNumber,
+          scope: a.scope,
+          scheduledDate: a.scheduledDate,
+          actualDate: a.actualDate,
+          status: a.status,
+          auditor: a.auditor?.name ?? null,
+          auditee: a.auditee?.name ?? null,
+          findings: findingsMap[a.id] ?? [],
+        })),
+      };
+
+      await generateAuditPlanPDF(pdfData);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 rounded-xl p-6 text-white">
-        <div className="flex items-center gap-3">
-          <SearchCheck className="w-8 h-8 text-indigo-300" />
+      <div className="relative overflow-hidden rounded-xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 60%, #2c3e50 100%)' }}>
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
+        <div className="relative flex items-start gap-4">
+          <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
+            <SearchCheck className="w-8 h-8 text-white" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold">Internal Audit Tracker</h1>
-            <p className="text-indigo-200 text-sm">ISO 9001 / 14001 / 45001 §9.2 — Audit programme management</p>
-            <p className="text-indigo-300/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-006, HEXA-FRM-007, HEXA-FRM-009 · Procedure: Hexa-ISP-002</p>
+            <h1 className="text-2xl font-bold tracking-tight">Internal Audit Tracker</h1>
+            <p className="text-slate-300 text-sm mt-0.5">ISO 9001 / 14001 / 45001 §9.2 — Audit programme management</p>
+            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-006 · HEXA-FRM-007 · HEXA-FRM-009 · Procedure: Hexa-ISP-002</p>
           </div>
         </div>
       </div>
@@ -106,62 +158,101 @@ export function AuditPlansClient() {
       {/* KPI Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Plans', value: kpi.total, color: 'text-slate-700', bg: 'bg-white border' },
-          { label: 'Planned', value: kpi.planned, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
-          { label: 'In Progress', value: kpi.inProgress, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
-          { label: 'Completed', value: kpi.completed, color: 'text-green-600', bg: 'bg-green-50 border-green-200' },
+          { label: 'Total Plans', value: kpi.total, color: 'text-[#2c3e50]', bg: 'bg-white border border-slate-200', icon: '📋' },
+          { label: 'Planned', value: kpi.planned, color: 'text-blue-600', bg: 'bg-blue-50 border border-blue-200', icon: '🕐' },
+          { label: 'In Progress', value: kpi.inProgress, color: 'text-amber-600', bg: 'bg-amber-50 border border-amber-200', icon: '⚡' },
+          { label: 'Completed', value: kpi.completed, color: 'text-emerald-600', bg: 'bg-emerald-50 border border-emerald-200', icon: '✅' },
         ].map(k => (
-          <div key={k.label} className={`rounded-lg border p-4 ${k.bg}`}>
-            <p className={`text-2xl font-bold ${k.color}`}>{k.value}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{k.label}</p>
+          <div key={k.label} className={`rounded-xl border p-4 ${k.bg} hover:shadow-sm transition-shadow`}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-slate-500 font-medium">{k.label}</p>
+              <span className="text-base">{k.icon}</span>
+            </div>
+            <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
           </div>
         ))}
       </div>
 
       {/* Controls */}
       <div className="flex justify-between items-center">
-        <Button variant="outline" size="sm" onClick={fetchPlans}><RefreshCw className="w-4 h-4" /></Button>
-        <Button size="sm" onClick={() => setDialog(true)} className="bg-indigo-700 hover:bg-indigo-800">
-          <Plus className="w-4 h-4 mr-1" /> New Audit Plan
+        <Button variant="outline" size="sm" onClick={fetchPlans} className="gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </Button>
+        <Button size="sm" onClick={() => setDialog(true)} className="gap-1.5 text-white" style={{ backgroundColor: '#2c3e50' }}>
+          <Plus className="w-4 h-4" /> New Audit Plan
         </Button>
       </div>
 
       {/* Table */}
-      <Card>
+      <Card className="border shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+          <p className="text-sm font-semibold text-[#2c3e50]">Audit Plans</p>
+          <p className="text-xs text-slate-400">{plans.length} records</p>
+        </div>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left">Plan #</th>
-                  <th className="px-4 py-3 text-left">Year</th>
-                  <th className="px-4 py-3 text-left">Audit Type</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Audits</th>
-                  <th className="px-4 py-3"></th>
+                <tr className="border-b bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left font-semibold">Plan #</th>
+                  <th className="px-4 py-3 text-left font-semibold">Year</th>
+                  <th className="px-4 py-3 text-left font-semibold">Type</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold">Audits</th>
+                  <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
+                      <span className="text-xs">Loading audit plans…</span>
+                    </div>
+                  </td></tr>
                 ) : plans.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No audit plans yet.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-10 text-center">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <SearchCheck className="w-8 h-8 text-slate-200" />
+                      <span className="text-sm">No audit plans yet</span>
+                      <span className="text-xs">Create your first audit plan to get started</span>
+                    </div>
+                  </td></tr>
                 ) : plans.map(p => (
-                  <tr key={p.id} className="border-b hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-sm font-medium">{p.planNumber}</td>
-                    <td className="px-4 py-3">{p.year}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.auditType}</td>
-                    <td className="px-4 py-3">{planStatusBadge(p.status)}</td>
+                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-4 py-3 font-mono text-sm font-semibold text-[#2c3e50]">{p.planNumber}</td>
+                    <td className="px-4 py-3 font-medium text-slate-700">{p.year}</td>
                     <td className="px-4 py-3">
-                      <span className="text-sm font-medium">{p._count.audits}</span>
-                      <span className="text-slate-400 text-xs ml-1">audits</span>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${TYPE_COLORS[p.auditType] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {p.auditType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3"><PlanBadge s={p.status} /></td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1.5 text-sm">
+                        <span className="font-semibold text-slate-700">{p._count.audits}</span>
+                        <span className="text-slate-400 text-xs">audits</span>
+                      </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/ims/audit-plans/${p.id}`}>
-                        <Button size="sm" variant="ghost" className="flex items-center gap-1">
-                          View <ChevronRight className="w-3 h-3" />
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm" variant="ghost"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                          onClick={() => downloadPDF(p)}
+                          disabled={downloading === p.id}
+                          title="Download PDF"
+                        >
+                          {downloading === p.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <FileDown className="w-3.5 h-3.5" />}
                         </Button>
-                      </Link>
+                        <Link href={`/ims/audit-plans/${p.id}`}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-slate-500 hover:text-[#2c3e50] hover:bg-slate-100 gap-1">
+                            View <ChevronRight className="w-3 h-3" />
+                          </Button>
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -173,8 +264,13 @@ export function AuditPlansClient() {
 
       {/* Create Dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>New Audit Plan</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SearchCheck className="w-5 h-5 text-[#2c3e50]" />
+              New Audit Plan
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>Year *</Label>
@@ -204,8 +300,8 @@ export function AuditPlansClient() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
-            <Button onClick={createPlan} disabled={saving} className="bg-indigo-700 hover:bg-indigo-800">
-              {saving ? 'Creating...' : 'Create Plan'}
+            <Button onClick={createPlan} disabled={saving} className="text-white gap-1.5" style={{ backgroundColor: '#2c3e50' }}>
+              {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating…</> : <><Plus className="w-3.5 h-3.5" /> Create Plan</>}
             </Button>
           </DialogFooter>
         </DialogContent>

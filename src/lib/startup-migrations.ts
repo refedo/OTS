@@ -133,6 +133,9 @@ const STARTUP_MIGRATIONS = [
   'add_qc_coating_inspection.sql',      // FRM-022: Coating Inspection (DFT)
   'add_ims_safety.sql',                 // FRM-024/025/026: Incidents, Drills, Toolbox Talks
   'seed_sprint_2270_data.sql',          // Demo seed data for all Sprint 22.7.0 tables
+
+  // ── Sprint 22.8.0 — IMS PDF Downloads, Seeds & Global Search Expansion ───
+  'seed_sprint_2280_data.sql',          // Audit Plans (AP-25/26), NCRs, Mgmt Reviews, Objectives 2026
 ];
 
 /**

@@ -11,8 +11,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   ClipboardList, Plus, RefreshCw, Download, Loader2, ChevronRight,
-  CheckCircle2, AlertTriangle, Lock, FileText, Zap, UserCheck, Trash2,
+  CheckCircle2, AlertTriangle, Lock, FileText, Zap, UserCheck, Trash2, FileDown,
 } from 'lucide-react';
+import { generateManagementReviewMOMPDF, generateManagementReviewReportPDF } from '@/lib/ims-pdf-generator';
 
 type Attendee = { name: string; role: string; present: boolean };
 
@@ -87,6 +88,8 @@ export function ManagementReviewClient() {
     notes: '',
   });
   const [attendeesForm, setAttendeesForm] = useState<Attendee[]>([]);
+  const [downloadingMOM, setDownloadingMOM] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -169,6 +172,26 @@ export function ManagementReviewClient() {
 
   const printReview = () => { window.print(); };
 
+  const downloadMOM = async () => {
+    if (!selected) return;
+    setDownloadingMOM(true);
+    try {
+      await generateManagementReviewMOMPDF(selected);
+    } finally {
+      setDownloadingMOM(false);
+    }
+  };
+
+  const downloadReport = async () => {
+    if (!selected) return;
+    setDownloadingReport(true);
+    try {
+      await generateManagementReviewReportPDF(selected);
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
+
   const addAttendee = () => setAttendeesForm((a: Attendee[]) => [...a, { ...BLANK_ATTENDEE }]);
   const removeAttendee = (i: number) => setAttendeesForm((a: Attendee[]) => a.filter((_: Attendee, idx: number) => idx !== i));
   const updateAttendee = (i: number, field: keyof Attendee, value: string | boolean) =>
@@ -189,7 +212,15 @@ export function ManagementReviewClient() {
               {populating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Zap className="w-4 h-4 mr-1" />}
               Populate from OTS
             </Button>
-            <Button variant="outline" size="sm" onClick={printReview}><Download className="w-4 h-4 mr-1" />Print / PDF</Button>
+            <Button variant="outline" size="sm" onClick={downloadMOM} disabled={downloadingMOM} className="text-[#2c3e50] border-[#2c3e50]/30 hover:bg-[#2c3e50] hover:text-white transition-colors">
+              {downloadingMOM ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileDown className="w-4 h-4 mr-1" />}
+              FRM-011 MOM
+            </Button>
+            <Button variant="outline" size="sm" onClick={downloadReport} disabled={downloadingReport} className="text-[#2c3e50] border-[#2c3e50]/30 hover:bg-[#2c3e50] hover:text-white transition-colors">
+              {downloadingReport ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileDown className="w-4 h-4 mr-1" />}
+              FRM-012 Report
+            </Button>
+            <Button variant="outline" size="sm" onClick={printReview}><Download className="w-4 h-4 mr-1" />Print</Button>
             {selected.status === 'DRAFT' && (
               <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={approveReview}>
                 <CheckCircle2 className="w-4 h-4 mr-1" /> Approve Review
@@ -199,14 +230,15 @@ export function ManagementReviewClient() {
         </div>
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-700 to-slate-900 rounded-xl p-6 text-white">
-          <div className="flex items-start justify-between">
+        <div className="relative overflow-hidden rounded-xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 60%, #2c3e50 100%)' }}>
+          <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
+          <div className="relative flex items-start justify-between">
             <div>
-              <p className="text-slate-300 text-sm">Management Review Report</p>
-              <h1 className="text-2xl font-bold">{selected.reviewNumber}</h1>
-              <p className="text-slate-300">{selected.period} — {new Date(selected.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')}</p>
+              <p className="text-slate-300 text-sm font-medium">Management Review Report</p>
+              <h1 className="text-2xl font-bold tracking-tight mt-0.5">{selected.reviewNumber}</h1>
+              <p className="text-slate-300 mt-0.5">{selected.period} — {new Date(selected.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')}</p>
               <p className="text-slate-400 text-sm mt-1">Chairperson: {selected.chairperson}</p>
-              <p className="text-slate-500 text-xs font-mono mt-0.5">Form: HEXA-FRM-011 · Procedure: Hexa-ISP-003 · ISO §9.3</p>
+              <p className="text-slate-500/80 text-xs font-mono mt-1">HEXA-FRM-011 (MOM) · HEXA-FRM-012 (Report) · ISO §9.3</p>
             </div>
             {statusBadge(selected.status)}
           </div>
@@ -505,13 +537,16 @@ export function ManagementReviewClient() {
   return (
     <div className="p-6 space-y-6">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-slate-700 to-slate-900 rounded-xl p-6 text-white">
-        <div className="flex items-center gap-3">
-          <ClipboardList className="w-8 h-8 text-slate-300" />
+      <div className="relative overflow-hidden rounded-xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 60%, #2c3e50 100%)' }}>
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
+        <div className="relative flex items-start gap-4">
+          <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
+            <ClipboardList className="w-8 h-8 text-white" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold">Management Review</h1>
-            <p className="text-slate-300 text-sm">ISO 9001 / 14001 / 45001 §9.3 — Executive quality management reviews</p>
-            <p className="text-slate-500 text-xs font-mono mt-0.5">Form: HEXA-FRM-011, HEXA-FRM-012 · Procedure: Hexa-ISP-003</p>
+            <h1 className="text-2xl font-bold tracking-tight">Management Review</h1>
+            <p className="text-slate-300 text-sm mt-0.5">ISO 9001 / 14001 / 45001 §9.3 — Executive quality management reviews</p>
+            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-011 (MOM) · HEXA-FRM-012 (Report) · Procedure: Hexa-ISP-003</p>
           </div>
         </div>
       </div>
@@ -527,56 +562,75 @@ export function ManagementReviewClient() {
 
       {/* Controls */}
       <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchReviews}><RefreshCw className="w-4 h-4" /></Button>
-        </div>
-        <Button size="sm" onClick={() => setCreateDialog(true)} className="bg-slate-800 hover:bg-slate-700">
-          <Plus className="w-4 h-4 mr-1" /> New Review
+        <Button variant="outline" size="sm" onClick={fetchReviews} className="gap-1.5">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </Button>
+        <Button size="sm" onClick={() => setCreateDialog(true)} className="gap-1.5 text-white" style={{ backgroundColor: '#2c3e50' }}>
+          <Plus className="w-4 h-4" /> New Review
         </Button>
       </div>
 
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total Reviews', value: reviews.length, color: 'text-slate-700' },
-          { label: 'Approved', value: reviews.filter((r: Review) => r.status === 'APPROVED' || r.status === 'LOCKED').length, color: 'text-green-600' },
-          { label: 'Drafts', value: reviews.filter((r: Review) => r.status === 'DRAFT').length, color: 'text-amber-600' },
+          { label: 'Total Reviews', value: reviews.length, color: 'text-[#2c3e50]', bg: 'bg-white border border-slate-200', icon: '📋' },
+          { label: 'Approved', value: reviews.filter((r: Review) => r.status === 'APPROVED' || r.status === 'LOCKED').length, color: 'text-emerald-600', bg: 'bg-emerald-50 border border-emerald-200', icon: '✅' },
+          { label: 'Drafts', value: reviews.filter((r: Review) => r.status === 'DRAFT').length, color: 'text-amber-600', bg: 'bg-amber-50 border border-amber-200', icon: '📝' },
         ].map(k => (
-          <div key={k.label} className="bg-white border rounded-lg p-4">
-            <p className={`text-2xl font-bold ${k.color}`}>{k.value}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{k.label}</p>
+          <div key={k.label} className={`rounded-xl border p-4 ${k.bg} hover:shadow-sm transition-shadow`}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-slate-500 font-medium">{k.label}</p>
+              <span className="text-base">{k.icon}</span>
+            </div>
+            <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
           </div>
         ))}
       </div>
 
       {/* List */}
-      <Card>
+      <Card className="border shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+          <p className="text-sm font-semibold text-[#2c3e50]">Management Reviews</p>
+          <p className="text-xs text-slate-400">{reviews.length} records</p>
+        </div>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left">Review #</th>
-                  <th className="px-4 py-3 text-left">Period</th>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Chairperson</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3"></th>
+                <tr className="border-b bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left font-semibold">Review #</th>
+                  <th className="px-4 py-3 text-left font-semibold">Period</th>
+                  <th className="px-4 py-3 text-left font-semibold">Date</th>
+                  <th className="px-4 py-3 text-left font-semibold">Chairperson</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Loading...</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
+                      <span className="text-xs">Loading reviews…</span>
+                    </div>
+                  </td></tr>
                 ) : reviews.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No reviews yet. Create the first management review.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-10 text-center">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <ClipboardList className="w-8 h-8 text-slate-200" />
+                      <span className="text-sm">No management reviews yet</span>
+                    </div>
+                  </td></tr>
                 ) : reviews.map((r: Review) => (
-                  <tr key={r.id} className="border-b hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => fetchDetail(r.id)}>
-                    <td className="px-4 py-3 font-mono text-sm font-medium">{r.reviewNumber}</td>
-                    <td className="px-4 py-3">{r.period}</td>
+                  <tr key={r.id} className="hover:bg-slate-50/80 cursor-pointer transition-colors group" onClick={() => fetchDetail(r.id)}>
+                    <td className="px-4 py-3 font-mono text-sm font-semibold text-[#2c3e50]">{r.reviewNumber}</td>
+                    <td className="px-4 py-3 text-slate-700 font-medium">{r.period}</td>
                     <td className="px-4 py-3 text-slate-500">{new Date(r.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
-                    <td className="px-4 py-3">{r.chairperson}</td>
+                    <td className="px-4 py-3 text-slate-600">{r.chairperson}</td>
                     <td className="px-4 py-3">{statusBadge(r.status)}</td>
-                    <td className="px-4 py-3"><ChevronRight className="w-4 h-4 text-slate-400 ml-auto" /></td>
+                    <td className="px-4 py-3 text-right">
+                      <ChevronRight className="w-4 h-4 text-slate-400 ml-auto group-hover:text-[#2c3e50] transition-colors" />
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -11,6 +11,14 @@ export type ReportTheme = {
 };
 
 export const themes: Record<string, ReportTheme> = {
+  steel: {
+    primaryColor: '#2c3e50',
+    secondaryColor: '#34495e',
+    accentColor: '#7f8c8d',
+    textColor: '#1f2937',
+    headerBg: '#2c3e50',
+    headerText: '#ffffff',
+  },
   blue: {
     primaryColor: '#1e40af',
     secondaryColor: '#3b82f6',

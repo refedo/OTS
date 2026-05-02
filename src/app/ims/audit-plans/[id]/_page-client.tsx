@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { ArrowLeft, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Loader2, FileDown } from 'lucide-react';
+import { generateAuditPlanPDF, type AuditPlanPDFData } from '@/lib/ims-pdf-generator';
 
 type Audit = {
   id: string;
@@ -66,6 +67,7 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
   const [auditDialog, setAuditDialog] = useState(false);
   const [findingDialog, setFindingDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const [auditForm, setAuditForm] = useState({
     scope: '', scheduledDate: '', auditorId: '', auditeeId: '',
@@ -163,19 +165,64 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
     if (selectedAudit) fetchFindings(selectedAudit.id);
   };
 
+  const downloadPDF = async () => {
+    if (!plan) return;
+    setDownloading(true);
+    try {
+      const allFindings: Record<string, Finding[]> = {};
+      for (const a of plan.audits) {
+        const fr = await fetch(`/api/ims/audit-findings?auditId=${a.id}`);
+        allFindings[a.id] = fr.ok ? await fr.json() : [];
+      }
+      const pdfData: AuditPlanPDFData = {
+        planNumber: plan.planNumber,
+        year: plan.year,
+        auditType: plan.auditType,
+        status: plan.status,
+        audits: plan.audits.map(a => ({
+          auditNumber: a.auditNumber,
+          scope: a.scope,
+          scheduledDate: a.scheduledDate,
+          actualDate: a.actualDate,
+          status: a.status,
+          auditor: a.auditor?.name ?? null,
+          auditee: a.auditee?.name ?? null,
+          findings: allFindings[a.id] ?? [],
+        })),
+      };
+      await generateAuditPlanPDF(pdfData);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) return <div className="p-6 text-slate-400">Loading...</div>;
   if (!plan) return <div className="p-6 text-slate-400">Plan not found.</div>;
 
   return (
     <div className="p-6 space-y-6 max-w-6xl mx-auto">
-      <Link href="/ims/audit-plans" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
-        <ArrowLeft className="w-4 h-4" /> Back to Audit Plans
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/ims/audit-plans" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#2c3e50] transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back to Audit Plans
+        </Link>
+        <Button
+          size="sm" variant="outline"
+          className="gap-1.5 text-xs border-[#2c3e50]/30 text-[#2c3e50] hover:bg-[#2c3e50] hover:text-white transition-colors"
+          onClick={downloadPDF}
+          disabled={downloading}
+        >
+          {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+          Download PDF
+        </Button>
+      </div>
 
-      <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 rounded-xl p-6 text-white">
-        <h1 className="text-2xl font-bold">{plan.planNumber}</h1>
-        <p className="text-indigo-200">{plan.auditType} Audit Plan — {plan.year}</p>
-        <span className="mt-2 inline-block text-xs bg-white/20 px-2 py-0.5 rounded">{plan.status}</span>
+      <div className="relative overflow-hidden rounded-xl p-6 text-white" style={{ background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 60%, #2c3e50 100%)' }}>
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
+        <div className="relative">
+          <h1 className="text-2xl font-bold tracking-tight">{plan.planNumber}</h1>
+          <p className="text-slate-300 mt-0.5">{plan.auditType} Audit Plan — {plan.year}</p>
+          <span className="mt-2 inline-block text-xs bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full">{plan.status.replace('_', ' ')}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
