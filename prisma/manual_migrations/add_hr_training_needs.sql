@@ -1,6 +1,8 @@
 -- Migration: Add HrTrainingNeed table (HEXA-FRM-005 Training Needs Analysis)
 -- Sprint 22.7.0
 
+DROP PROCEDURE IF EXISTS add_hr_training_needs;
+DELIMITER $$
 CREATE PROCEDURE add_hr_training_needs()
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.TABLES
@@ -8,8 +10,9 @@ BEGIN
 
     CREATE TABLE `HrTrainingNeed` (
       `id`               CHAR(36)     NOT NULL,
-      `department`       VARCHAR(100) NOT NULL,
-      `roleTitle`        VARCHAR(255) NOT NULL,
+      `employeeName`     VARCHAR(255) NOT NULL,
+      `department`       VARCHAR(100) NULL,
+      `roleTitle`        VARCHAR(255) NULL,
       `competencyGap`    TEXT         NOT NULL,
       `requiredTraining` TEXT         NOT NULL,
       `priority`         VARCHAR(20)  NOT NULL DEFAULT 'MEDIUM',
@@ -33,7 +36,8 @@ BEGIN
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
   END IF;
-END;
+END$$
+DELIMITER ;
 
 CALL add_hr_training_needs();
 DROP PROCEDURE IF EXISTS add_hr_training_needs;

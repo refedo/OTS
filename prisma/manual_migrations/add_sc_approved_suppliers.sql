@@ -1,6 +1,8 @@
 -- Migration: Add ScApprovedSupplier table (HEXA-FRM-003 Approved Supplier List)
 -- Sprint 22.7.0
 
+DROP PROCEDURE IF EXISTS add_sc_approved_suppliers;
+DELIMITER $$
 CREATE PROCEDURE add_sc_approved_suppliers()
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.TABLES
@@ -33,7 +35,8 @@ BEGIN
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
   END IF;
-END;
+END$$
+DELIMITER ;
 
 CALL add_sc_approved_suppliers();
 DROP PROCEDURE IF EXISTS add_sc_approved_suppliers;

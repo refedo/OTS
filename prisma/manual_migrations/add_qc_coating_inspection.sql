@@ -1,6 +1,8 @@
 -- Migration: Add QcCoatingInspection table (HEXA-FRM-022 Coating Inspection Record / DFT)
 -- Sprint 22.7.0
 
+DROP PROCEDURE IF EXISTS add_qc_coating_inspection;
+DELIMITER $$
 CREATE PROCEDURE add_qc_coating_inspection()
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.TABLES
@@ -47,7 +49,8 @@ BEGIN
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
   END IF;
-END;
+END$$
+DELIMITER ;
 
 CALL add_qc_coating_inspection();
 DROP PROCEDURE IF EXISTS add_qc_coating_inspection;

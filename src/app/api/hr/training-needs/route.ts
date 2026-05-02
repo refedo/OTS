@@ -6,8 +6,9 @@ import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const CreateSchema = z.object({
-  department: z.string().min(1),
-  roleTitle: z.string().min(1),
+  employeeName: z.string().min(1),
+  department: z.string().optional().nullable(),
+  roleTitle: z.string().optional().nullable(),
   competencyGap: z.string().min(1),
   requiredTraining: z.string().min(1),
   priority: z.enum(['HIGH', 'MEDIUM', 'LOW']).default('MEDIUM'),
@@ -32,6 +33,7 @@ export async function GET() {
       where: { deletedAt: null },
       select: {
         id: true,
+        employeeName: true,
         department: true,
         roleTitle: true,
         competencyGap: true,
@@ -67,8 +69,9 @@ export async function POST(req: Request) {
     const data = parsed.data;
     const record = await prisma.hrTrainingNeed.create({
       data: {
-        department: data.department,
-        roleTitle: data.roleTitle,
+        employeeName: data.employeeName,
+        department: data.department ?? null,
+        roleTitle: data.roleTitle ?? null,
         competencyGap: data.competencyGap,
         requiredTraining: data.requiredTraining,
         priority: data.priority,

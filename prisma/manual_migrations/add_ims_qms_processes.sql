@@ -1,6 +1,8 @@
 -- Migration: Add ImsQmsProcess table (HEXA-FRM-002/004 Master List of QMS Processes)
 -- Sprint 22.7.0
 
+DROP PROCEDURE IF EXISTS add_ims_qms_processes;
+DELIMITER $$
 CREATE PROCEDURE add_ims_qms_processes()
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.TABLES
@@ -37,7 +39,8 @@ BEGIN
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
   END IF;
-END;
+END$$
+DELIMITER ;
 
 CALL add_ims_qms_processes();
 DROP PROCEDURE IF EXISTS add_ims_qms_processes;

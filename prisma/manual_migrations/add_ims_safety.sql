@@ -1,6 +1,8 @@
 -- Migration: Add IMS Safety tables (FRM-024 Incidents, FRM-025 Emergency Drills, FRM-026 Toolbox Talks)
 -- Sprint 22.7.0
 
+DROP PROCEDURE IF EXISTS add_ims_safety;
+DELIMITER $$
 CREATE PROCEDURE add_ims_safety()
 BEGIN
   -- ImsIncident
@@ -113,7 +115,8 @@ BEGIN
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
   END IF;
-END;
+END$$
+DELIMITER ;
 
 CALL add_ims_safety();
 DROP PROCEDURE IF EXISTS add_ims_safety;

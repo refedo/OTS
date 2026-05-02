@@ -1,6 +1,8 @@
 -- Migration: Add ProjectKickoffChecklist table (HEXA-FRM-016 Project Kickoff Meeting Checklist)
 -- Sprint 22.7.0
 
+DROP PROCEDURE IF EXISTS add_project_kickoff;
+DELIMITER $$
 CREATE PROCEDURE add_project_kickoff()
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.TABLES
@@ -41,7 +43,8 @@ BEGIN
     ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
   END IF;
-END;
+END$$
+DELIMITER ;
 
 CALL add_project_kickoff();
 DROP PROCEDURE IF EXISTS add_project_kickoff;
