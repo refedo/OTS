@@ -40,6 +40,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Projects
   '/projects-dashboard': ['projects.view', 'projects.view_all'],
   '/projects': ['projects.view', 'projects.view_all'],
+  '/projects/kickoff': ['projects.view', 'projects.view_all'],
   '/buildings': ['buildings.view'],
   '/projects/wizard': ['projects.create'],
   '/planning': ['planning.view'],
@@ -74,6 +75,8 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/qc/rfi/new': ['quality.create_rfi', 'quality.view_rfi'],
   '/qc/ncr': ['quality.view_ncr'],
   '/qc/ncr/new': ['quality.create_ncr', 'quality.view_ncr'],
+  '/qc/welder-qualification': ['quality.view_wps', 'quality.view_itp'],
+  '/qc/coating': ['quality.view_itp'],
   '/itp': ['quality.view_itp'],
   '/itp/new': ['quality.create_itp'],
   '/wps': ['quality.view_wps'],
@@ -147,6 +150,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/supply-chain/lcr/reports': ['supply_chain.view'],
   '/supply-chain/lcr/aliases': ['supply_chain.alias'],
   '/supply-chain/purchase-orders': ['supply_chain.view'],
+  '/supply-chain/approved-suppliers': ['supply_chain.view'],
 
   // Project Status Tracker
   '/project-tracker': ['project_tracker.view'],
@@ -256,6 +260,15 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/ims/audit-plans': ['ims.audits.view', 'ims.audits.manage'],
   '/ims/audit-plans/[id]': ['ims.audits.view', 'ims.audits.manage'],
   '/ims/competence-matrix': ['ims.competence.view', 'ims.competence.manage'],
+
+  // IMS — New pages (22.7.0)
+  '/ims/processes': ['ims.view', 'ims.documents.view'],
+  '/ims/safety/incidents': ['ims.view', 'ims.risks.view'],
+  '/ims/safety/drills': ['ims.view', 'ims.risks.view'],
+  '/ims/safety/toolbox-talks': ['ims.view', 'ims.risks.view'],
+
+  // Forms Directory (22.7.0)
+  '/forms': null, // accessible to all logged-in users
 };
 
 // Helper function to check if user has permission to access a route
