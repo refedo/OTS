@@ -273,6 +273,7 @@ const navigationSections: NavigationSection[] = [
     icon: ShieldCheck,
     items: [
       { name: 'IMS Dashboard', href: '/ims', icon: LayoutDashboard, newSince: '2026-04-27' },
+      { name: 'Forms Directory', href: '/forms', icon: FileText, newSince: '2026-05-02' },
       { name: 'Document Registry', href: '/ims/documents', icon: FileText, newSince: '2026-04-27' },
       { name: 'Change Requests', href: '/ims/change-requests', icon: GitPullRequest, newSince: '2026-04-27' },
       { name: 'Clause Matrix', href: '/ims/clause-matrix', icon: Grid3X3, newSince: '2026-04-27' },
