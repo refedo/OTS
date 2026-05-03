@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.10.2] - 2026-05-03
+
+### IMS Multi-Fix — Report Quality, Select Crashes, Collation & UX
+
+#### Fixed
+- **SQL migration collation error** (`seed_ims_rev01_risks.sql`): Changed all `COLLATE utf8mb4_0900_ai_ci` references to `COLLATE utf8mb4_unicode_ci` to match the table collation. Migration now completes successfully without `Illegal mix of collations` error.
+- **Audit plans page crash** — `<Select.Item />` with empty-string `value` prop caused React crash on both the "Add Audit" dialog (auditor/auditee selects) and the "Add Finding" dialog (responsible select). Replaced `value=""` with sentinel `"__none__"` pattern.
+- **Calibration filter crash** — same `<Select.Item value="">` error on the "All Statuses" filter. Fixed with `value="ALL"` sentinel.
+- **IMS Change Requests & Legal Register** — same empty-SelectItem fix applied to document selector and responsible person selector.
+- **Management review PDF text ruined** — `inputAuditResults`, `inputNcrSummary`, `inputKpiStatus`, `inputRiskSummary`, etc. were raw `JSON.stringify()`'d into PDF paragraphs, producing unreadable text. Replaced with `formatInputSection()` helper that renders structured data as human-readable bullet text.
+- **PDF logo invisible on dark header** — added white rounded rectangle behind logo before drawing the image, making it visible on the `#2c3e50` header background.
+- **Date format in PDFs** — all `fmt()` calls now use `{ day: '2-digit', month: '2-digit', year: 'numeric' }` producing `dd/mm/yyyy` format.
+- **Management review wrong form number** — banner, XLSX filename, and hero subtitle showed `HEXA-FRM-008` (Audit Findings). Corrected to `HEXA-FRM-011 (MOM) / FRM-012 (Report)`.
+- **Management review create dialog retains old data** — "New Review" button now resets `newForm` state to blank values before opening the dialog, preventing previous meeting data from pre-filling the form.
+
+#### Added
+- **QMS Process List → Approve button**: Processes in `UNDER_REVIEW` status now show a green checkmark (✓) action button that transitions the process to `ACTIVE` with a single click. Resolves the mismatch of showing "Under Review" count in PDF reports without a corresponding approval action.
+- **IMS Dashboard KPI tiles now clickable**: All 8 KPI tiles (ISPs, Forms, Records, Incidents, Total Documents, Overdue Reviews, Pending DCRs, Open Risks) are now `<Link>` elements navigating to the relevant module page.
+
+#### Changed
+- Version bumped to **22.10.2**
+
+---
+
 ## [22.10.1] - 2026-05-03
 
 ### IMS Data Seeding & Documents Page Fix

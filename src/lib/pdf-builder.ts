@@ -95,15 +95,16 @@ export class PDFReportBuilder {
     this.doc.setFillColor(this.theme.headerBg);
     this.doc.rect(0, 0, this.pageWidth, headerHeight, 'F');
 
-    // Logo (if provided)
+    // Logo (if provided) — white pill background so logo is visible on dark header
     if (logoBase64) {
       try {
-        // Determine image format from base64 string
-        const format = logoBase64.includes('data:image/png') ? 'PNG' : 
+        const format = logoBase64.includes('data:image/png') ? 'PNG' :
                       logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg') ? 'JPEG' : 'PNG';
+        this.doc.setFillColor(255, 255, 255);
+        this.doc.roundedRect(this.margin - 1, 4, 22, 17, 2, 2, 'F');
         this.doc.addImage(logoBase64, format, this.margin, 5, 20, 15);
-      } catch (error) {
-        console.error('Error adding logo:', error);
+      } catch {
+        // logo load failed — skip silently
       }
     }
 

@@ -127,6 +127,15 @@ export function QmsProcessesClient() {
     }
   }
 
+  async function approveProcess(id: string) {
+    await fetch(`/api/ims/qms-processes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'ACTIVE' }),
+    });
+    fetchRecords();
+  }
+
   const f = (k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const downloadPDF = async () => {
@@ -268,6 +277,11 @@ export function QmsProcessesClient() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
+                          {r.status === 'UNDER_REVIEW' && (
+                            <Button variant="ghost" size="sm" onClick={() => approveProcess(r.id)} title="Approve — set to Active" className="text-green-600 hover:text-green-700 hover:bg-green-50">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => deleteRecord(r.id)} disabled={deleting === r.id}>
                             <Trash2 className="h-3.5 w-3.5 text-red-400" />

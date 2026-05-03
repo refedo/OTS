@@ -176,12 +176,12 @@ export function CalibrationClient() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <Select value={filterDerived} onValueChange={setFilterDerived}>
+            <Select value={filterDerived || 'ALL'} onValueChange={v => setFilterDerived(v === 'ALL' ? '' : v)}>
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="ALL">All Statuses</SelectItem>
                 <SelectItem value="CURRENT">Current</SelectItem>
                 <SelectItem value="DUE_SOON">Due Soon</SelectItem>
                 <SelectItem value="OVERDUE">Overdue</SelectItem>

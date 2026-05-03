@@ -254,7 +254,7 @@ export function ManagementReviewClient() {
     try {
       const XLSX = await import('xlsx');
       const rows: (string | number | boolean | null)[][] = [
-        ['Management Review Record — HEXA-FRM-008'],
+        ['Management Review Record — HEXA-FRM-011 (MOM) / HEXA-FRM-012 (Report)'],
         ['Review Number', selected.reviewNumber],
         ['Period', selected.period],
         ['Date', new Date(selected.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')],
@@ -295,7 +295,7 @@ export function ManagementReviewClient() {
       ws['!cols'] = [{ wch: 35 }, { wch: 60 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Management Review');
-      XLSX.writeFile(wb, `${selected.reviewNumber}-FRM-008.xlsx`);
+      XLSX.writeFile(wb, `${selected.reviewNumber}-Management-Review.xlsx`);
     } finally {
       setDownloadingXlsx(false);
     }
@@ -376,7 +376,7 @@ export function ManagementReviewClient() {
               <h1 className="text-2xl font-bold tracking-tight mt-0.5">{selected.reviewNumber}</h1>
               <p className="text-slate-300 mt-0.5">{selected.period} — {new Date(selected.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')}</p>
               <p className="text-slate-400 text-sm mt-1">Chairperson: {selected.chairperson}</p>
-              <p className="text-slate-500/80 text-xs font-mono mt-1">HEXA-FRM-008 · Procedure: Hexa-ISP-003 · ISO §9.3</p>
+              <p className="text-slate-500/80 text-xs font-mono mt-1">HEXA-FRM-011 (MOM) / FRM-012 (Report) · Procedure: Hexa-ISP-003 · ISO §9.3</p>
             </div>
             {statusBadge(selected.status)}
           </div>
@@ -726,7 +726,7 @@ export function ManagementReviewClient() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Management Review</h1>
             <p className="text-slate-300 text-sm mt-0.5">ISO 9001 / 14001 / 45001 §9.3 — Executive quality management reviews</p>
-            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-008 · Procedure: Hexa-ISP-003 · ISO §9.3</p>
+            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-011 (MOM) / FRM-012 (Report) · Procedure: Hexa-ISP-003 · ISO §9.3</p>
           </div>
         </div>
       </div>
@@ -745,7 +745,7 @@ export function ManagementReviewClient() {
         <Button variant="outline" size="sm" onClick={fetchReviews} className="gap-1.5">
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </Button>
-        <Button size="sm" onClick={() => setCreateDialog(true)} className="gap-1.5 text-white" style={{ backgroundColor: '#2c3e50' }}>
+        <Button size="sm" onClick={() => { setNewForm({ reviewDate: '', chairperson: 'CEO', period: '' }); setCreateDialog(true); }} className="gap-1.5 text-white" style={{ backgroundColor: '#2c3e50' }}>
           <Plus className="w-4 h-4" /> New Review
         </Button>
       </div>

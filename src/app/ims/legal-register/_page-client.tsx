@@ -438,10 +438,10 @@ export function LegalRegisterClient() {
             </div>
             <div>
               <Label>Responsible Person</Label>
-              <Select value={form.responsibleId} onValueChange={v => setForm(f => ({ ...f, responsibleId: v }))}>
+              <Select value={form.responsibleId || '__none__'} onValueChange={v => setForm(f => ({ ...f, responsibleId: v === '__none__' ? '' : v }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select person" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="__none__">— None —</SelectItem>
                   {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
