@@ -216,6 +216,7 @@ export function ImsDashboardClient() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [riskDashboard, setRiskDashboard] = useState<RiskDashboardData | null>(null);
   const [overdueDocs, setOverdueDocs] = useState<OverdueDoc[]>([]);
+  const [incidentCount, setIncidentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -226,10 +227,11 @@ export function ImsDashboardClient() {
     setError(null);
 
     try {
-      const [dashRes, riskRes, overdueRes] = await Promise.all([
+      const [dashRes, riskRes, overdueRes, incidentRes] = await Promise.all([
         fetch('/api/ims/dashboard'),
         fetch('/api/ims/risks/dashboard'),
         fetch('/api/ims/documents?overdue=true&status=APPROVED'),
+        fetch('/api/ims/safety/incidents'),
       ]);
 
       if (dashRes.ok) {
@@ -243,6 +245,10 @@ export function ImsDashboardClient() {
       if (overdueRes.ok) {
         const data = await overdueRes.json() as OverdueDoc[];
         setOverdueDocs(Array.isArray(data) ? data.slice(0, 8) : []);
+      }
+      if (incidentRes.ok) {
+        const data = await incidentRes.json();
+        setIncidentCount(Array.isArray(data) ? data.length : 0);
       }
     } catch {
       setError('Failed to load dashboard data. Please try again.');
@@ -318,6 +324,24 @@ export function ImsDashboardClient() {
           <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
             {error}
+          </div>
+        )}
+
+        {/* ── IMS Document Registry KPIs ── */}
+        {!loading && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'ISPs (Procedures)', value: 20, sub: 'ISP-001 → ISP-030', color: 'text-[#1A3A5C]', bg: 'bg-[#1A3A5C]/5 border-[#1A3A5C]/20' },
+              { label: 'Forms (FRM)', value: 22, sub: 'HEXA-FRM-001 to 022', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+              { label: 'Records (REC)', value: 3, sub: 'REC-023 to 025', color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
+              { label: 'Incidents Logged', value: incidentCount, sub: 'HEXA-FRM-019', color: incidentCount > 0 ? 'text-red-700' : 'text-slate-600', bg: incidentCount > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200' },
+            ].map(k => (
+              <div key={k.label} className={`rounded-xl border p-4 ${k.bg}`}>
+                <p className="text-xs text-slate-500 font-medium mb-1">{k.label}</p>
+                <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{k.sub}</p>
+              </div>
+            ))}
           </div>
         )}
 

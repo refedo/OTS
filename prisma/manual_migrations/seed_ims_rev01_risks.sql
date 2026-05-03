@@ -531,7 +531,7 @@ BEGIN
   UPDATE ImsDocument
   SET status = 'SUPERSEDED', updatedAt = NOW()
   WHERE categoryId = v_cat
-    AND documentNumber NOT IN (
+    AND (documentNumber COLLATE utf8mb4_0900_ai_ci) NOT IN (
       'ISP-001','ISP-002','ISP-003','ISP-004','ISP-005',
       'ISP-006','ISP-030',
       'ISP-010','ISP-011','ISP-012','ISP-013','ISP-014','ISP-015','ISP-016','ISP-017',
@@ -541,152 +541,160 @@ BEGIN
     AND deletedAt IS NULL;
 
   -- ── LEVEL 1 — SYSTEM ─────────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-001') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-001') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-001', 'Document & Data Governance', v_cat, 'APPROVED', '2.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Document & Data Governance', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-001';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-001';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-002') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-002') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-002', 'Risk & Compliance Management', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Risk & Compliance Management', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-002';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-002';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-003') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-003') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-003', 'Management Review', v_cat, 'APPROVED', '1.1', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Management Review', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-003';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-003';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-004') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-004') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-004', 'Internal Audit', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Internal Audit', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-004';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-004';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-005') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-005') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-005', 'Nonconformance & CAPA', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Nonconformance & CAPA', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-005';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-005';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-006') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-006') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-006', 'Competence, Training & HR Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Competence, Training & HR Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-006';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-006';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-030') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-030') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-030', 'Business Planning & KPI Management', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Business Planning & KPI Management', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-030';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-030';
   END IF;
 
   -- ── LEVEL 2 — OPERATIONS ─────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-010') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-010') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-010', 'Design & Engineering Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Design & Engineering Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-010';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-010';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-011') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-011') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-011', 'Procurement & Supplier Control', v_cat, 'APPROVED', '1.1', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Procurement & Supplier Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-011';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-011';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-012') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-012') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-012', 'Primary Fabrication & Welding Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Primary Fabrication & Welding Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-012';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-012';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-013') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-013') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-013', 'Secondary Members & Roll Forming', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Secondary Members & Roll Forming', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-013';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-013';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-014') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-014') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-014', 'Shot Blasting, Surface Prep & Coating', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Shot Blasting, Surface Prep & Coating', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-014';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-014';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-015') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-015') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-015', 'QC & Inspection Control', v_cat, 'APPROVED', '1.1', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'QC & Inspection Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-015';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-015';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-016') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-016') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-016', 'Outsourced NDT Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Outsourced NDT Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-016';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-016';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-017') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-017') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-017', 'Logistics & Dispatch Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Logistics & Dispatch Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-017';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-017';
   END IF;
 
   -- ── LEVEL 3 — HSE ────────────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'ISP-020') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-020') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'ISP-020', 'HSE Operational Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'HSE', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'HSE', status = 'APPROVED', title = 'HSE Operational Control', updatedAt = NOW()
-    WHERE documentNumber = 'ISP-020';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'ISP-020';
   END IF;
 
   -- ── TECHNICAL ────────────────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'DCP-001') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'DCP-001') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'DCP-001', 'Design Control Programme', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'TECHNICAL', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'TECHNICAL', status = 'APPROVED', title = 'Design Control Programme', updatedAt = NOW()
-    WHERE documentNumber = 'DCP-001';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'DCP-001';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE documentNumber = 'WPS-HEXA.S-01') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'WPS-HEXA.S-01') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'WPS-HEXA.S-01', 'Welding Procedure Specification', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'TECHNICAL', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'TECHNICAL', status = 'APPROVED', title = 'Welding Procedure Specification', updatedAt = NOW()
-    WHERE documentNumber = 'WPS-HEXA.S-01';
+    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'WPS-HEXA.S-01';
   END IF;
+
+  -- Set nextReviewDate for all ISP docs where it has not been set yet
+  UPDATE ImsDocument
+  SET nextReviewDate = DATE_ADD(NOW(), INTERVAL reviewFrequencyDays DAY),
+      updatedAt = NOW()
+  WHERE categoryId = v_cat
+    AND nextReviewDate IS NULL
+    AND deletedAt IS NULL;
 
 END$$
 DELIMITER ;

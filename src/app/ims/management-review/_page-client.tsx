@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   ClipboardList, Plus, RefreshCw, Download, Loader2, ChevronRight,
   CheckCircle2, AlertTriangle, Lock, FileText, Zap, UserCheck, Trash2, FileDown,
-  MessageSquarePlus,
+  MessageSquarePlus, FileSpreadsheet,
 } from 'lucide-react';
 import { generateManagementReviewMOMPDF, generateManagementReviewReportPDF } from '@/lib/ims-pdf-generator';
 
@@ -133,8 +133,9 @@ export function ManagementReviewClient() {
   const [attendeesForm, setAttendeesForm] = useState<Attendee[]>([]);
   const [additionalItems, setAdditionalItems] = useState<AdditionalItem[]>([]);
   const [autoNotes, setAutoNotes] = useState<AutoNotes>({ prevActions: '', ncr: '', audit: '', kpi: '', ohs: '' });
-  const [downloadingMOM, setDownloadingMOM] = useState(false);
   const [downloadingReport, setDownloadingReport] = useState(false);
+  const [downloadingXlsx, setDownloadingXlsx] = useState(false);
+  const [deletingReview, setDeletingReview] = useState<string | null>(null);
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -241,16 +242,74 @@ export function ManagementReviewClient() {
 
   const printReview = () => { window.print(); };
 
-  const downloadMOM = async () => {
-    if (!selected) return;
-    setDownloadingMOM(true);
-    try { await generateManagementReviewMOMPDF(selected); } finally { setDownloadingMOM(false); }
-  };
-
   const downloadReport = async () => {
     if (!selected) return;
     setDownloadingReport(true);
     try { await generateManagementReviewReportPDF(selected); } finally { setDownloadingReport(false); }
+  };
+
+  const downloadXlsx = async () => {
+    if (!selected) return;
+    setDownloadingXlsx(true);
+    try {
+      const XLSX = await import('xlsx');
+      const rows: (string | number | boolean | null)[][] = [
+        ['Management Review Record — HEXA-FRM-008'],
+        ['Review Number', selected.reviewNumber],
+        ['Period', selected.period],
+        ['Date', new Date(selected.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')],
+        ['Chairperson', selected.chairperson],
+        ['Status', selected.status],
+        [],
+        ['ATTENDEES'],
+        ['Name', 'Role', 'Present'],
+        ...(selected.attendees ?? []).map(a => [a.name, a.role, a.present ? 'Yes' : 'No']),
+        [],
+        ['REVIEW INPUTS (§9.3.2)'],
+        ['Section', 'Content'],
+        ['Resource Status', selected.inputResourceStatus ?? ''],
+        ['Customer Feedback', selected.inputCustomerFeedback ?? ''],
+        ['Supplier Performance', selected.inputSupplierPerf ?? ''],
+        ['Context Changes', selected.inputContextChanges ?? ''],
+        ['Design Performance', selected.inputDesignPerformance ?? ''],
+        ['Environmental Performance', selected.inputEnvironmentalPerf ?? ''],
+        ['Sales Order Intake', selected.inputSalesOrderIntake ?? ''],
+        ['Project Delivery', selected.inputProjectDelivery ?? ''],
+        ['Production Tonnage', selected.inputProductionTonnage ?? ''],
+        ['Procurement Delays', selected.inputProcurementDelays ?? ''],
+        ['Risks & Opportunities', selected.inputRisksOpportunities ?? ''],
+        [],
+        ['REVIEW OUTPUTS (§9.3.3)'],
+        ['Objectives', selected.outputObjectives ?? ''],
+        ['Resource Needs', selected.outputResourceNeeds ?? ''],
+        [],
+        ['ACTION ITEMS'],
+        ['Decision', 'Responsible', 'Target Date', 'Status'],
+        ...(selected.outputDecisions ?? []).map(d => [d.decision, d.responsible, d.targetDate, d.status]),
+        [],
+        ['ADDITIONAL ITEMS / Q&A'],
+        ['Question', 'Answer'],
+        ...(selected.inputAdditionalItems ?? []).filter(i => !Object.values({ prevActions: '__NOTES_PREV__', ncr: '__NOTES_NCR__', audit: '__NOTES_AUDIT__', kpi: '__NOTES_KPI__', ohs: '__NOTES_OHS__' }).includes(i.question)).map(i => [i.question, i.answer]),
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{ wch: 35 }, { wch: 60 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Management Review');
+      XLSX.writeFile(wb, `${selected.reviewNumber}-FRM-008.xlsx`);
+    } finally {
+      setDownloadingXlsx(false);
+    }
+  };
+
+  const deleteReview = async (id: string) => {
+    if (!confirm('Delete this management review? This cannot be undone.')) return;
+    setDeletingReview(id);
+    try {
+      const res = await fetch(`/api/ims/management-review/${id}`, { method: 'DELETE' });
+      if (res.ok) { fetchReviews(); }
+    } finally {
+      setDeletingReview(null);
+    }
   };
 
   const addAttendee = () => setAttendeesForm(a => [...a, { ...BLANK_ATTENDEE }]);
@@ -280,7 +339,7 @@ export function ManagementReviewClient() {
 
   if (selected) {
     return (
-      <div className="p-6 space-y-6 max-w-5xl mx-auto print:p-2">
+      <div className="p-4 md:p-6 space-y-6 print:p-2">
         {/* Back / Actions */}
         <div className="flex items-center justify-between print:hidden">
           <button onClick={() => setSelected(null)} className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
@@ -291,13 +350,13 @@ export function ManagementReviewClient() {
               {populating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Zap className="w-4 h-4 mr-1" />}
               Populate from OTS
             </Button>
-            <Button variant="outline" size="sm" onClick={downloadMOM} disabled={downloadingMOM} className="text-[#2c3e50] border-[#2c3e50]/30 hover:bg-[#2c3e50] hover:text-white transition-colors">
-              {downloadingMOM ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileDown className="w-4 h-4 mr-1" />}
-              FRM-008 MOM
-            </Button>
             <Button variant="outline" size="sm" onClick={downloadReport} disabled={downloadingReport} className="text-[#2c3e50] border-[#2c3e50]/30 hover:bg-[#2c3e50] hover:text-white transition-colors">
               {downloadingReport ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileDown className="w-4 h-4 mr-1" />}
-              FRM-008 Report
+              Export PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={downloadXlsx} disabled={downloadingXlsx} className="text-emerald-700 border-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">
+              {downloadingXlsx ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileSpreadsheet className="w-4 h-4 mr-1" />}
+              Export Excel
             </Button>
             <Button variant="outline" size="sm" onClick={printReview}><Download className="w-4 h-4 mr-1" />Print</Button>
             {selected.status === 'DRAFT' && (
@@ -743,14 +802,30 @@ export function ManagementReviewClient() {
                     </div>
                   </td></tr>
                 ) : reviews.map(r => (
-                  <tr key={r.id} className="hover:bg-slate-50/80 cursor-pointer transition-colors group" onClick={() => fetchDetail(r.id)}>
-                    <td className="px-4 py-3 font-mono text-sm font-semibold text-[#2c3e50]">{r.reviewNumber}</td>
-                    <td className="px-4 py-3 text-slate-700 font-medium">{r.period}</td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(r.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
-                    <td className="px-4 py-3 text-slate-600">{r.chairperson}</td>
-                    <td className="px-4 py-3">{statusBadge(r.status)}</td>
+                  <tr key={r.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-4 py-3 font-mono text-sm font-semibold text-[#2c3e50] cursor-pointer" onClick={() => fetchDetail(r.id)}>{r.reviewNumber}</td>
+                    <td className="px-4 py-3 text-slate-700 font-medium cursor-pointer" onClick={() => fetchDetail(r.id)}>{r.period}</td>
+                    <td className="px-4 py-3 text-slate-500 cursor-pointer" onClick={() => fetchDetail(r.id)}>{new Date(r.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
+                    <td className="px-4 py-3 text-slate-600 cursor-pointer" onClick={() => fetchDetail(r.id)}>{r.chairperson}</td>
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => fetchDetail(r.id)}>{statusBadge(r.status)}</td>
                     <td className="px-4 py-3 text-right">
-                      <ChevronRight className="w-4 h-4 text-slate-400 ml-auto group-hover:text-[#2c3e50] transition-colors" />
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={e => { e.stopPropagation(); fetchDetail(r.id); }}
+                          className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-[#2c3e50] transition-colors"
+                          title="Open"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteReview(r.id); }}
+                          disabled={deletingReview === r.id}
+                          className="p-1.5 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

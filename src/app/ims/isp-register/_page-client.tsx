@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { BookOpen } from 'lucide-react';
 
 type IspEntry = {
@@ -98,12 +99,13 @@ export function IspRegisterClient() {
                       className="border-b border-slate-100 hover:brightness-95 transition-all"
                     >
                       <td className="px-4 py-3">
-                        <span
-                          className="font-mono font-semibold text-xs px-2 py-0.5 rounded whitespace-nowrap"
+                        <Link
+                          href={`/ims/documents?search=${encodeURIComponent(isp.code)}`}
+                          className="font-mono font-semibold text-xs px-2 py-0.5 rounded whitespace-nowrap hover:underline"
                           style={{ color: cfg.headerBg, backgroundColor: `${cfg.headerBg}18` }}
                         >
                           {isp.code}
-                        </span>
+                        </Link>
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-800">{isp.title}</td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-500 hidden md:table-cell">{isp.isoClauses}</td>

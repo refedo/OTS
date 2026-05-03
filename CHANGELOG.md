@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.10.0] - 2026-05-03
+
+### IMS Fixes & Multi-Module Enhancements
+
+#### Fixed
+- **Collation error** in `seed_ims_rev01_risks.sql`: Added explicit `COLLATE utf8mb4_0900_ai_ci` to all `documentNumber` column comparisons inside `seed_isp_register_v2` stored procedure. Root cause: Prisma connection pool resets session collation between `$executeRawUnsafe` calls, so `SET NAMES` didn't persist.
+- **Clause Matrix crash** (`/ims/clause-matrix`): Added missing `import { IsoClauseNote }` — was used in JSX but never imported.
+- **ISP Register not in sidebar**: Added `/ims/isp-register` and `/ims/calibration` to `NAVIGATION_PERMISSIONS` — both were missing, causing `hasAccessToRoute` to return `false` and hide sidebar links.
+
+#### Added
+- **ISP Register document links**: Each ISP code badge in the register is now a link to `/ims/documents?search=ISP-xxx` for direct navigation to the document record.
+- **Seed migration registered**: `seed_ims_rev01_risks.sql` added to `STARTUP_MIGRATIONS` list — was missing, so ISP documents and risk seeds were never running.
+- **Risk Register → Export PDF** button: Generates branded A4 landscape PDF with company logo, full risk register table, and category summary using `jspdf-autotable`. Reflects current filtered view.
+- **Incidents → View (Eye) button**: Each incident row now has a view icon that opens a read-only detail dialog showing all fields (description, immediate action, root cause, corrective/preventive actions, notes). "Edit" shortcut from view dialog.
+- **IMS Dashboard → ISP/Forms/Records/Incidents KPI strip**: 2×4 grid above existing KPIs showing: ISPs (20), Forms (22 FRM), Records (3 REC), Incidents Logged (live count from API).
+- **Management Review → Full-screen detail view**: Removed `max-w-5xl` constraint; detail now spans full page width.
+- **Management Review → Consolidated PDF**: Removed MOM button; single "Export PDF" button replaces both MOM + Report.
+- **Management Review → Export Excel**: New "Export Excel" button generates `.xlsx` with all review sections (attendees, inputs §9.3.2, outputs §9.3.3, action items, Q&A).
+- **Management Review → Delete from list**: Each row in the review list now has a delete (Trash2) icon button with confirmation dialog.
+- **Review Calendar seeding**: `nextReviewDate` set automatically for all ISP documents inserted by `seed_isp_register_v2` (uses `reviewFrequencyDays` as offset). Documents now appear in review calendar.
+- **Payroll → Search bar**: Employee search by name or ID in payroll period detail.
+- **Payroll → Simple/Extended view toggle**: Simple view shows ID, Name, Basic, Allowances, Total Deductions, Net Pay. Extended view shows all columns.
+- **Payroll → Allowances column**: Renamed "Compensations" → "Allowances"; shows total with hover tooltip listing individual allowance types and amounts.
+
+#### Changed
+- Version bumped to **22.10.0**
+
+---
+
 ## [22.9.0] - 2026-05-03
 
 ### IMS Rev.01 — ISM Document Update, Calibration Register & Form Renumbering

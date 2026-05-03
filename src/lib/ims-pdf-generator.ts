@@ -478,3 +478,74 @@ export async function generateObjectivesPDF(objectives: ObjectivePDFData[], year
   pdf.addFooter(FOOTER);
   pdf.save(`FRM-013-Objectives-${year}.pdf`);
 }
+
+export type RiskRegisterPDFRisk = {
+  riskNumber: string;
+  title: string;
+  type: string;
+  category: string;
+  status: string;
+  currentRiskRating: string;
+  currentLikelihood: number;
+  currentSeverity: number;
+  owner?: { name: string } | null;
+  nextReviewDate?: string | null;
+};
+
+export async function generateRiskRegisterPDF(risks: RiskRegisterPDFRisk[]): Promise<void> {
+  const logo = await loadLogoBase64();
+  const pdf = new PDFReportBuilder('landscape', 'red');
+
+  pdf.addHeader(COMPANY, TAGLINE, logo);
+  pdf.addTitle(
+    'HEXA-FRM-011 — Risk & Compliance Register',
+    `Hexa-ISP-002 · ISO 9001/14001/45001 §6.1 — Generated ${new Date().toLocaleDateString('en-SA-u-ca-gregory')}`
+  );
+  pdf.addMetadataBox({
+    'Total Risks': String(risks.length),
+    Critical: String(risks.filter(r => r.currentRiskRating === 'CRITICAL').length),
+    High: String(risks.filter(r => r.currentRiskRating === 'HIGH').length),
+    Medium: String(risks.filter(r => r.currentRiskRating === 'MEDIUM').length),
+    Low: String(risks.filter(r => r.currentRiskRating === 'LOW').length),
+    'Date': fmt(new Date().toISOString()),
+  });
+
+  pdf.addSectionHeader('Risk Register');
+  pdf.addTable(
+    ['Risk No.', 'Title', 'Type', 'Category', 'L', 'S', 'Rating', 'Status', 'Owner', 'Next Review'],
+    risks.map(r => [
+      r.riskNumber,
+      r.title.length > 40 ? r.title.slice(0, 37) + '…' : r.title,
+      r.type,
+      r.category.replace('_', ' '),
+      String(r.currentLikelihood),
+      String(r.currentSeverity),
+      r.currentRiskRating,
+      r.status.replace('_', ' '),
+      r.owner?.name ?? '—',
+      r.nextReviewDate ? fmt(r.nextReviewDate) : '—',
+    ]),
+    { alternateRows: true }
+  );
+
+  const byCat = risks.reduce<Record<string, number>>((acc, r) => {
+    acc[r.category] = (acc[r.category] ?? 0) + 1;
+    return acc;
+  }, {});
+  if (Object.keys(byCat).length > 0) {
+    pdf.addSectionHeader('Summary by Category');
+    pdf.addTable(
+      ['Category', 'Count'],
+      Object.entries(byCat).map(([k, v]) => [k.replace(/_/g, ' '), String(v)]),
+      { alternateRows: true }
+    );
+  }
+
+  pdf.addSignatureSection([
+    { label: 'Quality Manager', date: fmt(new Date().toISOString()) },
+    { label: 'Management Approval', date: '' },
+  ]);
+
+  pdf.addFooter(FOOTER);
+  pdf.save(`Risk-Register-${new Date().toISOString().slice(0, 10)}.pdf`);
+}

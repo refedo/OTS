@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertOctagon, Plus, RefreshCw, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, ShieldAlert } from 'lucide-react';
+import { AlertOctagon, Plus, RefreshCw, Pencil, Trash2, AlertTriangle, CheckCircle2, Clock, ShieldAlert, Eye } from 'lucide-react';
 
 type Incident = {
   id: string;
@@ -70,6 +70,7 @@ export function IncidentsClient() {
   const [records, setRecords] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState(false);
+  const [viewing, setViewing] = useState<Incident | null>(null);
   const [editing, setEditing] = useState<Incident | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -237,6 +238,7 @@ export function IncidentsClient() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => setViewing(r)} title="View details"><Eye className="h-3.5 w-3.5 text-blue-500" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => deleteRecord(r.id)} disabled={deleting === r.id}>
                             <Trash2 className="h-3.5 w-3.5 text-red-400" />
@@ -251,6 +253,44 @@ export function IncidentsClient() {
           )}
         </CardContent>
       </Card>
+
+      {/* View Dialog */}
+      <Dialog open={!!viewing} onOpenChange={v => !v && setViewing(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-blue-500" />
+              {viewing?.incidentNumber} — {viewing?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-3 py-2 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Type</p><p>{TYPE_LABELS[viewing.incidentType] ?? viewing.incidentType}</p></div>
+                <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Severity</p>
+                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${SEVERITY_CFG[viewing.severity] ?? 'bg-gray-100 text-gray-600'}`}>{viewing.severity}</span>
+                </div>
+                <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Date</p><p>{viewing.incidentDate ? new Date(viewing.incidentDate).toLocaleDateString('en-SA-u-ca-gregory') : '—'}</p></div>
+                <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Status</p>
+                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_CFG[viewing.status] ?? 'bg-gray-100 text-gray-600'}`}>{viewing.status.replace('_', ' ')}</span>
+                </div>
+                <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Location</p><p>{viewing.location ?? '—'}</p></div>
+                <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Reported By</p><p>{viewing.reportedBy?.name ?? '—'}</p></div>
+              </div>
+              {viewing.description && <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Description</p><p className="text-slate-700 bg-slate-50 rounded p-2">{viewing.description}</p></div>}
+              {viewing.immediateAction && <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Immediate Action</p><p className="text-slate-700 bg-slate-50 rounded p-2">{viewing.immediateAction}</p></div>}
+              {viewing.rootCause && <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Root Cause</p><p className="text-slate-700 bg-slate-50 rounded p-2">{viewing.rootCause}</p></div>}
+              {viewing.correctiveAction && <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Corrective Action</p><p className="text-slate-700 bg-slate-50 rounded p-2">{viewing.correctiveAction}</p></div>}
+              {viewing.preventiveAction && <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Preventive Action</p><p className="text-slate-700 bg-slate-50 rounded p-2">{viewing.preventiveAction}</p></div>}
+              {viewing.notes && <div><p className="text-xs text-slate-400 font-medium uppercase mb-0.5">Notes</p><p className="text-slate-700 bg-slate-50 rounded p-2">{viewing.notes}</p></div>}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewing(null)}>Close</Button>
+            <Button onClick={() => { setViewing(null); openEdit(viewing!); }}>Edit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
