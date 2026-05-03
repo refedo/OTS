@@ -407,6 +407,19 @@ model PasswordResetToken {
 }
 
 /// Client model
+/// Concentration Risk — project segment / market vertical lookup table
+model ProjectSegment {
+  id          String    @id @default(cuid())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.VarChar(255)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  projects    Project[]
+
+  @@map("ProjectSegment")
+}
+
 model Client {
   id        String    @id @default(uuid()) @db.Char(36)
   name      String
@@ -476,6 +489,9 @@ model Project {
   projectNature         String?
   projectLocation       String?
 
+  // Concentration Risk — market segment classification (additive, nullable)
+  segmentId             String?         @db.Char(36)
+
   // Durations (in days) - legacy
   engineeringDuration         Int?
   fabricationDeliveryDuration Int?
@@ -536,6 +552,7 @@ model Project {
   isGalvanized    Boolean @default(false)
 
   client                     Client                      @relation(fields: [clientId], references: [id])
+  segment                    ProjectSegment?             @relation(fields: [segmentId], references: [id])
   projectManager             User                        @relation("ProjectManager", fields: [projectManagerId], references: [id])
   salesEngineer              User?                       @relation("SalesEngineer", fields: [salesEngineerId], references: [id])
   buildings                  Building[]

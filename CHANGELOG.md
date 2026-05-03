@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.11.0] - 2026-05-03
+
+### Concentration Risk Dashboard (CEO Arena)
+
+#### Added
+- **Concentration Risk Dashboard** — new CEO Arena module at `/concentration-risk` with full RBAC (`concentrationRisk.view`, `concentrationRisk.manage`, `concentrationRisk.export`).
+- **Six risk dimensions** computed server-side with deterministic scoring (0–100): customer (HHI + top shares), project (largest %), segment (HHI), supplier (LCR spend), operational dependency (production output), revenue timing (CV).
+- **Executive Risk Summary cards**, Risk Heatmap, and detail tabs for each dimension.
+- **Revenue Timing Chart** (Recharts BarChart with reference line and CV interpretation).
+- **CSV Export** at `GET /api/concentration-risk/export`.
+- **Sidebar item** in CEO Arena section.
+- **ProjectSegment model** + additive migration seeding 7 default segments; nullable `segmentId` FK on Project.
+- **Service layer** in `src/lib/concentration-risk/` with pure calculation helpers and per-dimension services.
+- **Unit tests** in `src/lib/__tests__/concentration-risk.test.ts`.
+- Version bumped to **22.11.0**
+
+---
+
 ## [22.10.3] - 2026-05-03
 
 ### IMS PDF Polish — White Logo, Form References, Full Field Coverage

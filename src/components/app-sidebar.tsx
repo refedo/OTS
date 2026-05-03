@@ -92,6 +92,7 @@ import {
   HardHat,
   Workflow,
   Award,
+  PieChart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -131,6 +132,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'CEO Dashboard', href: '/executive', icon: BarChart3 },
       { name: 'Brainstorm Board', href: '/ceo-arena/brainstorm', icon: Brain, newSince: '2026-04-29' },
+      { name: 'Concentration Risk', href: '/concentration-risk', icon: PieChart, newSince: '2026-05-03' },
     ],
   },
   {

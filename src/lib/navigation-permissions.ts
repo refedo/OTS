@@ -162,6 +162,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/executive': ['executive.view'],
   '/ceo-arena/brainstorm': ['executive.view'],
 
+  // Concentration Risk Dashboard
+  '/concentration-risk': ['concentrationRisk.view'],
+
   // Ops Agent
   '/ops-agent': ['ops_agent.view', 'ops_agent.run', 'ops_agent.configure'],
 
