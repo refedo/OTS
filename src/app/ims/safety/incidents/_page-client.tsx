@@ -156,9 +156,9 @@ export function IncidentsClient() {
           <div className="flex items-center gap-2 mb-1">
             <AlertOctagon className="h-6 w-6 text-red-600" />
             <h1 className="text-2xl font-bold text-slate-900">Incidents / Near-Miss</h1>
-            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-024</span>
+            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-019</span>
           </div>
-          <p className="text-sm text-slate-500">ISO 45001:2018 §10.2.1 — Incident reporting, investigation and corrective action</p>
+          <p className="text-sm text-slate-500">ISO 45001:2018 §10.2.1 — Incident reporting, investigation and corrective action · Procedure: Hexa-ISP-020</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchRecords}><RefreshCw className="h-4 w-4" /></Button>

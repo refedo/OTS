@@ -2685,6 +2685,9 @@ model SystemSettings {
   // LCR Column Mapping (JSON, stores field key → 0-based column index)
   lcrColumnMapping Json?
 
+  // IMS Logo (white version for dark/colored backgrounds)
+  logoWhite String? @db.VarChar(500)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -6156,6 +6159,7 @@ model ImsDocument {
   nextReviewDate      DateTime?
   fileUrl             String?      @db.VarChar(512)
   issuedAt            DateTime?
+  domain              String?      @db.VarChar(30)
 
   revisions      ImsRevision[]
   distributions  ImsDistribution[]
@@ -6328,6 +6332,8 @@ model ImsRisk {
   currentSeverity     Int         @default(1)
   currentRiskLevel    Int         @default(1)
   currentRiskRating   String      @default("LOW") @db.VarChar(20)
+  residualLikelihood  Int?
+  residualSeverity    Int?
   reviewFrequencyDays Int         @default(90)
   nextReviewDate      DateTime?
   lastReviewDate      DateTime?
@@ -6608,6 +6614,12 @@ model ImsManagementReview {
   inputDesignPerformance String?  @db.LongText
   inputOhsPerformance   Json?
   inputEnvironmentalPerf String?  @db.LongText
+  inputSalesOrderIntake  String?  @db.LongText
+  inputProjectDelivery   String?  @db.LongText
+  inputProductionTonnage String?  @db.LongText
+  inputProcurementDelays String?  @db.LongText
+  inputRisksOpportunities String? @db.LongText
+  inputAdditionalItems  Json?
   outputDecisions       Json?
   outputObjectives      Json?
   outputResourceNeeds   Json?

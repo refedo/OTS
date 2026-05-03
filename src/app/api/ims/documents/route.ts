@@ -84,6 +84,7 @@ export async function GET(request: Request) {
         nextReviewDate: true,
         fileUrl: true,
         issuedAt: true,
+        domain: true,
         applicableStandards: true,
         scope: true,
         purpose: true,

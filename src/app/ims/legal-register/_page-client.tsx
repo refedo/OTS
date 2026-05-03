@@ -180,7 +180,7 @@ export function LegalRegisterClient() {
           <div>
             <h1 className="text-2xl font-bold">Legal & Regulatory Register</h1>
             <p className="text-slate-300 text-sm">ISO 9001 / 14001 / 45001 §6.1.3 — Compliance obligations register</p>
-            <p className="text-slate-500 text-xs font-mono mt-0.5">Form: HEXA-FRM-027 · Procedure: Hexa-ISP-007</p>
+            <p className="text-slate-500 text-xs font-mono mt-0.5">Form: HEXA-FRM-011 (type=LEGAL) · Procedure: Hexa-ISP-002 · ISO §6.1.3</p>
           </div>
         </div>
       </div>
@@ -266,7 +266,7 @@ export function LegalRegisterClient() {
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">No regulations found</td></tr>
                 ) : filtered.map(e => (
-                  <tr key={e.id} className="border-b hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openView(e)}>
+                  <tr key={e.id} className="border-b hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openEdit(e)}>
                     <td className="px-4 py-3 font-mono text-xs text-slate-500">{e.referenceNumber}</td>
                     <td className="px-4 py-3 font-medium max-w-xs">
                       <p className="truncate">{e.title}</p>

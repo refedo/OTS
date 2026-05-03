@@ -18,6 +18,7 @@ type Settings = {
   companyName: string;
   companyTagline: string;
   companyLogo: string | null;
+  logoWhite?: string | null;
   ceoSignatureUrl?: string | null;
   companyAddress: string | null;
   companyPhone: string | null;
@@ -40,11 +41,14 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingLogoWhite, setUploadingLogoWhite] = useState(false);
   const [uploadingLoginLogo, setUploadingLoginLogo] = useState(false);
   const [uploadingCeoSig, setUploadingCeoSig] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoBlobUrl, setLogoBlobUrl] = useState<string | null>(null);
+  const [logoWhitePreview, setLogoWhitePreview] = useState<string | null>(null);
+  const [logoWhiteBlobUrl, setLogoWhiteBlobUrl] = useState<string | null>(null);
   const [loginLogoPreview, setLoginLogoPreview] = useState<string | null>(null);
   const [ceoSigPreview, setCeoSigPreview] = useState<string | null>(null);
   const [ceoSigBlobUrl, setCeoSigBlobUrl] = useState<string | null>(null);
@@ -79,6 +83,7 @@ export default function SettingsPage() {
         const data = await response.json();
         setSettings(data);
         setLogoPreview(data.companyLogo);
+        setLogoWhitePreview(data.logoWhite ?? null);
         setCeoSigPreview(data.ceoSignatureUrl ?? null);
       }
     } catch (error) {
@@ -202,6 +207,45 @@ export default function SettingsPage() {
       setLogoBlobUrl(null);
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const handleLogoWhiteUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const blobUrl = URL.createObjectURL(file);
+    setLogoWhiteBlobUrl(blobUrl);
+    setUploadingLogoWhite(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'company-logo');
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (response.ok) {
+        const data = await response.json();
+        const updatedSettings = settings ? { ...settings, logoWhite: data.filePath } : null;
+        setSettings(updatedSettings);
+        setLogoWhitePreview(data.filePath);
+        if (updatedSettings) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id: _id, createdAt: _ca, updatedAt: _ua, ...payload } = updatedSettings as Record<string, unknown>;
+          await fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+      } else {
+        alert('Failed to upload white logo');
+        URL.revokeObjectURL(blobUrl);
+        setLogoWhiteBlobUrl(null);
+      }
+    } catch {
+      alert('Failed to upload white logo');
+      URL.revokeObjectURL(blobUrl);
+      setLogoWhiteBlobUrl(null);
+    } finally {
+      setUploadingLogoWhite(false);
     }
   };
 
@@ -469,6 +513,41 @@ export default function SettingsPage() {
                         <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                           <Loader2 className="h-3 w-3 animate-spin" />
                           Uploading...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* White Logo Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="logoWhite">White Logo (for colored/dark backgrounds)</Label>
+                  <div className="flex items-start gap-4">
+                    {(logoWhiteBlobUrl || logoWhitePreview) && (
+                      <div className="w-32 h-32 border rounded-lg flex items-center justify-center bg-[#2c3e50] overflow-hidden relative">
+                        <img
+                          src={logoWhiteBlobUrl || resolveUploadUrl(logoWhitePreview)}
+                          alt="White Logo"
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => { if (!logoWhiteBlobUrl) e.currentTarget.style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        id="logoWhite"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoWhiteUpload}
+                        disabled={uploadingLogoWhite}
+                        className="cursor-pointer"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        White/light version of the logo — used on dark or colored backgrounds (PDF headers, IMS reports)
+                      </p>
+                      {uploadingLogoWhite && (
+                        <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Uploading…
                         </p>
                       )}
                     </div>
