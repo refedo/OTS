@@ -23,10 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.10.2',
+    date: 'May 3, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'IMS Multi-Fix — Report Quality, Select Crashes, Collation & UX',
+    highlights: [
+      'Fixed SQL migration collation error in seed_ims_rev01_risks.sql — replaced all utf8mb4_0900_ai_ci with utf8mb4_unicode_ci to match table collation.',
+      'Fixed React crash on Audit Plans, Calibration, Change Requests, and Legal Register pages caused by <Select.Item value=""> (empty-string value).',
+      'Management review PDF reports now render structured data (audit findings, NCR summary, KPI status, risk summary) as readable bullet text instead of raw JSON.',
+      'PDF logo now has a white background pill so it appears on the dark (#2c3e50) header. All PDF dates use dd/mm/yyyy format.',
+      'Management review form number corrected from HEXA-FRM-008 to HEXA-FRM-011/012; create dialog now resets to blank on open.',
+      'QMS Process List gains Approve button (✓) for UNDER_REVIEW processes. IMS Dashboard KPI tiles are all clickable links.',
+    ],
+    changes: {
+      added: [
+        'QMS Process List → Approve button: green checkmark on UNDER_REVIEW rows transitions process to ACTIVE status.',
+        'IMS Dashboard KPI tiles: all 8 tiles (ISPs, Forms, Records, Incidents, Total Documents, Overdue Reviews, Pending DCRs, Open Risks) are now clickable links.',
+        'formatInputSection() helper in ims-pdf-generator.ts: formats complex nested JSON objects (audit findings, risk data, NCR groups, KPI lists) into human-readable multi-line text for PDF output.',
+      ],
+      fixed: [
+        'SQL migration seed_ims_rev01_risks.sql: COLLATE utf8mb4_0900_ai_ci → utf8mb4_unicode_ci — fixes "Illegal mix of collations" error on server start.',
+        'Audit Plans page: <Select.Item value=""> (auditor, auditee, responsible) replaced with "__none__" sentinel — fixes React crash when opening Add Audit / Add Finding dialogs.',
+        'Calibration filter: <Select.Item value=""> (All Statuses) replaced with "ALL" sentinel — fixes page crash.',
+        'IMS Change Requests & Legal Register: same empty-SelectItem fix applied.',
+        'Management review PDF: raw JSON.stringify() output replaced with formatInputSection() producing readable bullet-list text for all §9.3.2 input sections.',
+        'PDF header logo: white rounded rectangle drawn behind logo before addImage() — logo now visible on dark blue header background.',
+        'PDF date format: fmt() now uses { day: "2-digit", month: "2-digit", year: "numeric" } producing dd/mm/yyyy consistently.',
+        'Management review form numbers: HEXA-FRM-008 → HEXA-FRM-011 (MOM) / FRM-012 (Report) across banner, XLSX export, and hero subtitle.',
+        'Management review "New Review" dialog: resets form to blank values on open — prevents previous meeting data from pre-filling.',
+      ],
+      changed: [
+        'Version bumped to 22.10.2',
+      ],
+    },
+  },
+  {
     version: '22.9.0',
     date: 'May 3, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'IMS Rev.01 — ISM Document Update, Calibration Register & Form Renumbering',
     highlights: [
       'Full IMS module updated to Hexa-ISM-001 Rev.01: 22 HEXA-FRM forms + 3 HEXA-REC system-generated records, replacing legacy FRM-001–027 numbering.',

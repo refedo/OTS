@@ -104,7 +104,103 @@ export type ObjectivePDFData = {
 
 function fmt(d: string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-SA-u-ca-gregory');
+  return new Date(d).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatInputSection(val: unknown): string {
+  if (!val) return '—';
+  if (typeof val === 'string') return val;
+  if (Array.isArray(val)) {
+    if (val.length === 0) return 'None';
+    return val.map((item: unknown) => {
+      if (typeof item === 'object' && item !== null) {
+        const obj = item as Record<string, unknown>;
+        if ('status' in obj && 'count' in obj) return `${obj.status}: ${obj.count}`;
+        if ('type' in obj && 'status' in obj && 'clause' in obj) {
+          return `[${String(obj.type)}] Clause ${String(obj.clause)} — ${String(obj.description ?? '')} (${String(obj.status)})`;
+        }
+        if ('findingNumber' in obj) {
+          return `${String(obj.findingNumber)}: ${String(obj.description ?? '')} [${String(obj.status)}]`;
+        }
+        return Object.entries(obj).map(([k, v]) => `${k}: ${String(v)}`).join(', ');
+      }
+      return String(item);
+    }).join('\n');
+  }
+  if (typeof val === 'object' && val !== null) {
+    const obj = val as Record<string, unknown>;
+    if ('error' in obj) return `Data unavailable: ${String(obj.error)}`;
+    if ('note' in obj && 'openFindings' in obj) {
+      const findings = obj.openFindings as unknown[];
+      const dcrCount = obj.openDCRs as number | null;
+      const lines: string[] = [`${String(obj.note)}`];
+      if (dcrCount !== null && dcrCount !== undefined) lines.push(`Open DCRs: ${dcrCount}`);
+      if (Array.isArray(findings) && findings.length > 0) {
+        lines.push(`Open Findings (${findings.length}):`);
+        findings.slice(0, 10).forEach((f: unknown) => {
+          if (typeof f === 'object' && f !== null) {
+            const fo = f as Record<string, unknown>;
+            lines.push(`  • [${String(fo.type ?? '')}] Cl.${String(fo.clause ?? '')} — ${String(fo.description ?? '').slice(0, 80)} (${String(fo.status ?? '')})`);
+          }
+        });
+        if (findings.length > 10) lines.push(`  … and ${findings.length - 10} more`);
+      } else {
+        lines.push('No open findings.');
+      }
+      return lines.join('\n');
+    }
+    if ('note' in obj && 'kpis' in obj) {
+      const kpis = obj.kpis as unknown[];
+      const lines: string[] = [String(obj.note)];
+      if (Array.isArray(kpis) && kpis.length > 0) {
+        kpis.slice(0, 10).forEach((k: unknown) => {
+          if (typeof k === 'object' && k !== null) {
+            const ko = k as Record<string, unknown>;
+            lines.push(`  • ${String(ko.name ?? '')} — Target: ${String(ko.target ?? '—')} ${String(ko.unit ?? '')}`);
+          }
+        });
+      }
+      return lines.join('\n');
+    }
+    if ('totalHighCritical' in obj && 'risks' in obj) {
+      const risks = obj.risks as unknown[];
+      const lines: string[] = [`High/Critical risks: ${String(obj.totalHighCritical)}`];
+      if (Array.isArray(risks) && risks.length > 0) {
+        risks.slice(0, 8).forEach((r: unknown) => {
+          if (typeof r === 'object' && r !== null) {
+            const ro = r as Record<string, unknown>;
+            lines.push(`  • [${String(ro.currentRiskRating ?? '')}] ${String(ro.riskNumber ?? '')} — ${String(ro.title ?? '')} (${String(ro.status ?? '')})`);
+          }
+        });
+        if (risks.length > 8) lines.push(`  … and ${risks.length - 8} more`);
+      }
+      return lines.join('\n');
+    }
+    if ('reviewNumber' in obj) {
+      const lines: string[] = [`Prior Review: ${String(obj.reviewNumber)} (${fmt(String(obj.reviewDate ?? ''))})`];
+      if (Array.isArray(obj.decisions)) {
+        const decisions = obj.decisions as unknown[];
+        lines.push(`Decisions: ${decisions.length}`);
+      }
+      return lines.join('\n');
+    }
+    if ('byStatus' in obj) {
+      const byStatus = obj.byStatus as unknown[];
+      const lines: string[] = [String(obj.note ?? '')];
+      if (Array.isArray(byStatus)) {
+        byStatus.forEach((s: unknown) => {
+          if (typeof s === 'object' && s !== null) {
+            const so = s as Record<string, unknown>;
+            lines.push(`  • ${String(so.status ?? '')}: ${String(so.count ?? 0)}`);
+          }
+        });
+      }
+      return lines.join('\n');
+    }
+    return Object.entries(obj).filter(([, v]) => v !== null && v !== undefined && String(v).trim())
+      .map(([k, v]) => `${k}: ${String(v)}`).join('\n');
+  }
+  return String(val);
 }
 
 function statusDot(s: string): string {
@@ -238,7 +334,7 @@ export async function generateManagementReviewMOMPDF(data: ManagementReviewPDFDa
   if (data.inputResourceStatus) inputs['Resource Status'] = data.inputResourceStatus;
   if (data.inputCustomerFeedback) inputs['Customer Feedback'] = data.inputCustomerFeedback;
   if (data.inputContextChanges) inputs['Context Changes'] = data.inputContextChanges;
-  if (data.inputObjectiveStatus) inputs['Objective Status'] = JSON.stringify(data.inputObjectiveStatus);
+  if (data.inputObjectiveStatus) inputs['Objective Status'] = formatInputSection(data.inputObjectiveStatus);
 
   for (const [key, val] of Object.entries(inputs)) {
     pdf.addParagraph(`${key}: ${val}`);
@@ -324,8 +420,11 @@ export async function generateManagementReviewReportPDF(data: ManagementReviewPD
 
   for (const [label, val] of inputSections) {
     if (val) {
-      const text = typeof val === 'string' ? val : JSON.stringify(val);
-      pdf.addParagraph(`${label}: ${text}`);
+      const text = formatInputSection(val);
+      if (text && text !== '—') {
+        pdf.addSectionHeader(label);
+        pdf.addParagraph(text);
+      }
     }
   }
 

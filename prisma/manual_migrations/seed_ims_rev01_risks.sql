@@ -3,7 +3,7 @@
 -- Covers types: RISK, HAZARD, LEGAL, ENVIRONMENTAL, CONTEXT
 -- All inserts are idempotent
 
-SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_ai_ci';
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci';
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- STRATEGIC / OPERATIONAL RISKS (type = RISK)
@@ -14,7 +14,7 @@ CREATE PROCEDURE seed_steel_risks()
 BEGIN
 
   -- R-001 Weld Quality Failure on Primary Members
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-001') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-001') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -31,7 +31,7 @@ BEGIN
   END IF;
 
   -- R-002 Material Certificate Non-Compliance
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-002') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-002') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -48,7 +48,7 @@ BEGIN
   END IF;
 
   -- R-003 Drawing / Revision Control Failure
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-003') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-003') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -65,7 +65,7 @@ BEGIN
   END IF;
 
   -- R-004 Project Schedule Overrun
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-004') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-004') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -82,7 +82,7 @@ BEGIN
   END IF;
 
   -- R-005 DFT Coating Deficiency
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-005') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-005') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -99,7 +99,7 @@ BEGIN
   END IF;
 
   -- R-006 WPS/PQR Qualification Gap
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-006') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-006') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -116,7 +116,7 @@ BEGIN
   END IF;
 
   -- R-007 Welder Qualification Expiry
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-007') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-007') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -133,7 +133,7 @@ BEGIN
   END IF;
 
   -- R-008 NDT Finding Rate Increase
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-008') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-008') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -150,7 +150,7 @@ BEGIN
   END IF;
 
   -- R-009 Key Personnel Resignation (QC/QMR)
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-009') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-009') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -167,7 +167,7 @@ BEGIN
   END IF;
 
   -- R-010 Dimensional Out-of-Tolerance
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-010') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-010') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -188,7 +188,7 @@ BEGIN
   -- ──────────────────────────────────────────────────────────────────────────────
 
   -- H-001 Hot Work / Welding Flash
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-011') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-011') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -205,7 +205,7 @@ BEGIN
   END IF;
 
   -- H-002 Grinding / Abrasive Wheel Hazard
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-012') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-012') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -222,7 +222,7 @@ BEGIN
   END IF;
 
   -- H-003 Overhead Crane / Lifting Operations
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-013') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-013') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -239,7 +239,7 @@ BEGIN
   END IF;
 
   -- H-004 Chemical Exposure (Blasting / Coating)
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-014') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-014') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -256,7 +256,7 @@ BEGIN
   END IF;
 
   -- H-005 Manual Handling / Musculoskeletal
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-015') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-015') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -277,7 +277,7 @@ BEGIN
   -- ──────────────────────────────────────────────────────────────────────────────
 
   -- L-001 ZATCA E-Invoicing
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-016') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-016') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -294,7 +294,7 @@ BEGIN
   END IF;
 
   -- L-002 Saudi Labor Law (Saudization / Nitaqat)
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-017') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-017') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -311,7 +311,7 @@ BEGIN
   END IF;
 
   -- L-003 GOSI Registration & Contribution
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-018') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-018') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -332,7 +332,7 @@ BEGIN
   -- ──────────────────────────────────────────────────────────────────────────────
 
   -- E-001 Abrasive Blast Media Disposal
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-019') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-019') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -349,7 +349,7 @@ BEGIN
   END IF;
 
   -- E-002 VOC Emissions from Coating Operations
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-020') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-020') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -370,7 +370,7 @@ BEGIN
   -- ──────────────────────────────────────────────────────────────────────────────
 
   -- C-001 Steel Price Volatility
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-021') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-021') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -387,7 +387,7 @@ BEGIN
   END IF;
 
   -- C-002 Vision 2030 Localization Opportunity
-  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-022') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-022') THEN
     INSERT INTO ImsRisk (id, riskNumber, type, title, description, category, status,
       currentLikelihood, currentSeverity, currentRiskLevel, currentRiskRating,
       residualLikelihood, residualSeverity,
@@ -419,17 +419,17 @@ BEGIN
   DECLARE v_r012 CHAR(36); DECLARE v_r013 CHAR(36); DECLARE v_r014 CHAR(36);
   DECLARE v_r015 CHAR(36);
 
-  SELECT id INTO v_r001 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-001' LIMIT 1;
-  SELECT id INTO v_r002 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-002' LIMIT 1;
-  SELECT id INTO v_r003 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-003' LIMIT 1;
-  SELECT id INTO v_r012 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-012' LIMIT 1;
-  SELECT id INTO v_r013 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-013' LIMIT 1;
-  SELECT id INTO v_r014 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-014' LIMIT 1;
-  SELECT id INTO v_r015 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_0900_ai_ci) = 'RISK-2026-015' LIMIT 1;
+  SELECT id INTO v_r001 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-001' LIMIT 1;
+  SELECT id INTO v_r002 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-002' LIMIT 1;
+  SELECT id INTO v_r003 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-003' LIMIT 1;
+  SELECT id INTO v_r012 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-012' LIMIT 1;
+  SELECT id INTO v_r013 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-013' LIMIT 1;
+  SELECT id INTO v_r014 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-014' LIMIT 1;
+  SELECT id INTO v_r015 FROM ImsRisk WHERE (riskNumber COLLATE utf8mb4_unicode_ci) = 'RISK-2026-015' LIMIT 1;
 
   -- Treatments for RISK-2026-001 (Weld Quality)
   IF v_r001 IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM ImsRiskTreatment WHERE riskId = v_r001 AND (treatmentType COLLATE utf8mb4_0900_ai_ci) = 'Reduce'
+    SELECT 1 FROM ImsRiskTreatment WHERE riskId = v_r001 AND (treatmentType COLLATE utf8mb4_unicode_ci) = 'Reduce'
   ) THEN
     INSERT INTO ImsRiskTreatment (id, riskId, treatmentType, description, targetDate, status, createdAt, updatedAt)
     VALUES (UUID(), v_r001, 'Reduce',
@@ -437,7 +437,7 @@ BEGIN
       DATE_ADD(NOW(), INTERVAL 60 DAY), 'IN_PROGRESS', NOW(), NOW());
   END IF;
   IF v_r001 IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM ImsRiskTreatment WHERE riskId = v_r001 AND (treatmentType COLLATE utf8mb4_0900_ai_ci) = 'Mitigate'
+    SELECT 1 FROM ImsRiskTreatment WHERE riskId = v_r001 AND (treatmentType COLLATE utf8mb4_unicode_ci) = 'Mitigate'
   ) THEN
     INSERT INTO ImsRiskTreatment (id, riskId, treatmentType, description, targetDate, status, createdAt, updatedAt)
     VALUES (UUID(), v_r001, 'Mitigate',
@@ -521,17 +521,17 @@ BEGIN
   DECLARE v_cat CHAR(36);
 
   -- Ensure ISP category exists
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'ISP') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_unicode_ci) = 'ISP') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'ISP', 'IMS System Procedure', 'إجراء نظام الإدارة', 2, 1, NOW(), NOW());
   END IF;
-  SELECT id INTO v_cat FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'ISP' LIMIT 1;
+  SELECT id INTO v_cat FROM ImsCategory WHERE (code COLLATE utf8mb4_unicode_ci) = 'ISP' LIMIT 1;
 
   -- Mark old ISPs (ISP-008 to ISP-015 where not in new list) as SUPERSEDED
   UPDATE ImsDocument
   SET status = 'SUPERSEDED', updatedAt = NOW()
   WHERE categoryId = v_cat
-    AND (documentNumber COLLATE utf8mb4_0900_ai_ci) NOT IN (
+    AND (documentNumber COLLATE utf8mb4_unicode_ci) NOT IN (
       'Hexa-ISP-001','Hexa-ISP-002','Hexa-ISP-003','Hexa-ISP-004','Hexa-ISP-005',
       'Hexa-ISP-006','Hexa-ISP-030',
       'Hexa-ISP-010','Hexa-ISP-011','Hexa-ISP-012','Hexa-ISP-013','Hexa-ISP-014','Hexa-ISP-015','Hexa-ISP-016','Hexa-ISP-017',
@@ -541,151 +541,151 @@ BEGIN
     AND deletedAt IS NULL;
 
   -- ── LEVEL 1 — SYSTEM ─────────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-001') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-001') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-001', 'Document & Data Governance', v_cat, 'APPROVED', '2.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Document & Data Governance', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-001';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-001';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-002') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-002') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-002', 'Risk & Compliance Management', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Risk & Compliance Management', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-002';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-002';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-003') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-003') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-003', 'Management Review', v_cat, 'APPROVED', '1.1', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Management Review', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-003';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-003';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-004') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-004') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-004', 'Internal Audit', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Internal Audit', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-004';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-004';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-005') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-005') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-005', 'Nonconformance & CAPA', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Nonconformance & CAPA', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-005';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-005';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-006') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-006') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-006', 'Competence, Training & HR Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Competence, Training & HR Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-006';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-006';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-030') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-030') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-030', 'Business Planning & KPI Management', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'SYSTEM', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'SYSTEM', status = 'APPROVED', title = 'Business Planning & KPI Management', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-030';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-030';
   END IF;
 
   -- ── LEVEL 2 — OPERATIONS ─────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-010') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-010') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-010', 'Design & Engineering Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Design & Engineering Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-010';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-010';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-011') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-011') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-011', 'Procurement & Supplier Control', v_cat, 'APPROVED', '1.1', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Procurement & Supplier Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-011';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-011';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-012') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-012') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-012', 'Primary Fabrication & Welding Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Primary Fabrication & Welding Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-012';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-012';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-013') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-013') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-013', 'Secondary Members & Roll Forming', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Secondary Members & Roll Forming', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-013';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-013';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-014') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-014') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-014', 'Shot Blasting, Surface Prep & Coating', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Shot Blasting, Surface Prep & Coating', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-014';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-014';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-015') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-015') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-015', 'QC & Inspection Control', v_cat, 'APPROVED', '1.1', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'QC & Inspection Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-015';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-015';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-016') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-016') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-016', 'Outsourced NDT Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Outsourced NDT Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-016';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-016';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-017') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-017') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-017', 'Logistics & Dispatch Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'OPERATIONS', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'OPERATIONS', status = 'APPROVED', title = 'Logistics & Dispatch Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-017';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-017';
   END IF;
 
   -- ── LEVEL 3 — HSE ────────────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-020') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-020') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'Hexa-ISP-020', 'HSE Operational Control', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'HSE', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'HSE', status = 'APPROVED', title = 'HSE Operational Control', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'Hexa-ISP-020';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'Hexa-ISP-020';
   END IF;
 
   -- ── TECHNICAL ────────────────────────────────────────────────────────────
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'DCP-001') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'DCP-001') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'DCP-001', 'Design Control Programme', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'TECHNICAL', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'TECHNICAL', status = 'APPROVED', title = 'Design Control Programme', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'DCP-001';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'DCP-001';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'WPS-HEXA.S-01') AND v_cat IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsDocument WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'WPS-HEXA.S-01') AND v_cat IS NOT NULL THEN
     INSERT INTO ImsDocument (id, documentNumber, title, categoryId, status, currentVersion, confidentiality, reviewFrequencyDays, domain, createdAt, updatedAt)
     VALUES (UUID(), 'WPS-HEXA.S-01', 'Welding Procedure Specification', v_cat, 'APPROVED', '1.0', 'INTERNAL', 365, 'TECHNICAL', NOW(), NOW());
   ELSE
     UPDATE ImsDocument SET domain = 'TECHNICAL', status = 'APPROVED', title = 'Welding Procedure Specification', updatedAt = NOW()
-    WHERE (documentNumber COLLATE utf8mb4_0900_ai_ci) = 'WPS-HEXA.S-01';
+    WHERE (documentNumber COLLATE utf8mb4_unicode_ci) = 'WPS-HEXA.S-01';
   END IF;
 
   -- Set nextReviewDate for all ISP docs where it has not been set yet

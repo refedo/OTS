@@ -179,13 +179,15 @@ interface KpiCardProps {
   icon: React.ReactNode;
   highlight?: boolean;
   highlightColor?: string;
+  href?: string;
 }
 
-function KpiCard({ label, value, sub, icon, highlight, highlightColor }: KpiCardProps) {
-  return (
+function KpiCard({ label, value, sub, icon, highlight, highlightColor, href }: KpiCardProps) {
+  const inner = (
     <Card className={cn(
       'border shadow-sm transition-shadow hover:shadow-md',
       highlight && highlightColor ? highlightColor : '',
+      href ? 'cursor-pointer hover:border-[#2c3e50]/40' : '',
     )}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
@@ -208,6 +210,8 @@ function KpiCard({ label, value, sub, icon, highlight, highlightColor }: KpiCard
       </CardContent>
     </Card>
   );
+  if (href) return <Link href={href}>{inner}</Link>;
+  return inner;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -331,16 +335,18 @@ export function ImsDashboardClient() {
         {!loading && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'ISPs (Procedures)', value: 20, sub: 'ISP-001 → ISP-030', color: 'text-[#1A3A5C]', bg: 'bg-[#1A3A5C]/5 border-[#1A3A5C]/20' },
-              { label: 'Forms (FRM)', value: 22, sub: 'HEXA-FRM-001 to 022', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-              { label: 'Records (REC)', value: 3, sub: 'REC-023 to 025', color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
-              { label: 'Incidents Logged', value: incidentCount, sub: 'HEXA-FRM-019', color: incidentCount > 0 ? 'text-red-700' : 'text-slate-600', bg: incidentCount > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200' },
+              { label: 'ISPs (Procedures)', value: 20, sub: 'ISP-001 → ISP-030', color: 'text-[#1A3A5C]', bg: 'bg-[#1A3A5C]/5 border-[#1A3A5C]/20', href: '/ims/isp-register' },
+              { label: 'Forms (FRM)', value: 22, sub: 'HEXA-FRM-001 to 022', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', href: '/ims/forms' },
+              { label: 'Records (REC)', value: 3, sub: 'REC-023 to 025', color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200', href: '/ims/forms' },
+              { label: 'Incidents Logged', value: incidentCount, sub: 'HEXA-FRM-019', color: incidentCount > 0 ? 'text-red-700' : 'text-slate-600', bg: incidentCount > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200', href: '/ims/safety/incidents' },
             ].map(k => (
-              <div key={k.label} className={`rounded-xl border p-4 ${k.bg}`}>
+              <Link key={k.label} href={k.href}>
+              <div className={`rounded-xl border p-4 cursor-pointer hover:shadow-sm transition-shadow ${k.bg}`}>
                 <p className="text-xs text-slate-500 font-medium mb-1">{k.label}</p>
                 <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
                 <p className="text-xs text-slate-400 mt-0.5">{k.sub}</p>
               </div>
+              </Link>
             ))}
           </div>
         )}
@@ -354,6 +360,7 @@ export function ImsDashboardClient() {
               label="Total Documents"
               value={dashboard?.totalDocuments ?? 0}
               sub={`${dashboard?.byStatus?.APPROVED ?? 0} approved`}
+              href="/ims/documents"
               icon={
                 <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100">
                   <FileText className="h-5 w-5 text-blue-600" />
@@ -364,6 +371,7 @@ export function ImsDashboardClient() {
               label="Overdue Reviews"
               value={dashboard?.overdueReviews ?? 0}
               sub={dashboard?.overdueReviews === 0 ? 'All up to date' : 'Require attention'}
+              href="/ims/documents?overdue=true"
               icon={
                 <div className={cn(
                   'p-2.5 rounded-xl border',
@@ -383,6 +391,7 @@ export function ImsDashboardClient() {
               label="Pending DCRs"
               value={dashboard?.pendingDCRs ?? 0}
               sub="Awaiting action"
+              href="/ims/change-requests"
               icon={
                 <div className={cn(
                   'p-2.5 rounded-xl border',
@@ -401,6 +410,7 @@ export function ImsDashboardClient() {
               label="Open Risks"
               value={riskDashboard?.totalRisks ?? 0}
               sub={`${riskDashboard?.byRating?.CRITICAL ?? 0} critical`}
+              href="/ims/risks"
               icon={
                 <div className={cn(
                   'p-2.5 rounded-xl border',

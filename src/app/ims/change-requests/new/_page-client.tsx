@@ -137,10 +137,10 @@ export function NewDcrClient() {
               </div>
               <div>
                 <Label htmlFor="documentId">Related Document</Label>
-                <Select value={form.documentId} onValueChange={v => setForm(f => ({ ...f, documentId: v }))}>
+                <Select value={form.documentId || '__none__'} onValueChange={v => setForm(f => ({ ...f, documentId: v === '__none__' ? '' : v }))}>
                   <SelectTrigger id="documentId"><SelectValue placeholder="Select document (optional)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {documents.map(d => (
                       <SelectItem key={d.id} value={d.id}>
                         <span className="font-mono text-xs text-muted-foreground mr-2">{d.documentNumber}</span>

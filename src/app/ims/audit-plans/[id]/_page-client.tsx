@@ -318,20 +318,20 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
             </div>
             <div>
               <Label>Auditor</Label>
-              <Select value={auditForm.auditorId} onValueChange={v => setAuditForm(f => ({ ...f, auditorId: v }))}>
+              <Select value={auditForm.auditorId || '__none__'} onValueChange={v => setAuditForm(f => ({ ...f, auditorId: v === '__none__' ? '' : v }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select auditor" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="__none__">— None —</SelectItem>
                   {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Auditee</Label>
-              <Select value={auditForm.auditeeId} onValueChange={v => setAuditForm(f => ({ ...f, auditeeId: v }))}>
+              <Select value={auditForm.auditeeId || '__none__'} onValueChange={v => setAuditForm(f => ({ ...f, auditeeId: v === '__none__' ? '' : v }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select auditee" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— None —</SelectItem>
+                  <SelectItem value="__none__">— None —</SelectItem>
                   {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -383,10 +383,10 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Responsible</Label>
-                <Select value={findingForm.responsibleId} onValueChange={v => setFindingForm(f => ({ ...f, responsibleId: v }))}>
+                <Select value={findingForm.responsibleId || '__none__'} onValueChange={v => setFindingForm(f => ({ ...f, responsibleId: v === '__none__' ? '' : v }))}>
                   <SelectTrigger className="mt-1"><SelectValue placeholder="Select user" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— None —</SelectItem>
+                    <SelectItem value="__none__">— None —</SelectItem>
                     {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
