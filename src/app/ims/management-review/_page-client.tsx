@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   ClipboardList, Plus, RefreshCw, Download, Loader2, ChevronRight,
   CheckCircle2, AlertTriangle, Lock, FileText, Zap, UserCheck, Trash2, FileDown,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { generateManagementReviewMOMPDF, generateManagementReviewReportPDF } from '@/lib/ims-pdf-generator';
 
@@ -25,6 +26,8 @@ type AuditFinding = {
   status: string;
   targetDate: string | null;
 };
+
+type AdditionalItem = { question: string; answer: string };
 
 type Review = {
   id: string;
@@ -49,6 +52,12 @@ type Review = {
   inputDesignPerformance: string | null;
   inputOhsPerformance: { byStatus?: { status: string; count: number }[]; note?: string } | null;
   inputEnvironmentalPerf: string | null;
+  inputSalesOrderIntake: string | null;
+  inputProjectDelivery: string | null;
+  inputProductionTonnage: string | null;
+  inputProcurementDelays: string | null;
+  inputRisksOpportunities: string | null;
+  inputAdditionalItems: AdditionalItem[] | null;
   outputDecisions: { decision: string; responsible: string; targetDate: string; status: string }[] | null;
   outputObjectives: string | null;
   outputResourceNeeds: string | null;
@@ -67,6 +76,24 @@ function statusBadge(s: string) {
 }
 
 const BLANK_ATTENDEE: Attendee = { name: '', role: '', present: true };
+const BLANK_ITEM: AdditionalItem = { question: '', answer: '' };
+
+type OutputForm = {
+  outputObjectives: string;
+  outputResourceNeeds: string;
+  inputResourceStatus: string;
+  inputCustomerFeedback: string;
+  inputSupplierPerf: string;
+  inputContextChanges: string;
+  inputDesignPerformance: string;
+  inputEnvironmentalPerf: string;
+  inputSalesOrderIntake: string;
+  inputProjectDelivery: string;
+  inputProductionTonnage: string;
+  inputProcurementDelays: string;
+  inputRisksOpportunities: string;
+  notes: string;
+};
 
 export function ManagementReviewClient() {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -76,7 +103,7 @@ export function ManagementReviewClient() {
   const [populating, setPopulating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newForm, setNewForm] = useState({ reviewDate: '', chairperson: 'CEO', period: '' });
-  const [outputForm, setOutputForm] = useState({
+  const [outputForm, setOutputForm] = useState<OutputForm>({
     outputObjectives: '',
     outputResourceNeeds: '',
     inputResourceStatus: '',
@@ -85,9 +112,15 @@ export function ManagementReviewClient() {
     inputContextChanges: '',
     inputDesignPerformance: '',
     inputEnvironmentalPerf: '',
+    inputSalesOrderIntake: '',
+    inputProjectDelivery: '',
+    inputProductionTonnage: '',
+    inputProcurementDelays: '',
+    inputRisksOpportunities: '',
     notes: '',
   });
   const [attendeesForm, setAttendeesForm] = useState<Attendee[]>([]);
+  const [additionalItems, setAdditionalItems] = useState<AdditionalItem[]>([]);
   const [downloadingMOM, setDownloadingMOM] = useState(false);
   const [downloadingReport, setDownloadingReport] = useState(false);
 
@@ -114,9 +147,15 @@ export function ManagementReviewClient() {
         inputContextChanges: r.inputContextChanges ?? '',
         inputDesignPerformance: r.inputDesignPerformance ?? '',
         inputEnvironmentalPerf: r.inputEnvironmentalPerf ?? '',
+        inputSalesOrderIntake: r.inputSalesOrderIntake ?? '',
+        inputProjectDelivery: r.inputProjectDelivery ?? '',
+        inputProductionTonnage: r.inputProductionTonnage ?? '',
+        inputProcurementDelays: r.inputProcurementDelays ?? '',
+        inputRisksOpportunities: r.inputRisksOpportunities ?? '',
         notes: r.notes ?? '',
       });
       setAttendeesForm(r.attendees ?? []);
+      setAdditionalItems(r.inputAdditionalItems ?? []);
     }
   };
 
@@ -152,7 +191,11 @@ export function ManagementReviewClient() {
       const res = await fetch(`/api/ims/management-review/${selected.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...outputForm, attendees: attendeesForm }),
+        body: JSON.stringify({
+          ...outputForm,
+          attendees: attendeesForm,
+          inputAdditionalItems: additionalItems.filter(i => i.question.trim()),
+        }),
       });
       if (res.ok) await fetchDetail(selected.id);
     } finally {
@@ -175,29 +218,39 @@ export function ManagementReviewClient() {
   const downloadMOM = async () => {
     if (!selected) return;
     setDownloadingMOM(true);
-    try {
-      await generateManagementReviewMOMPDF(selected);
-    } finally {
-      setDownloadingMOM(false);
-    }
+    try { await generateManagementReviewMOMPDF(selected); } finally { setDownloadingMOM(false); }
   };
 
   const downloadReport = async () => {
     if (!selected) return;
     setDownloadingReport(true);
-    try {
-      await generateManagementReviewReportPDF(selected);
-    } finally {
-      setDownloadingReport(false);
-    }
+    try { await generateManagementReviewReportPDF(selected); } finally { setDownloadingReport(false); }
   };
 
-  const addAttendee = () => setAttendeesForm((a: Attendee[]) => [...a, { ...BLANK_ATTENDEE }]);
-  const removeAttendee = (i: number) => setAttendeesForm((a: Attendee[]) => a.filter((_: Attendee, idx: number) => idx !== i));
+  const addAttendee = () => setAttendeesForm(a => [...a, { ...BLANK_ATTENDEE }]);
+  const removeAttendee = (i: number) => setAttendeesForm(a => a.filter((_, idx) => idx !== i));
   const updateAttendee = (i: number, field: keyof Attendee, value: string | boolean) =>
-    setAttendeesForm((a: Attendee[]) => a.map((att: Attendee, idx: number) => idx === i ? { ...att, [field]: value } : att));
+    setAttendeesForm(a => a.map((att, idx) => idx === i ? { ...att, [field]: value } : att));
+
+  const addAdditionalItem = () => setAdditionalItems(items => [...items, { ...BLANK_ITEM }]);
+  const removeAdditionalItem = (i: number) => setAdditionalItems(items => items.filter((_, idx) => idx !== i));
+  const updateAdditionalItem = (i: number, field: keyof AdditionalItem, value: string) =>
+    setAdditionalItems(items => items.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
+
+  const f = (k: keyof OutputForm) => (e: { target: { value: string } }) =>
+    setOutputForm(prev => ({ ...prev, [k]: e.target.value }));
 
   const isLocked = selected?.status === 'LOCKED';
+
+  // ── Section header helper ──────────────────────────────────────────────────
+  function SectionLabel({ num, label, auto }: { num: string; label: string; auto?: boolean }) {
+    return (
+      <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
+        <span className="text-slate-400 mr-1">{num}.</span>{label}
+        {auto && <span className="ml-2 text-slate-400 font-normal normal-case">(auto-populated)</span>}
+      </p>
+    );
+  }
 
   if (selected) {
     return (
@@ -207,18 +260,18 @@ export function ManagementReviewClient() {
           <button onClick={() => setSelected(null)} className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
             ← Back to list
           </button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={populate} disabled={populating || isLocked}>
               {populating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Zap className="w-4 h-4 mr-1" />}
               Populate from OTS
             </Button>
             <Button variant="outline" size="sm" onClick={downloadMOM} disabled={downloadingMOM} className="text-[#2c3e50] border-[#2c3e50]/30 hover:bg-[#2c3e50] hover:text-white transition-colors">
               {downloadingMOM ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileDown className="w-4 h-4 mr-1" />}
-              FRM-011 MOM
+              FRM-008 MOM
             </Button>
             <Button variant="outline" size="sm" onClick={downloadReport} disabled={downloadingReport} className="text-[#2c3e50] border-[#2c3e50]/30 hover:bg-[#2c3e50] hover:text-white transition-colors">
               {downloadingReport ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileDown className="w-4 h-4 mr-1" />}
-              FRM-012 Report
+              FRM-008 Report
             </Button>
             <Button variant="outline" size="sm" onClick={printReview}><Download className="w-4 h-4 mr-1" />Print</Button>
             {selected.status === 'DRAFT' && (
@@ -234,17 +287,17 @@ export function ManagementReviewClient() {
           <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%)', backgroundSize: '20px 20px' }} />
           <div className="relative flex items-start justify-between">
             <div>
-              <p className="text-slate-300 text-sm font-medium">Management Review Report</p>
+              <p className="text-slate-300 text-sm font-medium">Management Review Record</p>
               <h1 className="text-2xl font-bold tracking-tight mt-0.5">{selected.reviewNumber}</h1>
               <p className="text-slate-300 mt-0.5">{selected.period} — {new Date(selected.reviewDate).toLocaleDateString('en-SA-u-ca-gregory')}</p>
               <p className="text-slate-400 text-sm mt-1">Chairperson: {selected.chairperson}</p>
-              <p className="text-slate-500/80 text-xs font-mono mt-1">HEXA-FRM-011 (MOM) · HEXA-FRM-012 (Report) · ISO §9.3</p>
+              <p className="text-slate-500/80 text-xs font-mono mt-1">HEXA-FRM-008 · Procedure: Hexa-ISP-003 · ISO §9.3</p>
             </div>
             {statusBadge(selected.status)}
           </div>
         </div>
 
-        {/* Attendees — ISO §9.3.1 evidence */}
+        {/* Attendees */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-slate-700 flex items-center gap-2">
@@ -268,42 +321,23 @@ export function ManagementReviewClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {attendeesForm.map((att: Attendee, i: number) => (
+                    {attendeesForm.map((att, i) => (
                       <tr key={i} className="border-b last:border-0">
                         <td className="py-1.5 pr-3">
-                          {isLocked ? (
-                            <span>{att.name}</span>
-                          ) : (
-                            <Input
-                              value={att.name}
-                              onChange={(e: { target: { value: string } }) => updateAttendee(i, 'name', e.target.value)}
-                              className="h-7 text-xs"
-                              placeholder="Full name"
-                            />
+                          {isLocked ? <span>{att.name}</span> : (
+                            <Input value={att.name} onChange={e => updateAttendee(i, 'name', e.target.value)} className="h-7 text-xs" placeholder="Full name" />
                           )}
                         </td>
                         <td className="py-1.5 pr-3">
-                          {isLocked ? (
-                            <span>{att.role}</span>
-                          ) : (
-                            <Input
-                              value={att.role}
-                              onChange={(e: { target: { value: string } }) => updateAttendee(i, 'role', e.target.value)}
-                              className="h-7 text-xs"
-                              placeholder="e.g. CEO, QMR"
-                            />
+                          {isLocked ? <span>{att.role}</span> : (
+                            <Input value={att.role} onChange={e => updateAttendee(i, 'role', e.target.value)} className="h-7 text-xs" placeholder="e.g. CEO, QMR" />
                           )}
                         </td>
                         <td className="py-1.5 pr-3 text-center">
                           {isLocked ? (
                             <span className={att.present ? 'text-green-600' : 'text-slate-400'}>{att.present ? '✓' : '✗'}</span>
                           ) : (
-                            <input
-                              type="checkbox"
-                              checked={att.present}
-                              onChange={(e: { target: { checked: boolean } }) => updateAttendee(i, 'present', e.target.checked)}
-                              className="w-4 h-4 cursor-pointer"
-                            />
+                            <input type="checkbox" checked={att.present} onChange={e => updateAttendee(i, 'present', e.target.checked)} className="w-4 h-4 cursor-pointer" />
                           )}
                         </td>
                         {!isLocked && (
@@ -327,17 +361,14 @@ export function ManagementReviewClient() {
           </CardContent>
         </Card>
 
-        {/* ISO §9.3.2 Inputs */}
+        {/* §9.3.2 Review Inputs */}
         <Card>
-          <CardHeader><CardTitle className="text-sm text-slate-700">§9.3.2 — Review Inputs (12 ISO Items)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm text-slate-700">§9.3.2 — Review Inputs</CardTitle></CardHeader>
           <CardContent className="space-y-5">
 
-            {/* 1. Previous review actions */}
+            {/* 1. Previous actions */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">1.</span>Status of Actions from Previous Review
-                <span className="ml-2 text-slate-400 font-normal normal-case">(auto-populated)</span>
-              </p>
+              <SectionLabel num="1" label="Status of Actions from Previous Review" auto />
               {selected.inputPreviousActions ? (
                 selected.inputPreviousActions.note ? (
                   <p className="text-xs text-slate-400 italic">{selected.inputPreviousActions.note}</p>
@@ -359,20 +390,15 @@ export function ManagementReviewClient() {
               ) : <p className="text-xs text-slate-400 italic">Not populated yet — click &quot;Populate from OTS&quot;</p>}
             </div>
 
-            {/* 2. Context changes */}
+            {/* 2. Context */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">2.</span>Changes in External &amp; Internal Context
-              </p>
-              <Textarea rows={2} value={outputForm.inputContextChanges} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, inputContextChanges: e.target.value }))} placeholder="Describe any significant changes in the organization's context, stakeholder needs, or strategic direction..." className="text-xs" disabled={isLocked} />
+              <SectionLabel num="2" label="Changes in External & Internal Context" />
+              <Textarea rows={2} value={outputForm.inputContextChanges} onChange={f('inputContextChanges')} placeholder="Significant changes in the organization's context, stakeholder needs, or strategic direction..." className="text-xs" disabled={isLocked} />
             </div>
 
             {/* 3. NCR Summary */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">3.</span>IMS Performance: NCR Trends &amp; CA Closure
-                <span className="ml-2 text-slate-400 font-normal normal-case">(auto-populated)</span>
-              </p>
+              <SectionLabel num="3" label="NCR Trends & Weld Rejection Rate" auto />
               {selected.inputNcrSummary ? (
                 <div className="flex flex-wrap gap-2">
                   {(selected.inputNcrSummary as { status: string; count: number }[]).map?.((g) => (
@@ -382,20 +408,35 @@ export function ManagementReviewClient() {
               ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
             </div>
 
-            {/* 4. Design performance */}
+            {/* 4. Audit findings */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">4.</span>Design Performance: RFI Rate, Consultant Rejection Rate
-              </p>
-              <Textarea rows={2} value={outputForm.inputDesignPerformance} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, inputDesignPerformance: e.target.value }))} placeholder="Summarize design-stage performance: RFI frequency, drawing rejection rates, value engineering outcomes..." className="text-xs" disabled={isLocked} />
+              <SectionLabel num="4" label="Internal & External Audit Findings" auto />
+              {selected.inputAuditResults ? (
+                <div className="text-xs text-slate-600 space-y-1">
+                  {(selected.inputAuditResults.openFindings ?? []).length > 0 ? (
+                    <div className="space-y-1">
+                      {(selected.inputAuditResults.openFindings ?? []).slice(0, 5).map((finding: AuditFinding) => (
+                        <div key={finding.findingNumber} className="flex gap-2 items-start bg-slate-50 rounded p-1.5">
+                          <span className="font-mono text-[10px] text-slate-500 shrink-0">{finding.findingNumber}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${finding.type === 'NC' ? 'bg-red-100 text-red-700' : finding.type === 'OBS' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{finding.type}</span>
+                          <span className="line-clamp-1">{finding.description}</span>
+                        </div>
+                      ))}
+                      {(selected.inputAuditResults.openFindings ?? []).length > 5 && (
+                        <p className="text-slate-400 italic">+ {(selected.inputAuditResults.openFindings ?? []).length - 5} more open findings</p>
+                      )}
+                    </div>
+                  ) : <p className="text-green-600">No open audit findings ✓</p>}
+                  {selected.inputAuditResults.openDCRs !== null && (
+                    <p className="text-slate-500">{selected.inputAuditResults.openDCRs} open document change requests pending</p>
+                  )}
+                </div>
+              ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
             </div>
 
             {/* 5. KPI / Objectives */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">5.</span>IMS Objectives / KPI Status
-                <span className="ml-2 text-slate-400 font-normal normal-case">(auto-populated)</span>
-              </p>
+              <SectionLabel num="5" label="KPI Progress & IMS Objectives" auto />
               {selected.inputKpiStatus ? (
                 <div className="text-xs text-slate-600 bg-slate-50 rounded p-2">
                   {(selected.inputKpiStatus as { kpis?: { name: string; target: number | null; unit: string | null }[]; note?: string }).kpis?.slice(0, 5).map((k, i) => (
@@ -411,65 +452,51 @@ export function ManagementReviewClient() {
               ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
             </div>
 
-            {/* 6. Audit findings */}
+            {/* 6. Risks & Opportunities */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">6.</span>Internal &amp; External Audit Findings
-                <span className="ml-2 text-slate-400 font-normal normal-case">(auto-populated)</span>
-              </p>
-              {selected.inputAuditResults ? (
-                <div className="text-xs text-slate-600 space-y-1">
-                  {(selected.inputAuditResults.openFindings ?? []).length > 0 ? (
-                    <div className="space-y-1">
-                      {(selected.inputAuditResults.openFindings ?? []).slice(0, 5).map((f: AuditFinding) => (
-                        <div key={f.findingNumber} className="flex gap-2 items-start bg-slate-50 rounded p-1.5">
-                          <span className="font-mono text-[10px] text-slate-500 shrink-0">{f.findingNumber}</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${f.type === 'NC' ? 'bg-red-100 text-red-700' : f.type === 'OBS' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{f.type}</span>
-                          <span className="line-clamp-1">{f.description}</span>
-                        </div>
-                      ))}
-                      {(selected.inputAuditResults.openFindings ?? []).length > 5 && (
-                        <p className="text-slate-400 italic">+ {(selected.inputAuditResults.openFindings ?? []).length - 5} more open findings</p>
-                      )}
-                    </div>
-                  ) : <p className="text-green-600">No open audit findings ✓</p>}
-                  {selected.inputAuditResults.openDCRs !== null && (
-                    <p className="text-slate-500">{selected.inputAuditResults.openDCRs} open document change requests pending</p>
-                  )}
-                </div>
-              ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
+              <SectionLabel num="6" label="Risks and Opportunities Update" />
+              <Textarea rows={2} value={outputForm.inputRisksOpportunities} onChange={f('inputRisksOpportunities')} placeholder="Summarise open critical/high risks, new risks identified, opportunities being pursued, and risk treatment progress..." className="text-xs" disabled={isLocked} />
             </div>
 
-            {/* 7. Customer feedback */}
+            {/* 7. Sales / Order Intake */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">7.</span>Customer Satisfaction &amp; Feedback
-              </p>
-              <Textarea rows={2} value={outputForm.inputCustomerFeedback} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, inputCustomerFeedback: e.target.value }))} placeholder="Summary of customer feedback, complaints, satisfaction scores, 9COM communications..." className="text-xs" disabled={isLocked} />
+              <SectionLabel num="7" label="Sales / Order Intake" />
+              <Textarea rows={2} value={outputForm.inputSalesOrderIntake} onChange={f('inputSalesOrderIntake')} placeholder="New orders received (tonnage, SAR value), pipeline status, tender results, BD activity, backlog vs capacity..." className="text-xs" disabled={isLocked} />
             </div>
 
-            {/* 8. Supplier performance */}
+            {/* 8. Project Delivery */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">8.</span>Supplier &amp; External Provider Performance
-              </p>
-              <Textarea rows={2} value={outputForm.inputSupplierPerf} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, inputSupplierPerf: e.target.value }))} placeholder="Assessment of key suppliers and subcontractors — on-time delivery, quality rejections, MIR acceptance rates..." className="text-xs" disabled={isLocked} />
+              <SectionLabel num="8" label="Project Delivery Performance" />
+              <Textarea rows={2} value={outputForm.inputProjectDelivery} onChange={f('inputProjectDelivery')} placeholder="On-time delivery rate, dispatch performance vs schedule, site feedback, outstanding punch lists, client satisfaction scores..." className="text-xs" disabled={isLocked} />
             </div>
 
-            {/* 9. Resource adequacy */}
+            {/* 9. Production Tonnage */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">9.</span>Adequacy of Resources
-              </p>
-              <Textarea rows={2} value={outputForm.inputResourceStatus} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, inputResourceStatus: e.target.value }))} placeholder="Staffing levels, equipment adequacy, training coverage, calibration status, infrastructure..." className="text-xs" disabled={isLocked} />
+              <SectionLabel num="9" label="Production Tonnage & Bottlenecks" />
+              <Textarea rows={2} value={outputForm.inputProductionTonnage} onChange={f('inputProductionTonnage')} placeholder="Fabricated tonnage vs plan, production utilisation (%), line bottlenecks (welding/blasting/coating), equipment downtime..." className="text-xs" disabled={isLocked} />
             </div>
 
-            {/* 10. OH&S performance */}
+            {/* 10. Customer feedback */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">10.</span>OH&amp;S Incident Rate &amp; Near-Miss Trends
-                <span className="ml-2 text-slate-400 font-normal normal-case">(auto-populated)</span>
-              </p>
+              <SectionLabel num="10" label="Customer Complaints & Satisfaction" />
+              <Textarea rows={2} value={outputForm.inputCustomerFeedback} onChange={f('inputCustomerFeedback')} placeholder="Customer complaints, satisfaction scores, 9COM correspondence, repeat-order rate, client relationship updates..." className="text-xs" disabled={isLocked} />
+            </div>
+
+            {/* 11. Procurement Delays */}
+            <div>
+              <SectionLabel num="11" label="Procurement Delays & Supplier Performance" />
+              <Textarea rows={2} value={outputForm.inputProcurementDelays} onChange={f('inputProcurementDelays')} placeholder="Material delivery delays (steel, fasteners, consumables), lead time issues, steel price movements, alternative sourcing actions taken..." className="text-xs" disabled={isLocked} />
+            </div>
+
+            {/* 12. Supplier performance */}
+            <div>
+              <SectionLabel num="12" label="Supplier & External Provider Performance" />
+              <Textarea rows={2} value={outputForm.inputSupplierPerf} onChange={f('inputSupplierPerf')} placeholder="Assessment of key suppliers and subcontractors — on-time delivery, quality rejections, MIR acceptance rates, approved supplier list changes..." className="text-xs" disabled={isLocked} />
+            </div>
+
+            {/* 13. HSE incidents */}
+            <div>
+              <SectionLabel num="13" label="HSE Incidents & Near-Miss Trends" auto />
               {selected.inputOhsPerformance ? (
                 <div className="text-xs text-slate-600 space-y-1">
                   <div className="flex flex-wrap gap-2">
@@ -482,44 +509,102 @@ export function ManagementReviewClient() {
               ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
             </div>
 
-            {/* 11. Environmental performance */}
+            {/* 14. Environmental performance */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">11.</span>Environmental Performance (ISO 14001)
-              </p>
-              <Textarea rows={2} value={outputForm.inputEnvironmentalPerf} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, inputEnvironmentalPerf: e.target.value }))} placeholder="Waste management, energy consumption, environmental objectives progress, significant aspects..." className="text-xs" disabled={isLocked} />
+              <SectionLabel num="14" label="Environmental Performance (ISO 14001)" />
+              <Textarea rows={2} value={outputForm.inputEnvironmentalPerf} onChange={f('inputEnvironmentalPerf')} placeholder="Waste management, energy consumption, environmental objectives progress, VOC/waste disposal compliance, significant aspects update..." className="text-xs" disabled={isLocked} />
             </div>
 
-            {/* 12. Continual improvement note */}
+            {/* 15. Design performance */}
+            <div>
+              <SectionLabel num="15" label="Design Performance: RFI Rate, Drawing Accuracy" />
+              <Textarea rows={2} value={outputForm.inputDesignPerformance} onChange={f('inputDesignPerformance')} placeholder="RFI frequency, drawing rejection rates by consultant, value engineering outcomes, drawing release on-time rate..." className="text-xs" disabled={isLocked} />
+            </div>
+
+            {/* 16. Resource adequacy */}
+            <div>
+              <SectionLabel num="16" label="Adequacy of Resources" />
+              <Textarea rows={2} value={outputForm.inputResourceStatus} onChange={f('inputResourceStatus')} placeholder="Staffing levels, equipment adequacy, training coverage, calibration status, infrastructure needs..." className="text-xs" disabled={isLocked} />
+            </div>
+
+            {/* 17. Continual improvement */}
             <div className="bg-slate-50 rounded p-3">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                <span className="text-slate-400 mr-1">12.</span>Opportunities for Continual Improvement
-              </p>
-              <p className="text-xs text-slate-400 italic">Improvement opportunities and decisions are recorded in the §9.3.3 Outputs section below.</p>
+              <SectionLabel num="17" label="Opportunities for Continual Improvement" />
+              <p className="text-xs text-slate-400 italic">Improvement opportunities and formal decisions are recorded in the §9.3.3 Outputs section below.</p>
             </div>
 
           </CardContent>
         </Card>
 
-        {/* ISO §9.3.3 Outputs */}
+        {/* §9.3.3 Outputs */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-slate-700">§9.3.3 — Review Outputs &amp; Decisions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-xs text-slate-400 italic -mt-1">Opportunities for continual improvement (§9.3.2 item 12) are recorded here as formal decisions.</p>
+            <p className="text-xs text-slate-400 italic -mt-1">Improvement opportunities (§9.3.2 item 17) are recorded here as formal decisions.</p>
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Improvement Decisions</p>
-              <Textarea rows={4} value={outputForm.outputObjectives} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, outputObjectives: e.target.value }))} placeholder="Record decisions, assigned owners, target dates, and measurable objectives for improvement..." disabled={isLocked} />
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Improvement Decisions &amp; Objectives</p>
+              <Textarea rows={4} value={outputForm.outputObjectives} onChange={f('outputObjectives')} placeholder="Decisions with assigned owners, target dates, and measurable objectives for improvement..." disabled={isLocked} />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Resource Needs</p>
-              <Textarea rows={3} value={outputForm.outputResourceNeeds} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, outputResourceNeeds: e.target.value }))} placeholder="Decisions on resource requirements — personnel, equipment, training, infrastructure..." disabled={isLocked} />
+              <Textarea rows={3} value={outputForm.outputResourceNeeds} onChange={f('outputResourceNeeds')} placeholder="Decisions on resource requirements — personnel, equipment, training, infrastructure..." disabled={isLocked} />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Notes / Minutes</p>
-              <Textarea rows={3} value={outputForm.notes} onChange={(e: { target: { value: string } }) => setOutputForm((f: typeof outputForm) => ({ ...f, notes: e.target.value }))} placeholder="Meeting notes, discussion points, action items..." disabled={isLocked} />
+              <Textarea rows={3} value={outputForm.notes} onChange={f('notes')} placeholder="Meeting notes, discussion points, action items..." disabled={isLocked} />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Additional Questions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm text-slate-700 flex items-center gap-2">
+              <MessageSquarePlus className="w-4 h-4" />
+              Additional Agenda Items
+              <Badge variant="outline" className="text-[10px] ml-1">Custom Q&amp;A</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-slate-400 -mt-1">Add any project-specific, customer-specific, or management-driven agenda items not covered by the standard sections above. These will appear in the PDF export.</p>
+            {additionalItems.length === 0 && (
+              <p className="text-xs text-slate-400 italic">No additional items yet.</p>
+            )}
+            {additionalItems.map((item, i) => (
+              <div key={i} className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Item {i + 1}</span>
+                  {!isLocked && (
+                    <button onClick={() => removeAdditionalItem(i)} className="text-red-400 hover:text-red-600">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Question / Topic</p>
+                  {isLocked ? (
+                    <p className="text-sm font-medium text-slate-700">{item.question || '—'}</p>
+                  ) : (
+                    <Input value={item.question} onChange={e => updateAdditionalItem(i, 'question', e.target.value)} placeholder="e.g. Status of NEOM project tendering" className="text-xs h-8" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Answer / Discussion Notes</p>
+                  {isLocked ? (
+                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{item.answer || '—'}</p>
+                  ) : (
+                    <Textarea value={item.answer} onChange={e => updateAdditionalItem(i, 'answer', e.target.value)} rows={2} placeholder="Record the discussion notes or decision..." className="text-xs" />
+                  )}
+                </div>
+              </div>
+            ))}
+            {!isLocked && (
+              <Button variant="outline" size="sm" onClick={addAdditionalItem} className="text-xs h-7 gap-1">
+                <Plus className="w-3 h-3" /> Add Agenda Item
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -546,7 +631,7 @@ export function ManagementReviewClient() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Management Review</h1>
             <p className="text-slate-300 text-sm mt-0.5">ISO 9001 / 14001 / 45001 §9.3 — Executive quality management reviews</p>
-            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-011 (MOM) · HEXA-FRM-012 (Report) · Procedure: Hexa-ISP-003</p>
+            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-008 · Procedure: Hexa-ISP-003 · ISO §9.3</p>
           </div>
         </div>
       </div>
@@ -574,8 +659,8 @@ export function ManagementReviewClient() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Total Reviews', value: reviews.length, color: 'text-[#2c3e50]', bg: 'bg-white border border-slate-200', icon: '📋' },
-          { label: 'Approved', value: reviews.filter((r: Review) => r.status === 'APPROVED' || r.status === 'LOCKED').length, color: 'text-emerald-600', bg: 'bg-emerald-50 border border-emerald-200', icon: '✅' },
-          { label: 'Drafts', value: reviews.filter((r: Review) => r.status === 'DRAFT').length, color: 'text-amber-600', bg: 'bg-amber-50 border border-amber-200', icon: '📝' },
+          { label: 'Approved', value: reviews.filter(r => r.status === 'APPROVED' || r.status === 'LOCKED').length, color: 'text-emerald-600', bg: 'bg-emerald-50 border border-emerald-200', icon: '✅' },
+          { label: 'Drafts', value: reviews.filter(r => r.status === 'DRAFT').length, color: 'text-amber-600', bg: 'bg-amber-50 border border-amber-200', icon: '📝' },
         ].map(k => (
           <div key={k.label} className={`rounded-xl border p-4 ${k.bg} hover:shadow-sm transition-shadow`}>
             <div className="flex items-center justify-between mb-1">
@@ -621,7 +706,7 @@ export function ManagementReviewClient() {
                       <span className="text-sm">No management reviews yet</span>
                     </div>
                   </td></tr>
-                ) : reviews.map((r: Review) => (
+                ) : reviews.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50/80 cursor-pointer transition-colors group" onClick={() => fetchDetail(r.id)}>
                     <td className="px-4 py-3 font-mono text-sm font-semibold text-[#2c3e50]">{r.reviewNumber}</td>
                     <td className="px-4 py-3 text-slate-700 font-medium">{r.period}</td>
@@ -646,15 +731,15 @@ export function ManagementReviewClient() {
           <div className="space-y-4 py-2">
             <div>
               <Label>Period *</Label>
-              <Input value={newForm.period} onChange={(e: { target: { value: string } }) => setNewForm((f: typeof newForm) => ({ ...f, period: e.target.value }))} placeholder="e.g. Q1 2026 or Annual 2025" className="mt-1" />
+              <Input value={newForm.period} onChange={e => setNewForm(f => ({ ...f, period: e.target.value }))} placeholder="e.g. Q1 2026 or Annual 2025" className="mt-1" />
             </div>
             <div>
               <Label>Review Date *</Label>
-              <Input type="date" value={newForm.reviewDate} onChange={(e: { target: { value: string } }) => setNewForm((f: typeof newForm) => ({ ...f, reviewDate: e.target.value }))} className="mt-1" />
+              <Input type="date" value={newForm.reviewDate} onChange={e => setNewForm(f => ({ ...f, reviewDate: e.target.value }))} className="mt-1" />
             </div>
             <div>
               <Label>Chairperson</Label>
-              <Input value={newForm.chairperson} onChange={(e: { target: { value: string } }) => setNewForm((f: typeof newForm) => ({ ...f, chairperson: e.target.value }))} className="mt-1" />
+              <Input value={newForm.chairperson} onChange={e => setNewForm(f => ({ ...f, chairperson: e.target.value }))} className="mt-1" />
             </div>
           </div>
           <DialogFooter>

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.9.0] - 2026-05-03
+
+### IMS Rev.01 — ISM Document Update, Calibration Register & Form Renumbering
+
+#### Added
+- **Calibration Register (HEXA-FRM-022)** (`/ims/calibration`): Full register for calibration-required equipment. Shows asset code, serial number, last/next calibration dates, result (PASS/FAIL/CONDITIONAL), certificate reference, calibration body + IAS accreditation. Edit dialog for logging each calibration event. Derived status: CURRENT/DUE_SOON (≤30 days)/OVERDUE.
+- **Forms Directory** (`/ims/forms`): New page listing all 22 HEXA-FRM forms grouped into 14 categories (Document Control, Internal Audit, NCR/CAPA, Management Review, Planning, Risk, HR/Competence, Supply Chain, Projects, QC/Welding, QC/Inspection, QC/Coating, QC/Equipment, HSE). Separate section for 3 HEXA-REC system-generated records (REC-023, REC-024, REC-025).
+- **Risk & Compliance Register expansion**: Types expanded to RISK, OPPORTUNITY, HAZARD, LEGAL, ENVIRONMENTAL, CONTEXT with distinct color-coded badges. Residual likelihood/severity fields added.
+- **Management Review steel agenda** (HEXA-FRM-008): 17 tracked input sections including Sales/Order Intake, Project Delivery Performance, Production Tonnage & Bottlenecks, Procurement Delays. Dynamic additional Q&A pairs with PDF output.
+- **Document Registry domain badges**: Color-coded by SYSTEM (navy #1A3A5C), OPERATIONS (green #2C5F2E), HSE (red #7B2D2D), TECHNICAL (brown #4A3728). Domain column added to table. API select updated.
+- **Settings — White Logo upload**: New "White Logo" field for colored/dark backgrounds (PDF headers, IMS reports). Preview on dark background in settings UI.
+- **ISP Register v2 seed** (`seed_ims_rev01_risks.sql`): 22 steel structure risks, 7 risk treatments, updated ISP documents with domain values, old ISPs set to SUPERSEDED.
+- **Schema migration** (`ims_rev01_schema.sql`): `residualLikelihood`/`residualSeverity` on `ImsRisk`; 6 new input fields on `ImsManagementReview`; `domain` on `ImsDocument`; `logoWhite` on `SystemSettings`.
+- **Paperless declaration** on IMS Dashboard hero.
+
+#### Changed
+- **Form renumbering** to Hexa-ISM-001 Rev.01: FRM-011+012 → HEXA-FRM-008 (Management Review); FRM-011/012 Risk → HEXA-FRM-011 (Risk & Compliance); FRM-024→019, FRM-025→020, FRM-026→021; FRM-002/004 → HEXA-REC-024.
+- **Legal Register**: row click now opens edit dialog directly (was read-only view).
+- **Risk Register renamed** to "Risk & Compliance Register".
+- **Calibration Register sidebar link** updated to `/ims/calibration` (was `/hr/assets?tab=calibration`).
+- Version bumped to **22.9.0**
+
+---
+
 ## [22.8.0] - 2026-05-02
 
 ### IMS PDF Downloads, Seed Data & Global Search Expansion

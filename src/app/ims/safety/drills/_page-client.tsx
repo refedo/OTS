@@ -144,9 +144,9 @@ export function DrillsClient() {
           <div className="flex items-center gap-2 mb-1">
             <Siren className="h-6 w-6 text-orange-600" />
             <h1 className="text-2xl font-bold text-slate-900">Emergency Drills</h1>
-            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-025</span>
+            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-020</span>
           </div>
-          <p className="text-sm text-slate-500">ISO 45001:2018 §8.8 — Emergency preparedness and response exercises</p>
+          <p className="text-sm text-slate-500">ISO 45001:2018 §8.8 — Emergency preparedness and response exercises · Procedure: Hexa-ISP-020</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchRecords}><RefreshCw className="h-4 w-4" /></Button>

@@ -162,11 +162,10 @@ export function QmsProcessesClient() {
             <div>
               <div className="flex items-center gap-2 mb-0.5">
                 <h1 className="text-2xl font-bold tracking-tight">QMS Process List</h1>
-                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">HEXA-FRM-002</span>
-                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">HEXA-FRM-004</span>
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">HEXA-REC-024</span>
               </div>
-              <p className="text-slate-300 text-sm">ISO 9001:2015 §4.4 — Quality Management System and its processes</p>
-              <p className="text-slate-400/70 text-xs font-mono mt-1">Process turtle diagrams · SIPOC register · ISO §4.4</p>
+              <p className="text-slate-300 text-sm">ISO 9001:2015 §4.4 — Quality Management System and its processes · Procedure: Hexa-ISP-001</p>
+              <p className="text-slate-400/70 text-xs font-mono mt-1">System-generated on demand · SIPOC register · ISO §4.4</p>
             </div>
           </div>
           <Button

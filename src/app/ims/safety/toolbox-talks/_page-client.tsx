@@ -132,9 +132,9 @@ export function ToolboxTalksClient() {
           <div className="flex items-center gap-2 mb-1">
             <HardHat className="h-6 w-6 text-yellow-600" />
             <h1 className="text-2xl font-bold text-slate-900">Toolbox Talks</h1>
-            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-026</span>
+            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-medium">HEXA-FRM-021</span>
           </div>
-          <p className="text-sm text-slate-500">ISO 45001:2018 §7.3 — Safety awareness and communication sessions</p>
+          <p className="text-sm text-slate-500">ISO 45001:2018 §7.3 — Safety awareness and communication sessions · Procedure: Hexa-ISP-020</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchRecords}><RefreshCw className="h-4 w-4" /></Button>

@@ -290,6 +290,9 @@ export function ImsDashboardClient() {
                 <p className="text-slate-400 text-sm md:text-base font-medium tracking-widest uppercase">
                   ISO 9001 · ISO 14001 · ISO 45001
                 </p>
+                <p className="text-slate-500 text-xs mt-2 italic">
+                  All forms are OTS™ data entry screens. Records are system-generated outputs. No paper forms are maintained.
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">

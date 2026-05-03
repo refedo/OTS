@@ -35,9 +35,16 @@ function ratingBadge(r: string) {
 }
 
 function typeBadge(t: string) {
-  return t === 'RISK'
-    ? <span className="text-xs border border-red-400 text-red-600 px-2 py-0.5 rounded-full font-medium">Risk</span>
-    : <span className="text-xs border border-green-400 text-green-600 px-2 py-0.5 rounded-full font-medium">Opportunity</span>;
+  const map: Record<string, { label: string; cls: string }> = {
+    RISK:          { label: 'Risk',        cls: 'border-red-400 text-red-600' },
+    OPPORTUNITY:   { label: 'Opportunity', cls: 'border-green-400 text-green-600' },
+    HAZARD:        { label: 'Hazard',      cls: 'border-orange-400 text-orange-600' },
+    LEGAL:         { label: 'Legal',       cls: 'border-blue-400 text-blue-600' },
+    ENVIRONMENTAL: { label: 'Environ.',    cls: 'border-teal-400 text-teal-600' },
+    CONTEXT:       { label: 'Context',     cls: 'border-purple-400 text-purple-600' },
+  };
+  const c = map[t] ?? { label: t, cls: 'border-gray-400 text-gray-600' };
+  return <span className={`text-xs border px-2 py-0.5 rounded-full font-medium ${c.cls}`}>{c.label}</span>;
 }
 
 function statusBadge(s: string) {
@@ -153,9 +160,9 @@ export function ImsRisksClient() {
               <AlertTriangle className="size-7 text-red-200" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Risk & Opportunity Register</h1>
+              <h1 className="text-2xl font-bold">Risk & Compliance Register</h1>
               <p className="text-red-200 text-sm mt-0.5">ISO 9001/14001/45001 — Clause 6.1</p>
-              <p className="text-red-300/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-015, HEXA-FRM-023 · Procedure: Hexa-ISP-005, Hexa-ISP-006</p>
+              <p className="text-red-300/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-011 (Risk & Compliance Register) · Procedure: Hexa-ISP-002 · ISO §6.1</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -187,8 +194,16 @@ export function ImsRisksClient() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Search risks…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <Select value={typeF} onValueChange={setTypeF}><SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All Types</SelectItem><SelectItem value="RISK">Risks</SelectItem><SelectItem value="OPPORTUNITY">Opportunities</SelectItem></SelectContent>
+        <Select value={typeF} onValueChange={setTypeF}><SelectTrigger className="w-40"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="RISK">Risk</SelectItem>
+            <SelectItem value="OPPORTUNITY">Opportunity</SelectItem>
+            <SelectItem value="HAZARD">Hazard (OH&S)</SelectItem>
+            <SelectItem value="LEGAL">Legal / Regulatory</SelectItem>
+            <SelectItem value="ENVIRONMENTAL">Environmental</SelectItem>
+            <SelectItem value="CONTEXT">Context (§4.1/4.2)</SelectItem>
+          </SelectContent>
         </Select>
         <Select value={ratingF} onValueChange={setRatingF}><SelectTrigger className="w-36"><SelectValue placeholder="Rating" /></SelectTrigger>
           <SelectContent><SelectItem value="all">All Ratings</SelectItem>{['LOW','MEDIUM','HIGH','CRITICAL'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
@@ -262,7 +277,14 @@ export function ImsRisksClient() {
                 <Label>Type</Label>
                 <Select value={form.type} onValueChange={v=>setForm(f=>({...f,type:v}))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="RISK">Risk</SelectItem><SelectItem value="OPPORTUNITY">Opportunity</SelectItem></SelectContent>
+                  <SelectContent>
+                    <SelectItem value="RISK">Risk</SelectItem>
+                    <SelectItem value="OPPORTUNITY">Opportunity</SelectItem>
+                    <SelectItem value="HAZARD">Hazard (OH&S)</SelectItem>
+                    <SelectItem value="LEGAL">Legal / Regulatory</SelectItem>
+                    <SelectItem value="ENVIRONMENTAL">Environmental Aspect</SelectItem>
+                    <SelectItem value="CONTEXT">Context Issue (§4.1/4.2)</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>

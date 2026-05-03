@@ -284,7 +284,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Legal Register', href: '/ims/legal-register', icon: Scale, newSince: '2026-05-01' },
       { name: 'Management Review', href: '/ims/management-review', icon: ClipboardList, newSince: '2026-05-01' },
       { name: 'Audit Plans', href: '/ims/audit-plans', icon: SearchCheck, newSince: '2026-05-01' },
-      { name: 'Calibration Register', href: '/hr/assets?tab=calibration', icon: Gauge, newSince: '2026-05-01' },
+      { name: 'Calibration Register', href: '/ims/calibration', icon: Gauge, newSince: '2026-05-03' },
       { name: 'Competence Matrix', href: '/ims/competence-matrix', icon: TableProperties, newSince: '2026-05-01' },
       { name: 'QMS Process List', href: '/ims/processes', icon: Workflow, newSince: '2026-05-02' },
       { name: 'Incidents / Near-Miss', href: '/ims/safety/incidents', icon: AlertOctagon, newSince: '2026-05-02' },

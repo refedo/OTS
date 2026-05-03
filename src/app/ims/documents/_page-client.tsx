@@ -63,6 +63,7 @@ type Document = {
   reviewFrequencyDays: number;
   applicableStandards: string | null;
   overdueDays: number | null;
+  domain: string | null;
   category: { id: string; code: string; name: string; nameAr: string | null } | null;
   department: { id: string; name: string } | null;
   owner: { id: string; name: string } | null;
@@ -144,6 +145,13 @@ function standardShortLabel(std: string): string {
   if (std.includes('45001')) return '45001';
   return std;
 }
+
+const DOMAIN_CFG: Record<string, { label: string; style: React.CSSProperties }> = {
+  SYSTEM:     { label: 'System',     style: { backgroundColor: '#e8edf3', color: '#1A3A5C', borderColor: '#1A3A5C' } },
+  OPERATIONS: { label: 'Operations', style: { backgroundColor: '#e6f0e6', color: '#2C5F2E', borderColor: '#2C5F2E' } },
+  HSE:        { label: 'HSE',        style: { backgroundColor: '#f3e8e8', color: '#7B2D2D', borderColor: '#7B2D2D' } },
+  TECHNICAL:  { label: 'Technical',  style: { backgroundColor: '#ede9e5', color: '#4A3728', borderColor: '#4A3728' } },
+};
 
 function reviewDateCell(nextReviewDate: string | null, overdueDays: number | null) {
   if (!nextReviewDate) {
@@ -490,6 +498,9 @@ export function ImsDocumentsClient() {
                         Next Review
                       </TableHead>
                       <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden xl:table-cell">
+                        Domain
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden xl:table-cell">
                         Standards
                       </TableHead>
                       <TableHead className="w-12" />
@@ -585,6 +596,21 @@ export function ImsDocumentsClient() {
                           {/* Next Review */}
                           <TableCell className="hidden md:table-cell whitespace-nowrap">
                             {reviewDateCell(doc.nextReviewDate, doc.overdueDays)}
+                          </TableCell>
+
+                          {/* Domain */}
+                          <TableCell className="hidden xl:table-cell whitespace-nowrap">
+                            {doc.domain && DOMAIN_CFG[doc.domain] ? (
+                              <Badge
+                                variant="outline"
+                                className="text-xs font-semibold px-2 py-0"
+                                style={DOMAIN_CFG[doc.domain].style}
+                              >
+                                {DOMAIN_CFG[doc.domain].label}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
                           </TableCell>
 
                           {/* Standards */}

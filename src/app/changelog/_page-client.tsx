@@ -23,10 +23,52 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.9.0',
+    date: 'May 3, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'IMS Rev.01 — ISM Document Update, Calibration Register & Form Renumbering',
+    highlights: [
+      'Full IMS module updated to Hexa-ISM-001 Rev.01: 22 HEXA-FRM forms + 3 HEXA-REC system-generated records, replacing legacy FRM-001–027 numbering.',
+      'New Calibration Register (HEXA-FRM-022) at /ims/calibration — track calibration-required equipment with PASS/FAIL/CONDITIONAL results, cert references, and lab accreditation.',
+      'Risk & Compliance Register expanded to cover RISK, HAZARD, LEGAL, ENVIRONMENTAL, and CONTEXT types with residual risk fields.',
+      'Management Review (HEXA-FRM-008) now tracks 17 steel-specific agenda items plus dynamic additional Q&A with PDF output.',
+      'New Forms Directory at /ims/forms listing all 22 HEXA-FRM forms and 3 HEXA-REC records.',
+      'Document Registry gains color-coded domain badges: SYSTEM (navy), OPERATIONS (green), HSE (red), TECHNICAL (brown).',
+      'Settings: white logo upload option for use on dark/colored PDF report backgrounds.',
+    ],
+    changes: {
+      added: [
+        'Calibration Register (/ims/calibration — HEXA-FRM-022): full register for calibration-required equipment. Shows asset code, serial number, last/next calibration dates, result (PASS/FAIL/CONDITIONAL), certificate reference, and calibration body with IAS accreditation. Edit dialog for logging calibration events. Derived status: CURRENT/DUE_SOON/OVERDUE.',
+        'Forms Directory (/ims/forms): 22 HEXA-FRM forms grouped by 14 categories (Document Control, Internal Audit, NCR/CAPA, Management Review, Planning, Risk, HR/Competence, Supply Chain, Projects, QC/Welding, QC/Inspection, QC/Coating, QC/Equipment, HSE). Separate dashed-border section for 3 HEXA-REC system-generated records (REC-023, REC-024, REC-025) with "Generate" buttons.',
+        'Risk & Compliance Register: expanded type filter to RISK, OPPORTUNITY, HAZARD, LEGAL, ENVIRONMENTAL, CONTEXT with distinct color badges. Residual likelihood and severity fields added to Prisma schema.',
+        'Management Review steel agenda items: Sales/Order Intake, Project Delivery Performance, Production Tonnage & Bottlenecks, Procurement Delays — all 17 items tracked as input fields. Dynamic "Additional Agenda Items" card with Q&A pairs that appear in PDF.',
+        'Document Registry domain badges: color-coded by SYSTEM (navy #1A3A5C), OPERATIONS (green #2C5F2E), HSE (red #7B2D2D), TECHNICAL (brown #4A3728). Domain column added to table.',
+        'Settings white logo upload: new "White Logo" field for use on colored/dark backgrounds (PDF headers, IMS reports). Preview shown on dark (#2c3e50) background.',
+        'ISP Register v2 seed data (seed_ims_rev01_risks.sql): 22 steel structure risks across all 5 types, 7 risk treatments, updated ISP documents with domain values, old ISPs marked SUPERSEDED.',
+        'Schema migration (ims_rev01_schema.sql): residualLikelihood/residualSeverity on ImsRisk, 6 new input fields on ImsManagementReview, domain on ImsDocument, logoWhite on SystemSettings.',
+        'Paperless declaration on IMS Dashboard: "All forms are OTS™ data entry screens. Records are system-generated outputs. No paper forms are maintained."',
+        'Sidebar: Calibration Register now links to /ims/calibration (HEXA-FRM-022) instead of HR assets tab.',
+      ],
+      changed: [
+        'Form renumbering: FRM-011 (MOM) + FRM-012 (Report) merged → HEXA-FRM-008; FRM-011/012 (Risk) merged → HEXA-FRM-011 (Risk & Compliance); FRM-024→019, FRM-025→020, FRM-026→021; FRM-002/004 → HEXA-REC-024.',
+        'Management Review banner: HEXA-FRM-008 · Procedure: Hexa-ISP-003 · ISO §9.3.',
+        'Legal Register: row click now opens edit dialog directly (was read-only view dialog).',
+        'Legal Register banner: HEXA-FRM-011 (type=LEGAL) · Procedure: Hexa-ISP-002 · ISO §6.1.3.',
+        'Risk Register renamed: "Risk & Opportunity Register" → "Risk & Compliance Register".',
+        'Risk banner: HEXA-FRM-011 (Risk & Compliance Register) · Procedure: Hexa-ISP-002 · ISO §6.1.',
+        'Safety banners updated: Incidents HEXA-FRM-019, Drills HEXA-FRM-020, Toolbox Talks HEXA-FRM-021.',
+        'QMS Processes banner updated: HEXA-REC-024.',
+        'Version bumped to 22.9.0',
+      ],
+      fixed: [],
+    },
+  },
+  {
     version: '22.5.3',
     date: 'April 29, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Account Invoice Report, Orphan Purge & Sidebar Fix',
     highlights: [
       'New Account Invoice Report: select any accounting account (Raw Material, Bolts & Nuts, etc.) and see spend broken down by project with % of project cost.',

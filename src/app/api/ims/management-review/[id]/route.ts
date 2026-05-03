@@ -23,6 +23,12 @@ const UpdateSchema = z.object({
   inputEnvironmentalPerf: z.string().optional().nullable(),
   inputPreviousActions: z.unknown().optional().nullable(),
   inputOhsPerformance: z.unknown().optional().nullable(),
+  inputSalesOrderIntake: z.string().optional().nullable(),
+  inputProjectDelivery: z.string().optional().nullable(),
+  inputProductionTonnage: z.string().optional().nullable(),
+  inputProcurementDelays: z.string().optional().nullable(),
+  inputRisksOpportunities: z.string().optional().nullable(),
+  inputAdditionalItems: z.array(z.object({ question: z.string(), answer: z.string() })).optional().nullable(),
   outputDecisions: z.array(z.object({
     decision: z.string(),
     responsible: z.string(),
