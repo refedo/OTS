@@ -10,42 +10,42 @@ DROP PROCEDURE IF EXISTS seed_ims_categories;
 DELIMITER $$
 CREATE PROCEDURE seed_ims_categories()
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'QM') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'QM') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'QM', 'Quality Manual', 'دليل الجودة', 1, 1, NOW(), NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'POL') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'POL') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'POL', 'Policy', 'السياسة', 1, 1, NOW(), NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'SOP') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'SOP') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'SOP', 'Standard Operating Procedure', 'إجراء تشغيل موحد', 2, 1, NOW(), NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'PLN') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'PLN') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'PLN', 'Plan', 'خطة', 2, 1, NOW(), NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'WI') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'WI') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'WI', 'Work Instruction', 'تعليمات عمل', 3, 1, NOW(), NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'FRM') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'FRM') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'FRM', 'Form', 'نموذج', 4, 1, NOW(), NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'EXT') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'EXT') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'EXT', 'External Document', 'وثيقة خارجية', 5, 1, NOW(), NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE code = 'REC') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsCategory WHERE (code COLLATE utf8mb4_0900_ai_ci) = 'REC') THEN
     INSERT INTO ImsCategory (id, code, name, nameAr, level, isActive, createdAt, updatedAt)
     VALUES (UUID(), 'REC', 'Record', 'سجل', 6, 1, NOW(), NOW());
   END IF;

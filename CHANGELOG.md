@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.10.1] - 2026-05-03
+
+### IMS Data Seeding & Documents Page Fix
+
+#### Fixed
+- **Collation error (comprehensive)**: Added explicit `COLLATE utf8mb4_0900_ai_ci` to ALL string column comparisons across four seed files (`seed_ims_rev01_risks.sql`, `seed_sprint_2280_data.sql`, `seed_sprint_2270_data.sql`, `seed_ims_data.sql`). Previous fix only covered `documentNumber`; this release fixes `riskNumber`, `treatmentType`, `code`, `reviewNumber`, `planNumber`, `auditNumber`, `findingNumber`, `processNumber`, `supplierCode`. Root cause: tables created with `utf8mb4_unicode_ci` but Prisma connection defaults to `utf8mb4_0900_ai_ci`.
+- **Documents page crash** (`TypeError: e.split is not a function`): `parseStandards()` function now handles array input from Prisma (JSON columns are auto-parsed by mysql2). Added `Array.isArray()` guard before attempting `JSON.parse`. Also updated `applicableStandards` type to `string | string[] | null`.
+- **ISP document registry**: Document numbers updated from `ISP-xxx` to `Hexa-ISP-xxx` format to match the ISP Register page codes, enabling the "click code → opens document" links to work correctly.
+
 ## [22.10.0] - 2026-05-03
 
 ### IMS Fixes & Multi-Module Enhancements

@@ -12,15 +12,15 @@ DROP PROCEDURE IF EXISTS seed_audit_plans_2280;
 DELIMITER $$
 CREATE PROCEDURE seed_audit_plans_2280()
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM ImsAuditPlan WHERE planNumber = 'AP-25-001') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAuditPlan WHERE (planNumber COLLATE utf8mb4_0900_ai_ci) = 'AP-25-001') THEN
     INSERT INTO ImsAuditPlan (id, planNumber, year, auditType, status, updatedAt)
     VALUES (UUID(), 'AP-25-001', 2025, 'Internal', 'COMPLETED', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsAuditPlan WHERE planNumber = 'AP-25-002') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAuditPlan WHERE (planNumber COLLATE utf8mb4_0900_ai_ci) = 'AP-25-002') THEN
     INSERT INTO ImsAuditPlan (id, planNumber, year, auditType, status, updatedAt)
     VALUES (UUID(), 'AP-25-002', 2025, 'Surveillance', 'COMPLETED', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsAuditPlan WHERE planNumber = 'AP-26-001') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAuditPlan WHERE (planNumber COLLATE utf8mb4_0900_ai_ci) = 'AP-26-001') THEN
     INSERT INTO ImsAuditPlan (id, planNumber, year, auditType, status, updatedAt)
     VALUES (UUID(), 'AP-26-001', 2026, 'Internal', 'IN_PROGRESS', NOW());
   END IF;
@@ -44,12 +44,12 @@ BEGIN
   DECLARE v_audit3 CHAR(36);
   DECLARE v_audit4 CHAR(36);
 
-  SELECT id INTO v_plan1 FROM ImsAuditPlan WHERE planNumber = 'AP-25-001' LIMIT 1;
-  SELECT id INTO v_plan2 FROM ImsAuditPlan WHERE planNumber = 'AP-25-002' LIMIT 1;
-  SELECT id INTO v_plan3 FROM ImsAuditPlan WHERE planNumber = 'AP-26-001' LIMIT 1;
+  SELECT id INTO v_plan1 FROM ImsAuditPlan WHERE (planNumber COLLATE utf8mb4_0900_ai_ci) = 'AP-25-001' LIMIT 1;
+  SELECT id INTO v_plan2 FROM ImsAuditPlan WHERE (planNumber COLLATE utf8mb4_0900_ai_ci) = 'AP-25-002' LIMIT 1;
+  SELECT id INTO v_plan3 FROM ImsAuditPlan WHERE (planNumber COLLATE utf8mb4_0900_ai_ci) = 'AP-26-001' LIMIT 1;
 
   -- Audits for AP-25-001
-  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE auditNumber = 'AUD-25-001') AND v_plan1 IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE (auditNumber COLLATE utf8mb4_0900_ai_ci) = 'AUD-25-001') AND v_plan1 IS NOT NULL THEN
     SET v_audit1 = UUID();
     INSERT INTO ImsAudit (id, planId, auditNumber, scope, clausesCovered, scheduledDate, actualDate, status, summary, updatedAt)
     VALUES (v_audit1, v_plan1, 'AUD-25-001',
@@ -59,7 +59,7 @@ BEGIN
       'Annual internal audit of fabrication processes. Overall conformance satisfactory.', NOW());
 
     -- NCR Finding (FRM-008)
-    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE findingNumber = 'NCR-25-001') THEN
+    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE (findingNumber COLLATE utf8mb4_0900_ai_ci) = 'NCR-25-001') THEN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, evidence, correctiveAction, status, targetDate, closedAt, closureEvidence, updatedAt)
       VALUES (UUID(), v_audit1, 'NCR-25-001', 'NC', '8.5.1',
         'Weld inspection records for I-beam WB-215 were not updated after final VT inspection. ITP sign-off sheet missing for 3 members.',
@@ -71,7 +71,7 @@ BEGIN
     END IF;
 
     -- OFI Finding
-    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE findingNumber = 'OFI-25-001') THEN
+    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE (findingNumber COLLATE utf8mb4_0900_ai_ci) = 'OFI-25-001') THEN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, status, targetDate, closedAt, updatedAt)
       VALUES (UUID(), v_audit1, 'OFI-25-001', 'OFI', '8.5.1',
         'Opportunity to reduce fabrication re-work by implementing visual control boards on the production floor to track ITP hold points.',
@@ -80,7 +80,7 @@ BEGIN
   END IF;
 
   -- Audit 2 for AP-25-001
-  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE auditNumber = 'AUD-25-002') AND v_plan1 IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE (auditNumber COLLATE utf8mb4_0900_ai_ci) = 'AUD-25-002') AND v_plan1 IS NOT NULL THEN
     SET v_audit2 = UUID();
     INSERT INTO ImsAudit (id, planId, auditNumber, scope, clausesCovered, scheduledDate, actualDate, status, summary, updatedAt)
     VALUES (v_audit2, v_plan1, 'AUD-25-002',
@@ -89,7 +89,7 @@ BEGIN
       '2025-04-15', '2025-04-16', 'COMPLETED',
       'QC processes audit. NCR closure process adequate. Minor gap in dimensional inspection documentation.', NOW());
 
-    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE findingNumber = 'NCR-25-002') THEN
+    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE (findingNumber COLLATE utf8mb4_0900_ai_ci) = 'NCR-25-002') THEN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, evidence, correctiveAction, status, targetDate, closedAt, updatedAt)
       VALUES (UUID(), v_audit2, 'NCR-25-002', 'NC', '9.1.1',
         'DFT coating inspection records for Project 257 show readings taken but average calculation not documented per SSPC-PA-2 requirements.',
@@ -98,7 +98,7 @@ BEGIN
         'CLOSED', '2025-05-15', '2025-05-02', NOW());
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE findingNumber = 'OBS-25-001') THEN
+    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE (findingNumber COLLATE utf8mb4_0900_ai_ci) = 'OBS-25-001') THEN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, status, targetDate, updatedAt)
       VALUES (UUID(), v_audit2, 'OBS-25-001', 'Observation', '8.6',
         'Release note process is effective. Recommend adding digital signature capability to streamline approval workflow.',
@@ -107,7 +107,7 @@ BEGIN
   END IF;
 
   -- Audit for AP-25-002 (Surveillance)
-  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE auditNumber = 'AUD-25-003') AND v_plan2 IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE (auditNumber COLLATE utf8mb4_0900_ai_ci) = 'AUD-25-003') AND v_plan2 IS NOT NULL THEN
     SET v_audit3 = UUID();
     INSERT INTO ImsAudit (id, planId, auditNumber, scope, clausesCovered, scheduledDate, actualDate, status, summary, updatedAt)
     VALUES (v_audit3, v_plan2, 'AUD-25-003',
@@ -116,7 +116,7 @@ BEGIN
       '2025-09-22', '2025-09-23', 'COMPLETED',
       'Third-party surveillance audit by TUV Rheinland. Certification maintained. Two NCRs raised.', NOW());
 
-    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE findingNumber = 'NCR-25-003') THEN
+    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE (findingNumber COLLATE utf8mb4_0900_ai_ci) = 'NCR-25-003') THEN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, evidence, correctiveAction, status, targetDate, closedAt, closureEvidence, updatedAt)
       VALUES (UUID(), v_audit3, 'NCR-25-003', 'NC', '6.2.1',
         'Quality objectives for Q3 2025 have not been formally communicated to all relevant departments. Production team unable to confirm awareness of current objectives.',
@@ -126,7 +126,7 @@ BEGIN
         'Communication records and signed acknowledgements provided to TUV Rheinland.', NOW());
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE findingNumber = 'NCR-25-004') THEN
+    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE (findingNumber COLLATE utf8mb4_0900_ai_ci) = 'NCR-25-004') THEN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, evidence, correctiveAction, status, targetDate, closedAt, updatedAt)
       VALUES (UUID(), v_audit3, 'NCR-25-004', 'NC', '9.3',
         'Management review for H1 2025 was conducted but minutes were not formally distributed to all top management attendees within the required 7-day window.',
@@ -137,7 +137,7 @@ BEGIN
   END IF;
 
   -- Audit for AP-26-001 (In Progress)
-  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE auditNumber = 'AUD-26-001') AND v_plan3 IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE (auditNumber COLLATE utf8mb4_0900_ai_ci) = 'AUD-26-001') AND v_plan3 IS NOT NULL THEN
     SET v_audit4 = UUID();
     INSERT INTO ImsAudit (id, planId, auditNumber, scope, clausesCovered, scheduledDate, actualDate, status, summary, updatedAt)
     VALUES (v_audit4, v_plan3, 'AUD-26-001',
@@ -146,7 +146,7 @@ BEGIN
       '2026-02-17', '2026-02-18', 'COMPLETED',
       'Supplier evaluation and procurement controls audit. Approved supplier register up to date.', NOW());
 
-    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE findingNumber = 'NCR-26-001') THEN
+    IF NOT EXISTS (SELECT 1 FROM ImsAuditFinding WHERE (findingNumber COLLATE utf8mb4_0900_ai_ci) = 'NCR-26-001') THEN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, evidence, correctiveAction, status, targetDate, updatedAt)
       VALUES (UUID(), v_audit4, 'NCR-26-001', 'NC', '8.4.1',
         'SUP-010 approval has expired since 01-Jan-2025 but continues to be used for abrasive consumable supply without documented conditional approval.',
@@ -156,13 +156,13 @@ BEGIN
     END IF;
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE auditNumber = 'AUD-26-002') AND v_plan3 IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE (auditNumber COLLATE utf8mb4_0900_ai_ci) = 'AUD-26-002') AND v_plan3 IS NOT NULL THEN
     INSERT INTO ImsAudit (id, planId, auditNumber, scope, clausesCovered, scheduledDate, status, updatedAt)
     VALUES (UUID(), v_plan3, 'AUD-26-002', 'HR & Competence Management (§7.2, §7.3)',
       JSON_ARRAY('7.2', '7.3'), '2026-04-10', 'SCHEDULED', NOW());
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE auditNumber = 'AUD-26-003') AND v_plan3 IS NOT NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsAudit WHERE (auditNumber COLLATE utf8mb4_0900_ai_ci) = 'AUD-26-003') AND v_plan3 IS NOT NULL THEN
     INSERT INTO ImsAudit (id, planId, auditNumber, scope, clausesCovered, scheduledDate, status, updatedAt)
     VALUES (UUID(), v_plan3, 'AUD-26-003', 'Design & Engineering (§8.3)',
       JSON_ARRAY('8.3', '8.3.3', '8.3.4', '8.3.6'), '2026-05-20', 'SCHEDULED', NOW());
@@ -179,7 +179,7 @@ DROP PROCEDURE IF EXISTS seed_management_reviews_2280;
 DELIMITER $$
 CREATE PROCEDURE seed_management_reviews_2280()
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM ImsManagementReview WHERE reviewNumber = 'MR-25-001') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsManagementReview WHERE (reviewNumber COLLATE utf8mb4_0900_ai_ci) = 'MR-25-001') THEN
     INSERT INTO ImsManagementReview (
       id, reviewNumber, reviewDate, chairperson, period, status, approvedAt,
       attendees, inputAuditResults, inputNcrSummary, inputKpiStatus,
@@ -212,7 +212,7 @@ BEGIN
     );
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM ImsManagementReview WHERE reviewNumber = 'MR-26-001') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsManagementReview WHERE (reviewNumber COLLATE utf8mb4_0900_ai_ci) = 'MR-26-001') THEN
     INSERT INTO ImsManagementReview (
       id, reviewNumber, reviewDate, chairperson, period, status, approvedAt,
       attendees, inputAuditResults, inputNcrSummary, inputKpiStatus,
