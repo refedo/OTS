@@ -1,27 +1,39 @@
 'use client';
 
-import { PDFReportBuilder } from './pdf-builder';
+import { PDFReportBuilder, type LogoData } from './pdf-builder';
 
 const COMPANY = 'Hexa Steel®';
 const TAGLINE = 'Integrated Management System — ISO 9001:2015 / ISO 14001:2015 / ISO 45001:2018';
 const FOOTER = 'Hexa Steel® OTS · Confidential IMS Document · hexasteel.sa/ots';
 
-async function loadLogoBase64(): Promise<string | undefined> {
+async function loadLogoForPDF(): Promise<LogoData | undefined> {
   try {
     const res = await fetch('/api/settings');
     if (!res.ok) return undefined;
     const data = await res.json();
-    const logoPath: string | undefined = data.companyLogo;
+    const whitePath: string | undefined = data.logoWhite;
+    const colorPath: string | undefined = data.companyLogo;
+    const logoPath = whitePath || colorPath;
     if (!logoPath) return undefined;
+    const isWhite = !!whitePath;
 
     const imgRes = await fetch(logoPath);
     if (!imgRes.ok) return undefined;
     const blob = await imgRes.blob();
-    return await new Promise((resolve) => {
+    const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
       reader.readAsDataURL(blob);
     });
+
+    const aspectRatio = await new Promise<number>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img.naturalWidth / img.naturalHeight || 1);
+      img.onerror = () => resolve(1);
+      img.src = base64;
+    });
+
+    return { base64, aspectRatio, isWhite };
   } catch {
     return undefined;
   }
@@ -68,6 +80,17 @@ export type ManagementReviewPDFData = {
   inputResourceStatus?: string | null;
   inputCustomerFeedback?: string | null;
   inputContextChanges?: string | null;
+  inputDesignPerformance?: string | null;
+  inputEnvironmentalPerf?: string | null;
+  inputSalesOrderIntake?: string | null;
+  inputProjectDelivery?: string | null;
+  inputProductionTonnage?: string | null;
+  inputProcurementDelays?: string | null;
+  inputRisksOpportunities?: string | null;
+  inputPreviousActions?: unknown;
+  inputLegalChanges?: unknown;
+  inputOhsPerformance?: unknown;
+  inputAdditionalItems?: unknown;
   outputDecisions?: { decision: string; responsible: string; targetDate: string; status: string }[] | null;
   outputObjectives?: string | null;
   outputResourceNeeds?: string | null;
@@ -118,6 +141,9 @@ function formatInputSection(val: unknown): string {
         if ('status' in obj && 'count' in obj) return `${obj.status}: ${obj.count}`;
         if ('type' in obj && 'status' in obj && 'clause' in obj) {
           return `[${String(obj.type)}] Clause ${String(obj.clause)} — ${String(obj.description ?? '')} (${String(obj.status)})`;
+        }
+        if ('question' in obj && 'answer' in obj) {
+          return `${String(obj.question)}: ${String(obj.answer)}`;
         }
         if ('findingNumber' in obj) {
           return `${String(obj.findingNumber)}: ${String(obj.description ?? '')} [${String(obj.status)}]`;
@@ -215,7 +241,7 @@ function statusDot(s: string): string {
 }
 
 export async function generateAuditPlanPDF(data: AuditPlanPDFData): Promise<void> {
-  const logo = await loadLogoBase64();
+  const logo = await loadLogoForPDF();
   const pdf = new PDFReportBuilder('portrait', 'steel');
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
@@ -297,12 +323,12 @@ export async function generateAuditPlanPDF(data: AuditPlanPDFData): Promise<void
     { label: 'Top Management', date: '' },
   ]);
 
-  pdf.addFooter(FOOTER);
+  pdf.addFooter(FOOTER, 'HEXA-FRM-006 · HEXA-FRM-007 · HEXA-FRM-009 · Procedure: Hexa-ISP-002');
   pdf.save(`${data.planNumber}-Audit-Plan.pdf`);
 }
 
 export async function generateManagementReviewMOMPDF(data: ManagementReviewPDFData): Promise<void> {
-  const logo = await loadLogoBase64();
+  const logo = await loadLogoForPDF();
   const pdf = new PDFReportBuilder('portrait', 'steel');
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
@@ -329,15 +355,31 @@ export async function generateManagementReviewMOMPDF(data: ManagementReviewPDFDa
   }
 
   pdf.addSectionHeader('Agenda & Review Inputs (§9.3.2)');
-  const inputs: Record<string, string> = {};
-  if (data.inputSupplierPerf) inputs['Supplier Performance'] = data.inputSupplierPerf;
-  if (data.inputResourceStatus) inputs['Resource Status'] = data.inputResourceStatus;
-  if (data.inputCustomerFeedback) inputs['Customer Feedback'] = data.inputCustomerFeedback;
-  if (data.inputContextChanges) inputs['Context Changes'] = data.inputContextChanges;
-  if (data.inputObjectiveStatus) inputs['Objective Status'] = formatInputSection(data.inputObjectiveStatus);
-
-  for (const [key, val] of Object.entries(inputs)) {
-    pdf.addParagraph(`${key}: ${val}`);
+  const momInputSections: [string, unknown][] = [
+    ['Previous Review Actions', data.inputPreviousActions],
+    ['Audit Results', data.inputAuditResults],
+    ['NCR Summary', data.inputNcrSummary],
+    ['KPI Status', data.inputKpiStatus],
+    ['Risks & Opportunities', data.inputRisksOpportunities],
+    ['Objective Status', data.inputObjectiveStatus],
+    ['OHS Performance', data.inputOhsPerformance],
+    ['Environmental Performance', data.inputEnvironmentalPerf],
+    ['Design & Engineering Performance', data.inputDesignPerformance],
+    ['Sales Order Intake', data.inputSalesOrderIntake],
+    ['Project Delivery', data.inputProjectDelivery],
+    ['Production Tonnage', data.inputProductionTonnage],
+    ['Procurement Delays', data.inputProcurementDelays],
+    ['Supplier Performance', data.inputSupplierPerf],
+    ['Customer Feedback', data.inputCustomerFeedback],
+    ['Resource Status', data.inputResourceStatus],
+    ['Legal & Regulatory Changes', data.inputLegalChanges],
+    ['Context Changes', data.inputContextChanges],
+  ];
+  for (const [label, val] of momInputSections) {
+    if (val) {
+      const text = formatInputSection(val);
+      if (text && text !== '—') pdf.addParagraph(`${label}: ${text}`);
+    }
   }
 
   if (data.outputDecisions && data.outputDecisions.length > 0) {
@@ -375,12 +417,12 @@ export async function generateManagementReviewMOMPDF(data: ManagementReviewPDFDa
     { label: 'Note-Taker', date: '' },
   ]);
 
-  pdf.addFooter(FOOTER);
+  pdf.addFooter(FOOTER, 'HEXA-FRM-011 (MOM) · Procedure: Hexa-ISP-003');
   pdf.save(`${data.reviewNumber}-MOM.pdf`);
 }
 
 export async function generateManagementReviewReportPDF(data: ManagementReviewPDFData): Promise<void> {
-  const logo = await loadLogoBase64();
+  const logo = await loadLogoForPDF();
   const pdf = new PDFReportBuilder('portrait', 'steel');
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
@@ -407,14 +449,24 @@ export async function generateManagementReviewReportPDF(data: ManagementReviewPD
 
   pdf.addSectionHeader('§9.3.2 — Review Inputs');
   const inputSections: [string, unknown][] = [
+    ['Previous Review Actions', data.inputPreviousActions],
     ['Audit Results', data.inputAuditResults],
     ['NCR Summary', data.inputNcrSummary],
     ['KPI Status', data.inputKpiStatus],
     ['Risk Summary', data.inputRiskSummary],
+    ['Risks & Opportunities', data.inputRisksOpportunities],
     ['Objective Status', data.inputObjectiveStatus],
+    ['OHS Performance', data.inputOhsPerformance],
+    ['Environmental Performance', data.inputEnvironmentalPerf],
+    ['Design & Engineering Performance', data.inputDesignPerformance],
+    ['Sales Order Intake', data.inputSalesOrderIntake],
+    ['Project Delivery', data.inputProjectDelivery],
+    ['Production Tonnage', data.inputProductionTonnage],
+    ['Procurement Delays', data.inputProcurementDelays],
     ['Supplier Performance', data.inputSupplierPerf],
-    ['Resource Status', data.inputResourceStatus],
     ['Customer Feedback', data.inputCustomerFeedback],
+    ['Resource Status', data.inputResourceStatus],
+    ['Legal & Regulatory Changes', data.inputLegalChanges],
     ['Context Changes', data.inputContextChanges],
   ];
 
@@ -424,6 +476,22 @@ export async function generateManagementReviewReportPDF(data: ManagementReviewPD
       if (text && text !== '—') {
         pdf.addSectionHeader(label);
         pdf.addParagraph(text);
+      }
+    }
+  }
+
+  // Additional Items — filter out internal sentinel keys
+  if (Array.isArray(data.inputAdditionalItems) && data.inputAdditionalItems.length > 0) {
+    const SENTINEL_KEYS = ['__NOTES_PREV__', '__NOTES_NCR__', '__NOTES_AUDIT__', '__NOTES_KPI__', '__NOTES_OHS__'];
+    const userItems = (data.inputAdditionalItems as { question: string; answer: string }[]).filter(
+      (i) => !SENTINEL_KEYS.includes(i.question)
+    );
+    if (userItems.length > 0) {
+      pdf.addSectionHeader('Additional Agenda Items');
+      for (const item of userItems) {
+        if (item.question || item.answer) {
+          pdf.addParagraph(`${item.question || '—'}: ${item.answer || '—'}`);
+        }
       }
     }
   }
@@ -458,12 +526,12 @@ export async function generateManagementReviewReportPDF(data: ManagementReviewPD
     { label: 'Top Management Approval', date: '' },
   ]);
 
-  pdf.addFooter(FOOTER);
+  pdf.addFooter(FOOTER, 'HEXA-FRM-008 · HEXA-FRM-012 · Procedure: Hexa-ISP-003');
   pdf.save(`${data.reviewNumber}-Management-Review-Report.pdf`);
 }
 
 export async function generateProcessesPDF(processes: ProcessPDFData[]): Promise<void> {
-  const logo = await loadLogoBase64();
+  const logo = await loadLogoForPDF();
   const pdf = new PDFReportBuilder('landscape', 'steel');
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
@@ -508,12 +576,12 @@ export async function generateProcessesPDF(processes: ProcessPDFData[]): Promise
     { label: 'Management Representative', date: '' },
   ]);
 
-  pdf.addFooter(FOOTER);
+  pdf.addFooter(FOOTER, 'HEXA-REC-024 · Procedure: Hexa-ISP-001');
   pdf.save('QMS-Process-List.pdf');
 }
 
 export async function generateObjectivesPDF(objectives: ObjectivePDFData[], year: number): Promise<void> {
-  const logo = await loadLogoBase64();
+  const logo = await loadLogoForPDF();
   const pdf = new PDFReportBuilder('portrait', 'steel');
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
@@ -592,7 +660,7 @@ export type RiskRegisterPDFRisk = {
 };
 
 export async function generateRiskRegisterPDF(risks: RiskRegisterPDFRisk[]): Promise<void> {
-  const logo = await loadLogoBase64();
+  const logo = await loadLogoForPDF();
   const pdf = new PDFReportBuilder('landscape', 'red');
 
   pdf.addHeader(COMPANY, TAGLINE, logo);

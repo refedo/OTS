@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.10.3] - 2026-05-03
+
+### IMS PDF Polish — White Logo, Form References, Full Field Coverage
+
+#### Fixed
+- **PDF logo aspect ratio**: Replaced hardcoded `20×15mm` logo dimensions with dynamic sizing computed from `HTMLImageElement.naturalWidth/naturalHeight`. Logos are now rendered proportionally (max 28mm wide, 18mm tall) without distortion.
+- **PDF header logo**: All IMS PDF forms now attempt to load the white logo (`logoWhite`) from settings first, falling back to `companyLogo`. White logos are placed directly on the dark header background; color logos get a white rounded pill background.
+- **Management review PDF missing fields**: `ManagementReviewPDFData` type extended with 11 additional fields (`inputDesignPerformance`, `inputEnvironmentalPerf`, `inputSalesOrderIntake`, `inputProjectDelivery`, `inputProductionTonnage`, `inputProcurementDelays`, `inputRisksOpportunities`, `inputPreviousActions`, `inputLegalChanges`, `inputOhsPerformance`, `inputAdditionalItems`). All fields now render in both MOM and Report PDFs.
+- **Management review auto-notes pre-fill**: After fetching a review, the editable note textareas (NCR, Audit, KPI, OHS, Previous Actions) are now pre-filled with human-readable text formatted from the OTS-populated structured data when no user note has been saved yet — making the data immediately editable without losing the OTS context.
+- **Process list filter (API)**: `GET /api/ims/qms-processes` now correctly applies the `processType` query parameter to the Prisma `where` clause. Previously the handler had no `req` parameter so query params were silently ignored.
+
+#### Added
+- **PDF footer form references** per document type:
+  - Audit Plan: `HEXA-FRM-006 · HEXA-FRM-007 · HEXA-FRM-009 · Procedure: Hexa-ISP-002`
+  - Management Review MOM: `HEXA-FRM-011 (MOM) · Procedure: Hexa-ISP-003`
+  - Management Review Report: `HEXA-FRM-008 · HEXA-FRM-012 · Procedure: Hexa-ISP-003`
+  - QMS Process List: `HEXA-REC-024 · Procedure: Hexa-ISP-001`
+- **White logo upload** in `/settings` page (field `logoWhite`) for use on dark/colored backgrounds in PDF headers.
+
+#### Changed
+- PDF body font changed to **Times** (more formal/professional appearance) across all IMS reports. Section headers retain Helvetica Bold for contrast on colored backgrounds.
+- Version bumped to **22.10.3**
+
+---
+
 ## [22.10.2] - 2026-05-03
 
 ### IMS Multi-Fix — Report Quality, Select Crashes, Collation & UX

@@ -170,12 +170,63 @@ export function ManagementReviewClient() {
       setAttendeesForm(r.attendees ?? []);
       const allItems: AdditionalItem[] = r.inputAdditionalItems ?? [];
       const findNote = (key: string) => allItems.find(i => i.question === key)?.answer ?? '';
+
+      const fmtUnknown = (val: unknown): string => {
+        if (!val) return '';
+        if (typeof val === 'string') return val;
+        if (Array.isArray(val)) {
+          return val.map((item: unknown) => {
+            if (typeof item === 'object' && item !== null) {
+              const o = item as Record<string, unknown>;
+              if ('status' in o && 'count' in o) return `${String(o.status)}: ${String(o.count)}`;
+              if ('type' in o && 'clause' in o) return `[${String(o.type)}] Cl.${String(o.clause)} — ${String(o.description ?? '')} (${String(o.status ?? '')})`;
+              if ('findingNumber' in o) return `${String(o.findingNumber)}: ${String(o.description ?? '')} [${String(o.status ?? '')}]`;
+            }
+            return String(item);
+          }).join('\n');
+        }
+        if (typeof val === 'object') {
+          const o = val as Record<string, unknown>;
+          if ('note' in o && 'openFindings' in o) {
+            const lines: string[] = [String(o.note ?? '')];
+            if (Array.isArray(o.openFindings) && o.openFindings.length > 0) {
+              lines.push(`Open Findings (${o.openFindings.length}):`);
+              (o.openFindings as Record<string, unknown>[]).slice(0, 10).forEach(f => lines.push(`  • [${String(f.type ?? '')}] Cl.${String(f.clause ?? '')} — ${String(f.description ?? '').slice(0, 80)} (${String(f.status ?? '')})`));
+              if (o.openFindings.length > 10) lines.push(`  … and ${o.openFindings.length - 10} more`);
+            }
+            if (o.openDCRs !== null && o.openDCRs !== undefined) lines.push(`Open DCRs: ${String(o.openDCRs)}`);
+            return lines.join('\n');
+          }
+          if ('note' in o && 'kpis' in o) {
+            const lines: string[] = [String(o.note ?? '')];
+            if (Array.isArray(o.kpis)) (o.kpis as Record<string, unknown>[]).slice(0, 10).forEach(k => lines.push(`  • ${String(k.name ?? '')} — Target: ${String(k.target ?? '—')} ${String(k.unit ?? '')}`));
+            return lines.join('\n');
+          }
+          if ('byStatus' in o) {
+            const lines: string[] = [String(o.note ?? '')];
+            if (Array.isArray(o.byStatus)) (o.byStatus as Record<string, unknown>[]).forEach(s => lines.push(`  • ${String(s.status ?? '')}: ${String(s.count ?? 0)}`));
+            return lines.join('\n');
+          }
+          if ('reviewNumber' in o) {
+            const lines: string[] = [`Prior Review: ${String(o.reviewNumber)} (${o.reviewDate ? new Date(String(o.reviewDate)).toLocaleDateString('en-SA-u-ca-gregory') : '—'})`];
+            if (Array.isArray(o.decisions)) lines.push(`Decisions tracked: ${o.decisions.length}`);
+            return lines.join('\n');
+          }
+          if ('totalHighCritical' in o && 'risks' in o) {
+            const lines: string[] = [`High/Critical risks: ${String(o.totalHighCritical)}`];
+            if (Array.isArray(o.risks)) (o.risks as Record<string, unknown>[]).slice(0, 8).forEach(risk => lines.push(`  • [${String(risk.currentRiskRating ?? '')}] ${String(risk.riskNumber ?? '')} — ${String(risk.title ?? '')} (${String(risk.status ?? '')})`));
+            return lines.join('\n');
+          }
+        }
+        return '';
+      };
+
       setAutoNotes({
-        prevActions: findNote(AUTO_NOTE_KEYS.prevActions),
-        ncr: findNote(AUTO_NOTE_KEYS.ncr),
-        audit: findNote(AUTO_NOTE_KEYS.audit),
-        kpi: findNote(AUTO_NOTE_KEYS.kpi),
-        ohs: findNote(AUTO_NOTE_KEYS.ohs),
+        prevActions: findNote(AUTO_NOTE_KEYS.prevActions) || fmtUnknown(r.inputPreviousActions),
+        ncr: findNote(AUTO_NOTE_KEYS.ncr) || fmtUnknown(r.inputNcrSummary),
+        audit: findNote(AUTO_NOTE_KEYS.audit) || fmtUnknown(r.inputAuditResults),
+        kpi: findNote(AUTO_NOTE_KEYS.kpi) || fmtUnknown(r.inputKpiStatus),
+        ohs: findNote(AUTO_NOTE_KEYS.ohs) || fmtUnknown(r.inputOhsPerformance),
       });
       setAdditionalItems(allItems.filter(i => !Object.values(AUTO_NOTE_KEYS).includes(i.question as typeof AUTO_NOTE_KEYS[keyof typeof AUTO_NOTE_KEYS])));
     }

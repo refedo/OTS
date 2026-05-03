@@ -36,13 +36,19 @@ async function nextProcessNumber(): Promise<string> {
   return `PROC-${String(n).padStart(3, '0')}`;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    const processType = searchParams.get('processType');
+
     const records = await prisma.imsQmsProcess.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(processType ? { processType } : {}),
+      },
       select: {
         id: true, processNumber: true, name: true, processOwner: true,
         processType: true, inputs: true, outputs: true, kpis: true,
