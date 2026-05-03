@@ -24,7 +24,11 @@ import {
   Info,
   X,
   Gift,
+  Search,
+  LayoutList,
+  Table2,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 type Line = {
   id: string;
@@ -144,12 +148,26 @@ export function PayrollPeriodDetailClient({
   const [sortKey, setSortKey] = useState<SortKey>('employmentId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [noteVisible, setNoteVisible] = useState(true);
+  const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'simple' | 'extended'>('extended');
 
   const compensationByEmployee = useMemo(() => {
     const map = new Map<string, number>();
     for (const a of period.adjustments) {
       if (COMPENSATION_KINDS.has(a.kind)) {
         map.set(a.employeeId, (map.get(a.employeeId) ?? 0) + Number(a.amount));
+      }
+    }
+    return map;
+  }, [period.adjustments]);
+
+  const allowancesByEmployee = useMemo(() => {
+    const map = new Map<string, Record<string, number>>();
+    for (const a of period.adjustments) {
+      if (COMPENSATION_KINDS.has(a.kind)) {
+        const emp = map.get(a.employeeId) ?? {};
+        emp[a.kind] = (emp[a.kind] ?? 0) + Number(a.amount);
+        map.set(a.employeeId, emp);
       }
     }
     return map;
@@ -178,8 +196,17 @@ export function PayrollPeriodDetailClient({
     }
   }
 
+  const filteredLines = useMemo(() => {
+    if (!search.trim()) return period.lines;
+    const q = search.toLowerCase();
+    return period.lines.filter(l =>
+      l.employee.fullNameEn.toLowerCase().includes(q) ||
+      l.employee.employmentId.toLowerCase().includes(q)
+    );
+  }, [period.lines, search]);
+
   const sortedLines = useMemo(() => {
-    return [...period.lines].sort((a, b) => {
+    return [...filteredLines].sort((a, b) => {
       const dir = sortDir === 'asc' ? 1 : -1;
       if (sortKey === 'employmentId') {
         return dir * a.employee.employmentId.localeCompare(b.employee.employmentId, undefined, { numeric: true, sensitivity: 'base' });
@@ -206,7 +233,7 @@ export function PayrollPeriodDetailClient({
       };
       return dir * (numMap[sortKey] ?? 0);
     });
-  }, [period.lines, sortKey, sortDir, compensationByEmployee]);
+  }, [filteredLines, sortKey, sortDir, compensationByEmployee]);
 
   const totalGross = period.lines.reduce((s, l) => s + Number(l.grossPay) + Number(l.totalAdditions), 0);
   const totalDed = period.lines.reduce((s, l) => s + Number(l.totalDeductions), 0);
@@ -427,12 +454,37 @@ export function PayrollPeriodDetailClient({
 
         {/* Payroll Lines Table */}
         <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b bg-white">
             <div>
               <h2 className="text-sm font-semibold text-slate-700">Payroll Lines</h2>
               <p className="text-xs text-slate-400 mt-0.5">Click column headers to sort</p>
             </div>
-            <Badge variant="secondary">{period.lines.length} employees</Badge>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search employee…"
+                  className="pl-8 h-8 text-xs w-48"
+                />
+              </div>
+              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('simple')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'simple' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <LayoutList className="h-3.5 w-3.5" />Simple
+                </button>
+                <button
+                  onClick={() => setViewMode('extended')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'extended' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Table2 className="h-3.5 w-3.5" />Extended
+                </button>
+              </div>
+              <Badge variant="secondary">{filteredLines.length} / {period.lines.length}</Badge>
+            </div>
           </div>
 
           {period.lines.length === 0 ? (
@@ -443,6 +495,62 @@ export function PayrollPeriodDetailClient({
             </div>
           ) : (
             <div className="overflow-x-auto">
+              {viewMode === 'simple' ? (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <Th col="employmentId">ID</Th>
+                      <Th col="fullNameEn">Name</Th>
+                      <Th col="basicSalary" className="text-right">Basic Salary</Th>
+                      <Th col="compensation" className="text-right bg-violet-50">Allowances</Th>
+                      <Th col="totalDeductions" className="text-right">Total Deductions</Th>
+                      <Th col="netPay" className="text-right">Net Pay</Th>
+                      <th className="py-2 px-3 text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap">PDF</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sortedLines.map(l => {
+                      const allowances = allowancesByEmployee.get(l.employee.id) ?? {};
+                      const totalAllowances = Object.values(allowances).reduce((s, v) => s + v, 0);
+                      return (
+                        <tr key={l.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-3 font-mono text-xs text-slate-500">{l.employee.employmentId}</td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <Link href={`/hr/employees/${l.employee.id}`} className="font-medium text-sky-700 hover:underline">{l.employee.fullNameEn}</Link>
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums">{fmt(l.basicSalary)}</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums bg-violet-50/40">
+                            {totalAllowances > 0 ? (
+                              <span className="text-violet-700 font-medium" title={Object.entries(allowances).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${fmt(v)}`).join('\n')}>
+                                {fmt(totalAllowances)}
+                              </span>
+                            ) : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-rose-700">{fmt(l.totalDeductions)}</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-emerald-700 font-bold">{fmt(l.netPay)}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            {l.payslipPdfPath ? (
+                              <a href={l.payslipPdfPath} download={l.payslipPdfPath.split('/').pop()}>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-sky-600 hover:text-sky-800"><Download className="h-3.5 w-3.5" /></Button>
+                              </a>
+                            ) : <span className="text-slate-300 text-xs">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="border-t-2 bg-slate-50">
+                    <tr>
+                      <td colSpan={2} className="py-3 px-3 text-xs font-semibold text-slate-600 uppercase">Total ({sortedLines.length})</td>
+                      <td className="py-3 px-3 text-right tabular-nums font-semibold">{sar(sortedLines.reduce((s, l) => s + Number(l.basicSalary), 0))}</td>
+                      <td className="py-3 px-3 text-right tabular-nums font-bold text-violet-700 bg-violet-50/40">{sar([...compensationByEmployee.values()].reduce((s, v) => s + v, 0))}</td>
+                      <td className="py-3 px-3 text-right tabular-nums font-bold text-rose-700">{sar(sortedLines.reduce((s, l) => s + Number(l.totalDeductions), 0))}</td>
+                      <td className="py-3 px-3 text-right tabular-nums font-bold text-emerald-700">{sar(sortedLines.reduce((s, l) => s + Number(l.netPay), 0))}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              ) : (
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b">
                   <tr>
@@ -466,19 +574,19 @@ export function PayrollPeriodDetailClient({
                     <Th col="grossPay" className="text-right">Gross</Th>
                     <Th col="totalDeductions" className="text-right">Total Ded</Th>
                     <Th col="netPay" className="text-right">Net Pay</Th>
-                    <Th col="compensation" className="text-right bg-violet-50">Compensations</Th>
+                    <Th col="compensation" className="text-right bg-violet-50">Allowances</Th>
                     <th className="py-2 px-3 text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap">PDF</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {sortedLines.map((l) => (
+                  {sortedLines.map((l) => {
+                    const allowances = allowancesByEmployee.get(l.employee.id) ?? {};
+                    const totalAllowances = Object.values(allowances).reduce((s, v) => s + v, 0);
+                    return (
                     <tr key={l.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-2.5 px-3 font-mono text-xs text-slate-500 whitespace-nowrap">{l.employee.employmentId}</td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        <Link
-                          href={`/hr/employees/${l.employee.id}`}
-                          className="font-medium text-sky-700 hover:text-sky-900 hover:underline"
-                        >
+                        <Link href={`/hr/employees/${l.employee.id}`} className="font-medium text-sky-700 hover:text-sky-900 hover:underline">
                           {l.employee.fullNameEn}
                         </Link>
                       </td>
@@ -518,12 +626,9 @@ export function PayrollPeriodDetailClient({
                       <td className="py-2.5 px-3 text-right tabular-nums text-rose-700 font-medium">{fmt(l.totalDeductions)}</td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-emerald-700 font-bold">{fmt(l.netPay)}</td>
                       <td className="py-2.5 px-3 text-right tabular-nums bg-violet-50/40">
-                        {(() => {
-                          const comp = compensationByEmployee.get(l.employee.id) ?? 0;
-                          return comp > 0
-                            ? <span className="text-violet-700 font-medium">{fmt(comp)}</span>
-                            : <span className="text-slate-300">—</span>;
-                        })()}
+                        {totalAllowances > 0
+                          ? <span className="text-violet-700 font-medium" title={Object.entries(allowances).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${fmt(v)}`).join('\n')}>{fmt(totalAllowances)}</span>
+                          : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         {l.payslipPdfPath ? (
@@ -537,37 +642,38 @@ export function PayrollPeriodDetailClient({
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
                 <tfoot className="border-t-2 bg-slate-50">
                   <tr>
-                    <td colSpan={2} className="py-3 px-3 text-xs font-semibold text-slate-600 uppercase">Total ({period.lines.length})</td>
+                    <td colSpan={2} className="py-3 px-3 text-xs font-semibold text-slate-600 uppercase">Total ({sortedLines.length})</td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold">
-                      {sar(period.lines.reduce((s, l) => s + Number(l.basicSalary), 0))}
+                      {sar(sortedLines.reduce((s, l) => s + Number(l.basicSalary), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-sky-700">
-                      {fmt(period.lines.reduce((s, l) => s + Number(l.overtimeHours), 0))}
+                      {fmt(sortedLines.reduce((s, l) => s + Number(l.overtimeHours), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-sky-700">
-                      {sar(period.lines.reduce((s, l) => s + Number(l.overtimePay), 0))}
+                      {sar(sortedLines.reduce((s, l) => s + Number(l.overtimePay), 0))}
                     </td>
                     <td className="py-3 px-3 text-center text-xs font-semibold text-amber-700">
-                      {fmt(period.lines.reduce((s, l) => s + Number(l.absentDaysWithPermission), 0), 1)} / {sar(period.lines.reduce((s, l) => s + Number(l.absenceWithPermissionDeduction), 0))}
+                      {fmt(sortedLines.reduce((s, l) => s + Number(l.absentDaysWithPermission), 0), 1)} / {sar(sortedLines.reduce((s, l) => s + Number(l.absenceWithPermissionDeduction), 0))}
                     </td>
                     <td className="py-3 px-3 text-center text-xs font-semibold text-rose-700">
-                      {fmt(period.lines.reduce((s, l) => s + Number(l.absentDaysWithoutPermission), 0), 1)} / {sar(period.lines.reduce((s, l) => s + Number(l.absenceDeduction), 0))}
+                      {fmt(sortedLines.reduce((s, l) => s + Number(l.absentDaysWithoutPermission), 0), 1)} / {sar(sortedLines.reduce((s, l) => s + Number(l.absenceDeduction), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-rose-600">
-                      {sar(period.lines.reduce((s, l) => s + Number(l.loanDeduction), 0))}
+                      {sar(sortedLines.reduce((s, l) => s + Number(l.loanDeduction), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-rose-600">
-                      {sar(period.lines.reduce((s, l) => s + Number(l.custodyDeduction), 0))}
+                      {sar(sortedLines.reduce((s, l) => s + Number(l.custodyDeduction), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold text-rose-600">
-                      {sar(period.lines.reduce((s, l) => s + Number(l.violationDeduction), 0))}
+                      {sar(sortedLines.reduce((s, l) => s + Number(l.violationDeduction), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-semibold">
-                      {sar(period.lines.reduce((s, l) => s + Number(l.gosiEmployee), 0))}
+                      {sar(sortedLines.reduce((s, l) => s + Number(l.gosiEmployee), 0))}
                     </td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold">{sar(totalGross)}</td>
                     <td className="py-3 px-3 text-right tabular-nums font-bold text-rose-700">{sar(totalDed)}</td>
@@ -579,6 +685,7 @@ export function PayrollPeriodDetailClient({
                   </tr>
                 </tfoot>
               </table>
+              )}
             </div>
           )}
         </div>

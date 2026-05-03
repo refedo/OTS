@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertTriangle, Plus, Search, RefreshCw, TrendingUp, Shield } from 'lucide-react';
+import { AlertTriangle, Plus, Search, RefreshCw, TrendingUp, Shield, FileDown } from 'lucide-react';
+import { generateRiskRegisterPDF } from '@/lib/ims-pdf-generator';
 
 type Risk = {
   id: string; riskNumber: string; title: string; type: string; category: string;
@@ -67,6 +68,7 @@ export function ImsRisksClient() {
   const [dialog, setDialog] = useState(false);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [form, setForm] = useState({
     title: '', type: 'RISK', category: 'OPERATIONAL', description: '', source: '',
     applicableStandards: [] as string[], ownerId: '', reviewFrequencyDays: '90',
@@ -174,6 +176,15 @@ export function ImsRisksClient() {
               ))}
             </div>
             <Button size="sm" variant="secondary" onClick={fetchRisks}><RefreshCw className="size-4" /></Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-white/10 text-white border-white/30 hover:bg-white/20"
+              disabled={exportingPdf || filtered.length === 0}
+              onClick={async () => { setExportingPdf(true); try { await generateRiskRegisterPDF(filtered); } finally { setExportingPdf(false); } }}
+            >
+              <FileDown className="size-4 mr-1" />Export PDF
+            </Button>
             <Button size="sm" onClick={openDialog} className="bg-white text-red-900 hover:bg-red-50"><Plus className="size-4 mr-1" />New Risk</Button>
           </div>
         </div>

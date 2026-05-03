@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { IsoClauseNote } from '@/components/ims/IsoClauseNote';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

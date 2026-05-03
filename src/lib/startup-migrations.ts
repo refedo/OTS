@@ -136,6 +136,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Sprint 22.8.0 — IMS PDF Downloads, Seeds & Global Search Expansion ───
   'seed_sprint_2280_data.sql',          // Audit Plans (AP-25/26), NCRs, Mgmt Reviews, Objectives 2026
+
+  // ── Sprint 22.9.0 — IMS Rev.01 Risk Register + ISP document seeding ────
+  'seed_ims_rev01_risks.sql',           // RISK/HAZARD/LEGAL/ENV seeds + ISP document register
 ];
 
 /**

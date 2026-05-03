@@ -266,6 +266,8 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/ims/safety/incidents': ['ims.view', 'ims.risks.view'],
   '/ims/safety/drills': ['ims.view', 'ims.risks.view'],
   '/ims/safety/toolbox-talks': ['ims.view', 'ims.risks.view'],
+  '/ims/isp-register': ['ims.view', 'ims.documents.view'],
+  '/ims/calibration': ['ims.view', 'ims.documents.view'],
 
   // Forms Directory (22.7.0)
   '/forms': null, // accessible to all logged-in users
