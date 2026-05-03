@@ -61,6 +61,12 @@ export const themes: Record<string, ReportTheme> = {
   },
 };
 
+export type LogoData = {
+  base64: string;
+  aspectRatio: number;
+  isWhite: boolean;
+};
+
 export class PDFReportBuilder {
   private doc: jsPDF;
   private theme: ReportTheme;
@@ -78,127 +84,126 @@ export class PDFReportBuilder {
       unit: 'mm',
       format: 'a4',
     });
+    this.doc.setFont('times', 'normal');
     this.theme = themes[themeName];
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
   }
 
-  // Add company header with logo
   addHeader(
     companyName: string,
     companyTagline: string,
-    logoBase64?: string
+    logo?: LogoData
   ): void {
-    const headerHeight = 25;
-    
-    // Header background
+    const headerHeight = 28;
+
     this.doc.setFillColor(this.theme.headerBg);
     this.doc.rect(0, 0, this.pageWidth, headerHeight, 'F');
 
-    // Logo (if provided) — white pill background so logo is visible on dark header
-    if (logoBase64) {
+    let textOffsetX = this.margin;
+
+    if (logo) {
       try {
-        const format = logoBase64.includes('data:image/png') ? 'PNG' :
-                      logoBase64.includes('data:image/jpeg') || logoBase64.includes('data:image/jpg') ? 'JPEG' : 'PNG';
-        this.doc.setFillColor(255, 255, 255);
-        this.doc.roundedRect(this.margin - 1, 4, 22, 17, 2, 2, 'F');
-        this.doc.addImage(logoBase64, format, this.margin, 5, 20, 15);
+        const maxH = 18;
+        const maxW = 28;
+        const h = Math.min(maxH, maxW / logo.aspectRatio);
+        const w = Math.min(maxW, h * logo.aspectRatio);
+        const format = logo.base64.includes('data:image/png') ? 'PNG' : 'JPEG';
+        if (!logo.isWhite) {
+          this.doc.setFillColor(255, 255, 255);
+          this.doc.roundedRect(this.margin - 1, (headerHeight - h) / 2 - 1, w + 2, h + 2, 2, 2, 'F');
+        }
+        this.doc.addImage(logo.base64, format, this.margin, (headerHeight - h) / 2, w, h);
+        textOffsetX = this.margin + w + 4;
       } catch {
         // logo load failed — skip silently
       }
     }
 
-    // Company name
     this.doc.setTextColor(this.theme.headerText);
-    this.doc.setFontSize(16);
+    this.doc.setFontSize(15);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text(companyName, logoBase64 ? this.margin + 25 : this.margin, 12);
+    this.doc.text(companyName, textOffsetX, 13);
 
-    // Tagline
-    this.doc.setFontSize(8);
+    this.doc.setFontSize(7.5);
     this.doc.setFont('helvetica', 'normal');
-    this.doc.text(companyTagline, logoBase64 ? this.margin + 25 : this.margin, 17);
+    this.doc.text(companyTagline, textOffsetX, 20);
 
     this.currentY = headerHeight + 5;
     this.doc.setTextColor(this.theme.textColor);
+    this.doc.setFont('times', 'normal');
   }
 
-  // Add document title
   addTitle(title: string, subtitle?: string): void {
-    this.doc.setFontSize(18);
-    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(17);
+    this.doc.setFont('times', 'bold');
     this.doc.setTextColor(this.theme.primaryColor);
     this.doc.text(title, this.pageWidth / 2, this.currentY, { align: 'center' });
-    
     this.currentY += 8;
 
     if (subtitle) {
-      this.doc.setFontSize(10);
-      this.doc.setFont('helvetica', 'normal');
-      this.doc.setTextColor(this.theme.textColor);
+      this.doc.setFontSize(9.5);
+      this.doc.setFont('times', 'italic');
+      this.doc.setTextColor(80, 80, 80);
       this.doc.text(subtitle, this.pageWidth / 2, this.currentY, { align: 'center' });
       this.currentY += 6;
     }
 
-    this.currentY += 5;
+    this.currentY += 4;
+    this.doc.setTextColor(this.theme.textColor);
+    this.doc.setFont('times', 'normal');
   }
 
-  // Add metadata box (date, reference, etc.)
   addMetadataBox(metadata: Record<string, string>): void {
-    const boxWidth = 60;
+    const boxWidth = 65;
     const boxX = this.pageWidth - this.margin - boxWidth;
-    const lineHeight = 5;
-    const boxHeight = Object.keys(metadata).length * lineHeight + 4;
+    const lineHeight = 5.5;
+    const boxHeight = Object.keys(metadata).length * lineHeight + 5;
 
-    // Box background
-    this.doc.setFillColor(245, 245, 245);
+    this.doc.setFillColor(248, 249, 250);
     this.doc.rect(boxX, this.currentY, boxWidth, boxHeight, 'F');
-
-    // Box border
     this.doc.setDrawColor(this.theme.primaryColor);
-    this.doc.setLineWidth(0.5);
+    this.doc.setLineWidth(0.4);
     this.doc.rect(boxX, this.currentY, boxWidth, boxHeight);
 
-    // Metadata content
     this.doc.setFontSize(8);
-    this.doc.setFont('helvetica', 'normal');
-    let metaY = this.currentY + 4;
+    let metaY = this.currentY + 5;
 
     Object.entries(metadata).forEach(([key, value]) => {
-      this.doc.setFont('helvetica', 'bold');
+      this.doc.setFont('times', 'bold');
+      this.doc.setTextColor(60, 60, 60);
       this.doc.text(`${key}:`, boxX + 2, metaY);
-      this.doc.setFont('helvetica', 'normal');
-      this.doc.text(value, boxX + 20, metaY);
+      this.doc.setFont('times', 'normal');
+      this.doc.setTextColor(this.theme.textColor);
+      this.doc.text(value, boxX + 22, metaY);
       metaY += lineHeight;
     });
 
     this.currentY += boxHeight + 5;
   }
 
-  // Add section header
   addSectionHeader(title: string): void {
-    this.checkPageBreak(10);
-    
+    this.checkPageBreak(12);
+
     this.doc.setFillColor(this.theme.primaryColor);
     this.doc.rect(this.margin, this.currentY, this.pageWidth - 2 * this.margin, 7, 'F');
 
     this.doc.setTextColor(this.theme.headerText);
-    this.doc.setFontSize(11);
+    this.doc.setFontSize(10);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text(title, this.margin + 2, this.currentY + 5);
+    this.doc.text(title, this.margin + 3, this.currentY + 5);
 
     this.currentY += 10;
     this.doc.setTextColor(this.theme.textColor);
+    this.doc.setFont('times', 'normal');
   }
 
-  // Add key-value pairs in a grid
   addInfoGrid(data: Record<string, string | number>, columns: number = 2): void {
     this.checkPageBreak(20);
 
     const entries = Object.entries(data);
     const columnWidth = (this.pageWidth - 2 * this.margin) / columns;
     const lineHeight = 6;
-
     let col = 0;
     let row = 0;
 
@@ -207,11 +212,11 @@ export class PDFReportBuilder {
       const y = this.currentY + row * lineHeight;
 
       this.doc.setFontSize(8);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.setTextColor(100, 100, 100);
+      this.doc.setFont('times', 'bold');
+      this.doc.setTextColor(80, 80, 80);
       this.doc.text(`${key}:`, x, y);
 
-      this.doc.setFont('helvetica', 'normal');
+      this.doc.setFont('times', 'normal');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(String(value), x + 35, y);
 
@@ -225,7 +230,6 @@ export class PDFReportBuilder {
     this.currentY += Math.ceil(entries.length / columns) * lineHeight + 5;
   }
 
-  // Add table
   addTable(
     headers: string[],
     rows: (string | number)[][],
@@ -247,135 +251,116 @@ export class PDFReportBuilder {
         fillColor: options?.headerBg || this.theme.primaryColor,
         textColor: options?.headerText || this.theme.headerText,
         fontStyle: 'bold',
-        fontSize: 9,
+        font: 'helvetica',
+        fontSize: 8.5,
       },
       bodyStyles: {
         fontSize: 8,
         textColor: this.theme.textColor,
+        font: 'times',
       },
-      alternateRowStyles: options?.alternateRows
-        ? {
-            fillColor: [245, 245, 245],
-          }
-        : undefined,
+      alternateRowStyles: options?.alternateRows ? { fillColor: [248, 249, 250] } : undefined,
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 5;
+    this.currentY = (this.doc as Record<string, unknown> & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
   }
 
-  // Add image
-  addImage(
-    imageData: string,
-    width: number,
-    height: number,
-    centered: boolean = false
-  ): void {
-    this.checkPageBreak(height + 5);
-
-    const x = centered ? (this.pageWidth - width) / 2 : this.margin;
-    
-    try {
-      this.doc.addImage(imageData, 'PNG', x, this.currentY, width, height);
-      this.currentY += height + 5;
-    } catch (error) {
-      console.error('Error adding image:', error);
-    }
-  }
-
-  // Add text paragraph
   addParagraph(text: string, fontSize: number = 9): void {
     this.checkPageBreak(20);
 
     this.doc.setFontSize(fontSize);
-    this.doc.setFont('helvetica', 'normal');
-    
-    const lines = this.doc.splitTextToSize(
-      text,
-      this.pageWidth - 2 * this.margin
-    );
-    
+    this.doc.setFont('times', 'normal');
+    this.doc.setTextColor(this.theme.textColor);
+
+    const lines = this.doc.splitTextToSize(text, this.pageWidth - 2 * this.margin);
     this.doc.text(lines, this.margin, this.currentY);
-    this.currentY += lines.length * (fontSize * 0.4) + 5;
+    this.currentY += lines.length * (fontSize * 0.42) + 4;
   }
 
-  // Add signature section
   addSignatureSection(
     signatures: { label: string; name?: string; date?: string }[]
   ): void {
-    this.checkPageBreak(30);
+    this.checkPageBreak(35);
 
     const sigWidth = (this.pageWidth - 2 * this.margin) / signatures.length;
 
     signatures.forEach((sig, index) => {
       const x = this.margin + index * sigWidth;
 
-      // Label
       this.doc.setFontSize(8);
-      this.doc.setFont('helvetica', 'bold');
+      this.doc.setFont('times', 'bold');
+      this.doc.setTextColor(this.theme.textColor);
       this.doc.text(sig.label, x, this.currentY);
 
-      // Signature line
       this.doc.setLineWidth(0.3);
-      this.doc.line(x, this.currentY + 15, x + sigWidth - 10, this.currentY + 15);
+      this.doc.setDrawColor(150, 150, 150);
+      this.doc.line(x, this.currentY + 16, x + sigWidth - 8, this.currentY + 16);
 
-      // Name
       if (sig.name) {
-        this.doc.setFont('helvetica', 'normal');
-        this.doc.setFontSize(7);
-        this.doc.text(sig.name, x, this.currentY + 19);
+        this.doc.setFont('times', 'normal');
+        this.doc.setFontSize(7.5);
+        this.doc.setTextColor(80, 80, 80);
+        this.doc.text(sig.name, x, this.currentY + 20);
       }
 
-      // Date
       if (sig.date) {
-        this.doc.text(sig.date, x, this.currentY + 23);
+        this.doc.setFont('times', 'normal');
+        this.doc.setFontSize(7.5);
+        this.doc.setTextColor(120, 120, 120);
+        this.doc.text(sig.date, x, this.currentY + 24);
       }
     });
 
-    this.currentY += 30;
+    this.currentY += 32;
   }
 
-  // Add footer
-  addFooter(text: string): void {
+  // formRef: e.g. "HEXA-FRM-011 · HEXA-FRM-012 · Procedure: Hexa-ISP-003"
+  addFooter(text: string, formRef?: string): void {
     const pageCount = this.doc.getNumberOfPages();
-    
+
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i);
-      this.doc.setFontSize(7);
-      this.doc.setTextColor(150, 150, 150);
-      this.doc.text(
-        text,
-        this.pageWidth / 2,
-        this.pageHeight - 10,
-        { align: 'center' }
-      );
+
+      // Thin separator line
+      this.doc.setDrawColor(200, 200, 200);
+      this.doc.setLineWidth(0.3);
+      this.doc.line(this.margin, this.pageHeight - 16, this.pageWidth - this.margin, this.pageHeight - 16);
+
+      this.doc.setFont('helvetica', 'normal');
+      this.doc.setFontSize(6.5);
+      this.doc.setTextColor(140, 140, 140);
+
+      if (formRef) {
+        this.doc.text(formRef, this.pageWidth / 2, this.pageHeight - 13, { align: 'center' });
+        this.doc.text(text, this.pageWidth / 2, this.pageHeight - 9.5, { align: 'center' });
+      } else {
+        this.doc.text(text, this.pageWidth / 2, this.pageHeight - 11, { align: 'center' });
+      }
+
       this.doc.text(
         `Page ${i} of ${pageCount}`,
         this.pageWidth - this.margin,
-        this.pageHeight - 10,
+        this.pageHeight - 11,
         { align: 'right' }
       );
     }
   }
 
-  // Check if we need a page break
   private checkPageBreak(requiredSpace: number): void {
-    if (this.currentY + requiredSpace > this.pageHeight - 20) {
+    if (this.currentY + requiredSpace > this.pageHeight - 22) {
       this.doc.addPage();
       this.currentY = 20;
     }
   }
 
-  // Save the PDF
   save(filename: string): void {
     this.doc.save(filename);
   }
 
-  // Get PDF as blob
   getBlob(): Blob {
     return this.doc.output('blob');
   }
 
-  // Get PDF as data URL
   getDataURL(): string {
     return this.doc.output('dataurlstring');
   }

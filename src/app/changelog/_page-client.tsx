@@ -23,10 +23,40 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '22.10.2',
+    version: '22.10.3',
     date: 'May 3, 2026',
     type: 'patch',
     status: 'current',
+    mainTitle: 'IMS PDF Polish — White Logo, Form References, Full Field Coverage',
+    highlights: [
+      'PDF logo aspect ratio fixed: dynamic sizing from natural image dimensions instead of hardcoded 20×15mm — logos no longer distorted.',
+      'White logo support: PDF headers now prefer logoWhite from settings (placed directly on dark background), falling back to color logo with white pill.',
+      'Management review PDF now includes all 11+ input fields — Design Performance, Environmental, Sales, Project Delivery, Production Tonnage, Procurement Delays, Risks & Opportunities, Previous Actions, Legal Changes, OHS Performance, Additional Items.',
+      'Auto-populated review fields (NCR, KPI, Audit, OHS, Previous Actions) now pre-fill as editable text so users can review and annotate before saving.',
+      'PDF footers now show form references: Audit Plan (FRM-006/007/009), MOM (FRM-011), Report (FRM-008/012), Process List (REC-024) with applicable procedure numbers.',
+    ],
+    changes: {
+      added: [
+        'PDF footer form references per document type: Audit Plan → HEXA-FRM-006 · HEXA-FRM-007 · HEXA-FRM-009 · Procedure: Hexa-ISP-002; MOM → HEXA-FRM-011 · Procedure: Hexa-ISP-003; Report → HEXA-FRM-008 · HEXA-FRM-012 · Procedure: Hexa-ISP-003; Process List → HEXA-REC-024 · Procedure: Hexa-ISP-001.',
+        'Auto-notes pre-fill: NCR, Audit Results, KPI Status, OHS Performance, and Previous Actions note textareas now pre-populate from OTS structured data on review load (editable, not read-only).',
+      ],
+      fixed: [
+        'PDF logo aspect ratio: replaced hardcoded 20×15mm with HTMLImageElement.naturalWidth/naturalHeight detection; logos now fit proportionally in max 28×18mm box.',
+        'PDF logo on dark header: loadLogoForPDF() loads logoWhite first (isWhite=true, no pill), falls back to companyLogo (white pill drawn behind image).',
+        'Management review PDF missing fields: ManagementReviewPDFData extended with inputDesignPerformance, inputEnvironmentalPerf, inputSalesOrderIntake, inputProjectDelivery, inputProductionTonnage, inputProcurementDelays, inputRisksOpportunities, inputPreviousActions, inputLegalChanges, inputOhsPerformance, inputAdditionalItems — all rendered in both MOM and Report PDFs.',
+        'QMS process list filter: GET /api/ims/qms-processes now reads processType from query params and applies it to Prisma where clause.',
+      ],
+      changed: [
+        'PDF body font changed to Times (more formal) across all IMS reports; section headers retain Helvetica Bold.',
+        'Version bumped to 22.10.3',
+      ],
+    },
+  },
+  {
+    version: '22.10.2',
+    date: 'May 3, 2026',
+    type: 'patch',
+    status: 'previous',
     mainTitle: 'IMS Multi-Fix — Report Quality, Select Crashes, Collation & UX',
     highlights: [
       'Fixed SQL migration collation error in seed_ims_rev01_risks.sql — replaced all utf8mb4_0900_ai_ci with utf8mb4_unicode_ci to match table collation.',
