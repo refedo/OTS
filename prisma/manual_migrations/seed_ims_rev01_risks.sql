@@ -3,7 +3,7 @@
 -- Covers types: RISK, HAZARD, LEGAL, ENVIRONMENTAL, CONTEXT
 -- All inserts are idempotent
 
-SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci';
+SET NAMES 'utf8mb4';
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- STRATEGIC / OPERATIONAL RISKS (type = RISK)

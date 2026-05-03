@@ -78,6 +78,17 @@ function statusBadge(s: string) {
 const BLANK_ATTENDEE: Attendee = { name: '', role: '', present: true };
 const BLANK_ITEM: AdditionalItem = { question: '', answer: '' };
 
+// Reserved keys for notes attached to auto-populated sections
+const AUTO_NOTE_KEYS = {
+  prevActions: '__NOTES_PREV__',
+  ncr: '__NOTES_NCR__',
+  audit: '__NOTES_AUDIT__',
+  kpi: '__NOTES_KPI__',
+  ohs: '__NOTES_OHS__',
+} as const;
+
+type AutoNotes = { prevActions: string; ncr: string; audit: string; kpi: string; ohs: string };
+
 type OutputForm = {
   outputObjectives: string;
   outputResourceNeeds: string;
@@ -121,6 +132,7 @@ export function ManagementReviewClient() {
   });
   const [attendeesForm, setAttendeesForm] = useState<Attendee[]>([]);
   const [additionalItems, setAdditionalItems] = useState<AdditionalItem[]>([]);
+  const [autoNotes, setAutoNotes] = useState<AutoNotes>({ prevActions: '', ncr: '', audit: '', kpi: '', ohs: '' });
   const [downloadingMOM, setDownloadingMOM] = useState(false);
   const [downloadingReport, setDownloadingReport] = useState(false);
 
@@ -155,7 +167,16 @@ export function ManagementReviewClient() {
         notes: r.notes ?? '',
       });
       setAttendeesForm(r.attendees ?? []);
-      setAdditionalItems(r.inputAdditionalItems ?? []);
+      const allItems: AdditionalItem[] = r.inputAdditionalItems ?? [];
+      const findNote = (key: string) => allItems.find(i => i.question === key)?.answer ?? '';
+      setAutoNotes({
+        prevActions: findNote(AUTO_NOTE_KEYS.prevActions),
+        ncr: findNote(AUTO_NOTE_KEYS.ncr),
+        audit: findNote(AUTO_NOTE_KEYS.audit),
+        kpi: findNote(AUTO_NOTE_KEYS.kpi),
+        ohs: findNote(AUTO_NOTE_KEYS.ohs),
+      });
+      setAdditionalItems(allItems.filter(i => !Object.values(AUTO_NOTE_KEYS).includes(i.question as typeof AUTO_NOTE_KEYS[keyof typeof AUTO_NOTE_KEYS])));
     }
   };
 
@@ -194,7 +215,12 @@ export function ManagementReviewClient() {
         body: JSON.stringify({
           ...outputForm,
           attendees: attendeesForm,
-          inputAdditionalItems: additionalItems.filter(i => i.question.trim()),
+          inputAdditionalItems: [
+            ...Object.entries(AUTO_NOTE_KEYS)
+              .filter(([k]) => autoNotes[k as keyof AutoNotes].trim())
+              .map(([k, q]) => ({ question: q, answer: autoNotes[k as keyof AutoNotes] })),
+            ...additionalItems.filter(i => i.question.trim()),
+          ],
         }),
       });
       if (res.ok) await fetchDetail(selected.id);
@@ -371,9 +397,9 @@ export function ManagementReviewClient() {
               <SectionLabel num="1" label="Status of Actions from Previous Review" auto />
               {selected.inputPreviousActions ? (
                 selected.inputPreviousActions.note ? (
-                  <p className="text-xs text-slate-400 italic">{selected.inputPreviousActions.note}</p>
+                  <p className="text-xs text-slate-400 italic mb-2">{selected.inputPreviousActions.note}</p>
                 ) : (
-                  <div className="text-xs text-slate-600 bg-slate-50 rounded p-2 space-y-1">
+                  <div className="text-xs text-slate-600 bg-slate-50 rounded p-2 space-y-1 mb-2">
                     <p><span className="font-medium">Previous Review:</span> {selected.inputPreviousActions.reviewNumber} — {selected.inputPreviousActions.reviewDate ? new Date(selected.inputPreviousActions.reviewDate).toLocaleDateString('en-SA-u-ca-gregory') : '—'}</p>
                     {Array.isArray(selected.inputPreviousActions.decisions) && (selected.inputPreviousActions.decisions as { decision: string; status: string }[]).length > 0 ? (
                       <ul className="mt-1 space-y-0.5">
@@ -387,7 +413,9 @@ export function ManagementReviewClient() {
                     ) : <p className="text-slate-400 italic">No decisions recorded in previous review.</p>}
                   </div>
                 )
-              ) : <p className="text-xs text-slate-400 italic">Not populated yet — click &quot;Populate from OTS&quot;</p>}
+              ) : <p className="text-xs text-slate-400 italic mb-2">Not populated yet — click &quot;Populate from OTS&quot;</p>}
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes / Commentary</p>
+              <Textarea rows={2} value={autoNotes.prevActions} onChange={e => setAutoNotes(n => ({ ...n, prevActions: e.target.value }))} placeholder="Add meeting commentary on previous actions status..." className="text-xs" disabled={isLocked} />
             </div>
 
             {/* 2. Context */}
@@ -400,19 +428,21 @@ export function ManagementReviewClient() {
             <div>
               <SectionLabel num="3" label="NCR Trends & Weld Rejection Rate" auto />
               {selected.inputNcrSummary ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 mb-2">
                   {(selected.inputNcrSummary as { status: string; count: number }[]).map?.((g) => (
                     <span key={g.status} className="text-xs bg-slate-100 px-2 py-1 rounded">{g.status}: {g.count}</span>
                   ))}
                 </div>
-              ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
+              ) : <p className="text-xs text-slate-400 italic mb-2">Not populated yet</p>}
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes / Commentary</p>
+              <Textarea rows={2} value={autoNotes.ncr} onChange={e => setAutoNotes(n => ({ ...n, ncr: e.target.value }))} placeholder="NCR trend analysis, weld rejection rate commentary, corrective actions progress..." className="text-xs" disabled={isLocked} />
             </div>
 
             {/* 4. Audit findings */}
             <div>
               <SectionLabel num="4" label="Internal & External Audit Findings" auto />
               {selected.inputAuditResults ? (
-                <div className="text-xs text-slate-600 space-y-1">
+                <div className="text-xs text-slate-600 space-y-1 mb-2">
                   {(selected.inputAuditResults.openFindings ?? []).length > 0 ? (
                     <div className="space-y-1">
                       {(selected.inputAuditResults.openFindings ?? []).slice(0, 5).map((finding: AuditFinding) => (
@@ -431,14 +461,16 @@ export function ManagementReviewClient() {
                     <p className="text-slate-500">{selected.inputAuditResults.openDCRs} open document change requests pending</p>
                   )}
                 </div>
-              ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
+              ) : <p className="text-xs text-slate-400 italic mb-2">Not populated yet</p>}
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes / Commentary</p>
+              <Textarea rows={2} value={autoNotes.audit} onChange={e => setAutoNotes(n => ({ ...n, audit: e.target.value }))} placeholder="Audit findings summary, surveillance audit outcomes, certification body feedback..." className="text-xs" disabled={isLocked} />
             </div>
 
             {/* 5. KPI / Objectives */}
             <div>
               <SectionLabel num="5" label="KPI Progress & IMS Objectives" auto />
               {selected.inputKpiStatus ? (
-                <div className="text-xs text-slate-600 bg-slate-50 rounded p-2">
+                <div className="text-xs text-slate-600 bg-slate-50 rounded p-2 mb-2">
                   {(selected.inputKpiStatus as { kpis?: { name: string; target: number | null; unit: string | null }[]; note?: string }).kpis?.slice(0, 5).map((k, i) => (
                     <div key={i} className="flex justify-between py-0.5">
                       <span>{k.name}</span>
@@ -449,7 +481,9 @@ export function ManagementReviewClient() {
                     <p className="text-slate-400 italic mt-1">+ {((selected.inputKpiStatus as { kpis?: unknown[] }).kpis?.length ?? 0) - 5} more — see Business Planning module</p>
                   )}
                 </div>
-              ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
+              ) : <p className="text-xs text-slate-400 italic mb-2">Not populated yet</p>}
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes / Commentary</p>
+              <Textarea rows={2} value={autoNotes.kpi} onChange={e => setAutoNotes(n => ({ ...n, kpi: e.target.value }))} placeholder="KPI achievement commentary, objective status, corrective actions for missed targets..." className="text-xs" disabled={isLocked} />
             </div>
 
             {/* 6. Risks & Opportunities */}
@@ -498,7 +532,7 @@ export function ManagementReviewClient() {
             <div>
               <SectionLabel num="13" label="HSE Incidents & Near-Miss Trends" auto />
               {selected.inputOhsPerformance ? (
-                <div className="text-xs text-slate-600 space-y-1">
+                <div className="text-xs text-slate-600 space-y-1 mb-2">
                   <div className="flex flex-wrap gap-2">
                     {(selected.inputOhsPerformance.byStatus ?? []).map((s: { status: string; count: number }) => (
                       <span key={s.status} className="text-xs bg-slate-100 px-2 py-1 rounded">{s.status}: {s.count}</span>
@@ -506,7 +540,9 @@ export function ManagementReviewClient() {
                   </div>
                   {selected.inputOhsPerformance.note && <p className="text-slate-400 italic">{selected.inputOhsPerformance.note}</p>}
                 </div>
-              ) : <p className="text-xs text-slate-400 italic">Not populated yet</p>}
+              ) : <p className="text-xs text-slate-400 italic mb-2">Not populated yet</p>}
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-0.5">Notes / Commentary</p>
+              <Textarea rows={2} value={autoNotes.ohs} onChange={e => setAutoNotes(n => ({ ...n, ohs: e.target.value }))} placeholder="HSE incident trend analysis, root causes, prevention measures, LTIFR commentary..." className="text-xs" disabled={isLocked} />
             </div>
 
             {/* 14. Environmental performance */}
