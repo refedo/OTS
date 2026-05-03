@@ -326,6 +326,15 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'concentrationRisk',
+    name: 'Concentration Risk Dashboard',
+    permissions: [
+      { id: 'concentrationRisk.view', name: 'View Concentration Risk', description: 'Access the Concentration Risk Dashboard — customer, project, supplier and resource exposure analysis', category: 'concentrationRisk' },
+      { id: 'concentrationRisk.manage', name: 'Manage Concentration Risk', description: 'Configure risk thresholds and segment classifications', category: 'concentrationRisk' },
+      { id: 'concentrationRisk.export', name: 'Export Concentration Risk', description: 'Export risk reports to Excel / CSV', category: 'concentrationRisk' },
+    ],
+  },
+  {
     id: 'backups',
     name: 'Backup Management',
     permissions: [
