@@ -3,64 +3,50 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
-import {
-  Search, FileText, ExternalLink, CheckCircle2, Database,
-} from 'lucide-react';
+import { FileText, Search, ExternalLink, Database } from 'lucide-react';
 
 type FormEntry = {
   code: string;
   name: string;
+  isp: string;
   href: string | null;
   isRecord?: boolean;
   isoClause: string;
-  procedure: string;
   module: string;
-  description: string;
+  otsRef: string;
+  aramcoRef?: string;
 };
 
+// HEXA-FRM list exactly per Hexa-ISM-001 Rev.01 Appendix B
 const FORMS: FormEntry[] = [
-  // ── Document Control ───────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-001', name: 'Document Change Request (DCR)', href: '/ims/change-requests', isoClause: 'ISO 9001/14001/45001 §7.5', procedure: 'Hexa-ISP-001', module: 'IMS', description: 'Formally request and track changes to controlled IMS documents.' },
-  // ── Internal Audit ──────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-002', name: 'Internal Audit Plan', href: '/ims/audit-plans', isoClause: 'ISO 9001/14001/45001 §9.2', procedure: 'Hexa-ISP-002', module: 'IMS', description: 'Annual internal audit planning with schedule, audit type, and status tracking.' },
-  { code: 'HEXA-FRM-003', name: 'Internal Audit Report / NCR+CAR', href: '/ims/audit-plans', isoClause: 'ISO 9001/14001/45001 §9.2 §10.2', procedure: 'Hexa-ISP-002', module: 'IMS', description: 'Audit findings, non-conformances, and corrective actions in one unified record.' },
-  // ── Management Review ───────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-004', name: 'Management Review (MOM + Action Plan)', href: '/ims/management-review', isoClause: 'ISO 9001/14001/45001 §9.3', procedure: 'Hexa-ISP-003', module: 'IMS', description: 'Unified management review — minutes, inputs, outputs, and decisions in one record.' },
-  // ── Planning / Objectives ───────────────────────────────────────────────────
-  { code: 'HEXA-FRM-005', name: 'IMS Objectives Register', href: '/business-planning/objectives', isoClause: 'ISO 9001/14001/45001 §6.2', procedure: 'Hexa-ISP-003', module: 'Business Planning', description: 'SMART objectives with KPIs, targets, owners, and progress tracking.' },
-  // ── Risk & Compliance ───────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-006', name: 'Risk & Compliance Register', href: '/ims/risks', isoClause: 'ISO 9001/14001/45001 §6.1', procedure: 'Hexa-ISP-002', module: 'IMS', description: 'Unified register covering RISK, HAZARD, LEGAL, ENVIRONMENTAL, and CONTEXT types.' },
-  { code: 'HEXA-FRM-007', name: 'Risk Treatment Tracker', href: '/ims/risks/treatments', isoClause: 'ISO 9001/14001/45001 §6.1', procedure: 'Hexa-ISP-002', module: 'IMS', description: 'Track treatment plans linked to risks with owner, due date, and effectiveness verification.' },
-  // ── HR / Competence ─────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-008', name: 'Competence Matrix', href: '/ims/competence-matrix', isoClause: 'ISO 9001/14001/45001 §7.2', procedure: 'Hexa-ISP-015', module: 'IMS', description: 'Skills and competency matrix per role and employee with gap analysis.' },
-  { code: 'HEXA-FRM-009', name: 'Training Needs Analysis (TNA)', href: '/hr/training', isoClause: 'ISO 9001 §7.2', procedure: 'Hexa-ISP-015', module: 'HR', description: 'Identify competency gaps per employee and plan required training.' },
-  // ── Supply Chain ────────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-010', name: 'Approved Supplier List', href: '/supply-chain/approved-suppliers', isoClause: 'ISO 9001 §8.4', procedure: 'Hexa-ISP-011', module: 'Supply Chain', description: 'ISO 8.4 approved supplier register with rating, approval status, and expiry tracking.' },
-  // ── Projects ────────────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-011', name: 'Project Kickoff Meeting Checklist', href: '/projects/kickoff', isoClause: 'ISO 9001 §8.1, §8.2.3', procedure: 'Hexa-ISP-011', module: 'Projects', description: 'Kickoff meeting record with attendees, agenda, deliverables, open items, and sign-off.' },
-  // ── QC / Welding ────────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-012', name: 'Welder Qualification Test Record (WQT)', href: '/qc/welder-qualification', isoClause: 'ISO 9001 §7.2, §8.5.1', procedure: 'Hexa-ISP-012', module: 'QC', description: 'Full welder qualification register with process, position, material, test results, and certification validity.' },
-  { code: 'HEXA-FRM-013', name: 'Work / Welding Inspection Record (WIR)', href: '/qc/welding', isoClause: 'ISO 9001 §8.5.1', procedure: 'Hexa-ISP-013', module: 'QC', description: 'Welding inspection records per joint/weld with accept/reject, inspector, and witness details.' },
-  // ── QC / Inspection ─────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-014', name: 'Inspection & Test Plan (ITP)', href: '/itp', isoClause: 'ISO 9001 §8.5.1', procedure: 'Hexa-ISP-013', module: 'QC', description: 'Project-level inspection and test plans with hold/witness/review points.' },
-  { code: 'HEXA-FRM-015', name: 'Material Inspection Record (MIR)', href: '/qc/material', isoClause: 'ISO 9001 §8.4', procedure: 'Hexa-ISP-013', module: 'QC', description: 'Incoming material inspection with heat number, dimension, visual, and certificate verification.' },
-  { code: 'HEXA-FRM-016', name: 'Dimensional Inspection Report (DIR)', href: '/qc/dimensional', isoClause: 'ISO 9001 §8.5.1, §8.6', procedure: 'Hexa-ISP-013', module: 'QC', description: 'Dimensional inspection records for fabricated structures against approved drawings.' },
-  // ── QC / Coating ────────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-017', name: 'Coating Inspection Record (DFT)', href: '/qc/coating', isoClause: 'ISO 9001 §8.5.1', procedure: 'Hexa-ISP-013', module: 'QC', description: 'Dry Film Thickness inspection with coat layer, ambient conditions, DFT readings, and result.' },
-  // ── NCR / QC ────────────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-018', name: 'Non-Conformance Report (NCR)', href: '/qc/ncr', isoClause: 'ISO 9001 §8.7, §10.2', procedure: 'Hexa-ISP-002', module: 'QC', description: 'Record, classify, and resolve non-conformances during production or inspection.' },
-  // ── HSE ─────────────────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-019', name: 'Incident / Near-Miss Report', href: '/ims/safety/incidents', isoClause: 'ISO 45001 §10.2.1', procedure: 'Hexa-ISP-020', module: 'Safety', description: 'Incident reporting with type classification, severity, root cause, corrective and preventive actions.' },
-  { code: 'HEXA-FRM-020', name: 'Emergency Drill Record', href: '/ims/safety/drills', isoClause: 'ISO 45001 §8.8', procedure: 'Hexa-ISP-020', module: 'Safety', description: 'Emergency drill planning and recording with type, participants, objectives, findings, and corrective actions.' },
-  { code: 'HEXA-FRM-021', name: 'Toolbox Talk Record', href: '/ims/safety/toolbox-talks', isoClause: 'ISO 45001 §7.3', procedure: 'Hexa-ISP-020', module: 'Safety', description: 'Safety awareness session records with topic, attendee count, duration, and follow-up actions.' },
-  // ── Equipment ───────────────────────────────────────────────────────────────
-  { code: 'HEXA-FRM-022', name: 'Calibration Register', href: '/ims/calibration', isoClause: 'ISO 9001 §7.1.5', procedure: 'Hexa-ISP-015', module: 'IMS', description: 'Measuring equipment calibration records with PASS/FAIL/CONDITIONAL results, cert refs, and IAS accreditation.' },
+  { code: 'HEXA-FRM-001', name: 'Document Change Request (DCR)', isp: 'ISP-001', href: '/ims/change-requests', isoClause: 'ISO 9001/14001/45001 §7.5', module: 'IMS', otsRef: 'IMS Module — DCR Workflow' },
+  { code: 'HEXA-FRM-002', name: 'Approved Supplier List', isp: 'ISP-006', href: '/supply-chain/approved-suppliers', isoClause: 'ISO 9001 §8.4', module: 'Supply Chain', otsRef: 'Supply Chain Module', aramcoRef: '4.1.14.10' },
+  { code: 'HEXA-FRM-003', name: 'Training Needs Analysis', isp: 'ISP-006', href: '/hr/training', isoClause: 'ISO 9001 §7.2', module: 'HR', otsRef: 'HR Module — Training Programs', aramcoRef: '4.1.14.12' },
+  { code: 'HEXA-FRM-004', name: 'Audit Schedule', isp: 'ISP-004', href: '/ims/audit-plans', isoClause: 'ISO 9001/14001/45001 §9.2', module: 'IMS', otsRef: 'IMS Module — Audit Tracker', aramcoRef: '4.1.14.9' },
+  { code: 'HEXA-FRM-005', name: 'Internal Audit Report', isp: 'ISP-004', href: '/ims/audit-plans', isoClause: 'ISO 9001/14001/45001 §9.2', module: 'IMS', otsRef: 'IMS Module — Audit Tracker', aramcoRef: '4.1.14.9' },
+  { code: 'HEXA-FRM-006', name: 'Audit Checklist', isp: 'ISP-004', href: '/ims/audit-plans', isoClause: 'ISO 9001/14001/45001 §9.2', module: 'IMS', otsRef: 'IMS Module — Audit Tracker', aramcoRef: '4.1.14.9' },
+  { code: 'HEXA-FRM-007', name: 'Non-Conformance Report (NCR)', isp: 'ISP-005', href: '/qc/ncr', isoClause: 'ISO 9001 §8.7, §10.2', module: 'QC', otsRef: 'QC Module — NCR records', aramcoRef: '4.1.14.11' },
+  { code: 'HEXA-FRM-008', name: 'Management Review Record', isp: 'ISP-003', href: '/ims/management-review', isoClause: 'ISO 9001/14001/45001 §9.3', module: 'IMS', otsRef: 'IMS Module — Management Review', aramcoRef: '4.1.14.8' },
+  { code: 'HEXA-FRM-009', name: 'IMS Objectives & KPI Register', isp: 'ISP-003', href: '/business-planning/objectives', isoClause: 'ISO 9001/14001/45001 §6.2', module: 'Business Planning', otsRef: 'Business Planning Module — KPIs', aramcoRef: '4.1.14.6a' },
+  { code: 'HEXA-FRM-010', name: 'Personnel Competency & Training Record', isp: 'ISP-006', href: '/ims/competence-matrix', isoClause: 'ISO 9001 §7.2 / 45001 §7.2, 7.3', module: 'HR', otsRef: 'HR Module — Employee profiles; IMS Module — Competence Matrix', aramcoRef: '4.1.14.5, 4.1.14.12' },
+  { code: 'HEXA-FRM-011', name: 'Risk & Compliance Register', isp: 'ISP-002', href: '/ims/risks', isoClause: 'ISO 9001/14001/45001 §6.1', module: 'IMS', otsRef: 'IMS Module — Risk Register (5×5 matrix)', aramcoRef: '4.1.14.7' },
+  { code: 'HEXA-FRM-012', name: 'Project Kickoff Checklist', isp: 'ISP-011', href: '/projects/kickoff', isoClause: 'ISO 9001 §8.1, §8.2.3', module: 'Projects', otsRef: 'Project Module — Project Setup Wizard (completion record)' },
+  { code: 'HEXA-FRM-013', name: 'Welder Qualification Test Record (WQT)', isp: 'ISP-012', href: '/qc/welder-qualification', isoClause: 'ISO 9001 §7.2, §8.5.1', module: 'QC', otsRef: 'QC Module — Welder Qualification Register', aramcoRef: '4.1.14.5' },
+  { code: 'HEXA-FRM-014', name: 'Work / Welding Inspection Record (WIR)', isp: 'ISP-015', href: '/qc/welding', isoClause: 'ISO 9001 §8.5.1', module: 'QC', otsRef: 'QC Module — ITP / WIR records per project' },
+  { code: 'HEXA-FRM-015', name: 'Inspection and Test Plan (ITP)', isp: 'ISP-015', href: '/itp', isoClause: 'ISO 9001 §8.5.1, §8.6', module: 'QC', otsRef: 'QC Module — ITP records (per project)' },
+  { code: 'HEXA-FRM-016', name: 'Material Inspection Receipt (MIR)', isp: 'ISP-011', href: '/qc/material', isoClause: 'ISO 9001 §8.4', module: 'QC', otsRef: 'QC Module — MIR (linked to Dolibarr PO)' },
+  { code: 'HEXA-FRM-017', name: 'Dimensional Inspection Report', isp: 'ISP-015', href: '/qc/dimensional', isoClause: 'ISO 9001 §8.5.1, §8.6', module: 'QC', otsRef: 'QC Module — Dimensional inspection records' },
+  { code: 'HEXA-FRM-018', name: 'Coating Inspection Record (DFT)', isp: 'ISP-014', href: '/qc/coating', isoClause: 'ISO 9001 §8.5.1', module: 'QC', otsRef: 'QC Module — Coating inspection records' },
+  { code: 'HEXA-FRM-019', name: 'Incident / Near-Miss Report', isp: 'ISP-020', href: '/ims/safety/incidents', isoClause: 'ISO 45001 §10.2.1', module: 'Safety', otsRef: 'IMS Module — Incident Log' },
+  { code: 'HEXA-FRM-020', name: 'Emergency Drill Record', isp: 'ISP-020', href: '/ims/safety/drills', isoClause: 'ISO 45001 §8.8', module: 'Safety', otsRef: 'IMS Module — System Events (emergency drill)' },
+  { code: 'HEXA-FRM-021', name: 'Toolbox Talk Record', isp: 'ISP-020', href: '/ims/safety/toolbox-talks', isoClause: 'ISO 45001 §7.3', module: 'Safety', otsRef: 'HR Module — HSE Announcements' },
+  { code: 'HEXA-FRM-022', name: 'Calibration Record / Certificate', isp: 'ISP-015', href: '/ims/calibration', isoClause: 'ISO 9001 §7.1.5', module: 'IMS', otsRef: 'IMS Module — Calibration Register; Asset Module' },
 ];
 
 const RECORDS: FormEntry[] = [
-  { code: 'HEXA-REC-023', name: 'Project Card / Job Order', href: '/projects', isRecord: true, isoClause: 'ISO 9001 §8.1', procedure: 'Hexa-ISP-011', module: 'Projects', description: 'System-generated project record created on order acceptance. Contains all project metadata, BOQ, and milestone data.' },
-  { code: 'HEXA-REC-024', name: 'QMS Process List (SIPOC)', href: '/ims/processes', isRecord: true, isoClause: 'ISO 9001/14001 §4.4', procedure: 'Hexa-ISP-001', module: 'IMS', description: 'System-generated on demand. SIPOC register of all QMS processes with owners, inputs, outputs, and KPIs.' },
-  { code: 'HEXA-REC-025', name: 'Legal & Regulatory Register Export', href: '/ims/legal-register', isRecord: true, isoClause: 'ISO 9001/14001/45001 §6.1.3', procedure: 'Hexa-ISP-002', module: 'IMS', description: 'Filtered export of HEXA-FRM-006 (type=LEGAL) containing all applicable legal and regulatory requirements.' },
+  { code: 'HEXA-REC-023', name: 'Project Card / Job Order', isp: '—', href: '/projects', isRecord: true, isoClause: 'ISO 9001 §8.1', module: 'Projects', otsRef: 'Project Module — auto-generated on order acceptance' },
+  { code: 'HEXA-REC-024', name: 'QMS Process List (SIPOC)', isp: 'ISP-001', href: '/ims/processes', isRecord: true, isoClause: 'ISO 9001/14001 §4.4', module: 'IMS', otsRef: 'IMS Module — QMS Process List (system-generated on demand)' },
+  { code: 'HEXA-REC-025', name: 'Legal & Regulatory Register Export', isp: 'ISP-002', href: '/ims/legal-register', isRecord: true, isoClause: 'ISO 9001/14001/45001 §6.1.3', module: 'IMS', otsRef: 'Filtered export of FRM-011 (type=LEGAL)' },
 ];
 
 const MODULE_COLORS: Record<string, string> = {
@@ -85,8 +71,8 @@ export function FormsDirectoryClient() {
     if (filterModule && f.module !== filterModule) return false;
     if (!q) return true;
     return f.code.toLowerCase().includes(q) || f.name.toLowerCase().includes(q) ||
-      f.description.toLowerCase().includes(q) || f.isoClause.toLowerCase().includes(q) ||
-      f.procedure.toLowerCase().includes(q);
+      f.isp.toLowerCase().includes(q) || f.isoClause.toLowerCase().includes(q) ||
+      f.otsRef.toLowerCase().includes(q) || (f.aramcoRef ?? '').toLowerCase().includes(q);
   };
 
   const filteredForms = FORMS.filter(match);
@@ -98,11 +84,11 @@ export function FormsDirectoryClient() {
       <div>
         <div className="flex items-center gap-2 mb-1 flex-wrap">
           <FileText className="h-6 w-6 text-[#2c3e50]" />
-          <h1 className="text-2xl font-bold text-[#2c3e50]">Forms Directory</h1>
-          <span className="text-xs bg-[#2c3e50] text-white px-2 py-0.5 rounded font-medium">Hexa-ISM-001 Rev.01</span>
-          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">22 Forms · 3 Records</span>
+          <h1 className="text-2xl font-bold text-[#2c3e50]">OTS™ Data Entry Forms — HEXA-FRM (22 forms)</h1>
         </div>
-        <p className="text-sm text-slate-500">All HEXA-FRM data-entry screens and HEXA-REC system-generated outputs. Click any row to open the module.</p>
+        <p className="text-sm text-slate-500">
+          Per <strong>Hexa-ISM-001 Rev.01</strong> — all 22 HEXA-FRM data-entry forms and 3 HEXA-REC system-generated records. Click any row to open the module.
+        </p>
         <p className="text-xs text-slate-400 italic mt-1">All forms are OTS™ data entry screens. Records are system-generated outputs. No paper forms are maintained.</p>
       </div>
 
@@ -121,13 +107,13 @@ export function FormsDirectoryClient() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Search + Module filter */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             className="pl-9"
-            placeholder="Search code, name, ISO clause, procedure…"
+            placeholder="Search code, name, ISP, ISO clause…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -153,23 +139,22 @@ export function FormsDirectoryClient() {
 
       {/* Forms Table */}
       <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3 bg-[#2c3e50]/5 border-b flex items-center gap-2">
-          <FileText className="h-4 w-4 text-[#2c3e50]" />
-          <span className="text-sm font-semibold text-[#2c3e50]">Data Entry Forms (HEXA-FRM)</span>
-          <span className="text-xs text-slate-400 ml-auto">{filteredForms.length} forms</span>
-        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                {['Form Code', 'Form Name', 'Module', 'ISO Clause', 'Procedure', ''].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-slate-600 whitespace-nowrap text-xs uppercase tracking-wide">{h}</th>
-                ))}
+            <thead>
+              <tr className="bg-[#2c3e50] text-white">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Form No.</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Title</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">ISP Reference</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">OTS™ Module</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap hidden lg:table-cell">ISO Clause</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap hidden xl:table-cell">Aramco Ref.</th>
+                <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredForms.length === 0 ? (
-                <tr><td colSpan={6} className="py-10 text-center text-slate-400 text-sm">No forms match your search.</td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-slate-400 text-sm">No forms match your search.</td></tr>
               ) : filteredForms.map(f => (
                 <tr
                   key={f.code}
@@ -177,27 +162,26 @@ export function FormsDirectoryClient() {
                   onClick={() => f.href && router.push(f.href)}
                 >
                   <td className="px-4 py-3">
-                    <span className="font-mono font-bold text-xs text-[#2c3e50] bg-[#2c3e50]/8 px-2 py-0.5 rounded">
+                    <span className="font-mono font-bold text-xs text-[#2c3e50] bg-[#2c3e50]/8 px-2 py-0.5 rounded whitespace-nowrap">
                       {f.code}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">{f.name}</div>
-                    <div className="text-xs text-slate-500 mt-0.5 max-w-[320px] leading-relaxed">{f.description}</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${MODULE_COLORS[f.module] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${MODULE_COLORS[f.module] ?? 'bg-gray-100 text-gray-600'}`}>
                       {f.module}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">{f.isoClause}</td>
-                  <td className="px-4 py-3 text-xs font-mono text-slate-500 whitespace-nowrap">{f.procedure}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded">{f.isp}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px]">{f.otsRef}</td>
+                  <td className="px-4 py-3 text-xs font-mono text-slate-500 whitespace-nowrap hidden lg:table-cell">{f.isoClause}</td>
+                  <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap hidden xl:table-cell">{f.aramcoRef ?? '—'}</td>
                   <td className="px-4 py-3">
                     {f.href ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
-                        <ExternalLink className="h-3 w-3" />Open
-                      </span>
-                    ) : <span className="text-xs text-slate-300">—</span>}
+                      <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
+                    ) : <span className="text-slate-300">—</span>}
                   </td>
                 </tr>
               ))}
@@ -214,15 +198,18 @@ export function FormsDirectoryClient() {
           <span className="text-xs text-purple-400 ml-auto">{filteredRecords.length} records</span>
         </div>
         <div className="px-4 py-2 bg-purple-50/50 border-b border-dashed border-purple-100">
-          <p className="text-xs text-purple-600/70">Records are generated by OTS automatically — no manual data entry required. Click &quot;Generate&quot; to produce the output.</p>
+          <p className="text-xs text-purple-600/70">Records are output documents generated by OTS™ automatically — no manual data entry required.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                {['Record Code', 'Record Name', 'Module', 'ISO Clause', 'Procedure', ''].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-slate-600 whitespace-nowrap text-xs uppercase tracking-wide">{h}</th>
-                ))}
+            <thead>
+              <tr className="bg-purple-700 text-white">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Record No.</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Title</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">ISP Reference</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">OTS™ Module</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap hidden lg:table-cell">ISO Clause</th>
+                <th className="px-4 py-3 w-20"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -235,27 +222,27 @@ export function FormsDirectoryClient() {
                   onClick={() => f.href && router.push(f.href)}
                 >
                   <td className="px-4 py-3">
-                    <span className="font-mono font-bold text-xs text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                    <span className="font-mono font-bold text-xs text-purple-700 bg-purple-100 px-2 py-0.5 rounded whitespace-nowrap">
                       {f.code}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">{f.name}</div>
-                    <div className="text-xs text-slate-500 mt-0.5 max-w-[320px] leading-relaxed">{f.description}</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${MODULE_COLORS[f.module] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${MODULE_COLORS[f.module] ?? 'bg-gray-100 text-gray-600'}`}>
                       {f.module}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs font-mono text-slate-600 whitespace-nowrap">{f.isoClause}</td>
-                  <td className="px-4 py-3 text-xs font-mono text-slate-500 whitespace-nowrap">{f.procedure}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded">{f.isp}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px]">{f.otsRef}</td>
+                  <td className="px-4 py-3 text-xs font-mono text-slate-500 whitespace-nowrap hidden lg:table-cell">{f.isoClause}</td>
                   <td className="px-4 py-3">
                     {f.href ? (
                       <span className="inline-flex items-center gap-1 text-xs text-purple-600 font-medium">
                         <ExternalLink className="h-3 w-3" />Generate
                       </span>
-                    ) : <span className="text-xs text-slate-300">—</span>}
+                    ) : <span className="text-slate-300">—</span>}
                   </td>
                 </tr>
               ))}
@@ -265,7 +252,7 @@ export function FormsDirectoryClient() {
       </div>
 
       <div className="text-xs text-slate-400 text-center pb-2">
-        Hexa-ISM-001 Rev.01 — Supersedes legacy FRM-001 to FRM-027 numbering (22.9.0)
+        Hexa-ISM-001 Rev.01 — Supersedes legacy FRM-001 to FRM-027 numbering
       </div>
     </div>
   );
