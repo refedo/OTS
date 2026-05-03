@@ -13,7 +13,7 @@ DROP PROCEDURE IF EXISTS seed_qms_processes;
 DELIMITER $$
 CREATE PROCEDURE seed_qms_processes()
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-001') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-001') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-001', 'Design & Engineering', 'Chief Engineer', 'CORE',
       'Client requirements, project brief, architectural drawings, load specifications',
@@ -21,7 +21,7 @@ BEGIN
       'Drawing accuracy rate >= 98%, design revision rate < 5%, on-time drawing release >= 95%',
       'ISO 9001 §8.3', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-002') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-002') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-002', 'Material Procurement & Receiving', 'Supply Chain Manager', 'CORE',
       'Approved BOM, purchase orders, supplier mill certificates',
@@ -29,7 +29,7 @@ BEGIN
       'On-time delivery rate >= 90%, material rejection rate < 2%, certificate compliance 100%',
       'ISO 9001 §8.4', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-003') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-003') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, notes, updatedAt)
     VALUES (UUID(), 'PROC-003', 'Steel Fabrication — Primary Members', 'Production Manager', 'CORE',
       'Approved drawings, cut lists, material from stores',
@@ -39,7 +39,7 @@ BEGIN
       'CNC plasma/saw cutting, press brake operations, SAW and GMAW welding of primary frame members.',
       NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-004') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-004') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-004', 'Steel Fabrication — Secondary Members', 'Production Manager', 'CORE',
       'Cold-formed sections, eave struts, girts, purlins from roll-forming line',
@@ -47,7 +47,7 @@ BEGIN
       'Dimensional tolerance <= +/-3 mm, throughput >= 50 ton/day',
       'ISO 9001 §8.5.1', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-005') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-005') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-005', 'Shot Blasting & Surface Preparation', 'QC Manager', 'CORE',
       'Fabricated structural members',
@@ -55,7 +55,7 @@ BEGIN
       'Surface profile Ra 40-70 µm, cleanliness Sa 2.5 per ISO 8501-1, 100% inspection',
       'ISO 9001 §8.5.1', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-006') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-006') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, notes, updatedAt)
     VALUES (UUID(), 'PROC-006', 'Coating & Painting', 'QC Inspector', 'CORE',
       'Blasted members, approved paint system specification',
@@ -65,7 +65,7 @@ BEGIN
       'Typical system: Jotun Barrier 80 epoxy primer (75 µm DFT) + Hardtop AX alkyd topcoat (50 µm DFT).',
       NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-007') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-007') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-007', 'Quality Control & Inspection', 'QC Manager', 'SUPPORT',
       'Fabricated members, approved ITP, WPS, drawing package',
@@ -73,7 +73,7 @@ BEGIN
       'ITP compliance 100%, NCR closure within 7 days, first-time release rate >= 90%',
       'ISO 9001 §9.2', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-008') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-008') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-008', 'Logistics & Dispatch', 'Logistics Supervisor', 'CORE',
       'Released fabricated members, packing list, erection sequence',
@@ -81,7 +81,7 @@ BEGIN
       'On-time dispatch rate >= 93%, load damage rate < 0.5%, documentation accuracy 100%',
       'ISO 9001 §8.5.4', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-009') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-009') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-009', 'Corrective & Preventive Action (CAPA)', 'IMS Manager', 'SUPPORT',
       'NCRs, audit findings, customer complaints, risk assessments',
@@ -89,7 +89,7 @@ BEGIN
       'CAPA closure rate >= 90% on time, recurrence rate < 5%',
       'ISO 9001 §10.2', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-010') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-010') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, updatedAt)
     VALUES (UUID(), 'PROC-010', 'HR & Competence Management', 'HR Manager', 'SUPPORT',
       'Organizational chart, job profiles, training needs analysis',
@@ -97,7 +97,7 @@ BEGIN
       'Training completion rate >= 90%, WQT validity 100%',
       'ISO 9001 §7.2', 'ACTIVE', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-011') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-011') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, notes, updatedAt)
     VALUES (UUID(), 'PROC-011', 'Outsourced NDT Inspection', 'QC Manager', 'OUTSOURCED',
       'Completed welded joints per ITP hold/witness points',
@@ -107,7 +107,7 @@ BEGIN
       'UT and RT contracted to Level II/III certified NDT company for heavy weld joints (t > 25 mm).',
       NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE processNumber = 'PROC-012') THEN
+  IF NOT EXISTS (SELECT 1 FROM ImsQmsProcess WHERE (processNumber COLLATE utf8mb4_0900_ai_ci) = 'PROC-012') THEN
     INSERT INTO ImsQmsProcess (id, processNumber, name, processOwner, processType, inputs, outputs, kpis, isoClause, status, notes, updatedAt)
     VALUES (UUID(), 'PROC-012', 'In-House Roll Forming — Cladding Panels', 'Production Manager', 'IN_HOUSE',
       'PPGI coils (Zinc 275 g/m², 0.5-0.7 mm), approved profiles',
@@ -129,70 +129,70 @@ DROP PROCEDURE IF EXISTS seed_approved_suppliers;
 DELIMITER $$
 CREATE PROCEDURE seed_approved_suppliers()
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-001') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-001') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-001', 'Al-Rajhi Steel Industries', 'Hot-Rolled Structural Steel',
       'HR plates ASTM A36, HR sections IPE/HEA/HEB, ASTM A572 Gr.50',
       'APPROVED', '2025-01-15', '2026-01-14', '2025-01-10', 365, 'A',
       'Main structural steel supplier. ISO 9001 certified mill. EN 10025-2 and ASTM certified.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-002') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-002') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-002', 'Saudi Steel Pipe Company (SSP)', 'Hollow Sections / SHS / RHS',
       'Square hollow sections SHS, rectangular RHS, circular CHS per AS 1163 and EN 10219',
       'APPROVED', '2025-02-01', '2026-01-31', '2025-01-28', 365, 'A',
       'Approved for all hollow section requirements. Yield strength >= 355 MPa verified by mill certificate.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-003') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-003') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-003', 'Jotun Saudi Arabia LLC', 'Coating & Paint Systems',
       'Barrier 80 epoxy primer, Hardtop AX alkyd topcoat, Interzone 954 advanced protective',
       'APPROVED', '2024-11-01', '2025-10-31', '2024-10-25', 365, 'A',
       'Preferred coating supplier for all structural and architectural coating systems.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-004') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-004') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-004', 'Hilti Arabia Co. Ltd.', 'Fasteners & Anchor Systems',
       'HRC anchor bolts, self-drilling fasteners, fire-stopping systems',
       'APPROVED', '2025-03-01', '2026-02-28', '2025-02-20', 365, 'A',
       'Approved for structural anchor bolts, Gr.8.8 bolts, and all roofing/cladding fasteners.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-005') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-005') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-005', 'Colorcoat Steel (PPGI Distributor)', 'PPGI Coils — Cladding',
       'Pre-painted galvanized coils: Zinc 275 g/m², 0.45-0.8 mm, various colors',
       'APPROVED', '2025-01-20', '2026-01-19', '2025-01-15', 365, 'A',
       'PPGI coils for roll-forming of roof/wall cladding panels. Color fastness per ISO 11341.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-006') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-006') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-006', 'Lincoln Electric (MENA)', 'Welding Consumables',
       'SMAW electrodes E7018, GMAW wire ER70S-6, SAW flux-wire combinations',
       'APPROVED', '2025-04-01', '2026-03-31', '2025-03-25', 365, 'A',
       'AWS A5.1, A5.18 certified consumables. Hydrogen controlled for thick plate joints.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-007') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-007') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-007', 'TUV Rheinland Middle East', 'Third-Party Inspection / NDT',
       'UT, RT, PT, MT inspection services; Level II and Level III certified personnel',
       'APPROVED', '2025-02-15', '2026-02-14', '2025-02-10', 365, 'A',
       'Approved TPI for client-mandated hold/witness points. ASNT SNT-TC-1A qualified inspectors.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-008') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-008') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-008', 'Al Moammar Information Systems (AMIS)', 'IT & ERP Systems',
       'ERP support and customization, CAD/CAM software licensing',
       'CONDITIONAL', '2025-05-01', '2025-10-31', '2025-04-28', 180, 'B',
       'Approved on conditional basis pending completion of SLA review. Re-audit required at 6 months.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-009') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-009') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-009', 'Gulf Cranes & Hoisting WLL', 'Outsourced Lifting & Erection',
       'Mobile crane supply, rigging, and steel structure erection services',
       'APPROVED', '2024-12-01', '2025-11-30', '2024-11-28', 365, 'A',
       'Approved subcontractor for erection services. LEEA certified riggers, BS 7121 compliant lifts.', NOW());
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE supplierCode = 'SUP-010') THEN
+  IF NOT EXISTS (SELECT 1 FROM ScApprovedSupplier WHERE (supplierCode COLLATE utf8mb4_0900_ai_ci) = 'SUP-010') THEN
     INSERT INTO ScApprovedSupplier (id, supplierCode, name, category, scopeOfApproval, approvalStatus, approvalDate, expiryDate, lastAuditDate, auditFrequencyDays, rating, notes, updatedAt)
     VALUES (UUID(), 'SUP-010', 'Zahid Tractor — Abrasive Supplies', 'Abrasives & Consumables',
       'Abrasive discs, cutting discs, grinding wheels for fabrication',

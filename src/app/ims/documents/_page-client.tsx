@@ -61,7 +61,7 @@ type Document = {
   nextReviewDate: string | null;
   lastReviewDate: string | null;
   reviewFrequencyDays: number;
-  applicableStandards: string | null;
+  applicableStandards: string | string[] | null;
   overdueDays: number | null;
   domain: string | null;
   category: { id: string; code: string; name: string; nameAr: string | null } | null;
@@ -119,8 +119,9 @@ function categoryBadgeClass(level: number): string {
   return map[level] ?? 'bg-gray-100 text-gray-600 border-gray-200';
 }
 
-function parseStandards(raw: string | null): string[] {
+function parseStandards(raw: string | string[] | null): string[] {
   if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
