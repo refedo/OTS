@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.12.0] - 2026-05-04
+
+### Payroll, HR & Productivity Improvements
+
+#### Fixed
+- **Payroll overtime formula** — overtime is now calculated on **basic salary only** (was incorrectly using total monthly gross including all allowances). Aligns with Saudi Labor Law.
+- **Project edit page** — fixed Next.js 15 async `params` pattern; clicking "Edit Project" no longer redirects to the projects list for all roles.
+- **Task default status** — tasks created via the quick-add (+) button now start as **"In Progress"** instead of "Pending".
+
+#### Added
+- **Total Salary tile** in the employee Compensation tab — live read-only sum of basic + housing + transport + mobile + food + other allowances, updates as you type.
+- **Dolibarr sync field selector** — clicking "Sync from Dolibarr" now opens a dialog where you can select exactly which fields to update (grouped by Identity, Documents, Employment, Compensation, Banking). Unselected fields keep their OTS values, preventing accidental overwrites of local edits.
+
+#### Changed
+- **Payroll action buttons** moved to right-align for consistent toolbar layout.
+- Version bumped to **22.12.0**
+
+---
+
 ## [22.11.0] - 2026-05-03
 
 ### Concentration Risk Dashboard (CEO Arena)

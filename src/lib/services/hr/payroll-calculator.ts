@@ -221,7 +221,9 @@ export async function calculatePayrollPeriod(
     const { withPermission, withoutPermission } = sumAbsences(attendanceRows);
 
     const dailyRate = computeDailyRate(monthlyGross, settings, calendarDays, workingDaysInMonth);
-    const hourlyRate = emp.standardDailyHours > 0 ? dailyRate / emp.standardDailyHours : 0;
+    // Overtime is calculated on basic salary only (Saudi Labor Law compliance)
+    const basicDailyRate = computeDailyRate(basic, settings, calendarDays, workingDaysInMonth);
+    const hourlyRate = emp.standardDailyHours > 0 ? basicDailyRate / emp.standardDailyHours : 0;
 
     const unpaidLeaveDeduction = round2(leaves.unpaid * dailyRate);
     const halfPaidDeduction = round2(leaves.halfPaid * dailyRate * 0.5);
