@@ -236,9 +236,21 @@ function projectFromDolibarr(
 // SYNC ENTRY POINT
 // ============================================================================
 
+export const SYNCABLE_FIELDS = [
+  'fullNameEn', 'fullNameAr', 'nationalId', 'dateOfJoining', 'dateOfLeaving',
+  'status', 'occupation', 'department', 'basicSalary', 'bankName', 'bankIban',
+  'nationality', 'employeeNo', 'boarderNumber', 'maritalStatus', 'occupationAr',
+  'gosiSubscriptionNo', 'contractEndDate', 'contractDuration', 'passportNumber',
+  'iqamaUrl', 'passportUrl', 'sponsorNumber', 'contractType', 'workingLocation',
+  'transferType', 'gender',
+] as const;
+
+export type SyncableField = typeof SYNCABLE_FIELDS[number];
+
 export interface RunSyncOptions {
   triggeredById: string;
   client?: DolibarrClient;
+  selectedFields?: SyncableField[];
 }
 
 export async function runDolibarrEmployeeSync(
@@ -346,35 +358,10 @@ export async function runDolibarrEmployeeSync(
             lastSyncedFromDolibarrAt: new Date(),
             updatedById: opts.triggeredById,
           };
-          const fields: Array<keyof typeof projection> = [
-            'fullNameEn',
-            'fullNameAr',
-            'nationalId',
-            'dateOfJoining',
-            'dateOfLeaving',
-            'status',
-            'occupation',
-            'department',
-            'basicSalary',
-            'bankName',
-            'bankIban',
-            'nationality',
-            'employeeNo',
-            'boarderNumber',
-            'maritalStatus',
-            'occupationAr',
-            'gosiSubscriptionNo',
-            'contractEndDate',
-            'contractDuration',
-            'passportNumber',
-            'iqamaUrl',
-            'passportUrl',
-            'sponsorNumber',
-            'contractType',
-            'workingLocation',
-            'transferType',
-            'gender',
-          ];
+          const allFields: Array<keyof typeof projection> = [...SYNCABLE_FIELDS];
+          const fields = opts.selectedFields
+            ? allFields.filter(f => opts.selectedFields!.includes(f as SyncableField))
+            : allFields;
           let anyChange = false;
           for (const field of fields) {
             if (edited.includes(field as string)) {

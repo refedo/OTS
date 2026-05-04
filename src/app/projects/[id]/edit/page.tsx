@@ -14,7 +14,8 @@ export const metadata: Metadata = {
 };
 
 
-export default async function EditProjectPage({ params }: { params: { id: string } }) {
+export default async function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -26,12 +27,12 @@ export default async function EditProjectPage({ params }: { params: { id: string
 
   const hasPermission = await checkPermission('projects.edit');
   if (!hasPermission) {
-    redirect('/projects');
+    redirect(`/projects/${id}`);
   }
 
   // Fetch the project
   const projectData = await db.project.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       client: true,
       projectManager: true,
@@ -103,7 +104,7 @@ export default async function EditProjectPage({ params }: { params: { id: string
       <div className="container mx-auto p-6 lg:p-8 space-y-8 max-lg:pt-20 max-w-6xl">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Link href={`/projects/${params.id}`}>
+          <Link href={`/projects/${id}`}>
             <Button variant="ghost" size="icon">
               <ArrowLeft className="size-5" />
             </Button>

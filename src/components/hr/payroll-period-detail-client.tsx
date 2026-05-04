@@ -347,7 +347,7 @@ export function PayrollPeriodDetailClient({
 
         {/* Action Buttons */}
         <div className="rounded-2xl border bg-white shadow-sm p-4">
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center justify-end">
             {canRecalc && (
               <Button
                 onClick={() => run('calculate', `/api/hr/payroll-periods/${period.id}/calculate`)}

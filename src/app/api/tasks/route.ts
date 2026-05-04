@@ -282,7 +282,7 @@ export async function POST(req: Request) {
       taskData.priority = priorityMap[parsed.data.priority] || 'Medium';
     }
     
-    if (parsed.data.status) taskData.status = parsed.data.status;
+    taskData.status = parsed.data.status ?? 'In Progress';
     
     // Auto-mark as private if user is assigning to themselves, or if explicitly set
     if (parsed.data.isPrivate !== undefined) {

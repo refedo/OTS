@@ -1,8 +1,16 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 22.5.3 | **Release Date:** April 29, 2026
+**Version:** 22.12.0 | **Release Date:** May 4, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
+
+### What's New in 22.12.0 — Payroll, HR & Productivity Improvements
+- **Overtime formula** fixed: now calculated on basic salary only (Saudi Labor Law compliance).
+- **Total Salary tile** added to employee Compensation tab.
+- **Dolibarr sync field selector**: choose which fields to update before syncing.
+- **Project edit** bug fixed for Next.js 15 async params.
+- **Task default status** changed to "In Progress" for quick-add tasks.
+- Payroll action buttons moved to right-align.
 
 ### What's New in 22.5.3 — Stability & Version Alignment
 - Confirms **22.5.2** features as stable: Account Invoice Report, orphan purge, and sidebar double-render fix.
@@ -521,7 +529,7 @@ Proprietary software — All rights reserved by Hexa Steel®.
 
 ---
 
-**Version**: 22.5.3
-**Last Updated**: April 29, 2026
+**Version**: 22.12.0
+**Last Updated**: May 4, 2026
 **Repository**: https://github.com/refedo/OTS
 

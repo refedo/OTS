@@ -16,9 +16,11 @@ import { checkPermission } from '@/lib/permission-checker';
 import {
   runDolibarrEmployeeSync,
   ReconciliationRequiredError,
+  SYNCABLE_FIELDS,
+  type SyncableField,
 } from '@/lib/services/hr/sync-dolibarr-employees';
 
-export async function POST() {
+export async function POST(req: Request) {
   const store = await cookies();
   const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
   const session = token ? await verifySession(token) : null;
@@ -27,8 +29,20 @@ export async function POST() {
   const canSync = await checkPermission('hr.employee.sync');
   if (!canSync) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  let selectedFields: SyncableField[] | undefined;
   try {
-    const result = await runDolibarrEmployeeSync({ triggeredById: session.sub });
+    const body = await req.json().catch(() => ({}));
+    if (Array.isArray(body.selectedFields) && body.selectedFields.length > 0) {
+      selectedFields = body.selectedFields.filter((f: unknown): f is SyncableField =>
+        typeof f === 'string' && (SYNCABLE_FIELDS as readonly string[]).includes(f)
+      );
+    }
+  } catch {
+    // no body or invalid JSON — run full sync
+  }
+
+  try {
+    const result = await runDolibarrEmployeeSync({ triggeredById: session.sub, selectedFields });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof ReconciliationRequiredError) {

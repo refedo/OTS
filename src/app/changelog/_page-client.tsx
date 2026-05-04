@@ -23,10 +23,65 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.12.0',
+    date: 'May 4, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Payroll, HR & Productivity Improvements',
+    highlights: [
+      'Overtime now calculated on basic salary only (Saudi Labor Law compliance) — was incorrectly using total monthly gross.',
+      'Employee Compensation tab gains a live Total Salary tile summing all components.',
+      'Dolibarr sync gains a field selector dialog — choose exactly which fields to update, preventing accidental overwrites of local edits.',
+      'Project edit page fixed for Next.js 15 — no more redirect to projects list on click.',
+      'Tasks created via the quick-add (+) button now start as "In Progress" by default.',
+    ],
+    changes: {
+      added: [
+        'Total Salary tile in employee Compensation tab: live read-only sum of basic + housing + transport + mobile + food + other allowances, updates as you type.',
+        'Dolibarr sync field selector: clicking "Sync from Dolibarr" opens a dialog to select which fields to update, grouped by Identity, Documents, Employment, Compensation, and Banking.',
+      ],
+      fixed: [
+        'Payroll overtime formula: overtime now uses basic salary only for hourly rate calculation (Saudi Labor Law compliance).',
+        'Project edit page: updated to Next.js 15 async params pattern — clicking "Edit Project" no longer silently redirects all users to the projects list.',
+        'Task default status: tasks created via quick-add (+) now start as "In Progress" instead of "Pending".',
+      ],
+      changed: [
+        'Payroll action buttons moved to right-align for consistent toolbar layout.',
+        'Version bumped to 22.12.0',
+      ],
+    },
+  },
+  {
+    version: '22.11.0',
+    date: 'May 3, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Concentration Risk Dashboard (CEO Arena)',
+    highlights: [
+      'New Concentration Risk Dashboard in CEO Arena with six risk dimensions: customer, project, segment, supplier, operational dependency, revenue timing.',
+      'Executive Risk Summary cards, Risk Heatmap, and per-dimension detail tabs.',
+      'Revenue Timing Chart with Recharts BarChart and CV interpretation.',
+      'CSV export, full RBAC, and sidebar entry.',
+    ],
+    changes: {
+      added: [
+        'Concentration Risk Dashboard at /concentration-risk with RBAC (concentrationRisk.view, concentrationRisk.manage, concentrationRisk.export).',
+        'Six risk dimensions with deterministic scoring 0–100: customer (HHI + top shares), project (largest %), segment (HHI), supplier (LCR spend), operational dependency, revenue timing (CV).',
+        'Revenue Timing Chart (Recharts BarChart with reference line and CV interpretation).',
+        'CSV Export at GET /api/concentration-risk/export.',
+        'ProjectSegment model + migration seeding 7 default segments; nullable segmentId FK on Project.',
+      ],
+      fixed: [],
+      changed: [
+        'Version bumped to 22.11.0',
+      ],
+    },
+  },
+  {
     version: '22.10.3',
     date: 'May 3, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'IMS PDF Polish — White Logo, Form References, Full Field Coverage',
     highlights: [
       'PDF logo aspect ratio fixed: dynamic sizing from natural image dimensions instead of hardcoded 20×15mm — logos no longer distorted.',

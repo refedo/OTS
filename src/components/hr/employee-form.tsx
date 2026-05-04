@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -227,6 +227,12 @@ export function EmployeeForm({
       transferType: (initial as Record<string, unknown>)?.transferType as string ?? '',
     },
   });
+
+  const salaryFields = useWatch({
+    control: form.control,
+    name: ['basicSalary', 'housingAllowance', 'transportAllowance', 'mobileAllowance', 'foodAllowance', 'otherAllowances'],
+  });
+  const totalSalary = salaryFields.reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
 
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
@@ -637,6 +643,14 @@ export function EmployeeForm({
                 <div>
                   <Label>Other allowances</Label>
                   <Input {...form.register('otherAllowances')} />
+                </div>
+                <div className="col-span-2">
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-600">Total Salary (SAR)</span>
+                    <span className="text-lg font-bold text-slate-800">
+                      {totalSalary.toLocaleString('en-SA-u-ca-gregory', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 </div>
                 <div className="col-span-2 border-t pt-4 mt-2">
                   <div className="flex items-center gap-2 mb-3">
