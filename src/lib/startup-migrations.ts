@@ -142,6 +142,9 @@ const STARTUP_MIGRATIONS = [
   'seed_ims_rev01_risks.sql',           // RISK/HAZARD/LEGAL/ENV seeds + ISP document register
   'ims_management_review_iso_inputs.sql', // ISO §9.3.2 management review input fields
 
+  // ── Project Segment / Concentration Risk (22.12.1) ───────────────────────
+  'add_project_segment.sql',            // ProjectSegment table + segmentId on Project
+
   // ── Multi-scope project wizard (22.13.0) ────────────────────────────────
   'add_scope_of_work.sql',              // ScopeOfWork + BuildingActivity tables, scopeOfWorkId on AssemblyPart
   'v22_13_scope_fields.sql',            // location on Building; quantity/specs/coating on ScopeOfWork

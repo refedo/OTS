@@ -187,6 +187,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.12.1] - 2026-05-05
+
+### Fixed
+- **Project access error** — `add_project_segment.sql` migration was missing from the startup migration list, so the `segmentId` column was never created in the `Project` table. Added the migration; on next restart the column and `ProjectSegment` table will be created automatically, restoring access to the projects dashboard and project edit pages for all users and roles.
+
+---
+
 ## [22.12.0] - 2026-05-04
 
 ### Payroll, HR & Productivity Improvements
