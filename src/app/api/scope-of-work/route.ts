@@ -4,24 +4,49 @@ import prisma from '@/lib/db';
 import { withApiContext } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
-const createSchema = z.object({
-  projectId: z.string().min(1),
+const scopeDetailSchema = z.object({
   buildingId: z.string().min(1),
   scopeType: z.enum(['steel', 'roof_sheeting', 'wall_sheeting', 'deck_panel', 'metal_work', 'other']),
   scopeLabel: z.string().min(1),
   customLabel: z.string().optional().nullable(),
   specification: z.string().optional().nullable(),
+  // Quantity & unit
+  quantity: z.number().optional().nullable(),
+  unit: z.enum(['ton', 'm2', 'Lm', 'LS']).optional().nullable(),
+  // Sandwich panel (roof/wall sheeting)
+  ralColor: z.string().max(20).optional().nullable(),
+  panelThickness: z.number().int().optional().nullable(),
+  ribHeight: z.number().int().optional().nullable(),
+  upperSheetThick: z.number().optional().nullable(),
+  lowerSheetThick: z.number().optional().nullable(),
+  panelProfile: z.enum(['flat', 'ribbed']).optional().nullable(),
+  // Deck panel
+  deckProfile: z.string().max(100).optional().nullable(),
+  hasShearStuds: z.boolean().optional(),
+  shearStudQty: z.number().int().optional().nullable(),
+  shearStudSpecs: z.string().max(255).optional().nullable(),
+  // Metal works
+  metalWorkItems: z.array(z.object({
+    name: z.string().min(1),
+    unit: z.string().min(1),
+    quantity: z.number(),
+  })).optional().nullable(),
+  // Per-scope coating
+  coatingSameAsProject: z.boolean().optional(),
+  scopeCoatingSystem: z.array(z.object({
+    coatName: z.string(),
+    microns: z.number().optional(),
+    ralNumber: z.string().optional(),
+  })).optional().nullable(),
+});
+
+const createSchema = scopeDetailSchema.extend({
+  projectId: z.string().min(1),
 });
 
 const bulkCreateSchema = z.object({
   projectId: z.string().min(1),
-  scopes: z.array(z.object({
-    buildingId: z.string().min(1),
-    scopeType: z.enum(['steel', 'roof_sheeting', 'wall_sheeting', 'deck_panel', 'metal_work', 'other']),
-    scopeLabel: z.string().min(1),
-    customLabel: z.string().optional().nullable(),
-    specification: z.string().optional().nullable(),
-  })),
+  scopes: z.array(scopeDetailSchema),
 });
 
 export const GET = withApiContext(async (req, session) => {
@@ -71,6 +96,21 @@ export const POST = withApiContext(async (req, session) => {
               scopeLabel: scope.scopeLabel,
               customLabel: scope.customLabel || null,
               specification: scope.specification || null,
+              quantity: scope.quantity ? scope.quantity : null,
+              unit: scope.unit || null,
+              ralColor: scope.ralColor || null,
+              panelThickness: scope.panelThickness || null,
+              ribHeight: scope.ribHeight || null,
+              upperSheetThick: scope.upperSheetThick || null,
+              lowerSheetThick: scope.lowerSheetThick || null,
+              panelProfile: scope.panelProfile || null,
+              deckProfile: scope.deckProfile || null,
+              hasShearStuds: scope.hasShearStuds ?? false,
+              shearStudQty: scope.shearStudQty || null,
+              shearStudSpecs: scope.shearStudSpecs || null,
+              metalWorkItems: scope.metalWorkItems || undefined,
+              coatingSameAsProject: scope.coatingSameAsProject ?? true,
+              scopeCoatingSystem: scope.scopeCoatingSystem || undefined,
             },
           })
         )
@@ -93,6 +133,21 @@ export const POST = withApiContext(async (req, session) => {
         scopeLabel: parsed.data.scopeLabel,
         customLabel: parsed.data.customLabel || null,
         specification: parsed.data.specification || null,
+        quantity: parsed.data.quantity ?? null,
+        unit: parsed.data.unit || null,
+        ralColor: parsed.data.ralColor || null,
+        panelThickness: parsed.data.panelThickness || null,
+        ribHeight: parsed.data.ribHeight || null,
+        upperSheetThick: parsed.data.upperSheetThick || null,
+        lowerSheetThick: parsed.data.lowerSheetThick || null,
+        panelProfile: parsed.data.panelProfile || null,
+        deckProfile: parsed.data.deckProfile || null,
+        hasShearStuds: parsed.data.hasShearStuds ?? false,
+        shearStudQty: parsed.data.shearStudQty || null,
+        shearStudSpecs: parsed.data.shearStudSpecs || null,
+        metalWorkItems: parsed.data.metalWorkItems || undefined,
+        coatingSameAsProject: parsed.data.coatingSameAsProject ?? true,
+        scopeCoatingSystem: parsed.data.scopeCoatingSystem || undefined,
       },
     });
 

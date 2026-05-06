@@ -656,6 +656,7 @@ model Building {
   name                   String
   description            String?
   weight                 Float? // Building weight in tons
+  location               String? @db.VarChar(500)
   project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assemblyParts          AssemblyPart[]
   rfiRequests            RFIRequest[]
@@ -717,6 +718,31 @@ model ScopeOfWork {
   scopeLabel    String // Display name
   customLabel   String? // User-defined label when scopeType is "other"
   specification String? @db.Text // BoQ specification text
+
+  // Quantity & unit of measurement
+  quantity Decimal? @db.Decimal(10, 2)
+  unit     String?  @db.VarChar(20) // ton, m2, Lm, LS
+
+  // Sandwich panel fields (roof_sheeting / wall_sheeting)
+  ralColor       String?  @db.VarChar(20)
+  panelThickness Int?
+  ribHeight      Int?
+  upperSheetThick Decimal? @db.Decimal(5, 2)
+  lowerSheetThick Decimal? @db.Decimal(5, 2)
+  panelProfile   String?  @db.VarChar(20) // flat | ribbed
+
+  // Deck panel fields
+  deckProfile   String?  @db.VarChar(100)
+  hasShearStuds Boolean  @default(false)
+  shearStudQty  Int?
+  shearStudSpecs String? @db.VarChar(255)
+
+  // Metal works — JSON array [{name, unit, quantity}]
+  metalWorkItems Json?
+
+  // Per-scope coating override (steel & metal works)
+  coatingSameAsProject Boolean @default(true)
+  scopeCoatingSystem   Json?   // [{coatName, microns, ralNumber}]
 
   project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   building      Building           @relation(fields: [buildingId], references: [id], onDelete: Cascade)

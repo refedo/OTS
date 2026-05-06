@@ -17,6 +17,38 @@ type Building = {
   name: string;
   designation: string;
   weight?: number;
+  location?: string;
+};
+
+type MetalWorkItem = {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+};
+
+type ScopeDefinition = {
+  buildingId: string;
+  scopeType: 'steel' | 'roof_sheeting' | 'wall_sheeting' | 'deck_panel' | 'metal_work' | 'other';
+  customLabel?: string;
+  quantity?: number;
+  unit?: 'ton' | 'm2' | 'Lm' | 'LS';
+  // Sandwich panel
+  ralColor?: string;
+  panelThickness?: number;
+  ribHeight?: number;
+  upperSheetThick?: number;
+  lowerSheetThick?: number;
+  panelProfile?: 'flat' | 'ribbed';
+  // Deck panel
+  deckProfile?: string;
+  hasShearStuds?: boolean;
+  shearStudQty?: number;
+  shearStudSpecs?: string;
+  // Metal works
+  metalWorkItems?: MetalWorkItem[];
+  // Activities (set in step 4)
+  activities?: { activityType: string; activityLabel: string; isApplicable: boolean; sortOrder: number }[];
 };
 
 type ScopeItem = {
@@ -52,6 +84,73 @@ type PaymentTerm = {
   percentage: string;
   description: string;
 };
+
+// Default activities per scope type
+const SCOPE_ACTIVITY_DEFAULTS: Record<string, { activityType: string; activityLabel: string; isApplicable: boolean; sortOrder: number }[]> = {
+  steel: [
+    { activityType: 'design', activityLabel: 'Design', isApplicable: true, sortOrder: 1 },
+    { activityType: 'detailing', activityLabel: 'Detailing', isApplicable: true, sortOrder: 2 },
+    { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
+    { activityType: 'production', activityLabel: 'Production', isApplicable: true, sortOrder: 4 },
+    { activityType: 'coating', activityLabel: 'Coating', isApplicable: true, sortOrder: 5 },
+    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
+  ],
+  roof_sheeting: [
+    { activityType: 'design', activityLabel: 'Design', isApplicable: false, sortOrder: 1 },
+    { activityType: 'detailing', activityLabel: 'Detailing', isApplicable: true, sortOrder: 2 },
+    { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
+    { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
+    { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
+    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
+  ],
+  wall_sheeting: [
+    { activityType: 'design', activityLabel: 'Design', isApplicable: false, sortOrder: 1 },
+    { activityType: 'detailing', activityLabel: 'Detailing', isApplicable: true, sortOrder: 2 },
+    { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
+    { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
+    { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
+    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
+  ],
+  deck_panel: [
+    { activityType: 'design', activityLabel: 'Design', isApplicable: false, sortOrder: 1 },
+    { activityType: 'detailing', activityLabel: 'Detailing', isApplicable: true, sortOrder: 2 },
+    { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
+    { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
+    { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
+    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
+  ],
+  metal_work: [
+    { activityType: 'design', activityLabel: 'Design', isApplicable: false, sortOrder: 1 },
+    { activityType: 'detailing', activityLabel: 'Detailing', isApplicable: true, sortOrder: 2 },
+    { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
+    { activityType: 'production', activityLabel: 'Production', isApplicable: true, sortOrder: 4 },
+    { activityType: 'coating', activityLabel: 'Coating', isApplicable: true, sortOrder: 5 },
+    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
+  ],
+  other: [
+    { activityType: 'design', activityLabel: 'Design', isApplicable: false, sortOrder: 1 },
+    { activityType: 'detailing', activityLabel: 'Detailing', isApplicable: false, sortOrder: 2 },
+    { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
+    { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
+    { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
+    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'erection', activityLabel: 'Erection', isApplicable: false, sortOrder: 7 },
+  ],
+};
+
+const SCOPE_TYPE_OPTIONS: { type: ScopeDefinition['scopeType']; label: string; color: string }[] = [
+  { type: 'steel', label: 'Steel', color: 'bg-blue-100 border-blue-300 text-blue-800' },
+  { type: 'roof_sheeting', label: 'Roof Sheeting', color: 'bg-orange-100 border-orange-300 text-orange-800' },
+  { type: 'wall_sheeting', label: 'Wall Sheeting', color: 'bg-amber-100 border-amber-300 text-amber-800' },
+  { type: 'deck_panel', label: 'Deck Panel', color: 'bg-purple-100 border-purple-300 text-purple-800' },
+  { type: 'metal_work', label: 'Metal Works', color: 'bg-gray-100 border-gray-300 text-gray-800' },
+  { type: 'other', label: 'Other', color: 'bg-green-100 border-green-300 text-green-800' },
+];
 
 const SCOPE_OPTIONS = [
   { id: 'design', label: 'Design', stage: 'engineering' },
@@ -101,6 +200,9 @@ export default function ProjectSetupWizard() {
 
   // Step 2: Buildings
   const [buildings, setBuildings] = useState<Building[]>([]);
+
+  // Step 3: Scope Definitions per building
+  const [scopeDefinitions, setScopeDefinitions] = useState<ScopeDefinition[]>([]);
 
   // Step 3: Scope Schedules (legacy - kept for compatibility)
   const [scopeSchedules, setScopeSchedules] = useState<ScopeSchedule[]>([]);
@@ -251,6 +353,106 @@ export default function ProjectSetupWizard() {
     ));
   };
 
+  // ── Scope Definition helpers (Step 3) ──────────────────────────
+  const getScopesForBuilding = (buildingId: string) =>
+    scopeDefinitions.filter((s) => s.buildingId === buildingId);
+
+  const hasScopeType = (buildingId: string, scopeType: ScopeDefinition['scopeType']) =>
+    scopeDefinitions.some((s) => s.buildingId === buildingId && s.scopeType === scopeType);
+
+  const addScopeToBuilding = (buildingId: string, scopeType: ScopeDefinition['scopeType']) => {
+    if (hasScopeType(buildingId, scopeType)) return;
+    const defaults = SCOPE_ACTIVITY_DEFAULTS[scopeType] || SCOPE_ACTIVITY_DEFAULTS['other'];
+    const newScope: ScopeDefinition = {
+      buildingId,
+      scopeType,
+      unit: scopeType === 'steel' ? 'ton' : 'm2',
+      activities: defaults.map((a) => ({ ...a })),
+    };
+    setScopeDefinitions((prev) => [...prev, newScope]);
+  };
+
+  const removeScopeFromBuilding = (buildingId: string, scopeType: ScopeDefinition['scopeType']) => {
+    if (scopeType === 'steel') return; // Steel cannot be removed
+    setScopeDefinitions((prev) =>
+      prev.filter((s) => !(s.buildingId === buildingId && s.scopeType === scopeType))
+    );
+  };
+
+  const updateScopeField = (
+    buildingId: string,
+    scopeType: ScopeDefinition['scopeType'],
+    field: keyof ScopeDefinition,
+    value: ScopeDefinition[keyof ScopeDefinition]
+  ) => {
+    setScopeDefinitions((prev) =>
+      prev.map((s) =>
+        s.buildingId === buildingId && s.scopeType === scopeType ? { ...s, [field]: value } : s
+      )
+    );
+  };
+
+  const toggleScopeActivity = (
+    buildingId: string,
+    scopeType: ScopeDefinition['scopeType'],
+    activityType: string
+  ) => {
+    setScopeDefinitions((prev) =>
+      prev.map((s) => {
+        if (s.buildingId !== buildingId || s.scopeType !== scopeType) return s;
+        return {
+          ...s,
+          activities: (s.activities || []).map((a) =>
+            a.activityType === activityType ? { ...a, isApplicable: !a.isApplicable } : a
+          ),
+        };
+      })
+    );
+  };
+
+  const addMetalWorkItem = (buildingId: string) => {
+    const newItem: MetalWorkItem = { id: `mwi-${Date.now()}`, name: '', unit: 'LS', quantity: 1 };
+    setScopeDefinitions((prev) =>
+      prev.map((s) => {
+        if (s.buildingId !== buildingId || s.scopeType !== 'metal_work') return s;
+        return { ...s, metalWorkItems: [...(s.metalWorkItems || []), newItem] };
+      })
+    );
+  };
+
+  const removeMetalWorkItem = (buildingId: string, itemId: string) => {
+    setScopeDefinitions((prev) =>
+      prev.map((s) => {
+        if (s.buildingId !== buildingId || s.scopeType !== 'metal_work') return s;
+        return { ...s, metalWorkItems: (s.metalWorkItems || []).filter((i) => i.id !== itemId) };
+      })
+    );
+  };
+
+  const updateMetalWorkItem = (buildingId: string, itemId: string, field: keyof MetalWorkItem, value: string | number) => {
+    setScopeDefinitions((prev) =>
+      prev.map((s) => {
+        if (s.buildingId !== buildingId || s.scopeType !== 'metal_work') return s;
+        return {
+          ...s,
+          metalWorkItems: (s.metalWorkItems || []).map((i) =>
+            i.id === itemId ? { ...i, [field]: value } : i
+          ),
+        };
+      })
+    );
+  };
+
+  // Ensure every building has at least a Steel scope definition
+  const ensureSteelScopes = () => {
+    for (const building of buildings) {
+      if (!hasScopeType(building.id, 'steel')) {
+        addScopeToBuilding(building.id, 'steel');
+      }
+    }
+  };
+
+  // ── Legacy scope toggles (Step 1 scope checkboxes) ─────────
   const toggleAllScopes = (selectAll: boolean) => {
     setScopeOfWork(scopeOfWork.map(s => ({ ...s, checked: selectAll })));
     
@@ -404,26 +606,31 @@ export default function ProjectSetupWizard() {
   const validateStep = () => {
     switch (currentStep) {
       case 1:
-        return projectNumber && projectName && clientName && projectManagerId && scopeOfWork.some(s => s.checked);
+        return projectNumber && projectName && clientName && projectManagerId;
       case 2:
         return buildings.length > 0 && buildings.every(b => b.name && b.designation);
       case 3:
+        // Each building must have at least the steel scope
+        return buildings.every(b => hasScopeType(b.id, 'steel'));
+      case 4:
+        return true; // Activities step — optional, defaults are pre-filled
+      case 5:
         // At least one visible stage should have duration filled
         const visibleStages = stageDurations.filter(stage => {
           const stageScopes = STAGE_SCOPES[stage.stage] || [];
           return scopeOfWork.some(s => s.checked && stageScopes.includes(s.id));
         });
         return visibleStages.length === 0 || visibleStages.some(s => s.durationWeeksMin > 0 || s.durationWeeksMax > 0);
-      case 4:
+      case 6:
         return coatingCoats.length > 0 && coatingCoats.every(c => c.coatName);
-      case 5:
+      case 7:
         // Payment terms validation: total should be 100% if any terms are added
         if (paymentTerms.length === 0) return true; // Optional
         const total = getTotalPaymentPercentage();
         return paymentTerms.every(t => t.percentage && t.description) && Math.abs(total - 100) < 0.01;
-      case 6:
+      case 8:
         return true; // Technical specs - optional step
-      case 7:
+      case 9:
         return true; // Upload parts - optional step
       default:
         return false;
@@ -431,6 +638,10 @@ export default function ProjectSetupWizard() {
   };
 
   const nextStep = () => {
+    if (currentStep === 2) {
+      // Ensure all buildings have a Steel scope before going to scope definition
+      ensureSteelScopes();
+    }
     if (validateStep()) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -635,6 +846,7 @@ export default function ProjectSetupWizard() {
           name: building.name,
           designation: building.designation,
           weight: building.weight || null,
+          location: building.location || null,
         };
 
         const buildingResponse = await fetch('/api/buildings', {
@@ -653,29 +865,120 @@ export default function ProjectSetupWizard() {
         createdBuildings[building.id] = createdBuilding.id;
       }
 
-      // Save scope schedules
-      for (const schedule of scopeSchedules) {
-        const realBuildingId = createdBuildings[schedule.buildingId];
+      // ── Create scope-of-work records and activities ──────────────
+      // For each building: patch the auto-created Steel scope, then POST non-steel scopes.
+      // Then create BuildingActivity records for each scope.
+      let totalScopesCreated = 0;
+      let totalActivitiesCreated = 0;
+
+      for (const building of buildings) {
+        const realBuildingId = createdBuildings[building.id];
         if (!realBuildingId) continue;
 
-        const scheduleData = {
-          projectId: project.id,
-          buildingId: realBuildingId,
-          scopeType: schedule.scopeId,
-          scopeLabel: schedule.scopeLabel,
-          startDate: schedule.startDate,
-          endDate: schedule.endDate,
-        };
+        const buildingScopes = scopeDefinitions.filter((s) => s.buildingId === building.id);
 
-        const scheduleResponse = await fetch('/api/scope-schedules', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(scheduleData),
-        });
+        // Fetch the auto-created Steel scope for this building
+        let steelScopeId: string | null = null;
+        try {
+          const scopeRes = await fetch(`/api/scope-of-work?buildingId=${realBuildingId}`);
+          if (scopeRes.ok) {
+            const existingScopes = await scopeRes.json();
+            const autoSteel = existingScopes.find((s: { scopeType: string; id: string }) => s.scopeType === 'steel');
+            if (autoSteel) steelScopeId = autoSteel.id;
+          }
+        } catch {}
 
-        if (!scheduleResponse.ok) {
-          console.error('Failed to create scope schedule:', schedule.scopeLabel);
-          // Don't throw error - schedules are nice to have but not critical
+        // Track created scope IDs per scopeType for activity creation
+        const scopeIdMap: Record<string, string> = {};
+
+        for (const scopeDef of buildingScopes) {
+          const scopeLabel = SCOPE_TYPE_OPTIONS.find((o) => o.type === scopeDef.scopeType)?.label ||
+            scopeDef.customLabel || scopeDef.scopeType;
+
+          const scopePayload = {
+            scopeLabel,
+            customLabel: scopeDef.customLabel || null,
+            quantity: scopeDef.quantity ?? null,
+            unit: scopeDef.unit || null,
+            ralColor: scopeDef.ralColor || null,
+            panelThickness: scopeDef.panelThickness || null,
+            ribHeight: scopeDef.ribHeight || null,
+            upperSheetThick: scopeDef.upperSheetThick || null,
+            lowerSheetThick: scopeDef.lowerSheetThick || null,
+            panelProfile: scopeDef.panelProfile || null,
+            deckProfile: scopeDef.deckProfile || null,
+            hasShearStuds: scopeDef.hasShearStuds ?? false,
+            shearStudQty: scopeDef.shearStudQty || null,
+            shearStudSpecs: scopeDef.shearStudSpecs || null,
+            metalWorkItems: scopeDef.metalWorkItems?.map((i) => ({ name: i.name, unit: i.unit, quantity: i.quantity })) || null,
+          };
+
+          if (scopeDef.scopeType === 'steel' && steelScopeId) {
+            // PATCH the auto-created Steel scope with our quantity data
+            await fetch(`/api/scope-of-work/${steelScopeId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(scopePayload),
+            });
+            scopeIdMap['steel'] = steelScopeId;
+            totalScopesCreated++;
+          } else if (scopeDef.scopeType !== 'steel') {
+            // POST new non-steel scope
+            const createRes = await fetch('/api/scope-of-work', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId: project.id,
+                buildingId: realBuildingId,
+                scopeType: scopeDef.scopeType,
+                ...scopePayload,
+              }),
+            });
+            if (createRes.ok) {
+              const createdScope = await createRes.json();
+              scopeIdMap[scopeDef.scopeType] = createdScope.id;
+              totalScopesCreated++;
+            }
+          }
+        }
+
+        // Create BuildingActivity records
+        const allActivities: {
+          buildingId: string;
+          scopeOfWorkId: string;
+          activityType: string;
+          activityLabel: string;
+          isApplicable: boolean;
+          sortOrder: number;
+        }[] = [];
+
+        for (const scopeDef of buildingScopes) {
+          const scopeOfWorkId = scopeIdMap[scopeDef.scopeType];
+          if (!scopeOfWorkId) continue;
+
+          const activities = scopeDef.activities || SCOPE_ACTIVITY_DEFAULTS[scopeDef.scopeType] || [];
+          for (const activity of activities) {
+            allActivities.push({
+              buildingId: realBuildingId,
+              scopeOfWorkId,
+              activityType: activity.activityType,
+              activityLabel: activity.activityLabel,
+              isApplicable: activity.isApplicable,
+              sortOrder: activity.sortOrder,
+            });
+          }
+        }
+
+        if (allActivities.length > 0) {
+          const actRes = await fetch('/api/building-activities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: project.id, activities: allActivities }),
+          });
+          if (actRes.ok) {
+            const created = await actRes.json();
+            totalActivitiesCreated += Array.isArray(created) ? created.length : 0;
+          }
         }
       }
 
@@ -692,10 +995,9 @@ export default function ProjectSetupWizard() {
       }
 
       const buildingCount = buildings.length;
-      const scopeScheduleCount = scopeSchedules.length;
       const coatingCount = coatingCoats.length;
-      
-      setSuccessMessage(`Project created successfully!\n\n✓ ${buildingCount} building(s) added\n✓ ${scopeScheduleCount} scope schedule(s) saved\n✓ ${coatingCount} coating coat(s) specified`);
+
+      setSuccessMessage(`Project created successfully!\n\n✓ ${buildingCount} building(s) added\n✓ ${totalScopesCreated} scope(s) defined\n✓ ${totalActivitiesCreated} activities configured\n✓ ${coatingCount} coating coat(s) specified`);
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -713,21 +1015,38 @@ export default function ProjectSetupWizard() {
     }
   };
 
+  const STEP_LABELS = [
+    'Project Info',
+    'Buildings',
+    'Scope Definition',
+    'Activities',
+    'Duration',
+    'Coating',
+    'Payment',
+    'Tech Specs',
+    'Upload',
+  ];
+
   const renderStepIndicator = () => (
-    <div className="flex items-center justify-center mb-8">
-      {[1, 2, 3, 4, 5, 6, 7].map((step, idx) => (
+    <div className="flex items-center justify-center mb-8 flex-wrap gap-y-2">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((step, idx) => (
         <div key={step} className="flex items-center">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm ${
-            currentStep === step 
-              ? 'bg-primary text-white' 
-              : currentStep > step 
-              ? 'bg-green-500 text-white' 
-              : 'bg-gray-200 text-gray-600'
-          }`}>
-            {currentStep > step ? <Check className="h-4 w-4" /> : step}
+          <div className="flex flex-col items-center">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+              currentStep === step
+                ? 'bg-primary text-white'
+                : currentStep > step
+                ? 'bg-green-500 text-white'
+                : 'bg-gray-200 text-gray-600'
+            }`}>
+              {currentStep > step ? <Check className="h-4 w-4" /> : step}
+            </div>
+            <span className="text-[10px] text-muted-foreground mt-1 hidden sm:block w-16 text-center leading-tight">
+              {STEP_LABELS[step - 1]}
+            </span>
           </div>
-          {idx < 6 && (
-            <div className={`w-8 h-1 mx-1 ${
+          {idx < 8 && (
+            <div className={`w-6 h-1 mx-1 mb-5 ${
               currentStep > step ? 'bg-green-500' : 'bg-gray-200'
             }`} />
           )}
@@ -746,7 +1065,7 @@ export default function ProjectSetupWizard() {
             Project Setup Wizard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Step {currentStep} of 6
+            Step {currentStep} of 9
           </p>
         </div>
         <Link href="/projects">
@@ -977,6 +1296,14 @@ export default function ProjectSetupWizard() {
                       />
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Location / Description</Label>
+                    <Input
+                      value={building.location || ''}
+                      onChange={(e) => updateBuilding(building.id, 'location', e.target.value)}
+                      placeholder="e.g., North side of plot, Grid A1-C4"
+                    />
+                  </div>
                 </div>
               ))
             )}
@@ -984,8 +1311,317 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 3: Duration by Stage */}
+      {/* Step 3: Scope Definition per Building */}
       {currentStep === 3 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Scope Definition</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Define the scope of work and quantities for each building. Steel is always included.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {buildings.map((building, bIdx) => {
+              const buildingScopes = getScopesForBuilding(building.id);
+              return (
+                <div key={building.id} className="border-2 rounded-xl p-5 space-y-4">
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">{bIdx + 1}</span>
+                    {building.designation} — {building.name}
+                    {building.location && <span className="text-xs text-muted-foreground font-normal ml-1">({building.location})</span>}
+                  </h3>
+
+                  {/* Scope type selectors */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Scope Types</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {SCOPE_TYPE_OPTIONS.map(({ type, label, color }) => {
+                        const active = hasScopeType(building.id, type);
+                        const isSteel = type === 'steel';
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => active && !isSteel ? removeScopeFromBuilding(building.id, type) : !active ? addScopeToBuilding(building.id, type) : undefined}
+                            className={`px-3 py-1 rounded-full border text-xs font-medium transition-all ${
+                              active
+                                ? color + ' ring-2 ring-offset-1 ring-current'
+                                : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-400'
+                            } ${isSteel ? 'cursor-default' : 'cursor-pointer'}`}
+                          >
+                            {active ? '✓ ' : '+ '}{label}
+                            {isSteel && <span className="ml-1 text-[10px] opacity-60">required</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Scope detail forms */}
+                  {buildingScopes.map((scope) => (
+                    <div key={scope.scopeType} className="bg-muted/30 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold text-sm capitalize">
+                          {SCOPE_TYPE_OPTIONS.find(o => o.type === scope.scopeType)?.label || scope.scopeType}
+                        </h4>
+                        {scope.scopeType !== 'steel' && (
+                          <button
+                            type="button"
+                            onClick={() => removeScopeFromBuilding(building.id, scope.scopeType)}
+                            className="text-red-400 hover:text-red-600 text-xs"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Steel */}
+                      {scope.scopeType === 'steel' && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Quantity (tons)</Label>
+                            <Input
+                              type="number" step="0.01" min="0"
+                              value={scope.quantity || ''}
+                              onChange={(e) => updateScopeField(building.id, 'steel', 'quantity', parseFloat(e.target.value) || undefined)}
+                              placeholder="e.g., 150.5"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Roof / Wall Sheeting */}
+                      {(scope.scopeType === 'roof_sheeting' || scope.scopeType === 'wall_sheeting') && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Quantity (m²)</Label>
+                            <Input type="number" step="0.01" min="0" value={scope.quantity || ''}
+                              onChange={(e) => updateScopeField(building.id, scope.scopeType, 'quantity', parseFloat(e.target.value) || undefined)}
+                              placeholder="e.g., 805" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">RAL Color</Label>
+                            <Input value={scope.ralColor || ''} placeholder="e.g., RAL 9005"
+                              onChange={(e) => updateScopeField(building.id, scope.scopeType, 'ralColor', e.target.value)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Profile</Label>
+                            <select
+                              value={scope.panelProfile || ''}
+                              onChange={(e) => updateScopeField(building.id, scope.scopeType, 'panelProfile', e.target.value as 'flat' | 'ribbed')}
+                              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+                            >
+                              <option value="">Select profile</option>
+                              <option value="ribbed">Ribbed</option>
+                              <option value="flat">Flat</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Panel Thickness (mm)</Label>
+                            <Input type="number" min="0" value={scope.panelThickness || ''}
+                              onChange={(e) => updateScopeField(building.id, scope.scopeType, 'panelThickness', parseInt(e.target.value) || undefined)}
+                              placeholder="e.g., 75" />
+                          </div>
+                          {scope.panelProfile === 'ribbed' && (
+                            <div className="space-y-1">
+                              <Label className="text-xs">Rib Height (mm)</Label>
+                              <Input type="number" min="0" value={scope.ribHeight || ''}
+                                onChange={(e) => updateScopeField(building.id, scope.scopeType, 'ribHeight', parseInt(e.target.value) || undefined)}
+                                placeholder="e.g., 30" />
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <Label className="text-xs">Upper Sheet Thickness (mm)</Label>
+                            <Input type="number" step="0.1" min="0" value={scope.upperSheetThick || ''}
+                              onChange={(e) => updateScopeField(building.id, scope.scopeType, 'upperSheetThick', parseFloat(e.target.value) || undefined)}
+                              placeholder="e.g., 0.5" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Lower Sheet Thickness (mm)</Label>
+                            <Input type="number" step="0.1" min="0" value={scope.lowerSheetThick || ''}
+                              onChange={(e) => updateScopeField(building.id, scope.scopeType, 'lowerSheetThick', parseFloat(e.target.value) || undefined)}
+                              placeholder="e.g., 0.3" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Deck Panel */}
+                      {scope.scopeType === 'deck_panel' && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Quantity (m²)</Label>
+                            <Input type="number" step="0.01" min="0" value={scope.quantity || ''}
+                              onChange={(e) => updateScopeField(building.id, 'deck_panel', 'quantity', parseFloat(e.target.value) || undefined)}
+                              placeholder="e.g., 400" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Profile / Thickness</Label>
+                            <Input value={scope.deckProfile || ''} placeholder="e.g., TR60 1.2mm"
+                              onChange={(e) => updateScopeField(building.id, 'deck_panel', 'deckProfile', e.target.value)} />
+                          </div>
+                          <div className="col-span-2 flex items-center gap-3">
+                            <input type="checkbox" id={`shear-${building.id}`}
+                              checked={scope.hasShearStuds || false}
+                              onChange={(e) => updateScopeField(building.id, 'deck_panel', 'hasShearStuds', e.target.checked)}
+                              className="w-4 h-4 rounded" />
+                            <label htmlFor={`shear-${building.id}`} className="text-sm cursor-pointer">Includes Shear Studs</label>
+                          </div>
+                          {scope.hasShearStuds && (
+                            <>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Shear Stud Quantity</Label>
+                                <Input type="number" min="0" value={scope.shearStudQty || ''}
+                                  onChange={(e) => updateScopeField(building.id, 'deck_panel', 'shearStudQty', parseInt(e.target.value) || undefined)}
+                                  placeholder="e.g., 1200" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Shear Stud Specs</Label>
+                                <Input value={scope.shearStudSpecs || ''} placeholder="e.g., 19mm dia × 100mm"
+                                  onChange={(e) => updateScopeField(building.id, 'deck_panel', 'shearStudSpecs', e.target.value)} />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Metal Works */}
+                      {scope.scopeType === 'metal_work' && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs">Items</Label>
+                            <Button type="button" size="sm" variant="outline" onClick={() => addMetalWorkItem(building.id)}>
+                              <Plus className="h-3 w-3 mr-1" /> Add Item
+                            </Button>
+                          </div>
+                          {(scope.metalWorkItems || []).length === 0 && (
+                            <p className="text-xs text-muted-foreground">No items yet. Click "Add Item" to start.</p>
+                          )}
+                          {(scope.metalWorkItems || []).map((item) => (
+                            <div key={item.id} className="grid grid-cols-[1fr_100px_100px_32px] gap-2 items-end">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Item Name</Label>
+                                <Input value={item.name} placeholder="e.g., Handrail" className="h-8"
+                                  onChange={(e) => updateMetalWorkItem(building.id, item.id, 'name', e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Unit</Label>
+                                <select value={item.unit}
+                                  onChange={(e) => updateMetalWorkItem(building.id, item.id, 'unit', e.target.value)}
+                                  className="w-full h-8 px-2 rounded-md border bg-background text-sm">
+                                  <option value="ton">ton</option>
+                                  <option value="m2">m²</option>
+                                  <option value="Lm">Lm</option>
+                                  <option value="LS">LS</option>
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Qty</Label>
+                                <Input type="number" min="0" step="0.01" value={item.quantity} className="h-8"
+                                  onChange={(e) => updateMetalWorkItem(building.id, item.id, 'quantity', parseFloat(e.target.value) || 0)} />
+                              </div>
+                              <button type="button" onClick={() => removeMetalWorkItem(building.id, item.id)}
+                                className="h-8 w-8 flex items-center justify-center text-red-400 hover:text-red-600">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Other */}
+                      {scope.scopeType === 'other' && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Custom Label *</Label>
+                            <Input value={scope.customLabel || ''} placeholder="e.g., Cladding"
+                              onChange={(e) => updateScopeField(building.id, 'other', 'customLabel', e.target.value)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Unit of Measurement</Label>
+                            <select value={scope.unit || 'LS'}
+                              onChange={(e) => updateScopeField(building.id, 'other', 'unit', e.target.value as 'ton' | 'm2' | 'Lm' | 'LS')}
+                              className="w-full h-9 px-3 rounded-md border bg-background text-sm">
+                              <option value="ton">ton</option>
+                              <option value="m2">m²</option>
+                              <option value="Lm">Lm</option>
+                              <option value="LS">LS</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Quantity</Label>
+                            <Input type="number" step="0.01" min="0" value={scope.quantity || ''}
+                              onChange={(e) => updateScopeField(building.id, 'other', 'quantity', parseFloat(e.target.value) || undefined)}
+                              placeholder="e.g., 1" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 4: Activities per Scope */}
+      {currentStep === 4 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Activities per Scope</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Review and toggle which activities apply to each scope. Defaults are pre-filled based on scope type.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {buildings.map((building, bIdx) => {
+              const buildingScopes = getScopesForBuilding(building.id);
+              return (
+                <div key={building.id} className="border-2 rounded-xl p-5 space-y-4">
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">{bIdx + 1}</span>
+                    {building.designation} — {building.name}
+                  </h3>
+                  {buildingScopes.map((scope) => {
+                    const activities = scope.activities || SCOPE_ACTIVITY_DEFAULTS[scope.scopeType] || [];
+                    return (
+                      <div key={scope.scopeType} className="bg-muted/30 rounded-lg p-4">
+                        <h4 className="font-semibold text-sm mb-3">
+                          {SCOPE_TYPE_OPTIONS.find(o => o.type === scope.scopeType)?.label || scope.scopeType}
+                          {scope.customLabel && ` — ${scope.customLabel}`}
+                        </h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {activities.map((activity) => (
+                            <label
+                              key={activity.activityType}
+                              className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all text-xs ${
+                                activity.isApplicable
+                                  ? 'border-primary/30 bg-primary/5 text-primary font-medium'
+                                  : 'border-gray-200 bg-gray-50 text-gray-400'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={activity.isApplicable}
+                                onChange={() => toggleScopeActivity(building.id, scope.scopeType, activity.activityType)}
+                                className="w-3.5 h-3.5 rounded"
+                              />
+                              {activity.activityLabel}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 5: Duration by Stage */}
+      {currentStep === 5 && (
         <Card>
           <CardHeader>
             <CardTitle>Duration by Stage</CardTitle>
@@ -1067,8 +1703,8 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 4: Coating System */}
-      {currentStep === 4 && (
+      {/* Step 6: Coating System */}
+      {currentStep === 6 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -1131,8 +1767,8 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 5: Payment Terms */}
-      {currentStep === 5 && (
+      {/* Step 7: Payment Terms */}
+      {currentStep === 7 && (
         <Card>
           <CardHeader>
             <CardTitle>Payment Terms</CardTitle>
@@ -1209,8 +1845,8 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 6: Technical Specs */}
-      {currentStep === 6 && (
+      {/* Step 8: Technical Specs */}
+      {currentStep === 8 && (
         <Card>
           <CardHeader>
             <CardTitle>Technical Specifications</CardTitle>
@@ -1346,8 +1982,8 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 7: Upload Parts */}
-      {currentStep === 7 && (
+      {/* Step 9: Upload Parts */}
+      {currentStep === 9 && (
         <Card>
           <CardHeader>
             <CardTitle>Upload Assembly Parts (Optional)</CardTitle>
@@ -1402,7 +2038,7 @@ export default function ProjectSetupWizard() {
           >
             Save as Draft
           </Button>
-          {currentStep < 7 ? (
+          {currentStep < 9 ? (
             <Button onClick={nextStep}>
               Next
               <ArrowRight className="ml-2 h-4 w-4" />

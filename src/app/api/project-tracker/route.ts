@@ -31,6 +31,18 @@ export const GET = withApiContext(async (req, session) => {
             name: true,
             designation: true,
             weight: true,
+            scopeOfWorks: {
+              select: {
+                id: true,
+                scopeType: true,
+                scopeLabel: true,
+                activities: {
+                  select: { activityType: true, isApplicable: true },
+                  orderBy: { sortOrder: 'asc' },
+                },
+              },
+              orderBy: { createdAt: 'asc' },
+            },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -96,20 +108,36 @@ export const GET = withApiContext(async (req, session) => {
             }
             const assemblyTonnage = rawTotalKg / 1000;
 
+            // Build per-scope activity lists using BuildingActivity.isApplicable flags.
+            // Fall back to a single all-applicable steel scope for legacy buildings.
+            const dbScopes = building.scopeOfWorks;
+            const scopes = dbScopes.length > 0
+              ? dbScopes.map((scope) => {
+                  const applicableMap = new Map<string, boolean>(
+                    scope.activities.map((a) => [a.activityType, a.isApplicable])
+                  );
+                  const hasActivityConfig = scope.activities.length > 0;
+                  const scopeActivities = activities.map((act) => ({
+                    ...act,
+                    isApplicable: hasActivityConfig
+                      ? (applicableMap.get(act.activityType) ?? false)
+                      : true,
+                  }));
+                  const applicable = scopeActivities.filter((a) => a.isApplicable);
+                  const scopeProgress = applicable.length > 0
+                    ? Math.round(applicable.reduce((s, a) => s + a.percentage, 0) / applicable.length)
+                    : 0;
+                  return { id: scope.id, scopeType: scope.scopeType, scopeLabel: scope.scopeLabel, activities: scopeActivities, overallProgress: scopeProgress };
+                })
+              : [{ id: `${building.id}-default`, scopeType: 'steel', scopeLabel: 'Steel', activities: activities.map((a) => ({ ...a, isApplicable: true })), overallProgress: totalProgress }];
+
             return {
               id: building.id,
               name: building.name,
               designation: building.designation,
               weight: building.weight,
               assemblyTonnage,
-              scopes: [
-                {
-                  id: `${building.id}-default`,
-                  scopeType: 'steel',
-                  scopeLabel: 'Steel',
-                  activities,
-                },
-              ],
+              scopes,
               overallProgress: totalProgress,
               hasBlocked,
               currentStage: currentStage

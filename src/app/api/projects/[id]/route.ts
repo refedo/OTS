@@ -135,7 +135,15 @@ export async function GET(
       client: true,
       projectManager: { select: { id: true, name: true, position: true, email: true } },
       salesEngineer: { select: { id: true, name: true, email: true } },
-      buildings: { orderBy: { designation: 'asc' } },
+      buildings: {
+        orderBy: { designation: 'asc' },
+        include: {
+          scopeOfWorks: {
+            include: { activities: { orderBy: { sortOrder: 'asc' } } },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      },
       tasks: {
         select: {
           id: true,

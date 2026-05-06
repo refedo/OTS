@@ -57,6 +57,8 @@ interface Pagination {
 interface Totals {
   totalWeight: number;
   totalArea: number;
+  purlinArea: number;
+  paintableArea: number;
   statusCounts: Record<string, number>;
 }
 
@@ -78,7 +80,7 @@ export default function AssemblyPartsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 100, total: 0, totalPages: 0 });
-  const [totals, setTotals] = useState<Totals>({ totalWeight: 0, totalArea: 0, statusCounts: {} });
+  const [totals, setTotals] = useState<Totals>({ totalWeight: 0, totalArea: 0, purlinArea: 0, paintableArea: 0, statusCounts: {} });
   const [pageSize, setPageSize] = useState(100);
   const [sortBy, setSortBy] = useState<string>('createdAt');
   const [orderBy, setOrderBy] = useState<'asc' | 'desc'>('desc');
@@ -102,7 +104,7 @@ export default function AssemblyPartsPage() {
         const result = await response.json();
         setParts(result.data || []);
         setPagination(result.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 });
-        setTotals(result.totals || { totalWeight: 0, totalArea: 0, statusCounts: {} });
+        setTotals(result.totals || { totalWeight: 0, totalArea: 0, purlinArea: 0, paintableArea: 0, statusCounts: {} });
       }
     } catch (error) {
       console.error('Error fetching parts:', error);
@@ -452,6 +454,19 @@ export default function AssemblyPartsPage() {
                 {(totals.totalArea || 0).toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">Total Area (m²)</p>
+            </CardContent>
+          </Card>
+          <Card className="border-emerald-200 bg-emerald-50/50">
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-emerald-700">
+                {(totals.paintableArea || 0).toFixed(2)}
+              </div>
+              <p className="text-xs text-emerald-600 font-medium">Paintable Area (m²)</p>
+              {totals.purlinArea > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Total − Purlin ({totals.purlinArea.toFixed(2)} m²)
+                </p>
+              )}
             </CardContent>
           </Card>
           <Card>

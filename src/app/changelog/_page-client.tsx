@@ -23,10 +23,43 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '22.13.0',
+    date: 'May 6, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Multi-Scope Project Wizard & Tracker Redesign',
+    highlights: [
+      'Project wizard expanded to 9 steps — new Scope Definition and Activities per Scope steps added.',
+      'Per-building scope definitions: Steel, Roof Sheeting, Wall Sheeting, Deck Panel, Metal Works, and Other — each with quantities, specs, and material details.',
+      'Sandwich panel fields: RAL color, panel thickness, rib height, upper/lower sheet thickness, and profile (flat/ribbed).',
+      'Project tracker redesigned: buildings are collapsible group headers with one scope row per scope, showing N/A for non-applicable activities.',
+      'New Scope Summary page per project at /projects/[id]/scope.',
+      'Assembly Parts page gains Paintable Area tile (total area minus purlin area).',
+    ],
+    changes: {
+      added: [
+        'Wizard Step 3 — Scope Definition: per-building accordion with scope type checkboxes (Steel always on) and scope-specific spec forms (quantity, RAL, panel thickness, rib height, shear studs, metal work line items).',
+        'Wizard Step 4 — Activities per Scope: toggle activity applicability per scope with default matrix (Steel: all 7; Sheeting/Deck: detailing, procurement, dispatch, erection; Metal Works: detailing, procurement, production, coating, dispatch, erection).',
+        'Building location field added to wizard step 2 and stored in DB.',
+        'Project Scope Summary page at /projects/[id]/scope with per-building scope cards, RAL swatches, spec chips, and activity badges.',
+        'Scope section added to Project Details page — collapsible building+scope cards linked to the scope summary page.',
+        'Paintable Area tile in Assembly Parts KPI strip: Total Area minus area of parts named PURLIN (case-insensitive).',
+        'DB migration v22.13 adding 15 new fields to ScopeOfWork and location to Building.',
+        'Backfill migration v22.14 populating quantity/unit for existing steel scopes from building weight.',
+      ],
+      fixed: [],
+      changed: [
+        'Project tracker: replaced flat building rows with grouped building+scope rows. Building headers are collapsible; each scope row shows only applicable activity columns (N/A for others).',
+        'Scope-of-work API updated to accept and persist all new spec fields (Zod schema extended).',
+        'Version bumped to 22.13.0',
+      ],
+    },
+  },
+  {
     version: '22.12.0',
     date: 'May 4, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Payroll, HR & Productivity Improvements',
     highlights: [
       'Overtime now calculated on basic salary only (Saudi Labor Law compliance) — was incorrectly using total monthly gross.',

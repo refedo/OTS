@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.13.0] - 2026-05-06
+
+### Multi-Scope Project Wizard & Tracker Redesign
+
+#### Added
+- **Wizard Step 3 — Scope Definition**: per-building accordion with scope type checkboxes (Steel always on) and scope-specific spec forms (quantity, RAL, panel thickness, rib height, shear studs, metal work line items).
+- **Wizard Step 4 — Activities per Scope**: toggle activity applicability per scope with default matrix (Steel: all 7; Sheeting/Deck: detailing, procurement, dispatch, erection; Metal Works: detailing, procurement, production, coating, dispatch, erection; Other: procurement, dispatch).
+- **Building location field** added to wizard Step 2 and stored in DB.
+- **Project Scope Summary page** at `/projects/[id]/scope` — per-building scope cards with RAL swatches, spec chips, activity badges, and back navigation.
+- **Scope section** added to Project Details page — collapsible building+scope cards linked to the scope summary page.
+- **Paintable Area tile** in Assembly Parts KPI strip: total netAreaTotal minus area of parts named PURLIN (case-insensitive).
+- **DB migration v22.13**: adds 15 new fields to `ScopeOfWork` (quantity, unit, ralColor, panelThickness, ribHeight, upperSheetThick, lowerSheetThick, panelProfile, deckProfile, hasShearStuds, shearStudQty, shearStudSpecs, metalWorkItems, coatingSameAsProject, scopeCoatingSystem) and `location` to `Building`.
+- **Backfill migration v22.14**: populates `quantity = building.weight` and `unit = 'ton'` for existing steel ScopeOfWork records with no quantity set.
+
+#### Changed
+- **Project tracker** redesigned: building group header rows (collapsible) with one scope sub-row per scope. Activity columns show N/A for non-applicable scopes (based on `BuildingActivity.isApplicable`).
+- **Scope-of-work API** Zod schemas extended to accept all new spec fields (POST, PUT, and new PATCH endpoint).
+- Version bumped to **22.13.0**
+
+---
+
 ## [22.12.0] - 2026-05-04
 
 ### Payroll, HR & Productivity Improvements

@@ -324,6 +324,12 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
                 Timeline
               </Button>
             </Link>
+            <Link href={`/projects/${project.id}/scope`}>
+              <Button variant="outline">
+                <FileText className="size-4" />
+                Scope Summary
+              </Button>
+            </Link>
             <Link href={`/projects/${project.id}/edit`}>
               <Button>
                 <Edit className="size-4" />
@@ -597,6 +603,122 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
               </div>
             </div>
           </CollapsibleSection>
+
+          {/* Buildings & Scope */}
+          {project.buildings && project.buildings.length > 0 && (
+            <CollapsibleSection title="Buildings & Scope" icon={Building2} defaultOpen>
+              <div className="space-y-4">
+                {project.buildings.map((building: any) => (
+                  <div key={building.id} className="border rounded-xl overflow-hidden">
+                    <div className="bg-muted/40 px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-base">{building.designation}</span>
+                        <span className="text-muted-foreground ml-2">— {building.name}</span>
+                        {building.location && (
+                          <span className="ml-3 text-xs text-muted-foreground bg-background border px-2 py-0.5 rounded-full">
+                            📍 {building.location}
+                          </span>
+                        )}
+                      </div>
+                      {building.weight && (
+                        <span className="text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                          {building.weight} ton
+                        </span>
+                      )}
+                    </div>
+                    <div className="divide-y">
+                      {(building.scopeOfWorks || []).map((scope: any) => (
+                        <div key={scope.id} className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                                  scope.scopeType === 'steel' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                                  scope.scopeType === 'roof_sheeting' ? 'bg-orange-50 border-orange-200 text-orange-700' :
+                                  scope.scopeType === 'wall_sheeting' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                                  scope.scopeType === 'deck_panel' ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                                  scope.scopeType === 'metal_work' ? 'bg-gray-50 border-gray-200 text-gray-700' :
+                                  'bg-green-50 border-green-200 text-green-700'
+                                }`}>
+                                  {scope.scopeLabel}{scope.customLabel ? ` — ${scope.customLabel}` : ''}
+                                </span>
+                                {scope.quantity && (
+                                  <span className="text-sm font-medium">
+                                    {scope.quantity} {scope.unit || (scope.scopeType === 'steel' ? 'ton' : 'm²')}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Steel */}
+                              {scope.scopeType === 'steel' && scope.quantity && (
+                                <div className="text-xs text-muted-foreground">
+                                  Contractual steel quantity
+                                </div>
+                              )}
+
+                              {/* Sandwich panels */}
+                              {(scope.scopeType === 'roof_sheeting' || scope.scopeType === 'wall_sheeting') && (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                                  {scope.ralColor && (
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: getRalColor(scope.ralColor) }} />
+                                      <span>RAL {scope.ralColor}</span>
+                                    </div>
+                                  )}
+                                  {scope.panelProfile && <span>Profile: <strong className="text-foreground">{scope.panelProfile}</strong></span>}
+                                  {scope.panelThickness && <span>Panel: <strong className="text-foreground">{scope.panelThickness}mm</strong></span>}
+                                  {scope.ribHeight && <span>Rib: <strong className="text-foreground">{scope.ribHeight}mm</strong></span>}
+                                  {scope.upperSheetThick && <span>Upper: <strong className="text-foreground">{scope.upperSheetThick}mm</strong></span>}
+                                  {scope.lowerSheetThick && <span>Lower: <strong className="text-foreground">{scope.lowerSheetThick}mm</strong></span>}
+                                </div>
+                              )}
+
+                              {/* Deck panel */}
+                              {scope.scopeType === 'deck_panel' && (
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                                  {scope.deckProfile && <span>Profile: <strong className="text-foreground">{scope.deckProfile}</strong></span>}
+                                  {scope.hasShearStuds && (
+                                    <span>Shear studs: <strong className="text-foreground">{scope.shearStudQty ?? '?'} {scope.shearStudSpecs || ''}</strong></span>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Metal works */}
+                              {scope.scopeType === 'metal_work' && scope.metalWorkItems && scope.metalWorkItems.length > 0 && (
+                                <div className="text-xs space-y-0.5">
+                                  {scope.metalWorkItems.map((item: any, i: number) => (
+                                    <div key={i} className="flex gap-3 text-muted-foreground">
+                                      <span className="font-medium text-foreground">{item.name}</span>
+                                      <span>{item.quantity} {item.unit}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Activities */}
+                            {scope.activities && scope.activities.length > 0 && (
+                              <div className="flex flex-wrap gap-1 justify-end">
+                                {scope.activities.filter((a: any) => a.isApplicable).map((a: any) => (
+                                  <span key={a.activityType}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                                    {a.activityLabel}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {(!building.scopeOfWorks || building.scopeOfWorks.length === 0) && (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">No scope defined</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleSection>
+          )}
 
           {/* Technical Specifications */}
           <CollapsibleSection title="Technical Specifications" icon={Settings} defaultOpen>

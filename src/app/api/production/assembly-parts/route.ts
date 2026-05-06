@@ -127,16 +127,23 @@ export async function GET(req: Request) {
     const total = await prisma.assemblyPart.count({ where });
 
     // Get aggregated totals for all matching parts (not just current page)
-    const aggregates = await prisma.assemblyPart.aggregate({
-      where,
-      _sum: {
-        netWeightTotal: true,
-        netAreaTotal: true,
-      },
-      _count: {
-        _all: true,
-      },
-    });
+    const [aggregates, purlinAggregates] = await Promise.all([
+      prisma.assemblyPart.aggregate({
+        where,
+        _sum: {
+          netWeightTotal: true,
+          netAreaTotal: true,
+        },
+        _count: {
+          _all: true,
+        },
+      }),
+      // Purlin area: parts named "PURLIN" — used to compute paintable area
+      prisma.assemblyPart.aggregate({
+        where: { ...where, name: { equals: 'PURLIN', mode: 'insensitive' } },
+        _sum: { netAreaTotal: true },
+      }),
+    ]);
 
     // Get status counts for all matching parts
     const statusCounts = await prisma.assemblyPart.groupBy({
@@ -230,6 +237,8 @@ export async function GET(req: Request) {
       totals: {
         totalWeight: Number(aggregates._sum.netWeightTotal) || 0,
         totalArea: Number(aggregates._sum.netAreaTotal) || 0,
+        purlinArea: Number(purlinAggregates._sum.netAreaTotal) || 0,
+        paintableArea: (Number(aggregates._sum.netAreaTotal) || 0) - (Number(purlinAggregates._sum.netAreaTotal) || 0),
         statusCounts: statusCountMap,
       },
     });
