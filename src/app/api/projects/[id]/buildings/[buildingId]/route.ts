@@ -9,6 +9,8 @@ const buildingSchema = z.object({
   designation: z.string().min(2).max(5).regex(/^[A-Z0-9]+$/).optional(),
   name: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
+  location: z.string().max(500).nullable().optional(),
+  weight: z.number().nullable().optional(),
 }).partial();
 
 export async function GET(

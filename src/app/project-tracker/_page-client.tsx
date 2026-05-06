@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, Fragment } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -74,6 +74,7 @@ interface ActivityData {
   activityType: string;
   activityLabel: string;
   percentage: number;
+  isApplicable: boolean;
   status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'pending_approval'
     | 'pending' | 'waiting_approval' | 'completed_released' | 'rejected' | 'approved';
   consultantCode?: string;
@@ -85,6 +86,7 @@ interface ScopeData {
   scopeType: string;
   scopeLabel: string;
   activities: ActivityData[];
+  overallProgress: number;
 }
 
 interface BuildingData {
@@ -152,6 +154,15 @@ const CONSULTANT_CODES: Record<string, { label: string; color: string }> = {
   code_c: { label: 'C - Resubmit', color: 'text-red-400' },
 };
 
+const SCOPE_BADGE: Record<string, { dark: string; light: string }> = {
+  steel:         { dark: 'border-blue-500/40 bg-blue-500/10 text-blue-300',   light: 'border-blue-200 bg-blue-50 text-blue-700' },
+  roof_sheeting: { dark: 'border-orange-500/40 bg-orange-500/10 text-orange-300', light: 'border-orange-200 bg-orange-50 text-orange-700' },
+  wall_sheeting: { dark: 'border-amber-500/40 bg-amber-500/10 text-amber-300',  light: 'border-amber-200 bg-amber-50 text-amber-700' },
+  deck_panel:    { dark: 'border-purple-500/40 bg-purple-500/10 text-purple-300', light: 'border-purple-200 bg-purple-50 text-purple-700' },
+  metal_work:    { dark: 'border-slate-500/40 bg-slate-500/10 text-slate-300',  light: 'border-slate-200 bg-slate-100 text-slate-700' },
+  other:         { dark: 'border-green-500/40 bg-green-500/10 text-green-300',  light: 'border-green-200 bg-green-50 text-green-700' },
+};
+
 // --- Helper Functions ---
 
 function getStatusColor(status: string, percentage: number, isDesignRevision = false): string {
@@ -215,13 +226,6 @@ function getBorderColor(status: string, isDark: boolean): string {
   if (status === 'pending_approval') return isDark ? 'border-blue-500/40' : 'border-blue-300';
   if (status === 'completed') return isDark ? 'border-emerald-500/40' : 'border-emerald-300';
   return isDark ? 'border-slate-700/50' : 'border-slate-200';
-}
-
-function getPrimaryScope(scopes: ScopeData[]): ScopeData | null {
-  const steelScope = scopes.find(
-    (s) => s.scopeType.toLowerCase().includes('steel') || s.scopeType.toLowerCase() === 'main'
-  );
-  return steelScope || scopes[0] || null;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -703,6 +707,7 @@ export default function ProjectTrackerClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDark, setIsDark] = useState(true);
   const [freezeHeader, setFreezeHeader] = useState(false);
+  const [expandedBuildings, setExpandedBuildings] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     try {
@@ -743,28 +748,19 @@ export default function ProjectTrackerClient() {
     );
   }, [data, searchQuery]);
 
-  const rows = useMemo(() => {
-    const result: {
-      projectNumber: string;
-      projectName: string;
-      building: BuildingData;
-      isFirstInProject: boolean;
-      projectBuildingCount: number;
-    }[] = [];
+  const totalBuildingCount = useMemo(
+    () => filteredProjects.reduce((sum, p) => sum + p.buildings.length, 0),
+    [filteredProjects]
+  );
 
-    for (const project of filteredProjects) {
-      project.buildings.forEach((building, idx) => {
-        result.push({
-          projectNumber: project.projectNumber,
-          projectName: project.name,
-          building,
-          isFirstInProject: idx === 0,
-          projectBuildingCount: project.buildings.length,
-        });
-      });
-    }
-    return result;
-  }, [filteredProjects]);
+  function toggleBuilding(buildingId: string) {
+    setExpandedBuildings((prev) => {
+      const next = new Set(prev);
+      if (next.has(buildingId)) next.delete(buildingId);
+      else next.add(buildingId);
+      return next;
+    });
+  }
 
   const bgClass = isDark ? 'bg-[#0f1419]' : 'bg-slate-50';
   const textClass = isDark ? 'text-white' : 'text-slate-900';
@@ -994,7 +990,7 @@ export default function ProjectTrackerClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.length === 0 ? (
+                    {totalBuildingCount === 0 ? (
                       <tr>
                         <td
                           colSpan={ACTIVITY_COLUMNS.length + 4}
@@ -1004,84 +1000,105 @@ export default function ProjectTrackerClient() {
                         </td>
                       </tr>
                     ) : (
-                      rows.map((row, rowIdx) => {
-                        const scope = getPrimaryScope(row.building.scopes);
-                        const activityMap = new Map<string, ActivityData>();
-                        if (scope) {
-                          for (const act of scope.activities) {
-                            activityMap.set(act.activityType, act);
-                          }
-                        }
+                      filteredProjects.map((project) =>
+                        project.buildings.map((building, bIdx) => {
+                          const isExpanded = expandedBuildings.has(building.id);
+                          const isFirstInProject = bIdx === 0;
+                          const hdrBg = isDark ? 'bg-[#151d28]' : 'bg-slate-100';
 
-                        return (
-                          <tr
-                            key={`${row.building.id}-${rowIdx}`}
-                            className={`
-                              border-t transition-colors
-                              ${isDark ? 'border-slate-800' : 'border-slate-100'}
-                              ${rowHoverBg}
-                            `}
-                          >
-                            <td
-                              className={`
-                                sticky left-0 z-10 px-4 py-2.5 text-sm font-semibold align-top whitespace-nowrap
-                                ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}
-                              `}
-                            >
-                              {row.isFirstInProject ? (
-                                <div>
-                                  <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>
-                                    {row.projectNumber}
-                                  </span>
-                                  <p
-                                    className={`text-[10px] font-normal truncate max-w-[90px] ${mutedTextClass}`}
-                                  >
-                                    {row.projectName}
-                                  </p>
-                                </div>
-                              ) : null}
-                            </td>
-
-                            <td
-                              className={`
-                                sticky left-[100px] z-10 px-4 py-2.5 text-sm align-top whitespace-nowrap
-                                ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}
-                              `}
-                            >
-                              <span className="font-medium">
-                                {[row.building.name, row.building.designation].filter(Boolean).join(' - ')}
-                              </span>
-                            </td>
-
-                            <td className={`px-3 py-2.5 text-center text-sm align-top whitespace-nowrap ${mutedTextClass}`}>
-                              {row.building.assemblyTonnage > 0
-                                ? <span className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{row.building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T</span>
-                                : row.building.weight
-                                  ? <span className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{Number(row.building.weight).toLocaleString()} T</span>
-                                  : <span>—</span>
-                              }
-                            </td>
-
-                            {ACTIVITY_COLUMNS.map((col) => {
-                              const act = activityMap.get(col.type) ?? null;
-                              return (
-                                <td key={col.type} className="px-1.5 py-2">
-                                  <StatusCell activity={act} isDark={isDark} />
+                          return (
+                            <Fragment key={building.id}>
+                              {/* Building group header row */}
+                              <tr
+                                className={`border-t cursor-pointer transition-colors ${isDark ? 'border-slate-700 hover:bg-[#1a2640]' : 'border-slate-200 hover:bg-slate-150'}`}
+                                onClick={() => toggleBuilding(building.id)}
+                              >
+                                <td className={`sticky left-0 z-10 px-4 py-2 text-sm font-semibold whitespace-nowrap ${hdrBg}`}>
+                                  {isFirstInProject ? (
+                                    <div>
+                                      <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>{project.projectNumber}</span>
+                                      <p className={`text-[10px] font-normal truncate max-w-[90px] ${mutedTextClass}`}>{project.name}</p>
+                                    </div>
+                                  ) : null}
                                 </td>
-                              );
-                            })}
+                                <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${hdrBg}`} colSpan={ACTIVITY_COLUMNS.length + 3}>
+                                  <div className="flex items-center gap-2">
+                                    <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isExpanded ? '' : '-rotate-90'} ${mutedTextClass}`} />
+                                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                      {building.designation && (
+                                        <span className={`font-mono text-xs mr-1.5 ${mutedTextClass}`}>{building.designation}</span>
+                                      )}
+                                      {building.name}
+                                    </span>
+                                    {(building.assemblyTonnage > 0 || building.weight) && (
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                                        {building.assemblyTonnage > 0
+                                          ? `${building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T`
+                                          : `${Number(building.weight).toLocaleString()} T`}
+                                      </span>
+                                    )}
+                                    <span className={`text-[10px] ${mutedTextClass}`}>
+                                      {building.scopes.length} scope{building.scopes.length !== 1 ? 's' : ''}
+                                    </span>
+                                  </div>
+                                </td>
+                              </tr>
 
-                            <td className="px-1.5 py-2">
-                              <OverallCell
-                                progress={row.building.overallProgress}
-                                currentStage={row.building.currentStage}
-                                hasBlocked={row.building.hasBlocked}
-                                isDark={isDark}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })
+                              {/* Scope rows (shown when expanded) */}
+                              {isExpanded && building.scopes.map((scope, sIdx) => {
+                                const activityMap = new Map<string, ActivityData>();
+                                for (const act of scope.activities) activityMap.set(act.activityType, act);
+                                const badge = (SCOPE_BADGE[scope.scopeType] ?? SCOPE_BADGE.other)[isDark ? 'dark' : 'light'];
+                                return (
+                                  <tr
+                                    key={`${building.id}-${scope.id}`}
+                                    className={`border-t transition-colors ${isDark ? 'border-slate-800/50' : 'border-slate-100'} ${rowHoverBg}`}
+                                  >
+                                    <td className={`sticky left-0 z-10 px-4 py-2 ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}`} />
+                                    <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}`}>
+                                      <span className={`inline-block text-[10px] font-semibold px-2.5 py-1 rounded-full border ${badge}`}>
+                                        {scope.scopeLabel}
+                                      </span>
+                                    </td>
+                                    <td className={`px-3 py-2 text-center whitespace-nowrap ${mutedTextClass}`}>
+                                      {sIdx === 0 ? (
+                                        building.assemblyTonnage > 0
+                                          ? <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{building.assemblyTonnage.toFixed(1)} T</span>
+                                          : building.weight
+                                            ? <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{Number(building.weight)} T</span>
+                                            : null
+                                      ) : null}
+                                    </td>
+                                    {ACTIVITY_COLUMNS.map((col) => {
+                                      const act = activityMap.get(col.type) ?? null;
+                                      if (!act || !act.isApplicable) {
+                                        return (
+                                          <td key={col.type} className="px-1.5 py-2 text-center">
+                                            <span className={`text-[10px] ${isDark ? 'text-slate-700' : 'text-slate-300'}`}>N/A</span>
+                                          </td>
+                                        );
+                                      }
+                                      return (
+                                        <td key={col.type} className="px-1.5 py-2">
+                                          <StatusCell activity={act} isDark={isDark} />
+                                        </td>
+                                      );
+                                    })}
+                                    <td className="px-1.5 py-2">
+                                      <OverallCell
+                                        progress={scope.overallProgress}
+                                        currentStage={null}
+                                        hasBlocked={scope.activities.some((a) => a.isApplicable && a.status === 'blocked')}
+                                        isDark={isDark}
+                                      />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </Fragment>
+                          );
+                        })
+                      )
                     )}
                   </tbody>
                 </table>
