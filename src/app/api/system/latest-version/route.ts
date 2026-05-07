@@ -7,19 +7,27 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 
 const CURRENT_VERSION = {
   version: pkgVersion,
-  date: 'April 29, 2026',
-  type: 'patch' as const,
-  mainTitle: 'Stability & Version Alignment',
+  date: 'May 7, 2026',
+  type: 'minor' as const,
+  mainTitle: 'Project Card',
   highlights: [
-    'Confirms 22.5.2 features as stable: Account Invoice Report, orphan purge (POST /api/financial/purge-orphans), and sidebar double-render fix are all verified in production.',
-    'All financial report sidebar links updated to include the Account Invoice Report.',
-    'Version alignment across package.json, changelog, and settings/about.',
+    'New Project Card page — full project overview with project & building navigation, technical specs, coating, stage durations, and scope aggregation.',
+    'Switch projects and buildings using arrow buttons or dropdowns without leaving the page.',
+    'Aggregated "All Buildings" view shows combined tonnage, area, and scopes across the entire project.',
   ],
   changes: {
-    added: [],
+    added: [
+      'Project Card page at /projects/[id]/buildings with project selector (dropdown + prev/next arrows) and building tabs (All + per-building + prev/next arrows).',
+      'Technical Information section: cranes, third-party inspection, incoterm, welding process/WPS/PQR, NDT, applicable codes.',
+      'Coating System section: paint coats, galvanization microns, RAL top-coat colour chip.',
+      'Stage Durations section: engineering / operations / site week ranges displayed as visual progress bars.',
+      'Aggregated scope view when "All Buildings" selected: groups scopes by type with total quantities.',
+      'Buildings Breakdown collapsible card listing all buildings with tonnage, area, and scope badges.',
+      '/project-card sidebar shortcut — redirects to first active project\'s card.',
+    ],
     fixed: [],
     changed: [
-      'Version bumped to 22.5.3 (stability confirmation — no new features)',
+      'Buildings page renamed to "Project Card" in sidebar and page title.',
     ],
   },
 };

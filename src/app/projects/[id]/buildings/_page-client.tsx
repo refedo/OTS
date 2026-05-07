@@ -1,27 +1,47 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Building2,
-  ArrowLeft,
-  MapPin,
   Weight,
   Layers,
   Paintbrush,
   Ruler,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Package,
   Bolt,
   PanelTop,
   PanelLeft,
+  MapPin,
+  Wrench,
+  Shield,
+  Globe,
+  Truck,
+  HardHat,
+  Clock,
+  FlaskConical,
+  FileCode,
+  CalendarDays,
+  LayoutGrid,
+  User,
+  Users,
 } from 'lucide-react';
-import Link from 'next/link';
 
-// RAL color hex mappings
+// ─── RAL Colours ────────────────────────────────────────────────────────────
+
 const ralColors: Record<string, string> = {
   '1000': '#BEBD7F', '1001': '#C2B078', '1002': '#C6A664', '1003': '#E5BE01',
   '1004': '#CDA434', '1005': '#A98307', '1006': '#E4A010', '1007': '#DC9D00',
@@ -125,35 +145,27 @@ const ralColorNames: Record<string, string> = {
 };
 
 function getRalHex(ral: string): string {
-  const clean = ral.replace(/[^0-9]/g, '');
-  return ralColors[clean] || '#CCCCCC';
+  return ralColors[ral.replace(/[^0-9]/g, '')] || '#CCCCCC';
 }
-
 function getRalName(ral: string): string {
-  const clean = ral.replace(/[^0-9]/g, '');
-  return ralColorNames[clean] || 'Unknown Color';
+  return ralColorNames[ral.replace(/[^0-9]/g, '')] || 'Unknown Color';
 }
 
 function RalChip({ ral }: { ral: string }) {
-  const hex = getRalHex(ral);
-  const name = getRalName(ral);
-  const isDark = parseInt(ral.replace(/[^0-9]/g, '')) < 5000 ||
-    ['9004', '9005', '9011', '9017', '8022', '8019', '8017', '8016', '8015', '8014', '8012',
-     '8011', '7021', '7016', '5004', '5003', '5002', '5001', '5000', '4007', '4004', '3007',
-     '3005', '3004', '3003'].includes(ral.replace(/[^0-9]/g, ''));
-
   return (
     <div className="flex items-center gap-2">
       <div
-        className="w-6 h-6 rounded-full border border-black/10 shadow-sm flex-shrink-0"
-        style={{ backgroundColor: hex }}
-        title={`RAL ${ral} - ${name}`}
+        className="w-5 h-5 rounded-full border border-black/10 shadow-sm flex-shrink-0"
+        style={{ backgroundColor: getRalHex(ral) }}
+        title={`RAL ${ral} - ${getRalName(ral)}`}
       />
       <span className="font-medium text-sm">RAL {ral}</span>
-      <span className="text-muted-foreground text-sm">· {name}</span>
+      <span className="text-muted-foreground text-sm">· {getRalName(ral)}</span>
     </div>
   );
 }
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type ScopeOfWork = {
   id: string;
@@ -193,62 +205,77 @@ type ProjectData = {
   projectNumber: string;
   name: string;
   status: string;
+  contractDate: string | null;
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
   contractualTonnage: number | null;
+  engineeringTonnage: number | null;
+  cranesIncluded: boolean;
+  surveyorOurScope: boolean;
+  thirdPartyRequired: boolean;
+  thirdPartyResponsibility: string | null;
+  incoterm: string | null;
+  structureType: string | null;
+  numberOfStructures: number | null;
+  erectionSubcontractor: string | null;
+  weldingProcess: string | null;
+  wpsNumber: string | null;
+  pqrNumber: string | null;
+  ndtTest: string | null;
+  applicableCodes: string | null;
   galvanized: boolean;
-  paintCoat1: string | null;
-  paintCoat1Microns: number | null;
-  paintCoat2: string | null;
-  paintCoat2Microns: number | null;
-  paintCoat3: string | null;
-  paintCoat3Microns: number | null;
-  paintCoat4: string | null;
-  paintCoat4Microns: number | null;
+  galvanizationMicrons: number | null;
+  coatingSystem: string | null;
+  area: number | null;
+  m2PerTon: number | null;
+  paintCoat1: string | null; paintCoat1Microns: number | null;
+  paintCoat2: string | null; paintCoat2Microns: number | null;
+  paintCoat3: string | null; paintCoat3Microns: number | null;
+  paintCoat4: string | null; paintCoat4Microns: number | null;
   topCoatRalNumber: string | null;
+  engineeringWeeksMin: number | null;
+  engineeringWeeksMax: number | null;
+  operationsWeeksMin: number | null;
+  operationsWeeksMax: number | null;
+  siteWeeksMin: number | null;
+  siteWeeksMax: number | null;
+  client: { id: string; name: string } | null;
+  projectManager: { id: string; name: string } | null;
+  salesEngineer: { id: string; name: string } | null;
 };
+
+type NavProject = { id: string; projectNumber: string; name: string; status: string };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(n: number, decimals = 2): string {
   return n.toLocaleString('en-SA-u-ca-gregory', { maximumFractionDigits: decimals });
 }
 
-function CoatingSystem({ project }: { project: ProjectData }) {
-  const coats = [
-    { label: 'Coat 1', name: project.paintCoat1, microns: project.paintCoat1Microns },
-    { label: 'Coat 2', name: project.paintCoat2, microns: project.paintCoat2Microns },
-    { label: 'Coat 3', name: project.paintCoat3, microns: project.paintCoat3Microns },
-    { label: 'Coat 4', name: project.paintCoat4, microns: project.paintCoat4Microns },
-  ].filter((c) => c.name);
-
-  const count = project.galvanized ? coats.length + 1 : coats.length;
-
-  if (count === 0) return <span className="text-muted-foreground text-sm">Not specified</span>;
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant="outline" className="text-xs font-semibold">
-          {count} {count === 1 ? 'coat' : 'coats'}
-        </Badge>
-        {project.galvanized && (
-          <Badge className="text-xs bg-zinc-200 text-zinc-800 border-zinc-300">Galvanized</Badge>
-        )}
-        {project.topCoatRalNumber && (
-          <RalChip ral={project.topCoatRalNumber} />
-        )}
-      </div>
-      {coats.length > 0 && (
-        <div className="flex gap-2 flex-wrap mt-1">
-          {coats.map((c) => (
-            <div key={c.label} className="text-xs bg-muted rounded px-2 py-1 flex gap-1 items-center">
-              <span className="font-medium">{c.label}:</span>
-              <span>{c.name}</span>
-              {c.microns && <span className="text-muted-foreground">({c.microns} µm)</span>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function fmtDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-SA-u-ca-gregory', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  });
 }
+
+function weeksLabel(min: number | null, max: number | null): string {
+  if (!min && !max) return '—';
+  if (min && max && min !== max) return `${min}–${max} weeks`;
+  return `${min ?? max} weeks`;
+}
+
+const statusColors: Record<string, string> = {
+  Active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  Draft: 'bg-slate-100 text-slate-700 border-slate-200',
+  Completed: 'bg-blue-100 text-blue-700 border-blue-200',
+  'On Hold': 'bg-amber-100 text-amber-700 border-amber-200',
+  Cancelled: 'bg-rose-100 text-rose-700 border-rose-200',
+};
+
+// ─── Scope helpers ────────────────────────────────────────────────────────────
 
 function ScopeBadge({ scopeType }: { scopeType: string }) {
   const configs: Record<string, { label: string; className: string }> = {
@@ -264,10 +291,8 @@ function ScopeBadge({ scopeType }: { scopeType: string }) {
 }
 
 function ScopeSection({ scope }: { scope: ScopeOfWork }) {
-  const label = scope.customLabel || scope.scopeLabel;
   const isSheeting = scope.scopeType === 'roof_sheeting' || scope.scopeType === 'wall_sheeting';
   const isDeck = scope.scopeType === 'deck_panel';
-  const isSteel = scope.scopeType === 'steel';
 
   return (
     <div className="border rounded-lg p-4 space-y-3 bg-card">
@@ -280,19 +305,13 @@ function ScopeSection({ scope }: { scope: ScopeOfWork }) {
           </span>
         )}
       </div>
-
       <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        {/* RAL Color for steel or sheeting */}
         {scope.ralColor && (
           <div className="col-span-2">
             <span className="text-muted-foreground text-xs uppercase tracking-wide">Color</span>
-            <div className="mt-1">
-              <RalChip ral={scope.ralColor} />
-            </div>
+            <div className="mt-1"><RalChip ral={scope.ralColor} /></div>
           </div>
         )}
-
-        {/* Sandwich panel specs */}
         {isSheeting && (
           <>
             {scope.panelThickness !== null && (
@@ -327,8 +346,6 @@ function ScopeSection({ scope }: { scope: ScopeOfWork }) {
             )}
           </>
         )}
-
-        {/* Deck panel specs */}
         {isDeck && (
           <>
             {scope.deckProfile && (
@@ -360,16 +377,367 @@ function ScopeSection({ scope }: { scope: ScopeOfWork }) {
   );
 }
 
-function BuildingCard({ building, project }: { building: BuildingData; project: ProjectData }) {
-  const [expanded, setExpanded] = useState(true);
+// ─── Coating System ───────────────────────────────────────────────────────────
 
-  const roofScopes = building.scopeOfWorks.filter((s) => s.scopeType === 'roof_sheeting');
-  const wallScopes = building.scopeOfWorks.filter((s) => s.scopeType === 'wall_sheeting');
-  const deckScopes = building.scopeOfWorks.filter((s) => s.scopeType === 'deck_panel');
-  const steelScopes = building.scopeOfWorks.filter((s) => s.scopeType === 'steel');
-  const otherScopes = building.scopeOfWorks.filter(
-    (s) => !['steel', 'roof_sheeting', 'wall_sheeting', 'deck_panel'].includes(s.scopeType)
+function CoatingSystem({ project }: { project: ProjectData }) {
+  const coats = [
+    { label: 'Coat 1', name: project.paintCoat1, microns: project.paintCoat1Microns },
+    { label: 'Coat 2', name: project.paintCoat2, microns: project.paintCoat2Microns },
+    { label: 'Coat 3', name: project.paintCoat3, microns: project.paintCoat3Microns },
+    { label: 'Coat 4', name: project.paintCoat4, microns: project.paintCoat4Microns },
+  ].filter((c) => c.name);
+  const count = project.galvanized ? coats.length + 1 : coats.length;
+  if (count === 0 && !project.coatingSystem) return <span className="text-muted-foreground text-sm">Not specified</span>;
+
+  return (
+    <div className="space-y-2">
+      {project.coatingSystem && (
+        <p className="text-sm font-medium">{project.coatingSystem}</p>
+      )}
+      <div className="flex items-center gap-2 flex-wrap">
+        {count > 0 && (
+          <Badge variant="outline" className="text-xs font-semibold">
+            {count} {count === 1 ? 'coat' : 'coats'}
+          </Badge>
+        )}
+        {project.galvanized && (
+          <Badge className="text-xs bg-zinc-200 text-zinc-800 border-zinc-300">
+            Galvanized{project.galvanizationMicrons ? ` (${project.galvanizationMicrons} µm)` : ''}
+          </Badge>
+        )}
+        {project.topCoatRalNumber && <RalChip ral={project.topCoatRalNumber} />}
+      </div>
+      {coats.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {coats.map((c) => (
+            <div key={c.label} className="text-xs bg-muted rounded px-2 py-1 flex gap-1 items-center">
+              <span className="font-medium">{c.label}:</span>
+              <span>{c.name}</span>
+              {c.microns && <span className="text-muted-foreground">({c.microns} µm)</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
+}
+
+// ─── Technical Info ───────────────────────────────────────────────────────────
+
+function TechnicalInfo({ project }: { project: ProjectData }) {
+  const items: { icon: ReactNode; label: string; value: ReactNode }[] = [];
+
+  items.push({
+    icon: <HardHat className="w-3.5 h-3.5" />,
+    label: 'Cranes',
+    value: project.cranesIncluded
+      ? <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs" variant="outline">Included</Badge>
+      : <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-xs" variant="outline">Not included</Badge>,
+  });
+
+  items.push({
+    icon: <Shield className="w-3.5 h-3.5" />,
+    label: 'Third Party Inspection',
+    value: project.thirdPartyRequired ? (
+      <span className="flex items-center gap-1.5">
+        <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs" variant="outline">Required</Badge>
+        {project.thirdPartyResponsibility && (
+          <span className="text-xs text-muted-foreground capitalize">
+            ({project.thirdPartyResponsibility === 'our' ? 'Our scope' : 'Customer scope'})
+          </span>
+        )}
+      </span>
+    ) : (
+      <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-xs" variant="outline">Not required</Badge>
+    ),
+  });
+
+  if (project.surveyorOurScope) {
+    items.push({
+      icon: <Users className="w-3.5 h-3.5" />,
+      label: 'Surveyor',
+      value: <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-xs" variant="outline">Our scope</Badge>,
+    });
+  }
+
+  if (project.incoterm) {
+    items.push({
+      icon: <Globe className="w-3.5 h-3.5" />,
+      label: 'Incoterm',
+      value: <span className="font-semibold text-sm">{project.incoterm}</span>,
+    });
+  }
+
+  if (project.erectionSubcontractor) {
+    items.push({
+      icon: <Truck className="w-3.5 h-3.5" />,
+      label: 'Erection Subcontractor',
+      value: <span className="text-sm">{project.erectionSubcontractor}</span>,
+    });
+  }
+
+  if (project.structureType || project.numberOfStructures) {
+    items.push({
+      icon: <Building2 className="w-3.5 h-3.5" />,
+      label: 'Structure',
+      value: (
+        <span className="text-sm">
+          {[project.structureType, project.numberOfStructures ? `${project.numberOfStructures} structures` : null]
+            .filter(Boolean).join(' · ')}
+        </span>
+      ),
+    });
+  }
+
+  if (project.weldingProcess || project.wpsNumber || project.pqrNumber) {
+    items.push({
+      icon: <Wrench className="w-3.5 h-3.5" />,
+      label: 'Welding',
+      value: (
+        <span className="text-sm flex flex-wrap gap-1.5 items-center">
+          {project.weldingProcess && <Badge variant="outline" className="text-xs">{project.weldingProcess}</Badge>}
+          {project.wpsNumber && <span className="text-muted-foreground">WPS: {project.wpsNumber}</span>}
+          {project.pqrNumber && <span className="text-muted-foreground">PQR: {project.pqrNumber}</span>}
+        </span>
+      ),
+    });
+  }
+
+  if (project.ndtTest) {
+    items.push({
+      icon: <FlaskConical className="w-3.5 h-3.5" />,
+      label: 'NDT',
+      value: <span className="text-sm">{project.ndtTest}</span>,
+    });
+  }
+
+  if (project.applicableCodes) {
+    items.push({
+      icon: <FileCode className="w-3.5 h-3.5" />,
+      label: 'Applicable Codes',
+      value: <span className="text-sm">{project.applicableCodes}</span>,
+    });
+  }
+
+  if (project.area || project.m2PerTon) {
+    items.push({
+      icon: <Ruler className="w-3.5 h-3.5" />,
+      label: 'Area / Ratio',
+      value: (
+        <span className="text-sm text-muted-foreground">
+          {project.area ? `${fmt(project.area)} m²` : ''}
+          {project.area && project.m2PerTon ? ' · ' : ''}
+          {project.m2PerTon ? `${fmt(project.m2PerTon)} m²/t` : ''}
+        </span>
+      ),
+    });
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-start gap-2.5">
+          <div className="text-muted-foreground mt-0.5 flex-shrink-0">{item.icon}</div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{item.label}</p>
+            <div>{item.value}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Stage Durations ──────────────────────────────────────────────────────────
+
+function StageDurations({ project }: { project: ProjectData }) {
+  const stages = [
+    {
+      label: 'Engineering',
+      min: project.engineeringWeeksMin,
+      max: project.engineeringWeeksMax,
+      color: 'bg-blue-500',
+      lightColor: 'bg-blue-50',
+      textColor: 'text-blue-700',
+    },
+    {
+      label: 'Operations',
+      min: project.operationsWeeksMin,
+      max: project.operationsWeeksMax,
+      color: 'bg-emerald-500',
+      lightColor: 'bg-emerald-50',
+      textColor: 'text-emerald-700',
+    },
+    {
+      label: 'Site',
+      min: project.siteWeeksMin,
+      max: project.siteWeeksMax,
+      color: 'bg-amber-500',
+      lightColor: 'bg-amber-50',
+      textColor: 'text-amber-700',
+    },
+  ];
+
+  const maxWeeks = Math.max(
+    ...stages.map((s) => s.max ?? s.min ?? 0),
+    1,
+  );
+
+  const hasAny = stages.some((s) => s.min || s.max);
+  if (!hasAny) return <p className="text-sm text-muted-foreground italic">No stage durations specified.</p>;
+
+  return (
+    <div className="space-y-3">
+      {stages.map((stage) => {
+        const label = weeksLabel(stage.min, stage.max);
+        const barPct = ((stage.max ?? stage.min ?? 0) / maxWeeks) * 100;
+        return (
+          <div key={stage.label} className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">{stage.label}</span>
+              <span className={`font-semibold ${stage.textColor}`}>{label}</span>
+            </div>
+            <div className={`h-2 rounded-full ${stage.lightColor} overflow-hidden`}>
+              <div
+                className={`h-full rounded-full ${stage.color} transition-all`}
+                style={{ width: `${barPct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+      {(project.plannedStartDate || project.plannedEndDate) && (
+        <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground border-t mt-2">
+          {project.plannedStartDate && (
+            <span><span className="font-medium">Start:</span> {fmtDate(project.plannedStartDate)}</span>
+          )}
+          {project.plannedEndDate && (
+            <span><span className="font-medium">End:</span> {fmtDate(project.plannedEndDate)}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Aggregated scope summary ─────────────────────────────────────────────────
+
+type AggScope = {
+  scopeType: string;
+  scopeLabel: string;
+  totalQty: number;
+  unit: string | null;
+  buildings: string[];
+};
+
+function aggregateScopes(buildings: BuildingData[]): AggScope[] {
+  const map = new Map<string, AggScope>();
+  for (const b of buildings) {
+    for (const s of b.scopeOfWorks) {
+      const key = `${s.scopeType}|${s.customLabel ?? s.scopeLabel}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          scopeType: s.scopeType,
+          scopeLabel: s.customLabel ?? s.scopeLabel,
+          totalQty: 0,
+          unit: s.unit,
+          buildings: [],
+        });
+      }
+      const entry = map.get(key)!;
+      entry.totalQty += s.quantity ?? 0;
+      const bLabel = b.designation || b.name || '?';
+      if (!entry.buildings.includes(bLabel)) entry.buildings.push(bLabel);
+    }
+  }
+  return Array.from(map.values());
+}
+
+// ─── Section wrapper ──────────────────────────────────────────────────────────
+
+function Section({
+  title,
+  icon,
+  children,
+  collapsible = true,
+  defaultOpen = true,
+}: {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card>
+      <CardHeader
+        className={`pb-3 ${collapsible ? 'cursor-pointer select-none' : ''}`}
+        onClick={collapsible ? () => setOpen((o) => !o) : undefined}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {icon}
+            {title}
+          </div>
+          {collapsible && (open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />)}
+        </div>
+      </CardHeader>
+      {open && <CardContent className="pt-0">{children}</CardContent>}
+    </Card>
+  );
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
+export function ProjectCardClient({
+  project,
+  buildings,
+  allProjects,
+}: {
+  project: ProjectData;
+  buildings: BuildingData[];
+  allProjects: NavProject[];
+}) {
+  const router = useRouter();
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+
+  // Project navigation
+  const projectIdx = allProjects.findIndex((p) => p.id === project.id);
+  const prevProject = projectIdx > 0 ? allProjects[projectIdx - 1] : null;
+  const nextProject = projectIdx < allProjects.length - 1 ? allProjects[projectIdx + 1] : null;
+
+  function goToProject(id: string) {
+    router.push(`/projects/${id}/buildings`);
+  }
+
+  // Building navigation — null = All
+  const selectedBuilding = buildings.find((b) => b.id === selectedBuildingId) ?? null;
+  const buildingIdx = selectedBuildingId ? buildings.findIndex((b) => b.id === selectedBuildingId) : -1;
+  const prevBuilding = buildingIdx > 0 ? buildings[buildingIdx - 1] : null;
+  const nextBuilding = buildingIdx < buildings.length - 1 ? buildings[buildingIdx + 1] : null;
+
+  function goPrevBuilding() {
+    if (buildingIdx === -1) return; // on "All", go to last
+    if (buildingIdx === 0) { setSelectedBuildingId(null); return; }
+    setSelectedBuildingId(buildings[buildingIdx - 1].id);
+  }
+  function goNextBuilding() {
+    if (buildingIdx === -1 && buildings.length > 0) { setSelectedBuildingId(buildings[0].id); return; }
+    if (nextBuilding) setSelectedBuildingId(nextBuilding.id);
+  }
+
+  // KPIs — aggregate or per building
+  const kpiBuildings = selectedBuilding ? [selectedBuilding] : buildings;
+  const totalTonnage = kpiBuildings.reduce((s, b) => s + b.assemblyTonnage, 0);
+  const totalArea = kpiBuildings.reduce((s, b) => s + b.totalArea, 0);
+  const totalPaintable = kpiBuildings.reduce((s, b) => s + b.paintableArea, 0);
+
+  // Scope content
+  const aggScopes = useMemo(() => aggregateScopes(buildings), [buildings]);
+  const displayScopes: ScopeOfWork[] = selectedBuilding ? selectedBuilding.scopeOfWorks : [];
 
   const coatCount = [
     project.galvanized,
@@ -380,227 +748,318 @@ function BuildingCard({ building, project }: { building: BuildingData; project: 
   ].filter(Boolean).length;
 
   return (
-    <Card className="overflow-hidden shadow-sm border">
-      {/* Card Header */}
-      <CardHeader
-        className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 cursor-pointer select-none pb-3"
-        onClick={() => setExpanded((e) => !e)}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <CardTitle className="text-base font-semibold">
-                  {building.designation || building.name || 'Unnamed Building'}
-                </CardTitle>
-                {building.designation && building.name && building.name !== building.designation && (
-                  <span className="text-sm text-muted-foreground">· {building.name}</span>
-                )}
-              </div>
-              {building.location && (
-                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                  <MapPin className="w-3 h-3" />
-                  {building.location}
-                </div>
-              )}
-            </div>
-          </div>
+    <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
+
+      {/* ── Project Header ── */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-4 space-y-3">
+          {/* Project selector row */}
           <div className="flex items-center gap-2">
-            {building.scopeOfWorks.map((s) => (
-              <ScopeBadge key={s.id} scopeType={s.scopeType} />
-            ))}
-            <Button variant="ghost" size="icon" className="h-7 w-7 ml-1">
-              {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              disabled={!prevProject}
+              onClick={() => prevProject && goToProject(prevProject.id)}
+              title={prevProject ? `${prevProject.projectNumber} – ${prevProject.name}` : undefined}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+
+            <div className="flex-1 min-w-0">
+              <Select value={project.id} onValueChange={goToProject}>
+                <SelectTrigger className="h-9 font-semibold text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {allProjects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{p.projectNumber}</span>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              disabled={!nextProject}
+              onClick={() => nextProject && goToProject(nextProject.id)}
+              title={nextProject ? `${nextProject.projectNumber} – ${nextProject.name}` : undefined}
+            >
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-        </div>
 
-        {/* KPI strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-            <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-              <Weight className="w-3 h-3" /> Assembly Tonnage
-            </div>
-            <div className="font-semibold text-sm">
-              {fmt(building.assemblyTonnage, 3)} t
-            </div>
-            {building.weight !== null && (
-              <div className="text-xs text-muted-foreground">Manual: {fmt(building.weight, 3)} t</div>
+          {/* Project meta */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+            <Badge
+              variant="outline"
+              className={statusColors[project.status] ?? 'bg-slate-100 text-slate-700'}
+            >
+              {project.status}
+            </Badge>
+            <span className="font-mono text-muted-foreground text-xs">{project.projectNumber}</span>
+            {project.client && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Building2 className="w-3.5 h-3.5" />
+                {project.client.name}
+              </span>
+            )}
+            {project.projectManager && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <User className="w-3.5 h-3.5" />
+                {project.projectManager.name}
+              </span>
+            )}
+            {project.contractDate && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <CalendarDays className="w-3.5 h-3.5" />
+                {fmtDate(project.contractDate)}
+              </span>
             )}
           </div>
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-            <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-              <Ruler className="w-3 h-3" /> Total Area
-            </div>
-            <div className="font-semibold text-sm">{fmt(building.totalArea)} m²</div>
-            <div className="text-xs text-muted-foreground">Purlin: {fmt(building.purlinArea)} m²</div>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-            <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-              <Paintbrush className="w-3 h-3" /> Paintable Area
-            </div>
-            <div className="font-semibold text-sm">{fmt(building.paintableArea)} m²</div>
-            <div className="text-xs text-muted-foreground">Total − Purlin</div>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border">
-            <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-              <Layers className="w-3 h-3" /> Coating
-            </div>
-            <div className="font-semibold text-sm">
-              {coatCount > 0 ? `${coatCount} coat${coatCount !== 1 ? 's' : ''}` : '—'}
-            </div>
-            {project.topCoatRalNumber && (
-              <div className="text-xs text-muted-foreground">RAL {project.topCoatRalNumber}</div>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-
-      {expanded && (
-        <CardContent className="pt-5 space-y-6">
-          {/* Coating System */}
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Paintbrush className="w-3.5 h-3.5" /> Coating System
-            </h4>
-            <CoatingSystem project={project} />
-          </div>
-
-          {/* Steel */}
-          {steelScopes.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Package className="w-3.5 h-3.5" /> Steel Structure
-              </h4>
-              <div className="space-y-2">
-                {steelScopes.map((s) => <ScopeSection key={s.id} scope={s} />)}
-              </div>
-            </div>
-          )}
-
-          {/* Roof Sheeting */}
-          {roofScopes.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <PanelTop className="w-3.5 h-3.5" /> Roof Sheeting
-              </h4>
-              <div className="space-y-2">
-                {roofScopes.map((s) => <ScopeSection key={s.id} scope={s} />)}
-              </div>
-            </div>
-          )}
-
-          {/* Wall Sheeting */}
-          {wallScopes.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <PanelLeft className="w-3.5 h-3.5" /> Wall Sheeting
-              </h4>
-              <div className="space-y-2">
-                {wallScopes.map((s) => <ScopeSection key={s.id} scope={s} />)}
-              </div>
-            </div>
-          )}
-
-          {/* Deck Panel */}
-          {deckScopes.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Bolt className="w-3.5 h-3.5" /> Deck Panel
-              </h4>
-              <div className="space-y-2">
-                {deckScopes.map((s) => <ScopeSection key={s.id} scope={s} />)}
-              </div>
-            </div>
-          )}
-
-          {/* Other scopes */}
-          {otherScopes.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Package className="w-3.5 h-3.5" /> Other Scopes
-              </h4>
-              <div className="space-y-2">
-                {otherScopes.map((s) => <ScopeSection key={s.id} scope={s} />)}
-              </div>
-            </div>
-          )}
-
-          {building.scopeOfWorks.length === 0 && (
-            <p className="text-sm text-muted-foreground italic">No scope of work defined for this building.</p>
-          )}
         </CardContent>
-      )}
-    </Card>
-  );
-}
+      </Card>
 
-export function BuildingDetailsClient({
-  project,
-  buildings,
-}: {
-  project: ProjectData;
-  buildings: BuildingData[];
-}) {
-  const totalTonnage = buildings.reduce((s, b) => s + b.assemblyTonnage, 0);
-  const totalArea = buildings.reduce((s, b) => s + b.totalArea, 0);
-  const totalPaintable = buildings.reduce((s, b) => s + b.paintableArea, 0);
+      {/* ── Building selector ── */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 flex-shrink-0"
+          disabled={selectedBuildingId === null}
+          onClick={goPrevBuilding}
+          title="Previous building"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
 
-  return (
-    <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Back + Title */}
-      <div className="flex items-center gap-3">
-        <Link href={`/projects/${project.id}`}>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold leading-tight">Building Details</h1>
-          <p className="text-sm text-muted-foreground">{project.projectNumber} · {project.name}</p>
+        <div className="flex-1 flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+          <button
+            onClick={() => setSelectedBuildingId(null)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+              selectedBuildingId === null
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background text-muted-foreground border-border hover:bg-accent'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <LayoutGrid className="w-3.5 h-3.5" />
+              All
+            </span>
+          </button>
+          {buildings.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setSelectedBuildingId(b.id)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                selectedBuildingId === b.id
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-accent'
+              }`}
+              title={b.name ?? undefined}
+            >
+              {b.designation || b.name || '?'}
+            </button>
+          ))}
         </div>
+
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 flex-shrink-0"
+          disabled={selectedBuildingId !== null && !nextBuilding}
+          onClick={goNextBuilding}
+          title="Next building"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </Button>
       </div>
 
-      {/* Project-level KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* ── KPI strip ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Buildings</div>
-          <div className="text-2xl font-bold">{buildings.length}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+            <Building2 className="w-3 h-3" />
+            {selectedBuilding ? 'Building' : 'Buildings'}
+          </div>
+          {selectedBuilding ? (
+            <>
+              <div className="text-xl font-bold">{selectedBuilding.designation || '—'}</div>
+              {selectedBuilding.name && selectedBuilding.name !== selectedBuilding.designation && (
+                <div className="text-xs text-muted-foreground mt-0.5">{selectedBuilding.name}</div>
+              )}
+              {selectedBuilding.location && (
+                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-0.5">
+                  <MapPin className="w-2.5 h-2.5" />{selectedBuilding.location}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-2xl font-bold">{buildings.length}</div>
+          )}
         </Card>
+
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Tonnage</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+            <Weight className="w-3 h-3" /> Tonnage
+          </div>
           <div className="text-2xl font-bold">{fmt(totalTonnage, 2)} t</div>
-          {project.contractualTonnage && (
+          {project.contractualTonnage && !selectedBuilding && (
             <div className="text-xs text-muted-foreground mt-0.5">
               Contract: {fmt(project.contractualTonnage, 2)} t
             </div>
           )}
+          {selectedBuilding?.weight !== null && selectedBuilding && (
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Manual: {fmt(selectedBuilding.weight ?? 0, 2)} t
+            </div>
+          )}
         </Card>
+
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Area</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+            <Ruler className="w-3 h-3" /> Total Area
+          </div>
           <div className="text-2xl font-bold">{fmt(totalArea)} m²</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            Purlin: {fmt(kpiBuildings.reduce((s, b) => s + b.purlinArea, 0))} m²
+          </div>
         </Card>
+
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Paintable Area</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+            <Paintbrush className="w-3 h-3" /> Paintable Area
+          </div>
           <div className="text-2xl font-bold">{fmt(totalPaintable)} m²</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {coatCount > 0 ? `${coatCount} coat${coatCount !== 1 ? 's' : ''}` : 'Coating not set'}
+          </div>
         </Card>
       </div>
 
-      {/* Building cards */}
-      {buildings.length === 0 ? (
-        <Card className="p-8 text-center">
-          <Building2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No buildings found for this project.</p>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {buildings.map((b) => (
-            <BuildingCard key={b.id} building={b} project={project} />
-          ))}
-        </div>
+      {/* ── Technical Information ── */}
+      <Section title="Technical Information" icon={<Wrench className="w-3.5 h-3.5" />}>
+        <TechnicalInfo project={project} />
+      </Section>
+
+      {/* ── Coating System ── */}
+      <Section title="Coating System" icon={<Paintbrush className="w-3.5 h-3.5" />}>
+        <CoatingSystem project={project} />
+      </Section>
+
+      {/* ── Stage Durations ── */}
+      <Section title="Stage Durations" icon={<Clock className="w-3.5 h-3.5" />}>
+        <StageDurations project={project} />
+      </Section>
+
+      {/* ── Scope of Work ── */}
+      <Section title={selectedBuilding ? `Scope — ${selectedBuilding.designation || selectedBuilding.name}` : 'Scope of Work — All Buildings'} icon={<Layers className="w-3.5 h-3.5" />}>
+        {selectedBuilding ? (
+          // Per-building detail view
+          <div className="space-y-5">
+            {(['steel', 'roof_sheeting', 'wall_sheeting', 'deck_panel', 'metal_work', 'other'] as const).map((type) => {
+              const scopes = displayScopes.filter((s) => s.scopeType === type);
+              if (scopes.length === 0) return null;
+              const icons: Record<string, ReactNode> = {
+                steel: <Package className="w-3.5 h-3.5" />,
+                roof_sheeting: <PanelTop className="w-3.5 h-3.5" />,
+                wall_sheeting: <PanelLeft className="w-3.5 h-3.5" />,
+                deck_panel: <Bolt className="w-3.5 h-3.5" />,
+                metal_work: <Wrench className="w-3.5 h-3.5" />,
+                other: <Package className="w-3.5 h-3.5" />,
+              };
+              const labels: Record<string, string> = {
+                steel: 'Steel Structure',
+                roof_sheeting: 'Roof Sheeting',
+                wall_sheeting: 'Wall Sheeting',
+                deck_panel: 'Deck Panel',
+                metal_work: 'Metal Work',
+                other: 'Other',
+              };
+              return (
+                <div key={type}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                    {icons[type]} {labels[type]}
+                  </h4>
+                  <div className="space-y-2">
+                    {scopes.map((s) => <ScopeSection key={s.id} scope={s} />)}
+                  </div>
+                </div>
+              );
+            })}
+            {displayScopes.length === 0 && (
+              <p className="text-sm text-muted-foreground italic">No scope of work defined for this building.</p>
+            )}
+          </div>
+        ) : (
+          // Aggregated view across all buildings
+          aggScopes.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No scope of work defined.</p>
+          ) : (
+            <div className="space-y-2">
+              {aggScopes.map((agg, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 border rounded-lg p-3 bg-card"
+                >
+                  <ScopeBadge scopeType={agg.scopeType} />
+                  <span className="text-sm font-medium flex-1">{agg.scopeLabel}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {agg.totalQty > 0 ? `${fmt(agg.totalQty)} ${agg.unit ?? ''}` : '—'}
+                  </span>
+                  <span className="text-xs text-muted-foreground hidden sm:block">
+                    {agg.buildings.join(', ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </Section>
+
+      {/* ── Per-building breakdown (only in All view) ── */}
+      {!selectedBuilding && buildings.length > 0 && (
+        <Section title="Buildings Breakdown" icon={<Building2 className="w-3.5 h-3.5" />} defaultOpen={false}>
+          <div className="space-y-3">
+            {buildings.map((b) => (
+              <div
+                key={b.id}
+                className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                onClick={() => setSelectedBuildingId(b.id)}
+              >
+                <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{b.designation || b.name || 'Unnamed'}</p>
+                  {b.designation && b.name && b.name !== b.designation && (
+                    <p className="text-xs text-muted-foreground">{b.name}</p>
+                  )}
+                  {b.location && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-0.5">
+                      <MapPin className="w-2.5 h-2.5" />{b.location}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0 text-sm">
+                  <p className="font-semibold">{fmt(b.assemblyTonnage, 2)} t</p>
+                  <p className="text-xs text-muted-foreground">{fmt(b.totalArea)} m²</p>
+                </div>
+                <div className="flex gap-1 flex-wrap justify-end max-w-[140px] hidden sm:flex">
+                  {b.scopeOfWorks.slice(0, 3).map((s) => (
+                    <ScopeBadge key={s.id} scopeType={s.scopeType} />
+                  ))}
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              </div>
+            ))}
+          </div>
+        </Section>
       )}
     </div>
   );

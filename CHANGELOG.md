@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.15.0] - 2026-05-07
+
+### Project Card
+
+#### Added
+- **Project Card page** at `/projects/[id]/buildings` (sidebar: Projects → Project Card) — comprehensive project/building viewer replacing the old Building Details page.
+- **Project selector** — dropdown + previous/next arrow navigation to switch between all projects without leaving the page.
+- **Building tabs** — horizontal tab strip with previous/next arrows; an "All" tab aggregates quantities across all buildings when no specific building is selected.
+- **Technical Information section** — displays cranes included, third-party inspection (required + responsibility), incoterm, erection subcontractor, structure type, welding process/WPS/PQR, NDT test, applicable codes, and area/m²-per-tonne ratio.
+- **Coating System section** — coating name, number of coats, galvanization microns, paint coats with DFT, and top-coat RAL colour chip.
+- **Stage Durations section** — engineering, operations, and site week ranges rendered as visual progress bars with planned start/end dates.
+- **Aggregated scope view** — when "All Buildings" is selected, scope rows are grouped by type and show total quantities with contributing building labels.
+- **Buildings Breakdown card** — collapsible list of all buildings with tonnage, area, and scope badges; clicking a row switches to that building's detail view.
+- **`/project-card` route** — sidebar shortcut that redirects to the first active project's card (falls back to any project, then `/projects`).
+
+---
+
 ## [22.14.0] - 2026-05-07
 
 ### Bug Fixes, Task Scope & Building Details
