@@ -30,6 +30,18 @@ const assemblyPartSchema = z.object({
   netWeightTotal: z.number().optional().nullable(),
 });
 
+async function resolveSteelScopeId(projectId: string, buildingId: string | null | undefined): Promise<string | null> {
+  const scope = await prisma.scopeOfWork.findFirst({
+    where: {
+      projectId,
+      ...(buildingId ? { buildingId } : {}),
+      scopeType: 'steel',
+    },
+    select: { id: true },
+  });
+  return scope?.id ?? null;
+}
+
 async function generatePartDesignation(
   projectId: string,
   buildingId: string | null,
@@ -318,11 +330,15 @@ export async function POST(req: Request) {
             itemData.assemblyMark
           );
 
+          const resolvedScopeId = itemData.scopeOfWorkId
+            ?? await resolveSteelScopeId(itemData.projectId, itemData.buildingId);
+
           const assemblyPart = await prisma.assemblyPart.create({
             data: {
               ...itemData,
               partMark: itemData.partMark ?? '',
               partDesignation,
+              scopeOfWorkId: resolvedScopeId,
               source: 'Upload',
               createdById: session.sub,
             },
@@ -405,11 +421,15 @@ export async function POST(req: Request) {
       parsed.data.assemblyMark
     );
 
+    const resolvedScopeId = parsed.data.scopeOfWorkId
+      ?? await resolveSteelScopeId(parsed.data.projectId, parsed.data.buildingId);
+
     const assemblyPart = await prisma.assemblyPart.create({
       data: {
         ...parsed.data,
         partMark: parsed.data.partMark ?? '',
         partDesignation,
+        scopeOfWorkId: resolvedScopeId,
         source: 'Upload',
         createdById: session.sub,
       },

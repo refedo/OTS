@@ -30,7 +30,7 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
 
 // ─── Contract number generation ───────────────────────────────────────────────
 
-export function generateContractNumber(
+function buildContractBase(
   projectNumber: string,
   buildingDesignation: string | null,
   scopeTypes: string[]
@@ -41,6 +41,19 @@ export function generateContractNumber(
     return `${projectNumber}-${buildingDesignation.toUpperCase()}-${scopePart}`;
   }
   return `${projectNumber}-${scopePart}`;
+}
+
+export async function generateContractNumber(
+  projectNumber: string,
+  buildingDesignation: string | null,
+  scopeTypes: string[]
+): Promise<string> {
+  const base = buildContractBase(projectNumber, buildingDesignation, scopeTypes);
+  const existing = await prisma.subcontractorContract.count({
+    where: { contractNumber: { startsWith: base } },
+  });
+  if (existing === 0) return base;
+  return `${base}-${existing + 1}`;
 }
 
 export function generateCertificateNumber(contractNumber: string, sequence: number): string {

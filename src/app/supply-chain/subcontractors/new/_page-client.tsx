@@ -58,10 +58,10 @@ export default function NewSubcontractorContractPage() {
   const [submitAction, setSubmitAction] = useState<'draft' | 'submit'>('draft');
 
   const fetchProjects = useCallback(async () => {
-    const res = await fetch('/api/projects');
+    const res = await fetch('/api/projects?status=Active');
     if (res.ok) {
       const data = await res.json() as Project[];
-      setProjects(data);
+      setProjects(Array.isArray(data) ? data : []);
     }
   }, []);
 
@@ -152,8 +152,8 @@ export default function NewSubcontractorContractPage() {
 
   const milestoneTotal = paymentTerms.reduce((s, m) => s + m.percentage, 0);
 
-  const canProceed = () => {
-    if (step === 0) return selectedProject && selectedSupplier;
+  const canProceed = (): boolean => {
+    if (step === 0) return !!(selectedProject && selectedSupplier);
     if (step === 1) return selectedScopeTypes.length > 0;
     return true;
   };

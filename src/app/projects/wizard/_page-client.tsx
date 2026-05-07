@@ -262,13 +262,14 @@ export default function ProjectSetupWizard() {
         if (project.downPaymentDate) setDownPaymentDate(project.downPaymentDate.split('T')[0]);
         if (project.contractValue) setContractValue(String(project.contractValue));
 
-        // Restore wizard state from remarks
+        // Restore wizard state from remarks (draft saves)
+        let sowRestoredFromRemarks = false;
         if (project.remarks) {
           try {
             const parsed = JSON.parse(project.remarks);
             if (parsed?.__wizardDraft && parsed.data) {
               const d = parsed.data;
-              if (d.scopeOfWork) setScopeOfWork(d.scopeOfWork);
+              if (d.scopeOfWork) { setScopeOfWork(d.scopeOfWork); sowRestoredFromRemarks = true; }
               if (d.stageDurations) setStageDurations(d.stageDurations);
               if (d.paymentTerms) setPaymentTerms(d.paymentTerms);
               if (d.coatingCoats) setCoatingCoats(d.coatingCoats);
@@ -282,6 +283,33 @@ export default function ProjectSetupWizard() {
               if (parsed.step) setCurrentStep(parsed.step);
             }
           } catch {}
+        }
+
+        // Restore SoW checkboxes from project's scopeOfWork text when not available in draft.
+        // The text field stores the selected scope labels line-by-line.
+        if (!sowRestoredFromRemarks && project.scopeOfWork) {
+          const text = project.scopeOfWork as string;
+          setScopeOfWork(
+            SCOPE_OPTIONS.map(opt => ({
+              ...opt,
+              checked: text.includes(opt.label),
+            }))
+          );
+        }
+
+        // Restore technical specs from project fields when not in draft
+        if (!project.remarks || !JSON.parse(project.remarks || 'null')?.__wizardDraft) {
+          if (project.cranesIncluded !== undefined) setCranesIncluded(!!project.cranesIncluded);
+          if (project.surveyorOurScope !== undefined) setSurveyorIncluded(!!project.surveyorOurScope);
+          if (project.thirdPartyRequired !== undefined) setThirdPartyRequired(!!project.thirdPartyRequired);
+          if (project.thirdPartyResponsibility) setThirdPartyResponsibility(project.thirdPartyResponsibility as 'our' | 'customer');
+          if (project.engineeringWeeksMin || project.engineeringWeeksMax || project.operationsWeeksMin || project.operationsWeeksMax || project.siteWeeksMin || project.siteWeeksMax) {
+            setStageDurations([
+              { stage: 'engineering', label: 'Engineering', durationWeeksMin: project.engineeringWeeksMin ?? 0, durationWeeksMax: project.engineeringWeeksMax ?? 0 },
+              { stage: 'operations', label: 'Operations', durationWeeksMin: project.operationsWeeksMin ?? 0, durationWeeksMax: project.operationsWeeksMax ?? 0 },
+              { stage: 'site', label: 'Site', durationWeeksMin: project.siteWeeksMin ?? 0, durationWeeksMax: project.siteWeeksMax ?? 0 },
+            ]);
+          }
         }
 
         // Also load buildings from API if wizard data didn't have them

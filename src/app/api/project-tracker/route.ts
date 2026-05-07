@@ -119,8 +119,10 @@ export const GET = withApiContext(async (req, session) => {
                   const hasActivityConfig = scope.activities.length > 0;
                   const scopeActivities = activities.map((act) => ({
                     ...act,
+                    // If an activity type has no explicit config entry, default to applicable
+                    // (true). Only an explicit isApplicable=false record hides the column.
                     isApplicable: hasActivityConfig
-                      ? (applicableMap.get(act.activityType) ?? false)
+                      ? (applicableMap.get(act.activityType) ?? true)
                       : true,
                   }));
                   const applicable = scopeActivities.filter((a) => a.isApplicable);
