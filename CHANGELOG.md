@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.0.2] - 2026-05-07
+
+### Building Details, Subcontractor Form, Project Card & Tracker Fixes
+
+#### Fixed
+- **Subcontractor contract form crash** — `Select.Item` with `value=""` caused a React error; replaced sentinel value `"__none__"` to represent "no building selected" while keeping internal state as empty string.
+- **Building dialog missing fields** — Edit building dialog now includes **Location** and **Tonnage (weight)** fields; the buildings API now returns `description`, `location`, and `weight` in its response.
+- **Scope of Work section invisible for new buildings** — Project detail page now renders the Scope of Work & Activities panel even when no scopes exist, exposing the "Edit Scopes" button so users can navigate to the wizard.
+- **Project status tracker accordion — building progress not visible** — Multi-scope building accordion header rows now show the building's **Overall** progress cell (previously all columns were merged and progress was hidden until expanding).
+
+#### Changed
+- **Project card layout** — Widened from `max-w-5xl` to `max-w-7xl` to better use available screen space.
+- Version bumped to **23.0.2**
+
+---
+
 ## [23.0.1] - 2026-05-07
 
 ### 404 Fix, Sidebar Modules, Activity Unification & Task SoW Column

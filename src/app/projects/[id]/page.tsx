@@ -78,7 +78,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       {scopeSchedules.length > 0 && (
         <ScopeSchedulesView schedules={scopeSchedules} />
       )}
-      {scopeOfWorks.length > 0 && (
+      {buildings.length > 0 && (
         <BuildingScopesView
           buildings={buildings}
           scopeOfWorks={scopeOfWorks}
