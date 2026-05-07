@@ -39,6 +39,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   
   // Projects
   '/projects-dashboard': ['projects.view', 'projects.view_all'],
+  '/project-card': ['projects.view', 'projects.view_all'],
   '/projects': ['projects.view', 'projects.view_all'],
   '/projects/kickoff': ['projects.view', 'projects.view_all'],
   '/buildings': ['buildings.view'],

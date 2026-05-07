@@ -5,7 +5,7 @@ export const MAIN_ACTIVITIES = [
   { key: 'procurement', label: 'Procurement' },
   { key: 'production', label: 'Production' },
   { key: 'coating', label: 'Coating' },
-  { key: 'delivery_logistics', label: 'Delivery & Logistics' },
+  { key: 'delivery', label: 'Delivery' },
   { key: 'erection', label: 'Erection' },
 ] as const;
 
@@ -42,7 +42,7 @@ export const SUB_ACTIVITIES: Record<string, { key: string; label: string }[]> = 
     { key: 'painting', label: 'Painting' },
     { key: 'galvanization', label: 'Galvanization' },
   ],
-  delivery_logistics: [
+  delivery: [
     { key: 'dispatch_sand_blasting', label: 'Dispatch to Sand Blasting' },
     { key: 'dispatch_customer', label: 'Dispatch to Customer' },
   ],
@@ -71,7 +71,7 @@ export const SUB_ACTIVITY_DEPENDENCIES: Record<string, string> = {
   fabrication: 'preparation',
   // Coating
   painting: 'sand_blasting',
-  // Delivery & Logistics
+  // Delivery
   dispatch_customer: 'dispatch_sand_blasting',
   // Erection
   erection_steel: 'erection_anchor_bolts',

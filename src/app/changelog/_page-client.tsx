@@ -23,10 +23,41 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '23.0.1',
+    date: 'May 7, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: '404 Fix, Sidebar Modules, Activity Unification & Task SoW Column',
+    highlights: [
+      'Fixed /subcontractor-contracts returning 404 — now redirects to /supply-chain/subcontractors.',
+      'Project Card and SC Contracts now appear in sidebar for admin/CEO users — navigation permissions patched and admin navPermissions resolution fixed.',
+      'Unified activity name: "Dispatch" renamed to "Delivery" across all modules (tracker, wizard, task activities, EWS, planning, DB migration).',
+      'Tasks table gains a Scope of Work column between Building and Main Activity — shows which SoW scope the task belongs to.',
+      'DB migration v23.0.1: renames BuildingActivity.activityType dispatch→delivery and Task.mainActivity delivery_logistics→delivery.',
+    ],
+    changes: {
+      added: [
+        '/subcontractor-contracts redirect page — navigates to /supply-chain/subcontractors to fix 404 for bookmarked URLs.',
+        'Scope of Work column in tasks flat-list table between Building and Main Activity columns.',
+        'DB migration v23.0.1: renames dispatch→delivery in BuildingActivity; renames delivery_logistics→delivery in Task.mainActivity.',
+      ],
+      fixed: [
+        'Project Card sidebar entry missing — /project-card added to NAVIGATION_PERMISSIONS with projects.view/projects.view_all.',
+        'SC Contracts sidebar entry missing for admin/CEO — auth/me now returns full resolved permissions as navPermissions for isAdmin users, ensuring all new modules are visible.',
+        'Project tracker showing 0% / N/A for delivery column — TRACKER_COLUMNS type and PRODUCTION_PROCESS_TYPES key updated from "dispatch" to "delivery".',
+      ],
+      changed: [
+        'Activity name unified: "dispatch" → "delivery" in TRACKER_COLUMNS, wizard SCOPE_ACTIVITY_DEFAULTS, building-activities API, EWS engine, planning stages, google-sheets-sync, and project-tracker client.',
+        'Activity name unified: "delivery_logistics" → "delivery" in MAIN_ACTIVITIES and SUB_ACTIVITIES (activity-constants.ts).',
+        'Version bumped to 23.0.1',
+      ],
+    },
+  },
+  {
     version: '23.0.0',
     date: 'May 7, 2026',
     type: 'major',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Subcontractor Contracts Module',
     highlights: [
       'New Subcontractor Contracts module — full lifecycle for COGS/installation subcontractors: create, approve, activate, progress certificates, and dashboard.',
@@ -57,6 +88,69 @@ const hardcodedVersions: ChangelogVersion[] = [
       fixed: [],
       changed: [
         'Version bumped to 23.0.0 (major release).',
+      ],
+    },
+  },
+  {
+    version: '22.15.0',
+    date: 'May 7, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'Project Card',
+    highlights: [
+      'New Project Card page at /projects/[id]/buildings — comprehensive per-building viewer with technical info, coating system, stage durations, and scope aggregation.',
+      'Project selector with previous/next arrow navigation; building tabs with "All" aggregate view.',
+      'Technical Information: cranes, third-party inspection, incoterm, erection subcontractor, structure type, welding details, NDT, applicable codes, area/tonne ratio.',
+      'Coating System: coating name, coats, galvanization microns, paint DFT, top-coat RAL chip.',
+      'Stage Durations: engineering, operations, and site week ranges with visual progress bars.',
+      '/project-card sidebar shortcut redirects to first active project (falls back to any project, then /projects).',
+    ],
+    changes: {
+      added: [
+        'Project Card page at /projects/[id]/buildings with full building detail view.',
+        'Project selector dropdown + previous/next arrows to navigate between all projects.',
+        'Building tab strip with previous/next navigation; "All" tab aggregates quantities across buildings.',
+        'Technical Information section: cranes, 3rd-party inspection (required + responsibility), incoterm, erection subcontractor, structure type, welding process/WPS/PQR, NDT test, applicable codes, area/m²-per-tonne.',
+        'Coating System section: coating name, coats count, galvanization microns, paint coats with DFT, top-coat RAL colour chip.',
+        'Stage Durations section: engineering, operations, site week ranges as visual progress bars with planned start/end dates.',
+        'Buildings Breakdown card: collapsible list of all buildings with tonnage, area, scope badges; clicking switches to that building.',
+        '/project-card route: sidebar shortcut redirecting to first active project\'s buildings page.',
+      ],
+      fixed: [],
+      changed: [
+        'Version bumped to 22.15.0',
+      ],
+    },
+  },
+  {
+    version: '22.14.0',
+    date: 'May 7, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Bug Fixes, Task Scope & Building Details',
+    highlights: [
+      'Assembly parts API: fixed PostgreSQL-only mode insensitive and missing soft-delete filter.',
+      'Project tracker API: fixed 500 error from missing ScopeOfWork/BuildingActivity tables — added missing migrations to startup list.',
+      'Project edit mode: min/max week duration fields now render in edit mode.',
+      'Building Details page at /projects/[id]/buildings with per-building cards: assembly tonnage, total area, paintable area, coating system, panel specs, and scope badges.',
+      'Task scope column: scopeOfWorkId FK added to Task; auto-selects steel scope for single-scope buildings.',
+    ],
+    changes: {
+      added: [
+        'Building Details page at /projects/[id]/buildings: per-building assembly tonnage, total area, paintable area (total − purlin), coating system with RAL color, sandwich panel specs (wall/roof: thickness, upper/lower sheet, rib height, profile), deck panel specs, and scope badges.',
+        'Task scopeOfWorkId FK: added to Task table; create/edit form auto-selects steel scope for single-scope buildings, shows dropdown when multiple scopes exist; existing tasks backfilled to steel scope.',
+        'Scope of work inline editing from project detail page: edit quantity, unit, RAL color, and specification per scope row.',
+        'Project tracker expansion: steel-only buildings render as flat rows (no accordion); all buildings expand by default; Expand All / Collapse All buttons in header.',
+        'add_scope_of_work.sql and all v22.13 migrations added to startup-migrations list.',
+      ],
+      fixed: [
+        'Assembly parts API: removed PostgreSQL-only mode: insensitive from Prisma purlin aggregate query (MySQL is case-insensitive by default); added missing deletedAt: null filter.',
+        'Project tracker API: 500 error from ScopeOfWork/BuildingActivity tables not existing on production — migrations now run on server start.',
+        'Project edit mode duration fields: min/max week fields for engineering, operations, and site now render in edit mode.',
+        'Project edit tabs: scope definition/edit tab removed; 4 tabs remain.',
+      ],
+      changed: [
+        'Version bumped to 22.14.0',
       ],
     },
   },

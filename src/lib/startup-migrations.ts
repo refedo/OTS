@@ -153,6 +153,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v23.0.0 — Subcontractor Contracts Module ──────────────────────────────
   'v23_0_subcontractor_contracts.sql',  // SubcontractorContract + SubcontractorPaymentCertificate tables
+
+  // ── v23.0.1 — Activity name unification ───────────────────────────────────
+  'v23_0_1_unify_activity_names.sql',   // Rename dispatch→delivery in BuildingActivity; delivery_logistics→delivery in Task
 ];
 
 /**

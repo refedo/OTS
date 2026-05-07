@@ -57,7 +57,7 @@ const SCOPE_OPTIONS = [
   { id: 'painting', label: 'Painting' },
   { id: 'roofSheeting', label: 'Roof Sheeting' },
   { id: 'wallSheeting', label: 'Wall Sheeting' },
-  { id: 'delivery', label: 'Delivery & Logistics' },
+  { id: 'delivery', label: 'Delivery' },
   { id: 'erection', label: 'Erection' },
 ];
 

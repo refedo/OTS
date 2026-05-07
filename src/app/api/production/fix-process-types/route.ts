@@ -56,6 +56,7 @@ const CANONICAL_MAP: Record<string, string> = {
   'erect': 'Erection',
 
   // Dispatched to Sandblasting
+  'delivery': 'Dispatched to Sandblasting',
   'dispatch': 'Dispatched to Sandblasting',
   'dispatched to sandblasting': 'Dispatched to Sandblasting',
   'dispatch to sandblasting': 'Dispatched to Sandblasting',

@@ -96,6 +96,9 @@ export async function GET(
       building: {
         select: { id: true, designation: true, name: true },
       },
+      scopeOfWork: {
+        select: { id: true, scopeType: true, scopeLabel: true },
+      },
       department: {
         select: { id: true, name: true },
       },
@@ -362,6 +365,9 @@ export async function PATCH(
       },
       building: {
         select: { id: true, designation: true, name: true },
+      },
+      scopeOfWork: {
+        select: { id: true, scopeType: true, scopeLabel: true },
       },
       department: {
         select: { id: true, name: true },

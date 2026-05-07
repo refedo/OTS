@@ -26,7 +26,7 @@ import crypto from 'crypto';
 import { getProjectActivitySummaries, ACTIVITY_LABELS, type ProjectActivitySummary } from '@/lib/services/project-tracker.service';
 
 // Maps WorkUnit.type values to the tracker activity columns they correspond to.
-// Sequence starts from DESIGN: DESIGN → DETAILING → PROCUREMENT → PRODUCTION → COATING → DISPATCH → ERECTION
+// Sequence starts from DESIGN: DESIGN → DETAILING → PROCUREMENT → PRODUCTION → COATING → DELIVERY → ERECTION
 // Used to cross-check plan-based alerts against real execution progress in the tracker.
 const WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES: Record<string, string[]> = {
   DOCUMENTATION: [], // arch approval removed from tracker — no tracker column to cross-check
@@ -35,7 +35,7 @@ const WORK_UNIT_TYPE_TO_TRACKER_ACTIVITIES: Record<string, string[]> = {
   PROCUREMENT:   ['procurement'],
   PRODUCTION:    ['production'],
   COATING:       ['coating'],
-  DISPATCH:      ['dispatch'],
+  DISPATCH:      ['delivery'],
   ERECTION:      ['erection'],
   QC:            [], // cross-cutting, no dedicated tracker column
 };

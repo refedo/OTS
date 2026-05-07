@@ -53,6 +53,7 @@ type Task = {
   releaseDate: string | null;
   project: { id: string; projectNumber: string; name: string } | null;
   building: { id: string; designation: string; name: string } | null;
+  scopeOfWork: { id: string; scopeType: string; scopeLabel: string } | null;
   department: { id: string; name: string } | null;
   mainActivity: string | null;
   subActivity: string | null;
@@ -1708,6 +1709,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('building')}>
                       <div className="flex items-center">Building {getSortIcon('building')}</div>
                     </TableHead>
+                    <TableHead>Scope</TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort('mainActivity')}>
                       Main Activity{getSortIcon('mainActivity')}
                     </TableHead>
@@ -1843,6 +1845,7 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                             ))}
                         </select>
                       </TableCell>
+                      <TableCell></TableCell>
                       <TableCell>
                         <select
                           value={quickAddData.mainActivity}
@@ -2217,6 +2220,14 @@ export function TasksClient({ initialTasks, userId, allUsers, allProjects, allBu
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )
+                        )}
+                      </TableCell>
+                      {/* Scope of Work */}
+                      <TableCell>
+                        {task.scopeOfWork ? (
+                          <span className="text-sm">{task.scopeOfWork.scopeLabel}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
                       <TableCell>

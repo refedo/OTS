@@ -25,8 +25,9 @@ export async function GET() {
   });
 
   // navPermissions reflects the role's selected permissions for sidebar visibility.
-  // Admins still get full API access above, but sidebar respects role deselections.
-  const navPermissions = (user.role.permissions as string[]) || [];
+  // Admins get all resolved permissions so new modules are always visible.
+  // Non-admins respect their role's explicit permission selections.
+  const navPermissions = user.isAdmin ? permissions : (user.role.permissions as string[]) || [];
 
   return NextResponse.json({
     id: user.id,

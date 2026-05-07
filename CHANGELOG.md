@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.0.1] - 2026-05-07
+
+### 404 Fix, Sidebar Modules, Activity Unification & Task SoW Column
+
+#### Fixed
+- **Subcontractor-contracts 404** — `/subcontractor-contracts` now redirects to `/supply-chain/subcontractors`.
+- **Project Card missing from sidebar** — `/project-card` added to `NAVIGATION_PERMISSIONS` with `projects.view` / `projects.view_all`.
+- **SC Contracts missing from sidebar (CEO/Admin)** — `auth/me` now returns fully-resolved permissions as `navPermissions` for `isAdmin` users; new modules are always visible to admins regardless of DB role cache.
+- **Project tracker Delivery column showing 0%/N/A** — `TRACKER_COLUMNS` type and `PRODUCTION_PROCESS_TYPES` key updated from `dispatch` to `delivery`.
+
+#### Added
+- **Scope of Work column** in tasks flat-list table — shown between Building and Main Activity columns, displaying the SoW scope label for each task.
+- **DB migration v23.0.1** — renames `BuildingActivity.activityType` `dispatch` → `delivery`; renames `Task.mainActivity` `delivery_logistics` → `delivery`.
+
+#### Changed
+- **Unified activity name** — `dispatch` renamed to `delivery` across TRACKER_COLUMNS, wizard SCOPE_ACTIVITY_DEFAULTS, building-activities API, EWS engine, planning stages, google-sheets-sync, and project-tracker client.
+- **Unified activity name** — `delivery_logistics` renamed to `delivery` in MAIN_ACTIVITIES and SUB_ACTIVITIES (activity-constants.ts).
+- Version bumped to **23.0.1**
+
+---
+
 ## [23.0.0] - 2026-05-07
 
 ### Subcontractor Contracts Module

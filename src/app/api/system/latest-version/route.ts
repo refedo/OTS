@@ -8,26 +8,27 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 const CURRENT_VERSION = {
   version: pkgVersion,
   date: 'May 7, 2026',
-  type: 'minor' as const,
-  mainTitle: 'Project Card',
+  type: 'patch' as const,
+  mainTitle: '404 Fix, Sidebar Modules & Activity Unification',
   highlights: [
-    'New Project Card page — full project overview with project & building navigation, technical specs, coating, stage durations, and scope aggregation.',
-    'Switch projects and buildings using arrow buttons or dropdowns without leaving the page.',
-    'Aggregated "All Buildings" view shows combined tonnage, area, and scopes across the entire project.',
+    '/subcontractor-contracts now redirects to /supply-chain/subcontractors instead of returning 404.',
+    'Project Card and SC Contracts now appear in sidebar for admin/CEO users.',
+    'Activity names unified across all modules: "Dispatch" renamed to "Delivery" system-wide.',
+    'Tasks table gains a Scope of Work column between Building and Main Activity.',
   ],
   changes: {
     added: [
-      'Project Card page at /projects/[id]/buildings with project selector (dropdown + prev/next arrows) and building tabs (All + per-building + prev/next arrows).',
-      'Technical Information section: cranes, third-party inspection, incoterm, welding process/WPS/PQR, NDT, applicable codes.',
-      'Coating System section: paint coats, galvanization microns, RAL top-coat colour chip.',
-      'Stage Durations section: engineering / operations / site week ranges displayed as visual progress bars.',
-      'Aggregated scope view when "All Buildings" selected: groups scopes by type with total quantities.',
-      'Buildings Breakdown collapsible card listing all buildings with tonnage, area, and scope badges.',
-      '/project-card sidebar shortcut — redirects to first active project\'s card.',
+      '/subcontractor-contracts redirect page.',
+      'Scope of Work column in tasks table between Building and Main Activity.',
+      'DB migration v23.0.1: dispatch→delivery in BuildingActivity; delivery_logistics→delivery in Task.mainActivity.',
     ],
-    fixed: [],
+    fixed: [
+      'Project Card and SC Contracts missing from sidebar (admin/CEO).',
+      'Project tracker Delivery column showing 0% — TRACKER_COLUMNS updated from dispatch to delivery.',
+    ],
     changed: [
-      'Buildings page renamed to "Project Card" in sidebar and page title.',
+      'Activity "dispatch" renamed to "delivery" across all system modules.',
+      'Activity "delivery_logistics" renamed to "delivery" in task activity constants.',
     ],
   },
 };

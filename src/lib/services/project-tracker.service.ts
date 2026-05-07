@@ -23,7 +23,7 @@ export const TRACKER_COLUMNS = [
   { type: 'procurement', label: 'Procurement' },
   { type: 'production', label: 'Production' },
   { type: 'coating', label: 'Coating' },
-  { type: 'dispatch', label: 'Dispatch' },
+  { type: 'delivery', label: 'Delivery' },
   { type: 'erection', label: 'Erection' },
 ] as const;
 
@@ -43,7 +43,7 @@ const DESIGN_REVISION_ACTIVITIES = new Set(['design', 'detailing']);
 const PRODUCTION_PROCESS_TYPES: Record<string, string[]> = {
   production: ['Fit-up', 'Welding', 'Visualization'],
   coating: ['Sandblasting', 'Painting', 'Galvanization'],
-  dispatch: ['Dispatched to Customer'],
+  delivery: ['Dispatched to Customer'],
   erection: ['Erection'],
 };
 
@@ -322,7 +322,7 @@ async function computeProductionProgress(
     : 0;
 
   const shipmentCount =
-    activityType === 'dispatch'
+    activityType === 'delivery'
       ? (() => {
           const dispatchLogs = logs.filter((l) => l.processType === 'Dispatched to Customer');
           const reportNums = new Set(dispatchLogs.map((l) => l.reportNumber).filter(Boolean));
