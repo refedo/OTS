@@ -748,6 +748,7 @@ model ScopeOfWork {
   building      Building           @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   activities    BuildingActivity[]
   assemblyParts AssemblyPart[]     @relation("AssemblyPartScope")
+  tasks         Task[]             @relation("TaskScope")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -812,6 +813,10 @@ model Task {
   // Building relation (optional)
   buildingId String?   @db.Char(36)
   building   Building? @relation(fields: [buildingId], references: [id])
+
+  // Scope of work (optional — links to per-building ScopeOfWork; defaults to steel scope)
+  scopeOfWorkId String?      @db.Char(36)
+  scopeOfWork   ScopeOfWork? @relation("TaskScope", fields: [scopeOfWorkId], references: [id], onDelete: SetNull)
 
   // Department relation (optional)
   departmentId String?     @db.Char(36)

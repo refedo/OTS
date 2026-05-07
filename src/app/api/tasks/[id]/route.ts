@@ -19,6 +19,7 @@ const updateSchema = z.object({
   requesterId: z.string().uuid().optional().nullable(),
   projectId: z.string().uuid().optional().nullable(),
   buildingId: z.string().uuid().optional().nullable(),
+  scopeOfWorkId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   mainActivity: z.string().optional().nullable(),
   subActivity: z.string().optional().nullable(),

@@ -20,7 +20,12 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight as ChevronRightIcon,
+  Pencil,
+  X,
+  Save,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAlert } from '@/hooks/useAlert';
@@ -193,6 +198,75 @@ function InfoRow({ label, value }: { label: string; value: any }) {
   );
 }
 
+// ── Inline scope editor ────────────────────────────────────────────────────
+function ScopeEditRow({ scope, onSaved }: { scope: any; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [quantity, setQuantity] = useState(scope.quantity ?? '');
+  const [unit, setUnit] = useState(scope.unit ?? (scope.scopeType === 'steel' ? 'ton' : 'm²'));
+  const [ralColor, setRalColor] = useState(scope.ralColor ?? '');
+  const [specification, setSpecification] = useState(scope.specification ?? '');
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/scope-of-work/${scope.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: quantity ? Number(quantity) : null, unit: unit || null, ralColor: ralColor || null, specification: specification || null }),
+      });
+      if (res.ok) { setEditing(false); onSaved(); }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        title="Edit scope"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 p-3 border rounded-lg bg-muted/30 space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Quantity</Label>
+          <Input type="number" step="0.01" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-sm" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Unit</Label>
+          <Input value={unit} onChange={(e) => setUnit(e.target.value)} className="h-8 text-sm" placeholder="ton / m²" />
+        </div>
+        {(scope.scopeType === 'roof_sheeting' || scope.scopeType === 'wall_sheeting') && (
+          <div className="space-y-1">
+            <Label className="text-xs">RAL Color</Label>
+            <Input value={ralColor} onChange={(e) => setRalColor(e.target.value)} className="h-8 text-sm" placeholder="e.g. 9002" />
+          </div>
+        )}
+        <div className="col-span-2 space-y-1">
+          <Label className="text-xs">Specification / Notes</Label>
+          <Input value={specification} onChange={(e) => setSpecification(e.target.value)} className="h-8 text-sm" />
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving} className="h-7 text-xs">
+          <X className="w-3 h-3 mr-1" /> Cancel
+        </Button>
+        <Button size="sm" onClick={save} disabled={saving} className="h-7 text-xs">
+          <Save className="w-3 h-3 mr-1" /> {saving ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 type ProjectDetailsProps = {
   project: any;
   restrictedModules?: string[];
@@ -349,15 +423,17 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
 
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Building2 className="size-4" />
-                <span className="text-sm">Buildings</span>
-              </div>
-              <p className="text-2xl font-bold">{project._count.buildings}</p>
-            </CardContent>
-          </Card>
+          <Link href={`/projects/${project.id}/buildings`}>
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <Building2 className="size-4" />
+                  <span className="text-sm">Buildings</span>
+                </div>
+                <p className="text-2xl font-bold">{project._count.buildings}</p>
+              </CardContent>
+            </Card>
+          </Link>
           
           <Link href={`/tasks?project=${project.id}`}>
             <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
@@ -631,7 +707,7 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
                         <div key={scope.id} className="px-4 py-3">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 space-y-2">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
                                   scope.scopeType === 'steel' ? 'bg-blue-50 border-blue-200 text-blue-700' :
                                   scope.scopeType === 'roof_sheeting' ? 'bg-orange-50 border-orange-200 text-orange-700' :
@@ -647,6 +723,7 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
                                     {scope.quantity} {scope.unit || (scope.scopeType === 'steel' ? 'ton' : 'm²')}
                                   </span>
                                 )}
+                                <ScopeEditRow scope={scope} onSaved={() => router.refresh()} />
                               </div>
 
                               {/* Steel */}

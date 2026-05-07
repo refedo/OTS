@@ -122,7 +122,6 @@ const singleNavigation: NavigationItem[] = [
   { name: 'Ops Agent', href: '/ops-agent', icon: Radar, newSince: '2026-04-16' },
   { name: 'Early Warning', href: '/risk-dashboard', icon: Zap },
   { name: 'Project Status Tracker', href: '/project-tracker', icon: BarChart3 },
-  { name: 'AI Assistant', href: '/ai-assistant', icon: Bot },
 ];
 
 const navigationSections: NavigationSection[] = [
@@ -132,7 +131,6 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'CEO Dashboard', href: '/executive', icon: BarChart3 },
       { name: 'Brainstorm Board', href: '/ceo-arena/brainstorm', icon: Brain, newSince: '2026-04-29' },
-      { name: 'Concentration Risk', href: '/concentration-risk', icon: PieChart, newSince: '2026-05-03' },
     ],
   },
   {
@@ -190,11 +188,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
       { name: 'Kickoff Checklists', href: '/projects/kickoff', icon: ClipboardCheck, newSince: '2026-05-02' },
       { name: 'Project Planning', href: '/planning', icon: Calendar },
-      { name: 'Timeline', href: '/timeline', icon: Calendar },
-      { name: 'Operations Timeline', href: '/operations/dashboard', icon: Clock },
-      { name: 'Event Management', href: '/operations/events', icon: Calendar },
       { name: 'Engineering Timeline', href: '/document-timeline', icon: FileText },
-      { name: 'Detailed Planner', href: '/detailed-project-planner', icon: FileSpreadsheet },
     ],
   },
   {

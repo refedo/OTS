@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [22.14.0] - 2026-05-07
+
+### Bug Fixes, Task Scope & Building Details
+
+#### Fixed
+- **Assembly parts API** (`/api/production/assembly-parts`) — removed PostgreSQL-only `mode: 'insensitive'` from Prisma purlin aggregate query (MySQL uses case-insensitive collation by default); added missing `deletedAt: null` filter.
+- **Project tracker API** (`/api/project-tracker`) — 500 error caused by `ScopeOfWork` / `BuildingActivity` tables not existing on production; added `add_scope_of_work.sql` and all v22.13 migrations to startup-migrations list so they run on server start.
+- **Project edit mode durations** — min/max week fields (engineering, operations, site) now render in edit mode (were visible only in view mode).
+- **Project edit tabs** — scope definition/edit tab removed; only 4 tabs remain.
+
+#### Added
+- **Building Details page** at `/projects/[id]/buildings` — per-building cards with assembly tonnage, total area, paintable area (total − purlin), coating system with RAL color circle, sandwich panel specs (wall/roof: thickness, upper/lower sheet, rib height, profile), deck panel specs (profile, shear studs qty & specs), and scope badges. Click the Buildings KPI card on the project detail page to open.
+- **Task scope column** — `scopeOfWorkId` FK added to Task table; task creation/edit form auto-selects steel scope for single-scope buildings, shows a dropdown only when multiple scopes exist; existing tasks backfilled to their building's steel scope.
+- **Scope of work inline editing** from project detail page — edit quantity, unit, RAL color, and specification per scope row.
+- **Project tracker redesign** — steel-only buildings render as flat rows (no accordion); all buildings expand by default on load; Expand All / Collapse All buttons added to header.
+
+#### Removed
+- Pages and sidebar links removed: `/detailed-project-planner`, `/operations/events`, `/operations/dashboard`, `/timeline`, `/ai-assistant`, `/concentration-risk`.
+
+---
+
 ## [22.13.0] - 2026-05-06
 
 ### Multi-Scope Project Wizard & Tracker Redesign

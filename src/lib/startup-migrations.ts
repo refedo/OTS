@@ -138,7 +138,18 @@ const STARTUP_MIGRATIONS = [
   'seed_sprint_2280_data.sql',          // Audit Plans (AP-25/26), NCRs, Mgmt Reviews, Objectives 2026
 
   // ── Sprint 22.9.0 — IMS Rev.01 Risk Register + ISP document seeding ────
+  'ims_rev01_schema.sql',               // IMS Rev.01 schema additions (§6.1.3, §7.1.5, §9.1.2)
   'seed_ims_rev01_risks.sql',           // RISK/HAZARD/LEGAL/ENV seeds + ISP document register
+  'ims_management_review_iso_inputs.sql', // ISO §9.3.2 management review input fields
+
+  // ── Multi-scope project wizard (22.13.0) ────────────────────────────────
+  'add_scope_of_work.sql',              // ScopeOfWork + BuildingActivity tables, scopeOfWorkId on AssemblyPart
+  'v22_13_scope_fields.sql',            // location on Building; quantity/specs/coating on ScopeOfWork
+  'seed_steel_scope.sql',              // Backfill Steel scope for existing buildings + link AssemblyParts
+  'v22_14_backfill_scope_quantity.sql', // Backfill steel scope quantity from building weight
+
+  // ── Task scope column (22.15.0) ──────────────────────────────────────────
+  'v22_15_task_scope.sql',              // scopeOfWorkId on Task; backfill steel scope for existing tasks
 ];
 
 /**
