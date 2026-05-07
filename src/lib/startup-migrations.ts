@@ -156,6 +156,10 @@ const STARTUP_MIGRATIONS = [
 
   // ── v23.0.1 — Activity name unification ───────────────────────────────────
   'v23_0_1_unify_activity_names.sql',   // Rename dispatch→delivery in BuildingActivity; delivery_logistics→delivery in Task
+
+  // ── v23.1.0 — Fix steel-scope BuildingActivity records ────────────────────
+  'v23_1_fix_steel_scope_activities.sql', // Set all steel-scope activities to isApplicable=1; insert missing rows
+  'v23_2_seed_assembly_part_steel_scope.sql', // Backfill AssemblyPart.scopeOfWorkId to steel scope
 ];
 
 /**
