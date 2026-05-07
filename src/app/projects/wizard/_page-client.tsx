@@ -93,7 +93,7 @@ const SCOPE_ACTIVITY_DEFAULTS: Record<string, { activityType: string; activityLa
     { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
     { activityType: 'production', activityLabel: 'Production', isApplicable: true, sortOrder: 4 },
     { activityType: 'coating', activityLabel: 'Coating', isApplicable: true, sortOrder: 5 },
-    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'delivery', activityLabel: 'Delivery', isApplicable: true, sortOrder: 6 },
     { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
   ],
   roof_sheeting: [
@@ -102,7 +102,7 @@ const SCOPE_ACTIVITY_DEFAULTS: Record<string, { activityType: string; activityLa
     { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
     { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
     { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
-    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'delivery', activityLabel: 'Delivery', isApplicable: true, sortOrder: 6 },
     { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
   ],
   wall_sheeting: [
@@ -111,7 +111,7 @@ const SCOPE_ACTIVITY_DEFAULTS: Record<string, { activityType: string; activityLa
     { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
     { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
     { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
-    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'delivery', activityLabel: 'Delivery', isApplicable: true, sortOrder: 6 },
     { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
   ],
   deck_panel: [
@@ -120,7 +120,7 @@ const SCOPE_ACTIVITY_DEFAULTS: Record<string, { activityType: string; activityLa
     { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
     { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
     { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
-    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'delivery', activityLabel: 'Delivery', isApplicable: true, sortOrder: 6 },
     { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
   ],
   metal_work: [
@@ -129,7 +129,7 @@ const SCOPE_ACTIVITY_DEFAULTS: Record<string, { activityType: string; activityLa
     { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
     { activityType: 'production', activityLabel: 'Production', isApplicable: true, sortOrder: 4 },
     { activityType: 'coating', activityLabel: 'Coating', isApplicable: true, sortOrder: 5 },
-    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'delivery', activityLabel: 'Delivery', isApplicable: true, sortOrder: 6 },
     { activityType: 'erection', activityLabel: 'Erection', isApplicable: true, sortOrder: 7 },
   ],
   other: [
@@ -138,7 +138,7 @@ const SCOPE_ACTIVITY_DEFAULTS: Record<string, { activityType: string; activityLa
     { activityType: 'procurement', activityLabel: 'Procurement', isApplicable: true, sortOrder: 3 },
     { activityType: 'production', activityLabel: 'Production', isApplicable: false, sortOrder: 4 },
     { activityType: 'coating', activityLabel: 'Coating', isApplicable: false, sortOrder: 5 },
-    { activityType: 'dispatch', activityLabel: 'Dispatch & Delivery', isApplicable: true, sortOrder: 6 },
+    { activityType: 'delivery', activityLabel: 'Delivery', isApplicable: true, sortOrder: 6 },
     { activityType: 'erection', activityLabel: 'Erection', isApplicable: false, sortOrder: 7 },
   ],
 };

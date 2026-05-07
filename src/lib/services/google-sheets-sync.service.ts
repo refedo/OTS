@@ -114,7 +114,8 @@ const PROCESS_TYPE_MAP: Record<string, string> = {
   'sandblasting': 'Sandblasting',
   'painting': 'Painting',
   'galvanization': 'Galvanization',
-  'dispatch': 'Dispatch',
+  'delivery': 'Delivery',
+  'dispatch': 'Delivery',
   'erection': 'Erection',
 };
 

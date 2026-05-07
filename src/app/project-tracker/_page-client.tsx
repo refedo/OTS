@@ -133,7 +133,7 @@ const ACTIVITY_COLUMNS = [
   { type: 'procurement',   label: 'PROCUREMENT',   color: 'text-amber-400' },
   { type: 'production',    label: 'PRODUCTION',    color: 'text-orange-400' },
   { type: 'coating',       label: 'COATING',       color: 'text-pink-400' },
-  { type: 'dispatch',      label: 'DISPATCH',      color: 'text-lime-400' },
+  { type: 'delivery',      label: 'DELIVERY',      color: 'text-lime-400' },
   { type: 'erection',      label: 'ERECTION',      color: 'text-emerald-400' },
 ] as const;
 
@@ -385,7 +385,7 @@ function DetailPopover({
       {/* Production details */}
       {activity.details.production && (
         <div className={`rounded-md p-2 border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}>
-          {activity.activityType === 'dispatch' ? (
+          {activity.activityType === 'delivery' ? (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className={muted}>

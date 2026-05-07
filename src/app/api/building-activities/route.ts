@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 const ACTIVITY_TYPES = [
   'arch_approval', 'material_approval', 'design', 'design_approval',
   'anchor_bolts', 'surveying_as_built', 'detailing', 'detailing_approval',
-  'procurement', 'production', 'coating', 'dispatch', 'erection',
+  'procurement', 'production', 'coating', 'delivery', 'erection',
 ] as const;
 
 const bulkCreateSchema = z.object({
