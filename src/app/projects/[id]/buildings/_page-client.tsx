@@ -750,6 +750,17 @@ export function ProjectCardClient({
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
 
+      {/* ── Page Title ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md">
+          <LayoutGrid className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Project Card</h1>
+          <p className="text-xs text-muted-foreground">Buildings, scope &amp; technical specifications</p>
+        </div>
+      </div>
+
       {/* ── Project Header ── */}
       <Card className="overflow-hidden">
         <CardContent className="p-4 space-y-3">
@@ -841,10 +852,10 @@ export function ProjectCardClient({
         <div className="flex-1 flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
           <button
             onClick={() => setSelectedBuildingId(null)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+            className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-all border shadow-sm ${
               selectedBuildingId === null
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background text-muted-foreground border-border hover:bg-accent'
+                ? 'bg-slate-700 text-white border-slate-700 shadow-md scale-105'
+                : 'bg-background text-muted-foreground border-border hover:bg-accent hover:scale-105'
             }`}
           >
             <span className="flex items-center gap-1.5">
@@ -852,20 +863,34 @@ export function ProjectCardClient({
               All
             </span>
           </button>
-          {buildings.map((b) => (
-            <button
-              key={b.id}
-              onClick={() => setSelectedBuildingId(b.id)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
-                selectedBuildingId === b.id
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:bg-accent'
-              }`}
-              title={b.name ?? undefined}
-            >
-              {b.designation || b.name || '?'}
-            </button>
-          ))}
+          {buildings.map((b, idx) => {
+            const palette = [
+              { active: 'bg-blue-600 text-white border-blue-600', idle: 'border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-950' },
+              { active: 'bg-emerald-600 text-white border-emerald-600', idle: 'border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950' },
+              { active: 'bg-violet-600 text-white border-violet-600', idle: 'border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950' },
+              { active: 'bg-amber-600 text-white border-amber-600', idle: 'border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950' },
+              { active: 'bg-rose-600 text-white border-rose-600', idle: 'border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-950' },
+              { active: 'bg-cyan-600 text-white border-cyan-600', idle: 'border-cyan-300 text-cyan-700 hover:bg-cyan-50 dark:border-cyan-700 dark:text-cyan-300 dark:hover:bg-cyan-950' },
+              { active: 'bg-orange-600 text-white border-orange-600', idle: 'border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-950' },
+              { active: 'bg-teal-600 text-white border-teal-600', idle: 'border-teal-300 text-teal-700 hover:bg-teal-50 dark:border-teal-700 dark:text-teal-300 dark:hover:bg-teal-950' },
+              { active: 'bg-pink-600 text-white border-pink-600', idle: 'border-pink-300 text-pink-700 hover:bg-pink-50 dark:border-pink-700 dark:text-pink-300 dark:hover:bg-pink-950' },
+              { active: 'bg-indigo-600 text-white border-indigo-600', idle: 'border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950' },
+            ];
+            const color = palette[idx % palette.length];
+            const isActive = selectedBuildingId === b.id;
+            return (
+              <button
+                key={b.id}
+                onClick={() => setSelectedBuildingId(b.id)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-all border shadow-sm ${
+                  isActive ? `${color.active} shadow-md scale-105` : `bg-background ${color.idle}`
+                }`}
+                title={b.name ?? undefined}
+              >
+                {b.designation || b.name || '?'}
+              </button>
+            );
+          })}
         </div>
 
         <Button
@@ -882,62 +907,94 @@ export function ProjectCardClient({
 
       {/* ── KPI strip ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
-            <Building2 className="w-3 h-3" />
-            {selectedBuilding ? 'Building' : 'Buildings'}
-          </div>
-          {selectedBuilding ? (
-            <>
-              <div className="text-xl font-bold">{selectedBuilding.designation || '—'}</div>
-              {selectedBuilding.name && selectedBuilding.name !== selectedBuilding.designation && (
-                <div className="text-xs text-muted-foreground mt-0.5">{selectedBuilding.name}</div>
-              )}
-              {selectedBuilding.location && (
-                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-0.5">
-                  <MapPin className="w-2.5 h-2.5" />{selectedBuilding.location}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-2xl font-bold">{buildings.length}</div>
-          )}
-        </Card>
-
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
-            <Weight className="w-3 h-3" /> Tonnage
-          </div>
-          <div className="text-2xl font-bold">{fmt(totalTonnage, 2)} t</div>
-          {project.contractualTonnage && !selectedBuilding && (
-            <div className="text-xs text-muted-foreground mt-0.5">
-              Contract: {fmt(project.contractualTonnage, 2)} t
+        {/* Buildings tile — blue */}
+        <Card className="relative overflow-hidden border-0 shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700" />
+          <div className="relative p-4 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">
+                {selectedBuilding ? 'Building' : 'Buildings'}
+              </div>
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
+                <Building2 className="w-4 h-4" />
+              </div>
             </div>
-          )}
-          {selectedBuilding?.weight !== null && selectedBuilding && (
-            <div className="text-xs text-muted-foreground mt-0.5">
-              Manual: {fmt(selectedBuilding.weight ?? 0, 2)} t
+            {selectedBuilding ? (
+              <>
+                <div className="text-xl font-bold">{selectedBuilding.designation || '—'}</div>
+                {selectedBuilding.name && selectedBuilding.name !== selectedBuilding.designation && (
+                  <div className="text-xs opacity-75 mt-0.5">{selectedBuilding.name}</div>
+                )}
+                {selectedBuilding.location && (
+                  <div className="text-xs opacity-75 mt-0.5 flex items-center gap-0.5">
+                    <MapPin className="w-2.5 h-2.5" />{selectedBuilding.location}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="text-3xl font-bold">{buildings.length}</div>
+                <div className="text-xs opacity-75 mt-0.5">total buildings</div>
+              </>
+            )}
+          </div>
+        </Card>
+
+        {/* Tonnage tile — amber */}
+        <Card className="relative overflow-hidden border-0 shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-600" />
+          <div className="relative p-4 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Tonnage</div>
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
+                <Weight className="w-4 h-4" />
+              </div>
             </div>
-          )}
+            <div className="text-2xl font-bold">{fmt(totalTonnage, 2)} <span className="text-base font-medium opacity-80">t</span></div>
+            {project.contractualTonnage && !selectedBuilding && (
+              <div className="text-xs opacity-75 mt-0.5">
+                Contract: {fmt(project.contractualTonnage, 2)} t
+              </div>
+            )}
+            {selectedBuilding?.weight !== null && selectedBuilding && (
+              <div className="text-xs opacity-75 mt-0.5">
+                Manual: {fmt(selectedBuilding.weight ?? 0, 2)} t
+              </div>
+            )}
+          </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
-            <Ruler className="w-3 h-3" /> Total Area
-          </div>
-          <div className="text-2xl font-bold">{fmt(totalArea)} m²</div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            Purlin: {fmt(kpiBuildings.reduce((s, b) => s + b.purlinArea, 0))} m²
+        {/* Total Area tile — emerald */}
+        <Card className="relative overflow-hidden border-0 shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600" />
+          <div className="relative p-4 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Total Area</div>
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
+                <Ruler className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold">{fmt(totalArea)} <span className="text-base font-medium opacity-80">m²</span></div>
+            <div className="text-xs opacity-75 mt-0.5">
+              Purlin: {fmt(kpiBuildings.reduce((s, b) => s + b.purlinArea, 0))} m²
+            </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
-            <Paintbrush className="w-3 h-3" /> Paintable Area
-          </div>
-          <div className="text-2xl font-bold">{fmt(totalPaintable)} m²</div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            {coatCount > 0 ? `${coatCount} coat${coatCount !== 1 ? 's' : ''}` : 'Coating not set'}
+        {/* Paintable Area tile — violet */}
+        <Card className="relative overflow-hidden border-0 shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-700" />
+          <div className="relative p-4 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Paintable Area</div>
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
+                <Paintbrush className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold">{fmt(totalPaintable)} <span className="text-base font-medium opacity-80">m²</span></div>
+            <div className="text-xs opacity-75 mt-0.5">
+              {coatCount > 0 ? `${coatCount} coat${coatCount !== 1 ? 's' : ''}` : 'Coating not set'}
+            </div>
           </div>
         </Card>
       </div>

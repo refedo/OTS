@@ -122,7 +122,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
       buildingDesignation = building?.designation ?? null;
     }
 
-    const contractNumber = generateContractNumber(
+    const contractNumber = await generateContractNumber(
       project.projectNumber,
       buildingDesignation,
       data.scopeTypes
