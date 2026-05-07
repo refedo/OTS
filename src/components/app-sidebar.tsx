@@ -93,6 +93,7 @@ import {
   Workflow,
   Award,
   PieChart,
+  IdCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -183,6 +184,7 @@ const navigationSections: NavigationSection[] = [
     icon: FolderKanban,
     items: [
       { name: 'Projects Dashboard', href: '/projects-dashboard', icon: LayoutDashboard },
+      { name: 'Project Card', href: '/project-card', icon: IdCard },
       { name: 'List Projects', href: '/projects', icon: FolderKanban },
       { name: 'List Buildings', href: '/buildings', icon: Building2 },
       { name: 'Create Project', href: '/projects/wizard', icon: Plus },
