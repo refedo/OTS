@@ -151,6 +151,8 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/supply-chain/lcr/aliases': ['supply_chain.alias'],
   '/supply-chain/purchase-orders': ['supply_chain.view'],
   '/supply-chain/approved-suppliers': ['supply_chain.view'],
+  '/supply-chain/subcontractors': ['subcontractors.view'],
+  '/supply-chain/subcontractors/new': ['subcontractors.create'],
 
   // Project Status Tracker
   '/project-tracker': ['project_tracker.view'],

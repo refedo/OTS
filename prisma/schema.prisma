@@ -393,6 +393,12 @@ model User {
   coatingInspections          QcCoatingInspection[]     @relation("CoatingInspector")
   coatingInspectionsCreated   QcCoatingInspection[]     @relation("CoatingInspectionCreatedBy")
 
+  // Subcontractor Contracts (23.0.0)
+  scContractsCreated          SubcontractorContract[]             @relation("SCContractCreatedBy")
+  scContractsApproved         SubcontractorContract[]             @relation("SCContractApprovedBy")
+  scCertificatesCreated       SubcontractorPaymentCertificate[]   @relation("SCCertCreatedBy")
+  scCertificatesApproved      SubcontractorPaymentCertificate[]   @relation("SCCertApprovedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -583,6 +589,7 @@ model Project {
   paymentSchedules           ProjectPaymentSchedule[]
   kickoffChecklists          ProjectKickoffChecklist[]
   coatingInspectionRecords   QcCoatingInspection[]     @relation("CoatingInspectionProject")
+  subcontractorContracts     SubcontractorContract[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -673,6 +680,7 @@ model Building {
   workOrders             WorkOrder[]
   knowledgeEntries       KnowledgeEntry[]
   lcrEntries             LcrEntry[]
+  subcontractorContracts SubcontractorContract[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6854,7 +6862,8 @@ model ScApprovedSupplier {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   createdById        String?   @db.Char(36)
-  createdBy          User?     @relation("ScApprovedSupplierCreatedBy", fields: [createdById], references: [id])
+  createdBy               User?                   @relation("ScApprovedSupplierCreatedBy", fields: [createdById], references: [id])
+  subcontractorContracts  SubcontractorContract[]
 
   @@index([approvalStatus])
   @@index([deletedAt])
@@ -7053,4 +7062,92 @@ model QcCoatingInspection {
   @@index([coatLayer])
   @@index([deletedAt])
   @@map("QcCoatingInspection")
+}
+
+// ─── Subcontractor Contracts Module (23.0.0) ─────────────────────────────────
+
+model SubcontractorContract {
+  id                  String    @id @default(uuid()) @db.Char(36)
+  contractNumber      String    @unique @db.VarChar(50)
+  name                String    @db.VarChar(255)
+  projectId           String    @db.Char(36)
+  buildingId          String?   @db.Char(36)
+  supplierId          String    @db.Char(36)
+  scopeLevel          String    @default("building") @db.VarChar(20)
+  scopeTypes          Json
+  scopeItems          Json?
+  contractValue       Decimal   @default(0) @db.Decimal(15, 2)
+  currency            String    @default("SAR") @db.VarChar(10)
+  retentionPercentage Decimal   @default(10) @db.Decimal(5, 2)
+  paymentTerms        Json?
+  termsAndConditions  String?   @db.LongText
+  templateType        String?   @db.VarChar(30)
+  status              String    @default("DRAFT") @db.VarChar(30)
+  notes               String?   @db.Text
+  createdById         String    @db.Char(36)
+  updatedById         String?   @db.Char(36)
+  approvedById        String?   @db.Char(36)
+  approvedAt          DateTime?
+  submittedAt         DateTime?
+  activatedAt         DateTime?
+  suspendedAt         DateTime?
+  completedAt         DateTime?
+  deletedAt           DateTime?
+  deletedById         String?   @db.Char(36)
+  deleteReason        String?   @db.VarChar(500)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  project             Project                          @relation(fields: [projectId], references: [id])
+  building            Building?                        @relation(fields: [buildingId], references: [id])
+  supplier            ScApprovedSupplier               @relation(fields: [supplierId], references: [id])
+  createdBy           User                             @relation("SCContractCreatedBy", fields: [createdById], references: [id])
+  approvedBy          User?                            @relation("SCContractApprovedBy", fields: [approvedById], references: [id])
+  paymentCertificates SubcontractorPaymentCertificate[]
+
+  @@index([projectId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model SubcontractorPaymentCertificate {
+  id                            String    @id @default(uuid()) @db.Char(36)
+  certificateNumber             String    @unique @db.VarChar(60)
+  contractId                    String    @db.Char(36)
+  certificateDate               DateTime  @db.Date
+  periodFrom                    DateTime? @db.Date
+  periodTo                      DateTime? @db.Date
+  currentPercentage             Decimal   @default(0) @db.Decimal(5, 2)
+  previousCumulativePercentage  Decimal   @default(0) @db.Decimal(5, 2)
+  cumulativePercentage          Decimal   @default(0) @db.Decimal(5, 2)
+  currentAmount                 Decimal   @default(0) @db.Decimal(15, 2)
+  previousCumulativeAmount      Decimal   @default(0) @db.Decimal(15, 2)
+  cumulativeAmount              Decimal   @default(0) @db.Decimal(15, 2)
+  retentionAmount               Decimal   @default(0) @db.Decimal(15, 2)
+  netAmountDue                  Decimal   @default(0) @db.Decimal(15, 2)
+  paidAmount                    Decimal   @default(0) @db.Decimal(15, 2)
+  status                        String    @default("DRAFT") @db.VarChar(30)
+  dolibarrInvoiceRef            String?   @db.VarChar(100)
+  dolibarrInvoiceId             Int?
+  notes                         String?   @db.Text
+  submittedAt                   DateTime?
+  approvedAt                    DateTime?
+  paidAt                        DateTime?
+  createdById                   String    @db.Char(36)
+  approvedById                  String?   @db.Char(36)
+  updatedById                   String?   @db.Char(36)
+  deletedAt                     DateTime?
+  deletedById                   String?   @db.Char(36)
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+
+  contract   SubcontractorContract @relation(fields: [contractId], references: [id])
+  createdBy  User                  @relation("SCCertCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?                 @relation("SCCertApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([contractId])
+  @@index([status])
+  @@index([certificateDate])
+  @@index([deletedAt])
 }

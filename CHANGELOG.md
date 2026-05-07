@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.0.0] - 2026-05-07
+
+### Subcontractor Contracts Module
+
+#### Added
+- **Subcontractor Contracts** — full lifecycle management for COGS/Installation subcontractors at `/supply-chain/subcontractors`. Contract creation wizard with 5 steps: project & subcontractor selection, scope & quantities (supports different UOM per contract vs. project, e.g. tons vs. m²), payment terms & milestones, terms & conditions, and review.
+- **Contract naming convention**: auto-generated from project number + building designation + scope code (e.g. `275-INT-STL`, `275-RSH`, `275-ALL`). Scope codes: STL, RSH, WSH, DKP, MTW, OTH, MUL.
+- **Scope selection**: link to full project, specific building, or specific scope types (Steel, Roof Sheeting, Wall Sheeting, Deck Panel, Metal Works, Other). Multiple scope types per contract supported.
+- **Status workflow**: DRAFT → SUBMITTED → APPROVED → ACTIVE → SUSPENDED → COMPLETED with cancel at any pre-completion stage.
+- **Payment Progress Certificates** — per-contract certificates with auto-calculated cumulative amounts, retention deduction, net due. Certificate numbers: `PC-275-INT-STL-001`. Cert status: DRAFT → SUBMITTED → APPROVED → PAID.
+- **Dolibarr invoice linking** on payment certificates: reference string field + numeric Dolibarr invoice ID.
+- **Default T&C templates**: Steel Works (ASTM A36, AWS D1.1, 10% retention, 12-month DLP), Sheeting Sandwich Panel, and Sheeting Single Skin. All editable.
+- **Subcontractors Dashboard** — hero banner, 5-KPI strip, contracts table with progress bars and status badges, status breakdown filter cards.
+- **Contract Detail page** — supplier info, progress & financials, scope items, payment certificates table with inline approval actions, payment milestones, collapsible T&C, notes log.
+- **Permissions**: new `subcontractors` permission group with 8 permissions. Admin, CEO, and Manager roles get full access.
+- **Navigation**: Supply Chain sidebar — "SC Contracts" and "New SC Contract" nav items.
+- **DB migration v23.0**: `SubcontractorContract` + `SubcontractorPaymentCertificate` tables.
+- Version bumped to **23.0.0**
+
+---
+
 ## [22.15.0] - 2026-05-07
 
 ### Project Card

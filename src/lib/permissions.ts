@@ -301,6 +301,20 @@ export const PERMISSIONS: PermissionCategory[] = [
     ],
   },
   {
+    id: 'subcontractors',
+    name: 'Subcontractor Management',
+    permissions: [
+      { id: 'subcontractors.view', name: 'View SC Contracts', description: 'Access subcontractor contracts dashboard and details', category: 'subcontractors' },
+      { id: 'subcontractors.create', name: 'Create SC Contracts', description: 'Create new subcontractor contracts', category: 'subcontractors' },
+      { id: 'subcontractors.edit', name: 'Edit SC Contracts', description: 'Edit draft subcontractor contracts', category: 'subcontractors' },
+      { id: 'subcontractors.delete', name: 'Delete SC Contracts', description: 'Soft-delete subcontractor contracts', category: 'subcontractors' },
+      { id: 'subcontractors.approve', name: 'Approve SC Contracts', description: 'Approve or reject submitted subcontractor contracts', category: 'subcontractors' },
+      { id: 'subcontractors.certs.view', name: 'View Payment Certificates', description: 'View payment progress certificates', category: 'subcontractors' },
+      { id: 'subcontractors.certs.create', name: 'Create Payment Certificates', description: 'Submit new payment progress certificates', category: 'subcontractors' },
+      { id: 'subcontractors.certs.approve', name: 'Approve Payment Certificates', description: 'Approve or reject payment certificates', category: 'subcontractors' },
+    ],
+  },
+  {
     id: 'project_tracker',
     name: 'Project Status Tracker',
     permissions: [
@@ -748,6 +762,15 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'supply_chain.view',
     'supply_chain.sync',
     'supply_chain.alias',
+    // Subcontractors
+    'subcontractors.view',
+    'subcontractors.create',
+    'subcontractors.edit',
+    'subcontractors.delete',
+    'subcontractors.approve',
+    'subcontractors.certs.view',
+    'subcontractors.certs.create',
+    'subcontractors.certs.approve',
     // Project Tracker
     'project_tracker.view',
     'project_tracker.export',

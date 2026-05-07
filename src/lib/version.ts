@@ -9,8 +9,8 @@ const { version: pkgVersion } = require('../../package.json') as { version: stri
 
 export const APP_VERSION = {
   version: pkgVersion,
-  date: 'May 4, 2026',
-  type: 'minor' as const,
+  date: 'May 7, 2026',
+  type: 'major' as const,
   name: 'Hexa Steel Operation Tracking System',
 };
 
