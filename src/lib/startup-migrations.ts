@@ -150,6 +150,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Task scope column (22.15.0) ──────────────────────────────────────────
   'v22_15_task_scope.sql',              // scopeOfWorkId on Task; backfill steel scope for existing tasks
+
+  // ── v23.0.0 — Subcontractor Contracts Module ──────────────────────────────
+  'v23_0_subcontractor_contracts.sql',  // SubcontractorContract + SubcontractorPaymentCertificate tables
 ];
 
 /**

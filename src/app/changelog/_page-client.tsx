@@ -23,10 +23,48 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '23.0.0',
+    date: 'May 7, 2026',
+    type: 'major',
+    status: 'current',
+    mainTitle: 'Subcontractor Contracts Module',
+    highlights: [
+      'New Subcontractor Contracts module — full lifecycle for COGS/installation subcontractors: create, approve, activate, progress certificates, and dashboard.',
+      'Contract auto-naming: project number + building designation + scope code (e.g. 275-INT-STL, 275-RSH, 275-ALL).',
+      'Payment Progress Certificates with cumulative tracking, retention deduction, and Dolibarr invoice linking.',
+      'Default T&C templates for Steel Works, Sheeting Sandwich Panel, and Sheeting Single Skin — all editable.',
+      'SC Contracts Dashboard with 5-KPI strip, contracts table, progress bars, status filter cards.',
+      'Full approval workflow: DRAFT → SUBMITTED → APPROVED → ACTIVE → COMPLETED.',
+      'New subcontractors permission group with 8 permissions added to Admin, CEO, and Manager roles.',
+    ],
+    changes: {
+      added: [
+        'Subcontractor Contracts module at /supply-chain/subcontractors with dashboard, list, create wizard, and detail pages.',
+        'Contract creation wizard (5 steps): Project & Subcontractor, Scope & Quantities (with per-item UOM override), Payment Terms & Milestones, Terms & Conditions (template selector), Review & Save.',
+        'Contract naming convention: {projectNumber}-{buildingDesig}-{scopeCode} e.g. 275-INT-STL. Scope codes: STL, RSH, WSH, DKP, MTW, OTH, MUL.',
+        'Status workflow: DRAFT → SUBMITTED → APPROVED → ACTIVE → SUSPENDED → COMPLETED. Cancel available at all pre-completion stages.',
+        'Payment Progress Certificates: auto-calculated current amount, cumulative amount, retention, net due. Certificate numbering: PC-275-INT-STL-001.',
+        'Certificate status workflow: DRAFT → SUBMITTED → APPROVED → PAID with inline action buttons.',
+        'Dolibarr invoice linking on payment certificates: reference string + numeric Dolibarr invoice ID.',
+        'Default T&C templates: Steel Works (ASTM A36, AWS D1.1, 10% retention, 12-month DLP), Sheeting Sandwich Panel, Sheeting Single Skin.',
+        'Subcontractors Dashboard KPIs: Total Contracts, Active, Pending Approval, Total Value (SAR), Outstanding Approved.',
+        'Supplier info pulled from ScApprovedSupplier (code, name, rating, category, scope of approval).',
+        'New subcontractors permission group: view, create, edit, delete, approve, certs.view, certs.create, certs.approve.',
+        'Navigation: Supply Chain sidebar — SC Contracts + New SC Contract entries.',
+        'DB migration v23.0: SubcontractorContract + SubcontractorPaymentCertificate tables with FK constraints, soft-delete, and indexes.',
+        'Settings › About page updated with Subcontractor Contracts module card.',
+      ],
+      fixed: [],
+      changed: [
+        'Version bumped to 23.0.0 (major release).',
+      ],
+    },
+  },
+  {
     version: '22.13.0',
     date: 'May 6, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Multi-Scope Project Wizard & Tracker Redesign',
     highlights: [
       'Project wizard expanded to 9 steps — new Scope Definition and Activities per Scope steps added.',

@@ -1,0 +1,86 @@
+-- ============================================================
+-- v23.0.0 — Subcontractor Contracts Module
+-- Creates SubcontractorContract and SubcontractorPaymentCertificate
+-- tables with full audit trail, soft-delete, and indexing.
+-- Safe for re-runs via IF NOT EXISTS on CREATE TABLE.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `SubcontractorContract` (
+  `id`                    CHAR(36)        NOT NULL,
+  `contractNumber`        VARCHAR(50)     NOT NULL,
+  `name`                  VARCHAR(255)    NOT NULL,
+  `projectId`             CHAR(36)        NOT NULL,
+  `buildingId`            CHAR(36)        NULL,
+  `supplierId`            CHAR(36)        NOT NULL,
+  `scopeLevel`            VARCHAR(20)     NOT NULL DEFAULT 'building',
+  `scopeTypes`            JSON            NOT NULL,
+  `scopeItems`            JSON            NULL,
+  `contractValue`         DECIMAL(15,2)   NOT NULL DEFAULT 0,
+  `currency`              VARCHAR(10)     NOT NULL DEFAULT 'SAR',
+  `retentionPercentage`   DECIMAL(5,2)    NOT NULL DEFAULT 10.00,
+  `paymentTerms`          JSON            NULL,
+  `termsAndConditions`    LONGTEXT        NULL,
+  `templateType`          VARCHAR(30)     NULL,
+  `status`                VARCHAR(30)     NOT NULL DEFAULT 'DRAFT',
+  `notes`                 TEXT            NULL,
+  `createdById`           CHAR(36)        NOT NULL,
+  `updatedById`           CHAR(36)        NULL,
+  `approvedById`          CHAR(36)        NULL,
+  `approvedAt`            DATETIME        NULL,
+  `submittedAt`           DATETIME        NULL,
+  `activatedAt`           DATETIME        NULL,
+  `suspendedAt`           DATETIME        NULL,
+  `completedAt`           DATETIME        NULL,
+  `deletedAt`             DATETIME        NULL,
+  `deletedById`           CHAR(36)        NULL,
+  `deleteReason`          VARCHAR(500)    NULL,
+  `createdAt`             DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt`             DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `SubcontractorContract_contractNumber_key` (`contractNumber`),
+  INDEX `SubcontractorContract_projectId_idx` (`projectId`),
+  INDEX `SubcontractorContract_supplierId_idx` (`supplierId`),
+  INDEX `SubcontractorContract_status_idx` (`status`),
+  INDEX `SubcontractorContract_deletedAt_idx` (`deletedAt`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `SubcontractorPaymentCertificate` (
+  `id`                            CHAR(36)        NOT NULL,
+  `certificateNumber`             VARCHAR(60)     NOT NULL,
+  `contractId`                    CHAR(36)        NOT NULL,
+  `certificateDate`               DATE            NOT NULL,
+  `periodFrom`                    DATE            NULL,
+  `periodTo`                      DATE            NULL,
+  `currentPercentage`             DECIMAL(5,2)    NOT NULL DEFAULT 0,
+  `previousCumulativePercentage`  DECIMAL(5,2)    NOT NULL DEFAULT 0,
+  `cumulativePercentage`          DECIMAL(5,2)    NOT NULL DEFAULT 0,
+  `currentAmount`                 DECIMAL(15,2)   NOT NULL DEFAULT 0,
+  `previousCumulativeAmount`      DECIMAL(15,2)   NOT NULL DEFAULT 0,
+  `cumulativeAmount`              DECIMAL(15,2)   NOT NULL DEFAULT 0,
+  `retentionAmount`               DECIMAL(15,2)   NOT NULL DEFAULT 0,
+  `netAmountDue`                  DECIMAL(15,2)   NOT NULL DEFAULT 0,
+  `paidAmount`                    DECIMAL(15,2)   NOT NULL DEFAULT 0,
+  `status`                        VARCHAR(30)     NOT NULL DEFAULT 'DRAFT',
+  `dolibarrInvoiceRef`            VARCHAR(100)    NULL,
+  `dolibarrInvoiceId`             INT             NULL,
+  `notes`                         TEXT            NULL,
+  `submittedAt`                   DATETIME        NULL,
+  `approvedAt`                    DATETIME        NULL,
+  `paidAt`                        DATETIME        NULL,
+  `createdById`                   CHAR(36)        NOT NULL,
+  `approvedById`                  CHAR(36)        NULL,
+  `updatedById`                   CHAR(36)        NULL,
+  `deletedAt`                     DATETIME        NULL,
+  `deletedById`                   CHAR(36)        NULL,
+  `createdAt`                     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt`                     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `SubcontractorPaymentCertificate_certNumber_key` (`certificateNumber`),
+  INDEX `SubcontractorPaymentCertificate_contractId_idx` (`contractId`),
+  INDEX `SubcontractorPaymentCertificate_status_idx` (`status`),
+  INDEX `SubcontractorPaymentCertificate_certDate_idx` (`certificateDate`),
+  INDEX `SubcontractorPaymentCertificate_deletedAt_idx` (`deletedAt`),
+  CONSTRAINT `SubcontractorPaymentCertificate_contractId_fkey`
+    FOREIGN KEY (`contractId`) REFERENCES `SubcontractorContract` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

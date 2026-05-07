@@ -309,6 +309,8 @@ const navigationSections: NavigationSection[] = [
       { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch },
       { name: 'Approved Suppliers', href: '/supply-chain/approved-suppliers', icon: ShieldCheck, newSince: '2026-05-02' },
       { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck },
+      { name: 'SC Contracts', href: '/supply-chain/subcontractors', icon: Handshake, newSince: '2026-05-07' },
+      { name: 'New SC Contract', href: '/supply-chain/subcontractors/new', icon: Plus, newSince: '2026-05-07' },
       { name: 'AP Aging Report', href: '/financial/reports/aging?type=payable', icon: Clock },
       { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText },
       { name: 'COGS Supplier Map', href: '/financial/reports/cogs-supplier-map', icon: Layers },

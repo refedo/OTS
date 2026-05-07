@@ -24,6 +24,7 @@ import {
   Database,
   Plug,
   UserCog,
+  Handshake,
 } from 'lucide-react';
 
 const modules = [
@@ -166,6 +167,13 @@ const modules = [
     description: 'Bidirectional integrations with open-audit, Nextcloud, and Libre MES for ISO compliance, document management, and manufacturing execution.',
     features: ['open-audit ISO mirror', 'Nextcloud WebDAV (ISO 9001 §7.5)', 'Libre MES OEE sync', 'InfluxDB v2 metrics', 'Event Bus (typed EventEmitter)', 'Integration health dashboard'],
     color: 'bg-sky-600',
+  },
+  {
+    name: 'Subcontractor Contracts',
+    icon: Handshake,
+    description: 'Full lifecycle management for COGS/installation subcontractors — contracts, approval workflows, payment progress certificates, and financial dashboards.',
+    features: ['Contract creation wizard (5 steps)', 'Auto-named contracts (e.g. 275-INT-STL)', 'Status workflow: DRAFT → SUBMITTED → APPROVED → ACTIVE → COMPLETED', 'Payment Progress Certificates with cumulative tracking & retention', 'Dolibarr supplier invoice linking', 'Default T&C templates (Steel, Sheeting)'],
+    color: 'bg-orange-600',
   },
 ];
 
