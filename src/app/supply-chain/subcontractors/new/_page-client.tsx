@@ -342,12 +342,12 @@ export default function NewSubcontractorContractPage() {
               {scopeLevel !== 'project' && (
                 <div className="space-y-2">
                   <Label>Building</Label>
-                  <Select value={selectedBuilding} onValueChange={setSelectedBuilding}>
+                  <Select value={selectedBuilding || '__none__'} onValueChange={v => setSelectedBuilding(v === '__none__' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select building (optional)…" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No specific building (full project)</SelectItem>
+                      <SelectItem value="__none__">No specific building (full project)</SelectItem>
                       {buildings.map(b => (
                         <SelectItem key={b.id} value={b.id}>
                           <span className="font-mono font-semibold mr-2">{b.designation}</span>{b.name}

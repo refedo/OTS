@@ -748,7 +748,7 @@ export function ProjectCardClient({
   ].filter(Boolean).length;
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
 
       {/* ── Page Title ── */}
       <div className="flex items-center gap-3">

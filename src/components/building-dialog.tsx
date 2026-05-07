@@ -13,6 +13,8 @@ type Building = {
   designation: string;
   name: string;
   description: string | null;
+  location: string | null;
+  weight: number | null;
 };
 
 type ChildCounts = {
@@ -62,9 +64,11 @@ export function BuildingDialog({ projectId, building, open, onOpenChange, onSave
     setError('');
 
     const formData = new FormData(e.currentTarget);
-    const data: Record<string, string | null> = {
+    const data: Record<string, string | number | null> = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
+      location: (formData.get('location') as string) || null,
+      weight: formData.get('weight') ? Number(formData.get('weight')) : null,
     };
     if (!building) {
       data.designation = (formData.get('designation') as string || '').toUpperCase();
@@ -162,6 +166,32 @@ export function BuildingDialog({ projectId, building, open, onOpenChange, onSave
                 required
                 disabled={loading}
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  name="location"
+                  placeholder="e.g., Zone A, North Side"
+                  defaultValue={building?.location || ''}
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="weight">Tonnage (tons)</Label>
+                <Input
+                  id="weight"
+                  name="weight"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="e.g., 120.5"
+                  defaultValue={building?.weight ?? ''}
+                  disabled={loading}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

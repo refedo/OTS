@@ -1127,7 +1127,7 @@ export default function ProjectTrackerClient() {
                                         </div>
                                       ) : null}
                                     </td>
-                                    <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${hdrBg}`} colSpan={ACTIVITY_COLUMNS.length + 3}>
+                                    <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${hdrBg}`} colSpan={ACTIVITY_COLUMNS.length + 2}>
                                       <div className="flex items-center gap-2">
                                         <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isExpanded ? '' : '-rotate-90'} ${mutedTextClass}`} />
                                         <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -1147,6 +1147,14 @@ export default function ProjectTrackerClient() {
                                           {building.scopes.length} scopes
                                         </span>
                                       </div>
+                                    </td>
+                                    <td className="px-1.5 py-2">
+                                      <OverallCell
+                                        progress={building.overallProgress}
+                                        currentStage={building.currentStage}
+                                        hasBlocked={building.hasBlocked}
+                                        isDark={isDark}
+                                      />
                                     </td>
                                   </tr>
 

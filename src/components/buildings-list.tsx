@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, MapPin, Weight } from 'lucide-react';
 import { BuildingDialog } from './building-dialog';
 
 type Building = {
@@ -11,6 +11,8 @@ type Building = {
   designation: string;
   name: string;
   description: string | null;
+  location: string | null;
+  weight: number | null;
 };
 
 type BuildingsListProps = {
@@ -117,6 +119,18 @@ export function BuildingsList({ projectId, buildings: initialBuildings, canEdit 
                               {building.description}
                             </p>
                           )}
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {building.location && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <MapPin className="size-3" />{building.location}
+                              </span>
+                            )}
+                            {building.weight != null && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Weight className="size-3" />{building.weight} t
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
