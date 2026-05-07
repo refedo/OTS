@@ -24,6 +24,7 @@ import {
   FileText,
   HelpCircle,
   ChevronDown,
+  ChevronsUpDown,
   Pin,
   Zap,
   LayoutGrid,
@@ -700,6 +701,10 @@ function CalculationLegend({ isDark, mutedTextClass }: { isDark: boolean; mutedT
 
 // --- Main Component ---
 
+function isSteelOnly(building: BuildingData): boolean {
+  return building.scopes.length === 1 && building.scopes[0].scopeType === 'steel';
+}
+
 export default function ProjectTrackerClient() {
   const [data, setData] = useState<TrackerResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -715,6 +720,9 @@ export default function ProjectTrackerClient() {
       if (!res.ok) throw new Error('Failed to fetch');
       const json: TrackerResponse = await res.json();
       setData(json);
+      // Expand all buildings by default when data loads
+      const allIds = new Set<string>(json.projects.flatMap((p) => p.buildings.map((b) => b.id)));
+      setExpandedBuildings(allIds);
     } catch {
       // silently fail, keep stale data
     } finally {
@@ -762,6 +770,16 @@ export default function ProjectTrackerClient() {
     });
   }
 
+  function expandAll() {
+    if (!data) return;
+    const allIds = new Set<string>(data.projects.flatMap((p) => p.buildings.map((b) => b.id)));
+    setExpandedBuildings(allIds);
+  }
+
+  function collapseAll() {
+    setExpandedBuildings(new Set());
+  }
+
   const bgClass = isDark ? 'bg-[#0f1419]' : 'bg-slate-50';
   const textClass = isDark ? 'text-white' : 'text-slate-900';
   const mutedTextClass = isDark ? 'text-slate-400' : 'text-slate-500';
@@ -780,6 +798,25 @@ export default function ProjectTrackerClient() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Expand / Collapse all */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={expandAll}
+              className={`rounded-lg text-xs gap-1.5 ${isDark ? 'border-slate-700 bg-[#1a2332] hover:bg-[#243044] text-slate-300' : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'}`}
+            >
+              <ChevronsUpDown className="w-3.5 h-3.5" />
+              Expand All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={collapseAll}
+              className={`rounded-lg text-xs gap-1.5 ${isDark ? 'border-slate-700 bg-[#1a2332] hover:bg-[#243044] text-slate-300' : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'}`}
+            >
+              <ChevronDown className="w-3.5 h-3.5 rotate-180" />
+              Collapse All
+            </Button>
             <Button
               variant="outline"
               size="icon"
@@ -1005,96 +1042,167 @@ export default function ProjectTrackerClient() {
                           const isExpanded = expandedBuildings.has(building.id);
                           const isFirstInProject = bIdx === 0;
                           const hdrBg = isDark ? 'bg-[#151d28]' : 'bg-slate-100';
+                          const steelOnly = isSteelOnly(building);
+                          // Steel-only: single scope, show directly without accordion
+                          const scope0 = building.scopes[0];
 
                           return (
                             <Fragment key={building.id}>
-                              {/* Building group header row */}
-                              <tr
-                                className={`border-t cursor-pointer transition-colors ${isDark ? 'border-slate-700 hover:bg-[#1a2640]' : 'border-slate-200 hover:bg-slate-150'}`}
-                                onClick={() => toggleBuilding(building.id)}
-                              >
-                                <td className={`sticky left-0 z-10 px-4 py-2 text-sm font-semibold whitespace-nowrap ${hdrBg}`}>
-                                  {isFirstInProject ? (
-                                    <div>
-                                      <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>{project.projectNumber}</span>
-                                      <p className={`text-[10px] font-normal truncate max-w-[90px] ${mutedTextClass}`}>{project.name}</p>
-                                    </div>
-                                  ) : null}
-                                </td>
-                                <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${hdrBg}`} colSpan={ACTIVITY_COLUMNS.length + 3}>
-                                  <div className="flex items-center gap-2">
-                                    <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isExpanded ? '' : '-rotate-90'} ${mutedTextClass}`} />
-                                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                      {building.designation && (
-                                        <span className={`font-mono text-xs mr-1.5 ${mutedTextClass}`}>{building.designation}</span>
+                              {steelOnly ? (
+                                // ── Steel-only: flat row (no accordion) ──────────────────────────
+                                <tr
+                                  className={`border-t transition-colors ${isDark ? 'border-slate-700' : 'border-slate-200'} ${rowHoverBg}`}
+                                >
+                                  <td className={`sticky left-0 z-10 px-4 py-2.5 text-sm font-semibold whitespace-nowrap ${hdrBg}`}>
+                                    {isFirstInProject ? (
+                                      <div>
+                                        <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>{project.projectNumber}</span>
+                                        <p className={`text-[10px] font-normal truncate max-w-[90px] ${mutedTextClass}`}>{project.name}</p>
+                                      </div>
+                                    ) : null}
+                                  </td>
+                                  <td className={`sticky left-[100px] z-10 px-4 py-2.5 whitespace-nowrap ${hdrBg}`}>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                        {building.designation && (
+                                          <span className={`font-mono text-xs mr-1.5 ${mutedTextClass}`}>{building.designation}</span>
+                                        )}
+                                        {building.name}
+                                      </span>
+                                      {(building.assemblyTonnage > 0 || building.weight) && (
+                                        <span className={`text-xs px-1.5 py-0.5 rounded ${isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                                          {building.assemblyTonnage > 0
+                                            ? `${building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T`
+                                            : `${Number(building.weight).toLocaleString()} T`}
+                                        </span>
                                       )}
-                                      {building.name}
-                                    </span>
-                                    {(building.assemblyTonnage > 0 || building.weight) && (
-                                      <span className={`text-xs px-1.5 py-0.5 rounded ${isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
-                                        {building.assemblyTonnage > 0
-                                          ? `${building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T`
-                                          : `${Number(building.weight).toLocaleString()} T`}
-                                      </span>
-                                    )}
-                                    <span className={`text-[10px] ${mutedTextClass}`}>
-                                      {building.scopes.length} scope{building.scopes.length !== 1 ? 's' : ''}
-                                    </span>
-                                  </div>
-                                </td>
-                              </tr>
-
-                              {/* Scope rows (shown when expanded) */}
-                              {isExpanded && building.scopes.map((scope, sIdx) => {
-                                const activityMap = new Map<string, ActivityData>();
-                                for (const act of scope.activities) activityMap.set(act.activityType, act);
-                                const badge = (SCOPE_BADGE[scope.scopeType] ?? SCOPE_BADGE.other)[isDark ? 'dark' : 'light'];
-                                return (
-                                  <tr
-                                    key={`${building.id}-${scope.id}`}
-                                    className={`border-t transition-colors ${isDark ? 'border-slate-800/50' : 'border-slate-100'} ${rowHoverBg}`}
-                                  >
-                                    <td className={`sticky left-0 z-10 px-4 py-2 ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}`} />
-                                    <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}`}>
-                                      <span className={`inline-block text-[10px] font-semibold px-2.5 py-1 rounded-full border ${badge}`}>
-                                        {scope.scopeLabel}
-                                      </span>
-                                    </td>
-                                    <td className={`px-3 py-2 text-center whitespace-nowrap ${mutedTextClass}`}>
-                                      {sIdx === 0 ? (
-                                        building.assemblyTonnage > 0
-                                          ? <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{building.assemblyTonnage.toFixed(1)} T</span>
-                                          : building.weight
-                                            ? <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{Number(building.weight)} T</span>
-                                            : null
-                                      ) : null}
-                                    </td>
-                                    {ACTIVITY_COLUMNS.map((col) => {
-                                      const act = activityMap.get(col.type) ?? null;
-                                      if (!act || !act.isApplicable) {
-                                        return (
-                                          <td key={col.type} className="px-1.5 py-2 text-center">
-                                            <span className={`text-[10px] ${isDark ? 'text-slate-700' : 'text-slate-300'}`}>N/A</span>
-                                          </td>
-                                        );
-                                      }
+                                    </div>
+                                  </td>
+                                  <td className={`px-3 py-2.5 text-center whitespace-nowrap ${mutedTextClass}`}>
+                                    {building.assemblyTonnage > 0
+                                      ? <span className="text-xs">{building.assemblyTonnage.toFixed(1)} T</span>
+                                      : building.weight
+                                        ? <span className="text-xs">{Number(building.weight)} T</span>
+                                        : null}
+                                  </td>
+                                  {scope0 && ACTIVITY_COLUMNS.map((col) => {
+                                    const act = scope0.activities.find((a) => a.activityType === col.type) ?? null;
+                                    if (!act || !act.isApplicable) {
                                       return (
-                                        <td key={col.type} className="px-1.5 py-2">
-                                          <StatusCell activity={act} isDark={isDark} />
+                                        <td key={col.type} className="px-1.5 py-2 text-center">
+                                          <span className={`text-[10px] ${isDark ? 'text-slate-700' : 'text-slate-300'}`}>N/A</span>
                                         </td>
                                       );
-                                    })}
-                                    <td className="px-1.5 py-2">
+                                    }
+                                    return (
+                                      <td key={col.type} className="px-1.5 py-2">
+                                        <StatusCell activity={act} isDark={isDark} />
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="px-1.5 py-2">
+                                    {scope0 && (
                                       <OverallCell
-                                        progress={scope.overallProgress}
-                                        currentStage={null}
-                                        hasBlocked={scope.activities.some((a) => a.isApplicable && a.status === 'blocked')}
+                                        progress={scope0.overallProgress}
+                                        currentStage={building.currentStage}
+                                        hasBlocked={building.hasBlocked}
                                         isDark={isDark}
                                       />
+                                    )}
+                                  </td>
+                                </tr>
+                              ) : (
+                                // ── Multi-scope: accordion header + expanded scope rows ────────
+                                <>
+                                  {/* Building group header row */}
+                                  <tr
+                                    className={`border-t cursor-pointer transition-colors ${isDark ? 'border-slate-700 hover:bg-[#1a2640]' : 'border-slate-200 hover:bg-slate-150'}`}
+                                    onClick={() => toggleBuilding(building.id)}
+                                  >
+                                    <td className={`sticky left-0 z-10 px-4 py-2 text-sm font-semibold whitespace-nowrap ${hdrBg}`}>
+                                      {isFirstInProject ? (
+                                        <div>
+                                          <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>{project.projectNumber}</span>
+                                          <p className={`text-[10px] font-normal truncate max-w-[90px] ${mutedTextClass}`}>{project.name}</p>
+                                        </div>
+                                      ) : null}
+                                    </td>
+                                    <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${hdrBg}`} colSpan={ACTIVITY_COLUMNS.length + 3}>
+                                      <div className="flex items-center gap-2">
+                                        <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isExpanded ? '' : '-rotate-90'} ${mutedTextClass}`} />
+                                        <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                          {building.designation && (
+                                            <span className={`font-mono text-xs mr-1.5 ${mutedTextClass}`}>{building.designation}</span>
+                                          )}
+                                          {building.name}
+                                        </span>
+                                        {(building.assemblyTonnage > 0 || building.weight) && (
+                                          <span className={`text-xs px-1.5 py-0.5 rounded ${isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                                            {building.assemblyTonnage > 0
+                                              ? `${building.assemblyTonnage.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} T`
+                                              : `${Number(building.weight).toLocaleString()} T`}
+                                          </span>
+                                        )}
+                                        <span className={`text-[10px] ${mutedTextClass}`}>
+                                          {building.scopes.length} scopes
+                                        </span>
+                                      </div>
                                     </td>
                                   </tr>
-                                );
-                              })}
+
+                                  {/* Scope rows (shown when expanded) */}
+                                  {isExpanded && building.scopes.map((scope, sIdx) => {
+                                    const activityMap = new Map<string, ActivityData>();
+                                    for (const act of scope.activities) activityMap.set(act.activityType, act);
+                                    const badge = (SCOPE_BADGE[scope.scopeType] ?? SCOPE_BADGE.other)[isDark ? 'dark' : 'light'];
+                                    return (
+                                      <tr
+                                        key={`${building.id}-${scope.id}`}
+                                        className={`border-t transition-colors ${isDark ? 'border-slate-800/50' : 'border-slate-100'} ${rowHoverBg}`}
+                                      >
+                                        <td className={`sticky left-0 z-10 px-4 py-2 ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}`} />
+                                        <td className={`sticky left-[100px] z-10 px-4 py-2 whitespace-nowrap ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}`}>
+                                          <span className={`inline-block text-[10px] font-semibold px-2.5 py-1 rounded-full border ${badge}`}>
+                                            {scope.scopeLabel}
+                                          </span>
+                                        </td>
+                                        <td className={`px-3 py-2 text-center whitespace-nowrap ${mutedTextClass}`}>
+                                          {sIdx === 0 ? (
+                                            building.assemblyTonnage > 0
+                                              ? <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{building.assemblyTonnage.toFixed(1)} T</span>
+                                              : building.weight
+                                                ? <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{Number(building.weight)} T</span>
+                                                : null
+                                          ) : null}
+                                        </td>
+                                        {ACTIVITY_COLUMNS.map((col) => {
+                                          const act = activityMap.get(col.type) ?? null;
+                                          if (!act || !act.isApplicable) {
+                                            return (
+                                              <td key={col.type} className="px-1.5 py-2 text-center">
+                                                <span className={`text-[10px] ${isDark ? 'text-slate-700' : 'text-slate-300'}`}>N/A</span>
+                                              </td>
+                                            );
+                                          }
+                                          return (
+                                            <td key={col.type} className="px-1.5 py-2">
+                                              <StatusCell activity={act} isDark={isDark} />
+                                            </td>
+                                          );
+                                        })}
+                                        <td className="px-1.5 py-2">
+                                          <OverallCell
+                                            progress={scope.overallProgress}
+                                            currentStage={null}
+                                            hasBlocked={scope.activities.some((a) => a.isApplicable && a.status === 'blocked')}
+                                            isDark={isDark}
+                                          />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </>
+                              )}
                             </Fragment>
                           );
                         })

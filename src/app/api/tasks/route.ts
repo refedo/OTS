@@ -16,6 +16,7 @@ const createSchema = z.object({
   requesterId: z.string().uuid().optional().nullable(),
   projectId: z.string().uuid().optional().nullable(),
   buildingId: z.string().uuid().optional().nullable(),
+  scopeOfWorkId: z.string().uuid().optional().nullable(),
   departmentId: z.string().uuid().optional().nullable(),
   backlogItemId: z.string().uuid().optional().nullable(),
   mainActivity: z.string().optional().nullable(),
@@ -260,6 +261,7 @@ export async function POST(req: Request) {
     if (parsed.data.requesterId) taskData.requesterId = parsed.data.requesterId;
     if (parsed.data.projectId) taskData.projectId = parsed.data.projectId;
     if (parsed.data.buildingId) taskData.buildingId = parsed.data.buildingId;
+    if (parsed.data.scopeOfWorkId !== undefined) taskData.scopeOfWorkId = parsed.data.scopeOfWorkId ?? null;
     if (parsed.data.departmentId) taskData.departmentId = parsed.data.departmentId;
     if (parsed.data.backlogItemId) taskData.backlogItemId = parsed.data.backlogItemId;
     if (parsed.data.mainActivity) taskData.mainActivity = parsed.data.mainActivity;

@@ -107,6 +107,7 @@ export async function GET(req: Request) {
 
     // Build where clause
     const where: any = {
+      deletedAt: null,
       ...(projectId && { projectId }),
       ...(buildingId && { buildingId }),
       ...(scopeOfWorkId && { scopeOfWorkId }),
@@ -139,8 +140,9 @@ export async function GET(req: Request) {
         },
       }),
       // Purlin area: parts named "PURLIN" — used to compute paintable area
+      // MySQL collation is case-insensitive by default; mode:'insensitive' is PostgreSQL-only
       prisma.assemblyPart.aggregate({
-        where: { ...where, name: { equals: 'PURLIN', mode: 'insensitive' } },
+        where: { ...where, name: { equals: 'PURLIN' } },
         _sum: { netAreaTotal: true },
       }),
     ]);

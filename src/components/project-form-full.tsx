@@ -7,20 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
-
-const SCOPE_OPTIONS = [
-  { id: 'design', label: 'Design' },
-  { id: 'shopDrawing', label: 'Detailing' },
-  { id: 'fabrication', label: 'Fabrication' },
-  { id: 'galvanization', label: 'Galvanization' },
-  { id: 'painting', label: 'Painting' },
-  { id: 'roofSheeting', label: 'Roof Sheeting' },
-  { id: 'wallSheeting', label: 'Wall Sheeting' },
-  { id: 'delivery', label: 'Delivery & Logistics' },
-  { id: 'erection', label: 'Erection' },
-];
 
 type User = { id: string; name: string; position: string | null };
 
@@ -35,24 +22,6 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Parse existing scope of work into checkboxes
-  const getInitialScopes = () => {
-    if (!project.scopeOfWork) return SCOPE_OPTIONS.map(opt => ({ ...opt, checked: false }));
-    const scopeText = project.scopeOfWork.toLowerCase();
-    return SCOPE_OPTIONS.map(opt => ({
-      ...opt,
-      checked: scopeText.includes(opt.label.toLowerCase())
-    }));
-  };
-  
-  const [scopeOfWork, setScopeOfWork] = useState(getInitialScopes());
-  
-  const generateScopeText = () => {
-    const selected = scopeOfWork.filter(item => item.checked).map(item => item.label);
-    if (selected.length === 0) return '';
-    return `This project includes the following scope of work:\n\n${selected.map((item, idx) => `${idx + 1}. ${item}`).join('\n')}`;
-  };
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -146,9 +115,14 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       incoterm: getString('incoterm'),
       projectNature: getString('projectNature'),
       projectLocation: getString('projectLocation'),
-      engineeringDuration: getInt('engineeringDuration') ? getInt('engineeringDuration')! * 7 : null,
-      fabricationDeliveryDuration: getInt('fabricationDeliveryDuration') ? getInt('fabricationDeliveryDuration')! * 7 : null,
-      erectionDuration: getInt('erectionDuration') ? getInt('erectionDuration')! * 7 : null,
+      plannedStartDate: getString('plannedStartDate'),
+      plannedEndDate: getString('plannedEndDate'),
+      engineeringWeeksMin: getInt('engineeringWeeksMin'),
+      engineeringWeeksMax: getInt('engineeringWeeksMax'),
+      operationsWeeksMin: getInt('operationsWeeksMin'),
+      operationsWeeksMax: getInt('operationsWeeksMax'),
+      siteWeeksMin: getInt('siteWeeksMin'),
+      siteWeeksMax: getInt('siteWeeksMax'),
       cranesIncluded: formData.get('cranesIncluded') === 'on',
       surveyorOurScope: formData.get('surveyorOurScope') === 'on',
       thirdPartyRequired: formData.get('thirdPartyRequired') === 'on',
@@ -178,7 +152,6 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       
       thirdPartyRequired: formData.get('thirdPartyRequired') === 'on',
       
-      scopeOfWork: generateScopeText(),
       remarks: getString('remarks'),
     };
 
@@ -305,28 +278,6 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
               <Input id="contractualTonnage" name="contractualTonnage" type="number" step="0.01" defaultValue={project.contractualTonnage || ''} disabled={loading} placeholder="0.00" />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Scope of Work</Label>
-              <div className="grid grid-cols-3 gap-3 p-4 border rounded-lg">
-                {scopeOfWork.map((scope) => (
-                  <div key={scope.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`scope-${scope.id}`}
-                      checked={scope.checked}
-                      onCheckedChange={(checked) => {
-                        setScopeOfWork(scopeOfWork.map(s =>
-                          s.id === scope.id ? { ...s, checked: !!checked } : s
-                        ));
-                      }}
-                      disabled={loading}
-                    />
-                    <Label htmlFor={`scope-${scope.id}`} className="cursor-pointer font-normal">
-                      {scope.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </TabsContent>
 
@@ -342,24 +293,43 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
               <Label htmlFor="downPaymentDate">Down Payment Date</Label>
               <Input id="downPaymentDate" name="downPaymentDate" type="date" defaultValue={project.downPaymentDate?.split('T')[0]} disabled={loading} />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="plannedStartDate">Planned Start Date</Label>
+              <Input id="plannedStartDate" name="plannedStartDate" type="date" defaultValue={project.plannedStartDate?.split('T')[0]} disabled={loading} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="plannedEndDate">Planned End Date</Label>
+              <Input id="plannedEndDate" name="plannedEndDate" type="date" defaultValue={project.plannedEndDate?.split('T')[0]} disabled={loading} />
+            </div>
           </div>
 
           <div className="pt-4 border-t">
-            <h3 className="font-semibold mb-4">Durations (in weeks)</h3>
+            <h3 className="font-semibold mb-4">Stage Durations (weeks — min / max)</h3>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="engineeringDuration">Engineering Duration</Label>
-                <Input id="engineeringDuration" name="engineeringDuration" type="number" defaultValue={project.engineeringDuration ? Math.round(project.engineeringDuration / 7) : ''} disabled={loading} />
+                <Label>Engineering</Label>
+                <div className="flex gap-2">
+                  <Input name="engineeringWeeksMin" type="number" min="0" placeholder="Min" defaultValue={project.engineeringWeeksMin ?? ''} disabled={loading} className="w-1/2" />
+                  <Input name="engineeringWeeksMax" type="number" min="0" placeholder="Max" defaultValue={project.engineeringWeeksMax ?? ''} disabled={loading} className="w-1/2" />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fabricationDeliveryDuration">Fabrication & Delivery</Label>
-                <Input id="fabricationDeliveryDuration" name="fabricationDeliveryDuration" type="number" defaultValue={project.fabricationDeliveryDuration ? Math.round(project.fabricationDeliveryDuration / 7) : ''} disabled={loading} />
+                <Label>Operations / Fabrication</Label>
+                <div className="flex gap-2">
+                  <Input name="operationsWeeksMin" type="number" min="0" placeholder="Min" defaultValue={project.operationsWeeksMin ?? ''} disabled={loading} className="w-1/2" />
+                  <Input name="operationsWeeksMax" type="number" min="0" placeholder="Max" defaultValue={project.operationsWeeksMax ?? ''} disabled={loading} className="w-1/2" />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="erectionDuration">Erection Duration</Label>
-                <Input id="erectionDuration" name="erectionDuration" type="number" defaultValue={project.erectionDuration ? Math.round(project.erectionDuration / 7) : ''} disabled={loading} />
+                <Label>Site / Erection</Label>
+                <div className="flex gap-2">
+                  <Input name="siteWeeksMin" type="number" min="0" placeholder="Min" defaultValue={project.siteWeeksMin ?? ''} disabled={loading} className="w-1/2" />
+                  <Input name="siteWeeksMax" type="number" min="0" placeholder="Max" defaultValue={project.siteWeeksMax ?? ''} disabled={loading} className="w-1/2" />
+                </div>
               </div>
             </div>
           </div>

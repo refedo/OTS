@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,12 +65,18 @@ type Task = {
   attachments?: ExistingAttachment[];
 };
 
+type ScopeOption = {
+  id: string;
+  scopeType: string;
+  scopeLabel: string;
+};
+
 type TaskFormProps = {
   users: User[];
   projects: Project[];
   buildings?: Building[];
   departments?: Department[];
-  task?: Task;
+  task?: Task & { scopeOfWorkId?: string | null };
 };
 
 export function TaskForm({ users, projects, buildings = [], departments = [], task }: TaskFormProps) {
@@ -82,6 +88,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(task?.departmentId || '');
   const [selectedProjectId, setSelectedProjectId] = useState(task?.projectId || '');
   const [selectedBuildingId, setSelectedBuildingId] = useState(task?.buildingId || '');
+  const [selectedScopeId, setSelectedScopeId] = useState(task?.scopeOfWorkId || '');
+  const [availableScopes, setAvailableScopes] = useState<ScopeOption[]>([]);
   const [selectedMainActivity, setSelectedMainActivity] = useState(task?.mainActivity || '');
   const [selectedSubActivity, setSelectedSubActivity] = useState(task?.subActivity || '');
   const [isPrivate, setIsPrivate] = useState(task?.isPrivate || false);
@@ -91,6 +99,34 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
   const [existingAttachments, setExistingAttachments] = useState<ExistingAttachment[]>(task?.attachments || []);
 
   const subActivities = selectedMainActivity ? (SUB_ACTIVITIES[selectedMainActivity] ?? []) : [];
+
+  // Fetch scopes for the selected building
+  useEffect(() => {
+    if (!selectedBuildingId) {
+      setAvailableScopes([]);
+      setSelectedScopeId('');
+      return;
+    }
+    fetch(`/api/scope-of-work?buildingId=${selectedBuildingId}`)
+      .then((r) => r.ok ? r.json() : { scopes: [] })
+      .then((json) => {
+        const scopes: ScopeOption[] = (json.scopes ?? []).map((s: { id: string; scopeType: string; scopeLabel: string }) => ({
+          id: s.id,
+          scopeType: s.scopeType,
+          scopeLabel: s.scopeLabel,
+        }));
+        setAvailableScopes(scopes);
+        // Auto-select steel if it's the only scope and no scope already selected
+        if (scopes.length === 1) {
+          setSelectedScopeId(scopes[0].id);
+        } else if (!scopes.find((s) => s.id === selectedScopeId)) {
+          const steelScope = scopes.find((s) => s.scopeType === 'steel');
+          setSelectedScopeId(steelScope?.id || '');
+        }
+      })
+      .catch(() => setAvailableScopes([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBuildingId]);
 
   const predecessorKey = selectedSubActivity ? SUB_ACTIVITY_DEPENDENCIES[selectedSubActivity] : undefined;
   const predecessorLabel = predecessorKey && selectedMainActivity
@@ -110,6 +146,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       requesterId: (formData.get('requesterId') as string) || null,
       projectId: (formData.get('projectId') as string) || null,
       buildingId: (formData.get('buildingId') as string) || null,
+      scopeOfWorkId: selectedScopeId || null,
       departmentId: (formData.get('departmentId') as string) || null,
       mainActivity: selectedMainActivity || null,
       subActivity: selectedSubActivity || null,
@@ -274,7 +311,10 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 id="buildingId"
                 name="buildingId"
                 value={selectedBuildingId}
-                onChange={(e) => setSelectedBuildingId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedBuildingId(e.target.value);
+                  setSelectedScopeId('');
+                }}
                 disabled={loading || !selectedProjectId}
                 className="w-full h-10 px-3 rounded-md border bg-background"
               >
@@ -293,6 +333,32 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
                 </p>
               )}
             </div>
+
+            {/* Scope of Work (shown when building is selected and scopes exist) */}
+            {selectedBuildingId && availableScopes.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="scopeOfWorkId">Scope of Work</Label>
+                <select
+                  id="scopeOfWorkId"
+                  value={selectedScopeId}
+                  onChange={(e) => setSelectedScopeId(e.target.value)}
+                  disabled={loading || availableScopes.length === 1}
+                  className="w-full h-10 px-3 rounded-md border bg-background"
+                >
+                  <option value="">No Scope</option>
+                  {availableScopes.map((scope) => (
+                    <option key={scope.id} value={scope.id}>
+                      {scope.scopeLabel}
+                    </option>
+                  ))}
+                </select>
+                {availableScopes.length === 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    Scope automatically set to {availableScopes[0].scopeLabel}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Main Activity */}
             <div className="space-y-2">
