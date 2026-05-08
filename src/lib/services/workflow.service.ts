@@ -7,6 +7,7 @@
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { systemEventService } from '@/services/system-events.service';
+import { NotificationService } from '@/lib/services/notification.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -504,6 +505,22 @@ class WorkflowService {
         data: { currentStepId: candidate.id },
       });
 
+      // Notify each resolved approver
+      const wfInstance = await prisma.workflowInstance.findUnique({
+        where: { id: instanceId },
+        select: { entityType: true, entityId: true, definition: { select: { name: true } } },
+      });
+      for (const approver of resolvedApprovers) {
+        NotificationService.createNotification({
+          userId: approver.userId,
+          type: 'APPROVAL_REQUIRED',
+          title: 'Approval Required',
+          message: `Your approval is needed for ${wfInstance?.definition.name ?? 'a workflow'} (${wfInstance?.entityType} #${wfInstance?.entityId.slice(0, 8)})`,
+          relatedEntityType: wfInstance?.entityType,
+          relatedEntityId: instanceId,
+        }).catch(err => logger.error({ err, approverUserId: approver.userId }, 'Failed to send approval notification'));
+      }
+
       return; // activated a step — done
     }
 
@@ -513,7 +530,23 @@ class WorkflowService {
       data: { status: 'APPROVED', currentStepId: null, completedAt: new Date() },
     });
 
-    const instance = await prisma.workflowInstance.findUnique({ where: { id: instanceId } });
+    const instance = await prisma.workflowInstance.findUnique({
+      where: { id: instanceId },
+      select: { entityType: true, entityId: true, initiatedById: true, definition: { select: { name: true } } },
+    });
+
+    // Notify the initiator that the workflow was fully approved
+    if (instance?.initiatedById) {
+      NotificationService.createNotification({
+        userId: instance.initiatedById,
+        type: 'APPROVED',
+        title: 'Request Approved',
+        message: `Your ${instance.definition.name ?? 'workflow'} request has been fully approved.`,
+        relatedEntityType: instance.entityType,
+        relatedEntityId: instanceId,
+      }).catch(err => logger.error({ err, initiatedById: instance.initiatedById }, 'Failed to send approval complete notification'));
+    }
+
     await systemEventService.log({
       eventType: 'WORKFLOW_COMPLETED',
       eventCategory: 'BUSINESS',
@@ -558,6 +591,15 @@ class WorkflowService {
         where: { id: instanceId },
         data: { status: 'REJECTED', currentStepId: null, completedAt: new Date() },
       });
+      // Notify initiator that request was rejected
+      NotificationService.createNotification({
+        userId: instance.initiatedById,
+        type: 'REJECTED',
+        title: 'Request Rejected',
+        message: `Your workflow request has been rejected at step ${rejectedStepInstance.sequence}.`,
+        relatedEntityType: instance.entityType,
+        relatedEntityId: instanceId,
+      }).catch(err => logger.error({ err }, 'Failed to send rejection notification'));
       return;
     }
 

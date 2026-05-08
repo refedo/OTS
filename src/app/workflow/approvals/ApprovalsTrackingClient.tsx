@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { LayoutList, ChevronDown, ChevronUp, Clock, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { LayoutList, ChevronDown, ChevronUp, Clock, Loader2, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Banknote, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { HorizontalStepsTimeline } from '@/components/workflow/HorizontalStepsTimeline';
 import { WorkflowTimeline } from '@/components/workflow/WorkflowTimeline';
 
@@ -50,6 +53,7 @@ interface WorkflowInstance {
   completedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
+  metadata: Record<string, unknown> | null;
   definition: { key: string; name: string; entityType: string };
   initiatedBy: { id: string; name: string };
   cancelledBy: { id: string; name: string } | null;
@@ -66,6 +70,7 @@ interface AllApprovalsResponse {
 
 interface ApprovalsTrackingClientProps {
   isAdmin: boolean;
+  currentUserId: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -90,6 +95,20 @@ function currentStepInfo(stepInstances: StepInstance[]): { name: string; approve
   return { name: active.step.name, approvers: display };
 }
 
+function getPendingActionStep(
+  stepInstances: StepInstance[],
+  currentUserId: string,
+): StepInstance | null {
+  const active = stepInstances.find(s => s.status === 'ACTIVE');
+  if (!active) return null;
+  const isApprover = (active.resolvedApprovers ?? []).some(a => a.userId === currentUserId);
+  if (!isApprover) return null;
+  const hasDecided = active.approvals.some(
+    a => a.user.id === currentUserId && ['APPROVE', 'REJECT'].includes(a.decision),
+  );
+  return hasDecided ? null : active;
+}
+
 function statusBadge(status: string) {
   switch (status) {
     case 'APPROVED':    return <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-100">Approved</Badge>;
@@ -106,23 +125,135 @@ function formatDate(iso: string) {
   });
 }
 
+function fmtSAR(v: unknown) {
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  const n = Number(v);
+  if (isNaN(n)) return null;
+  return new Intl.NumberFormat('en-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(n);
+}
+
+// ─── Entity context badge strip ───────────────────────────────────────────────
+
+function EntityContext({ entityType, metadata }: { entityType: string; metadata: Record<string, unknown> | null }) {
+  if (!metadata) return null;
+  const items: { icon: React.ReactNode; label: string }[] = [];
+
+  if (entityType === 'Loan') {
+    const amt = fmtSAR(metadata.principal);
+    if (amt) items.push({ icon: <Banknote className="w-3 h-3" />, label: amt });
+    if (metadata.employeeName) items.push({ icon: <User className="w-3 h-3" />, label: String(metadata.employeeName) });
+    if (metadata.installmentsTotal) items.push({ icon: null, label: `${metadata.installmentsTotal} installments` });
+  }
+
+  if (entityType === 'PaymentCertificate') {
+    const amt = fmtSAR(metadata.amount ?? metadata.certificateAmount);
+    if (amt) items.push({ icon: <Banknote className="w-3 h-3" />, label: amt });
+    if (metadata.projectName) items.push({ icon: null, label: String(metadata.projectName) });
+  }
+
+  if (!items.length) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
+      {items.map((item, i) => (
+        <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          {item.icon}
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className={`rounded-xl border bg-white p-4 shadow-sm`}>
+    <div className="rounded-xl border bg-white p-4 shadow-sm">
       <p className={`text-xs font-semibold uppercase tracking-wide ${color} mb-1`}>{label}</p>
       <p className="text-2xl font-bold text-slate-800">{value}</p>
     </div>
   );
 }
 
+// ─── Approve/Reject Dialog ────────────────────────────────────────────────────
+
+interface ActionDialogProps {
+  open: boolean;
+  decision: 'APPROVE' | 'REJECT';
+  onClose: () => void;
+  onConfirm: (comment: string) => Promise<void>;
+}
+
+function ActionDialog({ open, decision, onClose, onConfirm }: ActionDialogProps) {
+  const [comment, setComment] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    await onConfirm(comment);
+    setLoading(false);
+    setComment('');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className={decision === 'APPROVE' ? 'text-emerald-700' : 'text-rose-700'}>
+            {decision === 'APPROVE' ? 'Approve Request' : 'Reject Request'}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <Label htmlFor="comment" className="text-sm text-slate-600">
+              Comment {decision === 'REJECT' && <span className="text-rose-500">*</span>}
+            </Label>
+            <Textarea
+              id="comment"
+              placeholder={decision === 'APPROVE' ? 'Optional comment…' : 'Reason for rejection…'}
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              className="mt-1 min-h-[80px]"
+            />
+          </div>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button
+            disabled={loading || (decision === 'REJECT' && !comment.trim())}
+            className={decision === 'APPROVE'
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              : 'bg-rose-600 hover:bg-rose-700 text-white'}
+            onClick={handleConfirm}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+            {decision === 'APPROVE' ? 'Approve' : 'Reject'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Instance Row ─────────────────────────────────────────────────────────────
 
-function InstanceRow({ instance }: { instance: WorkflowInstance }) {
+function InstanceRow({
+  instance,
+  currentUserId,
+  onRefresh,
+}: {
+  instance: WorkflowInstance;
+  currentUserId: string;
+  onRefresh: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [actionDialog, setActionDialog] = useState<'APPROVE' | 'REJECT' | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const idle = idleLabel(instance.stepInstances);
   const stepInfo = currentStepInfo(instance.stepInstances);
+  const pendingStep = getPendingActionStep(instance.stepInstances, currentUserId);
 
   const timelineSteps = instance.stepInstances.map(s => ({
     id: s.id,
@@ -133,70 +264,133 @@ function InstanceRow({ instance }: { instance: WorkflowInstance }) {
     activatedAt: s.activatedAt,
   }));
 
+  const handleDecision = async (decision: 'APPROVE' | 'REJECT', comment: string) => {
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/workflow/instances/${instance.id}/decide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, comment: comment || undefined }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? 'Failed to record decision');
+      }
+      setActionDialog(null);
+      onRefresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to record decision');
+    }
+  };
+
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-0">
-        {/* Main row */}
-        <button
-          className="w-full text-left p-4 hover:bg-slate-50 transition-colors"
-          onClick={() => setExpanded(e => !e)}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-            {/* Left: workflow + entity */}
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="font-semibold text-slate-800 text-sm">{instance.definition.name}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 font-mono">
-                  {instance.entityType} #{instance.entityId.slice(0, 8)}
-                </span>
+    <>
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          {/* Main row */}
+          <button
+            className="w-full text-left p-4 hover:bg-slate-50 transition-colors"
+            onClick={() => setExpanded(e => !e)}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+              {/* Left: workflow + entity */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="font-semibold text-slate-800 text-sm">{instance.definition.name}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 font-mono">
+                    {instance.entityType} #{instance.entityId.slice(0, 8)}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Submitted by <span className="font-medium text-slate-700">{instance.initiatedBy.name}</span>
+                  {' · '}{formatDate(instance.createdAt)}
+                </p>
+
+                <EntityContext entityType={instance.entityType} metadata={instance.metadata} />
+
+                {/* Mini horizontal timeline */}
+                {timelineSteps.length > 0 && (
+                  <div className="mt-3">
+                    <HorizontalStepsTimeline steps={timelineSteps} compact />
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-slate-500">
-                Submitted by <span className="font-medium text-slate-700">{instance.initiatedBy.name}</span>
-                {' · '}{formatDate(instance.createdAt)}
-              </p>
 
-              {/* Mini horizontal timeline */}
-              {timelineSteps.length > 0 && (
-                <div className="mt-3">
-                  <HorizontalStepsTimeline steps={timelineSteps} compact />
-                </div>
-              )}
+              {/* Right: status + step info */}
+              <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
+                {statusBadge(instance.status)}
+
+                {idle && (
+                  <span className={`flex items-center gap-1 text-xs font-medium ${idle.urgent ? 'text-red-600' : 'text-slate-500'}`}>
+                    <Clock className="w-3.5 h-3.5" />
+                    {idle.label}
+                  </span>
+                )}
+
+                {stepInfo && (
+                  <div className="text-right">
+                    <p className="text-xs font-medium text-slate-700">{stepInfo.name}</p>
+                    <p className="text-xs text-slate-400">{stepInfo.approvers}</p>
+                  </div>
+                )}
+
+                {expanded
+                  ? <ChevronUp className="w-4 h-4 text-slate-400 mt-1" />
+                  : <ChevronDown className="w-4 h-4 text-slate-400 mt-1" />
+                }
+              </div>
             </div>
+          </button>
 
-            {/* Right: status + step info */}
-            <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
-              {statusBadge(instance.status)}
-
-              {idle && (
-                <span className={`flex items-center gap-1 text-xs font-medium ${idle.urgent ? 'text-red-600' : 'text-slate-500'}`}>
-                  <Clock className="w-3.5 h-3.5" />
-                  {idle.label}
-                </span>
-              )}
-
-              {stepInfo && (
-                <div className="text-right">
-                  <p className="text-xs font-medium text-slate-700">{stepInfo.name}</p>
-                  <p className="text-xs text-slate-400">{stepInfo.approvers}</p>
-                </div>
-              )}
-
-              {expanded
-                ? <ChevronUp className="w-4 h-4 text-slate-400 mt-1" />
-                : <ChevronDown className="w-4 h-4 text-slate-400 mt-1" />
-              }
+          {/* Inline action buttons for current-user approver */}
+          {pendingStep && (
+            <div className="px-4 pb-3 pt-1 border-t bg-amber-50/50 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-amber-700 font-medium flex-1">
+                Your approval is needed for: <strong>{pendingStep.step.name}</strong>
+              </span>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs gap-1"
+                onClick={e => { e.stopPropagation(); setActionDialog('APPROVE'); }}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-rose-300 text-rose-600 hover:bg-rose-50 h-8 text-xs gap-1"
+                onClick={e => { e.stopPropagation(); setActionDialog('REJECT'); }}
+              >
+                <XCircle className="w-3.5 h-3.5" /> Reject
+              </Button>
             </div>
-          </div>
-        </button>
+          )}
 
-        {/* Expanded full timeline */}
-        {expanded && (
-          <div className="border-t px-4 py-4 bg-slate-50">
-            <WorkflowTimeline instance={instance} />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {actionError && (
+            <div className="px-4 py-2 text-xs text-rose-600 border-t flex items-center gap-1.5 bg-rose-50">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              {actionError}
+            </div>
+          )}
+
+          {/* Expanded full timeline */}
+          {expanded && (
+            <div className="border-t px-4 py-4 bg-slate-50">
+              <WorkflowTimeline instance={instance} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {actionDialog && (
+        <ActionDialog
+          open
+          decision={actionDialog}
+          onClose={() => setActionDialog(null)}
+          onConfirm={comment => handleDecision(actionDialog, comment)}
+        />
+      )}
+    </>
   );
 }
 
@@ -204,7 +398,7 @@ function InstanceRow({ instance }: { instance: WorkflowInstance }) {
 
 const ENTITY_TYPES = ['Loan', 'NCRReport', 'ImsRevision', 'ImsChangeRequest', 'Document'];
 
-export function ApprovalsTrackingClient({ isAdmin }: ApprovalsTrackingClientProps) {
+export function ApprovalsTrackingClient({ isAdmin, currentUserId }: ApprovalsTrackingClientProps) {
   const [data, setData] = useState<AllApprovalsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -358,7 +552,12 @@ export function ApprovalsTrackingClient({ isAdmin }: ApprovalsTrackingClientProp
         ) : (
           <div className="space-y-3">
             {filteredItems.map(inst => (
-              <InstanceRow key={inst.id} instance={inst} />
+              <InstanceRow
+                key={inst.id}
+                instance={inst}
+                currentUserId={currentUserId}
+                onRefresh={() => load(page)}
+              />
             ))}
           </div>
         )}

@@ -180,6 +180,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
 
   // HR Foundation (Phase 1 of OTS-MSS-HR-PAYROLL-v1)
   '/hr/organization-chart': ['hr.employee.view'],
+  '/hr/organization-setup': ['hr.employee.edit'],
   '/hr/dashboard': ['hr.employee.view'],
   '/hr/employees/me': ['hr.employee.viewOwn'],
   '/hr/employees': ['hr.employee.view', 'hr.employee.viewOwn'],

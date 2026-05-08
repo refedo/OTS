@@ -211,7 +211,17 @@ export async function getSupplierList(
       ON sas.dolibarr_id = dt.dolibarr_id AND sas.deletedAt IS NULL
     LEFT JOIN fin_supplier_classification sc
       ON sc.supplier_id = dt.dolibarr_id
-    WHERE dt.supplier_type = 1 AND dt.is_active = 1 ${searchFilter}
+    WHERE dt.is_active = 1
+      AND (
+        dt.supplier_type = 1
+        OR EXISTS (
+          SELECT 1 FROM fin_supplier_invoices si WHERE si.socid = dt.dolibarr_id AND si.is_active = 1
+        )
+        OR EXISTS (
+          SELECT 1 FROM ScApprovedSupplier sas2 WHERE sas2.dolibarr_id = dt.dolibarr_id AND sas2.deletedAt IS NULL
+        )
+      )
+      ${searchFilter}
     ORDER BY dt.name ASC
     LIMIT ? OFFSET ?
   `, ...searchArgs, limit, offset);
@@ -219,7 +229,17 @@ export async function getSupplierList(
   const countRows = await prisma.$queryRawUnsafe<[{ cnt: bigint }]>(`
     SELECT COUNT(*) AS cnt
     FROM dolibarr_thirdparties dt
-    WHERE dt.supplier_type = 1 AND dt.is_active = 1 ${searchFilter}
+    WHERE dt.is_active = 1
+      AND (
+        dt.supplier_type = 1
+        OR EXISTS (
+          SELECT 1 FROM fin_supplier_invoices si WHERE si.socid = dt.dolibarr_id AND si.is_active = 1
+        )
+        OR EXISTS (
+          SELECT 1 FROM ScApprovedSupplier sas WHERE sas.dolibarr_id = dt.dolibarr_id AND sas.deletedAt IS NULL
+        )
+      )
+      ${searchFilter}
   `, ...searchArgs);
 
   return {

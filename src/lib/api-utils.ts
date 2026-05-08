@@ -71,8 +71,14 @@ export function withApiContext<T = any>(
         'API'
       );
       
+      // Next.js 15: context.params is a Promise — resolve before passing to handler
+      let resolvedContext = context;
+      if (context?.params && typeof (context.params as unknown as Promise<Record<string, string>>).then === 'function') {
+        resolvedContext = { params: await (context.params as unknown as Promise<Record<string, string>>) };
+      }
+
       return await runWithContextAsync(requestContext, async () => {
-        return handler(request, session, context);
+        return handler(request, session, resolvedContext);
       });
     } catch (error) {
       logger.error({ error }, '[API] Unhandled error in route handler');

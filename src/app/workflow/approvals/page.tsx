@@ -18,5 +18,5 @@ export default async function ApprovalsPage() {
 
   if (!canViewAll && !canViewOwn) redirect('/unauthorized?from=/workflow/approvals');
 
-  return <ApprovalsTrackingClient isAdmin={canViewAll} />;
+  return <ApprovalsTrackingClient isAdmin={canViewAll} currentUserId={session!.sub} />;
 }
