@@ -1,16 +1,17 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 22.12.0 | **Release Date:** May 4, 2026
+**Version:** 23.1.0 | **Release Date:** May 8, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 22.12.0 — Payroll, HR & Productivity Improvements
-- **Overtime formula** fixed: now calculated on basic salary only (Saudi Labor Law compliance).
-- **Total Salary tile** added to employee Compensation tab.
-- **Dolibarr sync field selector**: choose which fields to update before syncing.
-- **Project edit** bug fixed for Next.js 15 async params.
-- **Task default status** changed to "In Progress" for quick-add tasks.
-- Payroll action buttons moved to right-align.
+### What's New in 23.1.0 — Backlog Card Improvements & CEO Workflow
+- **Submitter name** shown in backlog item header with submission date.
+- **Copy description** button on backlog detail page — one click, brief "Copied!" confirmation.
+- **Share on WhatsApp** button in Quick Actions — sends BL code, title, status, priority, and a direct link.
+- **Stage backfill on COMPLETED** — skipped stages (Under Review, Approved, Planned, In Progress) are automatically stamped with the finisher's name and timestamp.
+- **In Progress tracking** — new `inProgressById`/`inProgressAt` fields; Activity Trail shows who moved item to In Progress.
+- **CEO notification on BL creation** — notify users with CEO/admin access when a backlog item is submitted.
+- **Notification toggle in Settings** — enable/disable CEO creation alerts from Settings → Notifications.
 
 ### What's New in 22.5.3 — Stability & Version Alignment
 - Confirms **22.5.2** features as stable: Account Invoice Report, orphan purge, and sidebar double-render fix.

@@ -23,10 +23,68 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '23.1.0',
+    date: 'May 8, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Backlog Card Improvements & CEO Workflow',
+    highlights: [
+      'Backlog item header now shows submitter name and submission date for immediate context.',
+      'One-click copy button on the description card with "Copied!" confirmation.',
+      'Share on WhatsApp button in Quick Actions — sends BL code, title, status, priority, and a direct link.',
+      'Marking a backlog item as Completed now backfills all skipped stages (Under Review, Approved, Planned, In Progress) with the finisher\'s name and timestamp.',
+      'CEO/admin users receive an in-app notification when any backlog item is submitted — toggle on/off from Settings → Notifications.',
+    ],
+    changes: {
+      added: [
+        'Submitter name and date shown in backlog item detail page header.',
+        'Copy description button with visual feedback on backlog item detail page.',
+        'Share on WhatsApp button in Quick Actions sidebar.',
+        'Stage backfill on COMPLETED: skipped intermediate stages stamped with finisher name + timestamp.',
+        'inProgressById / inProgressAt fields track who moved item to In Progress; Activity Trail updated.',
+        'CEO notification on backlog creation (APPROVAL_REQUIRED) sent to all users with backlog.ceo_center permission.',
+        '"Notify CEO on New Backlog Item" toggle in Settings → Notifications.',
+        'DB migration v23.1.0: adds backlogCeoNotify to system_settings and inProgressById/inProgressAt to ProductBacklogItem.',
+      ],
+      fixed: [],
+      changed: [
+        'Activity Trail In Progress step now shows who moved the item and when.',
+        'Version bumped to 23.1.0',
+      ],
+    },
+  },
+  {
+    version: '23.0.2',
+    date: 'May 7, 2026',
+    type: 'patch',
+    status: 'previous',
+    mainTitle: 'Building Details, Subcontractor Form, Project Card & Tracker Fixes',
+    highlights: [
+      'Subcontractor contract form crash fixed — Select.Item with value="" caused a React error.',
+      'Edit building dialog now includes Location and Tonnage fields.',
+      'Project detail page renders the Scope of Work panel even when no scopes exist — exposing the "Edit Scopes" button.',
+      'Project tracker accordion: multi-scope building headers now show the building Overall progress cell.',
+      'Project card widened from max-w-5xl to max-w-7xl.',
+    ],
+    changes: {
+      added: [],
+      fixed: [
+        'Subcontractor contract form crash: Select.Item with value="" replaced with sentinel "__none__" value.',
+        'Edit building dialog missing Location and Tonnage (weight) fields — both now included.',
+        'Scope of Work section invisible for new buildings — panel now renders even with no scopes, exposing Edit Scopes button.',
+        'Project status tracker accordion: building progress hidden until expansion — Overall column now always visible in header rows.',
+      ],
+      changed: [
+        'Project card layout widened from max-w-5xl to max-w-7xl.',
+        'Version bumped to 23.0.2',
+      ],
+    },
+  },
+  {
     version: '23.0.1',
     date: 'May 7, 2026',
     type: 'patch',
-    status: 'current',
+    status: 'previous',
     mainTitle: '404 Fix, Sidebar Modules, Activity Unification & Task SoW Column',
     highlights: [
       'Fixed /subcontractor-contracts returning 404 — now redirects to /supply-chain/subcontractors.',
