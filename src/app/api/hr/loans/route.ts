@@ -75,7 +75,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
     );
   }
 
-  const employee = await prisma.employee.findUnique({ where: { id: d.employeeId, deletedAt: null }, select: { id: true } });
+  const employee = await prisma.employee.findUnique({ where: { id: d.employeeId, deletedAt: null }, select: { id: true, fullNameEn: true } });
   if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
   try {
@@ -103,7 +103,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         loan.id,
         session!.userId,
         undefined,
-        { principal: d.principal, installmentsTotal: d.installmentsTotal },
+        { principal: d.principal, installmentsTotal: d.installmentsTotal, employeeName: employee.fullNameEn },
       );
     } catch (wfErr) {
       logger.warn({ loanId: loan.id, error: wfErr }, '[Loans] No workflow definition — activating directly');

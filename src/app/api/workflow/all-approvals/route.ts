@@ -16,10 +16,11 @@ const instanceInclude = {
   definition: { select: { key: true, name: true, entityType: true } },
   initiatedBy: { select: { id: true, name: true } },
   cancelledBy: { select: { id: true, name: true } },
+  metadata: true,
   stepInstances: {
     orderBy: { sequence: 'asc' as const },
     include: {
-      step: { select: { name: true, sequence: true, slaHours: true } },
+      step: { select: { name: true, sequence: true, slaHours: true, onRejectBehavior: true } },
       approvals: {
         include: { user: { select: { id: true, name: true } } },
         orderBy: { createdAt: 'asc' as const },
