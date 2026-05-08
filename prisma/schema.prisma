@@ -6854,6 +6854,7 @@ model ImsQmsProcess {
 
 model ScApprovedSupplier {
   id                 String    @id @default(uuid()) @db.Char(36)
+  dolibarrId         Int?      @unique @map("dolibarr_id")
   supplierCode       String    @unique @db.VarChar(20)
   name               String    @db.VarChar(255)
   category           String?   @db.VarChar(100)

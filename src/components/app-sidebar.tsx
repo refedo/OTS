@@ -307,6 +307,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'LCR', href: '/supply-chain/lcr', icon: FileSpreadsheet },
       { name: 'Reports', href: '/supply-chain/lcr/reports', icon: BarChart3 },
       { name: 'Alias Management', href: '/supply-chain/lcr/aliases', icon: GitBranch },
+      { name: 'Supplier Portal', href: '/supply-chain/suppliers', icon: Factory, newSince: '2026-05-08' },
       { name: 'Approved Suppliers', href: '/supply-chain/approved-suppliers', icon: ShieldCheck, newSince: '2026-05-02' },
       { name: 'Purchase Orders', href: '/supply-chain/purchase-orders', icon: Truck },
       { name: 'SC Contracts', href: '/supply-chain/subcontractors', icon: Handshake, newSince: '2026-05-07' },
@@ -368,6 +369,7 @@ const navigationSections: NavigationSection[] = [
     icon: TrendingUp,
     items: [
       { name: 'Financial Dashboard', href: '/financial', icon: TrendingUp },
+      { name: 'Customer Portal', href: '/financial/customers', icon: Users, newSince: '2026-05-08' },
       { name: 'Monthly Report', href: '/financial/reports/monthly-report', icon: CalendarClock, newSince: '2026-04-29' },
       { name: 'Chart of Accounts', href: '/financial/chart-of-accounts', icon: FileText },
       { name: 'Trial Balance', href: '/financial/reports/trial-balance', icon: FileSpreadsheet },

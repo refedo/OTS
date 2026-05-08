@@ -24,7 +24,7 @@ type RecordEntry = {
 
 const FORMS: FormEntry[] = [
   { code: 'FRM-001', name: 'Document Change Request (DCR)', isoClause: 'ISO 9001 §7.5', procedure: 'ISP-001', href: '/ims/change-requests', category: 'Document Control' },
-  { code: 'FRM-002', name: 'Approved Supplier List', isoClause: 'ISO 9001 §8.4', procedure: 'ISP-011', href: '/supply-chain/approved-suppliers', category: 'Supply Chain' },
+  { code: 'FRM-002', name: 'Supplier Evaluation & Approved Vendor List', isoClause: 'ISO 9001 §8.4', procedure: 'ISP-011', href: '/supply-chain/suppliers', category: 'Supply Chain' },
   { code: 'FRM-003', name: 'Training Needs Analysis', isoClause: 'ISO 9001 §7.2', procedure: 'ISP-006', href: '/hr/training', category: 'HR / Competence' },
   { code: 'FRM-004', name: 'Audit Schedule', isoClause: 'ISO 9001 §9.2', procedure: 'ISP-004', href: '/ims/audit-plans', category: 'Internal Audit' },
   { code: 'FRM-005', name: 'Internal Audit Report', isoClause: 'ISO 9001 §9.2', procedure: 'ISP-004', href: '/ims/audit-plans', category: 'Internal Audit' },
