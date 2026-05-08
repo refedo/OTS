@@ -441,6 +441,9 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'hr.letters.approveCeo', name: 'CEO-Approve Letters', description: 'Final CEO sign-off on HR letters — approve or reject letters pending approval', category: 'hr' },
       // 19.4.0 — HR Absence Analytics
       { id: 'hr.analytics.view', name: 'View HR Analytics', description: 'Access the absence and leave behavioral analytics dashboard', category: 'hr' },
+      // 23.2.0 — HR Monthly Reports
+      { id: 'hr.reports.view', name: 'View HR Monthly Reports', description: 'View generated HR monthly reports and download PDFs', category: 'hr' },
+      { id: 'hr.reports.manage', name: 'Manage HR Monthly Reports', description: 'Generate, regenerate, and manage HR monthly reports', category: 'hr' },
     ],
   },
   {

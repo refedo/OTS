@@ -110,6 +110,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   
   // Product Backlog
   '/backlog/new': ['backlog.create'],
+  '/backlog/dashboard': ['backlog.view'],
   '/backlog': ['backlog.view'],
   '/ceo-control-center': ['backlog.ceo_center'],
   
