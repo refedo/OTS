@@ -100,6 +100,7 @@ const TRACKED_SYNC_FIELDS = [
   'status',
   'department',
   'departmentId',
+  'reportsToId',
   'occupation',
   'section',
   'division',

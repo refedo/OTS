@@ -80,10 +80,17 @@ export default async function EmployeeDetailPage({
   });
   if (!employee) notFound();
 
-  const departments = await prisma.department.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  });
+  const [departments, allEmployees] = await Promise.all([
+    prisma.department.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.employee.findMany({
+      where: { deletedAt: null, status: { not: 'TERMINATED' } },
+      select: { id: true, fullNameEn: true, employmentId: true },
+      orderBy: { fullNameEn: 'asc' },
+    }),
+  ]);
 
   // Prev / next navigation (admin-only; not needed for self-view but kept for convenience)
   const allEmployeeIds = !isSelfView
@@ -154,6 +161,8 @@ export default async function EmployeeDetailPage({
     contractType: (employee as Record<string, unknown>).contractType as string ?? '',
     workingLocation: (employee as Record<string, unknown>).workingLocation as string ?? '',
     transferType: (employee as Record<string, unknown>).transferType as string ?? '',
+    reportsToId: employee.reportsToId ?? null,
+    reportsTo: employee.reportsTo ?? null,
     manuallyEditedFields: Array.isArray(employee.manuallyEditedFields)
       ? (employee.manuallyEditedFields as string[])
       : [],
@@ -266,6 +275,7 @@ export default async function EmployeeDetailPage({
               canViewCompensation={canViewCompensation}
               canResetToDolibarr={canResetToDolibarr}
               departments={departments}
+              allEmployees={allEmployees}
             />
           }
           employeeId={employee.id}

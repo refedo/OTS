@@ -18,6 +18,7 @@ const updateSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
   description: z.string().max(1000).optional().nullable(),
   archived: z.boolean().optional(),
+  parentId: z.string().uuid().nullable().optional(),
 });
 
 async function getSession() {
@@ -49,6 +50,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
         ...(parsed.data.archived !== undefined && {
           archivedAt: parsed.data.archived ? new Date() : null,
         }),
+        ...(parsed.data.parentId !== undefined && { parentId: parsed.data.parentId }),
       },
     });
     return NextResponse.json(updated);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, RefreshCw, Pencil, X } from 'lucide-react';
+import { Loader2, RefreshCw, Pencil, X, ChevronsUpDown, Check } from 'lucide-react';
 
 /**
  * Shared create/edit form for Employees. In create mode, `initial` is null;
@@ -40,6 +40,7 @@ const schema = z.object({
   status: z.enum(['ACTIVE', 'ON_LEAVE', 'SUSPENDED', 'TERMINATED', 'RESIGNED']),
   department: z.string().max(120).optional().or(z.literal('')),
   departmentId: z.string().optional().or(z.literal('')),
+  reportsToId: z.string().uuid().nullable().optional().or(z.literal('')),
   occupation: z.string().max(120).optional().or(z.literal('')),
   section: z.string().max(60).optional().or(z.literal('')),
   division: z.string().max(80).optional().or(z.literal('')),
@@ -84,6 +85,8 @@ type FormValues = z.infer<typeof schema>;
 export type EmployeeFormInitial = Partial<FormValues> & {
   id?: string;
   manuallyEditedFields?: string[];
+  reportsToId?: string | null;
+  reportsTo?: { id?: string; fullNameEn: string } | null;
 };
 
 type Props = {
@@ -91,6 +94,7 @@ type Props = {
   canViewCompensation: boolean;
   canResetToDolibarr: boolean;
   departments?: { id: string; name: string }[];
+  allEmployees?: { id: string; fullNameEn: string; employmentId: string }[];
 };
 
 const SECTION_FALLBACK = ['Preparation', 'Fabrication', 'Other'];
@@ -102,6 +106,7 @@ export function EmployeeForm({
   canViewCompensation,
   canResetToDolibarr,
   departments = [],
+  allEmployees = [],
 }: Props) {
   const router = useRouter();
   const isEdit = !!initial?.id;
@@ -113,6 +118,10 @@ export function EmployeeForm({
   const [sectionOptions, setSectionOptions] = useState<string[]>(SECTION_FALLBACK);
   const [divisionOptions, setDivisionOptions] = useState<string[]>(DIVISION_FALLBACK);
   const [occupationOptions, setOccupationOptions] = useState<string[]>(OCCUPATION_FALLBACK);
+  // Supervisor combobox state
+  const [supervisorSearch, setSupervisorSearch] = useState('');
+  const [supervisorOpen, setSupervisorOpen] = useState(false);
+  const supervisorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,6 +188,16 @@ export function EmployeeForm({
     };
   }, [initial?.occupation]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (supervisorRef.current && !supervisorRef.current.contains(e.target as Node)) {
+        setSupervisorOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -193,6 +212,7 @@ export function EmployeeForm({
       status: (initial?.status as FormValues['status']) ?? 'ACTIVE',
       department: initial?.department ?? '',
       departmentId: initial?.departmentId ?? '',
+      reportsToId: initial?.reportsToId ?? '',
       occupation: initial?.occupation ?? '',
       section: initial?.section ?? '',
       division: initial?.division ?? '',
@@ -511,6 +531,90 @@ export function EmployeeForm({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              {/* Supervisor (Reports To) */}
+              <div className="col-span-2">
+                <Label>Reports To (Supervisor)</Label>
+                {locked ? (
+                  <Input
+                    value={
+                      form.watch('reportsToId')
+                        ? (allEmployees.find((e) => e.id === form.watch('reportsToId'))?.fullNameEn
+                          ?? initial?.reportsTo?.fullNameEn
+                          ?? form.watch('reportsToId') ?? '')
+                        : ''
+                    }
+                    disabled
+                    placeholder="— No supervisor —"
+                  />
+                ) : (
+                  <div ref={supervisorRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => { if (!locked) setSupervisorOpen((o) => !o); }}
+                      className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                    >
+                      <span className={form.watch('reportsToId') ? '' : 'text-muted-foreground'}>
+                        {form.watch('reportsToId')
+                          ? (allEmployees.find((e) => e.id === form.watch('reportsToId'))?.fullNameEn
+                            ?? initial?.reportsTo?.fullNameEn
+                            ?? '—')
+                          : '— None —'}
+                      </span>
+                      <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </button>
+                    {supervisorOpen && (
+                      <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                        <div className="p-2">
+                          <Input
+                            autoFocus
+                            placeholder="Search by name or ID…"
+                            value={supervisorSearch}
+                            onChange={(e) => setSupervisorSearch(e.target.value)}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="max-h-52 overflow-y-auto">
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
+                            onClick={() => {
+                              form.setValue('reportsToId', '');
+                              setSupervisorOpen(false);
+                              setSupervisorSearch('');
+                            }}
+                          >
+                            <Check className={`h-4 w-4 ${!form.watch('reportsToId') ? 'opacity-100' : 'opacity-0'}`} />
+                            — None —
+                          </button>
+                          {allEmployees
+                            .filter((e) => {
+                              if (isEdit && e.id === initial?.id) return false;
+                              const q = supervisorSearch.toLowerCase();
+                              return !q || e.fullNameEn.toLowerCase().includes(q) || e.employmentId.toLowerCase().includes(q);
+                            })
+                            .slice(0, 50)
+                            .map((e) => (
+                              <button
+                                key={e.id}
+                                type="button"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
+                                onClick={() => {
+                                  form.setValue('reportsToId', e.id);
+                                  setSupervisorOpen(false);
+                                  setSupervisorSearch('');
+                                }}
+                              >
+                                <Check className={`h-4 w-4 ${form.watch('reportsToId') === e.id ? 'opacity-100' : 'opacity-0'}`} />
+                                <span>{e.fullNameEn}</span>
+                                <span className="ml-auto text-xs text-muted-foreground font-mono">{e.employmentId}</span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Job title (English)</Label>

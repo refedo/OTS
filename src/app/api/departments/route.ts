@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 
-const createSchema = z.object({ name: z.string().min(2), description: z.string().optional() });
+const createSchema = z.object({
+  name: z.string().min(2),
+  description: z.string().optional(),
+  parentId: z.string().uuid().nullable().optional(),
+});
 
 export async function GET(req: NextRequest) {
   const store = await cookies();
@@ -53,6 +57,12 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
 
-  const item = await prisma.department.create({ data: parsed.data });
+  const item = await prisma.department.create({
+    data: {
+      name: parsed.data.name,
+      description: parsed.data.description,
+      parentId: parsed.data.parentId ?? null,
+    },
+  });
   return NextResponse.json(item, { status: 201 });
 }
