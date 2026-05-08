@@ -355,7 +355,7 @@ export async function buildMonthlyReportData(
       status: true,
       startDate: true,
       endDate: true,
-      leaveType: { select: { id: true, name: true } },
+      leaveType: { select: { id: true, nameEn: true } },
     },
   });
 
@@ -369,7 +369,7 @@ export async function buildMonthlyReportData(
     else pending++;
 
     const typeId   = r.leaveType?.id ?? '__unknown__';
-    const typeName = r.leaveType?.name ?? 'Unknown';
+    const typeName = r.leaveType?.nameEn ?? 'Unknown';
     const days     = r.startDate && r.endDate
       ? Math.max(1, Math.round((r.endDate.getTime() - r.startDate.getTime()) / 86400000) + 1)
       : 1;

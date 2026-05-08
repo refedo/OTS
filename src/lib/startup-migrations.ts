@@ -54,6 +54,7 @@ const STARTUP_MIGRATIONS = [
   'add_employee_history.sql',
   'add_loans_custodies.sql',
   'add_manpower_billing.sql',
+  'migrate_trade_to_occupation.sql',    // 18.7.0: backfill trade→occupation, drop trade column
 
   // ── Ops Agent (19.x) ─────────────────────────────────────────────────────
   'add_ops_agent_module.sql',
@@ -70,6 +71,7 @@ const STARTUP_MIGRATIONS = [
 
   // ── Extended Dolibarr employee fields (19.5.0) ───────────────────────────
   'add_employee_dolibarr_fields.sql',
+  'add_employee_gender.sql',            // gender column synced from Dolibarr
 
   // ── WorkUnit type expansion (19.6.1) ─────────────────────────────────────
   'add_work_unit_types.sql',
@@ -88,24 +90,35 @@ const STARTUP_MIGRATIONS = [
 
   // ── HR Policy attachment + seed policies (19.17.0) ──────────────────────
   'add_hr_policy_attachment.sql',
+  'add_letter_purpose.sql',             // purpose column for salary certificates etc.
+  'add_letter_cancelled_status.sql',    // CANCELLED status on HrLetterStatus enum
 
   // ── Training program file attachments (19.17.1) ──────────────────────────
   'add_training_attachments.sql',
 
   // ── Business Development module (20.0.0) ─────────────────────────────────
   'add_business_development.sql',
+  'bd_document_attachments.sql',        // 22.2.0: attachments JSON on BdDocument
 
   // ── Payroll entitlements: annual leave allowance, ticket, visa (20.1.0) ──
   'add_payroll_entitlements.sql',
 
   // ── Workflow Engine (21.0.0) ──────────────────────────────────────────────
   'add_workflow_engine.sql',
+  'fix_workflow_step_fk_cascade.sql',   // RESTRICT→CASCADE on WorkflowStepInstance.stepId FK
 
   // ── Loan approval workflow + PENDING_APPROVAL status (21.1.0) ────────────
   'loan_approval_workflow.sql',
 
   // ── BD vendor portal fields: vendorId, portalUsername, portalPassword (21.2.0) ─
   'bd_vendor_fields.sql',
+
+  // ── Meetings module (22.1.0) ──────────────────────────────────────────────
+  'add_meetings_module.sql',
+  'add_google_oauth_and_meeting_notifications.sql', // Google Calendar OAuth + meeting notification types
+
+  // ── CEO Arena (22.3.0) ────────────────────────────────────────────────────
+  'ceo_arena_notes.sql',
 
   // ── IMS module: 12 new models for ISO 9001/14001/45001 (22.0.0) ──────────
   'add_ims_module.sql',
@@ -133,6 +146,8 @@ const STARTUP_MIGRATIONS = [
   'add_qc_coating_inspection.sql',      // FRM-022: Coating Inspection (DFT)
   'add_ims_safety.sql',                 // FRM-024/025/026: Incidents, Drills, Toolbox Talks
   'seed_sprint_2270_data.sql',          // Demo seed data for all Sprint 22.7.0 tables
+  'add_supplier_portal.sql',            // Supplier & Customer Portal (evaluations, payment terms)
+  'add_supplier_portal_permissions.sql', // supply_chain.manage permission for admin + procurement roles
 
   // ── Sprint 22.8.0 — IMS PDF Downloads, Seeds & Global Search Expansion ───
   'seed_sprint_2280_data.sql',          // Audit Plans (AP-25/26), NCRs, Mgmt Reviews, Objectives 2026
@@ -151,6 +166,13 @@ const STARTUP_MIGRATIONS = [
   // ── Task scope column (22.15.0) ──────────────────────────────────────────
   'v22_15_task_scope.sql',              // scopeOfWorkId on Task; backfill steel scope for existing tasks
 
+  // ── Concentration Risk: Project Segment (22.x) ───────────────────────────
+  'add_project_segment.sql',            // ProjectSegment table + segmentId on Project
+
+  // ── System events repair ──────────────────────────────────────────────────
+  'repair_system_events_table.sql',     // Fix SystemEvent→system_events table name + missing columns
+  'fix_failed_enhance_system_events.sql', // Complete enhance_system_events migration (MySQL 5.7+ compatible)
+
   // ── v23.0.0 — Subcontractor Contracts Module ──────────────────────────────
   'v23_0_subcontractor_contracts.sql',  // SubcontractorContract + SubcontractorPaymentCertificate tables
 
@@ -161,8 +183,21 @@ const STARTUP_MIGRATIONS = [
   'v23_1_fix_steel_scope_activities.sql', // Set all steel-scope activities to isApplicable=1; insert missing rows
   'v23_2_seed_assembly_part_steel_scope.sql', // Backfill AssemblyPart.scopeOfWorkId to steel scope
 
-  // ── v23.3.0 — Backlog card improvements ──────────────────────────────────
-  'v23_1_backlog_improvements.sql',           // backlogCeoNotify on system_settings; inProgressById/At on ProductBacklogItem
+  // ── v23.1.1 — Backlog card improvements ──────────────────────────────────
+  'v23_1_backlog_improvements.sql',     // backlogCeoNotify on system_settings; inProgressById/At on ProductBacklogItem
+
+  // ── v23.2.0 — HR Monthly Reports ─────────────────────────────────────────
+  'v23_2_hr_monthly_reports.sql',       // HrMonthlyReport table for auto-generated PDF reports
+
+  // ── v23.3.0 — Department hierarchy ──────────────────────────────────────
+  'v23_3_department_parent_hierarchy.sql', // parentId self-reference on Department for nested structure
+
+  // ── v23.4.0 — Client + Credit limit history ──────────────────────────────
+  'v23_4_client_dolibarr_link.sql',     // Link OTS Client records to Dolibarr third-party customers
+  'v23_4_credit_limit_history.sql',     // Credit limit audit history for suppliers and customers
+
+  // ── v23.5.0 — Supplier classification table ───────────────────────────────
+  'v23_5_fin_supplier_classification.sql', // Ensure fin_supplier_classification exists for supplier list JOIN
 ];
 
 /**
