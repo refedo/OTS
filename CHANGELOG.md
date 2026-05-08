@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.1.0] - 2026-05-08
+
+### HR Turnover Rate KPI
+
+#### Added
+- **Employee Turnover Rate KPI** — New KPI section on the HR Dashboard displaying:
+  - **At Start**: headcount at the beginning of the selected period
+  - **At End**: headcount at the end of the selected period
+  - **New Hires**: employees who joined during the period
+  - **Leavers**: employees whose `dateOfLeaving` falls within the period
+  - **Turnover Rate** (auto-calculated): `(Leavers ÷ Average Headcount) × 100`, where Average Headcount = `(At Start + At End) ÷ 2`
+- **Stability indicator** — The turnover rate card is colour-coded and labelled by threshold:
+  - < 10%: Good Stability (emerald)
+  - 10 – 20%: Normal (amber)
+  - > 20%: Requires Further Analysis (rose)
+- All turnover figures respect the existing occupation / section / department filters and refresh automatically when the date range or any filter changes.
+- Version bumped to **23.1.0**
+
+---
+
 ## [23.0.2] - 2026-05-07
 
 ### Building Details, Subcontractor Form, Project Card & Tracker Fixes
