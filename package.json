@@ -11,7 +11,9 @@
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

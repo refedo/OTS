@@ -26,6 +26,19 @@ On every change:
 
 ---
 
+## Parallel Development Workflow
+
+When multiple sessions run in parallel:
+- **Do NOT run `version-manager.js` or touch any version file** during feature development
+- Commit and push feature code only (no version bump in those commits)
+- When all feature work is pushed, run the release step **once**:
+  - `npm run release:patch` — for fixes
+  - `npm run release:minor` — for features
+- This script pulls the latest remote version first, then bumps from that, then pushes atomically
+- If two sessions call `release` at the exact same moment and one fails, simply re-run it
+
+---
+
 ## Development Rules
 - Work directly on main
 - No feature branches or PRs
