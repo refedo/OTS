@@ -46,9 +46,11 @@ import {
   Smartphone,
   Wrench,
   DollarSign,
-  HandCoins,
   ShieldAlert,
   UserCheck,
+  UserPlus,
+  UserMinus,
+  Activity,
 } from 'lucide-react';
 import type { HrDashboardResult, HrDashboardGroupBy } from '@/lib/services/hr/hr-dashboard-stats';
 
@@ -702,6 +704,99 @@ export function HrDashboardClient({
           </CardContent>
         </Card>
       )}
+
+      {/* Turnover Rate KPI */}
+      {(() => {
+        const t = stats.turnover;
+        const stabilityConfig = {
+          good:   { label: 'Good Stability',        bg: 'from-emerald-50 to-white', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700' },
+          normal: { label: 'Normal',                bg: 'from-amber-50 to-white',   border: 'border-amber-200',   text: 'text-amber-700',   badge: 'bg-amber-100 text-amber-700'   },
+          review: { label: 'Requires Further Analysis', bg: 'from-rose-50 to-white', border: 'border-rose-200', text: 'text-rose-700', badge: 'bg-rose-100 text-rose-700' },
+        }[t.stability];
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-violet-600" />
+                  Employee Turnover Rate
+                </CardTitle>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${stabilityConfig.badge}`}>
+                  {stabilityConfig.label}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                      <Users className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">At Start</p>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-700">{t.atStart}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">beginning of period</p>
+                </div>
+
+                <div className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                      <Users className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">At End</p>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-700">{t.atEnd}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">end of period</p>
+                </div>
+
+                <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-sky-100 text-sky-600">
+                      <UserPlus className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">New Hires</p>
+                  </div>
+                  <p className="text-2xl font-bold text-sky-700">{t.newHires}</p>
+                  <p className="text-xs text-sky-400 mt-0.5">joined this period</p>
+                </div>
+
+                <div className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-100 text-rose-600">
+                      <UserMinus className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Leavers</p>
+                  </div>
+                  <p className="text-2xl font-bold text-rose-700">{t.leavers}</p>
+                  <p className="text-xs text-rose-400 mt-0.5">left this period</p>
+                </div>
+
+                <div className={`rounded-xl border bg-gradient-to-b ${stabilityConfig.bg} ${stabilityConfig.border} p-4 shadow-sm sm:col-span-3 lg:col-span-1`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/80 border border-current/20">
+                      <TrendingUp className={`h-3.5 w-3.5 ${stabilityConfig.text}`} />
+                    </div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${stabilityConfig.text}`}>Turnover Rate</p>
+                  </div>
+                  <p className={`text-3xl font-bold tabular-nums ${stabilityConfig.text}`}>
+                    {t.turnoverRate.toFixed(1)}
+                    <span className="text-lg font-medium ml-0.5">%</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    avg. {t.averageHeadcount} employees
+                  </p>
+                  <div className="mt-2 text-[10px] text-muted-foreground space-y-0.5 border-t pt-2">
+                    <div className="flex justify-between"><span>{"< 10%"}</span><span className="text-emerald-600 font-medium">Good</span></div>
+                    <div className="flex justify-between"><span>10 – 20%</span><span className="text-amber-600 font-medium">Normal</span></div>
+                    <div className="flex justify-between"><span>{"> 20%"}</span><span className="text-rose-600 font-medium">Review</span></div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Contracts & Documents widget */}
       {contractStats && (

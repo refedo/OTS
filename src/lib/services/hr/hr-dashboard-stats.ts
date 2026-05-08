@@ -56,6 +56,16 @@ export interface HrDashboardTrendPoint {
   overtimeHours: number;
 }
 
+export interface TurnoverStats {
+  atStart: number;
+  atEnd: number;
+  newHires: number;
+  leavers: number;
+  averageHeadcount: number;
+  turnoverRate: number;
+  stability: 'good' | 'normal' | 'review';
+}
+
 export interface HrDashboardResult {
   filters: {
     startDate: string;
@@ -79,6 +89,7 @@ export interface HrDashboardResult {
     publicHoliday: number;
     unknown: number;
   };
+  turnover: TurnoverStats;
 }
 
 // ----------------------------------------------------------------------------
@@ -127,7 +138,15 @@ export async function getHrDashboardStats(
     ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
   };
 
-  const [records, departmentName] = await Promise.all([
+  // Exact period boundaries for turnover (date-only comparison against @db.Date fields).
+  const periodStart = startDate; // midnight UTC of first day
+  const periodEnd = new Date(Date.UTC(
+    filters.endDate.getUTCFullYear(),
+    filters.endDate.getUTCMonth(),
+    filters.endDate.getUTCDate(),
+  ));
+
+  const [records, departmentName, turnoverAtStart, turnoverAtEnd, turnoverNewHires, turnoverLeavers] = await Promise.all([
     prisma.attendanceRecord.findMany({
       where: {
         workerType: 'EMPLOYEE',
@@ -158,6 +177,36 @@ export async function getHrDashboardStats(
           select: { name: true },
         })
       : Promise.resolve(null),
+    // Employees active at the start of the period
+    prisma.employee.count({
+      where: {
+        ...employeeWhere,
+        dateOfJoining: { lte: periodStart },
+        OR: [{ dateOfLeaving: null }, { dateOfLeaving: { gte: periodStart } }],
+      },
+    }),
+    // Employees active at the end of the period
+    prisma.employee.count({
+      where: {
+        ...employeeWhere,
+        dateOfJoining: { lte: periodEnd },
+        OR: [{ dateOfLeaving: null }, { dateOfLeaving: { gt: periodEnd } }],
+      },
+    }),
+    // New hires during the period
+    prisma.employee.count({
+      where: {
+        ...employeeWhere,
+        dateOfJoining: { gte: periodStart, lte: periodEnd },
+      },
+    }),
+    // Employees who left during the period
+    prisma.employee.count({
+      where: {
+        ...employeeWhere,
+        dateOfLeaving: { gte: periodStart, lte: periodEnd },
+      },
+    }),
   ]);
 
   // ----------------------------------------------------------------
@@ -303,6 +352,22 @@ export async function getHrDashboardStats(
     a.date.localeCompare(b.date),
   );
 
+  const avgHeadcount = (turnoverAtStart + turnoverAtEnd) / 2;
+  const rawRate = avgHeadcount > 0 ? (turnoverLeavers / avgHeadcount) * 100 : 0;
+  const turnoverRate = Math.round(rawRate * 10) / 10;
+  const stability: TurnoverStats['stability'] =
+    turnoverRate < 10 ? 'good' : turnoverRate <= 20 ? 'normal' : 'review';
+
+  const turnover: TurnoverStats = {
+    atStart: turnoverAtStart,
+    atEnd: turnoverAtEnd,
+    newHires: turnoverNewHires,
+    leavers: turnoverLeavers,
+    averageHeadcount: Math.round(avgHeadcount * 10) / 10,
+    turnoverRate,
+    stability,
+  };
+
   return {
     filters: {
       startDate: isoDate(filters.startDate),
@@ -317,5 +382,6 @@ export async function getHrDashboardStats(
     groups,
     trend,
     absenceMix,
+    turnover,
   };
 }
