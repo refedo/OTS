@@ -59,9 +59,9 @@ export async function GET(
   const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
   const fileName = path.basename(filePath);
 
-  // Images render inline; everything else forces download
-  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext);
-  const disposition = isImage ? `inline; filename="${fileName}"` : `attachment; filename="${fileName}"`;
+  // Images and PDFs render inline; everything else forces download
+  const isInline = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'pdf'].includes(ext);
+  const disposition = isInline ? `inline; filename="${fileName}"` : `attachment; filename="${fileName}"`;
 
   try {
     const buffer = await readFile(filePath);
