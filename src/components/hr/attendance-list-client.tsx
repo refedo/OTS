@@ -69,10 +69,20 @@ function currentMonth(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-export function AttendanceListClient() {
-  const [month, setMonth] = useState<string>(currentMonth());
-  const [workerTypeFilter, setWorkerTypeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+type AttendanceListClientProps = {
+  initialMonth?: string;
+  initialStatus?: string;
+  initialWorkerType?: string;
+};
+
+export function AttendanceListClient({
+  initialMonth,
+  initialStatus = 'all',
+  initialWorkerType = 'all',
+}: AttendanceListClientProps = {}) {
+  const [month, setMonth] = useState<string>(initialMonth ?? currentMonth());
+  const [workerTypeFilter, setWorkerTypeFilter] = useState<string>(initialWorkerType);
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [search, setSearch] = useState('');
   const [showArabic, setShowArabic] = useState(false);
   const [rows, setRows] = useState<AttendanceRow[]>([]);

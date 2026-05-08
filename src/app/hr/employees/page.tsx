@@ -10,7 +10,12 @@ export const metadata: Metadata = {
   title: 'HR — Employees',
 };
 
-export default async function EmployeesPage() {
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; occupation?: string; joinedFrom?: string; joinedTo?: string; leftFrom?: string; leftTo?: string }>;
+}) {
+  const sp = await searchParams;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -121,6 +126,12 @@ export default async function EmployeesPage() {
       canEdit={canEdit}
       canDelete={canDelete}
       reconciliationComplete={gate?.value === 'true'}
+      initialStatus={sp.status}
+      initialOccupation={sp.occupation}
+      initialJoinedFrom={sp.joinedFrom}
+      initialJoinedTo={sp.joinedTo}
+      initialLeftFrom={sp.leftFrom}
+      initialLeftTo={sp.leftTo}
     />
   );
 }

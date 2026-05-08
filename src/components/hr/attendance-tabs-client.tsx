@@ -38,17 +38,25 @@ export function AttendanceTabsClient({
   mappingCandidates,
   employees,
   timesheetHref,
+  initialTab = 'grid',
+  initialMonth,
+  initialStatus = 'all',
+  initialWorkerType = 'all',
 }: {
   canSync: boolean;
   mappingCandidates: MappingCandidate[];
   employees: Employee[];
   timesheetHref: string;
+  initialTab?: string;
+  initialMonth?: string;
+  initialStatus?: string;
+  initialWorkerType?: string;
 }) {
   const unmappedCount = mappingCandidates.filter((c) => c.status === 'UNMAPPED').length;
 
   return (
     <div className="p-4 md:p-8">
-      <Tabs defaultValue="grid" className="space-y-4">
+      <Tabs defaultValue={initialTab} className="space-y-4">
         <TabsList className="bg-slate-100">
           <TabsTrigger value="records" className="gap-2">
             <Calendar className="h-4 w-4" />
@@ -76,7 +84,11 @@ export function AttendanceTabsClient({
         </TabsList>
 
         <TabsContent value="records">
-          <AttendanceListClient />
+          <AttendanceListClient
+            initialMonth={initialMonth}
+            initialStatus={initialStatus}
+            initialWorkerType={initialWorkerType}
+          />
         </TabsContent>
 
         {canSync && (
