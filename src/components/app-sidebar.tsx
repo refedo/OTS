@@ -94,6 +94,7 @@ import {
   Award,
   PieChart,
   IdCard,
+  LayoutList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -412,6 +413,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Definitions', href: '/workflow/definitions', icon: GitBranch, newSince: '2026-04-26' },
       { name: 'My Approvals', href: '/workflow/my-approvals', icon: CheckCircle, newSince: '2026-04-26' },
+      { name: 'Approval Tracking', href: '/workflow/approvals', icon: LayoutList, newSince: '2026-05-08' },
       { name: 'Integration Guide', href: '/workflow/guide', icon: BookOpen, newSince: '2026-04-26' },
     ],
   },
