@@ -169,12 +169,12 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin navigation requests
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match(OFFLINE_URL) || new Response('Offline', {
+      fetch(event.request).catch(() =>
+        caches.match(OFFLINE_URL).then(r => r ?? new Response('Offline', {
           status: 503,
           headers: { 'Content-Type': 'text/plain' },
-        });
-      })
+        }))
+      )
     );
     return;
   }
