@@ -101,6 +101,12 @@ type Props = {
   canEdit: boolean;
   canDelete: boolean;
   reconciliationComplete: boolean;
+  initialStatus?: string;
+  initialOccupation?: string;
+  initialJoinedFrom?: string;
+  initialJoinedTo?: string;
+  initialLeftFrom?: string;
+  initialLeftTo?: string;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
@@ -128,11 +134,21 @@ export function EmployeesClient({
   canCreate,
   canEdit,
   reconciliationComplete,
+  initialStatus = 'ACTIVE',
+  initialOccupation = 'all',
+  initialJoinedFrom = '',
+  initialJoinedTo = '',
+  initialLeftFrom = '',
+  initialLeftTo = '',
 }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
-  const [occupationFilter, setOccupationFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
+  const [occupationFilter, setOccupationFilter] = useState<string>(initialOccupation);
+  const [joinedFrom, setJoinedFrom] = useState<string>(initialJoinedFrom);
+  const [joinedTo, setJoinedTo] = useState<string>(initialJoinedTo);
+  const [leftFrom, setLeftFrom] = useState<string>(initialLeftFrom);
+  const [leftTo, setLeftTo] = useState<string>(initialLeftTo);
   const [showArabic, setShowArabic] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('employmentId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -169,6 +185,15 @@ export function EmployeesClient({
     const matches = employees.filter((e) => {
       if (statusFilter !== 'all' && e.status !== statusFilter) return false;
       if (occupationFilter !== 'all' && e.occupation !== occupationFilter) return false;
+      const joined = e.dateOfJoining.slice(0, 10);
+      if (joinedFrom && joined < joinedFrom) return false;
+      if (joinedTo && joined > joinedTo) return false;
+      if (leftFrom || leftTo) {
+        const left = e.dateOfLeaving ? e.dateOfLeaving.slice(0, 10) : null;
+        if (!left) return false;
+        if (leftFrom && left < leftFrom) return false;
+        if (leftTo && left > leftTo) return false;
+      }
       if (!q) return true;
       return (
         e.fullNameEn.toLowerCase().includes(q) ||
@@ -213,7 +238,7 @@ export function EmployeesClient({
       if (av > bv) return 1 * dir;
       return 0;
     });
-  }, [employees, search, statusFilter, occupationFilter, sortKey, sortDir, showArabic]);
+  }, [employees, search, statusFilter, occupationFilter, joinedFrom, joinedTo, leftFrom, leftTo, sortKey, sortDir, showArabic]);
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
@@ -468,6 +493,43 @@ export function EmployeesClient({
                 ))}
               </SelectContent>
             </Select>
+            {/* Date range filters — visible when set or always for discovery */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-slate-400 font-medium">Joined:</span>
+              <Input
+                type="date"
+                value={joinedFrom}
+                onChange={(e) => setJoinedFrom(e.target.value)}
+                className="w-[140px] h-9 text-xs bg-white"
+                placeholder="From"
+              />
+              <span className="text-xs text-slate-400">–</span>
+              <Input
+                type="date"
+                value={joinedTo}
+                onChange={(e) => setJoinedTo(e.target.value)}
+                className="w-[140px] h-9 text-xs bg-white"
+                placeholder="To"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-slate-400 font-medium">Left:</span>
+              <Input
+                type="date"
+                value={leftFrom}
+                onChange={(e) => setLeftFrom(e.target.value)}
+                className="w-[140px] h-9 text-xs bg-white"
+                placeholder="From"
+              />
+              <span className="text-xs text-slate-400">–</span>
+              <Input
+                type="date"
+                value={leftTo}
+                onChange={(e) => setLeftTo(e.target.value)}
+                className="w-[140px] h-9 text-xs bg-white"
+                placeholder="To"
+              />
+            </div>
             {/* View mode toggle */}
             <div className="flex border rounded-lg overflow-hidden bg-white ml-auto">
               <button

@@ -7,7 +7,12 @@ import { AttendanceTabsClient } from '@/components/hr/attendance-tabs-client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AttendancePage() {
+export default async function AttendancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; month?: string; status?: string; workerType?: string }>;
+}) {
+  const sp = await searchParams;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -72,6 +77,10 @@ export default async function AttendancePage() {
       mappingCandidates={serializedCandidates}
       employees={employees}
       timesheetHref={timesheetHref}
+      initialTab={sp.tab ?? 'grid'}
+      initialMonth={sp.month}
+      initialStatus={sp.status ?? 'all'}
+      initialWorkerType={sp.workerType ?? 'all'}
     />
   );
 }

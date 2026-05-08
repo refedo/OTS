@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.4.0] - 2026-05-08
+
+### HR Dashboard — Collapsible Widgets, Drag-to-Reorder & Deep-Link KPI Tiles
+
+#### Added
+- **Collapsible dashboard sections** — Every widget section on the HR Dashboard now has a collapse/expand toggle (chevron). Clicking the grab bar or the collapsed placeholder instantly expands it. Collapsed state is persisted to `localStorage` per browser.
+- **Drag-to-reorder widgets** — A grip handle appears above each section on hover. Users can drag sections into any order; the order is saved to `localStorage` and restored on next visit. New widgets added in future versions are automatically appended to the end without losing saved order.
+- **Deep-link KPI tiles** — Every KPI tile is now a clickable link that navigates to the relevant report with the correct filters pre-applied:
+  - Headcount / Regular / Overtime / Total hours → Attendance Records filtered to the selected month + Employee worker type
+  - Present / Absent / Vacation / Sick tiles → Attendance Records filtered to the corresponding status
+  - Turnover **New Hires** tile → Employees filtered by `joinedFrom` / `joinedTo` matching the dashboard date range
+  - Turnover **Leavers** tile → Employees filtered by `leftFrom` / `leftTo` matching the dashboard date range
+  - Turnover **At Start / At End** → Employees filtered to Active status
+  - Workforce / Asset / Contract / Loan / Violation tiles retain their existing deep-links
+- **Attendance page URL params** — `/hr/attendance` now reads `tab`, `month`, `status`, and `workerType` from the URL so deep-links pre-activate the correct tab and filter state.
+- **Employees page URL params** — `/hr/employees` now reads `status`, `occupation`, `joinedFrom`, `joinedTo`, `leftFrom`, `leftTo` from the URL. The employees filter bar also exposes **Joined** and **Left** date-range inputs for manual use.
+- Version bumped to **23.4.0**
+
+---
+
 ## [23.3.0] - 2026-05-08
 
 ### Backlog Card Improvements, Sidebar & Full Changelog
@@ -27,25 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Activity Trail In Progress step now shows who moved the item and when.
 - Sidebar Product Backlog section: "Backlog Board" renamed to "Backlog Dashboard".
 - Version bumped to **23.3.0**
-
----
-
-## [23.2.0] - 2026-05-08
-
-### Backlog Dashboard — Contributors, Domains & Progress
-
-#### Added
-- **Backlog Dashboard** (`/backlog/dashboard`) — public (all users) live dashboard with:
-  - **Hero section** with gradient and overall completion progress bar
-  - **KPI strip** — total items, completed, in progress, blocked, pipeline, and active contributor count
-  - **Top Contributors leaderboard** — ranked by backlog items created, with gold/silver/bronze medals for the top 3, avatar initials, relative contribution bar, and per-contributor completion rate
-  - **Development Types panel** — all 8 backlog types (Feature, Bug, Tech Debt, Performance, Reporting, Refactor, Compliance, Insight) with type icons and completion progress bars
-  - **Domain Categories grid** — all 13 system domains (Core System, Production, Design, Detailing, Procurement, QC, Logistics, Finance, Reporting, AI, Governance, Projects, HR) as colour-coded clickable cards with item counts, completion progress bars, and active item indicators; each card links to the filtered backlog board
-  - **Priority Distribution** — visual breakdown (Critical / High / Medium / Low) with percentage-of-total bars, each linking to filtered backlog
-  - **Add Backlog dialog** — inline quick-add form (title, description, type, category, priority) without leaving the dashboard; full-form link provided for advanced options
-  - Auto-refresh every 2 minutes with manual Refresh button
-- **`/api/backlog/dashboard` GET endpoint** — aggregates contributor stats, category/type/priority breakdowns, and overall KPIs in a single request
-- Version bumped to **23.2.0**
 
 ---
 

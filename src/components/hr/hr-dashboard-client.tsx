@@ -1,6 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   BarChart,
   Bar,
@@ -27,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import {
   Loader2,
   RefreshCw,
@@ -51,8 +70,13 @@ import {
   UserPlus,
   UserMinus,
   Activity,
+  GripVertical,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import type { HrDashboardResult, HrDashboardGroupBy } from '@/lib/services/hr/hr-dashboard-stats';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ContractStats = {
   totalActive: number;
@@ -114,6 +138,40 @@ type Props = {
   employeeSummary?: EmployeeSummary;
 };
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const DEFAULT_WIDGET_ORDER = [
+  'kpi-hero',
+  'kpi-days',
+  'kpi-charts',
+  'kpi-trend',
+  'kpi-table',
+  'kpi-turnover',
+  'kpi-contracts',
+  'kpi-workforce',
+  'kpi-assets',
+  'kpi-maintenance',
+  'kpi-loans',
+  'kpi-violations',
+] as const;
+
+type WidgetId = (typeof DEFAULT_WIDGET_ORDER)[number];
+
+const WIDGET_LABELS: Record<WidgetId, string> = {
+  'kpi-hero': 'Working Hours KPIs',
+  'kpi-days': 'Attendance Day Counters',
+  'kpi-charts': 'Group Breakdown & Attendance Mix',
+  'kpi-trend': 'Daily Hours Trend',
+  'kpi-table': 'Group Breakdown Table',
+  'kpi-turnover': 'Employee Turnover Rate',
+  'kpi-contracts': 'Contracts & Documents',
+  'kpi-workforce': 'Workforce Snapshot',
+  'kpi-assets': 'Asset Registry',
+  'kpi-maintenance': 'Car Maintenance Alerts',
+  'kpi-loans': 'Loans & Custodies',
+  'kpi-violations': 'Traffic Violations',
+};
+
 const ABSENCE_COLORS: Record<string, string> = {
   present: '#10b981',
   absentWithPermission: '#f59e0b',
@@ -136,6 +194,8 @@ const ABSENCE_LABELS: Record<string, string> = {
   unknown: 'Unknown',
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -146,6 +206,90 @@ function defaultRange(): { start: string; end: string } {
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
   return { start: isoDate(start), end: isoDate(end) };
 }
+
+function buildAttendanceLink(
+  startDate: string,
+  opts: { status?: string; workerType?: string } = {},
+): string {
+  const month = startDate.slice(0, 7);
+  const p = new URLSearchParams({ tab: 'records', month });
+  if (opts.status) p.set('status', opts.status);
+  if (opts.workerType) p.set('workerType', opts.workerType);
+  return `/hr/attendance?${p.toString()}`;
+}
+
+function buildEmployeeLink(opts: {
+  status?: string;
+  joinedFrom?: string;
+  joinedTo?: string;
+  leftFrom?: string;
+  leftTo?: string;
+} = {}): string {
+  const p = new URLSearchParams();
+  if (opts.status) p.set('status', opts.status);
+  if (opts.joinedFrom) p.set('joinedFrom', opts.joinedFrom);
+  if (opts.joinedTo) p.set('joinedTo', opts.joinedTo);
+  if (opts.leftFrom) p.set('leftFrom', opts.leftFrom);
+  if (opts.leftTo) p.set('leftTo', opts.leftTo);
+  const qs = p.toString();
+  return `/hr/employees${qs ? `?${qs}` : ''}`;
+}
+
+// ─── SortableWidget ───────────────────────────────────────────────────────────
+
+interface SortableWidgetProps {
+  id: string;
+  label: string;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  children: React.ReactNode;
+}
+
+function SortableWidget({ id, label, isCollapsed, onToggleCollapse, children }: SortableWidgetProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn('group relative', isDragging && 'opacity-50 z-50')}
+    >
+      {/* Control bar — appears on hover */}
+      <div className="flex items-center gap-1 px-0.5 h-5 mb-1 opacity-0 group-hover:opacity-100 transition-opacity select-none">
+        <button
+          className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-slate-100 cursor-grab active:cursor-grabbing"
+          title="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <span className="text-[11px] text-muted-foreground/50 flex-1">{label}</span>
+        <button
+          className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-slate-100"
+          onClick={onToggleCollapse}
+          title={isCollapsed ? 'Expand' : 'Collapse'}
+        >
+          {isCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+
+      {isCollapsed ? (
+        <button
+          className="w-full border rounded-xl bg-slate-50 px-4 py-2.5 flex items-center justify-between hover:bg-slate-100 transition-colors text-left"
+          onClick={onToggleCollapse}
+        >
+          <span className="text-sm text-muted-foreground font-medium">{label}</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        </button>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function HrDashboardClient({
   initialStats,
@@ -170,6 +314,57 @@ export function HrDashboardClient({
   const [stats, setStats] = useState<HrDashboardResult>(initialStats);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Widget order and collapsed state — persisted to localStorage after first mount
+  const [widgetOrder, setWidgetOrder] = useState<string[]>([...DEFAULT_WIDGET_ORDER]);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    try {
+      const storedOrder = localStorage.getItem('hr-dashboard-widget-order');
+      if (storedOrder) {
+        const parsed = JSON.parse(storedOrder) as string[];
+        const merged = [
+          ...parsed.filter((id) => (DEFAULT_WIDGET_ORDER as readonly string[]).includes(id)),
+          ...DEFAULT_WIDGET_ORDER.filter((id) => !parsed.includes(id)),
+        ];
+        setWidgetOrder(merged);
+      }
+      const storedCollapsed = localStorage.getItem('hr-dashboard-collapsed');
+      if (storedCollapsed) {
+        setCollapsed(new Set(JSON.parse(storedCollapsed) as string[]));
+      }
+    } catch {}
+  }, []);
+
+  const toggleCollapse = (id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('hr-dashboard-collapsed', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setWidgetOrder((prev) => {
+        const oldIdx = prev.indexOf(active.id as string);
+        const newIdx = prev.indexOf(over.id as string);
+        const next = arrayMove(prev, oldIdx, newIdx);
+        try { localStorage.setItem('hr-dashboard-widget-order', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+  }
+
+  // ── Data fetching ────────────────────────────────────────────────────────────
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -197,15 +392,13 @@ export function HrDashboardClient({
   }, [startDate, endDate, occupation, section, departmentId, groupBy]);
 
   useEffect(() => {
-    // Re-fetch whenever any filter changes (except on first mount, where
-    // initialStats already reflects the default window).
     fetchStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [occupation, section, departmentId, groupBy]);
 
-  const onApply = () => {
-    fetchStats();
-  };
+  const onApply = () => fetchStats();
+
+  // ── Chart data ───────────────────────────────────────────────────────────────
 
   const absenceData = useMemo(() => {
     return Object.entries(stats.absenceMix)
@@ -229,11 +422,626 @@ export function HrDashboardClient({
 
   const trendChartData = useMemo(() => {
     return stats.trend.map((t) => ({
-      date: t.date.slice(5), // MM-DD
+      date: t.date.slice(5),
       regular: Number(t.regularHours.toFixed(1)),
       overtime: Number(t.overtimeHours.toFixed(1)),
     }));
   }, [stats.trend]);
+
+  // ── Widget render functions ──────────────────────────────────────────────────
+
+  function renderWidget(id: string): React.ReactNode {
+    switch (id as WidgetId) {
+      case 'kpi-hero':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link
+              href={buildAttendanceLink(startDate, { workerType: 'EMPLOYEE' })}
+              className="block relative overflow-hidden rounded-xl border border-slate-200 bg-white hover:shadow-md transition-shadow"
+            >
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-400 to-slate-600" />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Headcount</div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                    <Users className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold tabular-nums">{stats.totals.headcount}</div>
+                <div className="text-xs text-muted-foreground mt-1">with attendance in window</div>
+              </div>
+            </Link>
+
+            <Link
+              href={buildAttendanceLink(startDate, { workerType: 'EMPLOYEE' })}
+              className="block relative overflow-hidden rounded-xl border border-slate-200 bg-white hover:shadow-md transition-shadow"
+            >
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Regular hours</div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold tabular-nums">
+                  {stats.totals.regularHours.toFixed(1)}
+                  <span className="text-lg text-muted-foreground font-medium ml-1">h</span>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              href={buildAttendanceLink(startDate, { workerType: 'EMPLOYEE' })}
+              className="block relative overflow-hidden rounded-xl border border-slate-200 bg-white hover:shadow-md transition-shadow"
+            >
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600" />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Overtime hours</div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold tabular-nums text-blue-700">
+                  {stats.totals.overtimeHours.toFixed(1)}
+                  <span className="text-lg text-blue-500 font-medium ml-1">h</span>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              href={buildAttendanceLink(startDate, { workerType: 'EMPLOYEE' })}
+              className="block relative overflow-hidden rounded-xl border border-slate-200 bg-white hover:shadow-md transition-shadow"
+            >
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 to-indigo-600" />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">Total hours</div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="text-3xl font-bold tabular-nums">
+                  {stats.totals.totalHours.toFixed(1)}
+                  <span className="text-lg text-muted-foreground font-medium ml-1">h</span>
+                </div>
+              </div>
+            </Link>
+          </div>
+        );
+
+      case 'kpi-days':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link href={buildAttendanceLink(startDate, { status: 'PRESENT', workerType: 'EMPLOYEE' })} className="block">
+              <Card className="border-green-100 bg-gradient-to-br from-green-50/50 to-white hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-700">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Present days</div>
+                    <div className="text-2xl font-bold tabular-nums text-green-800">{stats.totals.presentDays}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href={buildAttendanceLink(startDate, { status: 'ABSENT_NO_PERMISSION', workerType: 'EMPLOYEE' })} className="block">
+              <Card className="border-red-100 bg-gradient-to-br from-red-50/50 to-white hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-700">
+                    <XCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Absent days</div>
+                    <div className="text-2xl font-bold tabular-nums text-red-800">{stats.totals.absentDays}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href={buildAttendanceLink(startDate, { status: 'ANNUAL_VACATION', workerType: 'EMPLOYEE' })} className="block">
+              <Card className="border-blue-100 bg-gradient-to-br from-blue-50/50 to-white hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                    <Plane className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Vacation days</div>
+                    <div className="text-2xl font-bold tabular-nums text-blue-800">{stats.totals.vacationDays}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href={buildAttendanceLink(startDate, { status: 'SICK_LEAVE', workerType: 'EMPLOYEE' })} className="block">
+              <Card className="border-purple-100 bg-gradient-to-br from-purple-50/50 to-white hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Sick days</div>
+                    <div className="text-2xl font-bold tabular-nums text-purple-800">{stats.totals.sickDays}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        );
+
+      case 'kpi-charts':
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">
+                  Hours by{' '}
+                  {groupBy === 'none' ? 'total' : groupBy === 'occupation' ? 'occupation' : groupBy === 'section' ? 'section' : 'department'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {groupChartData.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-12 text-center">No attendance records in this window.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart data={groupChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-30} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="regular" stackId="h" fill="#10b981" name="Regular" />
+                      <Bar dataKey="overtime" stackId="h" fill="#3b82f6" name="Overtime" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Attendance mix</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {absenceData.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-12 text-center">No records.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <PieChart>
+                      <Pie data={absenceData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} dataKey="value" nameKey="name" label={(entry) => `${entry.value}`}>
+                        {absenceData.map((entry) => (
+                          <Cell key={entry.key} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                  {absenceData.map((a) => (
+                    <div key={a.key} className="flex items-center gap-1">
+                      <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
+                      {a.name}: <strong>{a.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'kpi-trend':
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Daily hours trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {trendChartData.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-12 text-center">No attendance records in this window.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={trendChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="regular" stroke="#10b981" strokeWidth={2} name="Regular" dot={false} />
+                    <Line type="monotone" dataKey="overtime" stroke="#3b82f6" strokeWidth={2} name="Overtime" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 'kpi-table':
+        if (stats.groups.length === 0) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Group breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-muted-foreground border-b">
+                    <tr>
+                      <th className="text-left py-2 px-2">Group</th>
+                      <th className="text-right py-2 px-2">Headcount</th>
+                      <th className="text-right py-2 px-2">Regular (h)</th>
+                      <th className="text-right py-2 px-2">Overtime (h)</th>
+                      <th className="text-right py-2 px-2">Total (h)</th>
+                      <th className="text-right py-2 px-2">Present</th>
+                      <th className="text-right py-2 px-2">Absent</th>
+                      <th className="text-right py-2 px-2">Vacation</th>
+                      <th className="text-right py-2 px-2">Sick</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.groups.map((g) => (
+                      <tr key={g.key} className="border-b last:border-0">
+                        <td className="py-2 px-2">{g.label}</td>
+                        <td className="py-2 px-2 text-right">{g.headcount}</td>
+                        <td className="py-2 px-2 text-right">{g.regularHours.toFixed(1)}</td>
+                        <td className="py-2 px-2 text-right text-blue-700">{g.overtimeHours.toFixed(1)}</td>
+                        <td className="py-2 px-2 text-right font-medium">{g.totalHours.toFixed(1)}</td>
+                        <td className="py-2 px-2 text-right text-green-700">{g.presentDays}</td>
+                        <td className="py-2 px-2 text-right text-red-700">{g.absentDays}</td>
+                        <td className="py-2 px-2 text-right">{g.vacationDays}</td>
+                        <td className="py-2 px-2 text-right">{g.sickDays}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 'kpi-turnover': {
+        const t = stats.turnover;
+        const stabilityConfig = {
+          good:   { label: 'Good Stability',           bg: 'from-emerald-50 to-white', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700' },
+          normal: { label: 'Normal',                   bg: 'from-amber-50 to-white',   border: 'border-amber-200',   text: 'text-amber-700',   badge: 'bg-amber-100 text-amber-700'   },
+          review: { label: 'Requires Further Analysis',bg: 'from-rose-50 to-white',    border: 'border-rose-200',    text: 'text-rose-700',    badge: 'bg-rose-100 text-rose-700'     },
+        }[t.stability];
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-violet-600" />
+                  Employee Turnover Rate
+                </CardTitle>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${stabilityConfig.badge}`}>
+                  {stabilityConfig.label}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <Link href={buildEmployeeLink({ status: 'ACTIVE' })} className="block rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                      <Users className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">At Start</p>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-700">{t.atStart}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">beginning of period</p>
+                </Link>
+
+                <Link href={buildEmployeeLink({ status: 'ACTIVE' })} className="block rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                      <Users className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">At End</p>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-700">{t.atEnd}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">end of period</p>
+                </Link>
+
+                <Link href={buildEmployeeLink({ status: 'all', joinedFrom: startDate, joinedTo: endDate })} className="block rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-sky-100 text-sky-600">
+                      <UserPlus className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">New Hires</p>
+                  </div>
+                  <p className="text-2xl font-bold text-sky-700">{t.newHires}</p>
+                  <p className="text-xs text-sky-400 mt-0.5">joined this period</p>
+                </Link>
+
+                <Link href={buildEmployeeLink({ status: 'all', leftFrom: startDate, leftTo: endDate })} className="block rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-100 text-rose-600">
+                      <UserMinus className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Leavers</p>
+                  </div>
+                  <p className="text-2xl font-bold text-rose-700">{t.leavers}</p>
+                  <p className="text-xs text-rose-400 mt-0.5">left this period</p>
+                </Link>
+
+                <Link href={buildEmployeeLink({ status: 'all' })} className={`block rounded-xl border bg-gradient-to-b ${stabilityConfig.bg} ${stabilityConfig.border} p-4 shadow-sm hover:shadow-md transition-shadow sm:col-span-3 lg:col-span-1`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/80">
+                      <TrendingUp className={`h-3.5 w-3.5 ${stabilityConfig.text}`} />
+                    </div>
+                    <p className={`text-xs font-medium uppercase tracking-wide ${stabilityConfig.text}`}>Turnover Rate</p>
+                  </div>
+                  <p className={`text-3xl font-bold tabular-nums ${stabilityConfig.text}`}>
+                    {t.turnoverRate.toFixed(1)}
+                    <span className="text-lg font-medium ml-0.5">%</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">avg. {t.averageHeadcount} employees</p>
+                  <div className="mt-2 text-[10px] text-muted-foreground space-y-0.5 border-t pt-2">
+                    <div className="flex justify-between"><span>{'< 10%'}</span><span className="text-emerald-600 font-medium">Good</span></div>
+                    <div className="flex justify-between"><span>10 – 20%</span><span className="text-amber-600 font-medium">Normal</span></div>
+                    <div className="flex justify-between"><span>{'> 20%'}</span><span className="text-rose-600 font-medium">Review</span></div>
+                  </div>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      case 'kpi-contracts':
+        if (!contractStats) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4 text-amber-600" />
+                Contracts &amp; Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <a href="/hr/contracts" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Active</p>
+                  <p className="text-2xl font-bold text-amber-700 mt-1">{contractStats.totalActive}</p>
+                  <p className="text-xs text-amber-500 mt-0.5">active contracts</p>
+                </a>
+                <a href="/hr/contracts?status=ACTIVE" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Expiring in 7 days</p>
+                  <p className="text-2xl font-bold text-rose-700 mt-1">{contractStats.expiringIn7}</p>
+                  <p className="text-xs text-rose-500 mt-0.5">urgent attention</p>
+                </a>
+                <a href="/hr/contracts?status=ACTIVE" className="rounded-xl border bg-gradient-to-b from-orange-50 to-white border-orange-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-orange-600 font-medium uppercase tracking-wide">Expiring in 30 days</p>
+                  <p className="text-2xl font-bold text-orange-700 mt-1">{contractStats.expiringIn30}</p>
+                  <p className="text-xs text-orange-500 mt-0.5">plan for renewal</p>
+                </a>
+                <a href="/hr/contracts?status=EXPIRED" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Expired</p>
+                  <p className="text-2xl font-bold text-slate-700 mt-1">{contractStats.expired}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">require renewal</p>
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 'kpi-workforce':
+        if (!employeeSummary) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-sky-600" />
+                Workforce
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <a href={buildEmployeeLink({ status: 'ACTIVE' })} className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Active Employees</p>
+                  <p className="text-2xl font-bold text-sky-700 mt-1">{employeeSummary.active}</p>
+                  <p className="text-xs text-sky-500 mt-0.5">on payroll</p>
+                </a>
+                <a href={buildEmployeeLink({ status: 'all' })} className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Records</p>
+                  <p className="text-2xl font-bold text-slate-700 mt-1">{employeeSummary.total}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">inc. inactive</p>
+                </a>
+                <a href="/hr/leaves" className="rounded-xl border bg-gradient-to-b from-indigo-50 to-white border-indigo-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-indigo-600 font-medium uppercase tracking-wide">Leave Management</p>
+                  <p className="text-2xl font-bold text-indigo-700 mt-1">→</p>
+                  <p className="text-xs text-indigo-500 mt-0.5">view leave requests</p>
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 'kpi-assets':
+        if (!assetStats) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <PackageSearch className="h-4 w-4 text-violet-600" />
+                Asset Registry
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <a href="/hr/assets" className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Total Assets</p>
+                  <p className="text-2xl font-bold text-violet-700 mt-1">{assetStats.total}</p>
+                  <p className="text-xs text-violet-500 mt-0.5">in registry</p>
+                </a>
+                <a href="/hr/assets?status=ASSIGNED" className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Assigned</p>
+                  <p className="text-2xl font-bold text-sky-700 mt-1">{assetStats.assigned}</p>
+                  <p className="text-xs text-sky-500 mt-0.5">with employees</p>
+                </a>
+                <a href="/hr/assets?status=AVAILABLE" className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Available</p>
+                  <p className="text-2xl font-bold text-emerald-700 mt-1">{assetStats.available}</p>
+                  <p className="text-xs text-emerald-500 mt-0.5">ready to assign</p>
+                </a>
+                <a href="/hr/assets?status=UNDER_MAINTENANCE" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">In Maintenance</p>
+                  <p className="text-2xl font-bold text-amber-700 mt-1">{assetStats.maintenance}</p>
+                  <p className="text-xs text-amber-500 mt-0.5">being serviced</p>
+                </a>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-1">
+                <a href="/hr/assets?category=CAR" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
+                  <Car className="h-4 w-4 text-slate-500 shrink-0" />
+                  <span className="font-medium text-slate-700">{assetStats.cars}</span>
+                  <span className="text-slate-500 text-xs">Cars</span>
+                </a>
+                <a href="/hr/assets?category=LAPTOP" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
+                  <Laptop className="h-4 w-4 text-slate-500 shrink-0" />
+                  <span className="font-medium text-slate-700">{assetStats.laptops}</span>
+                  <span className="text-slate-500 text-xs">Laptops</span>
+                </a>
+                <a href="/hr/assets?category=SIM_CARD" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
+                  <Smartphone className="h-4 w-4 text-slate-500 shrink-0" />
+                  <span className="font-medium text-slate-700">{assetStats.simCards}</span>
+                  <span className="text-slate-500 text-xs">SIMs</span>
+                </a>
+                {assetStats.licensesExpiringSoon > 0 && (
+                  <a href="/hr/contracts" className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100 transition-colors text-sm">
+                    <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+                    <span className="font-medium text-rose-700">{assetStats.licensesExpiringSoon}</span>
+                    <span className="text-rose-500 text-xs">License expiring</span>
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 'kpi-maintenance':
+        if (!maintenanceSummary || (maintenanceSummary.dueSoon === 0 && maintenanceSummary.overdue === 0)) return null;
+        return (
+          <Card className="border-amber-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-amber-600" />
+                Car Maintenance Alerts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <a href="/hr/car-maintenance" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Overdue</p>
+                  <p className="text-2xl font-bold text-rose-700 mt-1">{maintenanceSummary.overdue}</p>
+                  <p className="text-xs text-rose-500 mt-0.5">vehicles past service date</p>
+                </a>
+                <a href="/hr/car-maintenance" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Due Soon</p>
+                  <p className="text-2xl font-bold text-amber-700 mt-1">{maintenanceSummary.dueSoon}</p>
+                  <p className="text-xs text-amber-500 mt-0.5">within 14 days</p>
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 'kpi-loans':
+        if (!loanSummary && !custodySummary) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-600" />
+                Loans &amp; Custodies
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {loanSummary && (
+                  <>
+                    <a href="/hr/loans" className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Active Loans</p>
+                      <p className="text-2xl font-bold text-emerald-700 mt-1">{loanSummary.activeCount}</p>
+                      <p className="text-xs text-emerald-500 mt-0.5">ongoing repayments</p>
+                    </a>
+                    <a href="/hr/loans" className="rounded-xl border bg-gradient-to-b from-teal-50 to-white border-teal-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="text-xs text-teal-600 font-medium uppercase tracking-wide">Total Outstanding</p>
+                      <p className="text-2xl font-bold text-teal-700 mt-1">
+                        {loanSummary.totalPrincipal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </p>
+                      <p className="text-xs text-teal-500 mt-0.5">SAR principal</p>
+                    </a>
+                  </>
+                )}
+                {custodySummary && (
+                  <>
+                    <a href="/hr/custodies" className="rounded-xl border bg-gradient-to-b from-indigo-50 to-white border-indigo-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="text-xs text-indigo-600 font-medium uppercase tracking-wide">Open Custodies</p>
+                      <p className="text-2xl font-bold text-indigo-700 mt-1">{custodySummary.openCount}</p>
+                      <p className="text-xs text-indigo-500 mt-0.5">unsettled advances</p>
+                    </a>
+                    <a href="/hr/custodies" className="rounded-xl border bg-gradient-to-b from-purple-50 to-white border-purple-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">Outstanding</p>
+                      <p className="text-2xl font-bold text-purple-700 mt-1">
+                        {custodySummary.totalOutstanding.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </p>
+                      <p className="text-xs text-purple-500 mt-0.5">SAR to recover</p>
+                    </a>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 'kpi-violations':
+        if (!violationSummary || violationSummary.total === 0) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-rose-600" />
+                Traffic Violations
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Violations</p>
+                  <p className="text-2xl font-bold text-slate-700 mt-1">{violationSummary.total}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">all time</p>
+                </a>
+                <a href="/hr/traffic-violations?status=PENDING" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Pending</p>
+                  <p className="text-2xl font-bold text-rose-700 mt-1">{violationSummary.open}</p>
+                  <p className="text-xs text-rose-500 mt-0.5">unresolved</p>
+                </a>
+                <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Pending Deduction</p>
+                  <p className="text-2xl font-bold text-amber-700 mt-1">{violationSummary.pendingDeduction}</p>
+                  <p className="text-xs text-amber-500 mt-0.5">flagged for payroll</p>
+                </a>
+                <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-orange-50 to-white border-orange-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <p className="text-xs text-orange-600 font-medium uppercase tracking-wide">Open Amount</p>
+                  <p className="text-2xl font-bold text-orange-700 mt-1">
+                    {violationSummary.openAmount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-xs text-orange-500 mt-0.5">SAR outstanding</p>
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      default:
+        return null;
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  const visibleWidgets = widgetOrder.filter((id) => renderWidget(id) !== null);
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -245,8 +1053,7 @@ export function HrDashboardClient({
           <div>
             <h1 className="text-3xl font-bold tracking-tight">HR Dashboard</h1>
             <p className="text-sm text-slate-300 mt-1 max-w-xl">
-              Working hours, attendance mix, and labour utilisation across the
-              workforce — live from the attendance sync.
+              Working hours, attendance mix, and labour utilisation across the workforce — live from the attendance sync.
             </p>
             <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-300 bg-white/5 rounded-full px-3 py-1 backdrop-blur-sm border border-white/10">
               <CalendarDays className="h-3 w-3" />
@@ -262,11 +1069,7 @@ export function HrDashboardClient({
             disabled={loading}
             className="bg-white/10 hover:bg-white/20 text-white border-white/20"
           >
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             Refresh
           </Button>
         </div>
@@ -275,91 +1078,52 @@ export function HrDashboardClient({
       {/* Sticky filter bar */}
       <Card className="sticky top-0 z-10 shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
-            Filters
-          </CardTitle>
+          <CardTitle className="text-sm text-muted-foreground font-medium uppercase tracking-wide">Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div>
-              <Label htmlFor="start" className="text-xs">
-                Start
-              </Label>
-              <Input
-                id="start"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              <Label htmlFor="start" className="text-xs">Start</Label>
+              <Input id="start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="end" className="text-xs">
-                End
-              </Label>
-              <Input
-                id="end"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+              <Label htmlFor="end" className="text-xs">End</Label>
+              <Input id="end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
             <div>
               <Label className="text-xs">Occupation</Label>
               <Select value={occupation} onValueChange={setOccupation}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">All occupations</SelectItem>
-                  {occupations.map((o) => (
-                    <SelectItem key={o} value={o}>
-                      {o}
-                    </SelectItem>
-                  ))}
+                  {occupations.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">Section</Label>
               <Select value={section} onValueChange={setSection}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">All sections</SelectItem>
-                  {sections.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
+                  {sections.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">Department</Label>
               <Select value={departmentId} onValueChange={setDepartmentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">All departments</SelectItem>
-                  {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
+                  {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">Group by</Label>
-              <Select
-                value={groupBy}
-                onValueChange={(v) => setGroupBy(v as HrDashboardGroupBy)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={groupBy} onValueChange={(v) => setGroupBy(v as HrDashboardGroupBy)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="occupation">Occupation</SelectItem>
                   <SelectItem value="section">Section</SelectItem>
@@ -384,658 +1148,28 @@ export function HrDashboardClient({
         </CardContent>
       </Card>
 
-      {/* KPI cards — hero row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="relative overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-400 to-slate-600" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
-                Headcount
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-                <Users className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-3xl font-bold tabular-nums">{stats.totals.headcount}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              with attendance in window
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
-                Regular hours
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                <Clock className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-3xl font-bold tabular-nums">
-              {stats.totals.regularHours.toFixed(1)}
-              <span className="text-lg text-muted-foreground font-medium ml-1">h</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
-                Overtime hours
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-3xl font-bold tabular-nums text-blue-700">
-              {stats.totals.overtimeHours.toFixed(1)}
-              <span className="text-lg text-blue-500 font-medium ml-1">h</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 to-indigo-600" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
-                Total hours
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
-                <Clock className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-3xl font-bold tabular-nums">
-              {stats.totals.totalHours.toFixed(1)}
-              <span className="text-lg text-muted-foreground font-medium ml-1">h</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Day counters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-green-100 bg-gradient-to-br from-green-50/50 to-white">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-700">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Present days</div>
-              <div className="text-2xl font-bold tabular-nums text-green-800">
-                {stats.totals.presentDays}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-red-100 bg-gradient-to-br from-red-50/50 to-white">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-700">
-              <XCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Absent days</div>
-              <div className="text-2xl font-bold tabular-nums text-red-800">
-                {stats.totals.absentDays}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-100 bg-gradient-to-br from-blue-50/50 to-white">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
-              <Plane className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Vacation days</div>
-              <div className="text-2xl font-bold tabular-nums text-blue-800">
-                {stats.totals.vacationDays}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-purple-100 bg-gradient-to-br from-purple-50/50 to-white">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
-              <Stethoscope className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Sick days</div>
-              <div className="text-2xl font-bold tabular-nums text-purple-800">
-                {stats.totals.sickDays}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Group breakdown + absence mix */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              Hours by{' '}
-              {groupBy === 'none'
-                ? 'total'
-                : groupBy === 'occupation'
-                ? 'occupation'
-                : groupBy === 'section'
-                ? 'section'
-                : 'department'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {groupChartData.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-12 text-center">
-                No attendance records in this window.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={groupChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    angle={-30}
-                    textAnchor="end"
-                    height={80}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar
-                    dataKey="regular"
-                    stackId="h"
-                    fill="#10b981"
-                    name="Regular"
-                  />
-                  <Bar
-                    dataKey="overtime"
-                    stackId="h"
-                    fill="#3b82f6"
-                    name="Overtime"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Attendance mix</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {absenceData.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-12 text-center">
-                No records.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={320}>
-                <PieChart>
-                  <Pie
-                    data={absenceData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={95}
-                    dataKey="value"
-                    nameKey="name"
-                    label={(entry) => `${entry.value}`}
-                  >
-                    {absenceData.map((entry) => (
-                      <Cell key={entry.key} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-              {absenceData.map((a) => (
-                <div key={a.key} className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-2 w-2 rounded-full"
-                    style={{ backgroundColor: a.color }}
-                  />
-                  {a.name}: <strong>{a.value}</strong>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Trend */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Daily hours trend</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {trendChartData.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-12 text-center">
-              No attendance records in this window.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={trendChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="regular"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  name="Regular"
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="overtime"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  name="Overtime"
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Group table */}
-      {stats.groups.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Group breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground border-b">
-                  <tr>
-                    <th className="text-left py-2 px-2">Group</th>
-                    <th className="text-right py-2 px-2">Headcount</th>
-                    <th className="text-right py-2 px-2">Regular (h)</th>
-                    <th className="text-right py-2 px-2">Overtime (h)</th>
-                    <th className="text-right py-2 px-2">Total (h)</th>
-                    <th className="text-right py-2 px-2">Present</th>
-                    <th className="text-right py-2 px-2">Absent</th>
-                    <th className="text-right py-2 px-2">Vacation</th>
-                    <th className="text-right py-2 px-2">Sick</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.groups.map((g) => (
-                    <tr key={g.key} className="border-b last:border-0">
-                      <td className="py-2 px-2">{g.label}</td>
-                      <td className="py-2 px-2 text-right">{g.headcount}</td>
-                      <td className="py-2 px-2 text-right">
-                        {g.regularHours.toFixed(1)}
-                      </td>
-                      <td className="py-2 px-2 text-right text-blue-700">
-                        {g.overtimeHours.toFixed(1)}
-                      </td>
-                      <td className="py-2 px-2 text-right font-medium">
-                        {g.totalHours.toFixed(1)}
-                      </td>
-                      <td className="py-2 px-2 text-right text-green-700">
-                        {g.presentDays}
-                      </td>
-                      <td className="py-2 px-2 text-right text-red-700">
-                        {g.absentDays}
-                      </td>
-                      <td className="py-2 px-2 text-right">{g.vacationDays}</td>
-                      <td className="py-2 px-2 text-right">{g.sickDays}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Turnover Rate KPI */}
-      {(() => {
-        const t = stats.turnover;
-        const stabilityConfig = {
-          good:   { label: 'Good Stability',        bg: 'from-emerald-50 to-white', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700' },
-          normal: { label: 'Normal',                bg: 'from-amber-50 to-white',   border: 'border-amber-200',   text: 'text-amber-700',   badge: 'bg-amber-100 text-amber-700'   },
-          review: { label: 'Requires Further Analysis', bg: 'from-rose-50 to-white', border: 'border-rose-200', text: 'text-rose-700', badge: 'bg-rose-100 text-rose-700' },
-        }[t.stability];
-        return (
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-violet-600" />
-                  Employee Turnover Rate
-                </CardTitle>
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${stabilityConfig.badge}`}>
-                  {stabilityConfig.label}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-                      <Users className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">At Start</p>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-700">{t.atStart}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">beginning of period</p>
-                </div>
-
-                <div className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-                      <Users className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">At End</p>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-700">{t.atEnd}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">end of period</p>
-                </div>
-
-                <div className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-sky-100 text-sky-600">
-                      <UserPlus className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">New Hires</p>
-                  </div>
-                  <p className="text-2xl font-bold text-sky-700">{t.newHires}</p>
-                  <p className="text-xs text-sky-400 mt-0.5">joined this period</p>
-                </div>
-
-                <div className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-100 text-rose-600">
-                      <UserMinus className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Leavers</p>
-                  </div>
-                  <p className="text-2xl font-bold text-rose-700">{t.leavers}</p>
-                  <p className="text-xs text-rose-400 mt-0.5">left this period</p>
-                </div>
-
-                <div className={`rounded-xl border bg-gradient-to-b ${stabilityConfig.bg} ${stabilityConfig.border} p-4 shadow-sm sm:col-span-3 lg:col-span-1`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/80 border border-current/20">
-                      <TrendingUp className={`h-3.5 w-3.5 ${stabilityConfig.text}`} />
-                    </div>
-                    <p className={`text-xs font-medium uppercase tracking-wide ${stabilityConfig.text}`}>Turnover Rate</p>
-                  </div>
-                  <p className={`text-3xl font-bold tabular-nums ${stabilityConfig.text}`}>
-                    {t.turnoverRate.toFixed(1)}
-                    <span className="text-lg font-medium ml-0.5">%</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    avg. {t.averageHeadcount} employees
-                  </p>
-                  <div className="mt-2 text-[10px] text-muted-foreground space-y-0.5 border-t pt-2">
-                    <div className="flex justify-between"><span>{"< 10%"}</span><span className="text-emerald-600 font-medium">Good</span></div>
-                    <div className="flex justify-between"><span>10 – 20%</span><span className="text-amber-600 font-medium">Normal</span></div>
-                    <div className="flex justify-between"><span>{"> 20%"}</span><span className="text-rose-600 font-medium">Review</span></div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
-
-      {/* Contracts & Documents widget */}
-      {contractStats && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4 text-amber-600" />
-              Contracts &amp; Documents
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <a href="/hr/contracts" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Total Active</p>
-                <p className="text-2xl font-bold text-amber-700 mt-1">{contractStats.totalActive}</p>
-                <p className="text-xs text-amber-500 mt-0.5">active contracts</p>
-              </a>
-              <a href="/hr/contracts?status=ACTIVE" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Expiring in 7 days</p>
-                <p className="text-2xl font-bold text-rose-700 mt-1">{contractStats.expiringIn7}</p>
-                <p className="text-xs text-rose-500 mt-0.5">urgent attention</p>
-              </a>
-              <a href="/hr/contracts?status=ACTIVE" className="rounded-xl border bg-gradient-to-b from-orange-50 to-white border-orange-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-orange-600 font-medium uppercase tracking-wide">Expiring in 30 days</p>
-                <p className="text-2xl font-bold text-orange-700 mt-1">{contractStats.expiringIn30}</p>
-                <p className="text-xs text-orange-500 mt-0.5">plan for renewal</p>
-              </a>
-              <a href="/hr/contracts?status=EXPIRED" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Expired</p>
-                <p className="text-2xl font-bold text-slate-700 mt-1">{contractStats.expired}</p>
-                <p className="text-xs text-slate-400 mt-0.5">require renewal</p>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Workforce snapshot */}
-      {employeeSummary && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-sky-600" />
-              Workforce
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <a href="/hr/employees" className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Active Employees</p>
-                <p className="text-2xl font-bold text-sky-700 mt-1">{employeeSummary.active}</p>
-                <p className="text-xs text-sky-500 mt-0.5">on payroll</p>
-              </a>
-              <a href="/hr/employees" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Records</p>
-                <p className="text-2xl font-bold text-slate-700 mt-1">{employeeSummary.total}</p>
-                <p className="text-xs text-slate-400 mt-0.5">inc. inactive</p>
-              </a>
-              <a href="/hr/leaves" className="rounded-xl border bg-gradient-to-b from-indigo-50 to-white border-indigo-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-indigo-600 font-medium uppercase tracking-wide">Leave Management</p>
-                <p className="text-2xl font-bold text-indigo-700 mt-1">→</p>
-                <p className="text-xs text-indigo-500 mt-0.5">view leave requests</p>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Asset Registry */}
-      {assetStats && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <PackageSearch className="h-4 w-4 text-violet-600" />
-              Asset Registry
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <a href="/hr/assets" className="rounded-xl border bg-gradient-to-b from-violet-50 to-white border-violet-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">Total Assets</p>
-                <p className="text-2xl font-bold text-violet-700 mt-1">{assetStats.total}</p>
-                <p className="text-xs text-violet-500 mt-0.5">in registry</p>
-              </a>
-              <a href="/hr/assets?status=ASSIGNED" className="rounded-xl border bg-gradient-to-b from-sky-50 to-white border-sky-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-sky-600 font-medium uppercase tracking-wide">Assigned</p>
-                <p className="text-2xl font-bold text-sky-700 mt-1">{assetStats.assigned}</p>
-                <p className="text-xs text-sky-500 mt-0.5">with employees</p>
-              </a>
-              <a href="/hr/assets?status=AVAILABLE" className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Available</p>
-                <p className="text-2xl font-bold text-emerald-700 mt-1">{assetStats.available}</p>
-                <p className="text-xs text-emerald-500 mt-0.5">ready to assign</p>
-              </a>
-              <a href="/hr/assets?status=UNDER_MAINTENANCE" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">In Maintenance</p>
-                <p className="text-2xl font-bold text-amber-700 mt-1">{assetStats.maintenance}</p>
-                <p className="text-xs text-amber-500 mt-0.5">being serviced</p>
-              </a>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-1">
-              <a href="/hr/assets?category=CAR" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
-                <Car className="h-4 w-4 text-slate-500 shrink-0" />
-                <span className="font-medium text-slate-700">{assetStats.cars}</span>
-                <span className="text-slate-500 text-xs">Cars</span>
-              </a>
-              <a href="/hr/assets?category=LAPTOP" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
-                <Laptop className="h-4 w-4 text-slate-500 shrink-0" />
-                <span className="font-medium text-slate-700">{assetStats.laptops}</span>
-                <span className="text-slate-500 text-xs">Laptops</span>
-              </a>
-              <a href="/hr/assets?category=SIM_CARD" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 transition-colors text-sm">
-                <Smartphone className="h-4 w-4 text-slate-500 shrink-0" />
-                <span className="font-medium text-slate-700">{assetStats.simCards}</span>
-                <span className="text-slate-500 text-xs">SIMs</span>
-              </a>
-              {assetStats.licensesExpiringSoon > 0 && (
-                <a href="/hr/contracts" className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100 transition-colors text-sm">
-                  <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
-                  <span className="font-medium text-rose-700">{assetStats.licensesExpiringSoon}</span>
-                  <span className="text-rose-500 text-xs">License expiring</span>
-                </a>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Maintenance alerts */}
-      {maintenanceSummary && (maintenanceSummary.dueSoon > 0 || maintenanceSummary.overdue > 0) && (
-        <Card className="border-amber-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Wrench className="h-4 w-4 text-amber-600" />
-              Car Maintenance Alerts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <a href="/hr/car-maintenance" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Overdue</p>
-                <p className="text-2xl font-bold text-rose-700 mt-1">{maintenanceSummary.overdue}</p>
-                <p className="text-xs text-rose-500 mt-0.5">vehicles past service date</p>
-              </a>
-              <a href="/hr/car-maintenance" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Due Soon</p>
-                <p className="text-2xl font-bold text-amber-700 mt-1">{maintenanceSummary.dueSoon}</p>
-                <p className="text-xs text-amber-500 mt-0.5">within 14 days</p>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Loans & Custodies */}
-      {(loanSummary || custodySummary) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-emerald-600" />
-              Loans &amp; Custodies
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {loanSummary && (
-                <>
-                  <a href="/hr/loans" className="rounded-xl border bg-gradient-to-b from-emerald-50 to-white border-emerald-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Active Loans</p>
-                    <p className="text-2xl font-bold text-emerald-700 mt-1">{loanSummary.activeCount}</p>
-                    <p className="text-xs text-emerald-500 mt-0.5">ongoing repayments</p>
-                  </a>
-                  <a href="/hr/loans" className="rounded-xl border bg-gradient-to-b from-teal-50 to-white border-teal-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-xs text-teal-600 font-medium uppercase tracking-wide">Total Outstanding</p>
-                    <p className="text-2xl font-bold text-teal-700 mt-1">
-                      {loanSummary.totalPrincipal.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-teal-500 mt-0.5">SAR principal</p>
-                  </a>
-                </>
-              )}
-              {custodySummary && (
-                <>
-                  <a href="/hr/custodies" className="rounded-xl border bg-gradient-to-b from-indigo-50 to-white border-indigo-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-xs text-indigo-600 font-medium uppercase tracking-wide">Open Custodies</p>
-                    <p className="text-2xl font-bold text-indigo-700 mt-1">{custodySummary.openCount}</p>
-                    <p className="text-xs text-indigo-500 mt-0.5">unsettled advances</p>
-                  </a>
-                  <a href="/hr/custodies" className="rounded-xl border bg-gradient-to-b from-purple-50 to-white border-purple-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">Outstanding</p>
-                    <p className="text-2xl font-bold text-purple-700 mt-1">
-                      {custodySummary.totalOutstanding.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </p>
-                    <p className="text-xs text-purple-500 mt-0.5">SAR to recover</p>
-                  </a>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Traffic Violations */}
-      {violationSummary && violationSummary.total > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-rose-600" />
-              Traffic Violations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-slate-50 to-white border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Total Violations</p>
-                <p className="text-2xl font-bold text-slate-700 mt-1">{violationSummary.total}</p>
-                <p className="text-xs text-slate-400 mt-0.5">all time</p>
-              </a>
-              <a href="/hr/traffic-violations?status=PENDING" className="rounded-xl border bg-gradient-to-b from-rose-50 to-white border-rose-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-rose-600 font-medium uppercase tracking-wide">Pending</p>
-                <p className="text-2xl font-bold text-rose-700 mt-1">{violationSummary.open}</p>
-                <p className="text-xs text-rose-500 mt-0.5">unresolved</p>
-              </a>
-              <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-amber-50 to-white border-amber-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">Pending Deduction</p>
-                <p className="text-2xl font-bold text-amber-700 mt-1">{violationSummary.pendingDeduction}</p>
-                <p className="text-xs text-amber-500 mt-0.5">flagged for payroll</p>
-              </a>
-              <a href="/hr/traffic-violations" className="rounded-xl border bg-gradient-to-b from-orange-50 to-white border-orange-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                <p className="text-xs text-orange-600 font-medium uppercase tracking-wide">Open Amount</p>
-                <p className="text-2xl font-bold text-orange-700 mt-1">
-                  {violationSummary.openAmount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-xs text-orange-500 mt-0.5">SAR outstanding</p>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Sortable widget sections */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={visibleWidgets} strategy={verticalListSortingStrategy}>
+          <div className="space-y-6">
+            {widgetOrder.map((id) => {
+              const content = renderWidget(id);
+              if (!content) return null;
+              return (
+                <SortableWidget
+                  key={id}
+                  id={id}
+                  label={WIDGET_LABELS[id as WidgetId] ?? id}
+                  isCollapsed={collapsed.has(id)}
+                  onToggleCollapse={() => toggleCollapse(id)}
+                >
+                  {content}
+                </SortableWidget>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
