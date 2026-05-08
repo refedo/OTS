@@ -18,6 +18,7 @@ export async function register() {
     const { OpsAgentScheduler } = await import('@/lib/scheduler/ops-agent.scheduler');
     const { AttendanceSyncScheduler } = await import('@/lib/scheduler/attendance-sync.scheduler');
     const { CalibrationReminderScheduler } = await import('@/lib/scheduler/calibration-reminder.scheduler');
+    const { HrMonthlyReportScheduler } = await import('@/lib/scheduler/hr-monthly-report.scheduler');
     const { ensureOpsAgentConfig } = await import('@/lib/ops-agent/seeder');
     const { registerIntegrationListeners } = await import('@/lib/events/integration-listeners');
     const { runStartupMigrations } = await import('@/lib/startup-migrations');
@@ -48,6 +49,9 @@ export async function register() {
 
     // Initialize the daily Calibration Due Reminder scheduler (IMS module, 22.2.0)
     CalibrationReminderScheduler.initialize();
+
+    // Initialize the monthly HR Report scheduler (HR module, 23.2.0)
+    HrMonthlyReportScheduler.initialize();
 
     // Register integration event listeners (open-audit, Libre MES, …)
     registerIntegrationListeners();

@@ -212,6 +212,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/hr/loans': ['hr.loans.view', 'hr.loans.manage', 'hr.loans.viewOwn'],
   '/hr/custodies': ['hr.custodies.view', 'hr.custodies.manage', 'hr.custodies.viewOwn'],
 
+  // HR Monthly Reports (23.2.0)
+  '/hr/reports': ['hr.reports.view', 'hr.reports.manage'],
+
   // HR Absence Analytics (19.4.0)
   '/hr/analytics': ['hr.analytics.view'],
 
