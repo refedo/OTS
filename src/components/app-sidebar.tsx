@@ -331,6 +331,7 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'My Profile', href: '/hr/employees/me', icon: UserCircle2, newSince: '2026-04-21' },
       { name: 'HR Dashboard', href: '/hr/dashboard', icon: BarChart3, newSince: '2026-04-12' },
+      { name: 'HR Monthly Reports', href: '/hr/reports', icon: FileBarChart2, newSince: '2026-05-08' },
       { name: 'Absence Analytics', href: '/hr/analytics', icon: TrendingUp, newSince: '2026-04-18' },
       { name: 'Employees', href: '/hr/employees', icon: Users, newSince: '2026-04-12' },
       { name: 'Attendance', href: '/hr/attendance', icon: Calendar, newSince: '2026-04-12' },

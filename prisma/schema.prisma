@@ -7151,3 +7151,48 @@ model SubcontractorPaymentCertificate {
   @@index([certificateDate])
   @@index([deletedAt])
 }
+
+// ─── HR Monthly Report ───────────────────────────────────────────────────────
+
+enum HrReportStatus {
+  GENERATING
+  READY
+  FAILED
+}
+
+model HrMonthlyReport {
+  id     String         @id @default(uuid()) @db.Char(36)
+  year   Int
+  month  Int
+  status HrReportStatus @default(GENERATING)
+
+  // Key metric snapshots (stored for quick listing without reading JSON)
+  newHires               Int     @default(0)
+  resignations           Int     @default(0)
+  terminations           Int     @default(0)
+  headcountAtEnd         Int     @default(0)
+  turnoverRate           Decimal @default(0) @db.Decimal(5, 2)
+  burnoutScore           Decimal @default(0) @db.Decimal(5, 2)
+  totalPayroll           Decimal @default(0) @db.Decimal(15, 2)
+  leaveRequestsTotal     Int     @default(0)
+  leaveRequestsApproved  Int     @default(0)
+  iqamaExpiredCount      Int     @default(0)
+  iqamaDueSoonCount      Int     @default(0)
+  docRenewalsDueSoon     Int     @default(0)
+
+  // Full JSON payload for PDF re-render
+  reportData   Json?
+  errorMessage String?   @db.Text
+  filePath     String?   @db.VarChar(500)
+  generatedAt  DateTime?
+
+  createdById String   @db.Char(36)
+  createdBy   User     @relation("HrReportCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([year, month])
+  @@index([status])
+  @@index([createdAt])
+  @@map("HrMonthlyReport")
+}
