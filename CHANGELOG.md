@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.2.0] - 2026-05-08
+
+### Backlog Dashboard — Contributors, Domains & Progress
+
+#### Added
+- **Backlog Dashboard** (`/backlog/dashboard`) — public (all users) live dashboard with:
+  - **Hero section** with gradient and overall completion progress bar
+  - **KPI strip** — total items, completed, in progress, blocked, pipeline, and active contributor count
+  - **Top Contributors leaderboard** — ranked by backlog items created, with gold/silver/bronze medals for the top 3, avatar initials, relative contribution bar, and per-contributor completion rate
+  - **Development Types panel** — all 8 backlog types (Feature, Bug, Tech Debt, Performance, Reporting, Refactor, Compliance, Insight) with type icons and completion progress bars
+  - **Domain Categories grid** — all 13 system domains (Core System, Production, Design, Detailing, Procurement, QC, Logistics, Finance, Reporting, AI, Governance, Projects, HR) as colour-coded clickable cards with item counts, completion progress bars, and active item indicators; each card links to the filtered backlog board
+  - **Priority Distribution** — visual breakdown (Critical / High / Medium / Low) with percentage-of-total bars, each linking to filtered backlog
+  - **Add Backlog dialog** — inline quick-add form (title, description, type, category, priority) without leaving the dashboard; full-form link provided for advanced options
+  - Auto-refresh every 2 minutes with manual Refresh button
+- **`/api/backlog/dashboard` GET endpoint** — aggregates contributor stats, category/type/priority breakdowns, and overall KPIs in a single request
+- Version bumped to **23.2.0**
+
+---
+
 ## [23.1.0] - 2026-05-08
 
 ### HR Turnover Rate KPI
