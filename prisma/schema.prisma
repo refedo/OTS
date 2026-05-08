@@ -33,6 +33,9 @@ model Department {
   archivedAt        DateTime?
   managerId         String?            @unique @db.Char(36)
   manager           User?              @relation("DepartmentManager", fields: [managerId], references: [id])
+  parentId          String?            @db.Char(36)
+  parent            Department?        @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children          Department[]       @relation("DepartmentHierarchy")
   users             User[]
   employees         Employee[]         @relation("EmployeeDepartment")
   employeePositionHistory EmployeePositionHistory[] @relation("EmployeePositionHistoryDepartment")
@@ -47,6 +50,8 @@ model Department {
   meetings              Meeting[]                @relation("MeetingDepartment")
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
+
+  @@index([parentId])
 }
 
 model HrSection {

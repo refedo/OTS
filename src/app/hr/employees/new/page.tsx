@@ -19,10 +19,17 @@ export default async function NewEmployeePage() {
   const permissions = await getCurrentUserPermissions();
   const canViewCompensation = permissions.includes('hr.employee.viewCompensation');
 
-  const departments = await prisma.department.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  });
+  const [departments, allEmployees] = await Promise.all([
+    prisma.department.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.employee.findMany({
+      where: { deletedAt: null, status: { not: 'TERMINATED' } },
+      select: { id: true, fullNameEn: true, employmentId: true },
+      orderBy: { fullNameEn: 'asc' },
+    }),
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -55,6 +62,7 @@ export default async function NewEmployeePage() {
             canViewCompensation={canViewCompensation}
             canResetToDolibarr={false}
             departments={departments}
+            allEmployees={allEmployees}
           />
         </div>
       </div>

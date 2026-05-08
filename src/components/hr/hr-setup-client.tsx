@@ -17,6 +17,7 @@ type Department = {
   name: string;
   description: string | null;
   archivedAt: string | null;
+  parentId: string | null;
 };
 
 type HrSection = {
@@ -147,9 +148,11 @@ export function HrSetupClient({
   // Department state
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptDesc, setNewDeptDesc] = useState('');
+  const [newDeptParentId, setNewDeptParentId] = useState('');
   const [editDeptId, setEditDeptId] = useState<string | null>(null);
   const [editDeptName, setEditDeptName] = useState('');
   const [editDeptDesc, setEditDeptDesc] = useState('');
+  const [editDeptParentId, setEditDeptParentId] = useState('');
   const [creatingDept, setCreatingDept] = useState(false);
 
   // Section state
@@ -188,11 +191,13 @@ export function HrSetupClient({
           body: JSON.stringify({
             name: newDeptName.trim(),
             description: newDeptDesc.trim() || undefined,
+            parentId: newDeptParentId || null,
           }),
         }),
       () => {
         setNewDeptName('');
         setNewDeptDesc('');
+        setNewDeptParentId('');
         fetchDepartments();
       },
     );
@@ -208,6 +213,7 @@ export function HrSetupClient({
           body: JSON.stringify({
             name: editDeptName.trim(),
             description: editDeptDesc.trim() || null,
+            parentId: editDeptParentId || null,
           }),
         }),
       () => {
@@ -408,8 +414,8 @@ export function HrSetupClient({
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Add a department</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="flex-1 w-full">
+              <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                <div>
                   <Label htmlFor="new-dept-name">Name</Label>
                   <Input
                     id="new-dept-name"
@@ -418,7 +424,7 @@ export function HrSetupClient({
                     placeholder="e.g. Engineering"
                   />
                 </div>
-                <div className="flex-1 w-full">
+                <div>
                   <Label htmlFor="new-dept-desc">Description (optional)</Label>
                   <Input
                     id="new-dept-desc"
@@ -426,10 +432,26 @@ export function HrSetupClient({
                     onChange={(e) => setNewDeptDesc(e.target.value)}
                   />
                 </div>
-                <Button onClick={createDepartment} disabled={creatingDept || !newDeptName.trim()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add
-                </Button>
+                <div>
+                  <Label htmlFor="new-dept-parent">Parent department (optional)</Label>
+                  <select
+                    id="new-dept-parent"
+                    value={newDeptParentId}
+                    onChange={(e) => setNewDeptParentId(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  >
+                    <option value="">— None (top-level) —</option>
+                    {departments.filter((d) => !d.archivedAt).map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-3 flex justify-end">
+                  <Button onClick={createDepartment} disabled={creatingDept || !newDeptName.trim()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -441,6 +463,7 @@ export function HrSetupClient({
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="p-3 font-medium">Name</th>
                     <th className="p-3 font-medium">Description</th>
+                    <th className="p-3 font-medium">Parent</th>
                     <th className="p-3 font-medium w-24">Status</th>
                     <th className="p-3 font-medium w-52 text-right">Actions</th>
                   </tr>
@@ -480,6 +503,24 @@ export function HrSetupClient({
                             d.description || '—'
                           )}
                         </td>
+                        <td className="p-3 text-muted-foreground">
+                          {isEditing ? (
+                            <select
+                              value={editDeptParentId}
+                              onChange={(e) => setEditDeptParentId(e.target.value)}
+                              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                            >
+                              <option value="">— None —</option>
+                              {departments
+                                .filter((p) => !p.archivedAt && p.id !== d.id)
+                                .map((p) => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                          ) : (
+                            departments.find((p) => p.id === d.parentId)?.name || '—'
+                          )}
+                        </td>
                         <td className="p-3">
                           {isArchived ? (
                             <Badge variant="outline" className="bg-gray-100">
@@ -511,6 +552,7 @@ export function HrSetupClient({
                                     setEditDeptId(d.id);
                                     setEditDeptName(d.name);
                                     setEditDeptDesc(d.description ?? '');
+                                    setEditDeptParentId(d.parentId ?? '');
                                   }}
                                 >
                                   <Pencil className="h-4 w-4" />

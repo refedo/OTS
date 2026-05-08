@@ -335,6 +335,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'HR Monthly Reports', href: '/hr/reports', icon: FileBarChart2, newSince: '2026-05-08' },
       { name: 'Absence Analytics', href: '/hr/analytics', icon: TrendingUp, newSince: '2026-04-18' },
       { name: 'Employees', href: '/hr/employees', icon: Users, newSince: '2026-04-12' },
+      { name: 'Organization Chart', href: '/hr/organization-chart', icon: Network, newSince: '2026-05-08' },
       { name: 'Attendance', href: '/hr/attendance', icon: Calendar, newSince: '2026-04-12' },
       { name: 'Agencies', href: '/hr/agencies', icon: Briefcase, newSince: '2026-04-12' },
       { name: 'Leaves', href: '/hr/leaves', icon: CalendarClock, newSince: '2026-04-12' },
@@ -361,7 +362,6 @@ const navigationSections: NavigationSection[] = [
     items: [
       { name: 'Users', href: '/users', icon: Users },
       { name: 'Roles', href: '/roles', icon: Shield },
-      { name: 'Organization Chart', href: '/organization', icon: Network },
     ],
   },
   {
