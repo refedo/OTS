@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.5.0] - 2026-05-08
+
+### Version sync
+
+#### Changed
+- Version bumped to **23.5.0**
+
+---
+
 ## [23.4.0] - 2026-05-08
 
 ### HR Dashboard — Collapsible Widgets, Drag-to-Reorder & Deep-Link KPI Tiles

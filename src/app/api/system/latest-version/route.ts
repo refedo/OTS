@@ -9,30 +9,19 @@ const CURRENT_VERSION = {
   version: pkgVersion,
   date: 'May 8, 2026',
   type: 'minor' as const,
-  mainTitle: 'Backlog Card Improvements, Sidebar & Full Changelog',
+  mainTitle: 'Version synchronization',
   highlights: [
-    'Backlog item header now shows submitter name and submission date for immediate context.',
-    'One-click copy button on the description card and Share on WhatsApp button in Quick Actions.',
-    'Marking a backlog item as Completed now backfills all skipped stages with the finisher\'s name and timestamp.',
-    'CEO/admin users receive an in-app notification when any backlog item is submitted — toggle on/off from Settings → Notifications.',
-    '"Backlog Dashboard" is now the primary sidebar entry for the Product Backlog section — replaces "Backlog Board".',
-    'Full changelog coverage restored: entries for v22.5.2 through v22.8.0 added to the in-app changelog page.',
+    'Version synchronization across all surfaces following branch consolidation.',
   ],
   changes: {
     added: [
       'Submitter name and date shown in backlog item detail page header.',
       'Copy description button with visual feedback on backlog item detail page.',
       'Share on WhatsApp button in Quick Actions sidebar.',
-      'Stage backfill on COMPLETED: skipped intermediate stages stamped with finisher name + timestamp.',
-      'CEO notification on backlog creation sent to all users with backlog.ceo_center permission.',
-      '"Notify CEO on New Backlog Item" toggle in Settings → Notifications.',
-      '"Backlog Dashboard" sidebar entry — renamed from "Backlog Board" with a LayoutDashboard icon.',
-      'Changelog entries for v22.5.2, v22.6.0, v22.6.4, v22.7.0, and v22.8.0 restored to the in-app changelog page.',
     ],
     fixed: [],
     changed: [
-      'Sidebar Product Backlog section: "Backlog Board" renamed to "Backlog Dashboard" and moved to top of section.',
-      'Version bumped to 23.3.0',
+      'Version bumped to 23.5.0',
     ],
   },
 };
