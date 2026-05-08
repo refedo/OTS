@@ -436,15 +436,16 @@ model ProjectSegment {
 }
 
 model Client {
-  id        String    @id @default(uuid()) @db.Char(36)
-  name      String
-  email     String?
-  phone     String?
-  address   String?
-  country   String?
-  projects  Project[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String    @id @default(uuid()) @db.Char(36)
+  dolibarrId  Int?      @unique @map("dolibarr_id")
+  name        String
+  email       String?
+  phone       String?
+  address     String?
+  country     String?
+  projects    Project[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 /// Project and task core models

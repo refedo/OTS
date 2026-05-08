@@ -151,6 +151,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/supply-chain/lcr': ['supply_chain.view'],
   '/supply-chain/lcr/reports': ['supply_chain.view'],
   '/supply-chain/lcr/aliases': ['supply_chain.alias'],
+  '/supply-chain/suppliers': ['supply_chain.view'],
   '/supply-chain/purchase-orders': ['supply_chain.view'],
   '/supply-chain/approved-suppliers': ['supply_chain.view'],
   '/supply-chain/subcontractors': ['subcontractors.view'],
@@ -172,10 +173,13 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // Ops Agent
   '/ops-agent': ['ops_agent.view', 'ops_agent.run', 'ops_agent.configure'],
 
+  '/financial/customers': ['financial.view'],
+
   // Dolibarr Integration
   '/dolibarr': ['dolibarr.view'],
 
   // HR Foundation (Phase 1 of OTS-MSS-HR-PAYROLL-v1)
+  '/hr/organization-chart': ['hr.employee.view'],
   '/hr/dashboard': ['hr.employee.view'],
   '/hr/employees/me': ['hr.employee.viewOwn'],
   '/hr/employees': ['hr.employee.view', 'hr.employee.viewOwn'],
