@@ -23,10 +23,54 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
-    version: '23.3.0',
+    version: '23.5.0',
     date: 'May 8, 2026',
     type: 'minor',
     status: 'current',
+    mainTitle: 'Version synchronization',
+    highlights: [
+      'Version synchronization across all surfaces following branch consolidation.',
+    ],
+    changes: {
+      added: [],
+      fixed: [],
+      changed: [
+        'Version bumped to 23.5.0',
+      ],
+    },
+  },
+  {
+    version: '23.4.0',
+    date: 'May 8, 2026',
+    type: 'minor',
+    status: 'previous',
+    mainTitle: 'HR Dashboard — Collapsible Widgets, Drag-to-Reorder & Deep-Link KPI Tiles',
+    highlights: [
+      'Every widget section on the HR Dashboard now has a collapse/expand toggle; collapsed state persisted to localStorage.',
+      'Drag-to-reorder widgets via grip handle; order saved to localStorage and restored on next visit.',
+      'Every KPI tile is now a clickable link navigating to the relevant report with filters pre-applied.',
+      'Attendance page reads tab/month/status/workerType from URL; employees page reads status/occupation/joined/left date ranges.',
+    ],
+    changes: {
+      added: [
+        'Collapsible dashboard sections with localStorage persistence.',
+        'Drag-to-reorder widgets using @dnd-kit with 8px activation threshold.',
+        'Deep-link KPI tiles: each tile navigates to the relevant filtered report.',
+        'Attendance page URL params: tab, month, status, workerType.',
+        'Employees page URL params: status, occupation, joinedFrom, joinedTo, leftFrom, leftTo.',
+        'Joined and Left date-range filter inputs added to the employees filter bar.',
+      ],
+      fixed: [],
+      changed: [
+        'Version bumped to 23.4.0',
+      ],
+    },
+  },
+  {
+    version: '23.3.0',
+    date: 'May 8, 2026',
+    type: 'minor',
+    status: 'previous',
     mainTitle: 'Backlog Card Improvements, Sidebar & Full Changelog',
     highlights: [
       'Backlog item header now shows submitter name and submission date for immediate context.',

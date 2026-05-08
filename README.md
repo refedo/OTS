@@ -1,16 +1,11 @@
 # Hexa Steel® Operations Tracking System (OTS™)
 
-**Version:** 23.3.0 | **Release Date:** May 8, 2026
+**Version:** 23.5.0 | **Release Date:** May 8, 2026
 
 A comprehensive Enterprise Resource Planning (ERP) system specifically designed for steel fabrication and construction projects. Built with Next.js 15, TypeScript, Prisma 6, and MySQL 8.
 
-### What's New in 23.3.0 — Backlog Card Improvements, Sidebar & Full Changelog
-- **Submitter name** shown in backlog item detail page header with submission date.
-- **Copy description button** with "Copied!" feedback; **Share on WhatsApp** button in Quick Actions.
-- **Stage backfill on COMPLETED** — all skipped stages stamped with finisher name and timestamp.
-- **CEO notification** on backlog creation, with toggle in Settings → Notifications.
-- **"Backlog Dashboard"** replaces "Backlog Board" as the primary sidebar entry.
-- **Full changelog coverage restored** — v22.5.2 through v22.8.0 entries added to the in-app changelog page.
+### What's New in 23.5.0 — Version synchronization
+- Version synchronization across all surfaces following branch consolidation.
 
 ### What's New in 22.5.3 — Stability & Version Alignment
 - Confirms **22.5.2** features as stable: Account Invoice Report, orphan purge, and sidebar double-render fix.
