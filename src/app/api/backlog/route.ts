@@ -4,6 +4,7 @@ import { verifySession } from '@/lib/jwt';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { BacklogStatus, BacklogPriority } from '@prisma/client';
+import NotificationService from '@/lib/services/notification.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -153,6 +154,52 @@ export async function POST(request: NextRequest) {
     });
 
     logger.info({ itemId: item.id, code }, 'Backlog item created');
+
+    // Notify users with CEO/admin access when backlog item is created
+    try {
+      const settings = await prisma.systemSettings.findFirst({
+        select: { backlogCeoNotify: true },
+      });
+
+      if (settings?.backlogCeoNotify) {
+        // Find roles that include the CEO center permission
+        const allRoles = await prisma.role.findMany({ select: { id: true, permissions: true } });
+        const ceoRoleIds = allRoles
+          .filter(r => {
+            const perms = r.permissions as string[] | null;
+            return Array.isArray(perms) && perms.includes('backlog.ceo_center');
+          })
+          .map(r => r.id);
+
+        const ceoUsers = await prisma.user.findMany({
+          where: {
+            AND: [
+              { status: 'active' },
+              { id: { not: session.sub } },
+              { OR: [{ isAdmin: true }, { roleId: { in: ceoRoleIds } }] },
+            ],
+          },
+          select: { id: true },
+        });
+
+        for (const ceoUser of ceoUsers) {
+          await NotificationService.createNotification({
+            userId: ceoUser.id,
+            type: 'APPROVAL_REQUIRED',
+            title: 'New Backlog Item Submitted',
+            message: `${user.name} submitted a new backlog item: "${item.title}" (${item.code})`,
+            relatedEntityType: 'backlog',
+            relatedEntityId: item.id,
+            metadata: { code: item.code, type: item.type, category: item.category, priority: item.priority },
+          });
+        }
+
+        logger.info({ itemId: item.id, notifiedCount: ceoUsers.length }, 'CEO backlog notifications sent');
+      }
+    } catch (notifErr) {
+      logger.error({ notifErr, itemId: item.id }, 'Failed to send CEO backlog notification (non-fatal)');
+    }
+
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
     logger.error({ error }, 'Failed to create backlog item');

@@ -31,6 +31,7 @@ type Settings = {
   currency: string;
   emailNotifications: boolean;
   smsNotifications: boolean;
+  backlogCeoNotify: boolean;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 };
@@ -851,6 +852,25 @@ export default function SettingsPage() {
                     onChange={(e) => setSettings({ ...settings, smsNotifications: e.target.checked })}
                     className="h-4 w-4"
                   />
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">Backlog Settings</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="backlogCeoNotify">Notify CEO on New Backlog Item</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Send a notification to users with CEO/admin access when a backlog item is submitted
+                      </p>
+                    </div>
+                    <input
+                      id="backlogCeoNotify"
+                      type="checkbox"
+                      checked={settings.backlogCeoNotify}
+                      onChange={(e) => setSettings({ ...settings, backlogCeoNotify: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

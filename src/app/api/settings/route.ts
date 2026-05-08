@@ -24,6 +24,7 @@ const settingsSchema = z.object({
   currency: z.string().optional(),
   emailNotifications: z.boolean().optional(),
   smsNotifications: z.boolean().optional(),
+  backlogCeoNotify: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {

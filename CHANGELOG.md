@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.1.0] - 2026-05-08
+
+### Backlog Card Improvements
+
+#### Added
+- **Submitter name in BL header** — Backlog item detail page now shows the submitter's name and submission date directly beneath the title for immediate context.
+- **Copy description button** — Description card now has a one-click copy button; shows a brief "Copied!" confirmation after use.
+- **Share on WhatsApp button** — Quick Actions sidebar now includes a "Share on WhatsApp" button that sends the BL code, title, status, priority, submitter, and a direct link.
+- **Stage backfill on COMPLETED** — When a backlog item is marked as Completed, any intermediate stages (Under Review, Approved, Planned, In Progress) that were skipped will be automatically stamped with the finisher's name and the completion timestamp.
+- **In Progress tracking** — `inProgressById` and `inProgressAt` fields added to the backlog schema; the Activity Trail now shows who moved the item to In Progress and when.
+- **CEO notification on BL creation** — Users with CEO/admin access (`backlog.ceo_center` permission) receive an in-app notification whenever a new backlog item is submitted.
+- **CEO notification toggle in Settings** — New "Notify CEO on New Backlog Item" toggle under Settings → Notifications lets admins enable or disable the CEO creation notification.
+- **DB migration v23.1.0** — Adds `backlogCeoNotify` to `system_settings` and `inProgressById` / `inProgressAt` to `ProductBacklogItem`.
+
+#### Changed
+- Version bumped to **23.1.0**
+
+---
+
 ## [23.0.2] - 2026-05-07
 
 ### Building Details, Subcontractor Form, Project Card & Tracker Fixes
