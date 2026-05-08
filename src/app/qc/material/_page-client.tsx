@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Package, 
-  Search, 
+import {
+  Package,
+  Search,
   Plus,
   CheckCircle,
   XCircle,
@@ -19,6 +19,9 @@ import {
   Upload,
   Eye,
   Save,
+  ExternalLink,
+  Paperclip,
+  FileBadge,
 } from 'lucide-react';
 import {
   Dialog,
@@ -104,6 +107,7 @@ type ReceiptItem = {
   specsNotes?: string;
   mtcAvailable: boolean;
   mtcNumber?: string;
+  mtcFilePath?: string;
   heatNumber?: string;
   batchNumber?: string;
   inspectionResult: string;
@@ -132,8 +136,14 @@ export default function MaterialInspectionReceiptPage() {
   // Receipt detail/inspection
   const [selectedReceipt, setSelectedReceipt] = useState<MaterialReceipt | null>(null);
   const [inspectingItem, setInspectingItem] = useState<ReceiptItem | null>(null);
-  const [itemFormData, setItemFormData] = useState<any>({});
+  const [itemFormData, setItemFormData] = useState<Record<string, unknown>>({});
   const [savingItem, setSavingItem] = useState(false);
+
+  // MTC edit dialog
+  const [mtcEditItem, setMtcEditItem] = useState<ReceiptItem | null>(null);
+  const [mtcFormData, setMtcFormData] = useState({ mtcAvailable: false, mtcNumber: '', mtcFilePath: '' });
+  const [savingMtc, setSavingMtc] = useState(false);
+  const [uploadingMtc, setUploadingMtc] = useState(false);
 
   useEffect(() => {
     fetchReceipts();
@@ -301,6 +311,69 @@ export default function MaterialInspectionReceiptPage() {
     } finally {
       setSavingItem(false);
     }
+  };
+
+  const handleOpenMtcEdit = (item: ReceiptItem) => {
+    setMtcEditItem(item);
+    setMtcFormData({
+      mtcAvailable: item.mtcAvailable || false,
+      mtcNumber: item.mtcNumber || '',
+      mtcFilePath: item.mtcFilePath || '',
+    });
+  };
+
+  const handleMtcFileUpload = async (file: File) => {
+    setUploadingMtc(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'mtc-certificates');
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        setMtcFormData(prev => ({ ...prev, mtcFilePath: data.filePath as string }));
+      }
+    } catch (error) {
+      console.error('Error uploading MTC file:', error);
+    } finally {
+      setUploadingMtc(false);
+    }
+  };
+
+  const handleSaveMtc = async () => {
+    if (!mtcEditItem) return;
+    setSavingMtc(true);
+    try {
+      const res = await fetch('/api/qc/material-receipts/items', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: mtcEditItem.id,
+          mtcAvailable: mtcFormData.mtcAvailable,
+          mtcNumber: mtcFormData.mtcNumber,
+          mtcFilePath: mtcFormData.mtcFilePath,
+        }),
+      });
+      if (res.ok) {
+        setMtcEditItem(null);
+        if (selectedReceipt) {
+          const refreshRes = await fetch(`/api/qc/material-receipts?id=${selectedReceipt.id}`);
+          if (refreshRes.ok) {
+            setSelectedReceipt(await refreshRes.json());
+          }
+        }
+        fetchReceipts();
+      }
+    } catch (error) {
+      console.error('Error saving MTC:', error);
+    } finally {
+      setSavingMtc(false);
+    }
+  };
+
+  const getMtcFileViewUrl = (filePath: string) => {
+    // Convert /uploads/mtc-certificates/file.pdf → /api/file/mtc-certificates/file.pdf
+    return filePath.replace(/^\/uploads\//, '/api/file/');
   };
 
   const filteredReceipts = receipts.filter((receipt) => {
@@ -689,11 +762,20 @@ export default function MaterialInspectionReceiptPage() {
                           <td className="py-2.5 px-3 text-right font-mono text-green-600">{item.acceptedQty} {item.unit}</td>
                           <td className="py-2.5 px-3 text-right font-mono text-red-600">{item.rejectedQty} {item.unit}</td>
                           <td className="py-2.5 px-3 text-center">
-                            {item.mtcAvailable ? (
-                              <Badge className="bg-green-500/10 text-green-600 text-xs">Yes</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">No</Badge>
-                            )}
+                            <button
+                              onClick={() => handleOpenMtcEdit(item)}
+                              title={item.mtcAvailable ? (item.mtcNumber || 'Edit MTC') : 'Add MTC'}
+                              className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                            >
+                              {item.mtcAvailable ? (
+                                <Badge className="bg-green-500/10 text-green-600 text-xs cursor-pointer hover:bg-green-500/20 gap-1">
+                                  {item.mtcFilePath && <Paperclip className="h-3 w-3" />}
+                                  {item.mtcNumber || 'Yes'}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs cursor-pointer hover:bg-muted">No</Badge>
+                              )}
+                            </button>
                           </td>
                           <td className="py-2.5 px-3 text-center">{getInspectionResultBadge(item.inspectionResult)}</td>
                           <td className="py-2.5 px-3 text-center">
@@ -708,6 +790,125 @@ export default function MaterialInspectionReceiptPage() {
                 </div>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* MTC Edit/View Dialog */}
+      {mtcEditItem && (
+        <Dialog open={!!mtcEditItem} onOpenChange={() => setMtcEditItem(null)}>
+          <DialogContent className="w-full sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileBadge className="h-5 w-5" />
+                Material Test Certificate
+              </DialogTitle>
+              <DialogDescription className="line-clamp-2">{mtcEditItem.itemName}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* MTC Available toggle */}
+              <div className="space-y-1.5">
+                <Label>MTC Available</Label>
+                <Select
+                  value={mtcFormData.mtcAvailable ? 'yes' : 'no'}
+                  onValueChange={(v) => setMtcFormData(prev => ({ ...prev, mtcAvailable: v === 'yes' }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Yes</SelectItem>
+                    <SelectItem value="no">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {mtcFormData.mtcAvailable && (
+                <>
+                  {/* MTC Number */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="mtcNumberEdit">MTC Number</Label>
+                    <Input
+                      id="mtcNumberEdit"
+                      placeholder="e.g. MTC-2024-00123"
+                      value={mtcFormData.mtcNumber}
+                      onChange={(e) => setMtcFormData(prev => ({ ...prev, mtcNumber: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Certificate file */}
+                  <div className="space-y-1.5">
+                    <Label>Certificate File</Label>
+                    {mtcFormData.mtcFilePath ? (
+                      <div className="flex items-center gap-2 p-2.5 border rounded-md bg-muted/50">
+                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate flex-1 font-mono">
+                          {mtcFormData.mtcFilePath.split('/').pop()}
+                        </span>
+                        <a
+                          href={getMtcFileViewUrl(mtcFormData.mtcFilePath)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0"
+                        >
+                          <Button type="button" size="sm" variant="ghost" className="h-7 px-2 gap-1 text-xs">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Open
+                          </Button>
+                        </a>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                          onClick={() => setMtcFormData(prev => ({ ...prev, mtcFilePath: '' }))}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                        {uploadingMtc ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Uploading…</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Upload certificate (PDF, image)</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          className="hidden"
+                          disabled={uploadingMtc}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleMtcFileUpload(file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMtcEditItem(null)} disabled={savingMtc}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveMtc} disabled={savingMtc || uploadingMtc}>
+                {savingMtc ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</>
+                ) : (
+                  <><Save className="mr-2 h-4 w-4" />Save</>
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
