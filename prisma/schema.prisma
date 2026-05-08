@@ -203,6 +203,7 @@ model User {
   reviewedBacklogItems         ProductBacklogItem[]          @relation("BacklogItemReviewedBy")
   plannedBacklogItems          ProductBacklogItem[]          @relation("BacklogItemPlannedBy")
   completedBacklogItems        ProductBacklogItem[]          @relation("BacklogItemCompletedBy")
+  inProgressBacklogItems       ProductBacklogItem[]          @relation("BacklogItemInProgressBy")
   createdPaymentSchedules      ProjectPaymentSchedule[]      @relation("PPS_CreatedBy")
   updatedPaymentSchedules      ProjectPaymentSchedule[]      @relation("PPS_UpdatedBy")
   createdPaymentReceipts       ProjectPaymentReceipt[]       @relation("PPR_CreatedBy")
@@ -2728,6 +2729,7 @@ model SystemSettings {
   // Notification Settings
   emailNotifications Boolean @default(true)
   smsNotifications   Boolean @default(false)
+  backlogCeoNotify   Boolean @default(true) // Notify users with CEO access when a backlog item is created
 
   // GitHub Integration Settings
   githubToken       String? @db.Text // Personal Access Token (stored encrypted-at-rest)
@@ -3664,8 +3666,10 @@ model ProductBacklogItem {
   reviewedAt    DateTime?
   plannedById   String?   @db.Char(36)
   plannedAt     DateTime?
-  completedById String?   @db.Char(36)
-  completedAt   DateTime?
+  completedById    String?   @db.Char(36)
+  completedAt      DateTime?
+  inProgressById   String?   @db.Char(36)
+  inProgressAt     DateTime?
 
   // Handler notes (sent to raiser)
   notes Json? // [{ id, content, authorId, authorName, createdAt }]
@@ -3676,12 +3680,13 @@ model ProductBacklogItem {
   githubRepo        String? // owner/repo format
   githubSyncedAt    DateTime?
 
-  tasks       Task[] @relation("BacklogItemTasks")
-  createdBy   User   @relation("BacklogItemCreatedBy", fields: [createdById], references: [id])
-  approvedBy  User?  @relation("BacklogItemApprovedBy", fields: [approvedById], references: [id])
-  reviewedBy  User?  @relation("BacklogItemReviewedBy", fields: [reviewedById], references: [id])
-  plannedBy   User?  @relation("BacklogItemPlannedBy", fields: [plannedById], references: [id])
-  completedBy User?  @relation("BacklogItemCompletedBy", fields: [completedById], references: [id])
+  tasks          Task[] @relation("BacklogItemTasks")
+  createdBy      User   @relation("BacklogItemCreatedBy", fields: [createdById], references: [id])
+  approvedBy     User?  @relation("BacklogItemApprovedBy", fields: [approvedById], references: [id])
+  reviewedBy     User?  @relation("BacklogItemReviewedBy", fields: [reviewedById], references: [id])
+  plannedBy      User?  @relation("BacklogItemPlannedBy", fields: [plannedById], references: [id])
+  completedBy    User?  @relation("BacklogItemCompletedBy", fields: [completedById], references: [id])
+  inProgressBy   User?  @relation("BacklogItemInProgressBy", fields: [inProgressById], references: [id])
 
   @@index([type, status, priority])
   @@index([category])

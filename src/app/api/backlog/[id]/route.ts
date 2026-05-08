@@ -22,11 +22,12 @@ export async function GET(
       prisma.productBacklogItem.findUnique({
         where: { id: params.id },
         include: {
-          createdBy:   { select: { id: true, name: true } },
-          approvedBy:  { select: { id: true, name: true } },
-          reviewedBy:  { select: { id: true, name: true } },
-          plannedBy:   { select: { id: true, name: true } },
-          completedBy: { select: { id: true, name: true } },
+          createdBy:    { select: { id: true, name: true } },
+          approvedBy:   { select: { id: true, name: true } },
+          reviewedBy:   { select: { id: true, name: true } },
+          plannedBy:    { select: { id: true, name: true } },
+          completedBy:  { select: { id: true, name: true } },
+          inProgressBy: { select: { id: true, name: true } },
           tasks: {
             select: {
               id: true,
@@ -101,7 +102,13 @@ export async function PATCH(
     // Fetch the current item to compare status later
     const existingItem = await prisma.productBacklogItem.findUnique({
       where: { id: params.id },
-      select: { id: true, title: true, status: true, createdById: true },
+      select: {
+        id: true, title: true, status: true, createdById: true,
+        reviewedById: true, reviewedAt: true,
+        approvedById: true, approvedAt: true,
+        plannedById: true, plannedAt: true,
+        inProgressById: true, inProgressAt: true,
+      },
     });
 
     if (!existingItem) {
@@ -148,9 +155,33 @@ export async function PATCH(
         updateData.plannedAt = new Date();
       }
 
+      if (body.status === 'IN_PROGRESS') {
+        updateData.inProgressById = session.sub;
+        updateData.inProgressAt = new Date();
+      }
+
       if (body.status === 'COMPLETED' || body.status === 'DROPPED') {
+        const now = new Date();
         updateData.completedById = session.sub;
-        updateData.completedAt = new Date();
+        updateData.completedAt = now;
+
+        // Backfill any skipped intermediate stages with the finisher's info
+        if (!existingItem!.reviewedById) {
+          updateData.reviewedById = session.sub;
+          updateData.reviewedAt = now;
+        }
+        if (!existingItem!.approvedById) {
+          updateData.approvedById = session.sub;
+          updateData.approvedAt = now;
+        }
+        if (!existingItem!.plannedById) {
+          updateData.plannedById = session.sub;
+          updateData.plannedAt = now;
+        }
+        if (!existingItem!.inProgressById) {
+          updateData.inProgressById = session.sub;
+          updateData.inProgressAt = now;
+        }
       }
     }
 
@@ -158,11 +189,12 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData,
       include: {
-        createdBy:   { select: { id: true, name: true } },
-        approvedBy:  { select: { id: true, name: true } },
-        reviewedBy:  { select: { id: true, name: true } },
-        plannedBy:   { select: { id: true, name: true } },
-        completedBy: { select: { id: true, name: true } },
+        createdBy:    { select: { id: true, name: true } },
+        approvedBy:   { select: { id: true, name: true } },
+        reviewedBy:   { select: { id: true, name: true } },
+        plannedBy:    { select: { id: true, name: true } },
+        completedBy:  { select: { id: true, name: true } },
+        inProgressBy: { select: { id: true, name: true } },
         tasks: {
           select: {
             id: true,

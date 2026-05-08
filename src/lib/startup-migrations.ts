@@ -160,6 +160,9 @@ const STARTUP_MIGRATIONS = [
   // ── v23.1.0 — Fix steel-scope BuildingActivity records ────────────────────
   'v23_1_fix_steel_scope_activities.sql', // Set all steel-scope activities to isApplicable=1; insert missing rows
   'v23_2_seed_assembly_part_steel_scope.sql', // Backfill AssemblyPart.scopeOfWorkId to steel scope
+
+  // ── v23.3.0 — Backlog card improvements ──────────────────────────────────
+  'v23_1_backlog_improvements.sql',           // backlogCeoNotify on system_settings; inProgressById/At on ProductBacklogItem
 ];
 
 /**

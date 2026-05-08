@@ -320,8 +320,8 @@ const navigationSections: NavigationSection[] = [
     name: 'Product Backlog',
     icon: Layers,
     items: [
+      { name: 'Backlog Dashboard', href: '/backlog', icon: LayoutDashboard },
       { name: 'Create Backlog', href: '/backlog/new', icon: Plus },
-      { name: 'Backlog Board', href: '/backlog', icon: Layers },
       { name: 'CEO Control Center', href: '/ceo-control-center', icon: Crown },
     ],
   },

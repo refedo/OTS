@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { showConfirmation } from '@/components/ui/confirmation-dialog';
-import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, Eye, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink, MessageSquare, Send, Loader2, Pencil, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Calendar, CheckCircle, AlertCircle, Target, Layers, Paperclip, FileText, Download, Eye, User, ImageIcon, Upload, Check, RotateCcw, Trash2, ClipboardList, Github, ExternalLink, RefreshCw, Unlink, MessageSquare, Send, Loader2, Pencil, X, Copy, Share2 } from 'lucide-react';
 
 interface ActivityLog {
   id: string;
@@ -48,11 +48,13 @@ interface BacklogItem {
   reviewedAt: string | null;
   plannedAt: string | null;
   completedAt: string | null;
-  createdBy:   { id: string; name: string };
-  approvedBy:  { id: string; name: string } | null;
-  reviewedBy:  { id: string; name: string } | null;
-  plannedBy:   { id: string; name: string } | null;
-  completedBy: { id: string; name: string } | null;
+  inProgressAt: string | null;
+  createdBy:    { id: string; name: string };
+  approvedBy:   { id: string; name: string } | null;
+  reviewedBy:   { id: string; name: string } | null;
+  plannedBy:    { id: string; name: string } | null;
+  completedBy:  { id: string; name: string } | null;
+  inProgressBy: { id: string; name: string } | null;
   attachments: Array<{
     fileName: string;
     filePath: string;
@@ -107,6 +109,7 @@ export default function BacklogItemDetail() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTaskData, setEditTaskData] = useState({ title: '', description: '' });
   const [savingTaskEdit, setSavingTaskEdit] = useState(false);
+  const [copiedDesc, setCopiedDesc] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/session').then(r => r.ok ? r.json() : null).then(d => {
@@ -637,6 +640,12 @@ export default function BacklogItemDetail() {
                 </span>
               </div>
               <p className="text-xl text-muted-foreground">{item.title}</p>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <User className="size-3.5 shrink-0" />
+                <span>Submitted by <span className="font-medium text-foreground">{item.createdBy.name}</span></span>
+                <span className="text-muted-foreground/50">·</span>
+                <span>{new Date(item.createdAt).toLocaleDateString('en-SA-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -659,8 +668,22 @@ export default function BacklogItemDetail() {
 
             {/* Description */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Description</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 h-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    navigator.clipboard.writeText(item.description);
+                    setCopiedDesc(true);
+                    setTimeout(() => setCopiedDesc(false), 2000);
+                  }}
+                  title="Copy description"
+                >
+                  {copiedDesc ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                  <span className="text-xs">{copiedDesc ? 'Copied!' : 'Copy'}</span>
+                </Button>
               </CardHeader>
               <CardContent>
                 <p className="whitespace-pre-wrap">{item.description}</p>
@@ -1092,11 +1115,11 @@ export default function BacklogItemDetail() {
                       key: 'in_progress',
                       type: 'status',
                       label: 'In Progress',
-                      sub: null,
-                      date: item.status === 'IN_PROGRESS' || item.status === 'COMPLETED' ? item.plannedAt : null,
+                      sub: item.inProgressBy ? `by ${item.inProgressBy.name}` : null,
+                      date: item.inProgressAt,
                       dot: 'bg-indigo-500',
                       line: 'bg-indigo-200',
-                      active: ['IN_PROGRESS', 'COMPLETED'].includes(item.status),
+                      active: ['IN_PROGRESS', 'COMPLETED'].includes(item.status) || !!item.inProgressAt,
                     },
                     ...(!!item.completedAt || item.status === 'DROPPED' ? [{
                       key: 'completed',
@@ -1195,6 +1218,21 @@ export default function BacklogItemDetail() {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Share to WhatsApp */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800"
+                  onClick={() => {
+                    const url = typeof window !== 'undefined' ? window.location.href : '';
+                    const text = `*${item.code}* — ${item.title}\n\nStatus: ${item.status.replace(/_/g, ' ')}\nPriority: ${item.priority}\nType: ${item.type.replace(/_/g, ' ')}\n\nSubmitted by: ${item.createdBy.name}\n\n🔗 ${url}`;
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                >
+                  <Share2 className="size-4" />
+                  Share on WhatsApp
+                </Button>
+
                 <div className="space-y-2">
                   <Label>Change Status</Label>
                   <Select value={item.status} onValueChange={handleStatusChange}>

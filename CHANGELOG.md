@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [23.3.0] - 2026-05-08
+
+### Backlog Card Improvements, Sidebar & Full Changelog
+
+#### Added
+- **Submitter name** shown in backlog item detail page header with submission date.
+- **Copy description button** with "Copied!" visual feedback on backlog item detail page.
+- **Share on WhatsApp** button in Quick Actions sidebar — sends BL code, title, status, priority, and a direct link.
+- **Stage backfill on COMPLETED** — skipped intermediate stages (Under Review, Approved, Planned, In Progress) are stamped with the finisher's name and timestamp.
+- **inProgressById / inProgressAt** fields on `ProductBacklogItem` — track who moved the item to In Progress; Activity Trail updated.
+- **CEO notification on backlog creation** — `APPROVAL_REQUIRED` notification sent to all users with `backlog.ceo_center` permission when a new BL is submitted.
+- **"Notify CEO on New Backlog Item"** toggle in Settings → Notifications.
+- **"Backlog Dashboard"** sidebar entry in the Product Backlog section — renamed from "Backlog Board" with a `LayoutDashboard` icon, moved to top of section.
+- **Changelog entries restored** — v22.5.2, v22.6.0, v22.6.4, v22.7.0, and v22.8.0 added to the in-app changelog page.
+- **DB migration v23.3.0** — adds `backlogCeoNotify` to `system_settings` and `inProgressById`/`inProgressAt` to `ProductBacklogItem`.
+
+#### Changed
+- Activity Trail In Progress step now shows who moved the item and when.
+- Sidebar Product Backlog section: "Backlog Board" renamed to "Backlog Dashboard".
+- Version bumped to **23.3.0**
+
+---
+
 ## [23.2.0] - 2026-05-08
 
 ### Backlog Dashboard — Contributors, Domains & Progress

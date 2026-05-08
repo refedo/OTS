@@ -143,8 +143,8 @@ const modules = [
   {
     name: 'Product Backlog',
     icon: Layers,
-    description: 'Feature request and bug tracking with CEO control center.',
-    features: ['Backlog management', 'Priority tracking', 'Status workflow', 'CEO dashboard'],
+    description: 'Feature request and bug tracking with approval workflow, CEO notifications, and WhatsApp sharing.',
+    features: ['Backlog management', 'Priority tracking', 'Approval workflow', 'CEO notifications', 'WhatsApp share', 'Stage backfill on completion'],
     color: 'bg-rose-500',
   },
   {

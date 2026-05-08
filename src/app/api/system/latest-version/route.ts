@@ -7,28 +7,32 @@ const { version: pkgVersion } = require('../../../../../package.json') as { vers
 
 const CURRENT_VERSION = {
   version: pkgVersion,
-  date: 'May 7, 2026',
-  type: 'patch' as const,
-  mainTitle: '404 Fix, Sidebar Modules & Activity Unification',
+  date: 'May 8, 2026',
+  type: 'minor' as const,
+  mainTitle: 'Backlog Card Improvements, Sidebar & Full Changelog',
   highlights: [
-    '/subcontractor-contracts now redirects to /supply-chain/subcontractors instead of returning 404.',
-    'Project Card and SC Contracts now appear in sidebar for admin/CEO users.',
-    'Activity names unified across all modules: "Dispatch" renamed to "Delivery" system-wide.',
-    'Tasks table gains a Scope of Work column between Building and Main Activity.',
+    'Backlog item header now shows submitter name and submission date for immediate context.',
+    'One-click copy button on the description card and Share on WhatsApp button in Quick Actions.',
+    'Marking a backlog item as Completed now backfills all skipped stages with the finisher\'s name and timestamp.',
+    'CEO/admin users receive an in-app notification when any backlog item is submitted — toggle on/off from Settings → Notifications.',
+    '"Backlog Dashboard" is now the primary sidebar entry for the Product Backlog section — replaces "Backlog Board".',
+    'Full changelog coverage restored: entries for v22.5.2 through v22.8.0 added to the in-app changelog page.',
   ],
   changes: {
     added: [
-      '/subcontractor-contracts redirect page.',
-      'Scope of Work column in tasks table between Building and Main Activity.',
-      'DB migration v23.0.1: dispatch→delivery in BuildingActivity; delivery_logistics→delivery in Task.mainActivity.',
+      'Submitter name and date shown in backlog item detail page header.',
+      'Copy description button with visual feedback on backlog item detail page.',
+      'Share on WhatsApp button in Quick Actions sidebar.',
+      'Stage backfill on COMPLETED: skipped intermediate stages stamped with finisher name + timestamp.',
+      'CEO notification on backlog creation sent to all users with backlog.ceo_center permission.',
+      '"Notify CEO on New Backlog Item" toggle in Settings → Notifications.',
+      '"Backlog Dashboard" sidebar entry — renamed from "Backlog Board" with a LayoutDashboard icon.',
+      'Changelog entries for v22.5.2, v22.6.0, v22.6.4, v22.7.0, and v22.8.0 restored to the in-app changelog page.',
     ],
-    fixed: [
-      'Project Card and SC Contracts missing from sidebar (admin/CEO).',
-      'Project tracker Delivery column showing 0% — TRACKER_COLUMNS updated from dispatch to delivery.',
-    ],
+    fixed: [],
     changed: [
-      'Activity "dispatch" renamed to "delivery" across all system modules.',
-      'Activity "delivery_logistics" renamed to "delivery" in task activity constants.',
+      'Sidebar Product Backlog section: "Backlog Board" renamed to "Backlog Dashboard" and moved to top of section.',
+      'Version bumped to 23.3.0',
     ],
   },
 };
