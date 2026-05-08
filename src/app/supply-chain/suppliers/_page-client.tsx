@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Factory, Search, ChevronRight, ShieldCheck, ShieldAlert, ShieldOff, Shield } from 'lucide-react';
+import { Factory, Search, ChevronRight, ShieldCheck, ShieldAlert, ShieldOff, Shield, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -41,6 +41,7 @@ export function SupplierListClient() {
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 50;
@@ -57,6 +58,17 @@ export function SupplierListClient() {
     }
     setLoading(false);
   }, [search, page]);
+
+  const syncAndRefresh = useCallback(async () => {
+    setSyncing(true);
+    await fetch('/api/dolibarr/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entityType: 'thirdparties' }),
+    });
+    await fetchData();
+    setSyncing(false);
+  }, [fetchData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -116,7 +128,10 @@ export function SupplierListClient() {
               className="pl-9"
             />
           </div>
-          <Button variant="outline" onClick={fetchData}>Refresh</Button>
+          <Button variant="outline" onClick={syncAndRefresh} disabled={syncing || loading}>
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync & Refresh'}
+          </Button>
         </div>
 
         {/* Table */}

@@ -103,7 +103,7 @@ export async function getCustomerOverview(dolibarrId: number): Promise<CustomerO
     SELECT
       dt.dolibarr_id, dt.name, dt.name_alias, dt.code_client,
       dt.email, dt.phone, dt.address, dt.zip, dt.town, dt.country_code,
-      dt.tva_intra, dt.credit_limit
+      dt.tva_intra, dt.outstanding_limit AS credit_limit
     FROM dolibarr_thirdparties dt
     WHERE dt.dolibarr_id = ? AND dt.client_type IN (1, 3)
   `, dolibarrId);
@@ -277,23 +277,32 @@ export async function createCustomerPaymentTerms(
 }
 
 // ---------------------------------------------------------------------------
-// Projects (name-matched)
+// Projects (direct dolibarr_id link preferred, falls back to name match)
 // ---------------------------------------------------------------------------
 
 export async function getCustomerProjects(dolibarrId: number) {
   const nameRows = await prisma.$queryRawUnsafe<[{ name: string }]>(`
     SELECT name FROM dolibarr_thirdparties WHERE dolibarr_id = ? LIMIT 1
   `, dolibarrId);
-  if (!nameRows.length) return { projects: [], matched: false };
+  if (!nameRows.length) return { projects: [], matched: false, linkType: null as string | null };
 
   const thirdpartyName = nameRows[0].name;
 
-  const client = await prisma.client.findFirst({
-    where: { name: { contains: thirdpartyName } },
+  // Prefer direct dolibarr_id link; fall back to fuzzy name match
+  let client = await prisma.client.findFirst({
+    where: { dolibarrId },
     select: { id: true, name: true },
   });
+  const linkType = client ? 'direct' : 'name';
 
-  if (!client) return { projects: [], matched: false };
+  if (!client) {
+    client = await prisma.client.findFirst({
+      where: { name: { contains: thirdpartyName } },
+      select: { id: true, name: true },
+    });
+  }
+
+  if (!client) return { projects: [], matched: false, linkType: null };
 
   const projects = await prisma.project.findMany({
     where: { clientId: client.id, deletedAt: null },
@@ -310,5 +319,100 @@ export async function getCustomerProjects(dolibarrId: number) {
     orderBy: { createdAt: 'desc' },
   });
 
-  return { projects, matched: true, clientName: client.name, thirdpartyName };
+  return { projects, matched: true, clientName: client.name, clientId: client.id, thirdpartyName, linkType };
+}
+
+export async function linkClientToDolibarrCustomer(clientId: string, dolibarrId: number) {
+  await prisma.client.update({
+    where: { id: clientId },
+    data: { dolibarrId },
+  });
+}
+
+export async function getClientsForLinking(search: string) {
+  return prisma.client.findMany({
+    where: search ? { name: { contains: search } } : {},
+    select: { id: true, name: true, dolibarrId: true },
+    orderBy: { name: 'asc' },
+    take: 20,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Credit Limit History
+// ---------------------------------------------------------------------------
+
+export interface CustomerCreditLimitRow {
+  id: number;
+  credit_limit: number;
+  valid_from: string;
+  valid_to: string | null;
+  notes: string | null;
+  created_by_id: string | null;
+  created_at: string;
+}
+
+export interface CreateCustomerCreditLimitInput {
+  credit_limit: number;
+  valid_from: string;
+  notes?: string;
+  created_by_id: string;
+}
+
+function normalizeCreditRow(row: Record<string, unknown>): CustomerCreditLimitRow {
+  return {
+    id: Number(row.id),
+    credit_limit: Number(row.credit_limit),
+    valid_from: String(row.valid_from).slice(0, 10),
+    valid_to: row.valid_to ? String(row.valid_to).slice(0, 10) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    created_by_id: row.created_by_id != null ? String(row.created_by_id) : null,
+    created_at: String(row.created_at),
+  };
+}
+
+export async function getCustomerCreditLimitHistory(dolibarrId: number): Promise<CustomerCreditLimitRow[]> {
+  const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
+    SELECT id, credit_limit, valid_from, valid_to, notes, created_by_id, created_at
+    FROM sc_customer_credit_limit_history
+    WHERE customer_dolibarr_id = ?
+    ORDER BY valid_from DESC
+  `, dolibarrId);
+  return rows.map(normalizeCreditRow);
+}
+
+export async function createCustomerCreditLimit(
+  dolibarrId: number,
+  input: CreateCustomerCreditLimitInput,
+): Promise<CustomerCreditLimitRow> {
+  const previousDay = new Date(input.valid_from);
+  previousDay.setDate(previousDay.getDate() - 1);
+  const prevDayStr = previousDay.toISOString().slice(0, 10);
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE sc_customer_credit_limit_history
+    SET valid_to = ?
+    WHERE customer_dolibarr_id = ? AND valid_to IS NULL
+  `, prevDayStr, dolibarrId);
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO sc_customer_credit_limit_history
+      (customer_dolibarr_id, credit_limit, valid_from, valid_to, notes, created_by_id)
+    VALUES (?, ?, ?, NULL, ?, ?)
+  `,
+    dolibarrId,
+    input.credit_limit,
+    input.valid_from,
+    input.notes ?? null,
+    input.created_by_id,
+  );
+
+  const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
+    SELECT id, credit_limit, valid_from, valid_to, notes, created_by_id, created_at
+    FROM sc_customer_credit_limit_history
+    WHERE customer_dolibarr_id = ? AND valid_to IS NULL
+    LIMIT 1
+  `, dolibarrId);
+
+  return normalizeCreditRow(rows[0]);
 }

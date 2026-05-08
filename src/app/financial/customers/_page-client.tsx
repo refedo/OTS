@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Users, Search, ChevronRight } from 'lucide-react';
+import { Users, Search, ChevronRight, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -20,6 +20,7 @@ export function CustomerListClient() {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 50;
@@ -36,6 +37,17 @@ export function CustomerListClient() {
     }
     setLoading(false);
   }, [search, page]);
+
+  const syncAndRefresh = useCallback(async () => {
+    setSyncing(true);
+    await fetch('/api/dolibarr/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entityType: 'thirdparties' }),
+    });
+    await fetchData();
+    setSyncing(false);
+  }, [fetchData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -85,7 +97,10 @@ export function CustomerListClient() {
               className="pl-9"
             />
           </div>
-          <Button variant="outline" onClick={fetchData}>Refresh</Button>
+          <Button variant="outline" onClick={syncAndRefresh} disabled={syncing || loading}>
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync & Refresh'}
+          </Button>
         </div>
 
         {/* Table */}

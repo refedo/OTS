@@ -129,6 +129,13 @@ Constraints:
 - Consistent Tailwind usage
 - Do not modify shadcn base components
 
+### New Page Checklist
+When a new page/route is developed, **always** do both:
+1. Add it to `src/components/app-sidebar.tsx` under the appropriate section (with `newSince: 'YYYY-MM-DD'`)
+2. Add it to `NAVIGATION_PERMISSIONS` in `src/lib/navigation-permissions.ts` with the correct permission(s)  
+   — if the route has no permission requirement, set it to `null`  
+   — if omitted, `hasAccessToRoute()` returns `false` and the item will be **invisible to all users**
+
 ---
 
 ## Hard Rules

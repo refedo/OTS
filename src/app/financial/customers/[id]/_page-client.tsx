@@ -48,6 +48,15 @@ interface PaymentTermsRow {
   created_at: string;
 }
 
+interface CreditLimitRow {
+  id: number;
+  credit_limit: number;
+  valid_from: string;
+  valid_to: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 interface InvoiceRow {
   dolibarr_id: number;
   ref: string;
@@ -182,6 +191,7 @@ export function CustomerDetailClient({ customerId }: { customerId: number }) {
           <TabsList className="mb-6 flex-wrap h-auto gap-1">
             <TabsTrigger value="overview"><Users className="h-4 w-4 mr-1.5" />Overview</TabsTrigger>
             <TabsTrigger value="payment-terms"><CreditCard className="h-4 w-4 mr-1.5" />Payment Terms</TabsTrigger>
+            <TabsTrigger value="credit-limit"><Banknote className="h-4 w-4 mr-1.5" />Credit Limit</TabsTrigger>
             <TabsTrigger value="invoices"><FileText className="h-4 w-4 mr-1.5" />Invoices</TabsTrigger>
             <TabsTrigger value="payments"><Banknote className="h-4 w-4 mr-1.5" />Payments</TabsTrigger>
             <TabsTrigger value="soa"><BarChart3 className="h-4 w-4 mr-1.5" />Statement</TabsTrigger>
@@ -190,6 +200,7 @@ export function CustomerDetailClient({ customerId }: { customerId: number }) {
 
           <TabsContent value="overview"><CustOverviewTab overview={overview} /></TabsContent>
           <TabsContent value="payment-terms"><CustPaymentTermsTab customerId={customerId} /></TabsContent>
+          <TabsContent value="credit-limit"><CustCreditLimitTab customerId={customerId} /></TabsContent>
           <TabsContent value="invoices"><CustInvoicesTab customerId={customerId} /></TabsContent>
           <TabsContent value="payments"><CustPaymentsTab customerId={customerId} /></TabsContent>
           <TabsContent value="soa">
@@ -338,6 +349,95 @@ function CustPaymentTermsTab({ customerId }: { customerId: number }) {
   );
 }
 
+function CustCreditLimitTab({ customerId }: { customerId: number }) {
+  const [history, setHistory] = useState<CreditLimitRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/financial/customers/${customerId}/credit-limit`);
+    if (res.ok) setHistory(await res.json());
+    setLoading(false);
+  }, [customerId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function save() {
+    if (!form.credit_limit || !form.valid_from) return;
+    setSaving(true);
+    const res = await fetch(`/api/financial/customers/${customerId}/credit-limit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        credit_limit: parseFloat(form.credit_limit),
+        valid_from: form.valid_from,
+        notes: form.notes || null,
+      }),
+    });
+    setSaving(false);
+    if (res.ok) { setDialog(false); setForm({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' }); load(); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Credit Limit History</h3>
+        <Button size="sm" onClick={() => setDialog(true)}><Plus className="h-4 w-4 mr-1.5" />Set Credit Limit</Button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}</div>
+      ) : history.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground rounded-xl border">No credit limit history on record.</div>
+      ) : (
+        <div className="space-y-3">
+          {history.map(r => (
+            <div key={r.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!r.valid_to ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
+              <div className="flex items-center gap-3">
+                {!r.valid_to && <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Current</span>}
+                <span className="font-bold text-base">{fmt(r.credit_limit)}</span>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span>{fmtDate(r.valid_from)} → {r.valid_to ? fmtDate(r.valid_to) : 'Present'}</span>
+                {r.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{r.notes}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={dialog} onOpenChange={setDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Set Credit Limit</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Credit Limit (SAR) *</Label>
+                <Input type="number" min="0" step="1000" placeholder="e.g. 500000" value={form.credit_limit} onChange={e => setForm(f => ({ ...f, credit_limit: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Effective From *</Label>
+                <Input type="date" value={form.valid_from} onChange={e => setForm(f => ({ ...f, valid_from: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reason for change…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
+            <Button onClick={save} disabled={saving || !form.credit_limit || !form.valid_from}>{saving ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function CustInvoicesTab({ customerId }: { customerId: number }) {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -435,20 +535,74 @@ function CustPaymentsTab({ customerId }: { customerId: number }) {
 }
 
 function CustProjectsTab({ customerId }: { customerId: number }) {
-  const [data, setData] = useState<{ projects: ProjectRow[]; matched: boolean; thirdpartyName?: string; clientName?: string } | null>(null);
+  const [data, setData] = useState<{ projects: ProjectRow[]; matched: boolean; thirdpartyName?: string; clientName?: string; clientId?: string; linkType?: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<{ id: string; name: string; dolibarrId: number | null }[]>([]);
+  const [linking, setLinking] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
+  const [showLinkPanel, setShowLinkPanel] = useState(false);
 
-  useEffect(() => {
+  const loadProjects = useCallback(() => {
+    setLoading(true);
     fetch(`/api/financial/customers/${customerId}/projects`)
       .then(r=>r.json()).then(setData).finally(()=>setLoading(false));
   }, [customerId]);
 
+  useEffect(() => { loadProjects(); }, [loadProjects]);
+
+  useEffect(() => {
+    if (!showLinkPanel) return;
+    fetch(`/api/financial/customers/${customerId}/link-client?search=${encodeURIComponent(linkSearch)}`)
+      .then(r=>r.json()).then(setClients);
+  }, [customerId, linkSearch, showLinkPanel]);
+
+  async function linkClient(clientId: string) {
+    setLinking(true);
+    await fetch(`/api/financial/customers/${customerId}/link-client`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId }),
+    });
+    setLinking(false);
+    setShowLinkPanel(false);
+    loadProjects();
+  }
+
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold">Linked Projects</h3>
-      {data?.matched && data.clientName !== data.thirdpartyName && (
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Linked Projects</h3>
+        <Button size="sm" variant="outline" onClick={() => setShowLinkPanel(v => !v)}>
+          {showLinkPanel ? 'Cancel' : 'Link OTS Client'}
+        </Button>
+      </div>
+
+      {showLinkPanel && (
+        <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+          <p className="text-sm text-muted-foreground">Search for an OTS client to permanently link to this Dolibarr customer.</p>
+          <Input placeholder="Search clients…" value={linkSearch} onChange={e => setLinkSearch(e.target.value)} />
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {clients.map(c => (
+              <div key={c.id} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-muted/60">
+                <div>
+                  <p className="text-sm font-medium">{c.name}</p>
+                  {c.dolibarrId && <p className="text-xs text-muted-foreground">Already linked to Dolibarr #{c.dolibarrId}</p>}
+                </div>
+                <Button size="sm" disabled={linking} onClick={() => linkClient(c.id)}>Link</Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data?.linkType === 'name' && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
-          Linked by company name match: "{data.thirdpartyName}" → "{data.clientName}"
+          Matched by company name: "{data.thirdpartyName}" → "{data.clientName}". Use "Link OTS Client" above for a permanent link.
+        </div>
+      )}
+      {data?.linkType === 'direct' && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-800">
+          Directly linked to OTS client "{data.clientName}".
         </div>
       )}
       {loading ? (

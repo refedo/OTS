@@ -237,7 +237,7 @@ export async function getSupplierOverview(dolibarrId: number): Promise<SupplierO
     SELECT
       dt.dolibarr_id, dt.name, dt.name_alias, dt.code_supplier,
       dt.email, dt.phone, dt.address, dt.zip, dt.town, dt.country_code,
-      dt.tva_intra, dt.credit_limit,
+      dt.tva_intra, dt.outstanding_limit AS credit_limit,
       coa_ap.coa_account_code AS ap_account_code,
       coa_ap_def.account_name AS ap_account_name,
       coa_ap_def.account_name_ar AS ap_account_name_ar,
@@ -662,4 +662,83 @@ export async function getSupplierCoaMapping(dolibarrId: number) {
       : null,
     cost_category: s(row.cost_category),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Credit Limit History
+// ---------------------------------------------------------------------------
+
+export interface CreditLimitRow {
+  id: number;
+  credit_limit: number;
+  valid_from: string;
+  valid_to: string | null;
+  notes: string | null;
+  created_by_id: string | null;
+  created_at: string;
+}
+
+export interface CreateCreditLimitInput {
+  credit_limit: number;
+  valid_from: string;
+  notes?: string;
+  created_by_id: string;
+}
+
+function normalizeCreditRow(row: Record<string, unknown>): CreditLimitRow {
+  return {
+    id: Number(row.id),
+    credit_limit: Number(row.credit_limit),
+    valid_from: String(row.valid_from).slice(0, 10),
+    valid_to: row.valid_to ? String(row.valid_to).slice(0, 10) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    created_by_id: row.created_by_id != null ? String(row.created_by_id) : null,
+    created_at: String(row.created_at),
+  };
+}
+
+export async function getSupplierCreditLimitHistory(dolibarrId: number): Promise<CreditLimitRow[]> {
+  const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
+    SELECT id, credit_limit, valid_from, valid_to, notes, created_by_id, created_at
+    FROM sc_supplier_credit_limit_history
+    WHERE supplier_dolibarr_id = ?
+    ORDER BY valid_from DESC
+  `, dolibarrId);
+  return rows.map(normalizeCreditRow);
+}
+
+export async function createSupplierCreditLimit(
+  dolibarrId: number,
+  input: CreateCreditLimitInput,
+): Promise<CreditLimitRow> {
+  const previousDay = new Date(input.valid_from);
+  previousDay.setDate(previousDay.getDate() - 1);
+  const prevDayStr = previousDay.toISOString().slice(0, 10);
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE sc_supplier_credit_limit_history
+    SET valid_to = ?
+    WHERE supplier_dolibarr_id = ? AND valid_to IS NULL
+  `, prevDayStr, dolibarrId);
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO sc_supplier_credit_limit_history
+      (supplier_dolibarr_id, credit_limit, valid_from, valid_to, notes, created_by_id)
+    VALUES (?, ?, ?, NULL, ?, ?)
+  `,
+    dolibarrId,
+    input.credit_limit,
+    input.valid_from,
+    input.notes ?? null,
+    input.created_by_id,
+  );
+
+  const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`
+    SELECT id, credit_limit, valid_from, valid_to, notes, created_by_id, created_at
+    FROM sc_supplier_credit_limit_history
+    WHERE supplier_dolibarr_id = ? AND valid_to IS NULL
+    LIMIT 1
+  `, dolibarrId);
+
+  return normalizeCreditRow(rows[0]);
 }
