@@ -670,20 +670,36 @@ export default function BacklogItemDetail() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Description</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 h-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    navigator.clipboard.writeText(item.description);
-                    setCopiedDesc(true);
-                    setTimeout(() => setCopiedDesc(false), 2000);
-                  }}
-                  title="Copy description"
-                >
-                  {copiedDesc ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-                  <span className="text-xs">{copiedDesc ? 'Copied!' : 'Copy'}</span>
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 h-8 border-green-300 text-green-700 hover:bg-green-50 hover:text-green-800"
+                    onClick={() => {
+                      const url = typeof window !== 'undefined' ? window.location.href : '';
+                      const text = `*${item.code}* — ${item.title}\n\nStatus: ${item.status.replace(/_/g, ' ')}\nPriority: ${item.priority}\nType: ${item.type.replace(/_/g, ' ')}\n\nSubmitted by: ${item.createdBy.name}\n\n🔗 ${url}`;
+                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                    }}
+                    title="Share on WhatsApp"
+                  >
+                    <Share2 className="size-3.5" />
+                    <span className="text-xs">WhatsApp</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 h-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      navigator.clipboard.writeText(item.description);
+                      setCopiedDesc(true);
+                      setTimeout(() => setCopiedDesc(false), 2000);
+                    }}
+                    title="Copy description"
+                  >
+                    {copiedDesc ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                    <span className="text-xs">{copiedDesc ? 'Copied!' : 'Copy'}</span>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <p className="whitespace-pre-wrap">{item.description}</p>
