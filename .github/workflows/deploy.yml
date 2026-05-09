@@ -44,6 +44,9 @@ jobs:
         run: |
           mkdir -p deploy-package
           # Copy .next excluding the webpack module cache (~200-400MB, not needed at runtime)
+          echo "${GITHUB_SHA}" > deploy-package/DEPLOYED_COMMIT
+          echo "${GITHUB_REF_NAME}" > deploy-package/DEPLOYED_BRANCH
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > deploy-package/DEPLOYED_AT
           tar -C . --exclude='.next/cache' -cf - .next | tar -C deploy-package -xf -
           cp -r public deploy-package/ || true
           cp -r prisma deploy-package/
