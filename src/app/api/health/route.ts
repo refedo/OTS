@@ -15,7 +15,7 @@ export async function GET() {
     return NextResponse.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      version: process.env.APP_VERSION || '1.0.0',
+      version: process.env.APP_VERSION || 'unknown',
       environment: process.env.NODE_ENV,
       database: {
         status: 'connected',
