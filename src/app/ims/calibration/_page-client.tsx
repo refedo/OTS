@@ -120,9 +120,10 @@ export function CalibrationClient() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <IsoClauseNote
-        id="calibration-frm022"
-        label="Form: HEXA-FRM-022 · Procedure: Hexa-ISP-015 · ISO §7.1.5"
-        description="Calibration Register — measuring equipment conformance and traceability records."
+        storageKey="ims-calibration"
+        clauses={[
+          { standard: 'ISO 9001:2015', clause: '§7.1.5', title: 'Monitoring and measuring resources' },
+        ]}
       />
 
       {/* Hero */}

@@ -425,20 +425,22 @@ class WorkflowService {
   /** Get all pending approval steps for a given user across all active workflows. */
   async getPendingApprovalsForUser(userId: string, siteId?: string) {
     const activeSteps = await prisma.workflowStepInstance.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        instance: {
+          status: 'IN_PROGRESS',
+          ...(siteId ? { siteId } : {}),
+        },
+      },
       include: {
         instance: {
-          where: {
-            status: 'IN_PROGRESS',
-            ...(siteId ? { siteId } : {}),
-          },
           include: {
             definition: { select: { key: true, name: true } },
             initiatedBy: { select: { id: true, name: true } },
           },
         },
         step: { select: { name: true, sequence: true, slaHours: true } },
-        approvals: { where: { userId, decision: { in: ['APPROVE', 'REJECT'] } } },
+        approvals: true,
       },
     });
 
@@ -447,7 +449,9 @@ class WorkflowService {
       if (!si.instance) return false;
       const approvers = (si.resolvedApprovers ?? []) as ResolvedApprover[];
       const isApprover = approvers.some(a => a.userId === userId);
-      const hasDecided = si.approvals.length > 0;
+      const hasDecided = si.approvals.some(
+        a => a.userId === userId && ['APPROVE', 'REJECT'].includes(a.decision)
+      );
       return isApprover && !hasDecided;
     });
   }

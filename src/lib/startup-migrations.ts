@@ -6,7 +6,8 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import prisma from '@/lib/db';
+import mysql from 'mysql2/promise';
+import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 const MIGRATIONS_DIR = join(process.cwd(), 'prisma', 'manual_migrations');
@@ -79,7 +80,7 @@ const STARTUP_MIGRATIONS = [
   // ── HR Policies, Onboarding Tasks, Training Programs (19.13.0) ───────────
   'add_hr_policies_onboarding_training.sql',
 
-  // ── Multi-template Onboarding Checklists (19.13.0) ────────────────────────
+  // ── Multi-template Onboarding Checklists (19.13.0) ───────────────────────
   'add_hr_onboarding_checklists.sql',
 
   // ── Letter bilingual content + CEO signature (19.15.1) ───────────────────
@@ -201,10 +202,78 @@ const STARTUP_MIGRATIONS = [
 ];
 
 /**
- * Execute a single migration file via Prisma $executeRawUnsafe.
- * Splits on the DELIMITER $$ / DELIMITER ; markers so stored-procedure
- * DDL is executed as individual statements (Prisma/mysql2 does not support
- * multi-statement DDL in a single call).
+ * Parse a Prisma-style MySQL connection URL into mysql2 connection options.
+ */
+function parseMysqlUrl(url: string): mysql.ConnectionOptions {
+  const parsed = new URL(url);
+  return {
+    host: parsed.hostname,
+    port: parseInt(parsed.port, 10) || 3306,
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database: parsed.pathname.replace(/^\//, ''),
+    ssl:
+      parsed.searchParams.get('sslmode') === 'require' ||
+      parsed.searchParams.get('ssl') === 'true'
+        ? { rejectUnauthorized: false }
+        : undefined,
+    multipleStatements: false,
+  };
+}
+
+/**
+ * Split raw SQL into individual statements, respecting DELIMITER changes.
+ * DELIMITER is a client-side command; we strip it and use the active
+ * delimiter to detect statement boundaries.  This allows stored procedures
+ * and other DDL that contains semicolons inside BEGIN…END blocks.
+ */
+function splitStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let delimiter = ';';
+
+  for (const rawLine of sql.split('\n')) {
+    const line = rawLine.replace(/\r$/, ''); // normalise CRLF
+    const trimmed = line.trim();
+
+    if (trimmed.toUpperCase().startsWith('DELIMITER ')) {
+      // Flush anything accumulated before the delimiter changes
+      if (current.trim()) {
+        statements.push(current.trim());
+        current = '';
+      }
+      delimiter = trimmed.substring('DELIMITER '.length).trim();
+      continue;
+    }
+
+    if (trimmed.startsWith('--')) continue;
+
+    // Detect statement end: line ends with the current delimiter
+    if (trimmed.endsWith(delimiter)) {
+      const endPos = line.lastIndexOf(delimiter);
+      const withoutDelim = line.substring(0, endPos).trimEnd();
+      if (withoutDelim.trim()) {
+        current += withoutDelim + '\n';
+      }
+      if (current.trim()) {
+        statements.push(current.trim());
+      }
+      current = '';
+    } else {
+      current += line + '\n';
+    }
+  }
+
+  if (current.trim()) {
+    statements.push(current.trim());
+  }
+
+  return statements;
+}
+
+/**
+ * Execute a single migration file via mysql2 (not Prisma) so stored
+ * procedures, DELIMITER changes, and other DDL work correctly.
  */
 async function runMigrationFile(filename: string): Promise<void> {
   const filePath = join(MIGRATIONS_DIR, filename);
@@ -217,64 +286,25 @@ async function runMigrationFile(filename: string): Promise<void> {
     return;
   }
 
-  // Split into individual statements intelligently:
-  // 1. Remove comments (-- ...)
-  // 2. Split on semicolons that are NOT inside a DELIMITER $$ block
-  const statements: string[] = [];
-  let insideProc = false;
-  let current = '';
+  const statements = splitStatements(sql);
+  const conn = await mysql.createConnection(parseMysqlUrl(env.DATABASE_URL));
 
-  for (const line of sql.split('\n')) {
-    const trimmed = line.trim();
+  try {
+    for (const stmt of statements) {
+      const normalized = stmt.replace(/;$/, '').trim();
+      if (!normalized) continue;
 
-    if (trimmed.toUpperCase().startsWith('DELIMITER $$')) {
-      insideProc = true;
-      continue;
-    }
-    if (trimmed.toUpperCase().startsWith('DELIMITER ;')) {
-      insideProc = false;
-      continue;
-    }
-    if (trimmed.startsWith('--')) continue;
-
-    if (insideProc) {
-      // Inside a stored procedure — collect until a line ending with $$
-      // (typically "END$$" — never a bare "$$" in practice)
-      if (trimmed.endsWith('$$')) {
-        const withoutDelim = line.replace(/\$\$\s*$/, '').trimEnd();
-        if (withoutDelim.trim()) current += withoutDelim + '\n';
-        if (current.trim()) statements.push(current.trim());
-        current = '';
-      } else {
-        current += line + '\n';
-      }
-    } else {
-      // Outside stored procedure — split on ;
-      if (trimmed.endsWith(';')) {
-        current += line;
-        if (current.trim()) statements.push(current.trim());
-        current = '';
-      } else {
-        current += line + '\n';
+      try {
+        await conn.query(normalized);
+      } catch (error) {
+        logger.warn(
+          { filename, error, statement: normalized.slice(0, 120) },
+          '[startup-migration] Statement failed (non-fatal)'
+        );
       }
     }
-  }
-  if (current.trim()) statements.push(current.trim());
-
-  for (const stmt of statements) {
-    const normalized = stmt.replace(/;$/, '').trim();
-    if (!normalized) continue;
-    try {
-      await prisma.$executeRawUnsafe(normalized);
-    } catch (error) {
-      // Surface the error as a warning — don't crash the server if a migration
-      // fails (e.g. DB user lacks DDL rights). The app will still start; HR can
-      // run the SQL manually via database admin tools.
-      logger.warn(
-        { filename, error, statement: normalized.slice(0, 120) },
-        '[startup-migration] Statement failed (non-fatal)'
-      );
-    }
+  } finally {
+    await conn.end();
   }
 }
 

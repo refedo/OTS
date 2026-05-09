@@ -17,31 +17,11 @@
 -- ---------------------------------------------------------------------------
 -- 1. Employee.isGosiSubject + Employee.gosiSalary
 -- ---------------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS add_employee_gosi_columns;
-DELIMITER $$
-CREATE PROCEDURE add_employee_gosi_columns()
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'Employee'
-      AND COLUMN_NAME = 'isGosiSubject'
-  ) THEN
-    ALTER TABLE `Employee` ADD COLUMN `isGosiSubject` TINYINT(1) NOT NULL DEFAULT 0;
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'Employee'
-      AND COLUMN_NAME = 'gosiSalary'
-  ) THEN
-    ALTER TABLE `Employee` ADD COLUMN `gosiSalary` DECIMAL(12, 2) NULL;
-  END IF;
-END$$
-DELIMITER ;
-CALL add_employee_gosi_columns();
-DROP PROCEDURE IF EXISTS add_employee_gosi_columns;
+-- Prisma prepared statements don't support stored procedures, so we use
+-- plain ALTER TABLE.  On re-runs the statement fails harmlessly and the
+-- runner catches the error and continues.
+ALTER TABLE `Employee` ADD COLUMN `isGosiSubject` TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE `Employee` ADD COLUMN `gosiSalary` DECIMAL(12, 2) NULL;
 
 -- ---------------------------------------------------------------------------
 -- 2. LeaveType
