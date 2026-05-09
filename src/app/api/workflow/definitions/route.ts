@@ -16,7 +16,7 @@ const stepSchema = z.object({
 });
 
 const createSchema = z.object({
-  key: z.string().min(1).max(100).regex(/^[A-Z0-9_]+$/, 'Key must be uppercase letters, digits, and underscores'),
+  key: z.string().min(1).max(100).regex(/^[A-Za-z0-9_-]+$/, 'Key must be letters, digits, underscores, or hyphens'),
   name: z.string().min(1).max(200),
   description: z.string().optional(),
   entityType: z.string().min(1).max(100),

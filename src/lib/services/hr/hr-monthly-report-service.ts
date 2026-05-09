@@ -469,7 +469,7 @@ export async function buildMonthlyReportData(
   // ── 8. Payroll KPIs ───────────────────────────────────────────────────────
 
   const payrollPeriod = await prisma.payrollPeriod.findFirst({
-    where: { year, month, deletedAt: null },
+    where: { year, month },
     select: {
       id: true,
       status: true,

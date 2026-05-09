@@ -5,6 +5,7 @@ import { verifySession } from '@/lib/jwt';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import { systemEventService } from '@/services/system-events.service';
+import { checkPermission } from '@/lib/permission-checker';
 
 const UpdateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -137,8 +138,9 @@ export async function DELETE(
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!['Admin', 'Manager'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const canManage = await checkPermission('ims.audits.manage');
+    if (!canManage) {
+      return NextResponse.json({ error: 'Forbidden — ims.audits.manage permission required' }, { status: 403 });
     }
 
     const { id } = await params;

@@ -1132,6 +1132,7 @@ export function WorkflowDefinitionsClient({ canManage }: Props) {
   const [editTarget, setEditTarget] = useState<WorkflowDefinition | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WorkflowDefinition | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchDefinitions = useCallback(async () => {
     setLoading(true);
@@ -1156,8 +1157,14 @@ export function WorkflowDefinitionsClient({ canManage }: Props) {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await fetch(`/api/workflow/definitions/${deleteTarget.id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/workflow/definitions/${deleteTarget.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json();
+      setDeleteError(data.error ?? 'Failed to delete');
+      return;
+    }
     setDeleteTarget(null);
+    setDeleteError(null);
     fetchDefinitions();
   };
 
@@ -1337,16 +1344,22 @@ export function WorkflowDefinitionsClient({ canManage }: Props) {
       )}
 
       {/* Delete confirm */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => { setDeleteTarget(null); setDeleteError(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete workflow definition?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deleteTarget?.name}" will be soft-deleted. Active workflow instances will not be affected.
+              &ldquo;{deleteTarget?.name}&rdquo; will be soft-deleted. Active workflow instances will not be affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="flex items-center gap-2 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {deleteError}
+            </div>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeleteError(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-rose-600 hover:bg-rose-700" onClick={handleDelete}>
               Delete
             </AlertDialogAction>

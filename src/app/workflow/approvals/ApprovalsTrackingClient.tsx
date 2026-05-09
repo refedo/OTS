@@ -134,14 +134,14 @@ function fmtSAR(v: unknown) {
 
 // ─── Entity context badge strip ───────────────────────────────────────────────
 
-function EntityContext({ entityType, metadata }: { entityType: string; metadata: Record<string, unknown> | null }) {
+function EntityContext({ entityType, metadata, initiatedByName }: { entityType: string; metadata: Record<string, unknown> | null; initiatedByName?: string }) {
   if (!metadata) return null;
-  const items: { icon: React.ReactNode; label: string }[] = [];
+  const items: { icon: React.ReactNode; label: string; prefix?: string }[] = [];
 
   if (entityType === 'Loan') {
     const amt = fmtSAR(metadata.principal);
+    if (metadata.employeeName) items.push({ icon: <User className="w-3 h-3" />, label: String(metadata.employeeName), prefix: 'Requester' });
     if (amt) items.push({ icon: <Banknote className="w-3 h-3" />, label: amt });
-    if (metadata.employeeName) items.push({ icon: <User className="w-3 h-3" />, label: String(metadata.employeeName) });
     if (metadata.installmentsTotal) items.push({ icon: null, label: `${metadata.installmentsTotal} installments` });
   }
 
@@ -158,6 +158,7 @@ function EntityContext({ entityType, metadata }: { entityType: string; metadata:
       {items.map((item, i) => (
         <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
           {item.icon}
+          {item.prefix && <span className="font-medium text-slate-500">{item.prefix}:</span>}
           {item.label}
         </span>
       ))}
@@ -306,7 +307,7 @@ function InstanceRow({
                   {' · '}{formatDate(instance.createdAt)}
                 </p>
 
-                <EntityContext entityType={instance.entityType} metadata={instance.metadata} />
+                <EntityContext entityType={instance.entityType} metadata={instance.metadata} initiatedByName={instance.initiatedBy.name} />
 
                 {/* Mini horizontal timeline */}
                 {timelineSteps.length > 0 && (

@@ -23,10 +23,44 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '24.1.0',
+    date: 'May 10, 2026',
+    type: 'patch',
+    status: 'current',
+    mainTitle: 'Multi-Module Bug Fixes',
+    highlights: [
+      'HR monthly report fixed: invalid deletedAt filter on PayrollPeriod model removed.',
+      'IMS NCR delete now uses permission-based check (ims.audits.manage) instead of hardcoded roles.',
+      'Workflow definitions: key now allows hyphens and lowercase (fixes hr-loan-approval preset).',
+      'Workflow delete error now displayed to user when active instances prevent deletion.',
+      'Approval inbox and tracking: loan requester name and amount now shown as context badges.',
+      'Calibration register: Print Certificate PDF button now available directly per row.',
+      'Changelog page now expands to full screen width.',
+    ],
+    changes: {
+      added: [
+        'Calibration register: direct "Print Certificate (PDF)" button on each row — no need to open view dialog.',
+        'Approval Inbox (My Approvals): loan requester name and amount now shown as context badges.',
+        'Approval Tracking (/workflow/approvals): Requester label added to loan context badges.',
+      ],
+      fixed: [
+        'HR Monthly Report 500 error: PayrollPeriod has no deletedAt field — invalid filter removed.',
+        'IMS QA NCR delete 403: replaced hardcoded role check with ims.audits.manage permission.',
+        'Workflow definition POST 400: key regex now accepts hyphens and lowercase (e.g. hr-loan-approval).',
+        'Workflow definition DELETE 409: error message now surfaced to user in the confirm dialog.',
+        'Workflow definition steps PUT 409: error message already shown — confirmed working.',
+      ],
+      changed: [
+        'Changelog page: removed max-width constraint — now uses full available screen width.',
+        'Approval inbox: "Initiated by" label renamed to "Submitted by" for clarity.',
+      ],
+    },
+  },
+  {
     version: '24.0.0',
     date: 'May 9, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Product NCR Enhancements & IMS QA NCR Module (HEXA-FRM-023)',
     highlights: [
       'Product NCR (/qc/ncr) renamed, beautified with stats cards and audit trail tab with PDF print.',
@@ -9321,7 +9355,7 @@ export default function ChangelogPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Hero */}
         <div className="rounded-2xl border bg-gradient-to-br from-sky-600 via-sky-500 to-blue-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">

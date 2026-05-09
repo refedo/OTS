@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, XCircle, UserCheck, MessageSquare, Clock, RefreshCw, Inbox } from 'lucide-react';
+import { CheckCircle, XCircle, UserCheck, MessageSquare, Clock, RefreshCw, Inbox, Banknote, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,6 +46,7 @@ interface PendingApprovalStep {
     id: string;
     entityType: string;
     entityId: string;
+    metadata: Record<string, unknown> | null;
     definition: { key: string; name: string };
     initiatedBy: { id: string; name: string };
   };
@@ -235,6 +236,34 @@ export function ApprovalInbox({ compact = false, onDecisionMade }: ApprovalInbox
   const entityLabel = (step: PendingApprovalStep) =>
     `${step.instance.entityType.replace(/_/g, ' ')} · ${step.instance.entityId.slice(0, 8)}…`;
 
+  function fmtSAR(v: unknown) {
+    const n = Number(v);
+    if (isNaN(n)) return null;
+    return new Intl.NumberFormat('en-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(n);
+  }
+
+  function EntityMetaBadges({ step }: { step: PendingApprovalStep }) {
+    const meta = step.instance.metadata;
+    if (!meta) return null;
+    const items: { icon: React.ReactNode; label: string }[] = [];
+    if (step.instance.entityType === 'Loan') {
+      const amt = fmtSAR(meta.principal);
+      if (meta.employeeName) items.push({ icon: <User className="h-3 w-3" />, label: String(meta.employeeName) });
+      if (amt) items.push({ icon: <Banknote className="h-3 w-3" />, label: amt });
+      if (meta.installmentsTotal) items.push({ icon: null, label: `${meta.installmentsTotal} installments` });
+    }
+    if (!items.length) return null;
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-1.5">
+        {items.map((item, i) => (
+          <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">
+            {item.icon}{item.label}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-slate-400 text-sm gap-2">
@@ -286,8 +315,10 @@ export function ApprovalInbox({ compact = false, onDecisionMade }: ApprovalInbox
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
-              <span>Initiated by <span className="text-slate-600 font-medium">{step.instance.initiatedBy.name}</span></span>
+            <EntityMetaBadges step={step} />
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3 mt-2">
+              <span>Submitted by <span className="text-slate-600 font-medium">{step.instance.initiatedBy.name}</span></span>
               {step.requiredApprovals > 1 && (
                 <span>· {step.receivedApprovals}/{step.requiredApprovals} approvals</span>
               )}

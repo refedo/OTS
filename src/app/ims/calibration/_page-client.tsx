@@ -301,8 +301,11 @@ export function CalibrationClient() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => openView(asset)} title="View & Print">
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-500 hover:text-[#2c3e50]" onClick={() => handleGeneratePDF(asset)} title="Print Calibration Certificate (PDF)" disabled={generatingPDF}>
                               <FileText className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => openView(asset)} title="View Details">
+                              <Search className="h-3.5 w-3.5" />
                             </Button>
                             <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => openEdit(asset)} title="Update Record">
                               <Pencil className="h-3.5 w-3.5" />
