@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Gauge, RefreshCw, Pencil, AlertTriangle, CheckCircle2, Clock, Search, Wrench } from 'lucide-react';
+import { Gauge, RefreshCw, Pencil, AlertTriangle, CheckCircle2, Clock, Search, Wrench, Plus, FileText } from 'lucide-react';
+import { generateCalibrationRecordPDF } from '@/lib/ims-calibration-pdf-generator';
 
 type CalibrationAsset = {
   id: string;
@@ -59,8 +60,11 @@ export function CalibrationClient() {
   const [search, setSearch] = useState('');
   const [filterDerived, setFilterDerived] = useState('');
   const [dialog, setDialog] = useState(false);
+  const [viewDialog, setViewDialog] = useState(false);
   const [editing, setEditing] = useState<CalibrationAsset | null>(null);
+  const [viewing, setViewing] = useState<CalibrationAsset | null>(null);
   const [saving, setSaving] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const fetchRecords = useCallback(async () => {
@@ -103,6 +107,39 @@ export function CalibrationClient() {
       fetchRecords();
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openView(asset: CalibrationAsset) {
+    setViewing(asset);
+    setViewDialog(true);
+  }
+
+  async function handleGeneratePDF(asset: CalibrationAsset) {
+    setGeneratingPDF(true);
+    try {
+      const blob = await generateCalibrationRecordPDF({
+        assetCode: asset.assetCode || 'N/A',
+        assetName: asset.name,
+        make: asset.make,
+        model: asset.model,
+        serialNumber: asset.serialNumber,
+        location: asset.location,
+        calibrationFrequency: asset.calibrationFrequency,
+        lastCalibratedAt: asset.lastCalibratedAt,
+        calibrationDueAt: asset.calibrationDueAt,
+        calibrationCertRef: asset.calibrationCertRef,
+        calibrationBody: asset.calibrationBody,
+        calibrationStatus: asset.calibrationStatus,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Calibration_${asset.assetCode}_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setGeneratingPDF(false);
     }
   }
 
@@ -263,9 +300,14 @@ export function CalibrationClient() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => openEdit(asset)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => openView(asset)} title="View & Print">
+                              <FileText className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => openEdit(asset)} title="Update Record">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -340,6 +382,63 @@ export function CalibrationClient() {
             <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
             <Button className="bg-[#2c3e50] hover:bg-[#1a252f] text-white" onClick={handleSave} disabled={saving}>
               {saving ? 'Saving…' : 'Save Record'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Dialog with PDF Generation */}
+      <Dialog open={viewDialog} onOpenChange={setViewDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gauge className="h-4 w-4 text-[#2c3e50]" />
+              Calibration Record
+            </DialogTitle>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <h3 className="font-semibold text-slate-800 mb-3">Equipment Information</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="font-medium text-slate-600">Asset Code:</span> {viewing.assetCode ?? '—'}</div>
+                  <div><span className="font-medium text-slate-600">Name:</span> {viewing.name}</div>
+                  <div><span className="font-medium text-slate-600">Make:</span> {viewing.make ?? '—'}</div>
+                  <div><span className="font-medium text-slate-600">Model:</span> {viewing.model ?? '—'}</div>
+                  <div><span className="font-medium text-slate-600">Serial No.:</span> {viewing.serialNumber ?? '—'}</div>
+                  <div><span className="font-medium text-slate-600">Location:</span> {viewing.location ?? '—'}</div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="font-semibold text-slate-800 mb-3">Calibration Details</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="font-medium text-slate-600">Frequency:</span> {viewing.calibrationFrequency ?? '—'}</div>
+                  <div><span className="font-medium text-slate-600">Last Calibrated:</span> {fmt(viewing.lastCalibratedAt)}</div>
+                  <div><span className="font-medium text-slate-600">Due Date:</span> {fmt(viewing.calibrationDueAt)}</div>
+                  <div><span className="font-medium text-slate-600">Result:</span> {viewing.calibrationStatus ?? '—'}</div>
+                  <div><span className="font-medium text-slate-600">Cert. Ref:</span> {viewing.calibrationCertRef ?? '—'}</div>
+                  <div><span className="font-medium text-slate-600">Calibration Body:</span> {viewing.calibrationBody ?? '—'}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <p className="text-xs text-amber-700">
+                  <strong>ISO 9001:2015 §7.1.5:</strong> Equipment must be calibrated at defined intervals or prior to use, against measurement standards traceable to international or national standards.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialog(false)}>Close</Button>
+            <Button 
+              className="bg-[#2c3e50] hover:bg-[#1a252f] text-white" 
+              onClick={() => viewing && handleGeneratePDF(viewing)}
+              disabled={generatingPDF}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              {generatingPDF ? 'Generating...' : 'Print Certificate (PDF)'}
             </Button>
           </DialogFooter>
         </DialogContent>

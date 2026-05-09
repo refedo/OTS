@@ -84,7 +84,7 @@ export class PDFReportBuilder {
       unit: 'mm',
       format: 'a4',
     });
-    this.doc.setFont('times', 'normal');
+    this.doc.setFont('helvetica', 'normal');
     this.theme = themes[themeName];
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
@@ -131,19 +131,19 @@ export class PDFReportBuilder {
 
     this.currentY = headerHeight + 5;
     this.doc.setTextColor(this.theme.textColor);
-    this.doc.setFont('times', 'normal');
+    this.doc.setFont('helvetica', 'normal');
   }
 
   addTitle(title: string, subtitle?: string): void {
     this.doc.setFontSize(17);
-    this.doc.setFont('times', 'bold');
+    this.doc.setFont('helvetica', 'bold');
     this.doc.setTextColor(this.theme.primaryColor);
     this.doc.text(title, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 8;
 
     if (subtitle) {
       this.doc.setFontSize(9.5);
-      this.doc.setFont('times', 'italic');
+      this.doc.setFont('helvetica', 'italic');
       this.doc.setTextColor(80, 80, 80);
       this.doc.text(subtitle, this.pageWidth / 2, this.currentY, { align: 'center' });
       this.currentY += 6;
@@ -151,7 +151,7 @@ export class PDFReportBuilder {
 
     this.currentY += 4;
     this.doc.setTextColor(this.theme.textColor);
-    this.doc.setFont('times', 'normal');
+    this.doc.setFont('helvetica', 'normal');
   }
 
   addMetadataBox(metadata: Record<string, string>): void {
@@ -170,10 +170,10 @@ export class PDFReportBuilder {
     let metaY = this.currentY + 5;
 
     Object.entries(metadata).forEach(([key, value]) => {
-      this.doc.setFont('times', 'bold');
+      this.doc.setFont('helvetica', 'bold');
       this.doc.setTextColor(60, 60, 60);
       this.doc.text(`${key}:`, boxX + 2, metaY);
-      this.doc.setFont('times', 'normal');
+      this.doc.setFont('helvetica', 'normal');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(value, boxX + 22, metaY);
       metaY += lineHeight;
@@ -195,7 +195,7 @@ export class PDFReportBuilder {
 
     this.currentY += 10;
     this.doc.setTextColor(this.theme.textColor);
-    this.doc.setFont('times', 'normal');
+    this.doc.setFont('helvetica', 'normal');
   }
 
   addInfoGrid(data: Record<string, string | number>, columns: number = 2): void {
@@ -212,11 +212,11 @@ export class PDFReportBuilder {
       const y = this.currentY + row * lineHeight;
 
       this.doc.setFontSize(8);
-      this.doc.setFont('times', 'bold');
+      this.doc.setFont('helvetica', 'bold');
       this.doc.setTextColor(80, 80, 80);
       this.doc.text(`${key}:`, x, y);
 
-      this.doc.setFont('times', 'normal');
+      this.doc.setFont('helvetica', 'normal');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(String(value), x + 35, y);
 
@@ -269,7 +269,7 @@ export class PDFReportBuilder {
     this.checkPageBreak(20);
 
     this.doc.setFontSize(fontSize);
-    this.doc.setFont('times', 'normal');
+    this.doc.setFont('helvetica', 'normal');
     this.doc.setTextColor(this.theme.textColor);
 
     const lines = this.doc.splitTextToSize(text, this.pageWidth - 2 * this.margin);
@@ -288,7 +288,7 @@ export class PDFReportBuilder {
       const x = this.margin + index * sigWidth;
 
       this.doc.setFontSize(8);
-      this.doc.setFont('times', 'bold');
+      this.doc.setFont('helvetica', 'bold');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(sig.label, x, this.currentY);
 
@@ -297,14 +297,14 @@ export class PDFReportBuilder {
       this.doc.line(x, this.currentY + 16, x + sigWidth - 8, this.currentY + 16);
 
       if (sig.name) {
-        this.doc.setFont('times', 'normal');
+        this.doc.setFont('helvetica', 'normal');
         this.doc.setFontSize(7.5);
         this.doc.setTextColor(80, 80, 80);
         this.doc.text(sig.name, x, this.currentY + 20);
       }
 
       if (sig.date) {
-        this.doc.setFont('times', 'normal');
+        this.doc.setFont('helvetica', 'normal');
         this.doc.setFontSize(7.5);
         this.doc.setTextColor(120, 120, 120);
         this.doc.text(sig.date, x, this.currentY + 24);
