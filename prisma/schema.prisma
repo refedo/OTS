@@ -369,6 +369,12 @@ model User {
   assessedCompetenceEntries      ImsCompetenceEntry[]       @relation("CompetenceEntryAssessedBy")
   ncrCAResponsible               NCRReport[]                @relation("NCRCAResponsible")
 
+  // ImsNcr back-relations (24.0.0)
+  imsNcrRaised       ImsNcr[]   @relation("ImsNcrRaisedBy")
+  imsNcrAssigned     ImsNcr[]   @relation("ImsNcrAssignedTo")
+  imsNcrClosed       ImsNcr[]   @relation("ImsNcrClosedBy")
+  imsNcrCAResponsible ImsNcr[]  @relation("ImsNcrCAResponsible")
+
   // Meetings back-relations (22.1.0)
   organizedMeetings    Meeting[]         @relation("MeetingOrganizer")
   meetingAttendances   MeetingAttendee[] @relation("MeetingAttendees")
@@ -6772,9 +6778,59 @@ model ImsAuditFinding {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  imsNcr    ImsNcr?
+
   @@index([auditId])
   @@index([status])
   @@map("ImsAuditFinding")
+}
+
+// v24.0.0 — Non-Product NCR (QA NCR) — HEXA-FRM-023 | Hexa-ISP-005 | ISO §10.2
+model ImsNcr {
+  id          String   @id @default(uuid()) @db.Char(36)
+  ncrNumber   String   @unique @db.VarChar(30)
+
+  auditFindingId  String?          @unique @db.Char(36)
+  auditFinding    ImsAuditFinding? @relation(fields: [auditFindingId], references: [id])
+  auditId         String?          @db.Char(36)
+  auditNumber     String?          @db.VarChar(20)
+  department      String?          @db.VarChar(100)
+
+  title            String  @db.VarChar(255)
+  description      String  @db.Text
+  category         String  @default("System") @db.VarChar(50)
+  severity         String  @default("Medium") @db.VarChar(20)
+  status           String  @default("OPEN") @db.VarChar(30)
+
+  rootCause             String? @db.Text
+  correctiveAction      String? @db.Text
+  preventiveAction      String? @db.Text
+  caVerificationMethod  String? @db.VarChar(255)
+  caEffectivenessRating String? @db.VarChar(30)
+
+  deadline    DateTime
+  closedAt    DateTime?
+
+  raisedById    String  @db.Char(36)
+  assignedToId  String? @db.Char(36)
+  closedById    String? @db.Char(36)
+  caResponsibleId String? @db.Char(36)
+  caTargetDate  DateTime?
+
+  raisedBy    User  @relation("ImsNcrRaisedBy",    fields: [raisedById],    references: [id])
+  assignedTo  User? @relation("ImsNcrAssignedTo",  fields: [assignedToId],  references: [id])
+  closedBy    User? @relation("ImsNcrClosedBy",     fields: [closedById],    references: [id])
+  caResponsible User? @relation("ImsNcrCAResponsible", fields: [caResponsibleId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([deadline])
+  @@index([auditFindingId])
+  @@index([auditId])
+  @@index([raisedById])
+  @@map("ImsNcr")
 }
 
 // GAP 5 — Competence Matrix (ISO §7.2)

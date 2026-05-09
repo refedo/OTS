@@ -285,6 +285,9 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/ims/isp-register': ['ims.view', 'ims.documents.view'],
   '/ims/calibration': ['ims.view', 'ims.documents.view'],
 
+  // IMS QA NCR (24.0.0)
+  '/ims/ncr': ['ims.audits.view', 'ims.audits.manage', 'ims.view'],
+
   // Forms Directory (22.7.0)
   '/forms': null, // accessible to all logged-in users
 };

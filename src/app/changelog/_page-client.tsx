@@ -23,10 +23,46 @@ type ChangelogVersion = {
 // Version order: Most recent first
 const hardcodedVersions: ChangelogVersion[] = [
   {
+    version: '24.0.0',
+    date: 'May 9, 2026',
+    type: 'minor',
+    status: 'current',
+    mainTitle: 'Product NCR Enhancements & IMS QA NCR Module (HEXA-FRM-023)',
+    highlights: [
+      'Product NCR (/qc/ncr) renamed, beautified with stats cards and audit trail tab with PDF print.',
+      'New QA NCR module (/ims/ncr) — HEXA-FRM-023 — non-product NCR with full CRUD, view, and PDF.',
+      'Audit findings: NC type auto-creates a QA NCR in the IMS register.',
+      'Audit schedule form: department is now a dropdown, auditor/auditee are searchable lists.',
+    ],
+    changes: {
+      added: [
+        'HEXA-FRM-023 QA NCR (Non-Product NCR) module under /ims/ncr with full CRUD, view, and PDF export.',
+        'New ImsNcr database model and migration (v24_0_ims_ncr.sql).',
+        '/api/ims/ncr (GET, POST) and /api/ims/ncr/[id] (GET, PATCH, DELETE) API routes.',
+        'generateQaNCRPDF — dedicated PDF generator for QA NCR (HEXA-FRM-023, Hexa-ISP-005).',
+        'generateProductNCRPDF — PDF generator for Product NCR (HEXA-FRM-007, Hexa-ISP-005).',
+        'Audit Trail tab on NCR detail page showing timestamped status changes.',
+        '/api/qc/ncr/[id]/history endpoint returning status change audit trail from system events.',
+        'HEXA-FRM-023 entry added to Forms Directory (/forms).',
+        'QA NCR Register added to IMS sidebar navigation.',
+      ],
+      fixed: [],
+      changed: [
+        'Product NCR (/qc/ncr) header renamed: HEXA-FRM-007, Hexa-ISP-005, ISO §8.7/§10.2.',
+        'Product NCR list page beautified: gradient header, stats cards, dark table header, View button per row.',
+        'Audit findings: ISO Clause field removed from Add Finding dialog.',
+        'Audit findings: NC type shows warning and auto-creates QA NCR in IMS register.',
+        'Audit findings dialog: shows inherited audit number and department context.',
+        'Audit schedule dialog: department changed from free-text to dropdown list.',
+        'Audit schedule dialog: auditor and auditee changed to searchable filtered lists.',
+      ],
+    },
+  },
+  {
     version: '23.5.0',
     date: 'May 8, 2026',
     type: 'minor',
-    status: 'current',
+    status: 'previous',
     mainTitle: 'Version synchronization',
     highlights: [
       'Version synchronization across all surfaces following branch consolidation.',

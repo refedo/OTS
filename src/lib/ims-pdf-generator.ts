@@ -646,6 +646,127 @@ export async function generateObjectivesPDF(objectives: ObjectivePDFData[], year
   pdf.save(`FRM-013-Objectives-${year}.pdf`);
 }
 
+export type ProductNCRPDFData = {
+  ncrNumber: string;
+  status: string;
+  severity: string;
+  description: string;
+  rootCause?: string | null;
+  correctiveAction?: string | null;
+  preventiveAction?: string | null;
+  deadline: string;
+  closedDate?: string | null;
+  createdAt: string;
+  project: { projectNumber: string; name: string };
+  building?: { designation: string; name: string } | null;
+  productionLog: {
+    processType: string;
+    assemblyPart: { partDesignation: string; name: string; assemblyMark: string };
+  };
+  raisedBy: { name: string; email: string };
+  assignedTo?: { name: string; email: string } | null;
+  closedBy?: { name: string; email: string } | null;
+  caRequired: boolean;
+  caRootCause?: string | null;
+  caAction?: string | null;
+  caVerificationMethod?: string | null;
+  caEffectivenessRating?: string | null;
+  caTargetDate?: string | null;
+  caClosedAt?: string | null;
+  caResponsible?: { name: string } | null;
+  statusHistory?: { status: string; changedAt: string; changedBy: string; notes?: string | null }[];
+};
+
+export async function generateProductNCRPDF(data: ProductNCRPDFData): Promise<void> {
+  const logo = await loadLogoForPDF();
+  const pdf = new PDFReportBuilder('portrait', 'red');
+
+  pdf.addHeader(COMPANY, TAGLINE, logo);
+  pdf.addTitle(
+    'HEXA-FRM-007 — Product NCR (Non-Conformance Report)',
+    `${data.ncrNumber} · ${data.project.projectNumber} · ISO §8.7, §10.2`
+  );
+  pdf.addMetadataBox({
+    'NCR No.': data.ncrNumber,
+    'Project': data.project.projectNumber,
+    'Building': data.building?.designation ?? '—',
+    'Status': data.status,
+    'Severity': data.severity,
+    'Deadline': fmt(data.deadline),
+    'Raised By': data.raisedBy.name,
+    'Assigned To': data.assignedTo?.name ?? '—',
+    'Created': fmt(data.createdAt),
+    'Closed': data.closedDate ? fmt(data.closedDate) : '—',
+    'ISO Ref.': '§8.7, §10.2',
+    'Procedure': 'Hexa-ISP-005',
+  });
+
+  pdf.addSectionHeader('Part / Material Details');
+  pdf.addInfoGrid({
+    'Part Designation': data.productionLog.assemblyPart.partDesignation,
+    'Part Name': data.productionLog.assemblyPart.name,
+    'Assembly Mark': data.productionLog.assemblyPart.assemblyMark,
+    'Process Type': data.productionLog.processType,
+    'Project Name': data.project.name,
+    'Building': data.building?.name ?? '—',
+  });
+
+  pdf.addSectionHeader('Non-Conformance Description');
+  pdf.addParagraph(data.description);
+
+  if (data.rootCause) {
+    pdf.addSectionHeader('Root Cause Analysis');
+    pdf.addParagraph(data.rootCause);
+  }
+  if (data.correctiveAction) {
+    pdf.addSectionHeader('Corrective Action');
+    pdf.addParagraph(data.correctiveAction);
+  }
+  if (data.preventiveAction) {
+    pdf.addSectionHeader('Preventive Action');
+    pdf.addParagraph(data.preventiveAction);
+  }
+
+  if (data.caRequired) {
+    pdf.addSectionHeader('CAPA Details (ISO §10.2)');
+    pdf.addInfoGrid({
+      'CA Root Cause': data.caRootCause ?? '—',
+      'CA Action': data.caAction ?? '—',
+      'Verification Method': data.caVerificationMethod ?? '—',
+      'Effectiveness Rating': data.caEffectivenessRating ?? 'Not rated',
+      'CA Responsible': data.caResponsible?.name ?? '—',
+      'CA Target Date': data.caTargetDate ? fmt(data.caTargetDate) : '—',
+      'CA Closed At': data.caClosedAt ? fmt(data.caClosedAt) : 'Open',
+    });
+  }
+
+  if (data.statusHistory && data.statusHistory.length > 0) {
+    pdf.addSectionHeader('Audit Trail');
+    pdf.addTable(
+      ['Status', 'Changed At', 'Changed By', 'Notes'],
+      data.statusHistory.map(h => [
+        statusDot(h.status),
+        fmt(h.changedAt),
+        h.changedBy,
+        h.notes ?? '—',
+      ]),
+      { alternateRows: true }
+    );
+  }
+
+  pdf.addSignatureSection([
+    { label: 'QC Inspector / Raised By', name: data.raisedBy.name, date: fmt(data.createdAt) },
+    { label: 'QC Manager', date: '' },
+    { label: data.closedBy ? `Closed By: ${data.closedBy.name}` : 'Closed By', date: data.closedDate ? fmt(data.closedDate) : '' },
+  ]);
+
+  pdf.addFooter(
+    `HEXA-FRM-007 · Procedure: Hexa-ISP-005 · ISO §8.7, §10.2 · Product NCR · ${FOOTER}`,
+    'HEXA-FRM-007 · Hexa-ISP-005'
+  );
+  pdf.save(`Product-NCR-${data.ncrNumber}.pdf`);
+}
+
 export type RiskRegisterPDFRisk = {
   riskNumber: string;
   title: string;

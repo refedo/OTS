@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { ArrowLeft, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Loader2, FileDown } from 'lucide-react';
+import { ArrowLeft, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Loader2, FileDown, Search } from 'lucide-react';
 import { generateAuditPlanPDF, type AuditPlanPDFData } from '@/lib/ims-pdf-generator';
 
 type Audit = {
@@ -64,24 +64,31 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
   const [selectedAudit, setSelectedAudit] = useState<Audit | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [auditDialog, setAuditDialog] = useState(false);
   const [findingDialog, setFindingDialog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [auditorSearch, setAuditorSearch] = useState('');
+  const [auditeeSearch, setAuditeeSearch] = useState('');
 
   const [auditForm, setAuditForm] = useState({
     scope: '', scheduledDate: '', auditorId: '', auditeeId: '',
   });
   const [findingForm, setFindingForm] = useState({
     type: 'NC' as 'NC' | 'OFI' | 'Observation',
-    clause: '', description: '', evidence: '', correctiveAction: '',
+    description: '', evidence: '', correctiveAction: '',
     responsibleId: '', targetDate: '',
   });
 
   const fetchPlan = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/ims/audit-plans/${planId}`);
-    if (res.ok) setPlan(await res.json());
+    const [planRes, deptsRes] = await Promise.all([
+      fetch(`/api/ims/audit-plans/${planId}`),
+      fetch('/api/departments'),
+    ]);
+    if (planRes.ok) setPlan(await planRes.json());
+    if (deptsRes.ok) setDepartments(await deptsRes.json());
     setLoading(false);
   }, [planId]);
 
@@ -96,6 +103,8 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
     const res = await fetch('/api/users');
     if (res.ok) setUsers(await res.json());
     setAuditForm({ scope: '', scheduledDate: '', auditorId: '', auditeeId: '' });
+    setAuditorSearch('');
+    setAuditeeSearch('');
     setAuditDialog(true);
   };
 
@@ -103,7 +112,7 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
     if (!selectedAudit) return;
     const res = await fetch('/api/users');
     if (res.ok) setUsers(await res.json());
-    setFindingForm({ type: 'NC', clause: '', description: '', evidence: '', correctiveAction: '', responsibleId: '', targetDate: '' });
+    setFindingForm({ type: 'NC', description: '', evidence: '', correctiveAction: '', responsibleId: '', targetDate: '' });
     setFindingDialog(true);
   };
 
@@ -137,7 +146,6 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
         body: JSON.stringify({
           auditId: selectedAudit.id,
           type: findingForm.type,
-          clause: findingForm.clause,
           description: findingForm.description,
           evidence: findingForm.evidence || null,
           correctiveAction: findingForm.correctiveAction || null,
@@ -309,8 +317,14 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
           <DialogHeader><DialogTitle>Schedule Audit</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label>Scope / Department *</Label>
-              <Input value={auditForm.scope} onChange={e => setAuditForm(f => ({ ...f, scope: e.target.value }))} placeholder="e.g. Production / QC / HR" className="mt-1" />
+              <Label>Department *</Label>
+              <Select value={auditForm.scope || '__none__'} onValueChange={v => setAuditForm(f => ({ ...f, scope: v === '__none__' ? '' : v }))}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select department…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Select Department —</SelectItem>
+                  {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Scheduled Date *</Label>
@@ -318,21 +332,39 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
             </div>
             <div>
               <Label>Auditor</Label>
+              <div className="relative mt-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Search auditor…"
+                  value={auditorSearch}
+                  onChange={e => setAuditorSearch(e.target.value)}
+                  className="pl-8 mb-1"
+                />
+              </div>
               <Select value={auditForm.auditorId || '__none__'} onValueChange={v => setAuditForm(f => ({ ...f, auditorId: v === '__none__' ? '' : v }))}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select auditor" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select auditor" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— None —</SelectItem>
-                  {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  {users.filter(u => !auditorSearch || u.name.toLowerCase().includes(auditorSearch.toLowerCase())).map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Auditee</Label>
+              <div className="relative mt-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Search auditee…"
+                  value={auditeeSearch}
+                  onChange={e => setAuditeeSearch(e.target.value)}
+                  className="pl-8 mb-1"
+                />
+              </div>
               <Select value={auditForm.auditeeId || '__none__'} onValueChange={v => setAuditForm(f => ({ ...f, auditeeId: v === '__none__' ? '' : v }))}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select auditee" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select auditee" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— None —</SelectItem>
-                  {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  {users.filter(u => !auditeeSearch || u.name.toLowerCase().includes(auditeeSearch.toLowerCase())).map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -349,24 +381,31 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
       {/* Add Finding Dialog */}
       <Dialog open={findingDialog} onOpenChange={setFindingDialog}>
         <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>Record Audit Finding</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Record Audit Finding</DialogTitle>
+            {selectedAudit && (
+              <div className="mt-1.5 flex gap-2 flex-wrap">
+                <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono">{selectedAudit.auditNumber}</span>
+                {selectedAudit.scope && <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{selectedAudit.scope}</span>}
+              </div>
+            )}
+            {findingForm.type === 'NC' && (
+              <p className="text-xs text-orange-600 bg-orange-50 border border-orange-100 rounded px-2 py-1 mt-1">
+                ⚠ NC type will automatically create a QA NCR in the IMS NCR register (HEXA-FRM-023)
+              </p>
+            )}
+          </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Type *</Label>
-                <Select value={findingForm.type} onValueChange={v => setFindingForm(f => ({ ...f, type: v as typeof f.type }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NC">NC (Non-Conformance)</SelectItem>
-                    <SelectItem value="OFI">OFI (Opportunity for Improvement)</SelectItem>
-                    <SelectItem value="Observation">Observation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>ISO Clause *</Label>
-                <Input value={findingForm.clause} onChange={e => setFindingForm(f => ({ ...f, clause: e.target.value }))} placeholder="e.g. 8.5.1" className="mt-1" />
-              </div>
+            <div>
+              <Label>Type *</Label>
+              <Select value={findingForm.type} onValueChange={v => setFindingForm(f => ({ ...f, type: v as typeof f.type }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NC">NC (Non-Conformance)</SelectItem>
+                  <SelectItem value="OFI">OFI (Opportunity for Improvement)</SelectItem>
+                  <SelectItem value="Observation">Observation</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Description *</Label>
@@ -399,7 +438,7 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFindingDialog(false)}>Cancel</Button>
-            <Button onClick={createFinding} disabled={saving || !findingForm.description || !findingForm.clause} className="bg-red-600 hover:bg-red-700">
+            <Button onClick={createFinding} disabled={saving || !findingForm.description} className="bg-red-600 hover:bg-red-700">
               {saving ? 'Saving...' : 'Record Finding'}
             </Button>
           </DialogFooter>

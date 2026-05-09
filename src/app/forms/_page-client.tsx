@@ -41,6 +41,7 @@ const FORMS: FormEntry[] = [
   { code: 'HEXA-FRM-020', name: 'Emergency Drill Record', isp: 'ISP-020', href: '/ims/safety/drills', isoClause: 'ISO 45001 §8.8', module: 'Safety', otsRef: 'IMS Module — System Events (emergency drill)' },
   { code: 'HEXA-FRM-021', name: 'Toolbox Talk Record', isp: 'ISP-020', href: '/ims/safety/toolbox-talks', isoClause: 'ISO 45001 §7.3', module: 'Safety', otsRef: 'HR Module — HSE Announcements' },
   { code: 'HEXA-FRM-022', name: 'Calibration Record / Certificate', isp: 'ISP-015', href: '/ims/calibration', isoClause: 'ISO 9001 §7.1.5', module: 'IMS', otsRef: 'IMS Module — Calibration Register; Asset Module' },
+  { code: 'HEXA-FRM-023', name: 'Non-Product NCR (QA NCR)', isp: 'ISP-005', href: '/ims/ncr', isoClause: 'ISO 9001 §10.2', module: 'IMS', otsRef: 'IMS Module — QA NCR / Non-Product Nonconformance & CAPA Workflow Engine' },
 ];
 
 const RECORDS: FormEntry[] = [

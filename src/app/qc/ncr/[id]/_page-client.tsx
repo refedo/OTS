@@ -12,9 +12,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { WorkflowTimeline } from '@/components/workflow/WorkflowTimeline';
 import {
   ArrowLeft, AlertTriangle, CheckCircle2, Clock, PlayCircle,
-  Save, Loader2, ClipboardCheck,
+  Save, Loader2, ClipboardCheck, FileDown, History,
 } from 'lucide-react';
 import Link from 'next/link';
+import { generateProductNCRPDF, type ProductNCRPDFData } from '@/lib/ims-pdf-generator';
+
+type StatusEvent = {
+  id: string;
+  status: string;
+  changedAt: string;
+  changedBy: string;
+  notes: string | null;
+};
 
 type NCR = {
   id: string;
@@ -22,14 +31,17 @@ type NCR = {
   description: string;
   correctiveAction: string | null;
   rootCause: string | null;
+  preventiveAction: string | null;
   deadline: string;
   closedDate: string | null;
   status: string;
   severity: string;
+  createdAt: string;
   project: { projectNumber: string; name: string };
   building: { designation: string; name: string } | null;
-  raisedBy: { id: string; name: string };
-  assignedTo: { id: string; name: string } | null;
+  raisedBy: { id: string; name: string; email: string };
+  assignedTo: { id: string; name: string; email: string } | null;
+  closedBy: { id: string; name: string; email: string } | null;
   caRequired: boolean;
   caRootCause: string | null;
   caAction: string | null;
@@ -83,7 +95,7 @@ const STATUS_COLORS: Record<string, string> = {
   Overdue: 'bg-red-200 text-red-800',
 };
 
-type Tab = 'overview' | 'corrective-action';
+type Tab = 'overview' | 'corrective-action' | 'audit-trail';
 
 export function NcrDetailClient({ ncrId }: { ncrId: string }) {
   const router = useRouter();
@@ -93,6 +105,8 @@ export function NcrDetailClient({ ncrId }: { ncrId: string }) {
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [startingWf, setStartingWf] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<StatusEvent[]>([]);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const [caForm, setCaForm] = useState({
     caRequired: false,
@@ -107,10 +121,11 @@ export function NcrDetailClient({ ncrId }: { ncrId: string }) {
   const fetchNcr = useCallback(async () => {
     setLoading(true);
     try {
-      const [ncrRes, caRes, usersRes] = await Promise.all([
+      const [ncrRes, caRes, usersRes, historyRes] = await Promise.all([
         fetch(`/api/qc/ncr/${ncrId}`),
         fetch(`/api/qc/ncr/${ncrId}/ca`),
         fetch('/api/users'),
+        fetch(`/api/qc/ncr/${ncrId}/history`),
       ]);
       if (!ncrRes.ok) { router.push('/qc/ncr'); return; }
       const ncrData = await ncrRes.json();
@@ -127,6 +142,7 @@ export function NcrDetailClient({ ncrId }: { ncrId: string }) {
         caTargetDate: merged.caTargetDate ? merged.caTargetDate.split('T')[0] : '',
       });
       if (usersRes.ok) setUsers(await usersRes.json());
+      if (historyRes.ok) setStatusHistory(await historyRes.json());
     } finally {
       setLoading(false);
     }
@@ -167,6 +183,43 @@ export function NcrDetailClient({ ncrId }: { ncrId: string }) {
     }
   };
 
+  const downloadPDF = async () => {
+    if (!ncr) return;
+    setExportingPdf(true);
+    try {
+      const pdfData: ProductNCRPDFData = {
+        ncrNumber: ncr.ncrNumber,
+        status: ncr.status,
+        severity: ncr.severity,
+        description: ncr.description,
+        rootCause: ncr.rootCause,
+        correctiveAction: ncr.correctiveAction,
+        preventiveAction: ncr.preventiveAction,
+        deadline: ncr.deadline,
+        closedDate: ncr.closedDate,
+        createdAt: ncr.createdAt,
+        project: ncr.project,
+        building: ncr.building,
+        productionLog: (ncr as NCR & { productionLog: ProductNCRPDFData['productionLog'] }).productionLog,
+        raisedBy: ncr.raisedBy as { name: string; email: string },
+        assignedTo: ncr.assignedTo as { name: string; email: string } | null,
+        closedBy: ncr.closedBy as { name: string; email: string } | null,
+        caRequired: (ncr as NCR & { caRequired: boolean }).caRequired ?? false,
+        caRootCause: (ncr as NCR & { caRootCause?: string | null }).caRootCause,
+        caAction: (ncr as NCR & { caAction?: string | null }).caAction,
+        caVerificationMethod: (ncr as NCR & { caVerificationMethod?: string | null }).caVerificationMethod,
+        caEffectivenessRating: (ncr as NCR & { caEffectivenessRating?: string | null }).caEffectivenessRating,
+        caTargetDate: (ncr as NCR & { caTargetDate?: string | null }).caTargetDate,
+        caClosedAt: (ncr as NCR & { caClosedAt?: string | null }).caClosedAt,
+        caResponsible: (ncr as NCR & { caResponsible?: { name: string } | null }).caResponsible,
+        statusHistory: statusHistory.map(h => ({ status: h.status, changedAt: h.changedAt, changedBy: h.changedBy, notes: h.notes })),
+      };
+      await generateProductNCRPDF(pdfData);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
@@ -176,10 +229,21 @@ export function NcrDetailClient({ ncrId }: { ncrId: string }) {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      {/* Back */}
-      <Link href="/qc/ncr" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
-        <ArrowLeft className="w-4 h-4" /> Back to NCR List
-      </Link>
+      {/* Back + PDF */}
+      <div className="flex items-center justify-between">
+        <Link href="/qc/ncr" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
+          <ArrowLeft className="w-4 h-4" /> Back to Product NCR List
+        </Link>
+        <Button
+          size="sm" variant="outline"
+          className="gap-1.5 text-xs border-red-300 text-red-700 hover:bg-red-50"
+          onClick={downloadPDF}
+          disabled={exportingPdf}
+        >
+          {exportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+          Print Product NCR (PDF)
+        </Button>
+      </div>
 
       {/* Hero */}
       <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-xl p-6 text-white">
@@ -198,13 +262,13 @@ export function NcrDetailClient({ ncrId }: { ncrId: string }) {
 
       {/* Tabs */}
       <div className="border-b flex gap-6">
-        {(['overview', 'corrective-action'] as Tab[]).map(t => (
+        {(['overview', 'corrective-action', 'audit-trail'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-red-500 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
-            {t === 'overview' ? 'Overview' : 'Corrective Action'}
+            {t === 'overview' ? 'Overview' : t === 'corrective-action' ? 'Corrective Action' : <span className="flex items-center gap-1"><History className="w-3.5 h-3.5" />Audit Trail</span>}
           </button>
         ))}
       </div>
@@ -333,6 +397,59 @@ export function NcrDetailClient({ ncrId }: { ncrId: string }) {
               <p className="text-sm text-amber-700">CA workflow not started. Save CA details and click "Start CA Workflow" to begin the 3-step approval process.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'audit-trail' && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><History className="w-4 h-4 text-slate-500" />Status Audit Trail</CardTitle></CardHeader>
+            <CardContent>
+              {statusHistory.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">No status changes recorded yet.</p>
+              ) : (
+                <ol className="relative border-l border-slate-200 ml-3 space-y-6">
+                  {/* Created event */}
+                  <li className="ml-6">
+                    <span className="absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 ring-4 ring-white">
+                      <AlertTriangle className="w-3 h-3 text-orange-600" />
+                    </span>
+                    <div className="flex items-start gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">NCR Opened</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{new Date(ncr.createdAt).toLocaleString('en-SA-u-ca-gregory')} · Raised by {ncr.raisedBy.name}</p>
+                      </div>
+                    </div>
+                  </li>
+                  {statusHistory.map((event, i) => {
+                    const isLast = i === statusHistory.length - 1;
+                    const isClosed = event.status === 'Closed';
+                    const isInProg = event.status === 'In Progress';
+                    return (
+                      <li key={event.id} className="ml-6">
+                        <span className={`absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white ${
+                          isClosed ? 'bg-green-100' : isInProg ? 'bg-blue-100' : 'bg-slate-100'
+                        }`}>
+                          {isClosed ? <CheckCircle2 className="w-3 h-3 text-green-600" /> :
+                           isInProg ? <Clock className="w-3 h-3 text-blue-600" /> :
+                           <AlertTriangle className="w-3 h-3 text-slate-500" />}
+                        </span>
+                        <div>
+                          <p className={`text-xs font-semibold uppercase tracking-wide ${
+                            isClosed ? 'text-green-700' : isInProg ? 'text-blue-700' : 'text-slate-700'
+                          }`}>{event.status}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {new Date(event.changedAt).toLocaleString('en-SA-u-ca-gregory')} · By {event.changedBy}
+                          </p>
+                          {event.notes && <p className="text-xs text-slate-600 mt-1 italic">{event.notes}</p>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

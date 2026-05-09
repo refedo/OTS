@@ -9,7 +9,7 @@ import { z } from 'zod';
 const CreateSchema = z.object({
   auditId: z.string().uuid(),
   type: z.enum(['NC', 'OFI', 'Observation']),
-  clause: z.string().min(1),
+  clause: z.string().optional().nullable(),
   description: z.string().min(1),
   evidence: z.string().optional().nullable(),
   correctiveAction: z.string().optional().nullable(),
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         auditId: data.auditId,
         findingNumber,
         type: data.type,
-        clause: data.clause,
+        clause: data.clause ?? 'N/A',
         description: data.description,
         evidence: data.evidence ?? null,
         correctiveAction: data.correctiveAction ?? null,
@@ -88,8 +88,44 @@ export async function POST(req: Request) {
         targetDate: data.targetDate ? new Date(data.targetDate) : null,
         status: 'OPEN',
       },
-      include: { responsible: { select: { id: true, name: true } } },
+      include: {
+        responsible: { select: { id: true, name: true } },
+        audit: { select: { id: true, auditNumber: true, scope: true } },
+      },
     });
+
+    // Auto-create IMS NCR (QA NCR) when the finding type is NC
+    if (data.type === 'NC') {
+      try {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const ncrCount = await prisma.imsNcr.count();
+        const ncrNumber = `QA-NCR-${yy}${mm}-${(ncrCount + 1).toString().padStart(3, '0')}`;
+        const deadline = data.targetDate ? new Date(data.targetDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+        await prisma.imsNcr.create({
+          data: {
+            ncrNumber,
+            auditFindingId: finding.id,
+            auditId: data.auditId,
+            auditNumber: finding.audit?.auditNumber ?? null,
+            department: finding.audit?.scope ?? null,
+            title: `NC Finding: ${data.description.slice(0, 100)}`,
+            description: data.description,
+            category: 'System',
+            severity: 'Medium',
+            status: 'OPEN',
+            correctiveAction: data.correctiveAction ?? null,
+            deadline,
+            raisedById: session.sub,
+            assignedToId: data.responsibleId ?? null,
+          },
+        });
+      } catch (ncrError) {
+        logger.error({ error: ncrError }, 'Failed to auto-create ImsNcr for NC finding');
+      }
+    }
 
     systemEventService.log({
       eventType: 'IMS_AUDIT_FINDING_CREATED',
