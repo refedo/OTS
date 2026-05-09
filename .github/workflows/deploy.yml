@@ -1,4 +1,4 @@
-name: Deploy to Digital Ocean
+name: Deploy to Digital Ocean Version II
 
 on:
   push:
@@ -35,7 +35,6 @@ jobs:
         run: npx prisma generate && NODE_OPTIONS=--max-old-space-size=4096 npx next build
         env:
           NODE_ENV: production
-          # No NEXT_PUBLIC_BASE_PATH - nginx proxies ots.hexasteel.sa directly to localhost:3000
           NEXT_PUBLIC_APP_URL: "https://ots.hexasteel.sa"
           # Dummy values so Prisma Client can initialise without a real DB during build
           DATABASE_URL: "mysql://placeholder:placeholder@localhost:3306/placeholder"
@@ -43,7 +42,9 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deploy-package
-          # Copy .next excluding the webpack module cache (~200-400MB, not needed at runtime)
+          echo "${GITHUB_SHA}" > deploy-package/DEPLOYED_COMMIT
+          echo "${GITHUB_REF_NAME}" > deploy-package/DEPLOYED_BRANCH
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > deploy-package/DEPLOYED_AT
           tar -C . --exclude='.next/cache' -cf - .next | tar -C deploy-package -xf -
           cp -r public deploy-package/ || true
           cp -r prisma deploy-package/
@@ -74,25 +75,27 @@ jobs:
             APP_DIR=/var/www/hexasteel.sa/ots
             cd "$APP_DIR"
 
-            # ── 1. Capture what changed before extracting ────────────────────
+            # ── 1. Capture hashes before extracting ─────────────────────────
             PREV_PKG_HASH=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1 || echo "none")
             PREV_SCHEMA_HASH=$(md5sum prisma/schema.prisma 2>/dev/null | cut -d' ' -f1 || echo "none")
 
             # ── 2. Extract pre-built artifacts (built in CI) ─────────────────
             echo "Extracting build artifacts..."
             rm -rf .next
+            rm -rf "$APP_DIR/prisma/manual_migrations"
             tar -xzf /tmp/deploy.tar.gz -C "$APP_DIR"
             rm -f /tmp/deploy.tar.gz
 
             NEW_PKG_HASH=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1 || echo "none")
             NEW_SCHEMA_HASH=$(md5sum prisma/schema.prisma 2>/dev/null | cut -d' ' -f1 || echo "none")
+            echo "APP_VERSION=$(cat DEPLOYED_COMMIT | cut -c1-7)" >> "$APP_DIR/.env"
 
-            # ── 3. Install deps only when package-lock.json changed ─────────
+            # ── 3. Install deps only when package-lock.json changed ──────────
             if [ "$PREV_PKG_HASH" != "$NEW_PKG_HASH" ]; then
               echo "package-lock.json changed — installing production dependencies..."
               npm ci --omit=dev
             else
-              echo "package.json unchanged — skipping npm ci"
+              echo "package-lock.json unchanged — skipping npm ci"
             fi
 
             # ── 4. Regenerate Prisma client only when schema changed ─────────
@@ -103,23 +106,45 @@ jobs:
               echo "Prisma schema unchanged — skipping prisma generate"
             fi
 
-            # ── 5. Run Prisma migrations ──────────────────────────────────────
-            echo "Running database migrations..."
-            npx prisma migrate deploy || echo "No pending migrations"
+            # ── 5. Run Prisma migrations ─────────────────────────────────────
+            echo "Running Prisma migrations..."
+            npx prisma migrate deploy
 
-            # ── 5b. Run manual SQL migrations (all are idempotent — IF NOT EXISTS) ──
+            # ── 5b. Run manual SQL migrations (tracked to skip already-applied) ──
             DATABASE_URL=$(grep '^DATABASE_URL=' "$APP_DIR/.env" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
             DB_USER=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
             DB_PASS=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
             DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]+@([^:/]+)[:/].*|\1|')
             DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]+@[^:]+:([0-9]+)/.*|\1|')
             DB_NAME=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^/]+/([^?]+).*|\1|')
+
+            # Write temp credentials file to avoid password in process list
+            MYSQL_CONF=$(mktemp)
+            chmod 600 "$MYSQL_CONF"
+            printf "[client]\npassword=%s\n" "$DB_PASS" > "$MYSQL_CONF"
+
+            MIGRATIONS_DONE_FILE="$APP_DIR/.migrations_applied"
+
             for sql_file in "$APP_DIR"/prisma/manual_migrations/*.sql; do
-              echo "Applying manual migration: $(basename $sql_file)"
-              mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < "$sql_file" && echo "  ✓ OK" || echo "  ⚠ Warning (may already be applied)"
+              [ -f "$sql_file" ] || continue
+              filename=$(basename "$sql_file")
+              if grep -qxF "$filename" "$MIGRATIONS_DONE_FILE" 2>/dev/null; then
+                echo "  ↷ Skipping $filename (already applied)"
+                continue
+              fi
+              echo "Applying manual migration: $filename"
+              if mysql --defaults-extra-file="$MYSQL_CONF" -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME" < "$sql_file"; then
+                echo "$filename" >> "$MIGRATIONS_DONE_FILE"
+                echo "  ✓ OK"
+              else
+                echo "  ⚠ Warning: $filename may already be applied or had an error"
+              fi
             done
 
-            # ── 6. Reload app (zero-downtime hot reload) ──────────────────────
+            # Clean up credentials file
+            rm -f "$MYSQL_CONF"
+
+            # ── 6. Reload app (zero-downtime hot reload) ─────────────────────
             echo "Reloading application..."
             pm2 reload hexa-steel-ots --update-env || pm2 start ecosystem.config.js
 
@@ -127,6 +152,14 @@ jobs:
             pm2 status
 
       - name: Verify deployment
-        if: always()
         run: |
-          echo "Deployment status: ${{ job.status }}"
+          echo "Deployed commit: ${{ github.sha }}"
+          sleep 5
+          curl -sf -o /dev/null -w "Health check HTTP status: %{http_code}\n" \
+            https://ots.hexasteel.sa/api/health || echo "⚠ Health check failed — verify app manually"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment failed for commit ${{ github.sha }} on branch ${{ github.ref_name }}"
+          echo "Check the logs above for details."
