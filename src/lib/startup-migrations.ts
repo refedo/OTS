@@ -199,6 +199,15 @@ const STARTUP_MIGRATIONS = [
 
   // ── v23.5.0 — Supplier classification table ───────────────────────────────
   'v23_5_fin_supplier_classification.sql', // Ensure fin_supplier_classification exists for supplier list JOIN
+
+  // ── v24.0.0 — IMS Non-Product NCR (QA NCR) ───────────────────────────────
+  'v24_0_ims_ncr.sql',                   // ImsNcr table (HEXA-FRM-023, ISO §10.2)
+
+  // ── v24.2.0 — Audit Tracker Rebuild ──────────────────────────────────────
+  'v24_2_audit_tracker_rebuild.sql',     // FRM-024/025/026 tables + ImsAudit column expansion
+
+  // ── v24.3.0 — IMS Data Seed (Checklist Library, 2026 Audits, OFI, CAR, Calibration)
+  'v24_3_seed_ims_audit_data.sql',       // Comprehensive seed: 80+ checklist questions, 2026 audit data, OFI/CAR records, calibration assets
 ];
 
 /**
