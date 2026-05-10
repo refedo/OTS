@@ -288,6 +288,21 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   // IMS QA NCR (24.0.0)
   '/ims/ncr': ['ims.audits.view', 'ims.audits.manage', 'ims.view'],
 
+  // IMS CAR — Corrective Action Register — HEXA-FRM-025
+  '/ims/car': ['ims.audits.view', 'ims.audits.manage', 'ims.view'],
+
+  // IMS OFI Register — HEXA-FRM-024
+  '/ims/ofi-register': ['ims.audits.view', 'ims.audits.manage', 'ims.view'],
+
+  // IMS Checklist Library — HEXA-FRM-026
+  '/ims/checklist-library': ['ims.audits.view', 'ims.audits.manage', 'ims.view'],
+
+  // IMS Audit Programme Dashboard — HEXA-REC-026
+  '/ims/programme-dashboard': ['ims.audits.view', 'ims.audits.manage', 'ims.view'],
+
+  // IMS Audit Checklist execution workspace — HEXA-FRM-006 (24.2.0)
+  '/ims/audit-checklist/[auditId]': ['ims.audits.view', 'ims.audits.manage'],
+
   // Forms Directory (22.7.0)
   '/forms': null, // accessible to all logged-in users
 };

@@ -13,6 +13,16 @@ const CreateSchema = z.object({
   clausesCovered: z.array(z.string()).optional(),
   auditorId: z.string().uuid().optional().nullable(),
   auditeeId: z.string().uuid().optional().nullable(),
+  processArea: z.string().optional().nullable(),
+  riskLevel: z.enum(['High', 'Medium', 'Low']).optional().nullable(),
+  isoClausesInScope: z.array(z.string()).optional().nullable(),
+  auditorIndependenceConfirmed: z.boolean().optional().default(false),
+  approvedByImsManagerName: z.string().optional().nullable(),
+  approvedByImsManagerDate: z.string().datetime().optional().nullable(),
+  approvedByImsManagerSigned: z.boolean().optional().default(false),
+  approvedByTopMgmtName: z.string().optional().nullable(),
+  approvedByTopMgmtDate: z.string().datetime().optional().nullable(),
+  approvedByTopMgmtSigned: z.boolean().optional().default(false),
 });
 
 async function getSession() {
@@ -91,6 +101,16 @@ export async function POST(req: Request) {
         auditeeId: data.auditeeId ?? null,
         status: 'SCHEDULED',
         createdById: session.sub,
+        processArea: data.processArea ?? null,
+        riskLevel: data.riskLevel ?? null,
+        isoClausesInScope: data.isoClausesInScope ?? [],
+        auditorIndependenceConfirmed: data.auditorIndependenceConfirmed ?? false,
+        approvedByImsManagerName: data.approvedByImsManagerName ?? null,
+        approvedByImsManagerDate: data.approvedByImsManagerDate ? new Date(data.approvedByImsManagerDate) : null,
+        approvedByImsManagerSigned: data.approvedByImsManagerSigned ?? false,
+        approvedByTopMgmtName: data.approvedByTopMgmtName ?? null,
+        approvedByTopMgmtDate: data.approvedByTopMgmtDate ? new Date(data.approvedByTopMgmtDate) : null,
+        approvedByTopMgmtSigned: data.approvedByTopMgmtSigned ?? false,
       },
       include: {
         auditor: { select: { id: true, name: true } },

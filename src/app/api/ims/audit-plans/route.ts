@@ -24,12 +24,19 @@ async function generatePlanNumber(year: number): Promise<string> {
   return `AP-${yearShort.toString().padStart(2, '0')}-${(count + 1).toString().padStart(3, '0')}`;
 }
 
-export async function GET(_req: Request) {
+export async function GET(req: Request) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    const yearParam = searchParams.get('year');
+    const year = yearParam ? parseInt(yearParam, 10) : null;
+
+    const where = year && !isNaN(year) ? { year } : {};
+
     const plans = await prisma.imsAuditPlan.findMany({
+      where,
       select: {
         id: true,
         planNumber: true,
