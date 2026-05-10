@@ -33,7 +33,16 @@ export async function GET(_req: Request, { params }: Params) {
     });
 
     if (!plan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(plan);
+
+    const allClauses: string[] = [];
+    for (const audit of plan.audits) {
+      if (Array.isArray(audit.isoClausesInScope)) {
+        allClauses.push(...(audit.isoClausesInScope as string[]));
+      }
+    }
+    const coverageSummary = [...new Set(allClauses)].sort();
+
+    return NextResponse.json({ ...plan, coverageSummary });
   } catch (error) {
     logger.error({ error }, 'Failed to fetch audit plan');
     return NextResponse.json({ error: 'Failed to fetch plan' }, { status: 500 });

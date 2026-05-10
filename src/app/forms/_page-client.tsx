@@ -42,12 +42,16 @@ const FORMS: FormEntry[] = [
   { code: 'HEXA-FRM-021', name: 'Toolbox Talk Record', isp: 'ISP-020', href: '/ims/safety/toolbox-talks', isoClause: 'ISO 45001 §7.3', module: 'Safety', otsRef: 'HR Module — HSE Announcements' },
   { code: 'HEXA-FRM-022', name: 'Calibration Record / Certificate', isp: 'ISP-015', href: '/ims/calibration', isoClause: 'ISO 9001 §7.1.5', module: 'IMS', otsRef: 'IMS Module — Calibration Register; Asset Module' },
   { code: 'HEXA-FRM-023', name: 'Non-Product NCR (QA NCR)', isp: 'ISP-005', href: '/ims/ncr', isoClause: 'ISO 9001 §10.2', module: 'IMS', otsRef: 'IMS Module — QA NCR / Non-Product Nonconformance & CAPA Workflow Engine' },
+  { code: 'HEXA-FRM-024', name: 'OFI & Observation Register', isp: 'ISP-004', href: '/ims/ofi-register', isoClause: 'ISO 9001 §9.2, §10.3', module: 'IMS', otsRef: 'IMS Module — Audit Tracker — OFI Register' },
+  { code: 'HEXA-FRM-025', name: 'Corrective Action & Verification Record', isp: 'ISP-005', href: '/ims/car', isoClause: 'ISO 9001 §10.2', module: 'IMS', otsRef: 'IMS Module — CAPA Tracker — Corrective Actions' },
+  { code: 'HEXA-FRM-026', name: 'Audit Checklist Library', isp: 'ISP-004', href: '/ims/checklist-library', isoClause: 'ISO 9001 §9.2', module: 'IMS', otsRef: 'IMS Module — Audit Tracker — Checklist Library (master question bank)' },
 ];
 
 const RECORDS: FormEntry[] = [
   { code: 'HEXA-REC-023', name: 'Project Card / Job Order', isp: '—', href: '/projects', isRecord: true, isoClause: 'ISO 9001 §8.1', module: 'Projects', otsRef: 'Project Module — auto-generated on order acceptance' },
   { code: 'HEXA-REC-024', name: 'QMS Process List (SIPOC)', isp: 'ISP-001', href: '/ims/processes', isRecord: true, isoClause: 'ISO 9001/14001 §4.4', module: 'IMS', otsRef: 'IMS Module — QMS Process List (system-generated on demand)' },
   { code: 'HEXA-REC-025', name: 'Legal & Regulatory Register Export', isp: 'ISP-002', href: '/ims/legal-register', isRecord: true, isoClause: 'ISO 9001/14001/45001 §6.1.3', module: 'IMS', otsRef: 'Filtered export of FRM-011 (type=LEGAL)' },
+  { code: 'HEXA-REC-026', name: 'Audit Programme Dashboard Export', isp: 'ISP-004', href: '/ims/programme-dashboard', isRecord: true, isoClause: 'ISO 9001 §9.2', module: 'IMS', otsRef: 'IMS Module — Audit Tracker — auto-generated programme dashboard (HEXA-REC-026)' },
 ];
 
 const MODULE_COLORS: Record<string, string> = {
@@ -85,10 +89,10 @@ export function FormsDirectoryClient() {
       <div>
         <div className="flex items-center gap-2 mb-1 flex-wrap">
           <FileText className="h-6 w-6 text-[#2c3e50]" />
-          <h1 className="text-2xl font-bold text-[#2c3e50]">OTS™ Data Entry Forms — HEXA-FRM (22 forms)</h1>
+          <h1 className="text-2xl font-bold text-[#2c3e50]">OTS™ Data Entry Forms — HEXA-FRM (26 forms)</h1>
         </div>
         <p className="text-sm text-slate-500">
-          Per <strong>Hexa-ISM-001 Rev.01</strong> — all 22 HEXA-FRM data-entry forms and 3 HEXA-REC system-generated records. Click any row to open the module.
+          Per <strong>Hexa-ISM-001 Rev.01</strong> — all 26 HEXA-FRM data-entry forms and 4 HEXA-REC system-generated records. Click any row to open the module.
         </p>
         <p className="text-xs text-slate-400 italic mt-1">All forms are OTS™ data entry screens. Records are system-generated outputs. No paper forms are maintained.</p>
       </div>

@@ -375,6 +375,10 @@ model User {
   imsNcrClosed       ImsNcr[]   @relation("ImsNcrClosedBy")
   imsNcrCAResponsible ImsNcr[]  @relation("ImsNcrCAResponsible")
 
+  // Audit rebuild back-relations (24.2.0)
+  ofiEntriesAssigned ImsOfiEntry[]  @relation("OfiEntryAssignedTo")
+  carResponsible     ImsCarRecord[] @relation("CarRecordResponsible")
+
   // Meetings back-relations (22.1.0)
   organizedMeetings    Meeting[]         @relation("MeetingOrganizer")
   meetingAttendances   MeetingAttendee[] @relation("MeetingAttendees")
@@ -6748,6 +6752,33 @@ model ImsAudit {
   findings      ImsAuditFinding[]
   summary       String?         @db.Text
 
+  // FRM-004 expansion — audit schedule enhancements
+  processArea                  String?   @db.VarChar(50)
+  riskLevel                    String?   @db.VarChar(10)
+  isoClausesInScope            Json?
+  auditorIndependenceConfirmed Boolean   @default(false)
+  approvedByImsManagerName     String?   @db.VarChar(100)
+  approvedByImsManagerDate     DateTime?
+  approvedByImsManagerSigned   Boolean   @default(false)
+  approvedByTopMgmtName        String?   @db.VarChar(100)
+  approvedByTopMgmtDate        DateTime?
+  approvedByTopMgmtSigned      Boolean   @default(false)
+
+  // FRM-005 expansion — internal audit report fields
+  reportExecutiveSummary  String?   @db.Text
+  reportAuditMethod       Json?
+  reportPositiveFindings  String?   @db.Text
+  reportConclusion        String?   @db.VarChar(50)
+  reportRecommendation    String?   @db.Text
+  reportLeadAuditorName   String?   @db.VarChar(100)
+  reportLeadAuditorDate   DateTime?
+  reportLeadAuditorSigned Boolean   @default(false)
+  reportImsMgrName        String?   @db.VarChar(100)
+  reportImsMgrDate        DateTime?
+  reportImsMgrSigned      Boolean   @default(false)
+
+  checklist     ImsAuditChecklist?
+
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   createdById   String?         @db.Char(36)
@@ -6831,6 +6862,175 @@ model ImsNcr {
   @@index([auditId])
   @@index([raisedById])
   @@map("ImsNcr")
+}
+
+// ─── Audit Tracker Rebuild (24.2.0) ────────────────────────────────────────
+
+// HEXA-FRM-026 — Audit Checklist Library (master question bank)
+model ImsChecklistQuestion {
+  id            String   @id @default(uuid()) @db.Char(36)
+  questionText  String   @db.Text
+  processArea   String   @db.VarChar(50)
+  isoClause     String   @db.VarChar(100)
+  evidenceType  String   @db.VarChar(30)
+  riskLevel     String   @db.VarChar(10)
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdById   String?  @db.Char(36)
+
+  checklistRows ImsAuditChecklistRow[]
+
+  @@index([processArea])
+  @@index([isActive])
+  @@map("ImsChecklistQuestion")
+}
+
+// HEXA-FRM-006 — Audit Checklist (execution workspace)
+model ImsAuditChecklist {
+  id       String   @id @default(uuid()) @db.Char(36)
+  auditId  String   @unique @db.Char(36)
+  audit    ImsAudit @relation(fields: [auditId], references: [id])
+
+  // Section A — Audit Brief
+  scopeStatement     String?   @db.Text
+  referenceDocs      Json?
+  notificationDate   DateTime?
+  notificationMethod String?   @db.VarChar(20)
+
+  // Section B — Opening Meeting
+  openingMeetingDate    DateTime?
+  openingAttendees      Json?
+  openingAgendaItems    String?   @db.Text
+  scopeChangesAgreed    String?   @db.Text
+  auditeeRepOpeningName String?   @db.VarChar(100)
+  auditeeRepOpeningDate DateTime?
+
+  // Section C — Sampling log (question rows in ImsAuditChecklistRow)
+  recordsReviewed      Json?
+  personnelInterviewed Json?
+
+  // Section D — Closing Meeting
+  closingMeetingDate     DateTime?
+  closingAttendees       Json?
+  preliminaryFindings    String?   @db.Text
+  auditeeAcceptsFindings Boolean?
+  disagreementNature     String?   @db.Text
+  auditeeRepClosingName  String?   @db.VarChar(100)
+  auditeeRepClosingDate  DateTime?
+
+  status String @default("DRAFT") @db.VarChar(20)
+
+  rows ImsAuditChecklistRow[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?  @db.Char(36)
+
+  @@index([auditId])
+  @@map("ImsAuditChecklist")
+}
+
+model ImsAuditChecklistRow {
+  id          String             @id @default(uuid()) @db.Char(36)
+  checklistId String             @db.Char(36)
+  checklist   ImsAuditChecklist  @relation(fields: [checklistId], references: [id])
+  questionId  String?            @db.Char(36)
+  question    ImsChecklistQuestion? @relation(fields: [questionId], references: [id])
+
+  questionText String  @db.Text
+  isoClause    String  @db.VarChar(100)
+
+  result        String? @db.VarChar(20)
+  evidence      String? @db.Text
+  attachmentUrl String? @db.VarChar(500)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([checklistId])
+  @@index([questionId])
+  @@map("ImsAuditChecklistRow")
+}
+
+// HEXA-FRM-024 — OFI & Observation Register
+model ImsOfiEntry {
+  id               String    @id @default(uuid()) @db.Char(36)
+  findingNumber    String    @unique @db.VarChar(60)
+  auditId          String?   @db.Char(36)
+  auditNumber      String?   @db.VarChar(20)
+  findingType      String    @db.VarChar(20)
+  processArea      String    @db.VarChar(50)
+  description      String    @db.Text
+  potentialBenefit String?   @db.Text
+  assignedToId     String?   @db.Char(36)
+  assignedTo       User?     @relation("OfiEntryAssignedTo", fields: [assignedToId], references: [id])
+  targetReviewDate DateTime?
+  status           String    @default("Open") @db.VarChar(30)
+  notes            String?   @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?  @db.Char(36)
+
+  @@index([status])
+  @@index([auditId])
+  @@index([processArea])
+  @@map("ImsOfiEntry")
+}
+
+// HEXA-FRM-025 — Corrective Action & Verification Record
+model ImsCarRecord {
+  id              String    @id @default(uuid()) @db.Char(36)
+  carNumber       String    @unique @db.VarChar(30)
+  linkedNcrId     String?   @db.Char(36)
+  linkedNcrNumber String?   @db.VarChar(30)
+  ncStatement     String?   @db.Text
+
+  rootCauseMethod String? @db.VarChar(20)
+  rootCauseText   String? @db.Text
+
+  actionPlan    String?   @db.Text
+  responsibleId String?   @db.Char(36)
+  responsible   User?     @relation("CarRecordResponsible", fields: [responsibleId], references: [id])
+  targetDate    DateTime?
+
+  status String @default("Draft") @db.VarChar(30)
+
+  verificationDate   DateTime?
+  verificationMethod String?   @db.VarChar(30)
+  verificationResult String?   @db.VarChar(30)
+  verifiedByName     String?   @db.VarChar(100)
+  verifiedById       String?   @db.Char(36)
+
+  progressLogs ImsCarProgressLog[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?  @db.Char(36)
+
+  @@index([status])
+  @@index([linkedNcrId])
+  @@map("ImsCarRecord")
+}
+
+model ImsCarProgressLog {
+  id          String       @id @default(uuid()) @db.Char(36)
+  carId       String       @db.Char(36)
+  car         ImsCarRecord @relation(fields: [carId], references: [id])
+  date        DateTime     @default(now())
+  updateText  String       @db.Text
+  evidenceUrl String?      @db.VarChar(500)
+  userId      String?      @db.Char(36)
+  userName    String?      @db.VarChar(100)
+
+  createdAt DateTime @default(now())
+
+  @@index([carId])
+  @@map("ImsCarProgressLog")
 }
 
 // GAP 5 — Competence Matrix (ISO §7.2)
