@@ -483,7 +483,7 @@ BEGIN
           a.scheduledDate, NOW()
         FROM ImsAuditFinding af
         JOIN ImsAudit a ON a.id = af.auditId
-        WHERE af.id = v_aud001_find;
+        WHERE af.id COLLATE utf8mb4_0900_ai_ci = v_aud001_find;
       END IF;
     END IF;
 
@@ -505,7 +505,7 @@ BEGIN
           '2026-01-15 08:00:00', NOW()
         FROM ImsAuditFinding af
         JOIN ImsAudit a ON a.id = af.auditId
-        WHERE af.id = v_aud004_find;
+        WHERE af.id COLLATE utf8mb4_0900_ai_ci = v_aud004_find;
       END IF;
     END IF;
 
@@ -527,7 +527,7 @@ BEGIN
           '2026-02-11 08:00:00', NOW()
         FROM ImsAuditFinding af
         JOIN ImsAudit a ON a.id = af.auditId
-        WHERE af.id = v_aud005_find;
+        WHERE af.id COLLATE utf8mb4_0900_ai_ci = v_aud005_find;
       END IF;
     END IF;
 
@@ -549,7 +549,7 @@ BEGIN
           '2026-03-19 09:00:00', NOW()
         FROM ImsAuditFinding af
         JOIN ImsAudit a ON a.id = af.auditId
-        WHERE af.id = v_aud006_find;
+        WHERE af.id COLLATE utf8mb4_0900_ai_ci = v_aud006_find;
       END IF;
     END IF;
 
