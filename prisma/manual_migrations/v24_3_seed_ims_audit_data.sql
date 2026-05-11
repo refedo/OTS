@@ -460,7 +460,7 @@ BEGIN
   DECLARE v_aud005_find CHAR(36);
   DECLARE v_aud006_find CHAR(36);
 
-  SELECT id INTO v_admin FROM User WHERE deletedAt IS NULL ORDER BY createdAt ASC LIMIT 1;
+  SELECT id INTO v_admin FROM User WHERE status = 'active' ORDER BY createdAt ASC LIMIT 1;
 
   IF v_admin IS NOT NULL THEN
 
@@ -753,7 +753,7 @@ DELIMITER $$
 CREATE PROCEDURE seed_calibration_assets_v243()
 BEGIN
   DECLARE v_admin CHAR(36);
-  SELECT id INTO v_admin FROM User WHERE deletedAt IS NULL ORDER BY createdAt ASC LIMIT 1;
+  SELECT id INTO v_admin FROM User WHERE status = 'active' ORDER BY createdAt ASC LIMIT 1;
 
   IF v_admin IS NOT NULL THEN
 
