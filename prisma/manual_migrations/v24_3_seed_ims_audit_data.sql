@@ -227,7 +227,7 @@ BEGIN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, status, updatedAt)
       VALUES (UUID(), v_aud001, 'AUD-26-001-F03', 'Conforming', 'ISO 9001:2015 §8.4.3',
         'Purchase order process is well-controlled. All reviewed POs included full specifications, applicable standards, and clear acceptance criteria. GRN matching process is consistently followed.',
-        'OPEN', NULL, NOW());
+        'OPEN', NOW());
     END IF;
   END IF;
 
@@ -244,7 +244,7 @@ BEGIN
       INSERT INTO ImsAuditFinding (id, auditId, findingNumber, type, clause, description, status, updatedAt)
       VALUES (UUID(), v_aud002, 'AUD-26-002-F02', 'Conforming', 'ISO 9001:2015 §7.3',
         'Employee induction process is well-documented and consistently implemented. All 6 new employees onboarded in Q1 2026 have completed induction checklists on file, signed by employee and line manager.',
-        'OPEN', NULL, NOW());
+        'OPEN', NOW());
     END IF;
   END IF;
 
