@@ -5,6 +5,31 @@
 -- Procedure: Hexa-ISP-004
 -- ============================================================
 
+-- ── 0. Helper procedure (conditional column addition) ───────
+
+DROP PROCEDURE IF EXISTS add_column_if_missing;
+DELIMITER $$
+CREATE PROCEDURE add_column_if_missing(
+  IN p_table VARCHAR(64),
+  IN p_col   VARCHAR(64),
+  IN p_def   TEXT
+)
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = p_table
+      AND COLUMN_NAME  = p_col
+  ) THEN
+    SET @_sql = CONCAT('ALTER TABLE `', p_table, '` ADD COLUMN `', p_col, '` ', p_def);
+    PREPARE _s FROM @_sql;
+    EXECUTE _s;
+    DEALLOCATE PREPARE _s;
+  END IF;
+END$$
+DELIMITER ;
+
 -- ── 1. Expand ImsAudit (FRM-004 & FRM-005 fields) ──────────
 
 -- FRM-004 schedule enhancements
