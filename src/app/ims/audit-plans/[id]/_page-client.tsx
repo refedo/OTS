@@ -13,7 +13,8 @@ import {
   ArrowLeft, Plus, CheckCircle2, Loader2, FileDown, Search,
   ChevronRight, FileText, Shield,
 } from 'lucide-react';
-import { generateAuditPlanPDF, type AuditPlanPDFData } from '@/lib/ims-pdf-generator';
+import { generateAuditSchedulePDF, type AuditSchedulePDFData } from '@/lib/ims-audit-schedule-pdf-generator';
+import { generateInternalAuditReportPDF, type InternalAuditReportPDFData } from '@/lib/ims-audit-report-pdf-generator';
 
 type Audit = {
   id: string;
@@ -147,6 +148,7 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
   const [auditeeSearch, setAuditeeSearch] = useState('');
   const [savingApproval, setSavingApproval] = useState(false);
   const [savingReport, setSavingReport] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   const [isoClauseInput, setIsoClauseInput] = useState('');
 
@@ -371,16 +373,11 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
     }
   };
 
-  const downloadPDF = async () => {
+  const downloadSchedule = async () => {
     if (!plan) return;
     setDownloading(true);
     try {
-      const allFindings: Record<string, Finding[]> = {};
-      for (const a of plan.audits) {
-        const fr = await fetch(`/api/ims/audit-findings?auditId=${a.id}`);
-        allFindings[a.id] = fr.ok ? await fr.json() : [];
-      }
-      const pdfData: AuditPlanPDFData = {
+      const pdfData: AuditSchedulePDFData = {
         planNumber: plan.planNumber,
         year: plan.year,
         auditType: plan.auditType,
@@ -388,17 +385,82 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
         audits: plan.audits.map(a => ({
           auditNumber: a.auditNumber,
           scope: a.scope,
+          processArea: a.processArea ?? null,
+          riskLevel: a.riskLevel ?? null,
+          isoClausesInScope: a.isoClausesInScope ?? null,
           scheduledDate: a.scheduledDate,
-          actualDate: a.actualDate,
-          status: a.status,
+          actualDate: a.actualDate ?? null,
           auditor: a.auditor?.name ?? null,
           auditee: a.auditee?.name ?? null,
-          findings: allFindings[a.id] ?? [],
+          status: a.status,
+          auditorIndependenceConfirmed: a.auditorIndependenceConfirmed,
+          approvedByImsManagerName: a.approvedByImsManagerName ?? null,
+          approvedByImsManagerDate: a.approvedByImsManagerDate ?? null,
+          approvedByImsManagerSigned: a.approvedByImsManagerSigned,
+          approvedByTopMgmtName: a.approvedByTopMgmtName ?? null,
+          approvedByTopMgmtDate: a.approvedByTopMgmtDate ?? null,
+          approvedByTopMgmtSigned: a.approvedByTopMgmtSigned,
+          findingsCount: a._count.findings,
         })),
       };
-      await generateAuditPlanPDF(pdfData);
+      await generateAuditSchedulePDF(pdfData);
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const downloadAuditReport = async (audit: Audit) => {
+    if (!plan) return;
+    setDownloadingReport(true);
+    try {
+      const fr = await fetch(`/api/ims/audit-findings?auditId=${audit.id}`);
+      const auditFindings: Finding[] = fr.ok ? await fr.json() : [];
+
+      const pdfData: InternalAuditReportPDFData = {
+        auditNumber: audit.auditNumber,
+        planNumber: plan.planNumber,
+        auditDate: audit.scheduledDate,
+        department: audit.scope,
+        scope: audit.scope,
+        auditor: audit.auditor?.name ?? '—',
+        auditee: audit.auditee?.name ?? '—',
+        standard: 'ISO 9001:2015',
+        processArea: audit.processArea ?? null,
+        riskLevel: audit.riskLevel ?? null,
+        isoClausesInScope: audit.isoClausesInScope ?? null,
+        auditorIndependenceConfirmed: audit.auditorIndependenceConfirmed,
+        reportExecutiveSummary: audit.reportExecutiveSummary ?? null,
+        reportAuditMethod: audit.reportAuditMethod ?? null,
+        reportPositiveFindings: audit.reportPositiveFindings ?? null,
+        reportConclusion: audit.reportConclusion ?? null,
+        reportRecommendation: audit.reportRecommendation ?? null,
+        reportLeadAuditorName: audit.reportLeadAuditorName ?? null,
+        reportLeadAuditorDate: audit.reportLeadAuditorDate ?? null,
+        reportLeadAuditorSigned: audit.reportLeadAuditorSigned,
+        reportImsMgrName: audit.reportImsMgrName ?? null,
+        reportImsMgrDate: audit.reportImsMgrDate ?? null,
+        reportImsMgrSigned: audit.reportImsMgrSigned,
+        findings: auditFindings.map(f => ({
+          findingNumber: f.findingNumber,
+          type: f.type,
+          clause: f.clause,
+          description: f.description,
+          evidence: null,
+          correctiveAction: null,
+          targetDate: f.targetDate ?? null,
+          status: f.status,
+        })),
+      };
+
+      const blob = await generateInternalAuditReportPDF(pdfData);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${audit.auditNumber}-FRM-005-Audit-Report.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingReport(false);
     }
   };
 
@@ -445,11 +507,12 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
         <Button
           size="sm" variant="outline"
           className="gap-1.5 text-xs border-[#2c3e50]/30 text-[#2c3e50] hover:bg-[#2c3e50] hover:text-white transition-colors"
-          onClick={downloadPDF}
+          onClick={downloadSchedule}
           disabled={downloading}
+          title="Download HEXA-FRM-004 Audit Schedule"
         >
           {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
-          Download PDF
+          FRM-004 Schedule
         </Button>
       </div>
 
@@ -531,7 +594,19 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
               {selectedAudit ? `Findings — ${selectedAudit.auditNumber}` : 'Select an audit'}
             </CardTitle>
             {selectedAudit && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm" variant="outline"
+                  className="gap-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => downloadAuditReport(selectedAudit)}
+                  disabled={downloadingReport}
+                  title="Download HEXA-FRM-005 Internal Audit Report"
+                >
+                  {downloadingReport
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <FileDown className="w-3 h-3" />}
+                  FRM-005 Report
+                </Button>
                 <Link href={`/ims/audit-checklist/${selectedAudit.id}`}>
                   <Button size="sm" variant="outline" className="gap-1 text-xs border-indigo-300 text-indigo-700 hover:bg-indigo-50">
                     <FileText className="w-3 h-3" /> Open Checklist <ChevronRight className="w-3 h-3" />
@@ -835,7 +910,19 @@ export function AuditPlanDetailClient({ planId }: { planId: string }) {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <Button
+                  size="sm" variant="outline"
+                  onClick={() => selectedAudit && downloadAuditReport(selectedAudit)}
+                  disabled={downloadingReport}
+                  className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  title="Download HEXA-FRM-005 Internal Audit Report PDF"
+                >
+                  {downloadingReport
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <FileDown className="w-3.5 h-3.5" />}
+                  Download FRM-005 Report
+                </Button>
                 <Button
                   size="sm"
                   onClick={saveReport}

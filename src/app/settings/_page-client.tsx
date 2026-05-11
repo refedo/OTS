@@ -25,6 +25,7 @@ type Settings = {
   companyEmail: string | null;
   companyWebsite: string | null;
   defaultReportTheme: string;
+  pdfFont: string;
   reportFooterText: string;
   dateFormat: string;
   timezone: string;
@@ -747,6 +748,23 @@ export default function SettingsPage() {
                   </select>
                   <p className="text-xs text-muted-foreground">
                     Users can still choose different themes when exporting
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pdfFont">PDF Document Font</Label>
+                  <select
+                    id="pdfFont"
+                    value={settings.pdfFont ?? 'helvetica'}
+                    onChange={(e) => setSettings({ ...settings, pdfFont: e.target.value })}
+                    className="w-full h-10 px-3 rounded-md border bg-background"
+                  >
+                    <option value="helvetica">Helvetica (Default)</option>
+                    <option value="courier">Courier</option>
+                    <option value="times">Times New Roman</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Font used in all generated PDF documents — applies to audit schedules, reports, and all IMS exports
                   </p>
                 </div>
 
