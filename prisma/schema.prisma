@@ -2738,6 +2738,7 @@ model SystemSettings {
 
   // Report Settings
   defaultReportTheme String @default("blue") // blue | green | orange | purple | red
+  pdfFont            String @default("helvetica") // helvetica | courier | times
   reportFooterText   String @default("HEXA STEEL - Professional Report")
 
   // System Settings

@@ -1,24 +1,29 @@
 'use client';
 
-import { PDFReportBuilder, type LogoData } from './pdf-builder';
+import { PDFReportBuilder, type LogoData, type PDFFontFamily } from './pdf-builder';
 
 const COMPANY = 'Hexa Steel®';
 const TAGLINE = 'Integrated Management System — ISO 9001:2015 / ISO 14001:2015 / ISO 45001:2018';
 const FOOTER = 'Hexa Steel® OTS · Confidential IMS Document · hexasteel.sa/ots';
 
-async function loadLogoForPDF(): Promise<LogoData | undefined> {
+async function loadSettingsForPDF(): Promise<{ logo?: LogoData; font: PDFFontFamily }> {
   try {
     const res = await fetch('/api/settings');
-    if (!res.ok) return undefined;
+    if (!res.ok) return { font: 'helvetica' };
     const data = await res.json();
+
+    const font: PDFFontFamily = (['helvetica', 'courier', 'times'] as PDFFontFamily[]).includes(data.pdfFont)
+      ? (data.pdfFont as PDFFontFamily)
+      : 'helvetica';
+
     const whitePath: string | undefined = data.logoWhite;
     const colorPath: string | undefined = data.companyLogo;
     const logoPath = whitePath || colorPath;
-    if (!logoPath) return undefined;
+    if (!logoPath) return { font };
     const isWhite = !!whitePath;
 
     const imgRes = await fetch(logoPath);
-    if (!imgRes.ok) return undefined;
+    if (!imgRes.ok) return { font };
     const blob = await imgRes.blob();
     const base64 = await new Promise<string>((resolve) => {
       const reader = new FileReader();
@@ -33,9 +38,9 @@ async function loadLogoForPDF(): Promise<LogoData | undefined> {
       img.src = base64;
     });
 
-    return { base64, aspectRatio, isWhite };
+    return { logo: { base64, aspectRatio, isWhite }, font };
   } catch {
-    return undefined;
+    return { font: 'helvetica' };
   }
 }
 
@@ -241,12 +246,12 @@ function statusDot(s: string): string {
 }
 
 export async function generateAuditPlanPDF(data: AuditPlanPDFData): Promise<void> {
-  const logo = await loadLogoForPDF();
-  const pdf = new PDFReportBuilder('portrait', 'steel');
+  const { logo, font } = await loadSettingsForPDF();
+  const pdf = new PDFReportBuilder('portrait', 'steel', font);
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
   pdf.addTitle(
-    `HEXA-FRM-006/007 — Internal Audit Plan`,
+    `HEXA-FRM-004 — Internal Audit Schedule`,
     `${data.planNumber} · ${data.auditType} · ${data.year}`
   );
   pdf.addMetadataBox({
@@ -283,7 +288,7 @@ export async function generateAuditPlanPDF(data: AuditPlanPDFData): Promise<void
   );
 
   if (allFindings.length > 0) {
-    pdf.addSectionHeader('HEXA-FRM-008 — Audit Findings / NCR Register');
+    pdf.addSectionHeader('Audit Findings Register');
     pdf.addTable(
       ['Finding No.', 'Audit', 'Type', 'Clause', 'Description', 'Status', 'Target Date'],
       allFindings.map((f) => [
@@ -300,7 +305,7 @@ export async function generateAuditPlanPDF(data: AuditPlanPDFData): Promise<void
 
     const ncrs = allFindings.filter((f) => f.type === 'NC');
     if (ncrs.length > 0) {
-      pdf.addSectionHeader('Non-Conformance Details (HEXA-FRM-008)');
+      pdf.addSectionHeader('Non-Conformance Details');
       for (const f of ncrs) {
         pdf.addInfoGrid({
           'Finding No.': f.findingNumber,
@@ -323,13 +328,13 @@ export async function generateAuditPlanPDF(data: AuditPlanPDFData): Promise<void
     { label: 'Top Management', date: '' },
   ]);
 
-  pdf.addFooter(FOOTER, 'HEXA-FRM-006 · HEXA-FRM-007 · HEXA-FRM-009 · Procedure: Hexa-ISP-002');
-  pdf.save(`${data.planNumber}-Audit-Plan.pdf`);
+  pdf.addFooter(FOOTER, 'HEXA-FRM-004 · Procedure: Hexa-ISP-004 · ISO 9001:2015 §9.2');
+  pdf.save(`${data.planNumber}-FRM-004-Audit-Schedule.pdf`);
 }
 
 export async function generateManagementReviewMOMPDF(data: ManagementReviewPDFData): Promise<void> {
-  const logo = await loadLogoForPDF();
-  const pdf = new PDFReportBuilder('portrait', 'steel');
+  const { logo, font } = await loadSettingsForPDF();
+  const pdf = new PDFReportBuilder('portrait', 'steel', font);
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
   pdf.addTitle(
@@ -422,8 +427,8 @@ export async function generateManagementReviewMOMPDF(data: ManagementReviewPDFDa
 }
 
 export async function generateManagementReviewReportPDF(data: ManagementReviewPDFData): Promise<void> {
-  const logo = await loadLogoForPDF();
-  const pdf = new PDFReportBuilder('portrait', 'steel');
+  const { logo, font } = await loadSettingsForPDF();
+  const pdf = new PDFReportBuilder('portrait', 'steel', font);
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
   pdf.addTitle(
@@ -531,8 +536,8 @@ export async function generateManagementReviewReportPDF(data: ManagementReviewPD
 }
 
 export async function generateProcessesPDF(processes: ProcessPDFData[]): Promise<void> {
-  const logo = await loadLogoForPDF();
-  const pdf = new PDFReportBuilder('landscape', 'steel');
+  const { logo, font } = await loadSettingsForPDF();
+  const pdf = new PDFReportBuilder('landscape', 'steel', font);
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
   pdf.addTitle(
@@ -581,8 +586,8 @@ export async function generateProcessesPDF(processes: ProcessPDFData[]): Promise
 }
 
 export async function generateObjectivesPDF(objectives: ObjectivePDFData[], year: number): Promise<void> {
-  const logo = await loadLogoForPDF();
-  const pdf = new PDFReportBuilder('portrait', 'steel');
+  const { logo, font } = await loadSettingsForPDF();
+  const pdf = new PDFReportBuilder('portrait', 'steel', font);
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
   pdf.addTitle(
@@ -678,8 +683,8 @@ export type ProductNCRPDFData = {
 };
 
 export async function generateProductNCRPDF(data: ProductNCRPDFData): Promise<void> {
-  const logo = await loadLogoForPDF();
-  const pdf = new PDFReportBuilder('portrait', 'red');
+  const { logo, font } = await loadSettingsForPDF();
+  const pdf = new PDFReportBuilder('portrait', 'red', font);
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
   pdf.addTitle(
@@ -781,8 +786,8 @@ export type RiskRegisterPDFRisk = {
 };
 
 export async function generateRiskRegisterPDF(risks: RiskRegisterPDFRisk[]): Promise<void> {
-  const logo = await loadLogoForPDF();
-  const pdf = new PDFReportBuilder('landscape', 'red');
+  const { logo, font } = await loadSettingsForPDF();
+  const pdf = new PDFReportBuilder('landscape', 'red', font);
 
   pdf.addHeader(COMPANY, TAGLINE, logo);
   pdf.addTitle(

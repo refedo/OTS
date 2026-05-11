@@ -67,9 +67,18 @@ export type LogoData = {
   isWhite: boolean;
 };
 
+export type PDFFontFamily = 'helvetica' | 'courier' | 'times';
+
+export const PDF_FONT_LABELS: Record<PDFFontFamily, string> = {
+  helvetica: 'Helvetica',
+  courier: 'Courier',
+  times: 'Times New Roman',
+};
+
 export class PDFReportBuilder {
   private doc: jsPDF;
   private theme: ReportTheme;
+  private font: PDFFontFamily;
   private currentY: number = 20;
   private pageWidth: number;
   private pageHeight: number;
@@ -77,14 +86,16 @@ export class PDFReportBuilder {
 
   constructor(
     orientation: 'portrait' | 'landscape' = 'portrait',
-    themeName: keyof typeof themes = 'blue'
+    themeName: keyof typeof themes = 'blue',
+    fontFamily: PDFFontFamily = 'helvetica'
   ) {
     this.doc = new jsPDF({
       orientation,
       unit: 'mm',
       format: 'a4',
     });
-    this.doc.setFont('helvetica', 'normal');
+    this.font = fontFamily;
+    this.doc.setFont(this.font, 'normal');
     this.theme = themes[themeName];
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
@@ -122,28 +133,28 @@ export class PDFReportBuilder {
 
     this.doc.setTextColor(this.theme.headerText);
     this.doc.setFontSize(15);
-    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFont(this.font, 'bold');
     this.doc.text(companyName, textOffsetX, 13);
 
     this.doc.setFontSize(7.5);
-    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFont(this.font, 'normal');
     this.doc.text(companyTagline, textOffsetX, 20);
 
     this.currentY = headerHeight + 5;
     this.doc.setTextColor(this.theme.textColor);
-    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFont(this.font, 'normal');
   }
 
   addTitle(title: string, subtitle?: string): void {
     this.doc.setFontSize(17);
-    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFont(this.font, 'bold');
     this.doc.setTextColor(this.theme.primaryColor);
     this.doc.text(title, this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 8;
 
     if (subtitle) {
       this.doc.setFontSize(9.5);
-      this.doc.setFont('helvetica', 'italic');
+      this.doc.setFont(this.font, 'italic');
       this.doc.setTextColor(80, 80, 80);
       this.doc.text(subtitle, this.pageWidth / 2, this.currentY, { align: 'center' });
       this.currentY += 6;
@@ -151,7 +162,7 @@ export class PDFReportBuilder {
 
     this.currentY += 4;
     this.doc.setTextColor(this.theme.textColor);
-    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFont(this.font, 'normal');
   }
 
   addMetadataBox(metadata: Record<string, string>): void {
@@ -170,10 +181,10 @@ export class PDFReportBuilder {
     let metaY = this.currentY + 5;
 
     Object.entries(metadata).forEach(([key, value]) => {
-      this.doc.setFont('helvetica', 'bold');
+      this.doc.setFont(this.font, 'bold');
       this.doc.setTextColor(60, 60, 60);
       this.doc.text(`${key}:`, boxX + 2, metaY);
-      this.doc.setFont('helvetica', 'normal');
+      this.doc.setFont(this.font, 'normal');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(value, boxX + 22, metaY);
       metaY += lineHeight;
@@ -190,12 +201,12 @@ export class PDFReportBuilder {
 
     this.doc.setTextColor(this.theme.headerText);
     this.doc.setFontSize(10);
-    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFont(this.font, 'bold');
     this.doc.text(title, this.margin + 3, this.currentY + 5);
 
     this.currentY += 10;
     this.doc.setTextColor(this.theme.textColor);
-    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFont(this.font, 'normal');
   }
 
   addInfoGrid(data: Record<string, string | number>, columns: number = 2): void {
@@ -212,11 +223,11 @@ export class PDFReportBuilder {
       const y = this.currentY + row * lineHeight;
 
       this.doc.setFontSize(8);
-      this.doc.setFont('helvetica', 'bold');
+      this.doc.setFont(this.font, 'bold');
       this.doc.setTextColor(80, 80, 80);
       this.doc.text(`${key}:`, x, y);
 
-      this.doc.setFont('helvetica', 'normal');
+      this.doc.setFont(this.font, 'normal');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(String(value), x + 35, y);
 
@@ -251,13 +262,13 @@ export class PDFReportBuilder {
         fillColor: options?.headerBg || this.theme.primaryColor,
         textColor: options?.headerText || this.theme.headerText,
         fontStyle: 'bold',
-        font: 'helvetica',
+        font: this.font,
         fontSize: 8.5,
       },
       bodyStyles: {
         fontSize: 8,
         textColor: this.theme.textColor,
-        font: 'times',
+        font: this.font,
       },
       alternateRowStyles: options?.alternateRows ? { fillColor: [248, 249, 250] } : undefined,
     });
@@ -269,12 +280,33 @@ export class PDFReportBuilder {
     this.checkPageBreak(20);
 
     this.doc.setFontSize(fontSize);
-    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFont(this.font, 'normal');
     this.doc.setTextColor(this.theme.textColor);
 
     const lines = this.doc.splitTextToSize(text, this.pageWidth - 2 * this.margin);
     this.doc.text(lines, this.margin, this.currentY);
     this.currentY += lines.length * (fontSize * 0.42) + 4;
+  }
+
+  addDivider(): void {
+    this.checkPageBreak(8);
+    this.doc.setDrawColor(220, 220, 220);
+    this.doc.setLineWidth(0.3);
+    this.doc.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+    this.currentY += 5;
+  }
+
+  addLabelValue(label: string, value: string, fontSize: number = 9): void {
+    this.checkPageBreak(8);
+    this.doc.setFontSize(fontSize);
+    this.doc.setFont(this.font, 'bold');
+    this.doc.setTextColor(80, 80, 80);
+    this.doc.text(`${label}:`, this.margin, this.currentY);
+    this.doc.setFont(this.font, 'normal');
+    this.doc.setTextColor(this.theme.textColor);
+    const lines = this.doc.splitTextToSize(value || '—', this.pageWidth - this.margin - 40);
+    this.doc.text(lines, this.margin + 38, this.currentY);
+    this.currentY += Math.max(lines.length * (fontSize * 0.42), 5) + 3;
   }
 
   addSignatureSection(
@@ -288,7 +320,7 @@ export class PDFReportBuilder {
       const x = this.margin + index * sigWidth;
 
       this.doc.setFontSize(8);
-      this.doc.setFont('helvetica', 'bold');
+      this.doc.setFont(this.font, 'bold');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(sig.label, x, this.currentY);
 
@@ -297,14 +329,14 @@ export class PDFReportBuilder {
       this.doc.line(x, this.currentY + 16, x + sigWidth - 8, this.currentY + 16);
 
       if (sig.name) {
-        this.doc.setFont('helvetica', 'normal');
+        this.doc.setFont(this.font, 'normal');
         this.doc.setFontSize(7.5);
         this.doc.setTextColor(80, 80, 80);
         this.doc.text(sig.name, x, this.currentY + 20);
       }
 
       if (sig.date) {
-        this.doc.setFont('helvetica', 'normal');
+        this.doc.setFont(this.font, 'normal');
         this.doc.setFontSize(7.5);
         this.doc.setTextColor(120, 120, 120);
         this.doc.text(sig.date, x, this.currentY + 24);
@@ -314,7 +346,7 @@ export class PDFReportBuilder {
     this.currentY += 32;
   }
 
-  // formRef: e.g. "HEXA-FRM-011 · HEXA-FRM-012 · Procedure: Hexa-ISP-003"
+  // formRef: e.g. "HEXA-FRM-004 · Procedure: Hexa-ISP-004"
   addFooter(text: string, formRef?: string): void {
     const pageCount = this.doc.getNumberOfPages();
 
@@ -326,7 +358,7 @@ export class PDFReportBuilder {
       this.doc.setLineWidth(0.3);
       this.doc.line(this.margin, this.pageHeight - 16, this.pageWidth - this.margin, this.pageHeight - 16);
 
-      this.doc.setFont('helvetica', 'normal');
+      this.doc.setFont(this.font, 'normal');
       this.doc.setFontSize(6.5);
       this.doc.setTextColor(140, 140, 140);
 

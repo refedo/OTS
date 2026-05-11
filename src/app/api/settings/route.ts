@@ -18,6 +18,7 @@ const settingsSchema = z.object({
   companyEmail: z.string().email().or(z.literal('')).transform(val => val === '' ? null : val).nullable().optional(),
   companyWebsite: z.string().url().or(z.literal('')).transform(val => val === '' ? null : val).nullable().optional(),
   defaultReportTheme: z.enum(['blue', 'green', 'orange', 'purple', 'red']).optional(),
+  pdfFont: z.enum(['helvetica', 'courier', 'times']).optional(),
   reportFooterText: z.string().optional(),
   dateFormat: z.string().optional(),
   timezone: z.string().optional(),
@@ -43,8 +44,8 @@ export async function GET(req: Request) {
     const SAFE_SELECT = {
       id: true, companyName: true, companyTagline: true, companyLogo: true,
       companyAddress: true, companyPhone: true, companyEmail: true,
-      companyWebsite: true, defaultReportTheme: true, reportFooterText: true,
-      dateFormat: true, timezone: true, currency: true,
+      companyWebsite: true, defaultReportTheme: true, pdfFont: true,
+      reportFooterText: true, dateFormat: true, timezone: true, currency: true,
       emailNotifications: true, smsNotifications: true,
       createdAt: true, updatedAt: true,
     } as const;

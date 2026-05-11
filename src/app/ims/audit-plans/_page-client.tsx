@@ -12,7 +12,7 @@ import Link from 'next/link';
 import {
   SearchCheck, Plus, RefreshCw, ChevronRight, CheckCircle2, Clock, FileDown, Loader2,
 } from 'lucide-react';
-import { generateAuditPlanPDF, type AuditPlanPDFData } from '@/lib/ims-pdf-generator';
+import { generateAuditSchedulePDF, type AuditSchedulePDFData } from '@/lib/ims-audit-schedule-pdf-generator';
 
 type Plan = {
   id: string;
@@ -89,41 +89,52 @@ export function AuditPlansClient() {
     }
   };
 
-  const downloadPDF = async (plan: Plan) => {
+  const downloadSchedule = async (plan: Plan) => {
     setDownloading(plan.id);
     try {
       const res = await fetch(`/api/ims/audit-plans/${plan.id}`);
       if (!res.ok) return;
       const detail = await res.json();
 
-      const findingsMap: Record<string, AuditPlanPDFData['audits'][0]['findings']> = {};
-      for (const a of (detail.audits ?? [])) {
-        const fr = await fetch(`/api/ims/audit-findings?auditId=${a.id}`);
-        findingsMap[a.id] = fr.ok ? await fr.json() : [];
-      }
-
-      const pdfData: AuditPlanPDFData = {
+      const pdfData: AuditSchedulePDFData = {
         planNumber: plan.planNumber,
         year: plan.year,
         auditType: plan.auditType,
         status: plan.status,
         audits: (detail.audits ?? []).map((a: {
-          id: string; auditNumber: string; scope: string;
+          auditNumber: string; scope: string; processArea?: string | null;
+          riskLevel?: string | null; isoClausesInScope?: string[] | null;
           scheduledDate: string; actualDate?: string | null; status: string;
           auditor?: { name: string } | null; auditee?: { name: string } | null;
+          auditorIndependenceConfirmed?: boolean;
+          approvedByImsManagerName?: string | null; approvedByImsManagerDate?: string | null;
+          approvedByImsManagerSigned?: boolean;
+          approvedByTopMgmtName?: string | null; approvedByTopMgmtDate?: string | null;
+          approvedByTopMgmtSigned?: boolean;
+          _count?: { findings: number };
         }) => ({
           auditNumber: a.auditNumber,
           scope: a.scope,
+          processArea: a.processArea ?? null,
+          riskLevel: a.riskLevel ?? null,
+          isoClausesInScope: a.isoClausesInScope ?? null,
           scheduledDate: a.scheduledDate,
-          actualDate: a.actualDate,
-          status: a.status,
+          actualDate: a.actualDate ?? null,
           auditor: a.auditor?.name ?? null,
           auditee: a.auditee?.name ?? null,
-          findings: findingsMap[a.id] ?? [],
+          status: a.status,
+          auditorIndependenceConfirmed: a.auditorIndependenceConfirmed ?? false,
+          approvedByImsManagerName: a.approvedByImsManagerName ?? null,
+          approvedByImsManagerDate: a.approvedByImsManagerDate ?? null,
+          approvedByImsManagerSigned: a.approvedByImsManagerSigned ?? false,
+          approvedByTopMgmtName: a.approvedByTopMgmtName ?? null,
+          approvedByTopMgmtDate: a.approvedByTopMgmtDate ?? null,
+          approvedByTopMgmtSigned: a.approvedByTopMgmtSigned ?? false,
+          findingsCount: a._count?.findings ?? 0,
         })),
       };
 
-      await generateAuditPlanPDF(pdfData);
+      await generateAuditSchedulePDF(pdfData);
     } finally {
       setDownloading(null);
     }
@@ -141,7 +152,7 @@ export function AuditPlansClient() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Internal Audit Tracker</h1>
             <p className="text-slate-300 text-sm mt-0.5">ISO 9001 / 14001 / 45001 §9.2 — Audit programme management</p>
-            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-006 · HEXA-FRM-007 · HEXA-FRM-009 · Procedure: Hexa-ISP-002</p>
+            <p className="text-slate-400/70 text-xs font-mono mt-1">HEXA-FRM-004 · HEXA-FRM-005 · HEXA-FRM-006 · Procedure: Hexa-ISP-004</p>
           </div>
         </div>
       </div>
@@ -238,14 +249,15 @@ export function AuditPlansClient() {
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           size="sm" variant="ghost"
-                          className="h-7 w-7 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                          onClick={() => downloadPDF(p)}
+                          className="h-7 px-2 text-xs gap-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                          onClick={() => downloadSchedule(p)}
                           disabled={downloading === p.id}
-                          title="Download PDF"
+                          title="Download HEXA-FRM-004 Audit Schedule PDF"
                         >
                           {downloading === p.id
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             : <FileDown className="w-3.5 h-3.5" />}
+                          <span className="hidden sm:inline">FRM-004</span>
                         </Button>
                         <Link href={`/ims/audit-plans/${p.id}`}>
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-slate-500 hover:text-[#2c3e50] hover:bg-slate-100 gap-1">
