@@ -208,6 +208,12 @@ const STARTUP_MIGRATIONS = [
 
   // ── v24.3.0 — IMS Data Seed (Checklist Library, 2026 Audits, OFI, CAR, Calibration)
   'v24_3_seed_ims_audit_data.sql',       // Comprehensive seed: 80+ checklist questions, 2026 audit data, OFI/CAR records, calibration assets
+
+  // ── v24.5.0 — Supplier COA default table ─────────────────────────────────
+  'v24_5_fin_supplier_coa_default.sql',  // Ensure fin_supplier_coa_default exists (fixes "Supplier not found")
+
+  // ── v24.6.0 — Subcontractor payment certificate delete reason ─────────────
+  'v24_6_sc_cert_delete_reason.sql',     // deleteReason column on SubcontractorPaymentCertificate
 ];
 
 /**

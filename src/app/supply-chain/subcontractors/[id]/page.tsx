@@ -17,6 +17,7 @@ export default async function SubcontractorDetailPage() {
   const permissions = await getCurrentUserPermissions();
   const canView    = permissions.includes('subcontractors.view');
   const canEdit    = permissions.includes('subcontractors.edit');
+  const canDelete  = permissions.includes('subcontractors.delete');
   const canApprove = permissions.includes('subcontractors.approve');
   const canCertCreate  = permissions.includes('subcontractors.certs.create');
   const canCertApprove = permissions.includes('subcontractors.certs.approve');
@@ -26,6 +27,7 @@ export default async function SubcontractorDetailPage() {
   return (
     <SubcontractorContractDetailPage
       canEdit={canEdit}
+      canDelete={canDelete}
       canApprove={canApprove}
       canCertCreate={canCertCreate}
       canCertApprove={canCertApprove}

@@ -7411,6 +7411,7 @@ model SubcontractorPaymentCertificate {
   updatedById                   String?   @db.Char(36)
   deletedAt                     DateTime?
   deletedById                   String?   @db.Char(36)
+  deleteReason                  String?   @db.VarChar(500)
   createdAt                     DateTime  @default(now())
   updatedAt                     DateTime  @updatedAt
 
