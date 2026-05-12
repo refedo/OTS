@@ -18,7 +18,7 @@ import {
   Handshake, ChevronLeft, CheckCircle2, Clock, AlertTriangle, Ban,
   TrendingUp, Plus, Loader2, RefreshCw, Building2, FolderOpen,
   DollarSign, FileText, Send, ThumbsUp, PlayCircle, PauseCircle, XCircle,
-  Flag, ExternalLink, AlertCircle, ChevronDown, ChevronUp,
+  Flag, ExternalLink, AlertCircle, ChevronDown, ChevronUp, Pencil, Trash2,
 } from 'lucide-react';
 
 type Cert = {
@@ -104,12 +104,13 @@ function fmtDate(d: string | null) {
 
 interface Props {
   canEdit: boolean;
+  canDelete: boolean;
   canApprove: boolean;
   canCertCreate: boolean;
   canCertApprove: boolean;
 }
 
-export default function SubcontractorContractDetailPage({ canEdit, canApprove: hasApprovePermission, canCertCreate, canCertApprove }: Props) {
+export default function SubcontractorContractDetailPage({ canEdit, canDelete, canApprove: hasApprovePermission, canCertCreate, canCertApprove }: Props) {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -119,7 +120,7 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
   const [error, setError] = useState('');
   const [tcCollapsed, setTcCollapsed] = useState(true);
 
-  // New cert dialog
+  // ── New cert dialog ─────────────────────────────────────────────────────────
   const [certDialog, setCertDialog] = useState(false);
   const [certDate, setCertDate] = useState(new Date().toISOString().split('T')[0]);
   const [certPeriodFrom, setCertPeriodFrom] = useState('');
@@ -130,6 +131,27 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
   const [certNotes, setCertNotes] = useState('');
   const [certSaving, setCertSaving] = useState(false);
   const [certError, setCertError] = useState('');
+
+  // ── Edit contract dialog ────────────────────────────────────────────────────
+  const [editDialog, setEditDialog] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [editRetention, setEditRetention] = useState('');
+  const [editCurrency, setEditCurrency] = useState('SAR');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  // ── Delete contract dialog ──────────────────────────────────────────────────
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // ── Delete cert dialog ──────────────────────────────────────────────────────
+  const [deleteCertDialog, setDeleteCertDialog] = useState(false);
+  const [deleteCertId, setDeleteCertId] = useState('');
+  const [deleteCertNumber, setDeleteCertNumber] = useState('');
+  const [deleteCertReason, setDeleteCertReason] = useState('');
+  const [deleteCertLoading, setDeleteCertLoading] = useState(false);
 
   const fetchContract = useCallback(async () => {
     setLoading(true);
@@ -196,6 +218,78 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
     setCertSaving(false);
   };
 
+  const openEditDialog = () => {
+    if (!contract) return;
+    setEditValue(String(contract.contractValue));
+    setEditRetention(String(contract.retentionPercentage));
+    setEditCurrency(contract.currency);
+    setEditNotes(contract.notes ?? '');
+    setEditError('');
+    setEditDialog(true);
+  };
+
+  const handleEdit = async () => {
+    setEditSaving(true);
+    setEditError('');
+    const res = await fetch(`/api/subcontractor-contracts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contractValue: Number(editValue),
+        retentionPercentage: Number(editRetention),
+        currency: editCurrency,
+        notes: editNotes || null,
+      }),
+    });
+    if (res.ok) {
+      setEditDialog(false);
+      await fetchContract();
+    } else {
+      const d = await res.json() as { error?: string };
+      setEditError(d.error ?? 'Failed to update contract');
+    }
+    setEditSaving(false);
+  };
+
+  const handleDelete = async () => {
+    setDeleteLoading(true);
+    const res = await fetch(`/api/subcontractor-contracts/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: deleteReason }),
+    });
+    if (res.ok) {
+      router.push('/supply-chain/subcontractors');
+    } else {
+      const d = await res.json() as { error?: string };
+      setError(d.error ?? 'Failed to delete contract');
+      setDeleteDialog(false);
+    }
+    setDeleteLoading(false);
+  };
+
+  const openDeleteCertDialog = (certId: string, certNumber: string) => {
+    setDeleteCertId(certId);
+    setDeleteCertNumber(certNumber);
+    setDeleteCertReason('');
+    setDeleteCertDialog(true);
+  };
+
+  const handleDeleteCert = async () => {
+    if (!deleteCertReason.trim()) return;
+    setDeleteCertLoading(true);
+    const res = await fetch(`/api/subcontractor-contracts/${id}/payment-certificates/${deleteCertId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: deleteCertReason }),
+    });
+    if (res.ok) {
+      setDeleteCertDialog(false);
+      await fetchContract();
+    }
+    setDeleteCertLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -231,6 +325,8 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
   const canResume   = canEdit && contract.status === 'SUSPENDED';
   const canComplete = canEdit && contract.status === 'ACTIVE';
   const canCancel   = canEdit && ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(contract.status);
+  const canEditFields = canEdit && contract.status === 'DRAFT';
+  const canDeleteContract = canDelete && ['DRAFT', 'CANCELLED'].includes(contract.status);
   const canAddCert  = canCertCreate && contract.status === 'ACTIVE';
 
   return (
@@ -255,6 +351,12 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {canEditFields && (
+              <Button size="sm" variant="outline" onClick={openEditDialog} disabled={actionLoading}>
+                <Pencil className="size-4 mr-1" />
+                Edit
+              </Button>
+            )}
             {canSubmit && (
               <Button size="sm" onClick={() => handleAction('submit')} disabled={actionLoading} className="bg-amber-500 hover:bg-amber-600">
                 {actionLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4 mr-1" />}
@@ -295,6 +397,12 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
               <Button size="sm" variant="outline" onClick={() => handleAction('cancel')} disabled={actionLoading} className="text-rose-600 border-rose-300">
                 {actionLoading ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4 mr-1" />}
                 Cancel
+              </Button>
+            )}
+            {canDeleteContract && (
+              <Button size="sm" variant="outline" onClick={() => { setDeleteReason(''); setDeleteDialog(true); }} disabled={actionLoading} className="text-rose-700 border-rose-300 hover:bg-rose-50">
+                <Trash2 className="size-4 mr-1" />
+                Delete
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={fetchContract} disabled={loading}>
@@ -538,6 +646,16 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
                                 <CheckCircle2 className="size-3 mr-1" /> Mark Paid
                               </Button>
                             )}
+                            {canCertCreate && cert.status === 'DRAFT' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
+                                onClick={() => openDeleteCertDialog(cert.id, cert.certificateNumber)}
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -636,7 +754,6 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
               </div>
             )}
 
-            {/* Previous cumulative context */}
             {latestCert && (
               <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
                 <p className="font-semibold mb-1">Previous certificate: {latestCert.certificateNumber}</p>
@@ -724,6 +841,151 @@ export default function SubcontractorContractDetailPage({ canEdit, canApprove: h
             >
               {certSaving ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
               Create Certificate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Contract Dialog ── */}
+      <Dialog open={editDialog} onOpenChange={setEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="size-5 text-primary" />
+              Edit Contract
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {editError && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                <AlertCircle className="size-4 shrink-0" />
+                {editError}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5 col-span-2">
+                <Label>Contract Value *</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={editValue}
+                  onChange={e => setEditValue(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Retention % *</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  value={editRetention}
+                  onChange={e => setEditRetention(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Currency</Label>
+                <Input
+                  value={editCurrency}
+                  onChange={e => setEditCurrency(e.target.value.toUpperCase())}
+                  maxLength={10}
+                  placeholder="SAR"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea
+                value={editNotes}
+                onChange={e => setEditNotes(e.target.value)}
+                rows={3}
+                placeholder="Optional internal notes…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog(false)} disabled={editSaving}>Cancel</Button>
+            <Button
+              onClick={handleEdit}
+              disabled={editSaving || !editValue || !editRetention}
+            >
+              {editSaving ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Contract Dialog ── */}
+      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="size-5" />
+              Delete Contract
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              This will permanently remove <span className="font-semibold text-foreground">{contract.contractNumber}</span> from the system. This action cannot be undone.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Reason (optional)</Label>
+              <Textarea
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+                rows={3}
+                placeholder="Why is this contract being deleted?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog(false)} disabled={deleteLoading}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              Delete Contract
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Certificate Dialog ── */}
+      <Dialog open={deleteCertDialog} onOpenChange={setDeleteCertDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="size-5" />
+              Delete Certificate
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Deleting certificate <span className="font-semibold text-foreground font-mono">{deleteCertNumber}</span>. This action cannot be undone.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Justification *</Label>
+              <Textarea
+                value={deleteCertReason}
+                onChange={e => setDeleteCertReason(e.target.value)}
+                rows={3}
+                placeholder="Reason for deleting this payment certificate…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCertDialog(false)} disabled={deleteCertLoading}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteCert}
+              disabled={deleteCertLoading || !deleteCertReason.trim()}
+            >
+              {deleteCertLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+              Delete Certificate
             </Button>
           </DialogFooter>
         </DialogContent>

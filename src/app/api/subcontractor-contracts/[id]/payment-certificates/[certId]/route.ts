@@ -53,6 +53,40 @@ export const GET = withApiContext(async (_req: NextRequest, session, context) =>
   }
 });
 
+export const DELETE = withApiContext(async (req: NextRequest, session, context) => {
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.certs.create'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const certId = context?.params.certId;
+  if (!certId) return NextResponse.json({ error: 'Missing cert id' }, { status: 400 });
+
+  let reason = 'Deleted by user';
+  try {
+    const body = await req.json() as { reason?: string };
+    if (body.reason?.trim()) reason = body.reason.trim();
+  } catch { /* reason stays default */ }
+
+  try {
+    const cert = await prisma.subcontractorPaymentCertificate.findUnique({
+      where: { id: certId, deletedAt: null },
+    });
+    if (!cert) return NextResponse.json({ error: 'Certificate not found' }, { status: 404 });
+    if (cert.status !== 'DRAFT') {
+      return NextResponse.json({ error: 'Only DRAFT certificates can be deleted' }, { status: 409 });
+    }
+
+    await prisma.subcontractorPaymentCertificate.update({
+      where: { id: certId },
+      data: { deletedAt: new Date(), deletedById: session.userId, deleteReason: reason },
+    });
+
+    logger.info({ certId, userId: session.userId }, '[SC Certs] Certificate deleted');
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    logger.error({ error, certId }, '[SC Certs] Failed to delete certificate');
+    return NextResponse.json({ error: 'Failed to delete certificate' }, { status: 500 });
+  }
+});
+
 export const PATCH = withApiContext(async (req: NextRequest, session, context) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const certId = context?.params.certId;

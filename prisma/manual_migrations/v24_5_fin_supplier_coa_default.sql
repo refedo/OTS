@@ -3,7 +3,9 @@
 -- lazily via the financial API route, causing "Supplier not found" errors when
 -- the financial route had never been called.
 
-DROP PROCEDURE IF EXISTS ensure_fin_supplier_coa_default;
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS ensure_fin_supplier_coa_default$$
 
 CREATE PROCEDURE ensure_fin_supplier_coa_default()
 BEGIN
@@ -24,7 +26,9 @@ BEGIN
             INDEX idx_coa_account (coa_account_code)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     END IF;
-END;
+END$$
+
+DELIMITER ;
 
 CALL ensure_fin_supplier_coa_default();
 DROP PROCEDURE IF EXISTS ensure_fin_supplier_coa_default;
