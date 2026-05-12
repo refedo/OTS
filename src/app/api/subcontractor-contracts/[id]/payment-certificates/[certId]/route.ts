@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withApiContext } from '@/lib/api-utils';
+import { checkPermission } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -29,6 +30,7 @@ const CERT_ACTION_TO_STATUS: Record<string, string> = {
 
 export const GET = withApiContext(async (_req: NextRequest, session, context) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.certs.view'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const certId = context?.params.certId;
   if (!certId) return NextResponse.json({ error: 'Missing cert id' }, { status: 400 });
 
@@ -63,6 +65,10 @@ export const PATCH = withApiContext(async (req: NextRequest, session, context) =
   if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 422 });
 
   const { action, paidAmount, dolibarrInvoiceRef, dolibarrInvoiceId, notes } = parsed.data;
+
+  const requiredPerm = (action === 'approve' || action === 'reject') ? 'subcontractors.certs.approve' : 'subcontractors.certs.create';
+  if (!(await checkPermission(requiredPerm))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   const newStatus = CERT_ACTION_TO_STATUS[action];
 
   try {

@@ -102,7 +102,14 @@ function fmtDate(d: string | null) {
   return new Date(d).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function SubcontractorContractDetailPage() {
+interface Props {
+  canEdit: boolean;
+  canApprove: boolean;
+  canCertCreate: boolean;
+  canCertApprove: boolean;
+}
+
+export default function SubcontractorContractDetailPage({ canEdit, canApprove: hasApprovePermission, canCertCreate, canCertApprove }: Props) {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -217,14 +224,14 @@ export default function SubcontractorContractDetailPage() {
     .filter(c => c.status === 'APPROVED')
     .reduce((s, c) => s + Number(c.netAmountDue), 0);
 
-  const canSubmit = contract.status === 'DRAFT';
-  const canApprove = contract.status === 'SUBMITTED';
-  const canActivate = contract.status === 'APPROVED';
-  const canSuspend = contract.status === 'ACTIVE';
-  const canResume = contract.status === 'SUSPENDED';
-  const canComplete = contract.status === 'ACTIVE';
-  const canCancel = ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(contract.status);
-  const canAddCert = contract.status === 'ACTIVE';
+  const canSubmit   = canEdit && contract.status === 'DRAFT';
+  const canApprove  = hasApprovePermission && contract.status === 'SUBMITTED';
+  const canActivate = canEdit && contract.status === 'APPROVED';
+  const canSuspend  = canEdit && contract.status === 'ACTIVE';
+  const canResume   = canEdit && contract.status === 'SUSPENDED';
+  const canComplete = canEdit && contract.status === 'ACTIVE';
+  const canCancel   = canEdit && ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(contract.status);
+  const canAddCert  = canCertCreate && contract.status === 'ACTIVE';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -516,17 +523,17 @@ export default function SubcontractorContractDetailPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            {cert.status === 'DRAFT' && (
+                            {canCertCreate && cert.status === 'DRAFT' && (
                               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleCertAction(cert.id, 'submit')}>
                                 <Send className="size-3 mr-1" /> Submit
                               </Button>
                             )}
-                            {cert.status === 'SUBMITTED' && (
+                            {canCertApprove && cert.status === 'SUBMITTED' && (
                               <Button size="sm" variant="outline" className="h-7 text-xs text-blue-700 border-blue-300" onClick={() => handleCertAction(cert.id, 'approve')}>
                                 <ThumbsUp className="size-3 mr-1" /> Approve
                               </Button>
                             )}
-                            {cert.status === 'APPROVED' && (
+                            {canCertApprove && cert.status === 'APPROVED' && (
                               <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-700 border-emerald-300" onClick={() => handleCertAction(cert.id, 'mark_paid')}>
                                 <CheckCircle2 className="size-3 mr-1" /> Mark Paid
                               </Button>

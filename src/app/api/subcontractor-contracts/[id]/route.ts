@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withApiContext } from '@/lib/api-utils';
+import { checkPermission } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -17,6 +18,7 @@ const updateSchema = z.object({
 
 export const GET = withApiContext(async (_req: NextRequest, session, context) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.view'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const id = context?.params.id;
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
@@ -50,6 +52,7 @@ export const GET = withApiContext(async (_req: NextRequest, session, context) =>
 
 export const PATCH = withApiContext(async (req: NextRequest, session, context) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.edit'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const id = context?.params.id;
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
@@ -77,6 +80,7 @@ export const PATCH = withApiContext(async (req: NextRequest, session, context) =
 
 export const DELETE = withApiContext(async (req: NextRequest, session, context) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.delete'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const id = context?.params.id;
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 

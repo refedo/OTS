@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withApiContext } from '@/lib/api-utils';
+import { checkPermission } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import {
@@ -21,6 +22,7 @@ const createCertSchema = z.object({
 
 export const GET = withApiContext(async (_req: NextRequest, session, context) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.certs.view'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const contractId = context?.params.id;
   if (!contractId) return NextResponse.json({ error: 'Missing contract id' }, { status: 400 });
 
@@ -42,6 +44,7 @@ export const GET = withApiContext(async (_req: NextRequest, session, context) =>
 
 export const POST = withApiContext(async (req: NextRequest, session, context) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.certs.create'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const contractId = context?.params.id;
   if (!contractId) return NextResponse.json({ error: 'Missing contract id' }, { status: 400 });
 
