@@ -765,15 +765,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'supply_chain.view',
     'supply_chain.sync',
     'supply_chain.alias',
-    // Subcontractors
+    // Subcontractors — read-only for Managers; CRUD restricted to Admin/CEO
     'subcontractors.view',
-    'subcontractors.create',
-    'subcontractors.edit',
-    'subcontractors.delete',
-    'subcontractors.approve',
     'subcontractors.certs.view',
-    'subcontractors.certs.create',
-    'subcontractors.certs.approve',
     // Project Tracker
     'project_tracker.view',
     'project_tracker.export',

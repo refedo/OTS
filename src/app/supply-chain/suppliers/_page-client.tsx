@@ -166,7 +166,9 @@ export function SupplierListClient() {
               ) : suppliers.map(s => (
                 <tr key={s.dolibarr_id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="font-medium">{s.name}</p>
+                    <Link href={`/supply-chain/suppliers/${s.dolibarr_id}`} className="hover:underline">
+                      <p className="font-medium">{s.name}</p>
+                    </Link>
                     {s.email && <p className="text-xs text-muted-foreground">{s.email}</p>}
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">

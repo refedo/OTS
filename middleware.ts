@@ -62,7 +62,11 @@ export function middleware(req: NextRequest) {
                           pathname.startsWith('/business-planning') ||
                           pathname.startsWith('/changelog') ||
                           pathname.startsWith('/initiatives') ||
-                          pathname.startsWith('/rfis');
+                          pathname.startsWith('/rfis') ||
+                          pathname.startsWith('/supply-chain') ||
+                          pathname.startsWith('/hr') ||
+                          pathname.startsWith('/workflow') ||
+                          pathname.startsWith('/financial');
   const isProtectedApi = pathname.startsWith('/api') && !pathname.startsWith('/api/auth');
 
   if (isProtectedPage || isProtectedApi) {

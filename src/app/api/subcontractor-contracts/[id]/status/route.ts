@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withApiContext } from '@/lib/api-utils';
+import { checkPermission } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { VALID_TRANSITIONS } from '@/lib/services/subcontractor-contract.service';
@@ -32,6 +33,11 @@ export const POST = withApiContext(async (req: NextRequest, session, context) =>
   if (!parsed.success) return NextResponse.json({ error: 'Validation error', details: parsed.error.flatten() }, { status: 422 });
 
   const { action, reason } = parsed.data;
+
+  // Approve/reject requires approve permission; all other status changes require edit permission
+  const requiredPerm = (action === 'approve' || action === 'reject') ? 'subcontractors.approve' : 'subcontractors.edit';
+  if (!(await checkPermission(requiredPerm))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   const newStatus = ACTION_TO_STATUS[action];
 
   try {

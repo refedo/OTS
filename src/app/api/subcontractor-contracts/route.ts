@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withApiContext } from '@/lib/api-utils';
+import { checkPermission } from '@/lib/permission-checker';
 import prisma from '@/lib/db';
 import { logger } from '@/lib/logger';
 import {
@@ -44,6 +45,7 @@ const createSchema = z.object({
 
 export const GET = withApiContext(async (req: NextRequest, session) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.view'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
@@ -91,6 +93,7 @@ export const GET = withApiContext(async (req: NextRequest, session) => {
 
 export const POST = withApiContext(async (req: NextRequest, session) => {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await checkPermission('subcontractors.create'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   let body: unknown;
   try {

@@ -89,7 +89,14 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-export default function SubcontractorsPage() {
+interface Props {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
+}
+
+export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canApprove }: Props) {
   const router = useRouter();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [stats, setStats] = useState<DashStats | null>(null);
@@ -163,12 +170,14 @@ export default function SubcontractorsPage() {
               >
                 <RefreshCw className="size-4" />
               </Button>
-              <Link href="/supply-chain/subcontractors/new">
-                <Button className="bg-white text-orange-700 hover:bg-orange-50 font-semibold shadow">
-                  <Plus className="size-4 mr-2" />
-                  New Contract
-                </Button>
-              </Link>
+              {canCreate && (
+                <Link href="/supply-chain/subcontractors/new">
+                  <Button className="bg-white text-orange-700 hover:bg-orange-50 font-semibold shadow">
+                    <Plus className="size-4 mr-2" />
+                    New Contract
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -245,7 +254,7 @@ export default function SubcontractorsPage() {
                 <p className="text-muted-foreground">
                   {search || statusFilter !== 'ALL' ? 'No contracts match your filters.' : 'No contracts yet.'}
                 </p>
-                {!search && statusFilter === 'ALL' && (
+                {!search && statusFilter === 'ALL' && canCreate && (
                   <Link href="/supply-chain/subcontractors/new">
                     <Button variant="outline" size="sm" className="mt-4">
                       <Plus className="size-4 mr-1" />
@@ -332,7 +341,7 @@ export default function SubcontractorsPage() {
                                 <DropdownMenuItem onClick={() => router.push(`/supply-chain/subcontractors/${c.id}`)}>
                                   <Eye className="size-4 mr-2" /> View
                                 </DropdownMenuItem>
-                                {c.status === 'DRAFT' && (
+                                {canEdit && c.status === 'DRAFT' && (
                                   <DropdownMenuItem onClick={() => router.push(`/supply-chain/subcontractors/${c.id}?edit=1`)}>
                                     <Edit className="size-4 mr-2" /> Edit
                                   </DropdownMenuItem>
