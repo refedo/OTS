@@ -369,6 +369,29 @@ export interface DolibarrHolidayType {
   [key: string]: unknown;
 }
 
+export interface DolibarrBankLine {
+  id: number | string;
+  dateo: number | string | null;
+  datev: number | string | null;
+  amount: number | string;
+  label: string | null;
+  fk_type: string | null;
+  num_chq: string | null;
+  fk_account: number | string | null;
+  [key: string]: unknown;
+}
+
+export interface DolibarrVatPayment {
+  id: number | string;
+  datep: number | string | null;
+  amount: number | string;
+  ref_num: string | null;
+  note: string | null;
+  fk_typepayment: number | string | null;
+  fk_account: number | string | null;
+  [key: string]: unknown;
+}
+
 export interface DolibarrConnectionInfo {
   success: boolean;
   version?: string;
@@ -942,6 +965,42 @@ export class DolibarrClient {
       sortorder: 'ASC',
     });
     return Array.isArray(result) ? result : [];
+  }
+
+  /**
+   * Fetch bank account transaction lines for a specific account
+   */
+  async getBankAccountLines(bankAccountId: number, params?: DolibarrPaginationParams): Promise<DolibarrBankLine[]> {
+    try {
+      const result = await this.request<DolibarrBankLine[]>(`bankaccounts/${bankAccountId}/lines`, {
+        limit: params?.limit ?? 500,
+        page: params?.page ?? 0,
+        sortfield: 't.rowid',
+        sortorder: 'ASC',
+      });
+      return Array.isArray(result) ? result : [];
+    } catch (error: any) {
+      if (error.message?.includes('404')) return [];
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch VAT payment records from Dolibarr (compta/tva — paymentsvatreturns)
+   */
+  async getVatPayments(params?: DolibarrPaginationParams): Promise<DolibarrVatPayment[]> {
+    try {
+      const result = await this.request<DolibarrVatPayment[]>('paymentsvatreturns', {
+        limit: params?.limit ?? 500,
+        page: params?.page ?? 0,
+        sortfield: params?.sortfield ?? 't.rowid',
+        sortorder: params?.sortorder ?? 'ASC',
+      });
+      return Array.isArray(result) ? result : [];
+    } catch (error: any) {
+      if (error.message?.includes('404')) return [];
+      throw error;
+    }
   }
 
   /**

@@ -45,6 +45,8 @@ export interface FullFinSyncResult {
   supplierInvoices?: FinSyncResult;
   supplierPayments?: FinSyncResult;
   salaries?: FinSyncResult;
+  vatPayments?: FinSyncResult;
+  bankTransactions?: FinSyncResult;
   journalEntries?: FinSyncResult;
   totalDurationMs: number;
 }
@@ -1038,6 +1040,180 @@ export class FinancialSyncService {
   }
 
   // ============================================
+  // SYNC: VAT PAYMENTS
+  // ============================================
+
+  async syncVatPayments(triggeredBy: string = 'manual'): Promise<FinSyncResult> {
+    const startTime = Date.now();
+    let created = 0, updated = 0, unchanged = 0, total = 0;
+
+    try {
+      const BATCH_SIZE = 500;
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await this.client.getVatPayments({ limit: BATCH_SIZE, page });
+
+        for (const vp of batch) {
+          total++;
+          const dolibarrId = pi(vp.id);
+          if (!dolibarrId) continue;
+
+          const paymentDate = formatDate(parseDolibarrDate(vp.datep));
+          if (!paymentDate) continue;
+
+          const hashFields = {
+            amount: vp.amount,
+            datep: vp.datep,
+            ref_num: vp.ref_num,
+            note: vp.note,
+          };
+          const newHash = computeHash(hashFields);
+
+          const existing: any[] = await prisma.$queryRawUnsafe(
+            `SELECT id, sync_hash FROM fin_vat_payments WHERE dolibarr_id = ?`, dolibarrId
+          );
+
+          if (existing.length > 0) {
+            if (existing[0].sync_hash === newHash) { unchanged++; continue; }
+            await prisma.$executeRawUnsafe(
+              `UPDATE fin_vat_payments SET amount=?, payment_date=?, reference=?, notes=?, sync_hash=?, source='dolibarr', updated_at=NOW()
+               WHERE dolibarr_id=?`,
+              pf(vp.amount), paymentDate, vp.ref_num || null, vp.note || null, newHash, dolibarrId
+            );
+            updated++;
+          } else {
+            const d = new Date(paymentDate);
+            const mon = String(d.getMonth() + 1).padStart(2, '0');
+            const periodLabel = `${d.getFullYear()}-${mon}`;
+            const periodStart = `${d.getFullYear()}-${mon}-01`;
+            const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+            const periodEnd = `${d.getFullYear()}-${mon}-${String(lastDay).padStart(2, '0')}`;
+
+            await prisma.$executeRawUnsafe(
+              `INSERT INTO fin_vat_payments (dolibarr_id, period_label, period_start, period_end, payment_date, amount, reference, notes, sync_hash, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'dolibarr')`,
+              dolibarrId, periodLabel, periodStart, periodEnd, paymentDate,
+              pf(vp.amount), vp.ref_num || null, vp.note || null, newHash
+            );
+            created++;
+          }
+        }
+
+        hasMore = batch.length >= BATCH_SIZE;
+        page++;
+      }
+
+      const result: FinSyncResult = {
+        entityType: 'vat_payments', status: 'success',
+        created, updated, unchanged, total,
+        durationMs: Date.now() - startTime,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
+    } catch (error: any) {
+      console.error('[FinSync] VAT payments sync failed:', error.message);
+      const result: FinSyncResult = {
+        entityType: 'vat_payments', status: 'error',
+        created, updated, unchanged, total: 0,
+        durationMs: Date.now() - startTime, error: error.message,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
+    }
+  }
+
+  // ============================================
+  // SYNC: BANK TRANSACTIONS
+  // ============================================
+
+  async syncBankTransactions(triggeredBy: string = 'manual'): Promise<FinSyncResult> {
+    const startTime = Date.now();
+    let created = 0, updated = 0, unchanged = 0, total = 0;
+
+    try {
+      const bankAccounts: any[] = await prisma.$queryRawUnsafe(
+        `SELECT dolibarr_id FROM fin_bank_accounts WHERE is_open = 1`
+      );
+
+      for (const account of bankAccounts) {
+        const bankId = Number(account.dolibarr_id);
+        const BATCH_SIZE = 500;
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const lines = await this.client.getBankAccountLines(bankId, { limit: BATCH_SIZE, page });
+
+          for (const line of lines) {
+            total++;
+            const lineId = pi(line.id);
+            if (!lineId) continue;
+
+            const dateo = formatDate(parseDolibarrDate(line.dateo));
+            const datev = formatDate(parseDolibarrDate(line.datev));
+
+            const hashFields = {
+              amount: line.amount,
+              dateo: line.dateo,
+              label: line.label,
+              fk_type: line.fk_type,
+            };
+            const newHash = computeHash(hashFields);
+
+            const existing: any[] = await prisma.$queryRawUnsafe(
+              `SELECT sync_hash FROM fin_bank_transactions WHERE dolibarr_id = ? AND bank_account_dolibarr_id = ?`,
+              lineId, bankId
+            );
+
+            if (existing.length > 0) {
+              if (existing[0].sync_hash === newHash) { unchanged++; continue; }
+              await prisma.$executeRawUnsafe(
+                `UPDATE fin_bank_transactions SET dateo=?, datev=?, amount=?, label=?, fk_type=?, num_chq=?, last_synced_at=NOW(), sync_hash=?
+                 WHERE dolibarr_id=? AND bank_account_dolibarr_id=?`,
+                dateo, datev, pf(line.amount), line.label || null,
+                line.fk_type || null, (line.num_chq as string) || null,
+                newHash, lineId, bankId
+              );
+              updated++;
+            } else {
+              await prisma.$executeRawUnsafe(
+                `INSERT INTO fin_bank_transactions (dolibarr_id, bank_account_dolibarr_id, dateo, datev, amount, label, fk_type, num_chq, first_synced_at, last_synced_at, sync_hash)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)`,
+                lineId, bankId, dateo, datev, pf(line.amount),
+                line.label || null, line.fk_type || null, (line.num_chq as string) || null, newHash
+              );
+              created++;
+            }
+          }
+
+          hasMore = lines.length >= BATCH_SIZE;
+          page++;
+        }
+      }
+
+      console.log(`[FinSync] Bank transactions complete: ${total} total, ${created} created, ${updated} updated`);
+      const result: FinSyncResult = {
+        entityType: 'bank_transactions', status: 'success',
+        created, updated, unchanged, total,
+        durationMs: Date.now() - startTime,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
+    } catch (error: any) {
+      console.error('[FinSync] Bank transactions sync failed:', error.message);
+      const result: FinSyncResult = {
+        entityType: 'bank_transactions', status: 'error',
+        created, updated, unchanged, total: 0,
+        durationMs: Date.now() - startTime, error: error.message,
+      };
+      await this.logSync(result, triggeredBy);
+      return result;
+    }
+  }
+
+  // ============================================
   // JOURNAL ENTRY GENERATION (Batch optimized)
   // ============================================
 
@@ -1433,6 +1609,14 @@ export class FinancialSyncService {
             result.salaries = await this.syncSalaries(triggeredBy);
             console.log(`[FinSync] Salaries: ${result.salaries.created} created, ${result.salaries.updated} updated`);
             break;
+          case 'vat_payments':
+            result.vatPayments = await this.syncVatPayments(triggeredBy);
+            console.log(`[FinSync] VAT payments: ${result.vatPayments.created} created, ${result.vatPayments.updated} updated`);
+            break;
+          case 'bank_transactions':
+            result.bankTransactions = await this.syncBankTransactions(triggeredBy);
+            console.log(`[FinSync] Bank transactions: ${result.bankTransactions.created} created, ${result.bankTransactions.updated} updated`);
+            break;
           case 'journal_entries':
             result.journalEntries = await this.generateJournalEntries(triggeredBy);
             console.log(`[FinSync] Journal entries: ${result.journalEntries.created} generated`);
@@ -1470,6 +1654,8 @@ export class FinancialSyncService {
     let supplierInvoices: FinSyncResult | undefined;
     let supplierPayments: FinSyncResult | undefined;
     let salaries: FinSyncResult | undefined;
+    let vatPayments: FinSyncResult | undefined;
+    let bankTransactions: FinSyncResult | undefined;
     let journalEntries: FinSyncResult | undefined;
 
     try {
@@ -1516,6 +1702,20 @@ export class FinancialSyncService {
         console.error('[FinSync] Salary sync failed:', e.message);
       }
 
+      try {
+        vatPayments = await this.syncVatPayments(triggeredBy);
+        console.log(`[FinSync] VAT payments: ${vatPayments.created} created, ${vatPayments.updated} updated`);
+      } catch (e: any) {
+        console.error('[FinSync] VAT payments sync failed:', e.message);
+      }
+
+      try {
+        bankTransactions = await this.syncBankTransactions(triggeredBy);
+        console.log(`[FinSync] Bank transactions: ${bankTransactions.created} created, ${bankTransactions.updated} updated`);
+      } catch (e: any) {
+        console.error('[FinSync] Bank transactions sync failed:', e.message);
+      }
+
       // Always attempt journal entry generation even if some syncs failed
       // This ensures we generate entries from whatever data is available
       try {
@@ -1535,7 +1735,7 @@ export class FinancialSyncService {
 
     return {
       bankAccounts, projects, customerInvoices, customerPayments,
-      supplierInvoices, supplierPayments, salaries, journalEntries,
+      supplierInvoices, supplierPayments, salaries, vatPayments, bankTransactions, journalEntries,
       totalDurationMs,
     };
   }
@@ -1567,6 +1767,8 @@ export class FinancialSyncService {
       counts.payments = await getCount(`SELECT COUNT(*) as cnt FROM fin_payments`);
       counts.salaries = await getCount(`SELECT COUNT(*) as cnt FROM fin_salaries WHERE is_active = 1`);
       counts.bankAccounts = await getCount(`SELECT COUNT(*) as cnt FROM fin_bank_accounts`);
+      counts.vatPayments = await getCount(`SELECT COUNT(*) as cnt FROM fin_vat_payments`);
+      counts.bankTransactions = await getCount(`SELECT COUNT(*) as cnt FROM fin_bank_transactions`);
       counts.journalEntries = await getCount(`SELECT COUNT(*) as cnt FROM fin_journal_entries`);
 
       let recentLogs: any[] = [];

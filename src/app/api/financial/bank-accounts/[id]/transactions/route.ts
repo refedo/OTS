@@ -25,47 +25,86 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     );
     if (!account.length) return NextResponse.json({ error: 'Bank account not found' }, { status: 404 });
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT
-         fp.id,
-         fp.dolibarr_ref,
-         fp.payment_type,
-         fp.invoice_dolibarr_id,
-         fp.amount,
-         fp.payment_date,
-         fp.payment_method,
-         CASE fp.payment_type
-           WHEN 'customer' THEN ci.ref
-           WHEN 'supplier' THEN si.ref
-         END AS invoice_ref,
-         CASE fp.payment_type
-           WHEN 'customer' THEN ci.ref_customer
-           WHEN 'supplier' THEN si.ref_supplier
-         END AS party_ref,
-         CASE fp.payment_type
-           WHEN 'customer' THEN dt_c.name
-           WHEN 'supplier' THEN dt_s.name
-         END AS party_name
-       FROM fin_payments fp
-       LEFT JOIN fin_customer_invoices ci
-         ON fp.payment_type = 'customer' AND ci.dolibarr_id = fp.invoice_dolibarr_id
-       LEFT JOIN dolibarr_thirdparties dt_c
-         ON fp.payment_type = 'customer' AND ci.socid = dt_c.dolibarr_id
-       LEFT JOIN fin_supplier_invoices si
-         ON fp.payment_type = 'supplier' AND si.dolibarr_id = fp.invoice_dolibarr_id
-       LEFT JOIN dolibarr_thirdparties dt_s
-         ON fp.payment_type = 'supplier' AND si.socid = dt_s.dolibarr_id
-       WHERE fp.bank_account_id = ?
-       ORDER BY fp.payment_date DESC, fp.id DESC
-       LIMIT ? OFFSET ?`,
-      bankDolibarrId, limit, offset
-    );
-
-    const countRows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) AS cnt FROM fin_payments WHERE bank_account_id = ?`,
+    // Check if fin_bank_transactions has records for this account
+    const btCount: any[] = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) AS cnt FROM fin_bank_transactions WHERE bank_account_dolibarr_id = ?`,
       bankDolibarrId
     );
-    const total = Number(countRows[0]?.cnt ?? 0);
+    const hasBankTransactions = Number(btCount[0]?.cnt ?? 0) > 0;
+
+    let rows: any[];
+    let total: number;
+
+    if (hasBankTransactions) {
+      // Use fin_bank_transactions (direct bank statement lines from Dolibarr)
+      rows = await prisma.$queryRawUnsafe(
+        `SELECT
+           bt.id,
+           bt.num_chq       AS dolibarr_ref,
+           NULL             AS payment_type,
+           bt.bank_account_dolibarr_id AS bank_account_id,
+           bt.amount,
+           bt.dateo         AS payment_date,
+           bt.fk_type       AS payment_method,
+           NULL             AS invoice_ref,
+           NULL             AS party_ref,
+           bt.label         AS party_name
+         FROM fin_bank_transactions bt
+         WHERE bt.bank_account_dolibarr_id = ?
+         ORDER BY bt.dateo DESC, bt.id DESC
+         LIMIT ? OFFSET ?`,
+        bankDolibarrId, limit, offset
+      );
+
+      const countRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT COUNT(*) AS cnt FROM fin_bank_transactions WHERE bank_account_dolibarr_id = ?`,
+        bankDolibarrId
+      );
+      total = Number(countRows[0]?.cnt ?? 0);
+    } else {
+      // Fall back to fin_payments linked to invoices for this bank account
+      rows = await prisma.$queryRawUnsafe(
+        `SELECT
+           fp.id,
+           fp.dolibarr_ref,
+           fp.payment_type,
+           fp.invoice_dolibarr_id,
+           fp.amount,
+           fp.payment_date,
+           fp.payment_method,
+           CASE fp.payment_type
+             WHEN 'customer' THEN ci.ref
+             WHEN 'supplier' THEN si.ref
+           END AS invoice_ref,
+           CASE fp.payment_type
+             WHEN 'customer' THEN ci.ref_client
+             WHEN 'supplier' THEN si.ref_supplier
+           END AS party_ref,
+           CASE fp.payment_type
+             WHEN 'customer' THEN dt_c.name
+             WHEN 'supplier' THEN dt_s.name
+           END AS party_name
+         FROM fin_payments fp
+         LEFT JOIN fin_customer_invoices ci
+           ON fp.payment_type = 'customer' AND ci.dolibarr_id = fp.invoice_dolibarr_id
+         LEFT JOIN dolibarr_thirdparties dt_c
+           ON fp.payment_type = 'customer' AND ci.socid = dt_c.dolibarr_id
+         LEFT JOIN fin_supplier_invoices si
+           ON fp.payment_type = 'supplier' AND si.dolibarr_id = fp.invoice_dolibarr_id
+         LEFT JOIN dolibarr_thirdparties dt_s
+           ON fp.payment_type = 'supplier' AND si.socid = dt_s.dolibarr_id
+         WHERE fp.bank_account_id = ?
+         ORDER BY fp.payment_date DESC, fp.id DESC
+         LIMIT ? OFFSET ?`,
+        bankDolibarrId, limit, offset
+      );
+
+      const countRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT COUNT(*) AS cnt FROM fin_payments WHERE bank_account_id = ?`,
+        bankDolibarrId
+      );
+      total = Number(countRows[0]?.cnt ?? 0);
+    }
 
     const ba = account[0];
     return NextResponse.json({
@@ -78,6 +117,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         currency: ba.currency_code,
         isOpen: ba.is_open === 1,
       },
+      source: hasBankTransactions ? 'bank_transactions' : 'payments',
       transactions: rows.map(r => ({
         ...r,
         id: Number(r.id),

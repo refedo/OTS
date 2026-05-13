@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Plus, Trash2, Receipt, Edit } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Receipt, Edit, RefreshCw, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAlert } from '@/hooks/useAlert';
 
@@ -37,6 +37,7 @@ export default function VatPaymentsPage() {
   const [editTarget, setEditTarget] = useState<any>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const { showAlert, AlertDialog } = useAlert();
 
   const load = () => {
@@ -48,6 +49,23 @@ export default function VatPaymentsPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/financial/sync?entities=vat_payments', { method: 'POST' });
+      if (res.ok) {
+        load();
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Sync failed' }));
+        showAlert(err.error || 'Sync failed', { type: 'error' });
+      }
+    } catch {
+      showAlert('Sync failed', { type: 'error' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const openNew = () => {
     setEditTarget(null);
@@ -135,7 +153,7 @@ export default function VatPaymentsPage() {
               <p className="text-slate-400 mt-1 text-sm">ZATCA settlement payments — actual amounts paid to tax authority</p>
             </div>
           </div>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap gap-3 items-center">
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2">
               <Receipt className="size-4 text-orange-300" />
               <span className="text-xs text-slate-400">Total Paid</span>
@@ -145,6 +163,16 @@ export default function VatPaymentsPage() {
               <span className="text-xs text-slate-400">Records</span>
               <span className="text-sm font-bold">{payments.length}</span>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white gap-1.5"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+              {syncing ? 'Syncing from Dolibarr…' : 'Sync from Dolibarr'}
+            </Button>
           </div>
         </div>
       </div>
