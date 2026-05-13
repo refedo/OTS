@@ -805,6 +805,28 @@ export class FinancialReportService {
     // so always add them together.
     const totalExpensesWithSalaries = totalExpenses + salariesExpense;
 
+    // Cash-basis total paid out: actual supplier payments + paid salary disbursements
+    let supplierCashPaid = 0, salariesCashPaid = 0;
+    try {
+      const scRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM fin_payments
+        WHERE payment_type = 'supplier'
+          AND payment_date BETWEEN ? AND ?
+      `, fromDate, toDate);
+      supplierCashPaid = Number(scRows[0]?.total || 0);
+    } catch { /* */ }
+    try {
+      const scSalRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM fin_salaries
+        WHERE is_active = 1 AND is_paid = 1
+          AND COALESCE(date_payment, date_end) BETWEEN ? AND ?
+      `, fromDate, toDate);
+      salariesCashPaid = Number(scSalRows[0]?.total || 0);
+    } catch { /* */ }
+    const totalCashPaidOut = supplierCashPaid + salariesCashPaid;
+
     // Project count
     let projectCount = 0;
     try {
@@ -834,6 +856,9 @@ export class FinancialReportService {
       totalRevenue,
       totalExpenses: totalExpensesWithSalaries,
       totalExpensesExSalaries: totalExpenses,
+      totalCashPaidOut,
+      supplierCashPaid,
+      salariesCashPaid,
       netProfit,
       costOfSales,
       grossProfit,
@@ -1008,7 +1033,8 @@ export class FinancialReportService {
         ? `${year}-12-31`
         : `${year}-${String(m + 1).padStart(2, '0')}-01`;
 
-      let cashIn = 0, cashOut = 0, vatOut = 0;
+      let cashIn = 0, cashOut = 0, vatOut = 0, cashOutSalaries = 0;
+      let vatOutput = 0, vatInput = 0;
 
       try {
         const inRows: any[] = await prisma.$queryRawUnsafe(`
@@ -1066,26 +1092,79 @@ export class FinancialReportService {
         } catch { /* */ }
       }
 
+      // Paid salary disbursements for the month (use date_payment, fall back to date_end)
+      try {
+        const salRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(amount), 0) as total
+          FROM fin_salaries
+          WHERE is_active = 1 AND is_paid = 1
+            AND COALESCE(date_payment, date_end) >= ? AND COALESCE(date_payment, date_end) < ?
+        `, monthStart, monthEnd);
+        cashOutSalaries = Number(salRows[0]?.total || 0);
+      } catch { /* */ }
+
+      // VAT output (collected on customer invoices dated this month)
+      try {
+        const vatOutRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(cil.total_tva), 0) as total
+          FROM fin_customer_invoice_lines cil
+          JOIN fin_customer_invoices ci ON ci.dolibarr_id = cil.invoice_dolibarr_id
+          WHERE ci.status IN (1, 2) AND ci.is_active = 1
+            AND ci.date_invoice >= ? AND ci.date_invoice < ?
+        `, monthStart, monthEnd);
+        vatOutput = Number(vatOutRows[0]?.total || 0);
+      } catch { /* */ }
+
+      // VAT input (paid on supplier invoices dated this month)
+      try {
+        const vatInRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(sil.total_tva), 0) as total
+          FROM fin_supplier_invoice_lines sil
+          JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
+          WHERE si.status IN (1, 2) AND si.is_active = 1
+            AND si.date_invoice >= ? AND si.date_invoice < ?
+        `, monthStart, monthEnd);
+        vatInput = Number(vatInRows[0]?.total || 0);
+      } catch { /* */ }
+
+      const totalCashOut = cashOut + vatOut + cashOutSalaries;
+
       months.push({
         month: m,
         monthName: new Date(year, m - 1, 1).toLocaleString('en', { month: 'short' }),
         cashIn,
-        cashOut: cashOut + vatOut,
+        cashOut,
         cashOutSupplier: cashOut,
         cashOutVat: vatOut,
-        net: cashIn - cashOut - vatOut,
+        cashOutSalaries,
+        totalCashOut,
+        vatOutput,
+        vatInput,
+        vatNet: vatOutput - vatInput,
+        net: cashIn - totalCashOut,
       });
     }
 
     const totalCashIn = months.reduce((s, m) => s + m.cashIn, 0);
     const totalCashOut = months.reduce((s, m) => s + m.cashOut, 0);
+    const totalCashOutVat = months.reduce((s, m) => s + (m.cashOutVat ?? 0), 0);
+    const totalCashOutSalaries = months.reduce((s, m) => s + (m.cashOutSalaries ?? 0), 0);
+    const totalVatOutput = months.reduce((s, m) => s + (m.vatOutput ?? 0), 0);
+    const totalVatInput = months.reduce((s, m) => s + (m.vatInput ?? 0), 0);
+    const grandTotalCashOut = totalCashOut + totalCashOutVat + totalCashOutSalaries;
 
     return {
       year,
       months,
       totalCashIn,
       totalCashOut,
-      totalNet: totalCashIn - totalCashOut,
+      totalCashOutVat,
+      totalCashOutSalaries,
+      grandTotalCashOut,
+      totalVatOutput,
+      totalVatInput,
+      totalVatNet: totalVatOutput - totalVatInput,
+      totalNet: totalCashIn - grandTotalCashOut,
     };
   }
 

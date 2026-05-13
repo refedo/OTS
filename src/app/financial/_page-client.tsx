@@ -160,6 +160,10 @@ export default function FinancialDashboardPage() {
               </div>
               <div className="text-2xl font-bold text-red-600">{formatCompact(d.totalExpenses || 0)}</div>
               <div className="text-xs text-muted-foreground mt-0.5">{formatSAR(d.totalExpenses || 0)}</div>
+              <div className="text-[10px] text-muted-foreground mt-1">Incl. supplier costs &amp; salaries</div>
+              {(d.totalCashPaidOut || 0) > 0 && (
+                <div className="text-[10px] text-orange-600 mt-0.5">Cash paid: {formatSAR(d.totalCashPaidOut || 0)}</div>
+              )}
               <div className="text-[10px] text-primary mt-1 flex items-center">Expenses Analysis <ArrowRight className="h-3 w-3 ml-1" /></div>
             </CardContent>
           </Card>

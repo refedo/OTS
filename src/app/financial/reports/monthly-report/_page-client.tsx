@@ -88,6 +88,9 @@ interface ReportData {
     grossProfit: number;
     netProfit: number;
     netMarginPct: number;
+    totalVatOut: number;
+    totalVatIn: number;
+    netVat: number;
   };
 }
 
@@ -100,7 +103,7 @@ function KpiTile({
   value: string;
   sub?: string;
   icon: any;
-  color: 'green' | 'red' | 'blue' | 'amber';
+  color: 'green' | 'red' | 'blue' | 'amber' | 'orange' | 'emerald';
   trend?: 'up' | 'down' | 'neutral';
 }) {
   const colors = {
@@ -127,6 +130,18 @@ function KpiTile({
       icon:   'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
       value:  'text-amber-600 dark:text-amber-400',
       glow:   'from-amber-50 to-transparent dark:from-amber-950/20',
+    },
+    orange: {
+      border: 'border-orange-200 dark:border-orange-900/50',
+      icon:   'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+      value:  'text-orange-600 dark:text-orange-400',
+      glow:   'from-orange-50 to-transparent dark:from-orange-950/20',
+    },
+    emerald: {
+      border: 'border-emerald-200 dark:border-emerald-900/50',
+      icon:   'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+      value:  'text-emerald-600 dark:text-emerald-400',
+      glow:   'from-emerald-50 to-transparent dark:from-emerald-950/20',
     },
   }[color];
 
@@ -425,7 +440,7 @@ export default function MonthlyFinancialReportPage() {
         ) : (
           <>
             {/* ── KPI Tiles ───────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <KpiTile
                 label="Total Income"
                 value={formatCompact(t?.totalIncome || 0)}
@@ -456,6 +471,13 @@ export default function MonthlyFinancialReportPage() {
                 sub={`${data?.salaries?.length || 0} records`}
                 icon={Users}
                 color="amber"
+              />
+              <KpiTile
+                label={(t?.netVat ?? 0) >= 0 ? 'Net VAT Payable' : 'Net VAT Refundable'}
+                value={formatCompact(Math.abs(t?.netVat ?? 0))}
+                sub={`Out: ${formatCompact(t?.totalVatOut ?? 0)} / In: ${formatCompact(t?.totalVatIn ?? 0)}`}
+                icon={Receipt}
+                color={(t?.netVat ?? 0) >= 0 ? 'orange' : 'emerald'}
               />
               <KpiTile
                 label="Net Profit"
@@ -755,6 +777,46 @@ export default function MonthlyFinancialReportPage() {
                   </CardContent>
                 </Card>
 
+                {/* VAT Summary Card */}
+                {((t?.totalVatOut ?? 0) > 0 || (t?.totalVatIn ?? 0) > 0) && (
+                  <Card className="border-orange-200 dark:border-orange-900/50">
+                    <CardHeader className="pb-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/20 rounded-t-xl border-b border-orange-100 dark:border-orange-900/40">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                          <div className="p-1.5 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
+                            <Receipt className="h-4 w-4" />
+                          </div>
+                          VAT / Tax Summary
+                        </CardTitle>
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 border-0">
+                          {(t?.netVat ?? 0) >= 0 ? 'Payable' : 'Refundable'}: {formatCompact(Math.abs(t?.netVat ?? 0))}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">Output VAT Collected</div>
+                          <div className="font-bold text-blue-600 tabular-nums">{formatSAR(t?.totalVatOut ?? 0)}</div>
+                          <div className="text-xs text-muted-foreground">From customer invoices</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">Input VAT Paid</div>
+                          <div className="font-bold text-green-600 tabular-nums">{formatSAR(t?.totalVatIn ?? 0)}</div>
+                          <div className="text-xs text-muted-foreground">From supplier invoices</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">{(t?.netVat ?? 0) >= 0 ? 'Net VAT Payable' : 'Net VAT Refundable'}</div>
+                          <div className={`font-bold tabular-nums ${(t?.netVat ?? 0) >= 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                            {formatSAR(Math.abs(t?.netVat ?? 0))}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Output − Input</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
               </div>{/* end Expenses column */}
             </div>{/* end side-by-side grid */}
 
@@ -781,6 +843,15 @@ export default function MonthlyFinancialReportPage() {
                       <span className="text-sm text-muted-foreground">Expenses:</span>
                       <span className="text-sm font-bold text-red-600 tabular-nums">{formatSAR(t?.totalExpenses || 0)}</span>
                     </div>
+                    {(t?.netVat ?? 0) !== 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-orange-500 shrink-0" />
+                        <span className="text-sm text-muted-foreground">{(t?.netVat ?? 0) >= 0 ? 'VAT Payable:' : 'VAT Refund:'}</span>
+                        <span className={`text-sm font-bold tabular-nums ${(t?.netVat ?? 0) >= 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                          {formatSAR(Math.abs(t?.netVat ?? 0))}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${(t?.netProfit || 0) >= 0 ? 'bg-blue-500' : 'bg-red-500'}`} />
                       <span className="text-sm text-muted-foreground">Net:</span>
