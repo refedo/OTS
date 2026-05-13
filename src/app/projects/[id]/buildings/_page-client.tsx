@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,9 @@ import {
   LayoutGrid,
   User,
   Users,
+  Activity,
+  BarChart3,
+  Loader2,
 } from 'lucide-react';
 
 // ─── RAL Colours ────────────────────────────────────────────────────────────
@@ -196,6 +199,7 @@ type BuildingData = {
   assemblyTonnage: number;
   totalArea: number;
   purlinArea: number;
+  purlinWeight: number;
   paintableArea: number;
   scopeOfWorks: ScopeOfWork[];
 };
@@ -734,6 +738,25 @@ export function ProjectCardClient({
   const totalTonnage = kpiBuildings.reduce((s, b) => s + b.assemblyTonnage, 0);
   const totalArea = kpiBuildings.reduce((s, b) => s + b.totalArea, 0);
   const totalPaintable = kpiBuildings.reduce((s, b) => s + b.paintableArea, 0);
+  const totalPurlinWeight = kpiBuildings.reduce((s, b) => s + b.purlinWeight, 0);
+
+  // Production progress
+  type ProcessProgress = { processType: string; weight: number; percentage: number };
+  type ProdData = { byProcess: ProcessProgress[]; requiredWeight: number };
+  const [prodData, setProdData] = useState<ProdData | null>(null);
+  const [prodLoading, setProdLoading] = useState(false);
+
+  const fetchProdData = useCallback(async () => {
+    setProdLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/production`);
+      if (res.ok) setProdData(await res.json());
+    } finally {
+      setProdLoading(false);
+    }
+  }, [project.id]);
+
+  useEffect(() => { fetchProdData(); }, [fetchProdData]);
 
   // Scope content
   const aggScopes = useMemo(() => aggregateScopes(buildings), [buildings]);
@@ -906,7 +929,7 @@ export function ProjectCardClient({
       </div>
 
       {/* ── KPI strip ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Buildings tile — blue */}
         <Card className="relative overflow-hidden border-0 shadow-md">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700" />
@@ -997,6 +1020,23 @@ export function ProjectCardClient({
             </div>
           </div>
         </Card>
+
+        {/* Purlins Weight tile — lime */}
+        <Card className="relative overflow-hidden border-0 shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-lime-500 to-green-600" />
+          <div className="relative p-4 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Purlins Weight</div>
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
+                <Weight className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold">{fmt(totalPurlinWeight, 2)} <span className="text-base font-medium opacity-80">t</span></div>
+            <div className="text-xs opacity-75 mt-0.5">
+              {totalTonnage > 0 ? `${fmt((totalPurlinWeight / totalTonnage) * 100, 1)}% of total` : 'No tonnage data'}
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* ── Technical Information ── */}
@@ -1012,6 +1052,70 @@ export function ProjectCardClient({
       {/* ── Stage Durations ── */}
       <Section title="Stage Durations" icon={<Clock className="w-3.5 h-3.5" />}>
         <StageDurations project={project} />
+      </Section>
+
+      {/* ── Production Progress ── */}
+      <Section title="Production Progress" icon={<Activity className="w-3.5 h-3.5" />}>
+        {prodLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading production data…
+          </div>
+        ) : (() => {
+          const processes = ['Fit-up', 'Welding', 'Visualization'];
+          const items = processes.map(p => prodData?.byProcess.find(x => x.processType === p) ?? { processType: p, weight: 0, percentage: 0 });
+          const hasAny = items.some(i => i.weight > 0);
+          if (!hasAny) return <p className="text-sm text-muted-foreground italic">No production data recorded yet.</p>;
+          return (
+            <div className="space-y-3">
+              {items.map(item => (
+                <div key={item.processType}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-medium">{item.processType}</span>
+                    <span className="text-muted-foreground tabular-nums">{fmt(item.percentage, 1)}%&nbsp;<span className="text-xs">({fmt(item.weight, 2)} t)</span></span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all" style={{ width: `${Math.min(100, item.percentage)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </Section>
+
+      {/* ── Coating & Dispatch Progress ── */}
+      <Section title="Coating & Dispatch Progress" icon={<BarChart3 className="w-3.5 h-3.5" />}>
+        {prodLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading production data…
+          </div>
+        ) : (() => {
+          const processes = ['Painting', 'Sandblasting', 'Galvanization', 'Dispatch'];
+          const items = processes.map(p => prodData?.byProcess.find(x => x.processType === p) ?? { processType: p, weight: 0, percentage: 0 });
+          const hasAny = items.some(i => i.weight > 0);
+          if (!hasAny) return <p className="text-sm text-muted-foreground italic">No coating or dispatch data recorded yet.</p>;
+          const colors: Record<string, string> = {
+            Painting: 'from-violet-500 to-purple-600',
+            Sandblasting: 'from-amber-500 to-orange-600',
+            Galvanization: 'from-slate-500 to-gray-600',
+            Dispatch: 'from-emerald-500 to-teal-600',
+          };
+          return (
+            <div className="space-y-3">
+              {items.map(item => (
+                <div key={item.processType}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-medium">{item.processType}</span>
+                    <span className="text-muted-foreground tabular-nums">{fmt(item.percentage, 1)}%&nbsp;<span className="text-xs">({fmt(item.weight, 2)} t)</span></span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${colors[item.processType] ?? 'from-slate-400 to-slate-500'} transition-all`} style={{ width: `${Math.min(100, item.percentage)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </Section>
 
       {/* ── Scope of Work ── */}

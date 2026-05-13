@@ -279,7 +279,7 @@ export async function getSupplierOverview(dolibarrId: number): Promise<SupplierO
   const contacts = await prisma.$queryRawUnsafe<SupplierContact[]>(`
     SELECT firstname, lastname, email, phone_pro, phone_mobile, poste
     FROM dolibarr_contacts
-    WHERE dolibarr_thirdparty_id = ? AND statut = 1
+    WHERE dolibarr_thirdparty_id = ? AND is_active = 1
     ORDER BY lastname, firstname
   `, dolibarrId);
 

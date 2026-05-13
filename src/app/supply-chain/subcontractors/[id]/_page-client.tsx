@@ -1,5 +1,6 @@
 'use client';
 
+import { generateSubcontractorContractPDF } from '@/lib/subcontractor-contract-pdf-generator';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -18,7 +19,7 @@ import {
   Handshake, ChevronLeft, CheckCircle2, Clock, AlertTriangle, Ban,
   TrendingUp, Plus, Loader2, RefreshCw, Building2, FolderOpen,
   DollarSign, FileText, Send, ThumbsUp, PlayCircle, PauseCircle, XCircle,
-  Flag, ExternalLink, AlertCircle, ChevronDown, ChevronUp, Pencil, Trash2,
+  Flag, ExternalLink, AlertCircle, ChevronDown, ChevronUp, Pencil, Trash2, Printer,
 } from 'lucide-react';
 
 type Cert = {
@@ -120,6 +121,35 @@ export default function SubcontractorContractDetailPage({ canEdit, canDelete, ca
   const [error, setError] = useState('');
   const [tcCollapsed, setTcCollapsed] = useState(true);
 
+  // ── Variations ──────────────────────────────────────────────────────────────
+  type Variation = { id: string; variationNumber: string; description: string; amount: number; status: string; notes: string | null; createdBy: { name: string }; approvedBy: { name: string } | null; createdAt: string };
+  const [variations, setVariations] = useState<Variation[]>([]);
+  const [varDialog, setVarDialog] = useState(false);
+  const [varDesc, setVarDesc] = useState('');
+  const [varAmount, setVarAmount] = useState('');
+  const [varNotes, setVarNotes] = useState('');
+  const [varSaving, setVarSaving] = useState(false);
+
+  const fetchVariations = useCallback(async () => {
+    const res = await fetch(`/api/subcontractor-contracts/${id}/variations`);
+    if (res.ok) setVariations(await res.json());
+  }, [id]);
+
+  // ── Deductions ──────────────────────────────────────────────────────────────
+  type Deduction = { id: string; description: string; amount: number; deductionDate: string; reason: string | null; status: string; createdBy: { name: string }; approvedBy: { name: string } | null; createdAt: string };
+  const [deductions, setDeductions] = useState<Deduction[]>([]);
+  const [dedDialog, setDedDialog] = useState(false);
+  const [dedDesc, setDedDesc] = useState('');
+  const [dedAmount, setDedAmount] = useState('');
+  const [dedDate, setDedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dedReason, setDedReason] = useState('');
+  const [dedSaving, setDedSaving] = useState(false);
+
+  const fetchDeductions = useCallback(async () => {
+    const res = await fetch(`/api/subcontractor-contracts/${id}/deductions`);
+    if (res.ok) setDeductions(await res.json());
+  }, [id]);
+
   // ── New cert dialog ─────────────────────────────────────────────────────────
   const [certDialog, setCertDialog] = useState(false);
   const [certDate, setCertDate] = useState(new Date().toISOString().split('T')[0]);
@@ -160,7 +190,7 @@ export default function SubcontractorContractDetailPage({ canEdit, canDelete, ca
     setLoading(false);
   }, [id]);
 
-  useEffect(() => { fetchContract(); }, [fetchContract]);
+  useEffect(() => { fetchContract(); fetchVariations(); fetchDeductions(); }, [fetchContract, fetchVariations, fetchDeductions]);
 
   const handleAction = async (action: string, reason?: string) => {
     setActionLoading(true);
@@ -329,6 +359,33 @@ export default function SubcontractorContractDetailPage({ canEdit, canDelete, ca
   const canDeleteContract = canDelete && ['DRAFT', 'CANCELLED'].includes(contract.status);
   const canAddCert  = canCertCreate && contract.status === 'ACTIVE';
 
+  async function handlePrint() {
+    await generateSubcontractorContractPDF({
+      contractNumber: contract.contractNumber,
+      name: contract.name,
+      status: contract.status,
+      contractValue: Number(contract.contractValue),
+      currency: contract.currency,
+      retentionPercentage: Number(contract.retentionPercentage),
+      scopeTypes: contract.scopeTypes,
+      scopeItems: contract.scopeItems,
+      paymentTerms: contract.paymentTerms,
+      termsAndConditions: contract.termsAndConditions,
+      templateType: contract.templateType,
+      notes: contract.notes,
+      createdAt: contract.createdAt,
+      submittedAt: contract.submittedAt,
+      approvedAt: contract.approvedAt,
+      project: { projectNumber: contract.project.projectNumber, name: contract.project.name },
+      building: contract.building ? { designation: contract.building.designation, name: contract.building.name } : null,
+      supplier: { supplierCode: contract.supplier.supplierCode, name: contract.supplier.name, rating: contract.supplier.rating, scopeOfApproval: contract.supplier.scopeOfApproval },
+      createdBy: { name: contract.createdBy.name },
+      approvedBy: contract.approvedBy ? { name: contract.approvedBy.name } : null,
+      variations: variations.map(v => ({ variationNumber: v.variationNumber, description: v.description, amount: v.amount, status: v.status })),
+      deductions: deductions.map(d => ({ description: d.description, amount: d.amount, deductionDate: d.deductionDate, status: d.status })),
+    });
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 max-lg:pt-20 space-y-6">
@@ -405,6 +462,10 @@ export default function SubcontractorContractDetailPage({ canEdit, canDelete, ca
                 Delete
               </Button>
             )}
+            <Button size="sm" variant="outline" onClick={handlePrint}>
+              <Printer className="size-4 mr-1" />
+              Print
+            </Button>
             <Button size="sm" variant="ghost" onClick={fetchContract} disabled={loading}>
               <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
@@ -734,7 +795,191 @@ export default function SubcontractorContractDetailPage({ canEdit, canDelete, ca
             </CardContent>
           </Card>
         )}
+
+        {/* ── Variations ── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="size-4 text-blue-600" />
+                Variations
+              </CardTitle>
+              {canEdit && (
+                <Button size="sm" variant="outline" onClick={() => { setVarDesc(''); setVarAmount(''); setVarNotes(''); setVarDialog(true); }}>
+                  <Plus className="size-4 mr-1" /> Add Variation
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className={variations.length === 0 ? undefined : 'p-0'}>
+            {variations.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No variations recorded.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Number</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created By</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {variations.map(v => (
+                    <TableRow key={v.id}>
+                      <TableCell className="font-mono text-xs">{v.variationNumber}</TableCell>
+                      <TableCell>{v.description}</TableCell>
+                      <TableCell className="text-right font-semibold">{fmt(v.amount, contract.currency)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={v.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : v.status === 'REJECTED' ? 'bg-rose-100 text-rose-700 border-rose-300' : 'bg-amber-100 text-amber-700 border-amber-300'}>
+                          {v.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{v.createdBy.name}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            {variations.length > 0 && (
+              <div className="px-4 py-3 bg-muted/20 border-t flex justify-end">
+                <span className="text-sm font-semibold">Total Variations: {fmt(variations.reduce((s, v) => s + v.amount, 0), contract.currency)}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Deductions ── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Flag className="size-4 text-rose-600" />
+                Deductions
+              </CardTitle>
+              {canEdit && (
+                <Button size="sm" variant="outline" onClick={() => { setDedDesc(''); setDedAmount(''); setDedDate(new Date().toISOString().split('T')[0]); setDedReason(''); setDedDialog(true); }}>
+                  <Plus className="size-4 mr-1" /> Add Deduction
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className={deductions.length === 0 ? undefined : 'p-0'}>
+            {deductions.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No deductions recorded.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deductions.map(d => (
+                    <TableRow key={d.id}>
+                      <TableCell className="text-xs">{fmtDate(d.deductionDate)}</TableCell>
+                      <TableCell>{d.description}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{d.reason ?? '—'}</TableCell>
+                      <TableCell className="text-right font-semibold">{fmt(d.amount, contract.currency)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={d.status === 'APPLIED' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : d.status === 'REJECTED' ? 'bg-rose-100 text-rose-700 border-rose-300' : 'bg-amber-100 text-amber-700 border-amber-300'}>
+                          {d.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            {deductions.length > 0 && (
+              <div className="px-4 py-3 bg-muted/20 border-t flex justify-end">
+                <span className="text-sm font-semibold">Total Deductions: {fmt(deductions.reduce((s, d) => s + d.amount, 0), contract.currency)}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* ── Add Variation Dialog ── */}
+      <Dialog open={varDialog} onOpenChange={setVarDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Variation</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Description <span className="text-destructive">*</span></Label>
+              <Textarea value={varDesc} onChange={e => setVarDesc(e.target.value)} placeholder="Variation description…" rows={3} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Amount ({contract.currency}) <span className="text-destructive">*</span></Label>
+              <Input type="number" value={varAmount} onChange={e => setVarAmount(e.target.value)} placeholder="0.00" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea value={varNotes} onChange={e => setVarNotes(e.target.value)} placeholder="Additional notes…" rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVarDialog(false)} disabled={varSaving}>Cancel</Button>
+            <Button disabled={varSaving || !varDesc || !varAmount} onClick={async () => {
+              setVarSaving(true);
+              const res = await fetch(`/api/subcontractor-contracts/${id}/variations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ description: varDesc, amount: Number(varAmount), notes: varNotes || null }),
+              });
+              if (res.ok) { setVarDialog(false); fetchVariations(); }
+              setVarSaving(false);
+            }}>
+              {varSaving ? 'Saving…' : 'Add Variation'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add Deduction Dialog ── */}
+      <Dialog open={dedDialog} onOpenChange={setDedDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Deduction</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Description <span className="text-destructive">*</span></Label>
+              <Input value={dedDesc} onChange={e => setDedDesc(e.target.value)} placeholder="Deduction description…" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Amount ({contract.currency}) <span className="text-destructive">*</span></Label>
+              <Input type="number" value={dedAmount} onChange={e => setDedAmount(e.target.value)} placeholder="0.00" min="0.01" step="0.01" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date</Label>
+              <Input type="date" value={dedDate} onChange={e => setDedDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reason</Label>
+              <Textarea value={dedReason} onChange={e => setDedReason(e.target.value)} placeholder="Reason for deduction…" rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDedDialog(false)} disabled={dedSaving}>Cancel</Button>
+            <Button disabled={dedSaving || !dedDesc || !dedAmount} onClick={async () => {
+              setDedSaving(true);
+              const res = await fetch(`/api/subcontractor-contracts/${id}/deductions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ description: dedDesc, amount: Number(dedAmount), deductionDate: dedDate, reason: dedReason || null }),
+              });
+              if (res.ok) { setDedDialog(false); fetchDeductions(); }
+              setDedSaving(false);
+            }}>
+              {dedSaving ? 'Saving…' : 'Add Deduction'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── New Certificate Dialog ── */}
       <Dialog open={certDialog} onOpenChange={setCertDialog}>

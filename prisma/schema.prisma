@@ -414,6 +414,10 @@ model User {
   scContractsApproved         SubcontractorContract[]             @relation("SCContractApprovedBy")
   scCertificatesCreated       SubcontractorPaymentCertificate[]   @relation("SCCertCreatedBy")
   scCertificatesApproved      SubcontractorPaymentCertificate[]   @relation("SCCertApprovedBy")
+  scVariationsCreated         SubcontractorVariation[]            @relation("SCVariationCreatedBy")
+  scVariationsApproved        SubcontractorVariation[]            @relation("SCVariationApprovedBy")
+  scDeductionsCreated         SubcontractorDeduction[]            @relation("SCDeductionCreatedBy")
+  scDeductionsApproved        SubcontractorDeduction[]            @relation("SCDeductionApprovedBy")
 
   // HR Monthly Reports (23.4.0)
   createdHrReports HrMonthlyReport[] @relation("HrReportCreatedBy")
@@ -7376,9 +7380,59 @@ model SubcontractorContract {
   createdBy           User                             @relation("SCContractCreatedBy", fields: [createdById], references: [id])
   approvedBy          User?                            @relation("SCContractApprovedBy", fields: [approvedById], references: [id])
   paymentCertificates SubcontractorPaymentCertificate[]
+  variations          SubcontractorVariation[]
+  deductions          SubcontractorDeduction[]
 
   @@index([projectId])
   @@index([supplierId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model SubcontractorVariation {
+  id              String    @id @default(cuid())
+  contractId      String    @db.Char(36)
+  variationNumber String    @db.VarChar(30)
+  description     String    @db.Text
+  amount          Decimal   @db.Decimal(15, 2)
+  status          String    @default("PENDING") @db.VarChar(30)
+  approvedById    String?   @db.Char(36)
+  approvedAt      DateTime?
+  notes           String?   @db.Text
+  createdById     String    @db.Char(36)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  contract   SubcontractorContract @relation(fields: [contractId], references: [id])
+  createdBy  User                  @relation("SCVariationCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?                 @relation("SCVariationApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([contractId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model SubcontractorDeduction {
+  id             String    @id @default(cuid())
+  contractId     String    @db.Char(36)
+  description    String    @db.Text
+  amount         Decimal   @db.Decimal(15, 2)
+  deductionDate  DateTime  @default(now()) @db.Date
+  reason         String?   @db.Text
+  status         String    @default("PENDING") @db.VarChar(30)
+  approvedById   String?   @db.Char(36)
+  approvedAt     DateTime?
+  createdById    String    @db.Char(36)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  contract   SubcontractorContract @relation(fields: [contractId], references: [id])
+  createdBy  User                  @relation("SCDeductionCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?                 @relation("SCDeductionApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([contractId])
   @@index([status])
   @@index([deletedAt])
 }

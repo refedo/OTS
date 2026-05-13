@@ -13,7 +13,8 @@ import {
 const createSchema = z.object({
   projectId: z.string().min(1),
   buildingId: z.string().optional().nullable(),
-  supplierId: z.string().min(1),
+  supplierId: z.string().optional().nullable(),
+  dolibarrId: z.number().int().positive().optional().nullable(),
   scopeLevel: z.enum(['project', 'building', 'scope']),
   scopeTypes: z.array(z.string()).min(1),
   scopeItems: z.array(z.object({
@@ -109,7 +110,50 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
 
   const data = parsed.data;
 
+  if (!data.supplierId && !data.dolibarrId) {
+    return NextResponse.json({ error: 'Either supplierId or dolibarrId is required' }, { status: 422 });
+  }
+
   try {
+    // Resolve supplierId — auto-create ScApprovedSupplier from Dolibarr data if needed
+    let supplierId = data.supplierId;
+    if (!supplierId && data.dolibarrId) {
+      const existing = await prisma.scApprovedSupplier.findFirst({
+        where: { dolibarrId: data.dolibarrId, deletedAt: null },
+        select: { id: true },
+      });
+      if (existing) {
+        supplierId = existing.id;
+      } else {
+        const rows = await prisma.$queryRawUnsafe<[{ name: string; code_supplier: string | null }]>(
+          'SELECT name, code_supplier FROM dolibarr_thirdparties WHERE dolibarr_id = ? LIMIT 1',
+          data.dolibarrId
+        );
+        if (!rows.length) return NextResponse.json({ error: 'Dolibarr supplier not found' }, { status: 404 });
+        const dt = rows[0];
+        const lastSup = await prisma.scApprovedSupplier.findFirst({
+          where: { supplierCode: { startsWith: 'SUP-' } },
+          orderBy: { supplierCode: 'desc' },
+          select: { supplierCode: true },
+        });
+        const n = lastSup ? (parseInt(lastSup.supplierCode.replace('SUP-', '')) || 0) + 1 : 1;
+        const supplierCode = `SUP-${String(n).padStart(3, '0')}`;
+        const created = await prisma.scApprovedSupplier.create({
+          data: {
+            supplierCode,
+            name: dt.name,
+            dolibarrId: data.dolibarrId,
+            approvalStatus: 'APPROVED',
+            updatedAt: new Date(),
+            createdById: session.userId,
+          },
+          select: { id: true },
+        });
+        supplierId = created.id;
+        logger.info({ supplierId: created.id, dolibarrId: data.dolibarrId }, '[SC Contracts] Auto-created ScApprovedSupplier');
+      }
+    }
+
     const project = await prisma.project.findUnique({
       where: { id: data.projectId },
       select: { projectNumber: true },
@@ -141,7 +185,7 @@ export const POST = withApiContext(async (req: NextRequest, session) => {
         name,
         projectId: data.projectId,
         buildingId: data.buildingId ?? null,
-        supplierId: data.supplierId,
+        supplierId: supplierId!,
         scopeLevel: data.scopeLevel,
         scopeTypes: data.scopeTypes,
         scopeItems: data.scopeItems ?? [],
