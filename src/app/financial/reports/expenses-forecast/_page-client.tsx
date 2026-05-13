@@ -5,9 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Loader2, ArrowLeft, Save, Plus, Trash2, TrendingDown,
-  CalendarClock, BarChart3, ChevronDown, Copy, RefreshCw,
+  CalendarClock, BarChart3, RefreshCw, ChevronDown, ChevronUp,
+  Sparkles, Repeat, CalendarRange,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -32,10 +38,38 @@ interface ForecastData {
   isTemplate: boolean;
 }
 
+type Frequency = 'monthly' | 'annual';
+
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+interface PresetCategory {
+  value: string;
+  label: string;
+  icon: string;
+  group: string;
+  defaultFrequency: Frequency;
+}
+
+const PRESET_CATEGORIES: PresetCategory[] = [
+  { value: 'Salaries',           label: 'Salaries',           icon: '👥', group: 'Personnel',  defaultFrequency: 'monthly' },
+  { value: 'GOSI / Saudization', label: 'GOSI',               icon: '🏥', group: 'Personnel',  defaultFrequency: 'monthly' },
+  { value: 'Factory Leases',     label: 'Factory Leases',     icon: '🏭', group: 'Facilities', defaultFrequency: 'annual'  },
+  { value: 'Office Rent',        label: 'Office Rent',        icon: '🏢', group: 'Facilities', defaultFrequency: 'annual'  },
+  { value: 'Electricity',        label: 'Electricity',        icon: '⚡', group: 'Utilities',  defaultFrequency: 'monthly' },
+  { value: 'Water',              label: 'Water',              icon: '💧', group: 'Utilities',  defaultFrequency: 'monthly' },
+  { value: 'Fuel',               label: 'Fuel',               icon: '⛽', group: 'Utilities',  defaultFrequency: 'monthly' },
+  { value: 'Telecom',            label: 'Telecom',            icon: '📡', group: 'Utilities',  defaultFrequency: 'monthly' },
+  { value: 'Maintenance',        label: 'Maintenance',        icon: '🔧', group: 'Operations', defaultFrequency: 'monthly' },
+  { value: 'Insurance',          label: 'Insurance',          icon: '🛡️', group: 'Operations', defaultFrequency: 'annual'  },
+  { value: 'Transportation',     label: 'Transportation',     icon: '🚛', group: 'Operations', defaultFrequency: 'monthly' },
+  { value: 'Office Expenses',    label: 'Office Expenses',    icon: '📋', group: 'Operations', defaultFrequency: 'monthly' },
+  { value: '__other__',          label: 'Other',              icon: '✏️', group: 'Other',      defaultFrequency: 'monthly' },
+];
+
+const CATEGORY_GROUPS = ['Personnel', 'Facilities', 'Utilities', 'Operations', 'Other'];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -73,7 +107,382 @@ function nextId(rows: ForecastRow[]): number {
   return minId - 1;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
+function buildMonths(amount: number, frequency: Frequency): MonthAmounts {
+  if (frequency === 'monthly') {
+    return Array(12).fill(amount) as MonthAmounts;
+  }
+  // annual: distribute equally, rounding so the total stays correct
+  const base = Math.floor(amount / 12);
+  const remainder = Math.round(amount - base * 12);
+  const months = Array(12).fill(base) as MonthAmounts;
+  if (remainder > 0) months[0] = base + remainder;
+  return months;
+}
+
+// ── Add Expense Dialog ─────────────────────────────────────────────────────
+
+interface AddExpenseDialogProps {
+  open: boolean;
+  year: number;
+  existingCategories: string[];
+  onClose: () => void;
+  onAdd: (row: Omit<ForecastRow, 'id' | 'year' | 'sortOrder'>) => void;
+}
+
+function AddExpenseDialog({ open, year, existingCategories, onClose, onAdd }: AddExpenseDialogProps) {
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [customName, setCustomName] = useState('');
+  const [frequency, setFrequency] = useState<Frequency>('monthly');
+  const [amountRaw, setAmountRaw] = useState('');
+  const [notes, setNotes] = useState('');
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  // Reset on open
+  useEffect(() => {
+    if (open) {
+      setSelectedPreset(null);
+      setCustomName('');
+      setFrequency('monthly');
+      setAmountRaw('');
+      setNotes('');
+    }
+  }, [open]);
+
+  // Auto-set default frequency when selecting a preset
+  const handlePresetSelect = (preset: PresetCategory) => {
+    setSelectedPreset(preset.value);
+    setFrequency(preset.defaultFrequency);
+    setTimeout(() => amountRef.current?.focus(), 50);
+  };
+
+  const categoryName = selectedPreset === '__other__'
+    ? customName.trim()
+    : selectedPreset ?? '';
+
+  const amount = parseAmount(amountRaw);
+  const previewMonths = amount > 0 ? buildMonths(amount, frequency) : null;
+  const previewTotal = previewMonths ? previewMonths.reduce((s, v) => s + v, 0) : 0;
+
+  const isDuplicate = existingCategories.includes(categoryName);
+  const canAdd = categoryName.length > 0 && amount > 0 && !isDuplicate;
+
+  const handleAdd = () => {
+    if (!canAdd) return;
+    onAdd({
+      category: categoryName,
+      notes: notes.trim() || null,
+      months: buildMonths(amount, frequency),
+    });
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v: boolean) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Add Expense — {year}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+
+          {/* Category picker */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Expense Type
+            </Label>
+            <div className="space-y-3">
+              {CATEGORY_GROUPS.map(group => {
+                const items = PRESET_CATEGORIES.filter(c => c.group === group);
+                return (
+                  <div key={group}>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 font-medium">
+                      {group}
+                    </p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {items.map(preset => {
+                        const alreadyExists = preset.value !== '__other__' &&
+                          existingCategories.includes(preset.value);
+                        return (
+                          <button
+                            key={preset.value}
+                            disabled={alreadyExists}
+                            onClick={() => handlePresetSelect(preset)}
+                            className={cn(
+                              'flex flex-col items-center gap-1 p-2 rounded-lg border text-center transition-all',
+                              'hover:border-primary hover:bg-primary/5',
+                              selectedPreset === preset.value
+                                ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                                : 'border-border bg-muted/30',
+                              alreadyExists && 'opacity-40 cursor-not-allowed hover:border-border hover:bg-transparent'
+                            )}
+                            title={alreadyExists ? 'Already in budget' : preset.value}
+                          >
+                            <span className="text-xl leading-none">{preset.icon}</span>
+                            <span className="text-[10px] font-medium leading-tight">{preset.label}</span>
+                            {alreadyExists && (
+                              <span className="text-[9px] text-muted-foreground">added</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Custom category name (shown when "Other" is selected) */}
+          {selectedPreset === '__other__' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="custom-name">Category Name</Label>
+              <Input
+                id="custom-name"
+                placeholder="e.g. Software Subscriptions"
+                value={customName}
+                onChange={e => setCustomName(e.target.value)}
+                autoFocus
+              />
+              {isDuplicate && customName.trim() && (
+                <p className="text-xs text-destructive">This category is already in the budget.</p>
+              )}
+            </div>
+          )}
+
+          {/* Frequency */}
+          {selectedPreset && (
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                How is this expense paid?
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setFrequency('monthly')}
+                  className={cn(
+                    'flex items-center gap-2.5 p-3 rounded-lg border text-left transition-all',
+                    frequency === 'monthly'
+                      ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                      : 'border-border hover:border-primary/50 hover:bg-muted/40'
+                  )}
+                >
+                  <Repeat className="h-4 w-4 shrink-0 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-medium">Monthly</p>
+                    <p className="text-[11px] text-muted-foreground">Same amount each month</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setFrequency('annual')}
+                  className={cn(
+                    'flex items-center gap-2.5 p-3 rounded-lg border text-left transition-all',
+                    frequency === 'annual'
+                      ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                      : 'border-border hover:border-primary/50 hover:bg-muted/40'
+                  )}
+                >
+                  <CalendarRange className="h-4 w-4 shrink-0 text-purple-500" />
+                  <div>
+                    <p className="text-sm font-medium">Annual Total</p>
+                    <p className="text-[11px] text-muted-foreground">Spread equally over 12 months</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Amount */}
+          {selectedPreset && (
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-amount">
+                {frequency === 'monthly' ? 'Monthly Amount (SAR)' : 'Annual Total (SAR)'}
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                  SAR
+                </span>
+                <Input
+                  ref={amountRef}
+                  id="expense-amount"
+                  type="number"
+                  min={0}
+                  step={1000}
+                  placeholder="0"
+                  value={amountRaw}
+                  onChange={e => setAmountRaw(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && canAdd) handleAdd(); }}
+                  className="pl-12 text-lg font-semibold"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Live preview */}
+          {previewMonths && amount > 0 && (
+            <div className="rounded-lg bg-muted/50 border p-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Monthly Breakdown Preview
+              </p>
+              <div className="grid grid-cols-6 gap-1">
+                {MONTH_LABELS.map((label, i) => (
+                  <div key={label} className="text-center">
+                    <p className="text-[10px] text-muted-foreground">{label}</p>
+                    <p className="text-xs font-medium tabular-nums">
+                      {(previewMonths[i] / 1000).toFixed(0)}K
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between items-center pt-1 border-t">
+                <span className="text-xs text-muted-foreground">Annual total</span>
+                <span className="text-sm font-bold text-primary">{formatCompact(previewTotal)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {selectedPreset && (
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-notes" className="text-muted-foreground text-xs">
+                Notes (optional)
+              </Label>
+              <Textarea
+                id="expense-notes"
+                placeholder="e.g. Factory 1 + Factory 2 combined lease"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={2}
+                className="resize-none text-sm"
+              />
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleAdd} disabled={!canAdd}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add to Budget
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Quick Fill Dialog ──────────────────────────────────────────────────────
+
+interface QuickFillDialogProps {
+  row: ForecastRow | null;
+  onClose: () => void;
+  onApply: (rowId: number, months: MonthAmounts) => void;
+}
+
+function QuickFillDialog({ row, onClose, onApply }: QuickFillDialogProps) {
+  const [frequency, setFrequency] = useState<Frequency>('monthly');
+  const [amountRaw, setAmountRaw] = useState('');
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (row) {
+      setAmountRaw('');
+      setFrequency('monthly');
+      setTimeout(() => amountRef.current?.focus(), 50);
+    }
+  }, [row]);
+
+  const amount = parseAmount(amountRaw);
+  const canApply = amount > 0;
+
+  const handleApply = () => {
+    if (!row || !canApply) return;
+    onApply(row.id, buildMonths(amount, frequency));
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!row} onOpenChange={(v: boolean) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Quick Fill — {row?.category}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setFrequency('monthly')}
+              className={cn(
+                'flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all text-sm',
+                frequency === 'monthly'
+                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                  : 'border-border hover:border-primary/50'
+              )}
+            >
+              <Repeat className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+              <div>
+                <p className="font-medium text-xs">Monthly</p>
+                <p className="text-[10px] text-muted-foreground">Same each month</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setFrequency('annual')}
+              className={cn(
+                'flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all text-sm',
+                frequency === 'annual'
+                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                  : 'border-border hover:border-primary/50'
+              )}
+            >
+              <CalendarRange className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+              <div>
+                <p className="font-medium text-xs">Annual</p>
+                <p className="text-[10px] text-muted-foreground">÷ 12 months</p>
+              </div>
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="qf-amount" className="text-xs">
+              {frequency === 'monthly' ? 'Monthly Amount (SAR)' : 'Annual Total (SAR)'}
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">SAR</span>
+              <Input
+                ref={amountRef}
+                id="qf-amount"
+                type="number"
+                min={0}
+                step={1000}
+                placeholder="0"
+                value={amountRaw}
+                onChange={e => setAmountRaw(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && canApply) handleApply(); }}
+                className="pl-12 font-semibold"
+              />
+            </div>
+          </div>
+
+          {amount > 0 && (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+              {frequency === 'monthly'
+                ? `Fills all 12 months with ${formatSAR(amount)} → ${formatCompact(amount * 12)} annually`
+                : `${formatSAR(amount)} ÷ 12 = ${formatCompact(Math.round(amount / 12))} per month`}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={handleApply} disabled={!canApply}>Apply</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────
 
 export default function ExpensesForecastPage() {
   const currentYear = new Date().getFullYear();
@@ -84,8 +493,9 @@ export default function ExpensesForecastPage() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saveMsg, setSaveMsg] = useState<'saved' | 'error' | null>(null);
-  const [fillTarget, setFillTarget] = useState<number | null>(null); // row id for fill-across dropdown
-  const fillRef = useRef<HTMLDivElement>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [quickFillRow, setQuickFillRow] = useState<ForecastRow | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
 
   const fetchForecast = useCallback(async (y: number) => {
     setLoading(true);
@@ -105,17 +515,6 @@ export default function ExpensesForecastPage() {
 
   useEffect(() => { fetchForecast(year); }, [year, fetchForecast]);
 
-  // Close fill dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (fillRef.current && !fillRef.current.contains(e.target as Node)) {
-        setFillTarget(null);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   const updateCell = (rowId: number, monthIdx: number, raw: string) => {
     setRows((prev: ForecastRow[]) => prev.map((r: ForecastRow) =>
       r.id !== rowId ? r : {
@@ -132,41 +531,46 @@ export default function ExpensesForecastPage() {
     setDirty(true);
   };
 
-  const fillAcross = (rowId: number, sourceIdx: number) => {
-    const row = rows.find((r: ForecastRow) => r.id === rowId);
-    if (!row) return;
-    const val = row.months[sourceIdx];
+  const updateNotes = (rowId: number, value: string) => {
     setRows((prev: ForecastRow[]) => prev.map((r: ForecastRow) =>
-      r.id !== rowId ? r : { ...r, months: Array(12).fill(val) as MonthAmounts }
+      r.id !== rowId ? r : { ...r, notes: value || null }
     ));
     setDirty(true);
-    setFillTarget(null);
   };
 
-  const addRow = () => {
+  const applyQuickFill = (rowId: number, months: MonthAmounts) => {
+    setRows((prev: ForecastRow[]) => prev.map((r: ForecastRow) =>
+      r.id !== rowId ? r : { ...r, months }
+    ));
+    setDirty(true);
+    setSaveMsg(null);
+  };
+
+  const handleAddExpense = (partial: Omit<ForecastRow, 'id' | 'year' | 'sortOrder'>) => {
     const id = nextId(rows);
     setRows((prev: ForecastRow[]) => [
       ...prev,
-      {
-        id,
-        year,
-        category: 'New Expense',
-        sortOrder: prev.length + 1,
-        notes: null,
-        months: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] as MonthAmounts,
-      },
+      { id, year, sortOrder: prev.length + 1, ...partial },
     ]);
     setDirty(true);
   };
 
   const deleteRow = (rowId: number) => {
     setRows((prev: ForecastRow[]) => prev.filter((r: ForecastRow) => r.id !== rowId));
+    setExpandedNotes(prev => { const s = new Set(prev); s.delete(rowId); return s; });
     setDirty(true);
+  };
+
+  const toggleNotes = (rowId: number) => {
+    setExpandedNotes(prev => {
+      const s = new Set(prev);
+      if (s.has(rowId)) s.delete(rowId); else s.add(rowId);
+      return s;
+    });
   };
 
   const save = async () => {
     if (!dirty) return;
-    // Validate categories are non-empty
     const invalid = rows.some((r: ForecastRow) => !r.category.trim());
     if (invalid) { setSaveMsg('error'); return; }
 
@@ -208,7 +612,9 @@ export default function ExpensesForecastPage() {
   const avgMonthly = monthTotals.filter(v => v > 0).length > 0
     ? grand / monthTotals.filter(v => v > 0).length
     : 0;
-  const topCategory = rows.slice().sort((a: ForecastRow, b: ForecastRow) => rowTotal(b.months) - rowTotal(a.months))[0];
+  const topCategory = rows.slice().sort((a, b) => rowTotal(b.months) - rowTotal(a.months))[0];
+  const existingCategories = rows.map(r => r.category);
+  const unbudgetedCount = rows.filter(r => rowTotal(r.months) === 0).length;
 
   if (loading) {
     return (
@@ -230,10 +636,9 @@ export default function ExpensesForecastPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">Expenses Cash-Out Forecast</h1>
           <p className="text-sm text-muted-foreground">
-            Plan and track fixed monthly operational expenses for the full year
+            Plan fixed operational expenses per year — monthly or annual totals auto-distributed
           </p>
         </div>
-        {/* Year selector */}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setYear((y: number) => y - 1)}>‹</Button>
           <span className="font-semibold text-lg w-14 text-center">{year}</span>
@@ -262,7 +667,7 @@ export default function ExpensesForecastPage() {
             <div className="flex items-center gap-3">
               <CalendarClock className="h-5 w-5 text-amber-500 shrink-0" />
               <div>
-                <p className="text-xs text-muted-foreground">Avg Monthly (active)</p>
+                <p className="text-xs text-muted-foreground">Avg Monthly</p>
                 <p className="text-lg font-bold">{formatCompact(avgMonthly)}</p>
               </div>
             </div>
@@ -302,14 +707,22 @@ export default function ExpensesForecastPage() {
         </Card>
       </div>
 
+      {/* Unbudgeted warning */}
+      {unbudgetedCount > 0 && grand > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+          <span className="font-semibold">{unbudgetedCount} categor{unbudgetedCount === 1 ? 'y has' : 'ies have'} no amounts set.</span>
+          <span className="text-amber-700 dark:text-amber-400">Use Quick Fill to set amounts quickly.</span>
+        </div>
+      )}
+
       {/* Forecast Grid */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle className="text-base">Monthly Expense Budget — {year}</CardTitle>
+            <CardTitle className="text-base">Monthly Budget — {year}</CardTitle>
             {data?.isTemplate && (
               <p className="text-xs text-muted-foreground mt-1">
-                No saved data for {year} yet. Fill in the amounts and save.
+                No saved data for {year}. Click <strong>Add Expense</strong> to build your budget.
               </p>
             )}
           </div>
@@ -320,8 +733,8 @@ export default function ExpensesForecastPage() {
             {saveMsg === 'error' && (
               <Badge variant="destructive">Save failed</Badge>
             )}
-            <Button size="sm" variant="outline" onClick={addRow}>
-              <Plus className="h-4 w-4 mr-1" /> Add Row
+            <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Add Expense
             </Button>
             <Button size="sm" onClick={save} disabled={!dirty || saving}>
               {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
@@ -330,117 +743,162 @@ export default function ExpensesForecastPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-muted/60 border-b">
-                  <th className="text-left p-3 sticky left-0 bg-muted/60 z-10 min-w-[160px]">
-                    Category
-                  </th>
-                  {MONTH_LABELS.map(m => (
-                    <th key={m} className="text-right p-2 min-w-[90px] font-medium">{m}</th>
-                  ))}
-                  <th className="text-right p-3 min-w-[110px] font-semibold bg-muted/80">
-                    Annual Total
-                  </th>
-                  <th className="p-2 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row: ForecastRow) => {
-                  const total = rowTotal(row.months);
-                  return (
-                    <tr key={row.id} className="border-b hover:bg-muted/20 group">
-                      {/* Category cell */}
-                      <td className="p-2 sticky left-0 bg-background z-10 group-hover:bg-muted/20">
-                        <Input
-                          value={row.category}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCategory(row.id, e.target.value)}
-                          className="h-7 text-sm font-medium border-transparent hover:border-input focus:border-input bg-transparent"
-                        />
-                      </td>
-                      {/* Month cells */}
-                      {row.months.map((val: number, monthIdx: number) => (
-                        <td key={monthIdx} className="p-1 relative">
-                          <div className="flex items-center">
+          {rows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <span className="text-5xl mb-4">📊</span>
+              <p className="text-lg font-semibold mb-1">No expenses budgeted yet</p>
+              <p className="text-sm text-muted-foreground mb-4 max-w-xs">
+                Add your fixed operational expenses — salaries, leases, utilities — and we'll distribute the amounts across months automatically.
+              </p>
+              <Button onClick={() => setAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add First Expense
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-muted/60 border-b">
+                    <th className="text-left p-3 sticky left-0 bg-muted/60 z-10 min-w-[170px]">Category</th>
+                    {MONTH_LABELS.map(m => (
+                      <th key={m} className="text-right p-2 min-w-[80px] font-medium">{m}</th>
+                    ))}
+                    <th className="text-right p-3 min-w-[100px] font-semibold bg-muted/80">Annual</th>
+                    <th className="text-right p-2 min-w-[50px] font-medium text-muted-foreground text-xs">%</th>
+                    <th className="p-2 w-20 text-center text-xs text-muted-foreground font-normal">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row: ForecastRow) => {
+                    const total = rowTotal(row.months);
+                    const pct = grand > 0 ? (total / grand) * 100 : 0;
+                    const notesExpanded = expandedNotes.has(row.id);
+                    const isEmpty = total === 0;
+
+                    return (
+                      <React.Fragment key={row.id}>
+                        <tr className={cn(
+                          'border-b group',
+                          isEmpty ? 'bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50/60' : 'hover:bg-muted/20'
+                        )}>
+                          {/* Category */}
+                          <td className={cn(
+                            'p-2 sticky left-0 z-10',
+                            isEmpty
+                              ? 'bg-amber-50/40 dark:bg-amber-950/10 group-hover:bg-amber-50/60'
+                              : 'bg-background group-hover:bg-muted/20'
+                          )}>
                             <Input
-                              type="number"
-                              min={0}
-                              step={100}
-                              value={val === 0 ? '' : val}
-                              placeholder="0"
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCell(row.id, monthIdx, e.target.value)}
-                              className="h-7 text-right text-xs w-full border-transparent hover:border-input focus:border-input bg-transparent pr-1"
+                              value={row.category}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCategory(row.id, e.target.value)}
+                              className="h-7 text-sm font-medium border-transparent hover:border-input focus:border-input bg-transparent"
                             />
-                            {/* Fill-across trigger */}
-                            <div className="relative" ref={fillTarget === row.id ? fillRef : undefined}>
+                          </td>
+                          {/* Month cells */}
+                          {row.months.map((val: number, monthIdx: number) => (
+                            <td key={monthIdx} className="p-1">
+                              <Input
+                                type="number"
+                                min={0}
+                                step={100}
+                                value={val === 0 ? '' : val}
+                                placeholder="—"
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateCell(row.id, monthIdx, e.target.value)}
+                                className={cn(
+                                  'h-7 text-right text-xs w-full border-transparent hover:border-input focus:border-input bg-transparent',
+                                  val > 0 ? 'text-foreground' : 'text-muted-foreground'
+                                )}
+                              />
+                            </td>
+                          ))}
+                          {/* Annual total */}
+                          <td className={cn(
+                            'p-3 text-right font-semibold tabular-nums bg-muted/30',
+                            total > 0 ? 'text-foreground' : 'text-muted-foreground'
+                          )}>
+                            {total > 0 ? formatSAR(total) : '—'}
+                          </td>
+                          {/* Percentage */}
+                          <td className="p-2 text-right tabular-nums text-xs text-muted-foreground">
+                            {pct > 0 ? `${pct.toFixed(1)}%` : '—'}
+                          </td>
+                          {/* Actions */}
+                          <td className="p-1 text-center">
+                            <div className="flex items-center justify-center gap-0.5">
                               <button
-                                className="opacity-0 group-hover:opacity-60 hover:!opacity-100 p-0.5 rounded text-muted-foreground transition-opacity ml-0.5"
-                                title="Fill all months with this value"
-                                onClick={() => setFillTarget(fillTarget === row.id ? null : row.id)}
+                                onClick={() => setQuickFillRow(row)}
+                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                title="Quick fill months"
                               >
-                                <Copy className="h-3 w-3" />
+                                <Sparkles className="h-3.5 w-3.5" />
                               </button>
-                              {fillTarget === row.id && (
-                                <div className="absolute right-0 top-6 z-20 bg-popover border rounded shadow-lg p-2 min-w-[160px] text-xs">
-                                  <p className="font-medium mb-1 text-muted-foreground">Fill all months with:</p>
-                                  {row.months.map((v: number, i: number) => (
-                                    <button
-                                      key={i}
-                                      className="block w-full text-left px-2 py-1 rounded hover:bg-muted"
-                                      onClick={() => fillAcross(row.id, i)}
-                                    >
-                                      {MONTH_LABELS[i]}: {formatSAR(v)}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
+                              <button
+                                onClick={() => toggleNotes(row.id)}
+                                className={cn(
+                                  'p-1 rounded hover:bg-muted transition-colors',
+                                  row.notes || notesExpanded
+                                    ? 'text-primary'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                )}
+                                title="Toggle notes"
+                              >
+                                {notesExpanded
+                                  ? <ChevronUp className="h-3.5 w-3.5" />
+                                  : <ChevronDown className="h-3.5 w-3.5" />}
+                              </button>
+                              <button
+                                onClick={() => deleteRow(row.id)}
+                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Remove row"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                          </div>
-                        </td>
-                      ))}
-                      {/* Row total */}
-                      <td className={cn(
-                        'p-3 text-right font-semibold tabular-nums bg-muted/30',
-                        total > 0 ? 'text-foreground' : 'text-muted-foreground'
-                      )}>
-                        {total > 0 ? formatSAR(total) : '—'}
+                          </td>
+                        </tr>
+                        {/* Notes row */}
+                        {notesExpanded && (
+                          <tr className="border-b bg-muted/10">
+                            <td colSpan={16} className="px-3 py-2">
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs text-muted-foreground mt-1.5 shrink-0">Note:</span>
+                                <Input
+                                  value={row.notes ?? ''}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateNotes(row.id, e.target.value)}
+                                  placeholder="Add a note for this expense…"
+                                  className="h-7 text-xs border-muted bg-transparent"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+                {/* Totals footer */}
+                <tfoot>
+                  <tr className="bg-muted/60 border-t-2 font-semibold">
+                    <td className="p-3 sticky left-0 bg-muted/60 z-10 text-sm">Monthly Total</td>
+                    {monthTotals.map((total, i) => (
+                      <td key={i} className="p-2 text-right tabular-nums text-sm">
+                        {total > 0 ? formatCompact(total) : '—'}
                       </td>
-                      {/* Delete */}
-                      <td className="p-1">
-                        <button
-                          onClick={() => deleteRow(row.id)}
-                          className="opacity-0 group-hover:opacity-60 hover:!opacity-100 p-1 rounded text-destructive transition-opacity"
-                          title="Remove row"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {/* Monthly totals footer */}
-              <tfoot>
-                <tr className="bg-muted/60 border-t-2 font-semibold">
-                  <td className="p-3 sticky left-0 bg-muted/60 z-10 text-sm">Monthly Total</td>
-                  {monthTotals.map((total, i) => (
-                    <td key={i} className="p-2 text-right tabular-nums text-sm">
-                      {total > 0 ? formatSAR(total) : '—'}
+                    ))}
+                    <td className="p-3 text-right tabular-nums text-sm font-bold text-red-600 bg-muted/80">
+                      {formatSAR(grand)}
                     </td>
-                  ))}
-                  <td className="p-3 text-right tabular-nums text-sm font-bold text-red-600 bg-muted/80">
-                    {formatSAR(grand)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                    <td className="p-2 text-right text-xs text-muted-foreground">100%</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Monthly bar chart (visual) */}
+      {/* Monthly distribution chart */}
       {grand > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -501,7 +959,7 @@ export default function ExpensesForecastPage() {
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="w-14 text-right text-xs text-muted-foreground">
+                      <span className="w-12 text-right text-xs text-muted-foreground tabular-nums">
                         {pct.toFixed(1)}%
                       </span>
                       <span className="w-28 text-right tabular-nums text-xs font-medium">
@@ -515,6 +973,7 @@ export default function ExpensesForecastPage() {
         </Card>
       )}
 
+      {/* Sticky save bar */}
       {dirty && (
         <div className="fixed bottom-6 right-6 z-50">
           <Button onClick={save} disabled={saving} size="lg" className="shadow-lg">
@@ -525,6 +984,20 @@ export default function ExpensesForecastPage() {
           </Button>
         </div>
       )}
+
+      {/* Dialogs */}
+      <AddExpenseDialog
+        open={addDialogOpen}
+        year={year}
+        existingCategories={existingCategories}
+        onClose={() => setAddDialogOpen(false)}
+        onAdd={handleAddExpense}
+      />
+      <QuickFillDialog
+        row={quickFillRow}
+        onClose={() => setQuickFillRow(null)}
+        onApply={applyQuickFill}
+      />
     </div>
   );
 }
