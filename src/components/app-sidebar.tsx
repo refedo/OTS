@@ -389,6 +389,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Statement of Account', href: '/financial/reports/soa', icon: FileText },
       { name: 'Cash In/Out', href: '/financial/reports/cash-flow', icon: TrendingUp },
       { name: 'Cash Flow Forecast', href: '/financial/reports/cash-flow-forecast', icon: TrendingUp },
+      { name: 'Expenses Forecast', href: '/financial/reports/expenses-forecast', icon: TrendingDown, newSince: '2026-05-13' },
       { name: 'Payment Schedule', href: '/financial/reports/payment-schedule', icon: CalendarClock },
       { name: 'Project Analysis', href: '/financial/reports/project-analysis', icon: FileSpreadsheet },
       { name: 'WIP Report', href: '/financial/reports/wip', icon: Clock },
