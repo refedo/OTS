@@ -17,7 +17,14 @@ import { getDefaultTerms, SCOPE_LABELS, TEMPLATE_LABELS } from '@/lib/services/s
 
 type Project = { id: string; projectNumber: string; name: string };
 type Building = { id: string; designation: string; name: string };
-type Supplier = { id: string; supplierCode: string; name: string; category: string | null; rating: string | null };
+type Supplier = {
+  dolibarr_id: number;
+  name: string;
+  code_supplier: string | null;
+  approval_status: string | null;
+  approval_rating: string | null;
+  approved_supplier_id: string | null;
+};
 type ScopeItem = { scopeType: string; scopeLabel: string; buildingId?: string | null; buildingDesignation?: string | null; originalQuantity?: number | null; originalUnit?: string | null; contractQuantity?: number | null; contractUnit?: string | null; unitRate?: number | null; subtotal?: number | null };
 type PaymentMilestone = { milestone: string; percentage: number; amount: number; dueDate?: string; description?: string };
 
@@ -66,8 +73,11 @@ export default function NewSubcontractorContractPage() {
   }, []);
 
   const fetchSuppliers = useCallback(async () => {
-    const res = await fetch('/api/supply-chain/approved-suppliers');
-    if (res.ok) setSuppliers(await res.json());
+    const res = await fetch('/api/supply-chain/suppliers?limit=200');
+    if (res.ok) {
+      const data = await res.json();
+      setSuppliers(Array.isArray(data.suppliers) ? data.suppliers : []);
+    }
   }, []);
 
   const fetchBuildings = useCallback(async () => {
@@ -170,7 +180,8 @@ export default function NewSubcontractorContractPage() {
         body: JSON.stringify({
           projectId: selectedProject,
           buildingId: selectedBuilding || null,
-          supplierId: selectedSupplier,
+          supplierId: supp?.approved_supplier_id ?? null,
+          dolibarrId: supp?.dolibarr_id ?? null,
           scopeLevel,
           scopeTypes: selectedScopeTypes,
           scopeItems: scopeItems.map(item => ({
@@ -209,7 +220,7 @@ export default function NewSubcontractorContractPage() {
   };
 
   const proj = projects.find(p => p.id === selectedProject);
-  const supp = suppliers.find(s => s.id === selectedSupplier);
+  const supp = suppliers.find(s => String(s.dolibarr_id) === selectedSupplier);
   const bldg = buildings.find(b => b.id === selectedBuilding);
 
   return (
@@ -284,10 +295,10 @@ export default function NewSubcontractorContractPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {suppliers.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        <span className="font-mono mr-2 text-muted-foreground text-xs">{s.supplierCode}</span>
+                      <SelectItem key={s.dolibarr_id} value={String(s.dolibarr_id)}>
+                        <span className="font-mono mr-2 text-muted-foreground text-xs">{s.code_supplier ?? '—'}</span>
                         {s.name}
-                        {s.rating && <Badge variant="outline" className="ml-2 text-xs">{s.rating}</Badge>}
+                        {s.approval_rating && <Badge variant="outline" className="ml-2 text-xs">{s.approval_rating}</Badge>}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -613,7 +624,7 @@ export default function NewSubcontractorContractPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: 'Project', value: proj ? `${proj.projectNumber} — ${proj.name}` : '—' },
-                  { label: 'Subcontractor', value: supp ? `${supp.supplierCode} — ${supp.name}` : '—' },
+                  { label: 'Subcontractor', value: supp ? `${supp.code_supplier ?? supp.dolibarr_id} — ${supp.name}` : '—' },
                   { label: 'Building', value: bldg ? `${bldg.designation} — ${bldg.name}` : 'Full Project' },
                   { label: 'Scope Types', value: selectedScopeTypes.map(st => SCOPE_LABELS[st] ?? st).join(', ') },
                   { label: 'Contract Value', value: `${contractValue.toLocaleString('en-SA-u-ca-gregory', { maximumFractionDigits: 2 })} ${currency}` },

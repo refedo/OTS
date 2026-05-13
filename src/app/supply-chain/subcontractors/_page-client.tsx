@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -17,7 +20,7 @@ import {
 import {
   Handshake, Plus, RefreshCw, Eye, Edit, MoreVertical, TrendingUp,
   DollarSign, CheckCircle2, Clock, AlertTriangle, Ban, Search,
-  Building2, FolderOpen, ChevronRight,
+  Building2, FolderOpen, ChevronRight, Trash2,
 } from 'lucide-react';
 
 type Contract = {
@@ -103,6 +106,9 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; contractNumber: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -140,6 +146,25 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
   const getTotalPaid = (c: Contract) => c.paymentCertificates
     .filter(cert => cert.status === 'PAID')
     .reduce((s, cert) => s + Number(cert.paidAmount), 0);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/subcontractor-contracts/${deleteTarget.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: deleteReason }),
+      });
+      if (res.ok) {
+        setDeleteTarget(null);
+        setDeleteReason('');
+        fetchData();
+      }
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -349,6 +374,14 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
                                 <DropdownMenuItem onClick={() => router.push(`/supply-chain/subcontractors/${c.id}`)}>
                                   <Building2 className="size-4 mr-2" /> Payment Certs
                                 </DropdownMenuItem>
+                                {canDelete && ['DRAFT', 'CANCELLED'].includes(c.status) && (
+                                  <DropdownMenuItem
+                                    className="text-rose-600 focus:text-rose-600 focus:bg-rose-50"
+                                    onClick={() => { setDeleteTarget({ id: c.id, contractNumber: c.contractNumber }); setDeleteReason(''); }}
+                                  >
+                                    <Trash2 className="size-4 mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -387,6 +420,36 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
           </div>
         )}
       </div>
+
+      {/* ── Delete confirmation dialog ── */}
+      <Dialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Contract</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete <span className="font-semibold text-foreground">{deleteTarget?.contractNumber}</span>? This action cannot be undone.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="del-reason">Reason (optional)</Label>
+              <Textarea
+                id="del-reason"
+                placeholder="Reason for deletion…"
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

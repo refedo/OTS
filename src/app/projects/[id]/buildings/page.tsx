@@ -129,9 +129,14 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
       return s + w;
     }, 0);
     const totalArea = b.assemblyParts.reduce((s, p) => s + Number(p.netAreaTotal ?? 0), 0);
-    const purlinArea = b.assemblyParts
-      .filter((p) => p.name?.toUpperCase() === 'PURLIN')
-      .reduce((s, p) => s + Number(p.netAreaTotal ?? 0), 0);
+    const purlinParts = b.assemblyParts.filter((p) => p.name?.toUpperCase() === 'PURLIN');
+    const purlinArea = purlinParts.reduce((s, p) => s + Number(p.netAreaTotal ?? 0), 0);
+    const purlinWeight = purlinParts.reduce((s, p) => {
+      const w = Number(p.netWeightTotal ?? 0) > 0
+        ? Number(p.netWeightTotal)
+        : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
+      return s + w;
+    }, 0) / 1000;
 
     return {
       ...b,
@@ -139,6 +144,7 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
       assemblyTonnage: totalWeight / 1000,
       totalArea,
       purlinArea,
+      purlinWeight,
       paintableArea: totalArea - purlinArea,
       scopeOfWorks: b.scopeOfWorks.map((s) => ({
         ...s,

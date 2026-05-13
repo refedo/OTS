@@ -114,7 +114,7 @@ export async function getCustomerOverview(dolibarrId: number): Promise<CustomerO
   const contacts = await prisma.$queryRawUnsafe<CustomerContact[]>(`
     SELECT firstname, lastname, email, phone_pro, phone_mobile, poste
     FROM dolibarr_contacts
-    WHERE dolibarr_thirdparty_id = ? AND statut = 1
+    WHERE dolibarr_thirdparty_id = ? AND is_active = 1
     ORDER BY lastname, firstname
   `, dolibarrId);
 
