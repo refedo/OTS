@@ -23,12 +23,15 @@ export default async function SubcontractorContractsPage() {
 
   if (!canView) redirect('/unauthorized?from=/supply-chain/subcontractors');
 
+  const canHardDelete = ['admin', 'ceo'].includes(session.role?.toLowerCase() ?? '');
+
   return (
     <SubcontractorsPage
       canCreate={canCreate}
       canEdit={canEdit}
       canDelete={canDelete}
       canApprove={canApprove}
+      canHardDelete={canHardDelete}
     />
   );
 }

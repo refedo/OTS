@@ -85,11 +85,34 @@ export const DELETE = withApiContext(async (req: NextRequest, session, context) 
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
   let reason = 'Deleted by user';
+  let force = false;
   try {
-    const body = await req.json() as { reason?: string };
+    const body = await req.json() as { reason?: string; force?: boolean };
     if (body.reason) reason = body.reason;
-  } catch { /* reason stays default */ }
+    if (body.force) force = true;
+  } catch { /* defaults stay */ }
 
+  // Hard delete — admin/CEO only
+  if (force) {
+    if (!['admin', 'ceo'].includes(session.role?.toLowerCase() ?? '')) {
+      return NextResponse.json({ error: 'Forbidden: only admin or CEO can force-delete contracts' }, { status: 403 });
+    }
+    if (!reason) {
+      return NextResponse.json({ error: 'Reason is required for force delete' }, { status: 422 });
+    }
+    try {
+      const existing = await prisma.subcontractorContract.findFirst({ where: { id } });
+      if (!existing) return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
+      await prisma.subcontractorContract.delete({ where: { id } });
+      logger.info({ id, reason, userId: session.userId }, '[SC Contracts] Force-deleted contract');
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      logger.error({ error, id }, '[SC Contracts] Failed to force-delete contract');
+      return NextResponse.json({ error: 'Failed to force-delete contract' }, { status: 500 });
+    }
+  }
+
+  // Soft delete
   try {
     const existing = await prisma.subcontractorContract.findUnique({ where: { id, deletedAt: null } });
     if (!existing) return NextResponse.json({ error: 'Contract not found' }, { status: 404 });

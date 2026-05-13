@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ShoppingCart, ChevronLeft, ChevronRight, ExternalLink, FileText, X, Search } from 'lucide-react';
+import { ShoppingCart, ChevronLeft, ChevronRight, ExternalLink, FileText, X, Search, RefreshCw } from 'lucide-react';
 
 interface LinkedInvoice {
   dolibarr_id: number;
@@ -222,6 +222,8 @@ export default function PurchaseOrdersPage() {
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<PurchaseOrder | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchOrders = useCallback(async () => {
@@ -241,6 +243,25 @@ export default function PurchaseOrdersPage() {
   }, [page, pageSize, search]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  async function syncInvoiceLinks() {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch('/api/supply-chain/purchase-orders/sync-invoice-links', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json() as { updated: number };
+        setSyncResult(`${data.updated} invoice link(s) synced`);
+        fetchOrders();
+      } else {
+        setSyncResult('Sync failed');
+      }
+    } catch {
+      setSyncResult('Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   // Debounce search input so we don't fire on every keystroke
   function handleSearchChange(val: string) {
@@ -314,6 +335,10 @@ export default function PurchaseOrdersPage() {
               </SelectContent>
             </Select>
           </div>
+          <Button variant="outline" size="sm" onClick={syncInvoiceLinks} disabled={syncing || loading} title="Re-sync invoice links from Dolibarr">
+            <RefreshCw className={`size-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync Invoices'}
+          </Button>
           <a href="https://ots.hexasteel.sa/dolibarr/index.php?mainmenu=fournisseur&leftmenu=orders_suppliers" target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
               <ExternalLink className="size-4 mr-1" /> Open in Dolibarr
@@ -321,6 +346,9 @@ export default function PurchaseOrdersPage() {
           </a>
         </div>
       </div>
+      {syncResult && (
+        <p className="text-xs text-muted-foreground">{syncResult}</p>
+      )}
 
       {/* Table */}
       <Card>

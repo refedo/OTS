@@ -6,7 +6,7 @@ import {
   Factory, ArrowLeft, Mail, Phone, MapPin, Building2, ChevronRight,
   ShieldCheck, ShieldAlert, ShieldOff, Shield, ClipboardList, CreditCard,
   FileText, ShoppingCart, Banknote, BarChart3, Plus, ClipboardCheck,
-  AlertTriangle, Users,
+  AlertTriangle, Users, Handshake,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -171,11 +171,19 @@ const fmtDate = (d: string | null | undefined) => {
 export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
   const [overview, setOverview] = useState<SupplierOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subcontractsCount, setSubcontractsCount] = useState(0);
 
   const fetchOverview = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/supply-chain/suppliers/${supplierId}`);
-    if (res.ok) setOverview(await res.json());
+    const [overviewRes, scRes] = await Promise.all([
+      fetch(`/api/supply-chain/suppliers/${supplierId}`),
+      fetch(`/api/supply-chain/suppliers/${supplierId}/subcontracts`),
+    ]);
+    if (overviewRes.ok) setOverview(await overviewRes.json());
+    if (scRes.ok) {
+      const scData = await scRes.json() as { contracts: unknown[] };
+      setSubcontractsCount(scData.contracts?.length ?? 0);
+    }
     setLoading(false);
   }, [supplierId]);
 
@@ -274,6 +282,12 @@ export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
             <TabsTrigger value="soa"><BarChart3 className="h-4 w-4 mr-1.5" />Statement</TabsTrigger>
             <TabsTrigger value="evaluations"><ClipboardCheck className="h-4 w-4 mr-1.5" />Evaluations</TabsTrigger>
             <TabsTrigger value="coa"><ClipboardList className="h-4 w-4 mr-1.5" />CoA & COGS</TabsTrigger>
+            {subcontractsCount > 0 && (
+              <TabsTrigger value="subcontracts">
+                <Handshake className="h-4 w-4 mr-1.5" />Subcontracts
+                <span className="ml-1.5 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">{subcontractsCount}</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="overview">
@@ -304,6 +318,11 @@ export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
           <TabsContent value="coa">
             <CoaTab supplierId={supplierId} initial={overview} onSaved={fetchOverview} />
           </TabsContent>
+          {subcontractsCount > 0 && (
+            <TabsContent value="subcontracts">
+              <SupplierSubcontractsTab supplierId={supplierId} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
@@ -407,17 +426,30 @@ function OverviewTab({ overview }: { overview: SupplierOverview }) {
   );
 }
 
-// ─── Credit & Terms Tab (merged Payment Terms + Credit Limit) ────────────────
+// ─── Credit & Terms Tab ───────────────────────────────────────────────────────
+
+const TODAY = new Date().toISOString().slice(0, 10);
 
 function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
   const [terms, setTerms] = useState<PaymentTermsRow[]>([]);
   const [history, setHistory] = useState<CreditLimitRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [termsDialog, setTermsDialog] = useState(false);
-  const [creditDialog, setCreditDialog] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [termsForm, setTermsForm] = useState({ net_days: '30', discount_days: '', discount_percentage: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' });
-  const [creditForm, setCreditForm] = useState({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' });
+
+  // Unified dialog (credit + terms together)
+  const [unifiedDialog, setUnifiedDialog] = useState(false);
+  const [unifiedForm, setUnifiedForm] = useState({
+    credit_limit: '', net_days: '30', valid_from: TODAY,
+    discount_days: '', discount_percentage: '', notes: '',
+  });
+
+  // Standalone credit-only dialog
+  const [creditDialog, setCreditDialog] = useState(false);
+  const [creditForm, setCreditForm] = useState({ credit_limit: '', valid_from: TODAY, notes: '' });
+
+  // Standalone terms-only dialog
+  const [termsDialog, setTermsDialog] = useState(false);
+  const [termsForm, setTermsForm] = useState({ net_days: '30', discount_days: '', discount_percentage: '', valid_from: TODAY, notes: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -432,11 +464,53 @@ function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function saveTerms() {
+  async function saveUnified() {
+    if (!unifiedForm.credit_limit || !unifiedForm.net_days || !unifiedForm.valid_from) return;
     setSaving(true);
-    const res = await fetch(`/api/supply-chain/suppliers/${supplierId}/payment-terms`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    await Promise.all([
+      fetch(`/api/supply-chain/suppliers/${supplierId}/credit-limit`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credit_limit: parseFloat(unifiedForm.credit_limit),
+          valid_from: unifiedForm.valid_from,
+          notes: unifiedForm.notes || null,
+        }),
+      }),
+      fetch(`/api/supply-chain/suppliers/${supplierId}/payment-terms`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          net_days: parseInt(unifiedForm.net_days),
+          discount_days: unifiedForm.discount_days ? parseInt(unifiedForm.discount_days) : null,
+          discount_percentage: unifiedForm.discount_percentage ? parseFloat(unifiedForm.discount_percentage) : null,
+          valid_from: unifiedForm.valid_from,
+          notes: unifiedForm.notes || null,
+        }),
+      }),
+    ]);
+    setSaving(false);
+    setUnifiedDialog(false);
+    setUnifiedForm({ credit_limit: '', net_days: '30', valid_from: TODAY, discount_days: '', discount_percentage: '', notes: '' });
+    load();
+  }
+
+  async function saveCredit() {
+    if (!creditForm.credit_limit || !creditForm.valid_from) return;
+    setSaving(true);
+    await fetch(`/api/supply-chain/suppliers/${supplierId}/credit-limit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credit_limit: parseFloat(creditForm.credit_limit), valid_from: creditForm.valid_from, notes: creditForm.notes || null }),
+    });
+    setSaving(false);
+    setCreditDialog(false);
+    setCreditForm({ credit_limit: '', valid_from: TODAY, notes: '' });
+    load();
+  }
+
+  async function saveTerms() {
+    if (!termsForm.net_days || !termsForm.valid_from) return;
+    setSaving(true);
+    await fetch(`/api/supply-chain/suppliers/${supplierId}/payment-terms`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         net_days: parseInt(termsForm.net_days),
         discount_days: termsForm.discount_days ? parseInt(termsForm.discount_days) : null,
@@ -446,82 +520,119 @@ function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
       }),
     });
     setSaving(false);
-    if (res.ok) { setTermsDialog(false); load(); }
+    setTermsDialog(false);
+    load();
   }
 
-  async function saveCredit() {
-    if (!creditForm.credit_limit || !creditForm.valid_from) return;
-    setSaving(true);
-    const res = await fetch(`/api/supply-chain/suppliers/${supplierId}/credit-limit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        credit_limit: parseFloat(creditForm.credit_limit),
-        valid_from: creditForm.valid_from,
-        notes: creditForm.notes || null,
-      }),
-    });
-    setSaving(false);
-    if (res.ok) { setCreditDialog(false); setCreditForm({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' }); load(); }
-  }
-
-  const skeletons = <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}</div>;
+  const skeletons = <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}</div>;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* ── Credit Limit ── */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      {/* ── Action bar ── */}
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setUnifiedDialog(true)}>
+          <Plus className="h-4 w-4 mr-1.5" />Set Credit &amp; Terms
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setCreditDialog(true)}>
+          <Banknote className="h-4 w-4 mr-1.5" />Credit Limit Only
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setTermsDialog(true)}>
+          <CreditCard className="h-4 w-4 mr-1.5" />Payment Terms Only
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* ── Credit Limit history ── */}
+        <div className="space-y-4">
           <h3 className="font-semibold flex items-center gap-2"><Banknote className="h-4 w-4" />Credit Limit History</h3>
-          <Button size="sm" onClick={() => setCreditDialog(true)}><Plus className="h-4 w-4 mr-1.5" />Set Credit Limit</Button>
+          {loading ? skeletons : history.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground rounded-xl border text-sm">No credit limit on record.</div>
+          ) : (
+            <div className="space-y-3">
+              {history.map(r => (
+                <div key={r.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!r.valid_to ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    {!r.valid_to && <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Current</span>}
+                    <span className="font-bold text-base">{fmt(r.credit_limit)}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>{fmtDate(r.valid_from)} → {r.valid_to ? fmtDate(r.valid_to) : 'Present'}</span>
+                    {r.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{r.notes}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {loading ? skeletons : history.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground rounded-xl border text-sm">No credit limit on record.</div>
-        ) : (
-          <div className="space-y-3">
-            {history.map(r => (
-              <div key={r.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!r.valid_to ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
-                <div className="flex items-center gap-3">
-                  {!r.valid_to && <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Current</span>}
-                  <span className="font-bold text-base">{fmt(r.credit_limit)}</span>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>{fmtDate(r.valid_from)} → {r.valid_to ? fmtDate(r.valid_to) : 'Present'}</span>
-                  {r.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{r.notes}</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* ── Payment Terms ── */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        {/* ── Payment Terms history ── */}
+        <div className="space-y-4">
           <h3 className="font-semibold flex items-center gap-2"><CreditCard className="h-4 w-4" />Payment Terms History</h3>
-          <Button size="sm" onClick={() => setTermsDialog(true)}><Plus className="h-4 w-4 mr-1.5" />Add Terms</Button>
+          {loading ? skeletons : terms.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground rounded-xl border text-sm">No payment terms on record.</div>
+          ) : (
+            <div className="space-y-3">
+              {terms.map(t => (
+                <div key={t.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!t.valid_to ? 'border-blue-200 bg-blue-50/50' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    {!t.valid_to && <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Current</span>}
+                    <PaymentTermsBadge netDays={t.net_days} discountDays={t.discount_days} discountPercentage={t.discount_percentage} />
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>{fmtDate(t.valid_from)} → {t.valid_to ? fmtDate(t.valid_to) : 'Present'}</span>
+                    {t.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{t.notes}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {loading ? skeletons : terms.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground rounded-xl border text-sm">No payment terms on record.</div>
-        ) : (
-          <div className="space-y-3">
-            {terms.map(t => (
-              <div key={t.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!t.valid_to ? 'border-blue-200 bg-blue-50/50' : ''}`}>
-                <div className="flex items-center gap-3">
-                  {!t.valid_to && <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Current</span>}
-                  <PaymentTermsBadge netDays={t.net_days} discountDays={t.discount_days} discountPercentage={t.discount_percentage} />
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>{fmtDate(t.valid_from)} → {t.valid_to ? fmtDate(t.valid_to) : 'Present'}</span>
-                  {t.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{t.notes}</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* ── Dialogs ── */}
+      {/* ── Unified dialog ── */}
+      <Dialog open={unifiedDialog} onOpenChange={setUnifiedDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Set Credit &amp; Payment Terms</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Credit Limit (SAR) *</Label>
+                <Input type="number" min="0" step="1000" placeholder="e.g. 500000" value={unifiedForm.credit_limit} onChange={e => setUnifiedForm(f => ({ ...f, credit_limit: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Net Days *</Label>
+                <Input type="number" min="0" max="365" placeholder="e.g. 30" value={unifiedForm.net_days} onChange={e => setUnifiedForm(f => ({ ...f, net_days: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Effective From *</Label>
+              <Input type="date" value={unifiedForm.valid_from} onChange={e => setUnifiedForm(f => ({ ...f, valid_from: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Discount Days <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input type="number" min="0" placeholder="e.g. 10" value={unifiedForm.discount_days} onChange={e => setUnifiedForm(f => ({ ...f, discount_days: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Discount % <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input type="number" min="0" step="0.5" placeholder="e.g. 2" value={unifiedForm.discount_percentage} onChange={e => setUnifiedForm(f => ({ ...f, discount_percentage: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Textarea rows={2} value={unifiedForm.notes} onChange={e => setUnifiedForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reason for change…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnifiedDialog(false)}>Cancel</Button>
+            <Button onClick={saveUnified} disabled={saving || !unifiedForm.credit_limit || !unifiedForm.net_days || !unifiedForm.valid_from}>
+              {saving ? 'Saving…' : 'Save Credit & Terms'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Credit-only dialog ── */}
       <Dialog open={creditDialog} onOpenChange={setCreditDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Set Credit Limit</DialogTitle></DialogHeader>
@@ -548,6 +659,7 @@ function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
         </DialogContent>
       </Dialog>
 
+      {/* ── Terms-only dialog ── */}
       <Dialog open={termsDialog} onOpenChange={setTermsDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add Payment Terms</DialogTitle></DialogHeader>
@@ -1014,6 +1126,104 @@ function CoaTab({ supplierId, initial, onSaved }: { supplierId: number; initial:
         <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional mapping notes…" />
       </div>
       <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Mapping'}</Button>
+    </div>
+  );
+}
+
+// ─── Supplier Subcontracts Tab ────────────────────────────────────────────────
+
+interface SupplierSubcontract {
+  id: string;
+  contractNumber: string;
+  name: string;
+  status: string;
+  contractValue: number;
+  currency: string;
+  scopeTypes: string[];
+  createdAt: string;
+  project: { id: string; projectNumber: string; name: string };
+  building: { id: string; designation: string; name: string } | null;
+}
+
+const SC_STATUS_STYLE: Record<string, string> = {
+  DRAFT:     'bg-slate-100 text-slate-700',
+  SUBMITTED: 'bg-amber-100 text-amber-700',
+  APPROVED:  'bg-blue-100 text-blue-700',
+  ACTIVE:    'bg-emerald-100 text-emerald-700',
+  SUSPENDED: 'bg-orange-100 text-orange-700',
+  COMPLETED: 'bg-teal-100 text-teal-700',
+  CANCELLED: 'bg-rose-100 text-rose-700',
+};
+
+function SupplierSubcontractsTab({ supplierId }: { supplierId: number }) {
+  const [contracts, setContracts] = useState<SupplierSubcontract[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/supply-chain/suppliers/${supplierId}/subcontracts`)
+      .then(r => r.json())
+      .then((j: { contracts: SupplierSubcontract[] }) => setContracts(j.contracts ?? []))
+      .finally(() => setLoading(false));
+  }, [supplierId]);
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold flex items-center gap-2">
+        <Handshake className="h-4 w-4" />Subcontract Contracts
+        <span className="text-muted-foreground font-normal text-sm">({contracts.length})</span>
+      </h3>
+      <div className="rounded-xl border overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-4 py-2.5 text-left font-medium">Contract #</th>
+              <th className="px-4 py-2.5 text-left font-medium">Project</th>
+              <th className="px-4 py-2.5 text-left font-medium">Building</th>
+              <th className="px-4 py-2.5 text-left font-medium">Scope</th>
+              <th className="px-4 py-2.5 text-right font-medium">Value</th>
+              <th className="px-4 py-2.5 text-center font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={6} className="px-4 py-8 text-center"><div className="h-4 w-24 bg-muted animate-pulse rounded mx-auto" /></td></tr>
+            ) : contracts.length === 0 ? (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No subcontract contracts found.</td></tr>
+            ) : contracts.map(c => (
+              <tr key={c.id} className="border-b last:border-0 hover:bg-muted/30">
+                <td className="px-4 py-2.5">
+                  <Link href={`/supply-chain/subcontractors/${c.id}`} className="font-mono text-xs font-semibold text-primary hover:underline">
+                    {c.contractNumber}
+                  </Link>
+                  <p className="text-xs text-muted-foreground truncate max-w-[160px]">{c.name}</p>
+                </td>
+                <td className="px-4 py-2.5">
+                  <p className="font-medium text-xs">{c.project.projectNumber}</p>
+                  <p className="text-xs text-muted-foreground truncate max-w-[140px]">{c.project.name}</p>
+                </td>
+                <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                  {c.building ? `${c.building.designation} ${c.building.name}` : '—'}
+                </td>
+                <td className="px-4 py-2.5">
+                  <div className="flex flex-wrap gap-1">
+                    {(c.scopeTypes as string[]).map(st => (
+                      <span key={st} className="text-xs bg-muted px-1.5 py-0.5 rounded capitalize">{st.replace(/_/g, ' ')}</span>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-medium text-sm">
+                  {fmt(c.contractValue)}
+                </td>
+                <td className="px-4 py-2.5 text-center">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SC_STATUS_STYLE[c.status] ?? 'bg-slate-100 text-slate-700'}`}>
+                    {c.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

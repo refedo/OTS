@@ -97,16 +97,17 @@ interface Props {
   canEdit: boolean;
   canDelete: boolean;
   canApprove: boolean;
+  canHardDelete: boolean;
 }
 
-export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canApprove }: Props) {
+export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canApprove, canHardDelete }: Props) {
   const router = useRouter();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [stats, setStats] = useState<DashStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; contractNumber: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; contractNumber: string; force?: boolean } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -154,7 +155,7 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
       const res = await fetch(`/api/subcontractor-contracts/${deleteTarget.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: deleteReason }),
+        body: JSON.stringify({ reason: deleteReason, force: deleteTarget.force ?? false }),
       });
       if (res.ok) {
         setDeleteTarget(null);
@@ -377,9 +378,17 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
                                 {canDelete && ['DRAFT', 'CANCELLED'].includes(c.status) && (
                                   <DropdownMenuItem
                                     className="text-rose-600 focus:text-rose-600 focus:bg-rose-50"
-                                    onClick={() => { setDeleteTarget({ id: c.id, contractNumber: c.contractNumber }); setDeleteReason(''); }}
+                                    onClick={() => { setDeleteTarget({ id: c.id, contractNumber: c.contractNumber, force: false }); setDeleteReason(''); }}
                                   >
                                     <Trash2 className="size-4 mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                )}
+                                {canHardDelete && (
+                                  <DropdownMenuItem
+                                    className="text-red-700 focus:text-red-700 focus:bg-red-50 font-medium"
+                                    onClick={() => { setDeleteTarget({ id: c.id, contractNumber: c.contractNumber, force: true }); setDeleteReason(''); }}
+                                  >
+                                    <Trash2 className="size-4 mr-2" /> Force Delete
                                   </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
@@ -425,14 +434,19 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
       <Dialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Contract</DialogTitle>
+            <DialogTitle>{deleteTarget?.force ? 'Force Delete Contract' : 'Delete Contract'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            {deleteTarget?.force && (
+              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800 font-medium">
+                ⚠ This will permanently destroy the contract and all related data (certificates, variations, deductions). This cannot be undone.
+              </div>
+            )}
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <span className="font-semibold text-foreground">{deleteTarget?.contractNumber}</span>? This action cannot be undone.
+              Are you sure you want to {deleteTarget?.force ? 'permanently delete' : 'delete'} <span className="font-semibold text-foreground">{deleteTarget?.contractNumber}</span>?
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="del-reason">Reason (optional)</Label>
+              <Label htmlFor="del-reason">Reason {deleteTarget?.force ? '*' : '(optional)'}</Label>
               <Textarea
                 id="del-reason"
                 placeholder="Reason for deletion…"
@@ -444,8 +458,8 @@ export default function SubcontractorsPage({ canCreate, canEdit, canDelete, canA
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? 'Deleting…' : 'Delete'}
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting || (deleteTarget?.force && !deleteReason)}>
+              {deleting ? 'Deleting…' : deleteTarget?.force ? 'Permanently Delete' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>
