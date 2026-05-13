@@ -100,6 +100,7 @@ export default function MonthlyCashFlowPage() {
                   <TrendingUp className="h-4 w-4 text-green-500" />
                 </div>
                 <div className="text-2xl font-bold text-green-600">{formatSAR(report.totalCashIn)}</div>
+                <div className="text-xs text-muted-foreground mt-1">Customer collections</div>
               </CardContent>
             </Card>
             <Card className="border-red-200 dark:border-red-900/50">
@@ -108,7 +109,13 @@ export default function MonthlyCashFlowPage() {
                   <span className="text-sm text-muted-foreground">Total Cash Out</span>
                   <TrendingDown className="h-4 w-4 text-red-500" />
                 </div>
-                <div className="text-2xl font-bold text-red-600">{formatSAR(report.totalCashOut)}</div>
+                <div className="text-2xl font-bold text-red-600">{formatSAR(report.grandTotalCashOut ?? report.totalCashOut)}</div>
+                {(report.totalCashOutSalaries ?? 0) > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                    <div>Suppliers: {formatSAR(report.totalCashOut)}</div>
+                    <div>Salaries: {formatSAR(report.totalCashOutSalaries)}</div>
+                  </div>
+                )}
               </CardContent>
             </Card>
             <Card className="border-blue-200 dark:border-blue-900/50">
@@ -120,6 +127,11 @@ export default function MonthlyCashFlowPage() {
                 <div className={`text-2xl font-bold ${report.totalNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatSAR(report.totalNet)}
                 </div>
+                {(report.totalVatNet ?? 0) !== 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Net VAT position: {formatSAR(report.totalVatNet)}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -136,7 +148,9 @@ export default function MonthlyCashFlowPage() {
                     <tr className="border-b bg-muted/50">
                       <th className="text-left p-3">Month</th>
                       <th className="text-right p-3">Cash In (Collections)</th>
-                      <th className="text-right p-3">Cash Out (Payments)</th>
+                      <th className="text-right p-3">Supplier Payments</th>
+                      <th className="text-right p-3">Salary Payments</th>
+                      <th className="text-right p-3">Total Cash Out</th>
                       <th className="text-right p-3">Net</th>
                     </tr>
                   </thead>
@@ -162,6 +176,12 @@ export default function MonthlyCashFlowPage() {
                             {formatSAR(m.cashOut)}
                           </button>
                         </td>
+                        <td className="p-3 text-right text-orange-600">
+                          {(m.cashOutSalaries ?? 0) > 0 ? formatSAR(m.cashOutSalaries) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="p-3 text-right font-medium text-red-600">
+                          {formatSAR(m.totalCashOut ?? m.cashOut)}
+                        </td>
                         <td className={`p-3 text-right font-semibold ${m.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {formatSAR(m.net)}
                         </td>
@@ -171,6 +191,8 @@ export default function MonthlyCashFlowPage() {
                       <td className="p-3">Total</td>
                       <td className="p-3 text-right text-green-600">{formatSAR(report.totalCashIn)}</td>
                       <td className="p-3 text-right text-red-600">{formatSAR(report.totalCashOut)}</td>
+                      <td className="p-3 text-right text-orange-600">{formatSAR(report.totalCashOutSalaries ?? 0)}</td>
+                      <td className="p-3 text-right text-red-600">{formatSAR(report.grandTotalCashOut ?? report.totalCashOut)}</td>
                       <td className={`p-3 text-right ${report.totalNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatSAR(report.totalNet)}
                       </td>
@@ -180,6 +202,37 @@ export default function MonthlyCashFlowPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* VAT Position Summary */}
+          {(report.totalVatOutput > 0 || report.totalVatInput > 0) && (
+            <Card className="border-amber-200 dark:border-amber-900/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-amber-700 dark:text-amber-400">VAT Position — {year}</CardTitle>
+                <p className="text-xs text-muted-foreground">Based on invoice dates. Actual ZATCA settlement timing may differ.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <div className="text-muted-foreground mb-1">Output VAT Collected</div>
+                    <div className="font-semibold text-blue-600">{formatSAR(report.totalVatOutput)}</div>
+                    <div className="text-xs text-muted-foreground">From customer invoices</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-1">Input VAT Paid</div>
+                    <div className="font-semibold text-green-600">{formatSAR(report.totalVatInput)}</div>
+                    <div className="text-xs text-muted-foreground">From supplier invoices</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-1">{(report.totalVatNet ?? 0) >= 0 ? 'Net VAT Payable' : 'Net VAT Refundable'}</div>
+                    <div className={`font-semibold ${(report.totalVatNet ?? 0) >= 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                      {formatSAR(Math.abs(report.totalVatNet ?? 0))}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Output − Input</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
 

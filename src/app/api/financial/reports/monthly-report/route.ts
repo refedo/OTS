@@ -75,6 +75,29 @@ export async function GET(req: Request) {
       `, monthStart, monthEnd);
     } catch { /* table may be empty */ }
 
+    // ── VAT summary for the period ──────────────────────────────────────────────
+    let totalVatOut = 0, totalVatIn = 0;
+    try {
+      const vatOutRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(cil.total_tva), 0) AS total
+        FROM fin_customer_invoice_lines cil
+        JOIN fin_customer_invoices ci ON ci.dolibarr_id = cil.invoice_dolibarr_id
+        WHERE ci.status IN (1, 2) AND ci.is_active = 1
+          AND ci.date_invoice >= ? AND ci.date_invoice < ?
+      `, monthStart, monthEnd);
+      totalVatOut = Number(vatOutRows[0]?.total || 0);
+    } catch { /* */ }
+    try {
+      const vatInRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(sil.total_tva), 0) AS total
+        FROM fin_supplier_invoice_lines sil
+        JOIN fin_supplier_invoices si ON si.dolibarr_id = sil.invoice_dolibarr_id
+        WHERE si.status IN (1, 2) AND si.is_active = 1
+          AND si.date_invoice >= ? AND si.date_invoice < ?
+      `, monthStart, monthEnd);
+      totalVatIn = Number(vatInRows[0]?.total || 0);
+    } catch { /* */ }
+
     const income = incomeRows.map((r: any) => ({
       entityName:   r.entity_name   || 'Unknown',
       totalAmount:  Number(r.total_amount  || 0),
@@ -120,6 +143,9 @@ export async function GET(req: Request) {
         grossProfit,
         netProfit,
         netMarginPct: totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0,
+        totalVatOut,
+        totalVatIn,
+        netVat: totalVatOut - totalVatIn,
       },
     });
   } catch (error: any) {
