@@ -205,7 +205,7 @@ export async function getSupplierList(
   const searchArgs = search ? [`%${search}%`] : [];
   const col = SORT_COL_MAP[sortKey] ?? 'dt.name';
   const dir = sortDir === 'desc' ? 'DESC' : 'ASC';
-  const orderClause = `ORDER BY ${col} ${dir} NULLS LAST, dt.name ASC`;
+  const orderClause = `ORDER BY (${col} IS NULL) ASC, ${col} ${dir}, dt.name ASC`;
 
   const rows = await prisma.$queryRawUnsafe<SupplierListRow[]>(`
     SELECT

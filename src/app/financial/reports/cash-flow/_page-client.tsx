@@ -80,7 +80,7 @@ export default function MonthlyCashFlowPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold">Monthly Cash In / Cash Out</h1>
-            <p className="text-sm text-muted-foreground">Customer collections vs supplier payments by month</p>
+            <p className="text-sm text-muted-foreground">Customer collections vs supplier payments + VAT settlements by month</p>
           </div>
         </div>
         <Select value={year} onValueChange={setYear}>
@@ -136,7 +136,8 @@ export default function MonthlyCashFlowPage() {
                     <tr className="border-b bg-muted/50">
                       <th className="text-left p-3">Month</th>
                       <th className="text-right p-3">Cash In (Collections)</th>
-                      <th className="text-right p-3">Cash Out (Payments)</th>
+                      <th className="text-right p-3">Supplier Payments</th>
+                      <th className="text-right p-3">VAT Payments</th>
                       <th className="text-right p-3">Net</th>
                     </tr>
                   </thead>
@@ -155,12 +156,19 @@ export default function MonthlyCashFlowPage() {
                         </td>
                         <td className="p-3 text-right">
                           <button
-                            onClick={() => m.cashOut > 0 && openDrilldown(m.month, 'out')}
-                            className={`text-red-600 ${m.cashOut > 0 ? 'hover:underline cursor-pointer font-medium' : ''}`}
-                            disabled={m.cashOut === 0}
+                            onClick={() => (m.cashOutSupplier ?? m.cashOut) > 0 && openDrilldown(m.month, 'out')}
+                            className={`text-red-600 ${(m.cashOutSupplier ?? m.cashOut) > 0 ? 'hover:underline cursor-pointer font-medium' : ''}`}
+                            disabled={(m.cashOutSupplier ?? m.cashOut) === 0}
                           >
-                            {formatSAR(m.cashOut)}
+                            {formatSAR(m.cashOutSupplier ?? m.cashOut)}
                           </button>
+                        </td>
+                        <td className="p-3 text-right">
+                          {m.cashOutVat > 0 ? (
+                            <span className="text-orange-600 font-medium">{formatSAR(m.cashOutVat)}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className={`p-3 text-right font-semibold ${m.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {formatSAR(m.net)}
@@ -170,7 +178,8 @@ export default function MonthlyCashFlowPage() {
                     <tr className="border-t-2 font-bold bg-muted/50">
                       <td className="p-3">Total</td>
                       <td className="p-3 text-right text-green-600">{formatSAR(report.totalCashIn)}</td>
-                      <td className="p-3 text-right text-red-600">{formatSAR(report.totalCashOut)}</td>
+                      <td className="p-3 text-right text-red-600">{formatSAR(report.months.reduce((s: number, m: any) => s + (m.cashOutSupplier ?? m.cashOut), 0))}</td>
+                      <td className="p-3 text-right text-orange-600">{formatSAR(report.months.reduce((s: number, m: any) => s + (m.cashOutVat ?? 0), 0))}</td>
                       <td className={`p-3 text-right ${report.totalNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatSAR(report.totalNet)}
                       </td>

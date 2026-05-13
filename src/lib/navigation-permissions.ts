@@ -122,6 +122,8 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/reports/income-statement': ['financial.view'],
   '/financial/reports/balance-sheet': ['financial.view'],
   '/financial/reports/vat': ['financial.view'],
+  '/financial/vat-payments': ['financial.view'],
+  '/financial/bank-accounts': ['financial.view'],
   '/financial/reports/aging': ['financial.view'],
   '/financial/reports/soa': ['financial.view'],
   '/financial/reports/cash-flow': ['financial.view'],

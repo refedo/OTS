@@ -214,6 +214,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v24.6.0 — Subcontractor payment certificate delete reason ─────────────
   'v24_6_sc_cert_delete_reason.sql',     // deleteReason column on SubcontractorPaymentCertificate
+
+  // ── v24.7.0 — VAT payment records ────────────────────────────────────────
+  'v24_7_fin_vat_payments.sql',          // fin_vat_payments table for ZATCA settlement tracking
 ];
 
 /**
