@@ -19,6 +19,8 @@ export interface SupplierListRow {
   approval_rating: string | null;
   approved_supplier_id: string | null;
   cost_category: string | null;
+  credit_limit: number | null;
+  net_days: number | null;
 }
 
 export interface SupplierOverview {
@@ -156,12 +158,12 @@ export function computeWeightedScore(scores: {
   service: number; documentation: number; hse: number;
 }): number {
   return (
-    scores.quality * 5 * WEIGHTS.quality +
-    scores.delivery * 5 * WEIGHTS.delivery +
-    scores.price * 5 * WEIGHTS.price +
-    scores.service * 5 * WEIGHTS.service +
-    scores.documentation * 5 * WEIGHTS.documentation +
-    scores.hse * 5 * WEIGHTS.hse
+    scores.quality * 20 * WEIGHTS.quality +
+    scores.delivery * 20 * WEIGHTS.delivery +
+    scores.price * 20 * WEIGHTS.price +
+    scores.service * 20 * WEIGHTS.service +
+    scores.documentation * 20 * WEIGHTS.documentation +
+    scores.hse * 20 * WEIGHTS.hse
   );
 }
 
@@ -205,12 +207,18 @@ export async function getSupplierList(
       sas.approvalStatus AS approval_status,
       sas.rating         AS approval_rating,
       sas.id             AS approved_supplier_id,
-      sc.cost_category
+      sc.cost_category,
+      cl.credit_limit,
+      pt.net_days
     FROM dolibarr_thirdparties dt
     LEFT JOIN ScApprovedSupplier sas
       ON sas.dolibarr_id = dt.dolibarr_id AND sas.deletedAt IS NULL
     LEFT JOIN fin_supplier_classification sc
       ON sc.supplier_id = dt.dolibarr_id
+    LEFT JOIN sc_supplier_credit_limit_history cl
+      ON cl.supplier_dolibarr_id = dt.dolibarr_id AND cl.valid_to IS NULL
+    LEFT JOIN sc_supplier_payment_terms pt
+      ON pt.supplier_dolibarr_id = dt.dolibarr_id AND pt.valid_to IS NULL
     WHERE dt.is_active = 1
       AND (
         dt.supplier_type = 1
@@ -243,7 +251,12 @@ export async function getSupplierList(
   `, ...searchArgs);
 
   return {
-    suppliers: rows.map(r => ({ ...r, dolibarr_id: Number(r.dolibarr_id) })),
+    suppliers: rows.map(r => ({
+      ...r,
+      dolibarr_id: Number(r.dolibarr_id),
+      credit_limit: r.credit_limit != null ? Number(r.credit_limit) : null,
+      net_days: r.net_days != null ? Number(r.net_days) : null,
+    })),
     total: Number(countRows[0]?.cnt ?? 0),
   };
 }
@@ -257,7 +270,12 @@ export async function getSupplierOverview(dolibarrId: number): Promise<SupplierO
     SELECT
       dt.dolibarr_id, dt.name, dt.name_alias, dt.code_supplier,
       dt.email, dt.phone, dt.address, dt.zip, dt.town, dt.country_code,
-      dt.tva_intra, dt.outstanding_limit AS credit_limit,
+      dt.tva_intra,
+      COALESCE(
+        (SELECT credit_limit FROM sc_supplier_credit_limit_history
+         WHERE supplier_dolibarr_id = dt.dolibarr_id AND valid_to IS NULL LIMIT 1),
+        dt.outstanding_limit
+      ) AS credit_limit,
       coa_ap.coa_account_code AS ap_account_code,
       coa_ap_def.account_name AS ap_account_name,
       coa_ap_def.account_name_ar AS ap_account_name_ar,
