@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Factory, Search, ChevronRight, ShieldCheck, ShieldAlert, ShieldOff, Shield, RefreshCw } from 'lucide-react';
+import { Factory, Search, ChevronRight, ChevronUp, ChevronDown, ShieldCheck, ShieldAlert, ShieldOff, Shield, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -16,7 +16,12 @@ interface SupplierRow {
   approval_status: string | null;
   approval_rating: string | null;
   cost_category: string | null;
+  credit_limit: number | null;
+  net_days: number | null;
 }
+
+type SortKey = 'name' | 'approval_status' | 'approval_rating' | 'credit_limit' | 'net_days';
+type SortDir = 'asc' | 'desc';
 
 const STATUS_ICON = {
   APPROVED:    <ShieldCheck className="h-4 w-4 text-green-600" />,
@@ -37,6 +42,16 @@ const RATING_STYLE: Record<string, string> = {
   D: 'bg-red-100 text-red-700',
 };
 
+const fmtSAR = (v: number) =>
+  new Intl.NumberFormat('en-SA', { style: 'currency', currency: 'SAR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  if (col !== sortKey) return <ChevronUp className="h-3 w-3 opacity-20 ml-1 inline" />;
+  return sortDir === 'asc'
+    ? <ChevronUp className="h-3 w-3 ml-1 inline text-indigo-600" />
+    : <ChevronDown className="h-3 w-3 ml-1 inline text-indigo-600" />;
+}
+
 export function SupplierListClient() {
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -44,6 +59,8 @@ export function SupplierListClient() {
   const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const limit = 50;
 
   const fetchData = useCallback(async () => {
@@ -72,12 +89,43 @@ export function SupplierListClient() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
+
+  const sorted = [...suppliers].sort((a, b) => {
+    let av: string | number | null, bv: string | number | null;
+    if (sortKey === 'name') { av = a.name; bv = b.name; }
+    else if (sortKey === 'approval_status') { av = a.approval_status ?? ''; bv = b.approval_status ?? ''; }
+    else if (sortKey === 'approval_rating') { av = a.approval_rating ?? 'Z'; bv = b.approval_rating ?? 'Z'; }
+    else if (sortKey === 'credit_limit') { av = a.credit_limit ?? -1; bv = b.credit_limit ?? -1; }
+    else { av = a.net_days ?? -1; bv = b.net_days ?? -1; }
+
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
   const kpi = {
     total,
     approved:    suppliers.filter(s => s.approval_status === 'APPROVED').length,
     conditional: suppliers.filter(s => s.approval_status === 'CONDITIONAL').length,
     unrated:     suppliers.filter(s => !s.approval_status).length,
   };
+
+  const Th = ({ col, label, className }: { col: SortKey; label: string; className?: string }) => (
+    <th
+      className={`px-4 py-3 text-left font-medium cursor-pointer select-none hover:text-foreground whitespace-nowrap ${className ?? ''}`}
+      onClick={() => toggleSort(col)}
+    >
+      {label}<SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />
+    </th>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,84 +184,96 @@ export function SupplierListClient() {
 
         {/* Table */}
         <div className="rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">Supplier</th>
-                <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Code</th>
-                <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Location</th>
-                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Category</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-center font-medium hidden sm:table-cell">Rating</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="border-b">
-                    <td colSpan={7} className="px-4 py-3">
-                      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50 text-muted-foreground">
+                  <Th col="name" label="Supplier" />
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap hidden sm:table-cell">Code</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap hidden md:table-cell">Location</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap hidden lg:table-cell">Category</th>
+                  <Th col="approval_status" label="Status" />
+                  <Th col="approval_rating" label="Rating" className="hidden sm:table-cell" />
+                  <Th col="credit_limit" label="Credit Limit" className="hidden xl:table-cell" />
+                  <Th col="net_days" label="Pay. Terms" className="hidden xl:table-cell" />
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="border-b">
+                      <td colSpan={9} className="px-4 py-3">
+                        <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+                      </td>
+                    </tr>
+                  ))
+                ) : sorted.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                      No suppliers found{search ? ` matching "${search}"` : ''}.
                     </td>
                   </tr>
-                ))
-              ) : suppliers.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
-                    No suppliers found{search ? ` matching "${search}"` : ''}.
-                  </td>
-                </tr>
-              ) : suppliers.map(s => (
-                <tr key={s.dolibarr_id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link href={`/supply-chain/suppliers/${s.dolibarr_id}`} className="hover:underline">
-                      <p className="font-medium">{s.name}</p>
-                    </Link>
-                    {s.email && <p className="text-xs text-muted-foreground">{s.email}</p>}
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    {s.code_supplier
-                      ? <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{s.code_supplier}</span>
-                      : <span className="text-muted-foreground text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                    {[s.town, s.country_code].filter(Boolean).join(', ') || '—'}
-                  </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
-                    {s.cost_category
-                      ? <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{s.cost_category}</span>
-                      : <span className="text-muted-foreground text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {s.approval_status ? (
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLE[s.approval_status] ?? 'bg-slate-100 text-slate-600'}`}>
-                        {STATUS_ICON[s.approval_status as keyof typeof STATUS_ICON]}
-                        {s.approval_status}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-slate-100 px-2 py-0.5 rounded-full">
-                        <Shield className="h-3 w-3" /> Not Evaluated
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center hidden sm:table-cell">
-                    {s.approval_rating ? (
-                      <span className={`inline-block font-bold text-sm px-2.5 py-0.5 rounded-lg ${RATING_STYLE[s.approval_rating] ?? 'bg-slate-100 text-slate-600'}`}>
-                        {s.approval_rating}
-                      </span>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link href={`/supply-chain/suppliers/${s.dolibarr_id}`}>
-                      <Button variant="ghost" size="sm" className="gap-1">
-                        View <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                ) : sorted.map(s => (
+                  <tr key={s.dolibarr_id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <Link href={`/supply-chain/suppliers/${s.dolibarr_id}`} className="hover:underline">
+                        <p className="font-medium">{s.name}</p>
+                      </Link>
+                      {s.email && <p className="text-xs text-muted-foreground">{s.email}</p>}
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {s.code_supplier
+                        ? <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{s.code_supplier}</span>
+                        : <span className="text-muted-foreground text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
+                      {[s.town, s.country_code].filter(Boolean).join(', ') || '—'}
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {s.cost_category
+                        ? <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{s.cost_category}</span>
+                        : <span className="text-muted-foreground text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.approval_status ? (
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLE[s.approval_status] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {STATUS_ICON[s.approval_status as keyof typeof STATUS_ICON]}
+                          {s.approval_status}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-slate-100 px-2 py-0.5 rounded-full">
+                          <Shield className="h-3 w-3" /> Not Evaluated
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center hidden sm:table-cell">
+                      {s.approval_rating ? (
+                        <span className={`inline-block font-bold text-sm px-2.5 py-0.5 rounded-lg ${RATING_STYLE[s.approval_rating] ?? 'bg-slate-100 text-slate-600'}`}>
+                          {s.approval_rating}
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell tabular-nums text-sm">
+                      {s.credit_limit != null ? fmtSAR(s.credit_limit) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell text-sm">
+                      {s.net_days != null
+                        ? <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">Net {s.net_days}d</span>
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link href={`/supply-chain/suppliers/${s.dolibarr_id}`}>
+                        <Button variant="ghost" size="sm" className="gap-1">
+                          View <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Pagination */}

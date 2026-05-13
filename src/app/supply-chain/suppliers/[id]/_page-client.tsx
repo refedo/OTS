@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   Factory, ArrowLeft, Mail, Phone, MapPin, Building2, ChevronRight,
   ShieldCheck, ShieldAlert, ShieldOff, Shield, ClipboardList, CreditCard,
-  FileText, ShoppingCart, Banknote, BarChart3, Plus, Pencil, ClipboardCheck,
+  FileText, ShoppingCart, Banknote, BarChart3, Plus, ClipboardCheck,
   AlertTriangle, Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -249,7 +249,7 @@ export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
           <div className="mt-5 flex flex-wrap gap-3">
             {[
               { label: 'Net Days', value: overview.active_payment_terms ? `${overview.active_payment_terms.net_days} days` : 'Not set' },
-              { label: 'Credit Limit', value: overview.credit_limit ? fmt(overview.credit_limit) : 'Unlimited' },
+              { label: 'Credit Limit', value: overview.credit_limit ? fmt(overview.credit_limit) : '—' },
               { label: 'Last Evaluated', value: overview.approved_supplier?.lastAuditDate ? fmtDate(overview.approved_supplier.lastAuditDate) : 'Never' },
               { label: 'Evaluations', value: overview.evaluation_count.toString() },
             ].map(c => (
@@ -267,8 +267,7 @@ export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
         <Tabs defaultValue="overview">
           <TabsList className="mb-6 flex-wrap h-auto gap-1">
             <TabsTrigger value="overview"><Building2 className="h-4 w-4 mr-1.5" />Overview</TabsTrigger>
-            <TabsTrigger value="payment-terms"><CreditCard className="h-4 w-4 mr-1.5" />Payment Terms</TabsTrigger>
-            <TabsTrigger value="credit-limit"><Banknote className="h-4 w-4 mr-1.5" />Credit Limit</TabsTrigger>
+            <TabsTrigger value="credit-terms"><CreditCard className="h-4 w-4 mr-1.5" />Credit & Terms</TabsTrigger>
             <TabsTrigger value="invoices"><FileText className="h-4 w-4 mr-1.5" />Invoices</TabsTrigger>
             <TabsTrigger value="pos"><ShoppingCart className="h-4 w-4 mr-1.5" />Purchase Orders</TabsTrigger>
             <TabsTrigger value="payments"><Banknote className="h-4 w-4 mr-1.5" />Payments</TabsTrigger>
@@ -280,11 +279,8 @@ export function SupplierDetailClient({ supplierId }: { supplierId: number }) {
           <TabsContent value="overview">
             <OverviewTab overview={overview} />
           </TabsContent>
-          <TabsContent value="payment-terms">
-            <PaymentTermsTab supplierId={supplierId} />
-          </TabsContent>
-          <TabsContent value="credit-limit">
-            <CreditLimitTab supplierId={supplierId} />
+          <TabsContent value="credit-terms">
+            <CreditAndTermsTab supplierId={supplierId} />
           </TabsContent>
           <TabsContent value="invoices">
             <InvoicesTab supplierId={supplierId} />
@@ -356,7 +352,7 @@ function OverviewTab({ overview }: { overview: SupplierOverview }) {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-lg bg-muted/40 px-3 py-2.5">
               <p className="text-xs text-muted-foreground">Credit Limit</p>
-              <p className="font-semibold mt-0.5">{overview.credit_limit ? fmt(overview.credit_limit) : 'Unlimited'}</p>
+              <p className="font-semibold mt-0.5">{overview.credit_limit ? fmt(overview.credit_limit) : '—'}</p>
             </div>
             <div className="rounded-lg bg-muted/40 px-3 py-2.5">
               <p className="text-xs text-muted-foreground">Approval Code</p>
@@ -411,192 +407,179 @@ function OverviewTab({ overview }: { overview: SupplierOverview }) {
   );
 }
 
-// ─── Payment Terms Tab ───────────────────────────────────────────────────────
+// ─── Credit & Terms Tab (merged Payment Terms + Credit Limit) ────────────────
 
-function PaymentTermsTab({ supplierId }: { supplierId: number }) {
+function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
   const [terms, setTerms] = useState<PaymentTermsRow[]>([]);
+  const [history, setHistory] = useState<CreditLimitRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialog, setDialog] = useState(false);
+  const [termsDialog, setTermsDialog] = useState(false);
+  const [creditDialog, setCreditDialog] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ net_days: '30', discount_days: '', discount_percentage: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' });
+  const [termsForm, setTermsForm] = useState({ net_days: '30', discount_days: '', discount_percentage: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' });
+  const [creditForm, setCreditForm] = useState({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/supply-chain/suppliers/${supplierId}/payment-terms`);
-    if (res.ok) setTerms(await res.json());
+    const [termsRes, creditRes] = await Promise.all([
+      fetch(`/api/supply-chain/suppliers/${supplierId}/payment-terms`),
+      fetch(`/api/supply-chain/suppliers/${supplierId}/credit-limit`),
+    ]);
+    if (termsRes.ok) setTerms(await termsRes.json());
+    if (creditRes.ok) setHistory(await creditRes.json());
     setLoading(false);
   }, [supplierId]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function save() {
+  async function saveTerms() {
     setSaving(true);
     const res = await fetch(`/api/supply-chain/suppliers/${supplierId}/payment-terms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        net_days: parseInt(form.net_days),
-        discount_days: form.discount_days ? parseInt(form.discount_days) : null,
-        discount_percentage: form.discount_percentage ? parseFloat(form.discount_percentage) : null,
-        valid_from: form.valid_from,
-        notes: form.notes || null,
+        net_days: parseInt(termsForm.net_days),
+        discount_days: termsForm.discount_days ? parseInt(termsForm.discount_days) : null,
+        discount_percentage: termsForm.discount_percentage ? parseFloat(termsForm.discount_percentage) : null,
+        valid_from: termsForm.valid_from,
+        notes: termsForm.notes || null,
       }),
     });
     setSaving(false);
-    if (res.ok) { setDialog(false); load(); }
+    if (res.ok) { setTermsDialog(false); load(); }
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Payment Terms History</h3>
-        <Button size="sm" onClick={() => setDialog(true)}><Plus className="h-4 w-4 mr-1.5" />Add Terms</Button>
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}</div>
-      ) : terms.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground rounded-xl border">No payment terms on record.</div>
-      ) : (
-        <div className="space-y-3">
-          {terms.map(t => (
-            <div key={t.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!t.valid_to ? 'border-blue-200 bg-blue-50/50' : ''}`}>
-              <div className="flex items-center gap-3">
-                {!t.valid_to && <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Current</span>}
-                <PaymentTermsBadge netDays={t.net_days} discountDays={t.discount_days} discountPercentage={t.discount_percentage} />
-              </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{fmtDate(t.valid_from)} → {t.valid_to ? fmtDate(t.valid_to) : 'Present'}</span>
-                {t.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{t.notes}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Payment Terms</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Net Days *</Label>
-                <Input type="number" min="0" max="365" value={form.net_days} onChange={e => setForm(f => ({ ...f, net_days: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Effective From *</Label>
-                <Input type="date" value={form.valid_from} onChange={e => setForm(f => ({ ...f, valid_from: e.target.value }))} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Discount Days</Label>
-                <Input type="number" min="0" placeholder="e.g. 10" value={form.discount_days} onChange={e => setForm(f => ({ ...f, discount_days: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Discount %</Label>
-                <Input type="number" min="0" step="0.5" placeholder="e.g. 2" value={form.discount_percentage} onChange={e => setForm(f => ({ ...f, discount_percentage: e.target.value }))} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional context…" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving || !form.net_days || !form.valid_from}>{saving ? 'Saving…' : 'Save'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// ─── Credit Limit Tab ────────────────────────────────────────────────────────
-
-function CreditLimitTab({ supplierId }: { supplierId: number }) {
-  const [history, setHistory] = useState<CreditLimitRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialog, setDialog] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' });
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/supply-chain/suppliers/${supplierId}/credit-limit`);
-    if (res.ok) setHistory(await res.json());
-    setLoading(false);
-  }, [supplierId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function save() {
-    if (!form.credit_limit || !form.valid_from) return;
+  async function saveCredit() {
+    if (!creditForm.credit_limit || !creditForm.valid_from) return;
     setSaving(true);
     const res = await fetch(`/api/supply-chain/suppliers/${supplierId}/credit-limit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        credit_limit: parseFloat(form.credit_limit),
-        valid_from: form.valid_from,
-        notes: form.notes || null,
+        credit_limit: parseFloat(creditForm.credit_limit),
+        valid_from: creditForm.valid_from,
+        notes: creditForm.notes || null,
       }),
     });
     setSaving(false);
-    if (res.ok) { setDialog(false); setForm({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' }); load(); }
+    if (res.ok) { setCreditDialog(false); setCreditForm({ credit_limit: '', valid_from: new Date().toISOString().slice(0, 10), notes: '' }); load(); }
   }
 
+  const skeletons = <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}</div>;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Credit Limit History</h3>
-        <Button size="sm" onClick={() => setDialog(true)}><Plus className="h-4 w-4 mr-1.5" />Set Credit Limit</Button>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* ── Credit Limit ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold flex items-center gap-2"><Banknote className="h-4 w-4" />Credit Limit History</h3>
+          <Button size="sm" onClick={() => setCreditDialog(true)}><Plus className="h-4 w-4 mr-1.5" />Set Credit Limit</Button>
+        </div>
+        {loading ? skeletons : history.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground rounded-xl border text-sm">No credit limit on record.</div>
+        ) : (
+          <div className="space-y-3">
+            {history.map(r => (
+              <div key={r.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!r.valid_to ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
+                <div className="flex items-center gap-3">
+                  {!r.valid_to && <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Current</span>}
+                  <span className="font-bold text-base">{fmt(r.credit_limit)}</span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>{fmtDate(r.valid_from)} → {r.valid_to ? fmtDate(r.valid_to) : 'Present'}</span>
+                  {r.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{r.notes}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {loading ? (
-        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-lg" />)}</div>
-      ) : history.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground rounded-xl border">No credit limit history on record.</div>
-      ) : (
-        <div className="space-y-3">
-          {history.map(r => (
-            <div key={r.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!r.valid_to ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
-              <div className="flex items-center gap-3">
-                {!r.valid_to && <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Current</span>}
-                <span className="font-bold text-base">{fmt(r.credit_limit)}</span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{fmtDate(r.valid_from)} → {r.valid_to ? fmtDate(r.valid_to) : 'Present'}</span>
-                {r.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{r.notes}</span>}
-              </div>
-            </div>
-          ))}
+      {/* ── Payment Terms ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold flex items-center gap-2"><CreditCard className="h-4 w-4" />Payment Terms History</h3>
+          <Button size="sm" onClick={() => setTermsDialog(true)}><Plus className="h-4 w-4 mr-1.5" />Add Terms</Button>
         </div>
-      )}
+        {loading ? skeletons : terms.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground rounded-xl border text-sm">No payment terms on record.</div>
+        ) : (
+          <div className="space-y-3">
+            {terms.map(t => (
+              <div key={t.id} className={`rounded-xl border px-5 py-4 flex flex-wrap items-center justify-between gap-3 ${!t.valid_to ? 'border-blue-200 bg-blue-50/50' : ''}`}>
+                <div className="flex items-center gap-3">
+                  {!t.valid_to && <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Current</span>}
+                  <PaymentTermsBadge netDays={t.net_days} discountDays={t.discount_days} discountPercentage={t.discount_percentage} />
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>{fmtDate(t.valid_from)} → {t.valid_to ? fmtDate(t.valid_to) : 'Present'}</span>
+                  {t.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{t.notes}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-      <Dialog open={dialog} onOpenChange={setDialog}>
+      {/* ── Dialogs ── */}
+      <Dialog open={creditDialog} onOpenChange={setCreditDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Set Credit Limit</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Credit Limit (SAR) *</Label>
-                <Input type="number" min="0" step="1000" placeholder="e.g. 500000" value={form.credit_limit} onChange={e => setForm(f => ({ ...f, credit_limit: e.target.value }))} />
+                <Input type="number" min="0" step="1000" placeholder="e.g. 500000" value={creditForm.credit_limit} onChange={e => setCreditForm(f => ({ ...f, credit_limit: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
                 <Label>Effective From *</Label>
-                <Input type="date" value={form.valid_from} onChange={e => setForm(f => ({ ...f, valid_from: e.target.value }))} />
+                <Input type="date" value={creditForm.valid_from} onChange={e => setCreditForm(f => ({ ...f, valid_from: e.target.value }))} />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label>Notes</Label>
-              <Textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reason for change…" />
+              <Textarea rows={2} value={creditForm.notes} onChange={e => setCreditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Reason for change…" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving || !form.credit_limit || !form.valid_from}>{saving ? 'Saving…' : 'Save'}</Button>
+            <Button variant="outline" onClick={() => setCreditDialog(false)}>Cancel</Button>
+            <Button onClick={saveCredit} disabled={saving || !creditForm.credit_limit || !creditForm.valid_from}>{saving ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={termsDialog} onOpenChange={setTermsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Payment Terms</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Net Days *</Label>
+                <Input type="number" min="0" max="365" value={termsForm.net_days} onChange={e => setTermsForm(f => ({ ...f, net_days: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Effective From *</Label>
+                <Input type="date" value={termsForm.valid_from} onChange={e => setTermsForm(f => ({ ...f, valid_from: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Discount Days</Label>
+                <Input type="number" min="0" placeholder="e.g. 10" value={termsForm.discount_days} onChange={e => setTermsForm(f => ({ ...f, discount_days: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Discount %</Label>
+                <Input type="number" min="0" step="0.5" placeholder="e.g. 2" value={termsForm.discount_percentage} onChange={e => setTermsForm(f => ({ ...f, discount_percentage: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea rows={2} value={termsForm.notes} onChange={e => setTermsForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional context…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTermsDialog(false)}>Cancel</Button>
+            <Button onClick={saveTerms} disabled={saving || !termsForm.net_days || !termsForm.valid_from}>{saving ? 'Saving…' : 'Save'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
