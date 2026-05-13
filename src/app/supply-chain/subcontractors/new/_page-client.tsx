@@ -9,10 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import {
   Handshake, ChevronLeft, ChevronRight, Plus, Trash2, Loader2,
-  FileText, CheckCircle2, AlertCircle,
+  FileText, CheckCircle2, AlertCircle, ChevronsUpDown, Check,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { getDefaultTerms, SCOPE_LABELS, TEMPLATE_LABELS } from '@/lib/services/subcontractor-contract.constants';
 
 type Project = { id: string; projectNumber: string; name: string };
@@ -44,12 +47,15 @@ export default function NewSubcontractorContractPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [scopeLevel, setScopeLevel] = useState<'project' | 'building' | 'scope'>('building');
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [supplierOpen, setSupplierOpen] = useState(false);
 
   // Step 2
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState('');
   const [selectedScopeTypes, setSelectedScopeTypes] = useState<string[]>(['steel']);
   const [scopeItems, setScopeItems] = useState<ScopeItem[]>([]);
+  const [projectScopeTypes, setProjectScopeTypes] = useState<string[]>([]);
 
   // Step 3
   const [retentionPct, setRetentionPct] = useState(10);
@@ -88,6 +94,24 @@ export default function NewSubcontractorContractPage() {
 
   useEffect(() => { fetchProjects(); fetchSuppliers(); }, [fetchProjects, fetchSuppliers]);
   useEffect(() => { if (selectedProject) fetchBuildings(); }, [selectedProject, fetchBuildings]);
+
+  useEffect(() => {
+    if (!selectedProject) { setProjectScopeTypes([]); return; }
+    fetch(`/api/scope-of-work?projectId=${selectedProject}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((scopes: { scopeType: string }[]) => {
+        const types = [...new Set(scopes.map(s => s.scopeType))];
+        setProjectScopeTypes(types);
+        // Reset selected scope types to only those valid for this project
+        if (types.length > 0) {
+          setSelectedScopeTypes(prev => {
+            const valid = prev.filter(t => types.includes(t));
+            return valid.length > 0 ? valid : types.slice(0, 1);
+          });
+        }
+      })
+      .catch(() => setProjectScopeTypes([]));
+  }, [selectedProject]);
 
   useEffect(() => {
     setTermsAndConditions(getDefaultTerms(templateType));
@@ -271,38 +295,74 @@ export default function NewSubcontractorContractPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="project">Project <span className="text-destructive">*</span></Label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger id="project">
-                    <SelectValue placeholder="Select a project…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        <span className="font-mono mr-2 text-primary">{p.projectNumber}</span>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Project <span className="text-destructive">*</span></Label>
+                <Popover open={projectOpen} onOpenChange={setProjectOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={projectOpen} className="w-full justify-between font-normal">
+                      {selectedProject
+                        ? (() => { const p = projects.find(x => x.id === selectedProject); return p ? `${p.projectNumber} — ${p.name}` : 'Select a project…'; })()
+                        : 'Select a project…'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" style={{ minWidth: 'var(--radix-popover-trigger-width)' }}>
+                    <Command>
+                      <CommandInput placeholder="Search projects…" />
+                      <CommandList>
+                        <CommandEmpty>No projects found.</CommandEmpty>
+                        <CommandGroup>
+                          {projects.map(p => (
+                            <CommandItem
+                              key={p.id}
+                              value={`${p.projectNumber} ${p.name}`}
+                              onSelect={() => { setSelectedProject(p.id); setProjectOpen(false); }}
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', selectedProject === p.id ? 'opacity-100' : 'opacity-0')} />
+                              <span className="font-mono text-primary mr-2 text-sm">{p.projectNumber}</span>
+                              {p.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="supplier">Subcontractor <span className="text-destructive">*</span></Label>
-                <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                  <SelectTrigger id="supplier">
-                    <SelectValue placeholder="Select a subcontractor…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map(s => (
-                      <SelectItem key={s.dolibarr_id} value={String(s.dolibarr_id)}>
-                        <span className="font-mono mr-2 text-muted-foreground text-xs">{s.code_supplier ?? '—'}</span>
-                        {s.name}
-                        {s.approval_rating && <Badge variant="outline" className="ml-2 text-xs">{s.approval_rating}</Badge>}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Subcontractor <span className="text-destructive">*</span></Label>
+                <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={supplierOpen} className="w-full justify-between font-normal">
+                      {selectedSupplier
+                        ? (() => { const s = suppliers.find(x => String(x.dolibarr_id) === selectedSupplier); return s ? s.name : 'Select a subcontractor…'; })()
+                        : 'Select a subcontractor…'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" style={{ minWidth: 'var(--radix-popover-trigger-width)' }}>
+                    <Command>
+                      <CommandInput placeholder="Search subcontractors…" />
+                      <CommandList>
+                        <CommandEmpty>No subcontractors found.</CommandEmpty>
+                        <CommandGroup>
+                          {suppliers.map(s => (
+                            <CommandItem
+                              key={s.dolibarr_id}
+                              value={`${s.code_supplier ?? ''} ${s.name}`}
+                              onSelect={() => { setSelectedSupplier(String(s.dolibarr_id)); setSupplierOpen(false); }}
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', String(s.dolibarr_id) === selectedSupplier ? 'opacity-100' : 'opacity-0')} />
+                              <span className="font-mono text-muted-foreground text-xs mr-2">{s.code_supplier ?? '—'}</span>
+                              {s.name}
+                              {s.approval_rating && <Badge variant="outline" className="ml-2 text-xs">{s.approval_rating}</Badge>}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
@@ -371,8 +431,11 @@ export default function NewSubcontractorContractPage() {
 
               <div className="space-y-2">
                 <Label>Scope Types <span className="text-destructive">*</span></Label>
+                {projectScopeTypes.length > 0 && (
+                  <p className="text-xs text-muted-foreground">Showing scopes available in the selected project</p>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {SCOPE_TYPES.map(st => (
+                  {(projectScopeTypes.length > 0 ? SCOPE_TYPES.filter(st => projectScopeTypes.includes(st)) : SCOPE_TYPES).map(st => (
                     <button
                       key={st}
                       type="button"

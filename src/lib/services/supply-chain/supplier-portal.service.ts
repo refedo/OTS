@@ -185,14 +185,27 @@ export function ratingToOutcome(rating: string): string {
 // Supplier List
 // ---------------------------------------------------------------------------
 
+const SORT_COL_MAP: Record<string, string> = {
+  name:            'dt.name',
+  approval_status: 'sas.approvalStatus',
+  approval_rating: 'sas.rating',
+  credit_limit:    'cl.credit_limit',
+  net_days:        'pt.net_days',
+};
+
 export async function getSupplierList(
   search: string | null,
   page: number,
   limit: number,
+  sortKey: string = 'name',
+  sortDir: 'asc' | 'desc' = 'asc',
 ): Promise<{ suppliers: SupplierListRow[]; total: number }> {
   const offset = (page - 1) * limit;
   const searchFilter = search ? `AND dt.name LIKE ?` : '';
   const searchArgs = search ? [`%${search}%`] : [];
+  const col = SORT_COL_MAP[sortKey] ?? 'dt.name';
+  const dir = sortDir === 'desc' ? 'DESC' : 'ASC';
+  const orderClause = `ORDER BY ${col} ${dir} NULLS LAST, dt.name ASC`;
 
   const rows = await prisma.$queryRawUnsafe<SupplierListRow[]>(`
     SELECT
@@ -230,7 +243,7 @@ export async function getSupplierList(
         )
       )
       ${searchFilter}
-    ORDER BY dt.name ASC
+    ${orderClause}
     LIMIT ? OFFSET ?
   `, ...searchArgs, limit, offset);
 

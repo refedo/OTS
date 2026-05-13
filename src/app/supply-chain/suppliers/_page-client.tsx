@@ -65,7 +65,7 @@ export function SupplierListClient() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    const params = new URLSearchParams({ page: String(page), limit: String(limit), sortKey, sortDir });
     if (search) params.set('search', search);
     const res = await fetch(`/api/supply-chain/suppliers?${params}`);
     if (res.ok) {
@@ -74,7 +74,7 @@ export function SupplierListClient() {
       setTotal(j.total ?? 0);
     }
     setLoading(false);
-  }, [search, page]);
+  }, [search, page, sortKey, sortDir]);
 
   const syncAndRefresh = useCallback(async () => {
     setSyncing(true);
@@ -96,20 +96,8 @@ export function SupplierListClient() {
       setSortKey(key);
       setSortDir('asc');
     }
+    setPage(1);
   }
-
-  const sorted = [...suppliers].sort((a, b) => {
-    let av: string | number | null, bv: string | number | null;
-    if (sortKey === 'name') { av = a.name; bv = b.name; }
-    else if (sortKey === 'approval_status') { av = a.approval_status ?? ''; bv = b.approval_status ?? ''; }
-    else if (sortKey === 'approval_rating') { av = a.approval_rating ?? 'Z'; bv = b.approval_rating ?? 'Z'; }
-    else if (sortKey === 'credit_limit') { av = a.credit_limit ?? -1; bv = b.credit_limit ?? -1; }
-    else { av = a.net_days ?? -1; bv = b.net_days ?? -1; }
-
-    if (av === bv) return 0;
-    const cmp = av < bv ? -1 : 1;
-    return sortDir === 'asc' ? cmp : -cmp;
-  });
 
   const kpi = {
     total,
@@ -190,12 +178,11 @@ export function SupplierListClient() {
                 <tr className="border-b bg-muted/50 text-muted-foreground">
                   <Th col="name" label="Supplier" />
                   <th className="px-4 py-3 text-left font-medium whitespace-nowrap hidden sm:table-cell">Code</th>
-                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap hidden md:table-cell">Location</th>
                   <th className="px-4 py-3 text-left font-medium whitespace-nowrap hidden lg:table-cell">Category</th>
                   <Th col="approval_status" label="Status" />
                   <Th col="approval_rating" label="Rating" className="hidden sm:table-cell" />
-                  <Th col="credit_limit" label="Credit Limit" className="hidden xl:table-cell" />
-                  <Th col="net_days" label="Pay. Terms" className="hidden xl:table-cell" />
+                  <Th col="credit_limit" label="Credit Limit" className="hidden md:table-cell" />
+                  <Th col="net_days" label="Pay. Terms" className="hidden md:table-cell" />
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -203,18 +190,18 @@ export function SupplierListClient() {
                 {loading ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <tr key={i} className="border-b">
-                      <td colSpan={9} className="px-4 py-3">
+                      <td colSpan={8} className="px-4 py-3">
                         <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
                       </td>
                     </tr>
                   ))
-                ) : sorted.length === 0 ? (
+                ) : suppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                       No suppliers found{search ? ` matching "${search}"` : ''}.
                     </td>
                   </tr>
-                ) : sorted.map(s => (
+                ) : suppliers.map(s => (
                   <tr key={s.dolibarr_id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
                       <Link href={`/supply-chain/suppliers/${s.dolibarr_id}`} className="hover:underline">
@@ -226,9 +213,6 @@ export function SupplierListClient() {
                       {s.code_supplier
                         ? <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{s.code_supplier}</span>
                         : <span className="text-muted-foreground text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                      {[s.town, s.country_code].filter(Boolean).join(', ') || '—'}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       {s.cost_category
@@ -254,10 +238,10 @@ export function SupplierListClient() {
                         </span>
                       ) : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 hidden xl:table-cell tabular-nums text-sm">
+                    <td className="px-4 py-3 hidden md:table-cell tabular-nums text-sm">
                       {s.credit_limit != null ? fmtSAR(s.credit_limit) : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 hidden xl:table-cell text-sm">
+                    <td className="px-4 py-3 hidden md:table-cell text-sm">
                       {s.net_days != null
                         ? <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium">Net {s.net_days}d</span>
                         : <span className="text-muted-foreground">—</span>}

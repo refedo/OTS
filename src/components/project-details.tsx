@@ -339,157 +339,128 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto p-6 lg:p-8 space-y-8 max-lg:pt-20">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <Link href="/projects">
-                <Button variant="ghost" size="icon" title="Back to list">
-                  <ArrowLeft className="size-5" />
-                </Button>
-              </Link>
-              <div className="h-6 w-px bg-border mx-1" />
-              <Link href={navigation.previousId ? `/projects/${navigation.previousId}` : '#'}>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  disabled={!navigation.previousId || isLoadingNav}
-                  title="Previous project"
-                >
-                  <ChevronLeft className="size-5" />
-                </Button>
-              </Link>
-              <Link href={navigation.nextId ? `/projects/${navigation.nextId}` : '#'}>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  disabled={!navigation.nextId || isLoadingNav}
-                  title="Next project"
-                >
-                  <ChevronRightIcon className="size-5" />
-                </Button>
-              </Link>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline" className="font-mono">
-                  {project.projectNumber}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={cn('border', statusColors[project.status as keyof typeof statusColors])}
-                >
-                  {project.status}
-                </Badge>
+    <main className="min-h-screen bg-background">
+      {/* ── Hero Banner ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 text-white">
+        <div className="absolute inset-0 opacity-5"
+          style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '20px 20px' }} />
+        <div className="absolute -top-10 -right-10 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
+        <div className="relative container mx-auto px-6 lg:px-8 pt-6 pb-8 max-lg:pt-20">
+          {/* Nav row */}
+          <div className="flex items-center gap-2 mb-5">
+            <Link href="/projects">
+              <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-white/10 gap-1">
+                <ArrowLeft className="size-4" /> Projects
+              </Button>
+            </Link>
+            <div className="h-4 w-px bg-white/20 mx-1" />
+            <Link href={navigation.previousId ? `/projects/${navigation.previousId}` : '#'}>
+              <Button variant="ghost" size="icon" className="text-slate-300 hover:text-white hover:bg-white/10 h-8 w-8" disabled={!navigation.previousId || isLoadingNav} title="Previous project">
+                <ChevronLeft className="size-4" />
+              </Button>
+            </Link>
+            <Link href={navigation.nextId ? `/projects/${navigation.nextId}` : '#'}>
+              <Button variant="ghost" size="icon" className="text-slate-300 hover:text-white hover:bg-white/10 h-8 w-8" disabled={!navigation.nextId || isLoadingNav} title="Next project">
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </Link>
+          </div>
+
+          {/* Title row */}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 hidden sm:flex">
+                <Building2 className="size-8 text-blue-300" />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
-              <p className="text-muted-foreground mt-1">
-                {project.client.name} • {project.projectManager.name}
-              </p>
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="font-mono text-sm bg-white/15 border border-white/20 px-2.5 py-0.5 rounded text-slate-200">
+                    {project.projectNumber}
+                  </span>
+                  <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full border', statusColors[project.status as keyof typeof statusColors])}>
+                    {project.status}
+                  </span>
+                  {project.projectNature && (
+                    <span className="text-xs bg-white/10 border border-white/15 px-2 py-0.5 rounded text-slate-300">{project.projectNature}</span>
+                  )}
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{project.name}</h1>
+                <p className="text-slate-400 mt-1 text-sm">
+                  {project.client.name} <span className="text-slate-600 mx-1">·</span> {project.projectManager.name}
+                  {project.projectLocation ? <><span className="text-slate-600 mx-1">·</span> {project.projectLocation}</> : null}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/projects/${project.id}/timeline`}>
+                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white">
+                  <Clock className="size-4 mr-1" /> Timeline
+                </Button>
+              </Link>
+              <Link href={`/projects/${project.id}/scope`}>
+                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white">
+                  <FileText className="size-4 mr-1" /> Scope
+                </Button>
+              </Link>
+              <Link href={`/projects/${project.id}/edit`}>
+                <Button size="sm" className="bg-blue-500 hover:bg-blue-400 text-white border-0">
+                  <Edit className="size-4 mr-1" /> Edit
+                </Button>
+              </Link>
+              <Button size="sm" variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
+                <Trash2 className="size-4" />
+              </Button>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Link href={`/projects/${project.id}/timeline`}>
-              <Button variant="outline">
-                <Clock className="size-4" />
-                Timeline
-              </Button>
-            </Link>
-            <Link href={`/projects/${project.id}/scope`}>
-              <Button variant="outline">
-                <FileText className="size-4" />
-                Scope Summary
-              </Button>
-            </Link>
-            <Link href={`/projects/${project.id}/edit`}>
-              <Button>
-                <Edit className="size-4" />
-                Edit Project
-              </Button>
-            </Link>
-            <Button 
-              variant="destructive"
-              onClick={() => setShowDeleteDialog(true)}
-              disabled={isDeleting}
-            >
-              <Trash2 className="size-4" />
-              Delete
-            </Button>
+
+          {/* KPI chips */}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2">
+              <Building2 className="size-4 text-blue-300" />
+              <span className="text-xs text-slate-400">Buildings</span>
+              <span className="text-sm font-bold">{project._count.buildings}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2">
+              <FileText className="size-4 text-slate-400" />
+              <span className="text-xs text-slate-400">Tasks</span>
+              <span className="text-sm font-bold">{project._count.tasks}</span>
+            </div>
+            {(project.contractualTonnage || project.engineeringTonnage) && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2">
+                <Settings className="size-4 text-amber-400" />
+                <span className="text-xs text-slate-400">Tonnage</span>
+                <span className="text-sm font-bold">
+                  {project.contractualTonnage ?? project.engineeringTonnage} t
+                </span>
+              </div>
+            )}
+            {project.contractValue && !hideFinancialData && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2">
+                <DollarSign className="size-4 text-emerald-400" />
+                <span className="text-xs text-slate-400">Contract Value</span>
+                <span className="text-sm font-bold">{formatCurrency(project.contractValue)}</span>
+              </div>
+            )}
+            {project.plannedStartDate && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2">
+                <Calendar className="size-4 text-slate-400" />
+                <span className="text-xs text-slate-400">Start</span>
+                <span className="text-sm font-bold">{formatDate(project.plannedStartDate)}</span>
+              </div>
+            )}
+            {project.plannedEndDate && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2">
+                <Calendar className="size-4 text-slate-400" />
+                <span className="text-xs text-slate-400">End</span>
+                <span className="text-sm font-bold">{formatDate(project.plannedEndDate)}</span>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Link href={`/projects/${project.id}/buildings`}>
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Building2 className="size-4" />
-                  <span className="text-sm">Buildings</span>
-                </div>
-                <p className="text-2xl font-bold">{project._count.buildings}</p>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <Link href={`/tasks?project=${project.id}`}>
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <FileText className="size-4" />
-                  <span className="text-sm">Tasks</span>
-                </div>
-                <p className="text-2xl font-bold">{project._count.tasks}</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          {project.contractValue && !hideFinancialData && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <DollarSign className="size-4" />
-                  <span className="text-sm">Contract Value</span>
-                </div>
-                <p className="text-2xl font-bold">{formatCurrency(project.contractValue)}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {(project.contractualTonnage || project.engineeringTonnage) && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Settings className="size-4" />
-                  <span className="text-sm">Tonnage</span>
-                </div>
-                <div className="space-y-1">
-                  {project.contractualTonnage && (
-                    <p className="text-lg font-semibold">{project.contractualTonnage} tons (Contractual)</p>
-                  )}
-                  {project.engineeringTonnage && (
-                    <p className="text-sm text-muted-foreground">{project.engineeringTonnage} tons (Engineering)</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {project.plannedStartDate && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Calendar className="size-4" />
-                  <span className="text-sm">Start Date</span>
-                </div>
-                <p className="text-lg font-semibold">{formatDate(project.plannedStartDate)}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-6">
 
         {/* Collapsible Sections */}
         <div className="space-y-4">
