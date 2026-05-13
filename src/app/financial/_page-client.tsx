@@ -346,6 +346,18 @@ export default function FinancialDashboardPage() {
             </CardContent>
           </Card>
         </Link>
+        <Link href="/financial/vat-payments">
+          <Card className="border-red-200 dark:border-red-900/50 hover:border-red-400 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">VAT Paid (ZATCA)</span>
+                <Receipt className="h-3.5 w-3.5 text-red-500" />
+              </div>
+              <div className="text-lg font-bold text-red-600">{formatCompact(d.vatPaid || 0)}</div>
+              <div className="text-[10px] text-muted-foreground">{formatSAR(d.vatPaid || 0)}</div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Bank Accounts - Collapsible */}
@@ -367,7 +379,8 @@ export default function FinancialDashboardPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {d.bankAccounts.map((bank: any) => (
-                  <div key={bank.id} className="p-4 border rounded-lg">
+                  <Link key={bank.id} href={`/financial/bank-accounts/${bank.id}`}>
+                  <div className="p-4 border rounded-lg hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium text-sm truncate">{bank.label}</span>
                       <Badge variant={bank.isOpen ? 'default' : 'secondary'}>{bank.isOpen ? 'Active' : 'Closed'}</Badge>
@@ -375,6 +388,7 @@ export default function FinancialDashboardPage() {
                     <div className="text-xs text-muted-foreground mb-1">{bank.bankName}</div>
                     <div className="text-xl font-bold">{formatSAR(bank.balance)}</div>
                   </div>
+                  </Link>
                 ))}
               </div>
             </CardContent>

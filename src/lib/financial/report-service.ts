@@ -642,7 +642,7 @@ export class FinancialReportService {
 
   async getDashboardSummary(fromDate: string, toDate: string): Promise<any> {
     let totalRevenue = 0, totalExpenses = 0, totalAR = 0, totalAP = 0;
-    let vatOutputTotal = 0, vatInputTotal = 0;
+    let vatOutputTotal = 0, vatInputTotal = 0, vatPaid = 0;
     let costOfSales = 0, salariesExpense = 0;
     let totalAssets = 0, totalEquity = 0;
 
@@ -744,6 +744,16 @@ export class FinancialReportService {
           AND si.status IN (1, 2) AND si.is_active = 1
       `, fromDate, toDate);
       vatInputTotal = Number(vatInRows[0]?.total || 0);
+    } catch { /* */ }
+
+    // VAT paid to ZATCA (settlement payments)
+    try {
+      const vatPaidRows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM fin_vat_payments
+        WHERE payment_date BETWEEN ? AND ?
+      `, fromDate, toDate);
+      vatPaid = Number(vatPaidRows[0]?.total || 0);
     } catch { /* */ }
 
     // AR: Per-invoice remaining = total_ttc - sum(payments for that invoice)
@@ -862,6 +872,7 @@ export class FinancialReportService {
       projectCount,
       vatOutputTotal,
       vatInputTotal,
+      vatPaid,
       netVatPayable: vatOutputTotal - vatInputTotal,
       totalAR,
       totalAP,
@@ -1022,7 +1033,7 @@ export class FinancialReportService {
         ? `${year}-12-31`
         : `${year}-${String(m + 1).padStart(2, '0')}-01`;
 
-      let cashIn = 0, cashOut = 0, cashOutSalaries = 0;
+      let cashIn = 0, cashOut = 0, vatOut = 0, cashOutSalaries = 0;
       let vatOutput = 0, vatInput = 0;
 
       try {
@@ -1043,6 +1054,15 @@ export class FinancialReportService {
             AND fp.payment_date >= ? AND fp.payment_date < ?
         `, monthStart, monthEnd);
         cashOut = Number(outRows[0]?.total || 0);
+      } catch { /* */ }
+
+      try {
+        const vatRows: any[] = await prisma.$queryRawUnsafe(`
+          SELECT COALESCE(SUM(amount), 0) as total
+          FROM fin_vat_payments
+          WHERE payment_date >= ? AND payment_date < ?
+        `, monthStart, monthEnd);
+        vatOut = Number(vatRows[0]?.total || 0);
       } catch { /* */ }
 
       // Fallback 1: derive from journal entries (supplier payment entries credit AP account)
@@ -1107,13 +1127,15 @@ export class FinancialReportService {
         vatInput = Number(vatInRows[0]?.total || 0);
       } catch { /* */ }
 
-      const totalCashOut = cashOut + cashOutSalaries;
+      const totalCashOut = cashOut + vatOut + cashOutSalaries;
 
       months.push({
         month: m,
         monthName: new Date(year, m - 1, 1).toLocaleString('en', { month: 'short' }),
         cashIn,
         cashOut,
+        cashOutSupplier: cashOut,
+        cashOutVat: vatOut,
         cashOutSalaries,
         totalCashOut,
         vatOutput,
@@ -1125,16 +1147,18 @@ export class FinancialReportService {
 
     const totalCashIn = months.reduce((s, m) => s + m.cashIn, 0);
     const totalCashOut = months.reduce((s, m) => s + m.cashOut, 0);
-    const totalCashOutSalaries = months.reduce((s, m) => s + m.cashOutSalaries, 0);
-    const totalVatOutput = months.reduce((s, m) => s + m.vatOutput, 0);
-    const totalVatInput = months.reduce((s, m) => s + m.vatInput, 0);
-    const grandTotalCashOut = totalCashOut + totalCashOutSalaries;
+    const totalCashOutVat = months.reduce((s, m) => s + (m.cashOutVat ?? 0), 0);
+    const totalCashOutSalaries = months.reduce((s, m) => s + (m.cashOutSalaries ?? 0), 0);
+    const totalVatOutput = months.reduce((s, m) => s + (m.vatOutput ?? 0), 0);
+    const totalVatInput = months.reduce((s, m) => s + (m.vatInput ?? 0), 0);
+    const grandTotalCashOut = totalCashOut + totalCashOutVat + totalCashOutSalaries;
 
     return {
       year,
       months,
       totalCashIn,
       totalCashOut,
+      totalCashOutVat,
       totalCashOutSalaries,
       grandTotalCashOut,
       totalVatOutput,
