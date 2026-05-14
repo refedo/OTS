@@ -289,16 +289,21 @@ export async function getSupplierOverview(dolibarrId: number): Promise<SupplierO
          WHERE supplier_dolibarr_id = dt.dolibarr_id AND valid_to IS NULL LIMIT 1),
         dt.outstanding_limit
       ) AS credit_limit,
-      coa_ap.coa_account_code AS ap_account_code,
+      COALESCE(
+        (SELECT config_value FROM fin_config WHERE config_key = 'default_ap_account' LIMIT 1),
+        '2101'
+      ) AS ap_account_code,
       coa_ap_def.account_name AS ap_account_name,
       coa_ap_def.account_name_ar AS ap_account_name_ar,
-      sc.cost_category,
+      COALESCE(sc.cost_category, coa_cogs.account_name) AS cost_category,
       sc.coa_account_code AS cogs_account_code,
       coa_cogs.account_name AS cogs_account_name,
       coa_cogs.account_name_ar AS cogs_account_name_ar
     FROM dolibarr_thirdparties dt
-    LEFT JOIN fin_supplier_coa_default coa_ap ON coa_ap.supplier_dolibarr_id = dt.dolibarr_id
-    LEFT JOIN fin_chart_of_accounts coa_ap_def ON coa_ap_def.account_code = coa_ap.coa_account_code
+    LEFT JOIN fin_chart_of_accounts coa_ap_def ON coa_ap_def.account_code = COALESCE(
+      (SELECT config_value FROM fin_config WHERE config_key = 'default_ap_account' LIMIT 1),
+      '2101'
+    )
     LEFT JOIN fin_supplier_classification sc ON sc.supplier_id = dt.dolibarr_id
     LEFT JOIN fin_chart_of_accounts coa_cogs ON coa_cogs.account_code = sc.coa_account_code
     WHERE dt.dolibarr_id = ?
@@ -740,11 +745,15 @@ function normalizeCreditRow(row: Record<string, unknown>): CreditLimitRow {
   return {
     id: Number(row.id),
     credit_limit: Number(row.credit_limit),
-    valid_from: String(row.valid_from).slice(0, 10),
-    valid_to: row.valid_to ? String(row.valid_to).slice(0, 10) : null,
+    valid_from: row.valid_from instanceof Date
+      ? row.valid_from.toISOString().slice(0, 10)
+      : String(row.valid_from).slice(0, 10),
+    valid_to: row.valid_to
+      ? (row.valid_to instanceof Date ? row.valid_to.toISOString().slice(0, 10) : String(row.valid_to).slice(0, 10))
+      : null,
     notes: row.notes != null ? String(row.notes) : null,
     created_by_id: row.created_by_id != null ? String(row.created_by_id) : null,
-    created_at: String(row.created_at),
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
   };
 }
 
@@ -792,4 +801,48 @@ export async function createSupplierCreditLimit(
   `, dolibarrId);
 
   return normalizeCreditRow(rows[0]);
+}
+
+export async function deleteSupplierCreditLimit(dolibarrId: number, limitId: number): Promise<void> {
+  // Check if this is the current (open) entry
+  const current = await prisma.$queryRawUnsafe<[{ id: number }?]>(
+    `SELECT id FROM sc_supplier_credit_limit_history WHERE id = ? AND supplier_dolibarr_id = ? AND valid_to IS NULL LIMIT 1`,
+    limitId, dolibarrId,
+  );
+
+  await prisma.$executeRawUnsafe(
+    `DELETE FROM sc_supplier_credit_limit_history WHERE id = ? AND supplier_dolibarr_id = ?`,
+    limitId, dolibarrId,
+  );
+
+  // If we deleted the current entry, reopen the most recent previous one
+  if (current.length > 0) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE sc_supplier_credit_limit_history SET valid_to = NULL
+       WHERE supplier_dolibarr_id = ?
+       ORDER BY valid_from DESC LIMIT 1`,
+      dolibarrId,
+    );
+  }
+}
+
+export async function deleteSupplierPaymentTerm(dolibarrId: number, termId: number): Promise<void> {
+  const current = await prisma.$queryRawUnsafe<[{ id: number }?]>(
+    `SELECT id FROM sc_supplier_payment_terms WHERE id = ? AND supplier_dolibarr_id = ? AND valid_to IS NULL LIMIT 1`,
+    termId, dolibarrId,
+  );
+
+  await prisma.$executeRawUnsafe(
+    `DELETE FROM sc_supplier_payment_terms WHERE id = ? AND supplier_dolibarr_id = ?`,
+    termId, dolibarrId,
+  );
+
+  if (current.length > 0) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE sc_supplier_payment_terms SET valid_to = NULL
+       WHERE supplier_dolibarr_id = ?
+       ORDER BY valid_from DESC LIMIT 1`,
+      dolibarrId,
+    );
+  }
 }

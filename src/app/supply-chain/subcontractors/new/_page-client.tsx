@@ -49,6 +49,7 @@ export default function NewSubcontractorContractPage() {
   const [scopeLevel, setScopeLevel] = useState<'project' | 'building' | 'scope'>('building');
   const [projectOpen, setProjectOpen] = useState(false);
   const [supplierOpen, setSupplierOpen] = useState(false);
+  const [supplierSearch, setSupplierSearch] = useState('');
 
   // Step 2
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -341,26 +342,36 @@ export default function NewSubcontractorContractPage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" style={{ minWidth: 'var(--radix-popover-trigger-width)' }}>
-                    <Command filter={(value, search) => {
-                      if (!search) return 1;
-                      return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
-                    }}>
-                      <CommandInput placeholder="Search subcontractors…" />
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search subcontractors…"
+                        value={supplierSearch}
+                        onValueChange={setSupplierSearch}
+                      />
                       <CommandList>
                         <CommandEmpty>No subcontractors found.</CommandEmpty>
                         <CommandGroup>
-                          {suppliers.map(s => (
-                            <CommandItem
-                              key={s.dolibarr_id}
-                              value={`${s.code_supplier ?? ''} ${s.name}`}
-                              onSelect={() => { setSelectedSupplier(String(s.dolibarr_id)); setSupplierOpen(false); }}
-                            >
-                              <Check className={cn('mr-2 h-4 w-4', String(s.dolibarr_id) === selectedSupplier ? 'opacity-100' : 'opacity-0')} />
-                              <span className="font-mono text-muted-foreground text-xs mr-2">{s.code_supplier ?? '—'}</span>
-                              {s.name}
-                              {s.approval_rating && <Badge variant="outline" className="ml-2 text-xs">{s.approval_rating}</Badge>}
-                            </CommandItem>
-                          ))}
+                          {suppliers
+                            .filter(s => {
+                              if (!supplierSearch) return true;
+                              const q = supplierSearch.toLowerCase();
+                              return (
+                                s.name.toLowerCase().includes(q) ||
+                                (s.code_supplier ?? '').toLowerCase().includes(q)
+                              );
+                            })
+                            .map(s => (
+                              <CommandItem
+                                key={s.dolibarr_id}
+                                value={String(s.dolibarr_id)}
+                                onSelect={() => { setSelectedSupplier(String(s.dolibarr_id)); setSupplierOpen(false); setSupplierSearch(''); }}
+                              >
+                                <Check className={cn('mr-2 h-4 w-4', String(s.dolibarr_id) === selectedSupplier ? 'opacity-100' : 'opacity-0')} />
+                                <span className="font-mono text-muted-foreground text-xs mr-2">{s.code_supplier ?? '—'}</span>
+                                {s.name}
+                                {s.approval_rating && <Badge variant="outline" className="ml-2 text-xs">{s.approval_rating}</Badge>}
+                              </CommandItem>
+                            ))}
                         </CommandGroup>
                       </CommandList>
                     </Command>

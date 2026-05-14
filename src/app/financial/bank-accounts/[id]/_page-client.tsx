@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Landmark, TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Landmark, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 function formatSAR(v: number) {
@@ -20,14 +20,27 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage]       = useState(1);
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
+  const loadTransactions = () => {
     setLoading(true);
     fetch(`/api/financial/bank-accounts/${bankId}/transactions?page=${page}&limit=50`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setData(d); })
       .finally(() => setLoading(false));
-  }, [bankId, page]);
+  };
+
+  useEffect(() => { loadTransactions(); }, [bankId, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      await fetch('/api/financial/sync?entities=bank_transactions', { method: 'POST' });
+      loadTransactions();
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const acct = data?.account;
 
@@ -86,10 +99,16 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
       <div className="container mx-auto p-6 lg:p-8 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Landmark className="size-5" />
-              Transaction History
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Landmark className="size-5" />
+                Transaction History
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing || loading}>
+                <RefreshCw className={`size-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing…' : 'Sync Transactions'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -101,7 +120,7 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
             ) : !data?.transactions?.length ? (
               <div className="text-center py-16 text-muted-foreground">
                 <p>No transactions found for this account.</p>
-                <p className="text-xs mt-2">Sync bank transactions from the Financial Dashboard to populate this view.</p>
+                <p className="text-xs mt-2">Click <strong>Sync Transactions</strong> to pull the latest data from Dolibarr.</p>
               </div>
             ) : (
               <>
