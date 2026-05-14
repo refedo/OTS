@@ -289,22 +289,8 @@ export default function FinancialDashboardPage() {
         </Link>
       </div>
 
-      {/* Row 3: VAT Summary & Account Mapping */}
+      {/* Row 3: VAT Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Link href="/financial/account-mapping">
-          <Card className="border-amber-200 dark:border-amber-900/50 hover:border-amber-400 transition-colors cursor-pointer h-full">
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-muted-foreground">Account Mapping</span>
-                <ArrowUpDown className="h-3.5 w-3.5 text-amber-500" />
-              </div>
-              <div className="text-lg font-bold text-amber-600">Manage</div>
-              <div className="text-[10px] text-muted-foreground">Map Dolibarr codes to categories</div>
-              <div className="text-[10px] text-primary mt-1 flex items-center">Configure <ArrowRight className="h-3 w-3 ml-1" /></div>
-            </CardContent>
-          </Card>
-        </Link>
-
         <Link href="/financial/reports/vat">
           <Card className="border-orange-200 dark:border-orange-900/50 hover:border-orange-400 transition-colors cursor-pointer h-full">
             <CardContent className="pt-5 pb-4">
@@ -602,42 +588,6 @@ export default function FinancialDashboardPage() {
               <div>
                 <h3 className="font-semibold">Chart of Accounts</h3>
                 <p className="text-xs text-muted-foreground">Manage account codes and categories</p>
-              </div>
-              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/financial/account-mapping">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardContent className="pt-6 flex items-center gap-3">
-              <ArrowUpDown className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <h3 className="font-semibold">Account Mapping</h3>
-                <p className="text-xs text-muted-foreground">Map Dolibarr account codes to cost categories</p>
-              </div>
-              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/financial/product-categories">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardContent className="pt-6 flex items-center gap-3">
-              <Package className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <h3 className="font-semibold">Product Categories</h3>
-                <p className="text-xs text-muted-foreground">Define categories and map invoice products</p>
-              </div>
-              <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/financial/supplier-classification">
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardContent className="pt-6 flex items-center gap-3">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <h3 className="font-semibold">Supplier Classification</h3>
-                <p className="text-xs text-muted-foreground">Assign default cost categories to suppliers</p>
               </div>
               <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
             </CardContent>

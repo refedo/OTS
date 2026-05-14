@@ -142,15 +142,15 @@ export function BuildingDialog({ projectId, building, open, onOpenChange, onSave
               <Input
                 id="designation"
                 name="designation"
-                placeholder="e.g., BLD1, WH, MAIN1"
+                placeholder="e.g., BLD1, WH, MAIN-1, Z8T"
                 defaultValue={building?.designation || ''}
                 required
                 disabled={loading || !!building}
-                maxLength={5}
+                maxLength={8}
                 className="uppercase"
               />
               <p className="text-xs text-muted-foreground">
-                2-5 uppercase letters/numbers (e.g., BLD1, WH, MAIN1)
+                2-8 uppercase letters/numbers/hyphens (e.g., BLD1, WH, MAIN-1)
               </p>
             </div>
 
