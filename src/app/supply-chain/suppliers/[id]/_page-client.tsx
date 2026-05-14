@@ -6,7 +6,7 @@ import {
   Factory, ArrowLeft, Mail, Phone, MapPin, Building2, ChevronRight,
   ShieldCheck, ShieldAlert, ShieldOff, Shield, ClipboardList, CreditCard,
   FileText, ShoppingCart, Banknote, BarChart3, Plus, ClipboardCheck,
-  AlertTriangle, Users, Handshake,
+  AlertTriangle, Users, Handshake, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -115,8 +115,8 @@ interface PoRow {
   statut: number;
   total_ht: number;
   total_ttc: number;
-  date_commande: string;
-  date_livraison: string | null;
+  date_commande: number | string | null;
+  date_livraison: number | string | null;
 }
 
 interface EvaluationRow {
@@ -161,9 +161,15 @@ const PO_STATUS: Record<number, string> = {
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-SA-u-ca-gregory', { style: 'currency', currency: 'SAR', minimumFractionDigits: 2 }).format(v);
 
-const fmtDate = (d: string | null | undefined) => {
+const fmtDate = (d: string | number | null | undefined) => {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' });
+  // Dolibarr returns dates as Unix timestamps (seconds); ISO strings pass through as-is
+  const ms = typeof d === 'number' || (typeof d === 'string' && /^\d{9,13}$/.test(d.trim()))
+    ? Number(d) * 1000
+    : NaN;
+  const date = isNaN(ms) ? new Date(d as string) : new Date(ms);
+  if (isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 // ─── Main Component ──────────────────────────────────────────────────────────
@@ -462,6 +468,18 @@ function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
     setLoading(false);
   }, [supplierId]);
 
+  async function deleteCredit(limitId: number) {
+    if (!confirm('Delete this credit limit entry?')) return;
+    await fetch(`/api/supply-chain/suppliers/${supplierId}/credit-limit/${limitId}`, { method: 'DELETE' });
+    load();
+  }
+
+  async function deleteTerm(termId: number) {
+    if (!confirm('Delete this payment terms entry?')) return;
+    await fetch(`/api/supply-chain/suppliers/${supplierId}/payment-terms/${termId}`, { method: 'DELETE' });
+    load();
+  }
+
   useEffect(() => { load(); }, [load]);
 
   async function saveUnified() {
@@ -558,6 +576,9 @@ function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>{fmtDate(r.valid_from)} → {r.valid_to ? fmtDate(r.valid_to) : 'Present'}</span>
                     {r.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{r.notes}</span>}
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-7 w-7 p-0" onClick={() => deleteCredit(r.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -581,6 +602,9 @@ function CreditAndTermsTab({ supplierId }: { supplierId: number }) {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>{fmtDate(t.valid_from)} → {t.valid_to ? fmtDate(t.valid_to) : 'Present'}</span>
                     {t.notes && <span className="text-xs bg-muted px-2 py-0.5 rounded max-w-xs truncate">{t.notes}</span>}
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-7 w-7 p-0" onClick={() => deleteTerm(t.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))}
