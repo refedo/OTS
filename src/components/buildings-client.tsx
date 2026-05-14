@@ -610,14 +610,14 @@ export function BuildingsClient({ initialBuildings }: BuildingsClientProps) {
                 <Input
                   id="designation"
                   name="designation"
-                  placeholder="e.g., BLD1, WH, MAIN"
+                  placeholder="e.g., BLD1, WH, MAIN-1"
                   required
                   disabled={isCreating}
-                  maxLength={5}
+                  maxLength={8}
                   className="uppercase"
                 />
                 <p className="text-xs text-muted-foreground">
-                  2-5 uppercase letters/numbers (e.g., BLD1, WH, MAIN1)
+                  2-8 uppercase letters/numbers/hyphens (e.g., BLD1, WH, MAIN-1)
                 </p>
               </div>
 

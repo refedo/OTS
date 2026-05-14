@@ -3,6 +3,8 @@ import { withApiContext } from '@/lib/api-utils';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { resolveUserPermissions } from '@/lib/services/permission-resolution.service';
+import { hasPermission } from '@/lib/permissions';
 
 const log = logger.child({ module: 'API:LcrAliases' });
 
@@ -83,8 +85,9 @@ export const POST = withApiContext<any>(async (req, session) => {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (session.role !== 'Admin' && session.role !== 'CEO') {
-    return NextResponse.json({ error: 'Forbidden: admin only' }, { status: 403 });
+  const permissions = await resolveUserPermissions(session.userId);
+  if (!hasPermission(permissions, 'supply_chain.alias')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const body = await req.json();
@@ -174,8 +177,9 @@ export const DELETE = withApiContext<any>(async (req, session) => {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (session.role !== 'Admin' && session.role !== 'CEO') {
-    return NextResponse.json({ error: 'Forbidden: admin only' }, { status: 403 });
+  const permissions = await resolveUserPermissions(session.userId);
+  if (!hasPermission(permissions, 'supply_chain.alias')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const url = new URL(req.url);

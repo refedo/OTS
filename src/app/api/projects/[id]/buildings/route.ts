@@ -194,11 +194,11 @@ export async function POST(
       );
     }
 
-    // Validate designation format (2-5 uppercase letters/numbers)
-    const designationPattern = /^[A-Z0-9]{2,5}$/;
+    // Validate designation format (2-8 uppercase letters/numbers/hyphens, no leading/trailing hyphen)
+    const designationPattern = /^[A-Z0-9][A-Z0-9-]{0,6}[A-Z0-9]$|^[A-Z0-9]{2}$/;
     if (!designationPattern.test(designation)) {
       return NextResponse.json(
-        { error: 'Designation must be 2-5 uppercase letters/numbers' },
+        { error: 'Designation must be 2-8 uppercase letters, numbers, or hyphens' },
         { status: 400 }
       );
     }

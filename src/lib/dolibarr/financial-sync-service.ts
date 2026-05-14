@@ -21,6 +21,9 @@ import {
   createDolibarrClient,
 } from './dolibarr-client';
 import { systemEventService } from '@/services/system-events.service';
+import { logger } from '@/lib/logger';
+
+const log = logger.child({ module: 'FinancialSync' });
 
 // ============================================
 // TYPES
@@ -1060,14 +1063,19 @@ export class FinancialSyncService {
           const dolibarrId = pi(vp.id);
           if (!dolibarrId) continue;
 
-          const paymentDate = formatDate(parseDolibarrDate(vp.datep));
+          // Support both datep (payment records) and datev (TVA declaration records)
+          const rawDate = vp.datep || vp.datev;
+          const paymentDate = formatDate(parseDolibarrDate(rawDate as number | string | null));
           if (!paymentDate) continue;
+
+          const ref = (vp.ref_num || vp.label || null) as string | null;
+          const note = (vp.note || null) as string | null;
 
           const hashFields = {
             amount: vp.amount,
-            datep: vp.datep,
-            ref_num: vp.ref_num,
-            note: vp.note,
+            date: rawDate,
+            ref,
+            note,
           };
           const newHash = computeHash(hashFields);
 
@@ -1080,7 +1088,7 @@ export class FinancialSyncService {
             await prisma.$executeRawUnsafe(
               `UPDATE fin_vat_payments SET amount=?, payment_date=?, reference=?, notes=?, sync_hash=?, source='dolibarr', updated_at=NOW()
                WHERE dolibarr_id=?`,
-              pf(vp.amount), paymentDate, vp.ref_num || null, vp.note || null, newHash, dolibarrId
+              pf(vp.amount), paymentDate, ref, note, newHash, dolibarrId
             );
             updated++;
           } else {
@@ -1095,7 +1103,7 @@ export class FinancialSyncService {
               `INSERT INTO fin_vat_payments (dolibarr_id, period_label, period_start, period_end, payment_date, amount, reference, notes, sync_hash, source)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'dolibarr')`,
               dolibarrId, periodLabel, periodStart, periodEnd, paymentDate,
-              pf(vp.amount), vp.ref_num || null, vp.note || null, newHash
+              pf(vp.amount), ref, note, newHash
             );
             created++;
           }
@@ -1113,7 +1121,7 @@ export class FinancialSyncService {
       await this.logSync(result, triggeredBy);
       return result;
     } catch (error: any) {
-      console.error('[FinSync] VAT payments sync failed:', error.message);
+      log.error({ error: error.message }, 'VAT payments sync failed');
       const result: FinSyncResult = {
         entityType: 'vat_payments', status: 'error',
         created, updated, unchanged, total: 0,
@@ -1193,7 +1201,7 @@ export class FinancialSyncService {
         }
       }
 
-      console.log(`[FinSync] Bank transactions complete: ${total} total, ${created} created, ${updated} updated`);
+      log.info({ total, created, updated }, 'Bank transactions sync complete');
       const result: FinSyncResult = {
         entityType: 'bank_transactions', status: 'success',
         created, updated, unchanged, total,
@@ -1202,7 +1210,7 @@ export class FinancialSyncService {
       await this.logSync(result, triggeredBy);
       return result;
     } catch (error: any) {
-      console.error('[FinSync] Bank transactions sync failed:', error.message);
+      log.error({ error: error.message }, 'Bank transactions sync failed');
       const result: FinSyncResult = {
         entityType: 'bank_transactions', status: 'error',
         created, updated, unchanged, total: 0,

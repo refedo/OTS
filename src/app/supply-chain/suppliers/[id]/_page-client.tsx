@@ -1091,8 +1091,20 @@ function EvaluationDialog({ open, onOpenChange, supplierName, form, setForm, onS
 
 // ─── CoA & COGS Tab ───────────────────────────────────────────────────────────
 
+const COST_CATEGORIES = [
+  'Raw Materials (Steel)',
+  'Subcontracting',
+  'Direct Labor',
+  'Manufacturing Overhead',
+  'Services',
+  'Transport & Logistics',
+  'Equipment & Machinery',
+  'General & Administrative',
+  'Other / Unclassified',
+];
+
 function CoaTab({ supplierId, initial, onSaved }: { supplierId: number; initial: SupplierOverview; onSaved: () => void }) {
-  const [accounts, setAccounts] = useState<{account_code: string; account_name: string}[]>([]);
+  const [accounts, setAccounts] = useState<{account_code: string; account_name: string; account_category: string | null}[]>([]);
   const [ap, setAp] = useState(initial.coa_ap_account?.account_code ?? '');
   const [cogs, setCogs] = useState(initial.coa_cogs_account?.account_code ?? '');
   const [category, setCategory] = useState(initial.cost_category ?? '');
@@ -1103,8 +1115,16 @@ function CoaTab({ supplierId, initial, onSaved }: { supplierId: number; initial:
   useEffect(() => {
     fetch('/api/financial/chart-of-accounts')
       .then(r => r.json())
-      .then(j => setAccounts((j.accounts ?? j) as {account_code: string; account_name: string}[]));
+      .then(j => setAccounts((j.accounts ?? j) as {account_code: string; account_name: string; account_category: string | null}[]));
   }, []);
+
+  function handleCogsChange(code: string) {
+    setCogs(code);
+    if (code) {
+      const acct = accounts.find(a => a.account_code === code);
+      if (acct?.account_category) setCategory(acct.account_category);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -1136,14 +1156,30 @@ function CoaTab({ supplierId, initial, onSaved }: { supplierId: number; initial:
     </div>
   );
 
+  const allCategories = [...new Set([
+    ...COST_CATEGORIES,
+    ...(category && !COST_CATEGORIES.includes(category) ? [category] : []),
+  ])];
+
   return (
     <div className="max-w-xl space-y-5">
       <h3 className="font-semibold">Chart of Accounts Mapping</h3>
       <AccountSelect value={ap} onChange={setAp} label="AP Account (Accounts Payable)" placeholder="Select AP account…" />
-      <AccountSelect value={cogs} onChange={setCogs} label="COGS / Expense Account" placeholder="Select COGS account…" />
+      <AccountSelect value={cogs} onChange={handleCogsChange} label="COGS / Expense Account" placeholder="Select COGS account…" />
       <div className="space-y-1.5">
         <Label>Cost Category</Label>
-        <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Raw Materials, Services, Subcontracting" />
+        <Select value={category || '__none__'} onValueChange={v => setCategory(v === '__none__' ? '' : v)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select or inherit from COGS account…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">— Not set —</SelectItem>
+            {allCategories.map(c => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">Auto-populated from COGS account when selected</p>
       </div>
       <div className="space-y-1.5">
         <Label>Notes</Label>

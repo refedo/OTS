@@ -383,9 +383,11 @@ export interface DolibarrBankLine {
 
 export interface DolibarrVatPayment {
   id: number | string;
-  datep: number | string | null;
+  datep: number | string | null;   // payment date (paymentsvatreturns)
+  datev: number | string | null;   // VAT period date (tva declarations)
   amount: number | string;
   ref_num: string | null;
+  label: string | null;
   note: string | null;
   fk_typepayment: number | string | null;
   fk_account: number | string | null;
@@ -986,21 +988,29 @@ export class DolibarrClient {
   }
 
   /**
-   * Fetch VAT payment records from Dolibarr (compta/tva — paymentsvatreturns)
+   * Fetch VAT records from Dolibarr (compta/tva).
+   * Tries TVA declarations first (`tva` endpoint), then falls back to payment records (`paymentsvatreturns`).
+   * TVA declarations (llx_tva) use `datev`; payment records (llx_payment_vat) use `datep`.
    */
   async getVatPayments(params?: DolibarrPaginationParams): Promise<DolibarrVatPayment[]> {
-    try {
-      const result = await this.request<DolibarrVatPayment[]>('paymentsvatreturns', {
-        limit: params?.limit ?? 500,
-        page: params?.page ?? 0,
-        sortfield: params?.sortfield ?? 't.rowid',
-        sortorder: params?.sortorder ?? 'ASC',
-      });
-      return Array.isArray(result) ? result : [];
-    } catch (error: any) {
-      if (error.message?.includes('404')) return [];
-      throw error;
+    const commonParams = {
+      limit: params?.limit ?? 500,
+      page: params?.page ?? 0,
+      sortfield: params?.sortfield ?? 't.rowid',
+      sortorder: params?.sortorder ?? 'ASC',
+    };
+
+    // Try TVA declarations endpoint first (matches compta/tva/list.php)
+    for (const endpoint of ['tva', 'paymentsvatreturns']) {
+      try {
+        const result = await this.request<DolibarrVatPayment[]>(endpoint, commonParams);
+        if (Array.isArray(result) && result.length > 0) return result;
+        if (Array.isArray(result) && result.length === 0 && endpoint === 'paymentsvatreturns') return [];
+      } catch (error: any) {
+        if (!error.message?.includes('404') && !error.message?.includes('403')) throw error;
+      }
     }
+    return [];
   }
 
   /**
