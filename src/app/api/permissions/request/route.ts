@@ -30,7 +30,6 @@ export const POST = withApiContext(async (req, session) => {
         { role: { name: 'Admin' } },
       ],
       status: 'active',
-      deletedAt: null,
     },
     select: { id: true },
   });

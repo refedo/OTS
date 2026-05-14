@@ -341,7 +341,10 @@ export default function NewSubcontractorContractPage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" style={{ minWidth: 'var(--radix-popover-trigger-width)' }}>
-                    <Command>
+                    <Command filter={(value, search) => {
+                      if (!search) return 1;
+                      return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                    }}>
                       <CommandInput placeholder="Search subcontractors…" />
                       <CommandList>
                         <CommandEmpty>No subcontractors found.</CommandEmpty>

@@ -198,7 +198,7 @@ function PoDetailSheet({ order, open, onClose }: { order: PurchaseOrder | null; 
 
           {/* Open in Dolibarr */}
           <a
-            href={`https://ots.hexasteel.sa/dolibarr/index.php?id=${order.id}&module=fournisseur&action=view&mainmenu=fournisseur&leftmenu=orders_suppliers`}
+            href={`https://erp.hexametals.com/erp/fourn/commande/card.php?id=${order.id}`}
             target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
           >
@@ -339,7 +339,7 @@ export default function PurchaseOrdersPage() {
             <RefreshCw className={`size-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing…' : 'Sync Invoices'}
           </Button>
-          <a href="https://ots.hexasteel.sa/dolibarr/index.php?mainmenu=fournisseur&leftmenu=orders_suppliers" target="_blank" rel="noopener noreferrer">
+          <a href="https://erp.hexametals.com/erp/fourn/commande/list.php?leftmenu=orders_suppliers" target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
               <ExternalLink className="size-4 mr-1" /> Open in Dolibarr
             </Button>

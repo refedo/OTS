@@ -217,6 +217,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v24.7.0 — VAT payment records ────────────────────────────────────────
   'v24_7_fin_vat_payments.sql',          // fin_vat_payments table for ZATCA settlement tracking
+
+  // ── v25.1.0 — Bank transactions + VAT sync columns ───────────────────────
+  'v25_1_fin_bank_transactions_and_vat_sync.sql', // fin_bank_transactions table; dolibarr_id/source/sync_hash on fin_vat_payments
 ];
 
 /**
