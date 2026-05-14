@@ -6,7 +6,7 @@ import { systemEventService } from '@/services/system-events.service';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 600; // 10 minutes for full sync
 
-const VALID_ENTITIES = ['bank_accounts', 'projects', 'customer_invoices', 'supplier_invoices', 'payments', 'salaries', 'journal_entries'];
+const VALID_ENTITIES = ['bank_accounts', 'projects', 'customer_invoices', 'supplier_invoices', 'payments', 'salaries', 'vat_payments', 'bank_transactions', 'journal_entries'];
 
 export async function POST(request: NextRequest) {
   const auth = await requireFinancialPermission('financial.manage');

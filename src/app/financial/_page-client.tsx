@@ -455,7 +455,7 @@ export default function FinancialDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9 gap-4 mb-4">
               {[
                 { label: 'Projects', key: 'projects', syncKey: 'projects' },
                 { label: 'Customer Invoices', key: 'customerInvoices', syncKey: 'customer_invoices' },
@@ -463,6 +463,8 @@ export default function FinancialDashboardPage() {
                 { label: 'Payments', key: 'payments', syncKey: 'payments' },
                 { label: 'Salaries', key: 'salaries', syncKey: 'salaries' },
                 { label: 'Bank Accounts', key: 'bankAccounts', syncKey: 'bank_accounts' },
+                { label: 'Bank Transactions', key: 'bankTransactions', syncKey: 'bank_transactions' },
+                { label: 'VAT Payments', key: 'vatPayments', syncKey: 'vat_payments' },
                 { label: 'Journal Entries', key: 'journalEntries', syncKey: 'journal_entries', btnLabel: 'Regenerate' },
               ].map((item) => (
                 <div key={item.key} className="text-center p-3 border rounded-lg">
@@ -520,6 +522,64 @@ export default function FinancialDashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Quick Sync Tiles — Bank Transactions & VAT Payments */}
+      <h2 className="text-xl font-semibold mt-2">Quick Sync</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-blue-200 dark:border-blue-900/50">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-blue-500" /> Bank Transactions
+              </span>
+              <span className="text-xl font-bold">{syncStatus?.counts?.bankTransactions ?? 0}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Direct bank statement lines from Dolibarr</p>
+            <Button size="sm" variant="outline" className="w-full text-xs h-8"
+              disabled={!!syncingEntity || syncing}
+              onClick={() => handlePartialSync('bank_transactions')}>
+              {syncingEntity === 'bank_transactions' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              {syncingEntity === 'bank_transactions' ? 'Syncing…' : 'Sync Bank Transactions'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-orange-200 dark:border-orange-900/50">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-orange-500" /> VAT Payments
+              </span>
+              <span className="text-xl font-bold">{syncStatus?.counts?.vatPayments ?? 0}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">ZATCA settlement payments from Dolibarr</p>
+            <Button size="sm" variant="outline" className="w-full text-xs h-8"
+              disabled={!!syncingEntity || syncing}
+              onClick={() => handlePartialSync('vat_payments')}>
+              {syncingEntity === 'vat_payments' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              {syncingEntity === 'vat_payments' ? 'Syncing…' : 'Sync VAT Payments'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-purple-200 dark:border-purple-900/50">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-purple-500" /> Supplier Payments
+              </span>
+              <span className="text-xl font-bold">{syncStatus?.counts?.payments ?? 0}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Customer &amp; supplier invoice payments</p>
+            <Button size="sm" variant="outline" className="w-full text-xs h-8"
+              disabled={!!syncingEntity || syncing}
+              onClick={() => handlePartialSync('payments')}>
+              {syncingEntity === 'payments' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              {syncingEntity === 'payments' ? 'Syncing…' : 'Sync Payments'}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Management Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

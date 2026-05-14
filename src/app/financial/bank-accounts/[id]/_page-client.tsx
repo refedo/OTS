@@ -100,7 +100,8 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
               </div>
             ) : !data?.transactions?.length ? (
               <div className="text-center py-16 text-muted-foreground">
-                No transactions found for this account.
+                <p>No transactions found for this account.</p>
+                <p className="text-xs mt-2">Sync bank transactions from the Financial Dashboard to populate this view.</p>
               </div>
             ) : (
               <>
@@ -118,29 +119,33 @@ export default function BankTransactionsPage({ bankId }: { bankId: number }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.transactions.map((t: any) => (
-                        <tr key={t.id} className="border-b hover:bg-muted/30">
-                          <td className="p-3 whitespace-nowrap">{formatDate(t.payment_date)}</td>
-                          <td className="p-3 font-mono text-xs">{t.dolibarr_ref || '—'}</td>
-                          <td className="p-3 max-w-[200px] truncate">{t.party_name || '—'}</td>
-                          <td className="p-3 font-mono text-xs">{t.invoice_ref || t.party_ref || '—'}</td>
-                          <td className="p-3">{t.payment_method || '—'}</td>
-                          <td className="p-3">
-                            {t.payment_type === 'customer' ? (
-                              <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 border border-green-200 text-xs px-2 py-0.5 rounded-full font-medium">
-                                <TrendingUp className="size-3" /> Collection
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 text-xs px-2 py-0.5 rounded-full font-medium">
-                                <TrendingDown className="size-3" /> Payment
-                              </span>
-                            )}
-                          </td>
-                          <td className={`p-3 text-right font-semibold ${t.payment_type === 'customer' ? 'text-green-600' : 'text-red-600'}`}>
-                            {t.payment_type === 'customer' ? '+' : '-'}{formatSAR(t.amount)}
-                          </td>
-                        </tr>
-                      ))}
+                      {data.transactions.map((t: any) => {
+                        const isCredit = t.payment_type === 'customer' || (t.payment_type == null && t.amount > 0);
+                        const absAmount = Math.abs(Number(t.amount));
+                        return (
+                          <tr key={t.id} className="border-b hover:bg-muted/30">
+                            <td className="p-3 whitespace-nowrap">{formatDate(t.payment_date)}</td>
+                            <td className="p-3 font-mono text-xs">{t.dolibarr_ref || '—'}</td>
+                            <td className="p-3 max-w-[200px] truncate">{t.party_name || '—'}</td>
+                            <td className="p-3 font-mono text-xs">{t.invoice_ref || t.party_ref || '—'}</td>
+                            <td className="p-3">{t.payment_method || t.fk_type || '—'}</td>
+                            <td className="p-3">
+                              {isCredit ? (
+                                <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 border border-green-200 text-xs px-2 py-0.5 rounded-full font-medium">
+                                  <TrendingUp className="size-3" /> Credit
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 text-xs px-2 py-0.5 rounded-full font-medium">
+                                  <TrendingDown className="size-3" /> Debit
+                                </span>
+                              )}
+                            </td>
+                            <td className={`p-3 text-right font-semibold ${isCredit ? 'text-green-600' : 'text-red-600'}`}>
+                              {isCredit ? '+' : '-'}{formatSAR(absAmount)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
