@@ -119,6 +119,10 @@ model User {
   deletedTasks               Task[]                                @relation("DeletedTasks")
   managedProjects            Project[]                             @relation("ProjectManager")
   salesProjects              Project[]                             @relation("SalesEngineer")
+  operationsProjects         Project[]                             @relation("OperationsManager")
+  salesValidations           ProjectValidation[]                   @relation("ValidationSalesBy")
+  projectsValidations        ProjectValidation[]                   @relation("ValidationProjectsBy")
+  operationsValidations      ProjectValidation[]                   @relation("ValidationOperationsBy")
   createdITPs                ITP[]                                 @relation("ITPCreatedBy")
   approvedITPs               ITP[]                                 @relation("ITPApprovedBy")
   itpActivitySignA           ITPActivity[]                         @relation("ITPActivitySignA")
@@ -468,9 +472,10 @@ model Project {
   projectNumber    String  @unique
   estimationNumber String?
   name             String
-  clientId         String  @db.Char(36)
-  projectManagerId String  @db.Char(36)
-  salesEngineerId  String? @db.Char(36)
+  clientId            String  @db.Char(36)
+  projectManagerId    String  @db.Char(36)
+  salesEngineerId     String? @db.Char(36)
+  operationsManagerId String? @db.Char(36)
 
   // Dates
   contractDate     DateTime?
@@ -585,6 +590,8 @@ model Project {
   segment                    ProjectSegment?             @relation(fields: [segmentId], references: [id])
   projectManager             User                        @relation("ProjectManager", fields: [projectManagerId], references: [id])
   salesEngineer              User?                       @relation("SalesEngineer", fields: [salesEngineerId], references: [id])
+  operationsManager          User?                       @relation("OperationsManager", fields: [operationsManagerId], references: [id])
+  validation                 ProjectValidation?
   buildings                  Building[]
   scopeSchedules             ScopeSchedule[]
   scopeOfWorks               ScopeOfWork[]
@@ -660,6 +667,29 @@ model ProjectPaymentSchedule {
   @@index([status])
   @@index([dueDate])
   @@index([linkedTaskId])
+}
+
+/// Project validation/verification checkpoint — tracks sign-off from sales, projects, and operations parties
+model ProjectValidation {
+  id        String @id @default(uuid()) @db.Char(36)
+  projectId String @unique @db.Char(36)
+
+  salesValidatedById     String?   @db.Char(36)
+  salesValidatedAt       DateTime?
+  projectsValidatedById  String?   @db.Char(36)
+  projectsValidatedAt    DateTime?
+  operationsValidatedById String?  @db.Char(36)
+  operationsValidatedAt  DateTime?
+
+  project           Project @relation(fields: [projectId], references: [id])
+  salesValidatedBy       User?    @relation("ValidationSalesBy", fields: [salesValidatedById], references: [id])
+  projectsValidatedBy    User?    @relation("ValidationProjectsBy", fields: [projectsValidatedById], references: [id])
+  operationsValidatedBy  User?    @relation("ValidationOperationsBy", fields: [operationsValidatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
 }
 
 /// Individual partial payment receipt — one record per payment received against a schedule slot
@@ -2840,6 +2870,7 @@ enum NotificationType {
   MEETING_INVITED
   MEETING_UPDATED
   MEETING_CANCELLED
+  PROJECT_VALIDATION_REQUIRED
 }
 
 enum AnnouncementTargetType {

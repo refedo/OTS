@@ -58,6 +58,7 @@ export const PERMISSIONS: PermissionCategory[] = [
       { id: 'projects.delete', name: 'Delete Projects', description: 'Delete projects', category: 'projects' },
       { id: 'projects.assign', name: 'Assign Projects', description: 'Assign users to projects', category: 'projects' },
       { id: 'projects.browse_users', name: 'Browse Users for Assignment', description: 'Browse user lists when assigning project managers or team members (without full user management access)', category: 'projects' },
+      { id: 'projects.validate', name: 'Validate Projects', description: 'Submit validation/verification sign-off on project data as sales, projects, or operations party', category: 'projects' },
     ],
   },
   {
@@ -654,6 +655,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'projects.create',
     'projects.edit',
     'projects.assign',
+    'projects.validate',
     'buildings.view',
     'buildings.create',
     'buildings.edit',

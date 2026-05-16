@@ -14,7 +14,8 @@ const updateSchema = z.object({
   clientName: z.string().min(2).optional().nullable(),
   projectManagerId: z.string().uuid().optional().nullable(),
   salesEngineerId: z.string().uuid().optional().nullable(),
-  
+  operationsManagerId: z.string().uuid().optional().nullable(),
+
   // Dates
   contractDate: z.string().optional().nullable(),
   downPaymentDate: z.string().optional().nullable(),
@@ -135,6 +136,14 @@ export async function GET(
       client: true,
       projectManager: { select: { id: true, name: true, position: true, email: true } },
       salesEngineer: { select: { id: true, name: true, email: true } },
+      operationsManager: { select: { id: true, name: true, email: true } },
+      validation: {
+        include: {
+          salesValidatedBy: { select: { id: true, name: true } },
+          projectsValidatedBy: { select: { id: true, name: true } },
+          operationsValidatedBy: { select: { id: true, name: true } },
+        },
+      },
       buildings: {
         orderBy: { designation: 'asc' },
         include: {
@@ -166,7 +175,8 @@ export async function GET(
   if (!canViewAll) {
     // Check if user is assigned to the project or is PM/SE
     const isProjectMember = project.projectManagerId === session.sub ||
-      project.salesEngineerId === session.sub;
+      project.salesEngineerId === session.sub ||
+      project.operationsManagerId === session.sub;
     if (!isProjectMember) {
       const hasAccess = await prisma.projectAssignment.findFirst({
         where: { projectId: id, userId: session.sub },

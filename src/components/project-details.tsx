@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,9 @@ import {
   Pencil,
   X,
   Save,
+  CheckCircle2,
+  Circle,
+  ShieldCheck,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -267,12 +270,187 @@ function ScopeEditRow({ scope, onSaved }: { scope: any; onSaved: () => void }) {
   );
 }
 
+// ── Project Validation Panel ──────────────────────────────────────────────
+
+type ValidationData = {
+  salesValidatedById: string | null;
+  salesValidatedAt: string | null;
+  salesValidatedBy: { id: string; name: string } | null;
+  projectsValidatedById: string | null;
+  projectsValidatedAt: string | null;
+  projectsValidatedBy: { id: string; name: string } | null;
+  operationsValidatedById: string | null;
+  operationsValidatedAt: string | null;
+  operationsValidatedBy: { id: string; name: string } | null;
+} | null;
+
+type ValidationParty = 'sales' | 'projects' | 'operations';
+
+function ValidationCircle({
+  label,
+  validatedBy,
+  validatedAt,
+  canValidate,
+  onValidate,
+  submitting,
+}: {
+  label: string;
+  validatedBy: { id: string; name: string } | null;
+  validatedAt: string | null;
+  canValidate: boolean;
+  onValidate: () => void;
+  submitting: boolean;
+}) {
+  const isValidated = !!validatedBy;
+
+  return (
+    <div className="flex flex-col items-center gap-2 min-w-[100px]">
+      {isValidated ? (
+        <div className="relative">
+          <CheckCircle2 className="size-12 text-emerald-500 fill-emerald-50" />
+        </div>
+      ) : (
+        <Circle className="size-12 text-slate-300" />
+      )}
+      <div className="text-center">
+        <p className="text-xs font-semibold text-slate-700">{label}</p>
+        {isValidated ? (
+          <>
+            <p className="text-xs text-emerald-600 font-medium">{validatedBy.name}</p>
+            {validatedAt && (
+              <p className="text-xs text-slate-400">
+                {new Date(validatedAt).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-slate-400">Pending</p>
+        )}
+      </div>
+      {canValidate && !isValidated && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+          onClick={onValidate}
+          disabled={submitting}
+        >
+          {submitting ? 'Saving…' : 'Verify'}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function ProjectValidationPanel({
+  projectId,
+  salesEngineerId,
+  projectManagerId,
+  operationsManagerId,
+  currentUserId,
+  isAdminOrCeo,
+  initialValidation,
+}: {
+  projectId: string;
+  salesEngineerId: string | null;
+  projectManagerId: string;
+  operationsManagerId: string | null;
+  currentUserId: string;
+  isAdminOrCeo: boolean;
+  initialValidation: ValidationData;
+}) {
+  const [validation, setValidation] = useState<ValidationData>(initialValidation);
+  const [submitting, setSubmitting] = useState<ValidationParty | null>(null);
+
+  const canValidateParty = useCallback(
+    (party: ValidationParty) => {
+      if (isAdminOrCeo) return true;
+      if (party === 'sales') return currentUserId === salesEngineerId;
+      if (party === 'projects') return currentUserId === projectManagerId;
+      if (party === 'operations') return currentUserId === operationsManagerId;
+      return false;
+    },
+    [isAdminOrCeo, currentUserId, salesEngineerId, projectManagerId, operationsManagerId]
+  );
+
+  const handleValidate = async (party: ValidationParty) => {
+    setSubmitting(party);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ party }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setValidation(updated);
+      }
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
+  const allValidated =
+    !!validation?.salesValidatedById &&
+    !!validation?.projectsValidatedById &&
+    !!validation?.operationsValidatedById;
+
+  return (
+    <Card className={cn('border', allValidated ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200')}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className={cn('size-5', allValidated ? 'text-emerald-500' : 'text-slate-400')} />
+          <CardTitle className="text-base">Data Validation & Verification</CardTitle>
+          {allValidated && (
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs ml-auto">
+              Fully Verified
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Each responsible party must confirm that the project data entered is correct before execution.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap justify-around gap-6">
+          <ValidationCircle
+            label="Sales"
+            validatedBy={validation?.salesValidatedBy ?? null}
+            validatedAt={validation?.salesValidatedAt ?? null}
+            canValidate={canValidateParty('sales')}
+            onValidate={() => handleValidate('sales')}
+            submitting={submitting === 'sales'}
+          />
+          <ValidationCircle
+            label="Projects"
+            validatedBy={validation?.projectsValidatedBy ?? null}
+            validatedAt={validation?.projectsValidatedAt ?? null}
+            canValidate={canValidateParty('projects')}
+            onValidate={() => handleValidate('projects')}
+            submitting={submitting === 'projects'}
+          />
+          <ValidationCircle
+            label="Operations"
+            validatedBy={validation?.operationsValidatedBy ?? null}
+            validatedAt={validation?.operationsValidatedAt ?? null}
+            canValidate={canValidateParty('operations')}
+            onValidate={() => handleValidate('operations')}
+            submitting={submitting === 'operations'}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 type ProjectDetailsProps = {
   project: any;
   restrictedModules?: string[];
+  currentUserId?: string;
+  isAdminOrCeo?: boolean;
 };
 
-export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetailsProps) {
+export function ProjectDetails({ project, restrictedModules = [], currentUserId = '', isAdminOrCeo = false }: ProjectDetailsProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -462,6 +640,17 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
 
       <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-6">
 
+        {/* Validation Panel */}
+        <ProjectValidationPanel
+          projectId={project.id}
+          salesEngineerId={project.salesEngineerId ?? null}
+          projectManagerId={project.projectManagerId}
+          operationsManagerId={project.operationsManagerId ?? null}
+          currentUserId={currentUserId}
+          isAdminOrCeo={isAdminOrCeo}
+          initialValidation={project.validation ?? null}
+        />
+
         {/* Collapsible Sections */}
         <div className="space-y-4">
           {/* Basic Information */}
@@ -474,6 +663,9 @@ export function ProjectDetails({ project, restrictedModules = [] }: ProjectDetai
               <InfoRow label="Project Manager" value={`${project.projectManager.name}${project.projectManager.position ? ` (${project.projectManager.position})` : ''}`} />
               {project.salesEngineer && (
                 <InfoRow label="Sales Engineer" value={project.salesEngineer.name} />
+              )}
+              {project.operationsManager && (
+                <InfoRow label="Operations Manager" value={project.operationsManager.name} />
               )}
               <InfoRow label="Project Location" value={project.projectLocation} />
               <InfoRow label="Project Nature" value={project.projectNature} />

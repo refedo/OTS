@@ -6,6 +6,7 @@ import { BuildingsList } from '@/components/buildings-list';
 import { ScopeSchedulesView } from '@/components/scope-schedules-view';
 import { BuildingScopesView } from '@/components/building-scopes-view';
 import { getCurrentUserRestrictedModules, getCurrentUserPermissions } from '@/lib/permission-checker';
+import prisma from '@/lib/db';
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Projects',
@@ -72,9 +73,25 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   // Get user's restricted modules for hiding financial data
   const restrictedModules = await getCurrentUserRestrictedModules();
 
+  // Check if current user is admin/CEO for validation panel
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { isAdmin: true, role: { select: { name: true } } },
+  });
+  const isAdminOrCeo = !!(
+    currentUser?.isAdmin ||
+    currentUser?.role?.name === 'Admin' ||
+    currentUser?.role?.name === 'CEO'
+  );
+
   return (
     <div className="space-y-6">
-      <ProjectDetails project={project} restrictedModules={restrictedModules} />
+      <ProjectDetails
+        project={project}
+        restrictedModules={restrictedModules}
+        currentUserId={session.sub}
+        isAdminOrCeo={isAdminOrCeo}
+      />
       {scopeSchedules.length > 0 && (
         <ScopeSchedulesView schedules={scopeSchedules} />
       )}
