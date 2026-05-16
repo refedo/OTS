@@ -132,28 +132,39 @@ export async function GET(req: Request) {
   const projectManagerId = searchParams.get('projectManagerId');
 
   const userPermissions = await getCurrentUserPermissions();
-  let where: any = {};
+  let where: Record<string, unknown> = {};
+  where.deletedAt = null;
 
   // Permission-based filtering
   const canViewAll = userPermissions.includes('projects.view_all');
-  if (!canViewAll) {
-    where.OR = [
-      { projectManagerId: session.sub },
-      { salesEngineerId: session.sub },
-      { operationsManagerId: session.sub },
-      { assignments: { some: { userId: session.sub } } },
-    ];
-  }
+  const permissionOR = canViewAll
+    ? null
+    : [
+        { projectManagerId: session.sub },
+        { salesEngineerId: session.sub },
+        { operationsManagerId: session.sub },
+        { assignments: { some: { userId: session.sub } } },
+      ];
 
   // Additional filters
   if (status) where.status = status;
   if (projectManagerId) where.projectManagerId = projectManagerId;
-  if (search) {
-    where.OR = [
-      { projectNumber: { contains: search } },
-      { name: { contains: search } },
-      { client: { name: { contains: search } } },
-    ];
+
+  const searchOR = search
+    ? [
+        { projectNumber: { contains: search } },
+        { name: { contains: search } },
+        { client: { name: { contains: search } } },
+      ]
+    : null;
+
+  if (permissionOR && searchOR) {
+    // Both permission filter and search: combine via AND
+    where.AND = [{ OR: permissionOR }, { OR: searchOR }];
+  } else if (permissionOR) {
+    where.OR = permissionOR;
+  } else if (searchOR) {
+    where.OR = searchOR;
   }
 
   try {

@@ -39,7 +39,7 @@ type Project = {
   projectNumber: string;
   name: string;
   status: string;
-  client: { id: string; name: string };
+  client: { id: string; name: string } | null;
   projectManager: { id: string; name: string; position: string | null };
   plannedStartDate: string | null;
   plannedEndDate: string | null;
@@ -301,13 +301,13 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
       return (
         project.projectNumber.toLowerCase().includes(searchLower) ||
         project.name.toLowerCase().includes(searchLower) ||
-        project.client.name.toLowerCase().includes(searchLower) ||
+        (project.client?.name ?? '').toLowerCase().includes(searchLower) ||
         project.projectManager.name.toLowerCase().includes(searchLower)
       );
     })
     .sort((a, b) => {
-      let aVal: any, bVal: any;
-      
+      let aVal: string | number, bVal: string | number;
+
       switch (sortColumn) {
         case 'projectNumber':
           aVal = a.projectNumber.toLowerCase();
@@ -318,8 +318,8 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
           bVal = b.name.toLowerCase();
           break;
         case 'client':
-          aVal = a.client.name.toLowerCase();
-          bVal = b.client.name.toLowerCase();
+          aVal = (a.client?.name ?? '').toLowerCase();
+          bVal = (b.client?.name ?? '').toLowerCase();
           break;
         case 'projectManager':
           aVal = a.projectManager.name.toLowerCase();
@@ -650,14 +650,15 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
               </TableHeader>
               <TableBody>
                 {filteredProjects.map((project) => (
-                  <TableRow 
+                  <TableRow
                     key={project.id}
                     className={cn(
-                      'cursor-pointer transition-colors',
+                      'cursor-pointer transition-colors hover:bg-accent/60',
                       selectedProjects.has(project.id) && 'bg-primary/5'
                     )}
+                    onClick={() => router.push(`/projects/${project.id}`)}
                   >
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -672,14 +673,12 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/projects/${project.id}`}>
-                        <Badge variant="outline" className="font-mono hover:bg-primary/10 cursor-pointer transition-colors">
-                          {project.projectNumber}
-                        </Badge>
-                      </Link>
+                      <Badge variant="outline" className="font-mono cursor-pointer transition-colors">
+                        {project.projectNumber}
+                      </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{project.name}</TableCell>
-                    <TableCell>{project.client.name}</TableCell>
+                    <TableCell>{project.client?.name ?? '—'}</TableCell>
                     <TableCell>
                       <div>
                         <p>{project.projectManager.name}</p>
@@ -723,7 +722,7 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                     <TableCell>
                       <ValidationDots validation={project.validation} />
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -823,7 +822,7 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
               <CardContent className="space-y-3 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs mb-1">Client</p>
-                  <p className="font-medium">{project.client.name}</p>
+                  <p className="font-medium">{project.client?.name ?? '—'}</p>
                 </div>
 
                 <div>

@@ -476,6 +476,8 @@ export function AppSidebar() {
   
   // Check if a nav item is active, respecting query-param-based hrefs
   const isNavItemActive = (href: string): boolean => {
+    // Project Card redirects to /projects/{id}/buildings — keep it highlighted there
+    if (href === '/project-card' && /^\/projects\/[^/]+\/buildings(\/|$)/.test(pathname)) return true;
     if (href.includes('?')) {
       const [hrefPath, hrefQuery] = href.split('?');
       if (pathname !== hrefPath) return false;
