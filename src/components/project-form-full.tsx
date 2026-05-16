@@ -75,6 +75,7 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       clientName: (formData.get('clientName') as string) || undefined,
       projectManagerId: (formData.get('projectManagerId') as string) || undefined,
       salesEngineerId: getString('salesEngineerId'),
+      operationsManagerId: getString('operationsManagerId'),
       status: (formData.get('status') as string) || undefined,
       
       // Dates
@@ -240,6 +241,14 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
               <select id="salesEngineerId" name="salesEngineerId" disabled={loading} defaultValue={project.salesEngineerId || ''} className="w-full h-10 px-3 rounded-md border bg-background">
                 <option value="">Select a sales engineer</option>
                 {salesEngineers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="operationsManagerId">Operations Manager</Label>
+              <select id="operationsManagerId" name="operationsManagerId" disabled={loading} defaultValue={project.operationsManagerId || ''} className="w-full h-10 px-3 rounded-md border bg-background">
+                <option value="">Select an operations manager</option>
+                {projectManagers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
 

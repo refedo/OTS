@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, PlayCircle } from 'lucide-react';
+import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, PlayCircle, CheckCircle2, Circle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useDialog } from '@/contexts/DialogContext';
+
+type ValidationStatus = {
+  salesValidatedById: string | null;
+  salesValidatedBy: { id: string; name: string } | null;
+  projectsValidatedById: string | null;
+  projectsValidatedBy: { id: string; name: string } | null;
+  operationsValidatedById: string | null;
+  operationsValidatedBy: { id: string; name: string } | null;
+} | null;
 
 type Project = {
   id: string;
@@ -39,7 +48,36 @@ type Project = {
   engineeringTonnage: number | null;
   remarks: string | null;
   _count: { tasks: number; buildings: number };
+  validation: ValidationStatus;
 };
+
+function ValidationDots({ validation }: { validation: ValidationStatus }) {
+  const dots = [
+    { key: 'sales', validated: !!validation?.salesValidatedById, name: validation?.salesValidatedBy?.name },
+    { key: 'projects', validated: !!validation?.projectsValidatedById, name: validation?.projectsValidatedBy?.name },
+    { key: 'operations', validated: !!validation?.operationsValidatedById, name: validation?.operationsValidatedBy?.name },
+  ];
+
+  return (
+    <div className="flex items-center gap-1" title="Validation status: Sales · Projects · Operations">
+      {dots.map((dot) =>
+        dot.validated ? (
+          <CheckCircle2
+            key={dot.key}
+            className="size-3.5 text-emerald-500"
+            title={`${dot.key.charAt(0).toUpperCase() + dot.key.slice(1)}: ${dot.name}`}
+          />
+        ) : (
+          <Circle
+            key={dot.key}
+            className="size-3.5 text-slate-300"
+            title={`${dot.key.charAt(0).toUpperCase() + dot.key.slice(1)}: pending`}
+          />
+        )
+      )}
+    </div>
+  );
+}
 
 const statusColors = {
   Draft: 'bg-slate-100 text-slate-700 border-slate-300',
@@ -604,6 +642,7 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                       Buildings {getSortIcon('buildings')}
                     </div>
                   </TableHead>
+                  <TableHead>Verified</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -675,6 +714,9 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                         <Building2 className="size-3" />
                         <span>{project._count.buildings}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <ValidationDots validation={project.validation} />
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -810,14 +852,17 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 pt-2 border-t text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Building2 className="size-3" />
-                    <span>{project._count.buildings} Buildings</span>
+                <div className="flex items-center justify-between pt-2 border-t text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <Building2 className="size-3" />
+                      <span>{project._count.buildings} Buildings</span>
+                    </div>
+                    <div>
+                      <span>{project._count.tasks} Tasks</span>
+                    </div>
                   </div>
-                  <div>
-                    <span>{project._count.tasks} Tasks</span>
-                  </div>
+                  <ValidationDots validation={project.validation} />
                 </div>
               </CardContent>
             </Card>

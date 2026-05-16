@@ -188,6 +188,8 @@ export default function ProjectSetupWizard() {
   const [projectName, setProjectName] = useState('');
   const [clientName, setClientName] = useState('');
   const [projectManagerId, setProjectManagerId] = useState('');
+  const [salesEngineerId, setSalesEngineerId] = useState('');
+  const [operationsManagerId, setOperationsManagerId] = useState('');
   const [status, setStatus] = useState('Draft');
   const [contractualTonnage, setContractualTonnage] = useState('');
   const [contractDate, setContractDate] = useState('');
@@ -257,6 +259,8 @@ export default function ProjectSetupWizard() {
         if (project.name && project.name !== 'Untitled Draft') setProjectName(project.name);
         if (project.client?.name && project.client.name !== 'TBD') setClientName(project.client.name);
         if (project.projectManagerId) setProjectManagerId(project.projectManagerId);
+        if (project.salesEngineerId) setSalesEngineerId(project.salesEngineerId);
+        if (project.operationsManagerId) setOperationsManagerId(project.operationsManagerId);
         if (project.contractualTonnage) setContractualTonnage(String(project.contractualTonnage));
         if (project.contractDate) setContractDate(project.contractDate.split('T')[0]);
         if (project.downPaymentDate) setDownPaymentDate(project.downPaymentDate.split('T')[0]);
@@ -707,6 +711,8 @@ export default function ProjectSetupWizard() {
         name: projectName || 'Untitled Draft',
         clientName: clientName || 'TBD',
         projectManagerId: projectManagerId || null,
+        salesEngineerId: salesEngineerId || null,
+        operationsManagerId: operationsManagerId || null,
         status: 'Draft',
         contractualTonnage: contractualTonnage ? parseFloat(contractualTonnage) : null,
         contractDate: contractDate || null,
@@ -825,6 +831,8 @@ export default function ProjectSetupWizard() {
         name: projectName,
         clientName,
         projectManagerId,
+        salesEngineerId: salesEngineerId || null,
+        operationsManagerId: operationsManagerId || null,
         status: 'Active',
         contractualTonnage: contractualTonnage ? parseFloat(contractualTonnage) : 0,
         contractDate: contractDate || null,
@@ -1153,6 +1161,38 @@ export default function ProjectSetupWizard() {
                   className="w-full h-10 px-3 rounded-md border bg-background"
                 >
                   <option value="">Select Manager</option>
+                  {managers.map((manager) => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="salesEngineer">Sales Engineer</Label>
+                <select
+                  id="salesEngineer"
+                  value={salesEngineerId}
+                  onChange={(e) => setSalesEngineerId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border bg-background"
+                >
+                  <option value="">Select Sales Engineer</option>
+                  {managers.map((manager) => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="operationsManager">Operations Manager</Label>
+                <select
+                  id="operationsManager"
+                  value={operationsManagerId}
+                  onChange={(e) => setOperationsManagerId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border bg-background"
+                >
+                  <option value="">Select Operations Manager</option>
                   {managers.map((manager) => (
                     <option key={manager.id} value={manager.id}>
                       {manager.name}

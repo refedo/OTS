@@ -6,6 +6,7 @@ import { verifySession } from '@/lib/jwt';
 import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
 import { systemEventService } from '@/services/system-events.service';
+import { NotificationService } from '@/lib/services/notification.service';
 
 const createSchema = z.object({
   projectNumber: z.string().min(1),
@@ -15,6 +16,7 @@ const createSchema = z.object({
   clientName: z.string().optional().nullable(),
   projectManagerId: z.string().uuid(),
   salesEngineerId: z.string().uuid().optional().nullable(),
+  operationsManagerId: z.string().uuid().optional().nullable(),
   
   // Dates
   contractDate: z.string().optional().nullable(),
@@ -138,6 +140,7 @@ export async function GET(req: Request) {
     where.OR = [
       { projectManagerId: session.sub },
       { salesEngineerId: session.sub },
+      { operationsManagerId: session.sub },
       { assignments: { some: { userId: session.sub } } },
     ];
   }
@@ -175,6 +178,20 @@ export async function GET(req: Request) {
         client: { select: { id: true, name: true } },
         projectManager: { select: { id: true, name: true, position: true } },
         salesEngineer: { select: { id: true, name: true } },
+        operationsManager: { select: { id: true, name: true } },
+        validation: {
+          select: {
+            salesValidatedById: true,
+            salesValidatedAt: true,
+            salesValidatedBy: { select: { id: true, name: true } },
+            projectsValidatedById: true,
+            projectsValidatedAt: true,
+            projectsValidatedBy: { select: { id: true, name: true } },
+            operationsValidatedById: true,
+            operationsValidatedAt: true,
+            operationsValidatedBy: { select: { id: true, name: true } },
+          },
+        },
         buildings: { select: { id: true, designation: true, name: true } },
         _count: { select: { tasks: true, buildings: true } },
       },
@@ -269,6 +286,36 @@ export async function POST(req: Request) {
       projectNumber: project.projectNumber,
       projectName: project.name,
     });
+
+    // Send validation request notifications to designated parties
+    const notificationTitle = `Project Validation Required: ${project.projectNumber}`;
+    const notificationMessage = `Please review and verify the project details for "${project.name}" (${project.projectNumber}). Open the project page and confirm that all entered data is correct by clicking your validation button.`;
+    const notifRecipients = new Set<string>();
+
+    if (project.projectManagerId && project.projectManagerId !== session.sub) {
+      notifRecipients.add(project.projectManagerId);
+    }
+    if (project.salesEngineerId && project.salesEngineerId !== session.sub) {
+      notifRecipients.add(project.salesEngineerId);
+    }
+    const opsManagerId = (project as any).operationsManagerId;
+    if (opsManagerId && opsManagerId !== session.sub) {
+      notifRecipients.add(opsManagerId);
+    }
+
+    for (const userId of notifRecipients) {
+      NotificationService.createNotification({
+        userId,
+        type: 'PROJECT_VALIDATION_REQUIRED',
+        title: notificationTitle,
+        message: notificationMessage,
+        relatedEntityType: 'project',
+        relatedEntityId: project.id,
+        metadata: { projectNumber: project.projectNumber, projectName: project.name },
+      }).catch((err) => {
+        console.error('Failed to send validation notification:', err);
+      });
+    }
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
