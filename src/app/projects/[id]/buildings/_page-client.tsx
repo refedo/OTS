@@ -41,6 +41,10 @@ import {
   Activity,
   BarChart3,
   Loader2,
+  CheckCircle2,
+  Circle,
+  ShieldCheck,
+  ClipboardList,
 } from 'lucide-react';
 
 // ─── RAL Colours ────────────────────────────────────────────────────────────
@@ -170,6 +174,8 @@ function RalChip({ ral }: { ral: string }) {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type ScopeActivity = { activityType: string; activityLabel: string; isApplicable: boolean };
+
 type ScopeOfWork = {
   id: string;
   scopeType: string;
@@ -188,7 +194,39 @@ type ScopeOfWork = {
   shearStudQty: number | null;
   shearStudSpecs: string | null;
   metalWorkItems: unknown;
+  activities: ScopeActivity[];
 };
+
+type CoatingSystemData = {
+  id: string;
+  name: string | null;
+  appliesToAll: boolean;
+  coats: unknown;
+  isGalvanized: boolean;
+  galvanizationMicrons: number | null;
+  buildings: { building: { id: string; designation: string } | null }[];
+};
+
+type ValidationData = {
+  salesValidatedById: string | null;
+  salesValidatedAt: string | null;
+  salesValidatedBy: { id: string; name: string } | null;
+  projectsValidatedById: string | null;
+  projectsValidatedAt: string | null;
+  projectsValidatedBy: { id: string; name: string } | null;
+  operationsValidatedById: string | null;
+  operationsValidatedAt: string | null;
+  operationsValidatedBy: { id: string; name: string } | null;
+} | null;
+
+type SetupChecklistData = {
+  contractReceived: string | null;
+  answers: unknown;
+  notifications: unknown;
+  spcsAttachment: string | null;
+} | null;
+
+type PartGroup = { name: string; totalWeightKg: number; totalQty: number };
 
 type BuildingData = {
   id: string;
@@ -248,6 +286,13 @@ type ProjectData = {
   client: { id: string; name: string } | null;
   projectManager: { id: string; name: string } | null;
   salesEngineer: { id: string; name: string } | null;
+  // New fields
+  salesEngineerId: string | null;
+  projectManagerId: string;
+  operationsManagerId: string | null;
+  coatingSystems: CoatingSystemData[];
+  setupChecklist: SetupChecklistData;
+  validation: ValidationData;
 };
 
 type NavProject = { id: string; projectNumber: string; name: string; status: string };
@@ -297,6 +342,7 @@ function ScopeBadge({ scopeType }: { scopeType: string }) {
 function ScopeSection({ scope }: { scope: ScopeOfWork }) {
   const isSheeting = scope.scopeType === 'roof_sheeting' || scope.scopeType === 'wall_sheeting';
   const isDeck = scope.scopeType === 'deck_panel';
+  const applicableActivities = (scope.activities ?? []).filter((a) => a.isApplicable);
 
   return (
     <div className="border rounded-lg p-4 space-y-3 bg-card">
@@ -377,11 +423,23 @@ function ScopeSection({ scope }: { scope: ScopeOfWork }) {
           </>
         )}
       </div>
+      {applicableActivities.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-2 border-t">
+          {applicableActivities.map((a) => (
+            <span
+              key={a.activityType}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium"
+            >
+              {a.activityLabel}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Coating System ───────────────────────────────────────────────────────────
+// ─── Coating System (legacy, kept for reference) ──────────────────────────────
 
 function CoatingSystem({ project }: { project: ProjectData }) {
   const coats = [
@@ -659,6 +717,445 @@ function aggregateScopes(buildings: BuildingData[]): AggScope[] {
   return Array.from(map.values());
 }
 
+// ─── Validation Panel ────────────────────────────────────────────────────────
+
+type ValidationParty = 'sales' | 'projects' | 'operations';
+
+function ValidationCircle({
+  label,
+  validatedBy,
+  validatedAt,
+  canValidate,
+  onValidate,
+  submitting,
+}: {
+  label: string;
+  validatedBy: { id: string; name: string } | null;
+  validatedAt: string | null;
+  canValidate: boolean;
+  onValidate: () => void;
+  submitting: boolean;
+}) {
+  const isValidated = !!validatedBy;
+  return (
+    <div className="flex flex-col items-center gap-2 min-w-[90px]">
+      {isValidated ? (
+        <CheckCircle2 className="size-12 text-emerald-500 fill-emerald-50" />
+      ) : (
+        <Circle className="size-12 text-slate-300" />
+      )}
+      <div className="text-center">
+        <p className="text-xs font-semibold text-slate-700">{label}</p>
+        {isValidated ? (
+          <>
+            <p className="text-xs text-emerald-600 font-medium">{validatedBy.name}</p>
+            {validatedAt && (
+              <p className="text-xs text-slate-400">
+                {new Date(validatedAt).toLocaleDateString('en-SA-u-ca-gregory', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-slate-400">Pending</p>
+        )}
+      </div>
+      {canValidate && !isValidated && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+          onClick={onValidate}
+          disabled={submitting}
+        >
+          {submitting ? 'Saving…' : 'Verify'}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function ValidationPanel({
+  projectId,
+  salesEngineerId,
+  projectManagerId,
+  operationsManagerId,
+  currentUserId,
+  isAdminOrCeo,
+  initialValidation,
+}: {
+  projectId: string;
+  salesEngineerId: string | null;
+  projectManagerId: string;
+  operationsManagerId: string | null;
+  currentUserId: string;
+  isAdminOrCeo: boolean;
+  initialValidation: ValidationData;
+}) {
+  const [validation, setValidation] = useState<ValidationData>(initialValidation);
+  const [submitting, setSubmitting] = useState<ValidationParty | null>(null);
+
+  const canValidate = (party: ValidationParty) => {
+    if (isAdminOrCeo) return true;
+    if (party === 'sales') return currentUserId === salesEngineerId;
+    if (party === 'projects') return currentUserId === projectManagerId;
+    if (party === 'operations') return currentUserId === operationsManagerId;
+    return false;
+  };
+
+  const handleValidate = async (party: ValidationParty) => {
+    setSubmitting(party);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ party }),
+      });
+      if (res.ok) setValidation(await res.json());
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
+  const allValidated =
+    !!validation?.salesValidatedById &&
+    !!validation?.projectsValidatedById &&
+    !!validation?.operationsValidatedById;
+
+  return (
+    <Card className={allValidated ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200'}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className={`size-4 ${allValidated ? 'text-emerald-500' : 'text-slate-400'}`} />
+          <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Data Validation
+          </span>
+          {allValidated && (
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs ml-auto">
+              Fully Verified
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="flex flex-wrap justify-around gap-6">
+          <ValidationCircle
+            label="Sales"
+            validatedBy={validation?.salesValidatedBy ?? null}
+            validatedAt={validation?.salesValidatedAt ?? null}
+            canValidate={canValidate('sales')}
+            onValidate={() => handleValidate('sales')}
+            submitting={submitting === 'sales'}
+          />
+          <ValidationCircle
+            label="Projects"
+            validatedBy={validation?.projectsValidatedBy ?? null}
+            validatedAt={validation?.projectsValidatedAt ?? null}
+            canValidate={canValidate('projects')}
+            onValidate={() => handleValidate('projects')}
+            submitting={submitting === 'projects'}
+          />
+          <ValidationCircle
+            label="Operations"
+            validatedBy={validation?.operationsValidatedBy ?? null}
+            validatedAt={validation?.operationsValidatedAt ?? null}
+            canValidate={canValidate('operations')}
+            onValidate={() => handleValidate('operations')}
+            submitting={submitting === 'operations'}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Enhanced Coating System ──────────────────────────────────────────────────
+
+type CoatRow = { coatName: string; microns: number | null; ralNumber: string | null };
+
+function EnhancedCoatingSystem({ project }: { project: ProjectData }) {
+  const systems = project.coatingSystems ?? [];
+
+  if (systems.length > 0) {
+    return (
+      <div className="space-y-4">
+        {systems.map((cs, idx) => {
+          const coats = (Array.isArray(cs.coats) ? cs.coats : []) as CoatRow[];
+          const totalMicrons = coats.reduce((s, c) => s + (Number(c.microns) || 0), 0);
+          const buildingLabels = cs.appliesToAll
+            ? 'All buildings'
+            : cs.buildings.map((b) => b.building?.designation ?? '').filter(Boolean).join(', ');
+          return (
+            <div key={cs.id} className="border rounded-xl overflow-hidden">
+              <div className="bg-muted/40 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Paintbrush className="w-4 h-4 text-violet-500" />
+                  <span className="font-semibold text-sm">{cs.name || `System ${idx + 1}`}</span>
+                  {cs.isGalvanized && (
+                    <Badge variant="outline" className="text-xs bg-zinc-100 text-zinc-700 border-zinc-300">
+                      Galvanized{cs.galvanizationMicrons ? ` · ${cs.galvanizationMicrons} µm` : ''}
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">{buildingLabels}</span>
+              </div>
+              <div className="divide-y">
+                {coats.map((coat, ci) => (
+                  <div key={ci} className="px-4 py-2.5 flex items-center gap-4">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      {ci + 1}
+                    </span>
+                    <span className="flex-1 text-sm font-medium">{coat.coatName || '—'}</span>
+                    {coat.microns && (
+                      <span className="text-xs text-muted-foreground bg-muted rounded px-2 py-0.5">{coat.microns} µm</span>
+                    )}
+                    {coat.ralNumber && (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-sm border border-black/10 shadow-sm" style={{ backgroundColor: getRalHex(coat.ralNumber) }} />
+                        <span className="text-xs text-muted-foreground">RAL {coat.ralNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {totalMicrons > 0 && (
+                  <div className="px-4 py-2 flex items-center justify-between bg-blue-50">
+                    <span className="text-xs font-semibold text-blue-700">Total DFT</span>
+                    <span className="text-sm font-bold text-blue-700">{totalMicrons} µm</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {project.topCoatRalNumber && (
+          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
+            <div className="w-8 h-8 rounded-md border-2 border-slate-300 shadow-sm flex-shrink-0"
+              style={{ backgroundColor: getRalHex(project.topCoatRalNumber) }} />
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Top Coat RAL</p>
+              <p className="font-semibold">RAL {project.topCoatRalNumber} · {getRalName(project.topCoatRalNumber)}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback: legacy flat paint coats
+  const legacyCoats = [
+    { label: 'Coat 1', name: project.paintCoat1, microns: project.paintCoat1Microns },
+    { label: 'Coat 2', name: project.paintCoat2, microns: project.paintCoat2Microns },
+    { label: 'Coat 3', name: project.paintCoat3, microns: project.paintCoat3Microns },
+    { label: 'Coat 4', name: project.paintCoat4, microns: project.paintCoat4Microns },
+  ].filter((c) => c.name);
+  const totalMicrons = legacyCoats.reduce((s, c) => s + (Number(c.microns) || 0), 0);
+
+  if (legacyCoats.length === 0 && !project.coatingSystem) {
+    return <p className="text-sm text-muted-foreground italic">Not specified</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {project.coatingSystem && <p className="text-sm font-medium">{project.coatingSystem}</p>}
+      {project.galvanized && (
+        <Badge variant="outline" className="text-xs bg-zinc-100 text-zinc-700 border-zinc-300">
+          Galvanized{project.galvanizationMicrons ? ` · ${project.galvanizationMicrons} µm` : ''}
+        </Badge>
+      )}
+      {legacyCoats.length > 0 && (
+        <div className="border rounded-xl overflow-hidden">
+          <div className="divide-y">
+            {legacyCoats.map((c, i) => (
+              <div key={i} className="px-4 py-2.5 flex items-center gap-4">
+                <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                <span className="flex-1 text-sm font-medium">{c.name}</span>
+                {c.microns && <span className="text-xs text-muted-foreground bg-muted rounded px-2 py-0.5">{c.microns} µm</span>}
+              </div>
+            ))}
+            {totalMicrons > 0 && (
+              <div className="px-4 py-2 flex items-center justify-between bg-blue-50">
+                <span className="text-xs font-semibold text-blue-700">Total DFT</span>
+                <span className="text-sm font-bold text-blue-700">{totalMicrons} µm</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {project.topCoatRalNumber && (
+        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border">
+          <div className="w-8 h-8 rounded-md border-2 border-slate-300 shadow-sm flex-shrink-0"
+            style={{ backgroundColor: getRalHex(project.topCoatRalNumber) }} />
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Top Coat RAL</p>
+            <p className="font-semibold">RAL {project.topCoatRalNumber} · {getRalName(project.topCoatRalNumber)}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Setup Checklist ──────────────────────────────────────────────────────────
+
+function ChecklistSection({ checklist, buildings }: {
+  checklist: SetupChecklistData;
+  buildings: { id: string; designation: string | null; name: string | null; archDrawingsReceived?: boolean }[];
+}) {
+  if (!checklist) return <p className="text-sm text-muted-foreground italic">No checklist data.</p>;
+
+  const answers = (checklist.answers ?? {}) as Record<string, string | null>;
+
+  const answerBadge = (val: string | null) => {
+    if (!val) return null;
+    const colors: Record<string, string> = {
+      yes: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      no: 'bg-red-100 text-red-800 border-red-300',
+      na: 'bg-slate-100 text-slate-600 border-slate-300',
+    };
+    const labels: Record<string, string> = { yes: 'Yes', no: 'No', na: 'N/A' };
+    return (
+      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${colors[val] ?? 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+        {labels[val] ?? val}
+      </span>
+    );
+  };
+
+  const row = (label: string, key: string) => {
+    const val = answers[key];
+    if (!val) return null;
+    return (
+      <div key={key} className="flex items-center justify-between gap-2 py-1.5 border-b last:border-0 text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        {answerBadge(val)}
+      </div>
+    );
+  };
+
+  const textRow = (label: string, key: string) => {
+    const val = answers[key];
+    if (!val) return null;
+    return (
+      <div key={key} className="py-1.5 border-b last:border-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm mt-0.5">{val}</p>
+      </div>
+    );
+  };
+
+  const groups = [
+    {
+      title: 'Kickoff', color: 'border-blue-200 bg-blue-50',
+      items: [
+        row('Contract received?', 'contractReceived'),
+        row('Advance payment received?', 'advancePaymentReceived'),
+        row('SO created?', 'soCreated'),
+      ].filter(Boolean),
+    },
+    {
+      title: 'Scope', color: 'border-orange-200 bg-orange-50',
+      items: [
+        row('Exclusions or limitations?', 'exclusionsOrLimitations'),
+        row('Material submittal required?', 'materialSubmittalRequired'),
+        row('IFC available?', 'ifcAvailable'),
+      ].filter(Boolean),
+    },
+    {
+      title: 'Client', color: 'border-teal-200 bg-teal-50',
+      items: [
+        textRow('Consultant name', 'consultantName'),
+        textRow('Client PM contact', 'clientPMContact'),
+        row('Specific client requirements?', 'specificClientRequirements'),
+      ].filter(Boolean),
+    },
+    {
+      title: 'Timeline', color: 'border-amber-200 bg-amber-50',
+      items: [
+        textRow('Critical deadlines', 'criticalDeadlines'),
+        row('Preliminary schedule available?', 'preliminaryScheduleAvailable'),
+        textRow('Project priority', 'projectPriority'),
+      ].filter(Boolean),
+    },
+    {
+      title: 'Technical', color: 'border-indigo-200 bg-indigo-50',
+      items: [
+        row('Contract requirements for design?', 'contractRequirementsForDesign'),
+        row('Preliminary docs provided?', 'preliminaryDocsProvided'),
+        textRow('PEB welding type', 'pebWeldingType'),
+      ].filter(Boolean),
+    },
+  ].filter((g) => g.items.length > 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {groups.map((g) => (
+          <div key={g.title} className={`rounded-lg border p-3 ${g.color}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2">{g.title}</p>
+            <div className="bg-white/70 rounded p-2">{g.items}</div>
+          </div>
+        ))}
+      </div>
+      {checklist.spcsAttachment && (
+        <div className="text-sm">
+          <span className="font-medium">SPCS Attachment: </span>
+          <a href={checklist.spcsAttachment} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+            View file
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Aggregate Weight by Part Name ───────────────────────────────────────────
+
+function PartGroupsTable({ partGroups }: { partGroups: PartGroup[] }) {
+  if (partGroups.length === 0) {
+    return <p className="text-sm text-muted-foreground italic">No assembly parts data.</p>;
+  }
+
+  const maxWeight = partGroups[0]?.totalWeightKg ?? 0;
+  const totalWeight = partGroups.reduce((s, g) => s + g.totalWeightKg, 0);
+  const display = partGroups.slice(0, 40);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs text-muted-foreground pb-1 border-b">
+        <span>{partGroups.length} unique part types</span>
+        <span>Total: {fmt(totalWeight / 1000, 3)} t</span>
+      </div>
+      <div className="space-y-1.5">
+        {display.map((g, i) => {
+          const pct = maxWeight > 0 ? (g.totalWeightKg / maxWeight) * 100 : 0;
+          const totalPct = totalWeight > 0 ? (g.totalWeightKg / totalWeight) * 100 : 0;
+          return (
+            <div key={i} className="space-y-0.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium truncate flex-1 mr-2">{g.name}</span>
+                <div className="flex items-center gap-3 flex-shrink-0 text-xs text-muted-foreground tabular-nums">
+                  <span>{g.totalQty.toLocaleString('en-SA-u-ca-gregory')} pcs</span>
+                  <span className="font-semibold text-foreground">{fmt(g.totalWeightKg / 1000, 3)} t</span>
+                  <span className="w-10 text-right">{fmt(totalPct, 1)}%</span>
+                </div>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+        {partGroups.length > 40 && (
+          <p className="text-xs text-muted-foreground text-center pt-1">
+            …and {partGroups.length - 40} more part types
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
 function Section({
@@ -700,10 +1197,18 @@ export function ProjectCardClient({
   project,
   buildings,
   allProjects,
+  validationData,
+  currentUserId,
+  isAdminOrCeo,
+  partGroups,
 }: {
   project: ProjectData;
   buildings: BuildingData[];
   allProjects: NavProject[];
+  validationData: ValidationData;
+  currentUserId: string;
+  isAdminOrCeo: boolean;
+  partGroups: PartGroup[];
 }) {
   const router = useRouter();
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -858,6 +1363,17 @@ export function ProjectCardClient({
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Validation Panel ── */}
+      <ValidationPanel
+        projectId={project.id}
+        salesEngineerId={project.salesEngineerId}
+        projectManagerId={project.projectManagerId}
+        operationsManagerId={project.operationsManagerId}
+        currentUserId={currentUserId}
+        isAdminOrCeo={isAdminOrCeo}
+        initialValidation={validationData}
+      />
 
       {/* ── Building selector ── */}
       <div className="flex items-center gap-2">
@@ -1046,7 +1562,7 @@ export function ProjectCardClient({
 
       {/* ── Coating System ── */}
       <Section title="Coating System" icon={<Paintbrush className="w-3.5 h-3.5" />}>
-        <CoatingSystem project={project} />
+        <EnhancedCoatingSystem project={project} />
       </Section>
 
       {/* ── Stage Durations ── */}
@@ -1220,6 +1736,20 @@ export function ProjectCardClient({
               </div>
             ))}
           </div>
+        </Section>
+      )}
+
+      {/* ── Aggregate Weight by Part Name ── */}
+      {partGroups.length > 0 && (
+        <Section title="Weight by Part Name" icon={<Weight className="w-3.5 h-3.5" />} defaultOpen={false}>
+          <PartGroupsTable partGroups={partGroups} />
+        </Section>
+      )}
+
+      {/* ── Setup Checklist ── */}
+      {project.setupChecklist && (
+        <Section title="Setup Checklist" icon={<ClipboardList className="w-3.5 h-3.5" />} defaultOpen={false}>
+          <ChecklistSection checklist={project.setupChecklist} buildings={buildings} />
         </Section>
       )}
     </div>
