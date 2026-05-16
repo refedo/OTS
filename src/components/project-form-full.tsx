@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
+import { CustomerCombobox } from '@/components/ui/customer-combobox';
+import { STRUCTURE_TYPES, SAUDI_CITIES } from '@/lib/project-constants';
 
 type User = { id: string; name: string; position: string | null };
 
@@ -16,9 +18,11 @@ type ProjectFormProps = {
   project: any;
   projectManagers: User[];
   salesEngineers: User[];
+  canViewFinancials?: boolean;
 };
 
-export function ProjectFormFull({ project, projectManagers, salesEngineers }: ProjectFormProps) {
+export function ProjectFormFull({ project, projectManagers, salesEngineers, canViewFinancials = false }: ProjectFormProps) {
+  const [clientNameValue, setClientNameValue] = useState<string>(project.client?.name || '');
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -72,7 +76,7 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       projectNumber: (formData.get('projectNumber') as string) || undefined,
       estimationNumber: getString('estimationNumber'),
       name: (formData.get('name') as string) || undefined,
-      clientName: (formData.get('clientName') as string) || undefined,
+      clientName: clientNameValue || undefined,
       projectManagerId: (formData.get('projectManagerId') as string) || undefined,
       salesEngineerId: getString('salesEngineerId'),
       operationsManagerId: getString('operationsManagerId'),
@@ -198,10 +202,10 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
       )}
 
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${canViewFinancials ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="basic">Basic Info</TabsTrigger>
           <TabsTrigger value="dates">Dates & Durations</TabsTrigger>
-          <TabsTrigger value="financial">Financial</TabsTrigger>
+          {canViewFinancials && <TabsTrigger value="financial">Financial</TabsTrigger>}
           <TabsTrigger value="technical">Technical & Specs</TabsTrigger>
         </TabsList>
 
@@ -224,8 +228,14 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="clientName">Client Name <span className="text-destructive">*</span></Label>
-              <Input id="clientName" name="clientName" defaultValue={project.client?.name || ''} required disabled={loading} />
+              <CustomerCombobox
+                label="Customer Name"
+                required
+                defaultValue={project.client?.name || ''}
+                disabled={loading}
+                onSelect={setClientNameValue}
+                placeholder="Search customers..."
+              />
             </div>
 
             <div className="space-y-2">
@@ -265,7 +275,10 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
 
             <div className="space-y-2">
               <Label htmlFor="projectLocation">Project Location</Label>
-              <Input id="projectLocation" name="projectLocation" defaultValue={project.projectLocation || ''} disabled={loading} />
+              <select id="projectLocation" name="projectLocation" defaultValue={project.projectLocation || ''} disabled={loading} className="w-full h-10 px-3 rounded-md border bg-background">
+                <option value="">Select city</option>
+                {SAUDI_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -275,7 +288,10 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
 
             <div className="space-y-2">
               <Label htmlFor="structureType">Structure Type</Label>
-              <Input id="structureType" name="structureType" defaultValue={project.structureType || ''} disabled={loading} />
+              <select id="structureType" name="structureType" defaultValue={project.structureType || ''} disabled={loading} className="w-full h-10 px-3 rounded-md border bg-background">
+                <option value="">Select type</option>
+                {STRUCTURE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -345,8 +361,8 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
           </div>
         </TabsContent>
 
-        {/* Financial Tab */}
-        <TabsContent value="financial" className="space-y-4 mt-6">
+        {/* Financial Tab — gated to authorized roles */}
+        {canViewFinancials && <TabsContent value="financial" className="space-y-4 mt-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="contractValue">Contract Value</Label>
@@ -446,7 +462,16 @@ export function ProjectFormFull({ project, projectManagers, salesEngineers }: Pr
               </div>
             </div>
           </div>
-        </TabsContent>
+        </TabsContent>}
+
+        {!canViewFinancials && (
+          <TabsContent value="financial">
+            <div className="flex items-center gap-2 p-6 bg-muted/50 rounded-lg border text-muted-foreground">
+              <Lock className="h-5 w-5" />
+              <span>Financial information is restricted to authorized roles.</span>
+            </div>
+          </TabsContent>
+        )}
 
         {/* Technical & Specs Tab */}
         <TabsContent value="technical" className="space-y-4 mt-6">

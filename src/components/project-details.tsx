@@ -448,9 +448,10 @@ type ProjectDetailsProps = {
   restrictedModules?: string[];
   currentUserId?: string;
   isAdminOrCeo?: boolean;
+  canViewFinancials?: boolean;
 };
 
-export function ProjectDetails({ project, restrictedModules = [], currentUserId = '', isAdminOrCeo = false }: ProjectDetailsProps) {
+export function ProjectDetails({ project, restrictedModules = [], currentUserId = '', isAdminOrCeo = false, canViewFinancials = false }: ProjectDetailsProps) {
   const router = useRouter();
   const { showAlert, AlertDialog } = useAlert();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -460,6 +461,43 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
   
   // Check if financial data should be hidden
   const hideFinancialData = restrictedModules.includes('financial_contracts') || restrictedModules.includes('financial_reports');
+
+  // Red-state: contract not received OR any building missing arch drawings
+  const contractNotReceived = project.setupChecklist?.contractReceived === 'no';
+  const missingArchDrawings = (project.buildings ?? []).some((b: { archDrawingsReceived: boolean }) => !b.archDrawingsReceived);
+  const isAtRisk = contractNotReceived || missingArchDrawings;
+
+  // Checklist quick-fix state
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [resolveLoading, setResolveLoading] = useState(false);
+  const [localContractReceived, setLocalContractReceived] = useState<string>(project.setupChecklist?.contractReceived ?? 'no');
+  const [localBuildingArch, setLocalBuildingArch] = useState<Record<string, boolean>>(
+    Object.fromEntries((project.buildings ?? []).map((b: { id: string; archDrawingsReceived: boolean }) => [b.id, b.archDrawingsReceived]))
+  );
+  const [resolveAtRisk, setResolveAtRisk] = useState(isAtRisk);
+
+  const handleResolve = async () => {
+    setResolveLoading(true);
+    try {
+      await fetch(`/api/projects/${project.id}/checklist`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractReceived: localContractReceived }),
+      });
+      for (const [buildingId, received] of Object.entries(localBuildingArch)) {
+        await fetch(`/api/projects/${project.id}/arch-drawings`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ buildingId, received }),
+        });
+      }
+      const newAtRisk = localContractReceived === 'no' || Object.values(localBuildingArch).some(v => !v);
+      setResolveAtRisk(newAtRisk);
+      setResolveOpen(false);
+    } finally {
+      setResolveLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchNavigation = async () => {
@@ -640,6 +678,73 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
 
       <div className="container mx-auto p-6 lg:p-8 space-y-6 max-lg:pt-6">
 
+        {/* Action Required Banner */}
+        {resolveAtRisk && (
+          <div className="mx-6 mt-4 flex items-center justify-between gap-3 bg-red-600/80 border border-red-400/50 rounded-xl px-4 py-3 text-white">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <span className="text-lg">⚠</span>
+              <span>
+                Action Required:{' '}
+                {contractNotReceived && 'Contract not received. '}
+                {missingArchDrawings && 'Architectural drawings missing for some buildings.'}
+              </span>
+            </div>
+            <Button size="sm" variant="outline" className="border-white/40 text-white hover:bg-white/20 hover:text-white shrink-0"
+              onClick={() => setResolveOpen(true)}>
+              Resolve
+            </Button>
+          </div>
+        )}
+
+        {/* Quick-fix resolve dialog */}
+        {resolveOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-background rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 space-y-4">
+              <h3 className="text-lg font-bold">Resolve Action Items</h3>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium mb-2">Contract Received?</p>
+                  <div className="flex gap-4">
+                    {['yes', 'no', 'na'].map(opt => (
+                      <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                        <input type="radio" name="resolveContract" value={opt} checked={localContractReceived === opt}
+                          onChange={() => setLocalContractReceived(opt)} className="w-4 h-4" />
+                        {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {(project.buildings ?? []).length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-2">Architectural Drawings Received</p>
+                    <div className="space-y-2">
+                      {(project.buildings ?? []).map((b: { id: string; name: string; designation: string }) => (
+                        <div key={b.id} className="flex items-center gap-3">
+                          <span className="text-sm w-36 shrink-0">{b.designation} — {b.name}</span>
+                          <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                            <input type="checkbox" checked={localBuildingArch[b.id] ?? false}
+                              onChange={(e) => setLocalBuildingArch(prev => ({ ...prev, [b.id]: e.target.checked }))}
+                              className="w-4 h-4" />
+                            Received
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button onClick={handleResolve} disabled={resolveLoading} className="flex-1">
+                  {resolveLoading ? 'Saving...' : 'Save'}
+                </Button>
+                <Button variant="outline" onClick={() => setResolveOpen(false)} disabled={resolveLoading} className="flex-1">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Validation Panel */}
         <ProjectValidationPanel
           projectId={project.id}
@@ -751,8 +856,8 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
             )}
           </CollapsibleSection>
 
-          {/* Financial & Payment Terms - Contract value hidden for users with financial restrictions */}
-          {!hideFinancialData && (
+          {/* Financial & Payment Terms - only visible to authorized roles */}
+          {canViewFinancials && !hideFinancialData && (
             <CollapsibleSection title="Finance" icon={DollarSign} defaultOpen>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -780,8 +885,8 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
             </CollapsibleSection>
           )}
 
-          {/* Payment Schedule - Always visible, only Amount column hidden for restricted users */}
-          <CollapsibleSection title="Payment Schedule" icon={DollarSign} defaultOpen>
+          {/* Payment Schedule - only visible to authorized roles */}
+          {canViewFinancials && <CollapsibleSection title="Payment Schedule" icon={DollarSign} defaultOpen>
             <div className="space-y-4">
               <h4 className="font-semibold mb-3 text-red-700 bg-red-50 px-3 py-2 rounded">Payment Schedule</h4>
               <div className="overflow-x-auto">
@@ -841,7 +946,7 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
                 </table>
               </div>
             </div>
-          </CollapsibleSection>
+          </CollapsibleSection>}
 
           {/* Buildings & Scope */}
           {project.buildings && project.buildings.length > 0 && (
@@ -987,56 +1092,97 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
                 </>
               )}
               
-              {/* Coating System Section */}
+              {/* Coating Systems Section */}
               <div className="border-t mt-4 pt-4">
                 <h4 className="font-semibold mb-3 text-yellow-800 bg-yellow-50 px-3 py-2 rounded">Coating</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Coat</th>
-                        <th className="px-3 py-2 text-left font-medium">Paint Name</th>
-                        <th className="px-3 py-2 text-left font-medium">Microns</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {(() => {
-                        const coats = [1, 2, 3, 4].map((num) => ({
-                          paintCoat: (project as any)[`paintCoat${num}`],
-                          microns: (project as any)[`paintCoat${num}Microns`],
-                          num
-                        })).filter(c => c.paintCoat);
-                        
-                        const totalMicrons = coats.reduce((sum, c) => sum + (Number(c.microns) || 0), 0);
-                        
-                        return (
-                          <>
-                            {coats.map((coat) => (
-                              <tr key={coat.num}>
-                                <td className="px-3 py-2 font-medium">Coat {coat.num}</td>
-                                <td className="px-3 py-2">{coat.paintCoat}</td>
-                                <td className="px-3 py-2">{coat.microns || '-'}</td>
-                              </tr>
-                            ))}
-                            {coats.length === 0 && (
+                {(project.coatingSystems ?? []).length > 0 ? (
+                  <div className="space-y-4">
+                    {(project.coatingSystems as any[]).map((cs: any, csIdx: number) => {
+                      const coats = Array.isArray(cs.coats) ? cs.coats : [];
+                      const totalMicrons = coats.reduce((sum: number, c: any) => sum + (Number(c.microns) || 0), 0);
+                      return (
+                        <div key={cs.id} className="border rounded-lg p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold">{cs.name || `System ${csIdx + 1}`}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {cs.appliesToAll ? 'All buildings' : `Buildings: ${(cs.buildings ?? []).map((b: any) => b.building?.designation ?? '').join(', ')}`}
+                            </span>
+                          </div>
+                          {cs.isGalvanized && <p className="text-xs text-blue-700 font-medium">Galvanized {cs.galvanizationMicrons ? `(${cs.galvanizationMicrons} μm)` : ''}</p>}
+                          <table className="w-full text-sm">
+                            <thead className="bg-muted/50">
                               <tr>
-                                <td className="px-3 py-2 text-muted-foreground" colSpan={3}>
-                                  {project.coatingSystem || 'No coating system defined'}
-                                </td>
+                                <th className="px-2 py-1 text-left font-medium">Coat</th>
+                                <th className="px-2 py-1 text-left font-medium">Name</th>
+                                <th className="px-2 py-1 text-left font-medium">Microns</th>
+                                <th className="px-2 py-1 text-left font-medium">RAL</th>
                               </tr>
-                            )}
-                            {coats.length > 0 && totalMicrons > 0 && (
-                              <tr className="bg-blue-50 font-semibold">
-                                <td className="px-3 py-2" colSpan={2}>Total Microns</td>
-                                <td className="px-3 py-2 text-blue-700">{totalMicrons} μm</td>
-                              </tr>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y">
+                              {coats.map((coat: any, idx: number) => (
+                                <tr key={idx}>
+                                  <td className="px-2 py-1 font-medium">{idx + 1}</td>
+                                  <td className="px-2 py-1">{coat.coatName}</td>
+                                  <td className="px-2 py-1">{coat.microns || '-'}</td>
+                                  <td className="px-2 py-1">{coat.ralNumber || '-'}</td>
+                                </tr>
+                              ))}
+                              {totalMicrons > 0 && (
+                                <tr className="bg-blue-50 font-semibold">
+                                  <td className="px-2 py-1" colSpan={2}>Total</td>
+                                  <td className="px-2 py-1 text-blue-700" colSpan={2}>{totalMicrons} μm</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  // Fallback to legacy flat paint coat fields
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Coat</th>
+                          <th className="px-3 py-2 text-left font-medium">Paint Name</th>
+                          <th className="px-3 py-2 text-left font-medium">Microns</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {(() => {
+                          const coats = [1, 2, 3, 4].map((num) => ({
+                            paintCoat: (project as any)[`paintCoat${num}`],
+                            microns: (project as any)[`paintCoat${num}Microns`],
+                            num
+                          })).filter(c => c.paintCoat);
+                          const totalMicrons = coats.reduce((sum, c) => sum + (Number(c.microns) || 0), 0);
+                          return (
+                            <>
+                              {coats.map((coat) => (
+                                <tr key={coat.num}>
+                                  <td className="px-3 py-2 font-medium">Coat {coat.num}</td>
+                                  <td className="px-3 py-2">{coat.paintCoat}</td>
+                                  <td className="px-3 py-2">{coat.microns || '-'}</td>
+                                </tr>
+                              ))}
+                              {coats.length === 0 && (
+                                <tr><td className="px-3 py-2 text-muted-foreground" colSpan={3}>{project.coatingSystem || 'No coating system defined'}</td></tr>
+                              )}
+                              {coats.length > 0 && totalMicrons > 0 && (
+                                <tr className="bg-blue-50 font-semibold">
+                                  <td className="px-3 py-2" colSpan={2}>Total Microns</td>
+                                  <td className="px-3 py-2 text-blue-700">{totalMicrons} μm</td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 {project.topCoatRalNumber && (
                   <div className="mt-4 p-3 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
                     <div className="flex items-center gap-3">
@@ -1047,15 +1193,11 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
                             {project.topCoatRalNumber}
                           </span>
                         </div>
-                        <span className="text-sm text-slate-600 italic ml-1">
-                          {getRalColorName(project.topCoatRalNumber)}
-                        </span>
+                        <span className="text-sm text-slate-600 italic ml-1">{getRalColorName(project.topCoatRalNumber)}</span>
                       </div>
-                      <div 
-                        className="w-12 h-12 rounded-md border-2 border-slate-300 shadow-sm"
+                      <div className="w-12 h-12 rounded-md border-2 border-slate-300 shadow-sm"
                         style={{ backgroundColor: getRalColor(project.topCoatRalNumber) }}
-                        title={`RAL ${project.topCoatRalNumber} - ${getRalColorName(project.topCoatRalNumber)}`}
-                      />
+                        title={`RAL ${project.topCoatRalNumber} - ${getRalColorName(project.topCoatRalNumber)}`} />
                     </div>
                   </div>
                 )}
@@ -1069,6 +1211,157 @@ export function ProjectDetails({ project, restrictedModules = [], currentUserId 
               <InfoRow label="Applicable Codes" value={project.applicableCodes} />
             </dl>
           </CollapsibleSection>
+
+          {/* Project Checklist */}
+          {project.setupChecklist && (
+            <CollapsibleSection title="Project Setup Checklist" icon={CheckCircle2}>
+              {(() => {
+                const answers = (project.setupChecklist.answers ?? {}) as Record<string, string | null>;
+                const notifications = (project.setupChecklist.notifications ?? {}) as Record<string, string>;
+
+                const answerBadge = (val: string | null) => {
+                  if (!val) return <span className="text-xs text-muted-foreground">Not answered</span>;
+                  const colors: Record<string, string> = {
+                    yes: 'bg-green-100 text-green-800 border-green-300',
+                    no: 'bg-red-100 text-red-800 border-red-300',
+                    na: 'bg-gray-100 text-gray-700 border-gray-300',
+                  };
+                  const labels: Record<string, string> = { yes: 'Yes', no: 'No', na: 'N/A' };
+                  return (
+                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${colors[val] ?? ''}`}>
+                      {labels[val] ?? val}
+                    </span>
+                  );
+                };
+
+                const qaRow = (label: string, fieldKey: string, notifyKey?: string) => (
+                  <div key={fieldKey} className="flex flex-col gap-0.5 py-1.5 border-b last:border-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm">{label}</span>
+                      {answerBadge(answers[fieldKey] ?? null)}
+                    </div>
+                    {notifyKey && answers[fieldKey] === 'yes' && notifications[notifyKey] && (
+                      <p className="text-xs text-muted-foreground ml-2">Notify: {notifications[notifyKey]}</p>
+                    )}
+                  </div>
+                );
+
+                const textRow = (label: string, fieldKey: string) => {
+                  const val = answers[fieldKey];
+                  if (!val) return null;
+                  return (
+                    <div key={fieldKey} className="py-1.5 border-b last:border-0">
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                      <p className="text-sm">{val}</p>
+                    </div>
+                  );
+                };
+
+                const sections = [
+                  {
+                    title: 'Kickoff', color: 'bg-blue-50 border-blue-200 text-blue-800',
+                    content: (
+                      <>
+                        {qaRow('Contract received?', 'contractReceived', 'contractReceivedNotify')}
+                        <div className="py-1.5">
+                          <p className="text-xs text-muted-foreground mb-1">Architectural drawings per building</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(project.buildings ?? []).map((b: { id: string; designation: string; name: string; archDrawingsReceived: boolean }) => (
+                              <span key={b.id} className={`text-xs px-2 py-0.5 rounded-full border font-medium ${b.archDrawingsReceived ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
+                                {b.designation}: {b.archDrawingsReceived ? 'Received' : 'Pending'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'Financial', color: 'bg-green-50 border-green-200 text-green-800',
+                    content: (
+                      <>
+                        {qaRow('Advance payment received?', 'advancePaymentReceived', 'advancePaymentNotify')}
+                        {qaRow('Pending financial approvals?', 'pendingFinancialApprovals', 'pendingFinancialApprovalsNotify')}
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'ERP', color: 'bg-purple-50 border-purple-200 text-purple-800',
+                    content: qaRow('SO created?', 'soCreated', 'soCreatedNotify'),
+                  },
+                  {
+                    title: 'Scope', color: 'bg-orange-50 border-orange-200 text-orange-800',
+                    content: (
+                      <>
+                        {qaRow('Exclusions or limitations?', 'exclusionsOrLimitations', 'exclusionsNotify')}
+                        {qaRow('Material submittal required?', 'materialSubmittalRequired', 'materialSubmittalNotify')}
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'Client Details', color: 'bg-teal-50 border-teal-200 text-teal-800',
+                    content: (
+                      <>
+                        {textRow('Consultant name', 'consultantName')}
+                        {textRow('Client PM contact', 'clientPMContact')}
+                        {qaRow('Specific client requirements?', 'specificClientRequirements', 'clientRequirementsNotify')}
+                        {textRow('Communication protocols', 'communicationProtocols')}
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'Timeline', color: 'bg-amber-50 border-amber-200 text-amber-800',
+                    content: (
+                      <>
+                        {textRow('Critical deadlines', 'criticalDeadlines')}
+                        {qaRow('Preliminary schedule available?', 'preliminaryScheduleAvailable', 'scheduleNotify')}
+                        {textRow('Project priority', 'projectPriority')}
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'Design & Technical', color: 'bg-indigo-50 border-indigo-200 text-indigo-800',
+                    content: (
+                      <>
+                        {qaRow('IFC available?', 'ifcAvailable', 'ifcNotify')}
+                        {textRow('Design status', 'designStatus')}
+                        {qaRow('Contract requirements for design?', 'contractRequirementsForDesign', 'contractRequirementsNotify')}
+                        {qaRow('Preliminary docs provided?', 'preliminaryDocsProvided', 'preliminaryDocsNotify')}
+                        {textRow('Preliminary docs details', 'preliminaryDocsDetails')}
+                        {textRow('Additional docs requested', 'additionalDocsRequested')}
+                        {qaRow('Pending approvals from sales?', 'pendingApprovalsFromSales', 'salesApprovalsNotify')}
+                        {textRow('Unresolved client discussions', 'unresolvedClientDiscussions')}
+                        {textRow('PEB welding type', 'pebWeldingType')}
+                      </>
+                    ),
+                  },
+                  {
+                    title: 'Site Responsibilities', color: 'bg-red-50 border-red-200 text-red-800',
+                    content: textRow('Site test types', 'siteTestTypes'),
+                  },
+                ];
+
+                return (
+                  <div className="space-y-4">
+                    {sections.map((section) => (
+                      <div key={section.title} className={`rounded-lg border p-3 ${section.color}`}>
+                        <h4 className="text-sm font-semibold mb-2">{section.title}</h4>
+                        <div className="bg-white/70 rounded p-2">{section.content}</div>
+                      </div>
+                    ))}
+                    {project.setupChecklist.spcsAttachment && (
+                      <div className="text-sm">
+                        <span className="font-medium">SPCS Attachment:</span>{' '}
+                        <a href={project.setupChecklist.spcsAttachment} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+                          View file
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </CollapsibleSection>
+          )}
 
           {/* Remarks */}
           {project.remarks && (

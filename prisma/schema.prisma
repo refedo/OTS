@@ -621,6 +621,8 @@ model Project {
   kickoffChecklists          ProjectKickoffChecklist[]
   coatingInspectionRecords   QcCoatingInspection[]     @relation("CoatingInspectionProject")
   subcontractorContracts     SubcontractorContract[]
+  coatingSystems             ProjectCoatingSystem[]
+  setupChecklist             ProjectSetupChecklist?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -692,6 +694,47 @@ model ProjectValidation {
   @@index([projectId])
 }
 
+model ProjectCoatingSystem {
+  id                   String                       @id @default(uuid()) @db.Char(36)
+  projectId            String                       @db.Char(36)
+  name                 String?
+  appliesToAll         Boolean                      @default(true)
+  coats                Json
+  isGalvanized         Boolean                      @default(false)
+  galvanizationMicrons Int?
+  sortOrder            Int                          @default(0)
+  project              Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buildings            ProjectCoatingSystemBuilding[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+
+  @@index([projectId])
+}
+
+model ProjectCoatingSystemBuilding {
+  coatingSystemId String               @db.Char(36)
+  buildingId      String               @db.Char(36)
+  coatingSystem   ProjectCoatingSystem @relation(fields: [coatingSystemId], references: [id], onDelete: Cascade)
+  building        Building             @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@id([coatingSystemId, buildingId])
+  @@index([buildingId])
+}
+
+model ProjectSetupChecklist {
+  id               String   @id @default(uuid()) @db.Char(36)
+  projectId        String   @unique @db.Char(36)
+  contractReceived String?  @db.VarChar(10)
+  answers          Json?
+  notifications    Json?
+  spcsAttachment   String?  @db.VarChar(500)
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([contractReceived])
+}
+
 /// Individual partial payment receipt — one record per payment received against a schedule slot
 model ProjectPaymentReceipt {
   id           Int      @id @default(autoincrement())
@@ -718,7 +761,9 @@ model Building {
   description            String?
   weight                 Float? // Building weight in tons
   location               String? @db.VarChar(500)
+  archDrawingsReceived   Boolean                 @default(false)
   project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coatingSystemBuildings ProjectCoatingSystemBuilding[]
   assemblyParts          AssemblyPart[]
   rfiRequests            RFIRequest[]
   ncrReports             NCRReport[]

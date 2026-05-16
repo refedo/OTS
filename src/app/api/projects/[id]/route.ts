@@ -153,6 +153,15 @@ export async function GET(
           },
         },
       },
+      coatingSystems: {
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          buildings: {
+            include: { building: { select: { id: true, designation: true } } },
+          },
+        },
+      },
+      setupChecklist: true,
       tasks: {
         select: {
           id: true,
