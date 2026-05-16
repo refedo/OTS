@@ -220,6 +220,11 @@ const STARTUP_MIGRATIONS = [
 
   // ── v25.1.0 — Bank transactions + VAT sync columns ───────────────────────
   'v25_1_fin_bank_transactions_and_vat_sync.sql', // fin_bank_transactions table; dolibarr_id/source/sync_hash on fin_vat_payments
+
+  // ── v26.0.0 — Project wizard: coating systems, setup checklist, validation ─
+  'add_project_coating_systems.sql',  // ProjectCoatingSystem + ProjectCoatingSystemBuilding tables
+  'add_project_setup_checklist.sql',  // ProjectSetupChecklist table (wizard kickoff Q&A)
+  'v26_0_project_validation.sql',     // operationsManagerId on Project; ProjectValidation table; notification enum update
 ];
 
 /**
