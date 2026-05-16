@@ -7,6 +7,8 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Project Card' };
 
+type PartGroup = { name: string; totalWeightKg: number; totalQty: number };
+
 export default async function ProjectCardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
@@ -15,7 +17,7 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
   const session = token ? verifySession(token) : null;
   if (!session) redirect('/login');
 
-  const [project, allProjects] = await Promise.all([
+  const [project, allProjects, currentUser] = await Promise.all([
     db.project.findUnique({
       where: { id, deletedAt: null },
       select: {
@@ -30,6 +32,10 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
         actualEndDate: true,
         contractualTonnage: true,
         engineeringTonnage: true,
+        // People IDs for validation
+        salesEngineerId: true,
+        projectManagerId: true,
+        operationsManagerId: true,
         // Technical
         cranesIncluded: true,
         surveyorOurScope: true,
@@ -63,6 +69,46 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
         operationsWeeksMax: true,
         siteWeeksMin: true,
         siteWeeksMax: true,
+        // Validation
+        validation: {
+          select: {
+            salesValidatedById: true,
+            salesValidatedAt: true,
+            salesValidatedBy: { select: { id: true, name: true } },
+            projectsValidatedById: true,
+            projectsValidatedAt: true,
+            projectsValidatedBy: { select: { id: true, name: true } },
+            operationsValidatedById: true,
+            operationsValidatedAt: true,
+            operationsValidatedBy: { select: { id: true, name: true } },
+          },
+        },
+        // Setup checklist
+        setupChecklist: {
+          select: {
+            contractReceived: true,
+            answers: true,
+            notifications: true,
+            spcsAttachment: true,
+          },
+        },
+        // Coating systems (new per-project style)
+        coatingSystems: {
+          select: {
+            id: true,
+            name: true,
+            appliesToAll: true,
+            coats: true,
+            isGalvanized: true,
+            galvanizationMicrons: true,
+            buildings: {
+              select: {
+                building: { select: { id: true, designation: true } },
+              },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         // Relations
         client: { select: { id: true, name: true } },
         projectManager: { select: { id: true, name: true } },
@@ -104,6 +150,13 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
                 shearStudQty: true,
                 shearStudSpecs: true,
                 metalWorkItems: true,
+                activities: {
+                  select: {
+                    activityType: true,
+                    activityLabel: true,
+                    isApplicable: true,
+                  },
+                },
               },
               orderBy: { createdAt: 'asc' },
             },
@@ -117,9 +170,19 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
       select: { id: true, projectNumber: true, name: true, status: true },
       orderBy: { projectNumber: 'asc' },
     }),
+    db.user.findUnique({
+      where: { id: session.sub },
+      select: { isAdmin: true, role: { select: { name: true } } },
+    }),
   ]);
 
   if (!project) notFound();
+
+  const isAdminOrCeo = !!(
+    currentUser?.isAdmin ||
+    currentUser?.role?.name === 'Admin' ||
+    currentUser?.role?.name === 'CEO'
+  );
 
   const buildings = project.buildings.map((b) => {
     const totalWeight = b.assemblyParts.reduce((s, p) => {
@@ -155,6 +218,25 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
     };
   });
 
+  // Aggregate assembly parts by name across all buildings
+  const partGroupMap = new Map<string, PartGroup>();
+  project.buildings.forEach((b) => {
+    b.assemblyParts.forEach((p) => {
+      const name = (p.name || 'Unknown').trim();
+      const w =
+        Number(p.netWeightTotal ?? 0) > 0
+          ? Number(p.netWeightTotal)
+          : Number(p.singlePartWeight ?? 0) * (p.quantity ?? 1);
+      const entry = partGroupMap.get(name) ?? { name, totalWeightKg: 0, totalQty: 0 };
+      entry.totalWeightKg += w;
+      entry.totalQty += p.quantity ?? 0;
+      partGroupMap.set(name, entry);
+    });
+  });
+  const partGroups = Array.from(partGroupMap.values())
+    .filter((g) => g.totalWeightKg > 0)
+    .sort((a, b) => b.totalWeightKg - a.totalWeightKg);
+
   const serialized = {
     ...project,
     contractDate: project.contractDate?.toISOString() ?? null,
@@ -166,6 +248,14 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
     engineeringTonnage: project.engineeringTonnage ? Number(project.engineeringTonnage) : null,
     area: project.area ? Number(project.area) : null,
     m2PerTon: project.m2PerTon ? Number(project.m2PerTon) : null,
+    validation: project.validation
+      ? {
+          ...project.validation,
+          salesValidatedAt: project.validation.salesValidatedAt?.toISOString() ?? null,
+          projectsValidatedAt: project.validation.projectsValidatedAt?.toISOString() ?? null,
+          operationsValidatedAt: project.validation.operationsValidatedAt?.toISOString() ?? null,
+        }
+      : null,
   };
 
   return (
@@ -173,6 +263,10 @@ export default async function ProjectCardPage({ params }: { params: Promise<{ id
       project={serialized}
       buildings={buildings}
       allProjects={allProjects}
+      validationData={serialized.validation}
+      currentUserId={session.sub}
+      isAdminOrCeo={isAdminOrCeo}
+      partGroups={partGroups}
     />
   );
 }
