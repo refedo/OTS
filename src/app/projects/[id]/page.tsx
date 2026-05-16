@@ -84,6 +84,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     currentUser?.role?.name === 'CEO'
   );
 
+  const canViewFinancials = isAdminOrCeo || userPermissions.includes('financial.view');
+
   return (
     <div className="space-y-6">
       <ProjectDetails
@@ -91,6 +93,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         restrictedModules={restrictedModules}
         currentUserId={session.sub}
         isAdminOrCeo={isAdminOrCeo}
+        canViewFinancials={canViewFinancials}
       />
       {scopeSchedules.length > 0 && (
         <ScopeSchedulesView schedules={scopeSchedules} />

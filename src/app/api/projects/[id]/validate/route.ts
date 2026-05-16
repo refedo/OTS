@@ -3,7 +3,6 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
-import { getCurrentUserPermissions } from '@/lib/permission-checker';
 import { logActivity } from '@/lib/api-utils';
 import { logger } from '@/lib/logger';
 
@@ -73,9 +72,7 @@ export async function POST(
       party === 'projects' ? project.projectManagerId :
       project.operationsManagerId;
 
-    // Check permission: must be the designated party, have projects.validate, or be admin/CEO
-    const userPermissions = await getCurrentUserPermissions();
-    const hasValidatePermission = userPermissions.includes('projects.validate');
+    // Check permission: must be the designated party (the assigned employee) or admin/CEO
     const currentUser = await prisma.user.findUnique({
       where: { id: session.sub },
       select: { isAdmin: true, role: { select: { name: true } } },
@@ -87,8 +84,8 @@ export async function POST(
 
     const isDesignatedParty = session.sub === partyOwnerId;
 
-    if (!isDesignatedParty && !isAdminOrCeo && !hasValidatePermission) {
-      return NextResponse.json({ error: 'Forbidden: you are not authorized to validate this party' }, { status: 403 });
+    if (!isDesignatedParty && !isAdminOrCeo) {
+      return NextResponse.json({ error: 'Forbidden: only the assigned employee or an admin can validate this party' }, { status: 403 });
     }
 
     // Upsert validation record

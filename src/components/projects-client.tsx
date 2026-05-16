@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, PlayCircle, CheckCircle2, Circle } from 'lucide-react';
+import { Search, MoreVertical, Eye, Edit, Trash2, Building2, Calendar, LayoutGrid, List, CheckSquare, Square, Trash, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, PlayCircle, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,8 @@ type Project = {
   remarks: string | null;
   _count: { tasks: number; buildings: number };
   validation: ValidationStatus;
+  buildings: { id: string; designation: string; name: string; archDrawingsReceived: boolean }[];
+  setupChecklist: { contractReceived: string | null } | null;
 };
 
 function ValidationDots({ validation }: { validation: ValidationStatus }) {
@@ -699,6 +701,9 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                             <PlayCircle className="size-4 text-blue-500 hover:text-blue-700 cursor-pointer" />
                           </Link>
                         )}
+                        {(project.setupChecklist?.contractReceived === 'no' || (project.buildings ?? []).some(b => !b.archDrawingsReceived)) && (
+                          <AlertTriangle className="size-4 text-red-500" title="Contract or arch drawings unresolved" />
+                        )}
                       </div>
                     </TableCell>
                     {!hideFinancialData && (
@@ -773,6 +778,11 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                       >
                         {project.status}
                       </Badge>
+                      {(project.setupChecklist?.contractReceived === 'no' || (project.buildings ?? []).some(b => !b.archDrawingsReceived)) && (
+                        <span title="Contract or arch drawings unresolved">
+                          <AlertTriangle className="size-4 text-red-500" />
+                        </span>
+                      )}
                     </div>
                     <CardTitle className="text-lg truncate">{project.name}</CardTitle>
                   </div>

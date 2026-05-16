@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SuccessDialog } from '@/components/ui/success-dialog';
-import { ArrowLeft, ArrowRight, Check, Wand2, Plus, Trash2, Upload, Calendar } from 'lucide-react';
+import { CustomerCombobox } from '@/components/ui/customer-combobox';
+import { ArrowLeft, ArrowRight, Check, Wand2, Plus, Trash2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { STRUCTURE_TYPES, SAUDI_CITIES, EMPTY_CHECKLIST, type ProjectChecklistAnswers, type ChecklistAnswer } from '@/lib/project-constants';
 
 type Building = {
   id: string;
@@ -77,6 +79,16 @@ type CoatingCoat = {
   coatName: string;
   microns: string;
   ralNumber: string;
+};
+
+type WizardCoatingSystem = {
+  id: string;
+  name: string;
+  appliesToAll: boolean;
+  buildingIds: string[];
+  coats: CoatingCoat[];
+  isGalvanized: boolean;
+  galvanizationMicrons: string;
 };
 
 type PaymentTerm = {
@@ -187,6 +199,8 @@ export default function ProjectSetupWizard() {
   const [projectNumber, setProjectNumber] = useState('');
   const [projectName, setProjectName] = useState('');
   const [clientName, setClientName] = useState('');
+  const [structureType, setStructureType] = useState('');
+  const [projectLocation, setProjectLocation] = useState('');
   const [projectManagerId, setProjectManagerId] = useState('');
   const [salesEngineerId, setSalesEngineerId] = useState('');
   const [operationsManagerId, setOperationsManagerId] = useState('');
@@ -198,7 +212,7 @@ export default function ProjectSetupWizard() {
   const [scopeOfWork, setScopeOfWork] = useState<ScopeItem[]>(
     SCOPE_OPTIONS.map(opt => ({ ...opt, checked: false }))
   );
-  const [managers, setManagers] = useState<Array<{ id: string; name: string }>>([]);
+  const [managers, setManagers] = useState<Array<{ id: string; name: string; position?: string | null }>>([]);
 
   // Step 2: Buildings
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -208,28 +222,30 @@ export default function ProjectSetupWizard() {
 
   // Step 3: Scope Schedules (legacy - kept for compatibility)
   const [scopeSchedules, setScopeSchedules] = useState<ScopeSchedule[]>([]);
-  
-  // Step 3: Stage Durations (new)
+
+  // Step 5: Stage Durations
   const [stageDurations, setStageDurations] = useState<StageDuration[]>([
     { stage: 'engineering', label: 'Engineering', durationWeeksMin: 0, durationWeeksMax: 0 },
     { stage: 'operations', label: 'Operations', durationWeeksMin: 0, durationWeeksMax: 0 },
     { stage: 'site', label: 'Site', durationWeeksMin: 0, durationWeeksMax: 0 },
   ]);
-  
-  // Step 4: Coating System
-  const [coatingCoats, setCoatingCoats] = useState<CoatingCoat[]>([]);
-  const [isGalvanized, setIsGalvanized] = useState(false);
 
-  // Step 5: Payment Terms
+  // Step 6: Coating Systems (multiple)
+  const [coatingSystems, setCoatingSystems] = useState<WizardCoatingSystem[]>([]);
+
+  // Step 7: Payment Terms
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
 
-  // Step 6: Technical Specs
+  // Step 8: Project Checklist
+  const [checklistData, setChecklistData] = useState<ProjectChecklistAnswers>({ ...EMPTY_CHECKLIST });
+
+  // Step 9: Technical Specs
   const [cranesIncluded, setCranesIncluded] = useState(false);
   const [surveyorIncluded, setSurveyorIncluded] = useState(false);
   const [thirdPartyRequired, setThirdPartyRequired] = useState(false);
   const [thirdPartyResponsibility, setThirdPartyResponsibility] = useState<'our' | 'customer'>('our');
 
-  // Step 7: Upload Parts (handled separately)
+  // Step 10: Upload Parts (handled separately)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   // Success dialog state
@@ -265,6 +281,8 @@ export default function ProjectSetupWizard() {
         if (project.contractDate) setContractDate(project.contractDate.split('T')[0]);
         if (project.downPaymentDate) setDownPaymentDate(project.downPaymentDate.split('T')[0]);
         if (project.contractValue) setContractValue(String(project.contractValue));
+        if (project.structureType) setStructureType(project.structureType);
+        if (project.projectLocation) setProjectLocation(project.projectLocation);
 
         // Restore wizard state from remarks (draft saves)
         let sowRestoredFromRemarks = false;
@@ -276,8 +294,10 @@ export default function ProjectSetupWizard() {
               if (d.scopeOfWork) { setScopeOfWork(d.scopeOfWork); sowRestoredFromRemarks = true; }
               if (d.stageDurations) setStageDurations(d.stageDurations);
               if (d.paymentTerms) setPaymentTerms(d.paymentTerms);
-              if (d.coatingCoats) setCoatingCoats(d.coatingCoats);
-              if (d.isGalvanized !== undefined) setIsGalvanized(d.isGalvanized);
+              if (d.coatingSystems) setCoatingSystems(d.coatingSystems);
+              if (d.checklistData) setChecklistData(d.checklistData);
+              if (d.structureType) setStructureType(d.structureType);
+              if (d.projectLocation) setProjectLocation(d.projectLocation);
               if (d.cranesIncluded !== undefined) setCranesIncluded(d.cranesIncluded);
               if (d.surveyorIncluded !== undefined) setSurveyorIncluded(d.surveyorIncluded);
               if (d.thirdPartyRequired !== undefined) setThirdPartyRequired(d.thirdPartyRequired);
@@ -340,16 +360,13 @@ export default function ProjectSetupWizard() {
 
   const fetchManagers = async () => {
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('/api/users?forAssignment=true');
       if (response.ok) {
         const data = await response.json();
-        const projectManagers = data.filter((user: any) => 
-          ['CEO', 'Admin', 'Manager'].includes(user.role?.name)
-        );
-        setManagers(projectManagers);
+        setManagers(data);
       }
-    } catch (error) {
-      console.error('Error fetching managers:', error);
+    } catch {
+      // silently ignore fetch errors on mount
     }
   };
 
@@ -642,28 +659,31 @@ export default function ProjectSetupWizard() {
       case 2:
         return buildings.length > 0 && buildings.every(b => b.name && b.designation);
       case 3:
-        // Each building must have at least the steel scope
         return buildings.every(b => hasScopeType(b.id, 'steel'));
       case 4:
-        return true; // Activities step — optional, defaults are pre-filled
-      case 5:
-        // At least one visible stage should have duration filled
+        return true;
+      case 5: {
         const visibleStages = stageDurations.filter(stage => {
           const stageScopes = STAGE_SCOPES[stage.stage] || [];
           return scopeOfWork.some(s => s.checked && stageScopes.includes(s.id));
         });
         return visibleStages.length === 0 || visibleStages.some(s => s.durationWeeksMin > 0 || s.durationWeeksMax > 0);
+      }
       case 6:
-        return coatingCoats.length > 0 && coatingCoats.every(c => c.coatName);
-      case 7:
-        // Payment terms validation: total should be 100% if any terms are added
-        if (paymentTerms.length === 0) return true; // Optional
+        return coatingSystems.length > 0 && coatingSystems.every(
+          cs => cs.coats.length > 0 && cs.coats.every(c => c.coatName)
+        );
+      case 7: {
+        if (paymentTerms.length === 0) return true;
         const total = getTotalPaymentPercentage();
         return paymentTerms.every(t => t.percentage && t.description) && Math.abs(total - 100) < 0.01;
+      }
       case 8:
-        return true; // Technical specs - optional step
+        return true; // Checklist — optional
       case 9:
-        return true; // Upload parts - optional step
+        return true; // Technical specs — optional
+      case 10:
+        return true; // Upload — optional
       default:
         return false;
     }
@@ -671,7 +691,6 @@ export default function ProjectSetupWizard() {
 
   const nextStep = () => {
     if (currentStep === 2) {
-      // Ensure all buildings have a Steel scope before going to scope definition
       ensureSteelScopes();
     }
     if (validateStep()) {
@@ -684,6 +703,72 @@ export default function ProjectSetupWizard() {
       });
     }
   };
+
+  // ── Coating System helpers (Step 6) ───────────────────────────────
+  const addCoatingSystem = () => {
+    const newSystem: WizardCoatingSystem = {
+      id: `cs-${Date.now()}`,
+      name: '',
+      appliesToAll: true,
+      buildingIds: [],
+      coats: [{ id: `coat-${Date.now()}`, coatName: '', microns: '', ralNumber: '' }],
+      isGalvanized: false,
+      galvanizationMicrons: '',
+    };
+    setCoatingSystems(prev => [...prev, newSystem]);
+  };
+
+  const removeCoatingSystem = (csId: string) => {
+    setCoatingSystems(prev => prev.filter(cs => cs.id !== csId));
+  };
+
+  const updateCoatingSystem = (csId: string, field: keyof WizardCoatingSystem, value: unknown) => {
+    setCoatingSystems(prev =>
+      prev.map(cs => cs.id === csId ? { ...cs, [field]: value } : cs)
+    );
+  };
+
+  const addCoatToSystem = (csId: string) => {
+    setCoatingSystems(prev =>
+      prev.map(cs =>
+        cs.id === csId
+          ? { ...cs, coats: [...cs.coats, { id: `coat-${Date.now()}`, coatName: '', microns: '', ralNumber: '' }] }
+          : cs
+      )
+    );
+  };
+
+  const removeCoatFromSystem = (csId: string, coatId: string) => {
+    setCoatingSystems(prev =>
+      prev.map(cs =>
+        cs.id === csId ? { ...cs, coats: cs.coats.filter(c => c.id !== coatId) } : cs
+      )
+    );
+  };
+
+  const updateCoatInSystem = (csId: string, coatId: string, field: keyof CoatingCoat, value: string) => {
+    setCoatingSystems(prev =>
+      prev.map(cs =>
+        cs.id === csId
+          ? { ...cs, coats: cs.coats.map(c => c.id === coatId ? { ...c, [field]: value } : c) }
+          : cs
+      )
+    );
+  };
+
+  const getBuildingsForSystem = (csId: string): string[] => {
+    const usedInOthers = new Set(
+      coatingSystems.filter(cs => cs.id !== csId && !cs.appliesToAll).flatMap(cs => cs.buildingIds)
+    );
+    return buildings.map(b => b.id).filter(id => !usedInOthers.has(id));
+  };
+
+  // ── Checklist helpers (Step 8) ────────────────────────────────────
+  const updateChecklist = (field: keyof ProjectChecklistAnswers, value: ChecklistAnswer | string) => {
+    setChecklistData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const hasErectionScope = scopeOfWork.find(s => s.id === 'erection')?.checked ?? false;
 
   const prevStep = () => {
     setCurrentStep(currentStep - 1);
@@ -699,8 +784,10 @@ export default function ProjectSetupWizard() {
         scopeOfWork: scopeOfWork,
         stageDurations: stageDurations,
         paymentTerms: paymentTerms,
-        coatingCoats: coatingCoats,
-        isGalvanized: isGalvanized,
+        coatingSystems: coatingSystems,
+        checklistData: checklistData,
+        structureType: structureType,
+        projectLocation: projectLocation,
         cranesIncluded: cranesIncluded,
         surveyorIncluded: surveyorIncluded,
         thirdPartyRequired: thirdPartyRequired,
@@ -718,6 +805,8 @@ export default function ProjectSetupWizard() {
         contractDate: contractDate || null,
         downPaymentDate: downPaymentDate || null,
         contractValue: contractValue ? parseFloat(contractValue) : null,
+        structureType: structureType || null,
+        projectLocation: projectLocation || null,
         scopeOfWork: generateScopeText(),
         remarks: JSON.stringify({ __wizardDraft: true, step: currentStep, data: wizardState }),
       };
@@ -764,14 +853,8 @@ export default function ProjectSetupWizard() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // Generate coating system description
-      const coatingSystemText = coatingCoats.map((coat, idx) => 
-        `Coat ${idx + 1}: ${coat.coatName}${coat.microns ? ` (${coat.microns} microns)` : ''}${coat.ralNumber ? ` - ${coat.ralNumber}` : ''}`
-      ).join('\n');
-
       // Map payment terms to project's fixed payment fields
-      // Store percentage separately from amount, description in milestone field
-      const paymentFieldsMap: Record<string, any> = {};
+      const paymentFieldsMap: Record<string, unknown> = {};
       
       paymentTerms.forEach((term, index) => {
         const percentage = parseFloat(term.percentage) || 0;
@@ -792,24 +875,20 @@ export default function ProjectSetupWizard() {
         }
       });
 
-      // Map coating coats to project's fixed paint coat fields
-      const coatingFieldsMap: Record<string, any> = {};
-      
-      coatingCoats.forEach((coat, index) => {
-        const coatNum = index + 1;
-        if (coatNum <= 4) {
-          // Include RAL number in coat name if provided
-          const coatName = coat.ralNumber 
-            ? `${coat.coatName} (${coat.ralNumber})`
-            : coat.coatName;
-          coatingFieldsMap[`paintCoat${coatNum}`] = coatName;
-          coatingFieldsMap[`paintCoat${coatNum}Microns`] = coat.microns ? parseInt(coat.microns) : null;
-        }
-        // Store first RAL number as topCoatRalNumber
-        if (index === 0 && coat.ralNumber) {
-          coatingFieldsMap.topCoatRalNumber = coat.ralNumber;
-        }
-      });
+      // Map first coating system's coats to legacy paint coat fields for backward compat
+      const coatingFieldsMap: Record<string, unknown> = {};
+      const firstSystem = coatingSystems[0];
+      if (firstSystem) {
+        firstSystem.coats.forEach((coat, index) => {
+          const coatNum = index + 1;
+          if (coatNum <= 4) {
+            const coatName = coat.ralNumber ? `${coat.coatName} (${coat.ralNumber})` : coat.coatName;
+            coatingFieldsMap[`paintCoat${coatNum}`] = coatName;
+            coatingFieldsMap[`paintCoat${coatNum}Microns`] = coat.microns ? parseInt(coat.microns) : null;
+          }
+          if (index === 0 && coat.ralNumber) coatingFieldsMap.topCoatRalNumber = coat.ralNumber;
+        });
+      }
 
       // Map stage durations to project fields
       const engineeringStage = stageDurations.find(s => s.stage === 'engineering');
@@ -820,8 +899,8 @@ export default function ProjectSetupWizard() {
       if (draftProjectId) {
         try {
           await fetch(`/api/projects/${draftProjectId}`, { method: 'DELETE' });
-        } catch (e) {
-          console.warn('Could not delete draft project:', e);
+        } catch {
+          // non-critical — proceed anyway
         }
       }
 
@@ -839,9 +918,10 @@ export default function ProjectSetupWizard() {
         downPaymentDate: downPaymentDate || null,
         contractValue: contractValue ? parseFloat(contractValue) : null,
         scopeOfWork: generateScopeText(),
-        galvanized: isGalvanized,
-        coatingSystem: coatingSystemText,
-        // Technical specs from Step 6
+        structureType: structureType || null,
+        projectLocation: projectLocation || null,
+        galvanized: coatingSystems.some(cs => cs.isGalvanized),
+        // Technical specs from Step 9
         cranesIncluded,
         surveyorOurScope: surveyorIncluded,
         thirdPartyRequired,
@@ -853,9 +933,7 @@ export default function ProjectSetupWizard() {
         operationsWeeksMax: operationsStage?.durationWeeksMax || null,
         siteWeeksMin: siteStage?.durationWeeksMin || null,
         siteWeeksMax: siteStage?.durationWeeksMax || null,
-        // Include payment terms mapped to fixed fields
         ...paymentFieldsMap,
-        // Include coating coats mapped to fixed fields
         ...coatingFieldsMap,
       };
 
@@ -1019,6 +1097,40 @@ export default function ProjectSetupWizard() {
       }
 
       // Handle file upload if present
+      // Create coating systems
+      if (coatingSystems.length > 0) {
+        const csPayload = coatingSystems.map((cs, idx) => ({
+          name: cs.name || null,
+          appliesToAll: cs.appliesToAll,
+          buildingIds: cs.appliesToAll
+            ? []
+            : cs.buildingIds.map(tempId => createdBuildings[tempId] || tempId).filter(Boolean),
+          coats: cs.coats.map(c => ({ coatName: c.coatName, microns: c.microns, ralNumber: c.ralNumber })),
+          isGalvanized: cs.isGalvanized,
+          galvanizationMicrons: cs.galvanizationMicrons ? parseInt(cs.galvanizationMicrons) : null,
+          sortOrder: idx,
+        }));
+        await fetch(`/api/projects/${project.id}/coating-systems`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(csPayload),
+        });
+      }
+
+      // Save checklist
+      const checklistPayload = {
+        contractReceived: checklistData.contractReceived,
+        answers: checklistData,
+        notifications: Object.fromEntries(
+          Object.entries(checklistData).filter(([k]) => k.endsWith('Notify')).map(([k, v]) => [k, v])
+        ),
+      };
+      await fetch(`/api/projects/${project.id}/checklist`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(checklistPayload),
+      });
+
       if (uploadedFile) {
         const formData = new FormData();
         formData.append('file', uploadedFile);
@@ -1031,12 +1143,11 @@ export default function ProjectSetupWizard() {
       }
 
       const buildingCount = buildings.length;
-      const coatingCount = coatingCoats.length;
+      const coatingSystemCount = coatingSystems.length;
 
-      setSuccessMessage(`Project created successfully!\n\n✓ ${buildingCount} building(s) added\n✓ ${totalScopesCreated} scope(s) defined\n✓ ${totalActivitiesCreated} activities configured\n✓ ${coatingCount} coating coat(s) specified`);
+      setSuccessMessage(`Project created successfully!\n\n✓ ${buildingCount} building(s) added\n✓ ${totalScopesCreated} scope(s) defined\n✓ ${totalActivitiesCreated} activities configured\n✓ ${coatingSystemCount} coating system(s) defined`);
       setShowSuccessDialog(true);
     } catch (error) {
-      console.error('Error creating project:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setSuccessMessage(`Failed to create project:\n\n${errorMessage}`);
       setShowSuccessDialog(true);
@@ -1059,13 +1170,16 @@ export default function ProjectSetupWizard() {
     'Duration',
     'Coating',
     'Payment',
+    'Checklist',
     'Tech Specs',
     'Upload',
   ];
 
+  const TOTAL_STEPS = 10;
+
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center mb-8 flex-wrap gap-y-2">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((step, idx) => (
+      {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((step, idx) => (
         <div key={step} className="flex items-center">
           <div className="flex flex-col items-center">
             <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
@@ -1081,7 +1195,7 @@ export default function ProjectSetupWizard() {
               {STEP_LABELS[step - 1]}
             </span>
           </div>
-          {idx < 8 && (
+          {idx < TOTAL_STEPS - 1 && (
             <div className={`w-6 h-1 mx-1 mb-5 ${
               currentStep > step ? 'bg-green-500' : 'bg-gray-200'
             }`} />
@@ -1101,7 +1215,7 @@ export default function ProjectSetupWizard() {
             Project Setup Wizard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Step {currentStep} of 9
+            Step {currentStep} of {TOTAL_STEPS}
           </p>
         </div>
         <Link href="/projects">
@@ -1113,6 +1227,27 @@ export default function ProjectSetupWizard() {
       </div>
 
       {renderStepIndicator()}
+
+      {/* Top navigation (mirrors bottom) */}
+      <div className="flex justify-between mb-2">
+        <Button variant="outline" onClick={prevStep} disabled={currentStep === 1} size="sm">
+          <ArrowLeft className="mr-1 h-3 w-3" /> Previous
+        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleSaveAsDraft} disabled={loading || !projectNumber} size="sm" title="Save progress as draft">
+            Save as Draft
+          </Button>
+          {currentStep < TOTAL_STEPS ? (
+            <Button onClick={nextStep} size="sm">
+              Next <ArrowRight className="ml-1 h-3 w-3" />
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={loading} size="sm">
+              {loading ? 'Creating...' : 'Create Project'} <Check className="ml-1 h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Step 1: Project Details */}
       {currentStep === 1 && (
@@ -1142,16 +1277,45 @@ export default function ProjectSetupWizard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <CustomerCombobox
+                label="Customer Name"
+                required
+                defaultValue={clientName}
+                onSelect={setClientName}
+                placeholder="Search customers..."
+              />
               <div className="space-y-2">
-                <Label htmlFor="clientName">Client Name *</Label>
-                <Input
-                  id="clientName"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="e.g., ABC Corporation"
-                />
+                <Label htmlFor="structureType">Structure Type</Label>
+                <select
+                  id="structureType"
+                  value={structureType}
+                  onChange={(e) => setStructureType(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border bg-background"
+                >
+                  <option value="">Select structure type</option>
+                  {STRUCTURE_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectLocation">Project Location</Label>
+                <select
+                  id="projectLocation"
+                  value={projectLocation}
+                  onChange={(e) => setProjectLocation(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border bg-background"
+                >
+                  <option value="">Select city</option>
+                  {SAUDI_CITIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="projectManager">Project Manager *</Label>
                 <select
@@ -1160,10 +1324,10 @@ export default function ProjectSetupWizard() {
                   onChange={(e) => setProjectManagerId(e.target.value)}
                   className="w-full h-10 px-3 rounded-md border bg-background"
                 >
-                  <option value="">Select Manager</option>
+                  <option value="">Select a manager</option>
                   {managers.map((manager) => (
                     <option key={manager.id} value={manager.id}>
-                      {manager.name}
+                      {manager.name}{manager.position ? ` (${manager.position})` : ''}
                     </option>
                   ))}
                 </select>
@@ -1176,10 +1340,10 @@ export default function ProjectSetupWizard() {
                   onChange={(e) => setSalesEngineerId(e.target.value)}
                   className="w-full h-10 px-3 rounded-md border bg-background"
                 >
-                  <option value="">Select Sales Engineer</option>
+                  <option value="">Select a sales engineer</option>
                   {managers.map((manager) => (
                     <option key={manager.id} value={manager.id}>
-                      {manager.name}
+                      {manager.name}{manager.position ? ` (${manager.position})` : ''}
                     </option>
                   ))}
                 </select>
@@ -1192,10 +1356,10 @@ export default function ProjectSetupWizard() {
                   onChange={(e) => setOperationsManagerId(e.target.value)}
                   className="w-full h-10 px-3 rounded-md border bg-background"
                 >
-                  <option value="">Select Operations Manager</option>
+                  <option value="">Select an operations manager</option>
                   {managers.map((manager) => (
                     <option key={manager.id} value={manager.id}>
-                      {manager.name}
+                      {manager.name}{manager.position ? ` (${manager.position})` : ''}
                     </option>
                   ))}
                 </select>
@@ -1773,66 +1937,163 @@ export default function ProjectSetupWizard() {
 
       {/* Step 6: Coating System */}
       {currentStep === 6 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Coating System</span>
-              <Button onClick={addCoatingCoat} size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Coat
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {coatingCoats.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No coating coats added yet. Click "Add Coat" to start.</p>
-              </div>
-            ) : (
-              coatingCoats.map((coat, idx) => (
-                <div key={coat.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">Coat {idx + 1}</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeCoatingCoat(coat.id)}
-                    >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Coating Systems</h2>
+            <Button onClick={addCoatingSystem} size="sm">
+              <Plus className="mr-2 h-4 w-4" /> Add Coating System
+            </Button>
+          </div>
+          {coatingSystems.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                No coating systems added. Click &quot;Add Coating System&quot; to start.
+              </CardContent>
+            </Card>
+          )}
+          {coatingSystems.map((cs, csIdx) => {
+            const availableBuildings = getBuildingsForSystem(cs.id);
+            return (
+              <Card key={cs.id}>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <Input
+                      className="max-w-xs text-sm font-medium"
+                      value={cs.name}
+                      onChange={(e) => updateCoatingSystem(cs.id, 'name', e.target.value)}
+                      placeholder={`Coating System ${csIdx + 1}`}
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => removeCoatingSystem(cs.id)}>
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Applicable buildings toggle */}
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <input
+                      type="checkbox"
+                      id={`appliesToAll-${cs.id}`}
+                      checked={cs.appliesToAll}
+                      onChange={(e) => updateCoatingSystem(cs.id, 'appliesToAll', e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor={`appliesToAll-${cs.id}`} className="text-sm font-medium cursor-pointer">
+                      Applicable to all buildings
+                    </label>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  {!cs.appliesToAll && (
                     <div className="space-y-2">
-                      <Label>Coat Name *</Label>
-                      <Input
-                        value={coat.coatName}
-                        onChange={(e) => updateCoatingCoat(coat.id, 'coatName', e.target.value)}
-                        placeholder="e.g., Hot-Dip Galvanization"
-                      />
+                      <Label className="text-sm">Select Buildings</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {availableBuildings.map((bId) => {
+                          const b = buildings.find(b => b.id === bId);
+                          if (!b) return null;
+                          return (
+                            <div key={bId} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                id={`cs-${cs.id}-b-${bId}`}
+                                checked={cs.buildingIds.includes(bId)}
+                                onChange={(e) => {
+                                  const updated = e.target.checked
+                                    ? [...cs.buildingIds, bId]
+                                    : cs.buildingIds.filter(id => id !== bId);
+                                  updateCoatingSystem(cs.id, 'buildingIds', updated);
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <label htmlFor={`cs-${cs.id}-b-${bId}`} className="text-sm cursor-pointer">
+                                {b.designation} — {b.name}
+                              </label>
+                            </div>
+                          );
+                        })}
+                        {availableBuildings.length === 0 && (
+                          <p className="text-sm text-muted-foreground col-span-2">All buildings are assigned to other systems</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Microns</Label>
+                  )}
+
+                  {/* Galvanization */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id={`galvanized-${cs.id}`}
+                      checked={cs.isGalvanized}
+                      onChange={(e) => updateCoatingSystem(cs.id, 'isGalvanized', e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor={`galvanized-${cs.id}`} className="text-sm font-medium cursor-pointer">Galvanized</label>
+                    {cs.isGalvanized && (
                       <Input
                         type="number"
-                        value={coat.microns}
-                        onChange={(e) => updateCoatingCoat(coat.id, 'microns', e.target.value)}
-                        placeholder="e.g., 85"
+                        value={cs.galvanizationMicrons}
+                        onChange={(e) => updateCoatingSystem(cs.id, 'galvanizationMicrons', e.target.value)}
+                        placeholder="Microns"
+                        className="max-w-28 text-sm"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>RAL Number</Label>
-                      <Input
-                        value={coat.ralNumber}
-                        onChange={(e) => updateCoatingCoat(coat.id, 'ralNumber', e.target.value)}
-                        placeholder="e.g., RAL 7035"
-                      />
-                    </div>
+                    )}
                   </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+
+                  {/* Coats */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Paint Coats</Label>
+                      <Button size="sm" variant="outline" onClick={() => addCoatToSystem(cs.id)}>
+                        <Plus className="mr-1 h-3 w-3" /> Add Coat
+                      </Button>
+                    </div>
+                    {cs.coats.map((coat, idx) => (
+                      <div key={coat.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">Coat {idx + 1}</span>
+                          <Button variant="ghost" size="sm" onClick={() => removeCoatFromSystem(cs.id, coat.id)}>
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Coat Name *</Label>
+                            <Input
+                              value={coat.coatName}
+                              onChange={(e) => updateCoatInSystem(cs.id, coat.id, 'coatName', e.target.value)}
+                              placeholder="e.g., Hot-Dip Galvanization"
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Microns</Label>
+                            <Input
+                              type="number"
+                              value={coat.microns}
+                              onChange={(e) => updateCoatInSystem(cs.id, coat.id, 'microns', e.target.value)}
+                              placeholder="e.g., 85"
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">RAL Number</Label>
+                            <Input
+                              value={coat.ralNumber}
+                              onChange={(e) => updateCoatInSystem(cs.id, coat.id, 'ralNumber', e.target.value)}
+                              placeholder="e.g., RAL 7035"
+                              className="text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {cs.coats.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-2">No coats added yet</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Step 7: Payment Terms */}
@@ -1913,8 +2174,320 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 8: Technical Specs */}
+      {/* Step 8: Project Checklist */}
       {currentStep === 8 && (
+        <div className="space-y-4">
+          <div className="text-center mb-4">
+            <h2 className="text-xl font-bold">Project Checklist</h2>
+            <p className="text-sm text-muted-foreground">Complete all applicable items before project execution</p>
+          </div>
+
+          {/* Section 1: Kickoff */}
+          <Card className="border-blue-200">
+            <CardHeader className="bg-blue-50 rounded-t-lg pb-3">
+              <CardTitle className="text-blue-800 text-base">1. Kickoff</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {/* Contract received */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Did you get a Signed &amp; Stamped Contract?</Label>
+                <div className="flex gap-4">
+                  {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input type="radio" name="contractReceived" value={opt ?? ''} checked={checklistData.contractReceived === opt}
+                        onChange={() => updateChecklist('contractReceived', opt)} className="w-4 h-4" />
+                      {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                    </label>
+                  ))}
+                </div>
+                {checklistData.contractReceived === 'yes' && (
+                  <Input value={checklistData.contractReceivedNotify} onChange={(e) => updateChecklist('contractReceivedNotify', e.target.value)}
+                    placeholder="Notify: who should be informed?" className="text-sm mt-1" />
+                )}
+                {checklistData.contractReceived === 'no' && (
+                  <p className="text-xs text-red-600 font-medium">⚠ Project will be marked as requiring attention until contract is received</p>
+                )}
+              </div>
+              {/* Arch drawings per building */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Did you receive approved architectural drawings?</Label>
+                <p className="text-xs text-muted-foreground">Track per building:</p>
+                {buildings.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">Add buildings in Step 2 first</p>
+                ) : (
+                  <div className="space-y-2 ml-2">
+                    {buildings.map(b => {
+                      const key = `archDraw_${b.id}` as keyof ProjectChecklistAnswers;
+                      return (
+                        <div key={b.id} className="flex items-center gap-4">
+                          <span className="text-sm font-medium w-32 shrink-0">{b.designation} — {b.name}</span>
+                          {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                            <label key={opt} className="flex items-center gap-1 cursor-pointer text-sm">
+                              <input type="radio" name={`archDraw-${b.id}`} value={opt ?? ''} checked={(checklistData as Record<string, unknown>)[key] === opt}
+                                onChange={() => updateChecklist(key, opt)} className="w-3.5 h-3.5" />
+                              {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                            </label>
+                          ))}
+                          {(checklistData as Record<string, unknown>)[key] === 'no' && (
+                            <span className="text-xs text-red-600">⚠ Required</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 2: Financial */}
+          <Card className="border-green-200">
+            <CardHeader className="bg-green-50 rounded-t-lg pb-3">
+              <CardTitle className="text-green-800 text-base">2. Financial Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {[
+                { field: 'advancePaymentReceived' as const, notifyField: 'advancePaymentNotify' as const, label: 'Has the advance payment been received?' },
+                { field: 'pendingFinancialApprovals' as const, notifyField: 'pendingFinancialApprovalsNotify' as const, label: 'Are there any pending financial approvals?' },
+              ].map(({ field, notifyField, label }) => (
+                <div key={field} className="space-y-2">
+                  <Label className="text-sm font-medium">{label}</Label>
+                  <div className="flex gap-4">
+                    {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                      <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                        <input type="radio" name={field} value={opt ?? ''} checked={checklistData[field] === opt}
+                          onChange={() => updateChecklist(field, opt)} className="w-4 h-4" />
+                        {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                      </label>
+                    ))}
+                  </div>
+                  {checklistData[field] === 'yes' && (
+                    <Input value={checklistData[notifyField]} onChange={(e) => updateChecklist(notifyField, e.target.value)}
+                      placeholder="Notify: who should be informed?" className="text-sm mt-1" />
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Section 3: ERP */}
+          <Card className="border-purple-200">
+            <CardHeader className="bg-purple-50 rounded-t-lg pb-3">
+              <CardTitle className="text-purple-800 text-base">3. ERP</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Did you create SO?</Label>
+                <div className="flex gap-4">
+                  {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input type="radio" name="soCreated" value={opt ?? ''} checked={checklistData.soCreated === opt}
+                        onChange={() => updateChecklist('soCreated', opt)} className="w-4 h-4" />
+                      {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                    </label>
+                  ))}
+                </div>
+                {checklistData.soCreated === 'yes' && (
+                  <Input value={checklistData.soCreatedNotify} onChange={(e) => updateChecklist('soCreatedNotify', e.target.value)}
+                    placeholder="Notify: who should be informed?" className="text-sm mt-1" />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 4: Scope */}
+          <Card className="border-orange-200">
+            <CardHeader className="bg-orange-50 rounded-t-lg pb-3">
+              <CardTitle className="text-orange-800 text-base">4. Scope</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {[
+                { field: 'exclusionsOrLimitations' as const, notifyField: 'exclusionsNotify' as const, label: 'Are there any exclusions or limitations to the project scope?' },
+                { field: 'materialSubmittalRequired' as const, notifyField: 'materialSubmittalNotify' as const, label: 'Do we need to provide material submittal?' },
+              ].map(({ field, notifyField, label }) => (
+                <div key={field} className="space-y-2">
+                  <Label className="text-sm font-medium">{label}</Label>
+                  <div className="flex gap-4">
+                    {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                      <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                        <input type="radio" name={field} value={opt ?? ''} checked={checklistData[field] === opt}
+                          onChange={() => updateChecklist(field, opt)} className="w-4 h-4" />
+                        {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                      </label>
+                    ))}
+                  </div>
+                  {checklistData[field] === 'yes' && (
+                    <Input value={checklistData[notifyField]} onChange={(e) => updateChecklist(notifyField, e.target.value)}
+                      placeholder="Notify: who should be informed?" className="text-sm mt-1" />
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Section 5: Client Details */}
+          <Card className="border-teal-200">
+            <CardHeader className="bg-teal-50 rounded-t-lg pb-3">
+              <CardTitle className="text-teal-800 text-base">5. Client Details and Communication</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Consultant Name</Label>
+                <Input value={checklistData.consultantName} onChange={(e) => updateChecklist('consultantName', e.target.value)} placeholder="Consultant name" className="text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Client&apos;s PM Contact Details (phone, email, WhatsApp)</Label>
+                <Textarea value={checklistData.clientPMContact} onChange={(e) => updateChecklist('clientPMContact', e.target.value)} placeholder="Phone: +966..., Email: ..., WhatsApp: ..." className="text-sm" rows={2} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Are there any specific client requirements or preferences?</Label>
+                <div className="flex gap-4">
+                  {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input type="radio" name="specificClientRequirements" value={opt ?? ''} checked={checklistData.specificClientRequirements === opt}
+                        onChange={() => updateChecklist('specificClientRequirements', opt)} className="w-4 h-4" />
+                      {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                    </label>
+                  ))}
+                </div>
+                {checklistData.specificClientRequirements === 'yes' && (
+                  <Input value={checklistData.clientRequirementsNotify} onChange={(e) => updateChecklist('clientRequirementsNotify', e.target.value)}
+                    placeholder="Notify: who should be informed?" className="text-sm mt-1" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Communication Protocols (email only, matrix, etc.)</Label>
+                <Input value={checklistData.communicationProtocols} onChange={(e) => updateChecklist('communicationProtocols', e.target.value)} placeholder="e.g., Email only, formal communication matrix" className="text-sm" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 6: Timeline */}
+          <Card className="border-amber-200">
+            <CardHeader className="bg-amber-50 rounded-t-lg pb-3">
+              <CardTitle className="text-amber-800 text-base">6. Timeline and Deadlines</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">What are the project&apos;s critical deadlines?</Label>
+                <Textarea value={checklistData.criticalDeadlines} onChange={(e) => updateChecklist('criticalDeadlines', e.target.value)} placeholder="List critical dates and milestones" className="text-sm" rows={2} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Is there a preliminary project schedule?</Label>
+                <div className="flex gap-4">
+                  {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input type="radio" name="preliminaryScheduleAvailable" value={opt ?? ''} checked={checklistData.preliminaryScheduleAvailable === opt}
+                        onChange={() => updateChecklist('preliminaryScheduleAvailable', opt)} className="w-4 h-4" />
+                      {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                    </label>
+                  ))}
+                </div>
+                {checklistData.preliminaryScheduleAvailable === 'yes' && (
+                  <Input value={checklistData.scheduleNotify} onChange={(e) => updateChecklist('scheduleNotify', e.target.value)}
+                    placeholder="Notify: who should be informed?" className="text-sm mt-1" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Project Priority</Label>
+                <Input value={checklistData.projectPriority} onChange={(e) => updateChecklist('projectPriority', e.target.value)} placeholder="e.g., High, Medium, Low" className="text-sm" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 7: Design & Technical */}
+          <Card className="border-indigo-200">
+            <CardHeader className="bg-indigo-50 rounded-t-lg pb-3">
+              <CardTitle className="text-indigo-800 text-base">7. Design and Technical Requirements</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {[
+                { field: 'ifcAvailable' as const, notifyField: 'ifcNotify' as const, label: 'IFC available?' },
+                { field: 'contractRequirementsForDesign' as const, notifyField: 'contractRequirementsNotify' as const, label: 'Did you include any requirements in the contract that the design or procurement team should be aware of before starting?' },
+                { field: 'pendingApprovalsFromSales' as const, notifyField: 'salesApprovalsNotify' as const, label: 'Any pending approvals or clarifications from the sales team?' },
+              ].map(({ field, notifyField, label }) => (
+                <div key={field} className="space-y-2">
+                  <Label className="text-sm font-medium">{label}</Label>
+                  <div className="flex gap-4">
+                    {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                      <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                        <input type="radio" name={field} value={opt ?? ''} checked={checklistData[field] === opt}
+                          onChange={() => updateChecklist(field, opt)} className="w-4 h-4" />
+                        {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                      </label>
+                    ))}
+                  </div>
+                  {checklistData[field] === 'yes' && (
+                    <Input value={checklistData[notifyField]} onChange={(e) => updateChecklist(notifyField, e.target.value)}
+                      placeholder="Notify: who should be informed?" className="text-sm mt-1" />
+                  )}
+                </div>
+              ))}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Design Status</Label>
+                <Input value={checklistData.designStatus} onChange={(e) => updateChecklist('designStatus', e.target.value)} placeholder="e.g., Verification, new design, design ready" className="text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Have you provided/handed any preliminary documents to the client?</Label>
+                <div className="flex gap-4">
+                  {(['yes', 'no', 'na'] as ChecklistAnswer[]).map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input type="radio" name="preliminaryDocsProvided" value={opt ?? ''} checked={checklistData.preliminaryDocsProvided === opt}
+                        onChange={() => updateChecklist('preliminaryDocsProvided', opt)} className="w-4 h-4" />
+                      {opt === 'yes' ? 'Yes' : opt === 'no' ? 'No' : 'N/A'}
+                    </label>
+                  ))}
+                </div>
+                {checklistData.preliminaryDocsProvided === 'yes' && (
+                  <div className="space-y-1 mt-1">
+                    <Input value={checklistData.preliminaryDocsDetails} onChange={(e) => updateChecklist('preliminaryDocsDetails', e.target.value)}
+                      placeholder="List files provided" className="text-sm" />
+                    <Input value={checklistData.preliminaryDocsNotify} onChange={(e) => updateChecklist('preliminaryDocsNotify', e.target.value)}
+                      placeholder="Notify: who should be informed?" className="text-sm" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Any additional documents requested by the client?</Label>
+                <Input value={checklistData.additionalDocsRequested} onChange={(e) => updateChecklist('additionalDocsRequested', e.target.value)} placeholder="List requested documents" className="text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Unresolved client discussions or negotiations</Label>
+                <Textarea value={checklistData.unresolvedClientDiscussions} onChange={(e) => updateChecklist('unresolvedClientDiscussions', e.target.value)} placeholder="Describe any open items" className="text-sm" rows={2} />
+              </div>
+              {structureType === 'PEB' && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">PEB Welding Type</Label>
+                  <select value={checklistData.pebWeldingType} onChange={(e) => updateChecklist('pebWeldingType', e.target.value)}
+                    className="w-full h-10 px-3 rounded-md border bg-background text-sm">
+                    <option value="">Select welding type</option>
+                    <option value="single">Single Side Welding</option>
+                    <option value="double">Double Side Welding</option>
+                  </select>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Section 8: Site Responsibilities (conditional on erection scope) */}
+          {hasErectionScope && (
+            <Card className="border-red-200">
+              <CardHeader className="bg-red-50 rounded-t-lg pb-3">
+                <CardTitle className="text-red-800 text-base">8. Site Responsibilities</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Type of test at site (pull out test, etc.)?</Label>
+                  <Input value={checklistData.siteTestTypes} onChange={(e) => updateChecklist('siteTestTypes', e.target.value)} placeholder="e.g., Pull out test, torque test" className="text-sm" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Step 9: Technical Specs */}
+      {currentStep === 9 && (
         <Card>
           <CardHeader>
             <CardTitle>Technical Specifications</CardTitle>
@@ -2050,8 +2623,8 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Step 9: Upload Parts */}
-      {currentStep === 9 && (
+      {/* Step 10: Upload Parts */}
+      {currentStep === 10 && (
         <Card>
           <CardHeader>
             <CardTitle>Upload Assembly Parts (Optional)</CardTitle>
@@ -2087,13 +2660,9 @@ export default function ProjectSetupWizard() {
         </Card>
       )}
 
-      {/* Navigation Buttons */}
+      {/* Navigation Buttons (bottom) */}
       <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={prevStep}
-          disabled={currentStep === 1}
-        >
+        <Button variant="outline" onClick={prevStep} disabled={currentStep === 1}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Previous
         </Button>
@@ -2106,7 +2675,7 @@ export default function ProjectSetupWizard() {
           >
             Save as Draft
           </Button>
-          {currentStep < 9 ? (
+          {currentStep < TOTAL_STEPS ? (
             <Button onClick={nextStep}>
               Next
               <ArrowRight className="ml-2 h-4 w-4" />

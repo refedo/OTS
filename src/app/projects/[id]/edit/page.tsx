@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { checkPermission } from '@/lib/permission-checker';
+import { checkPermission, getCurrentUserPermissions } from '@/lib/permission-checker';
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Edit Project',
@@ -80,24 +80,26 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
     actualEndDate: projectData.actualEndDate ? projectData.actualEndDate.toISOString() : null,
   };
 
-  // Fetch users for dropdowns
-  const [projectManagers, salesEngineers] = await Promise.all([
+  // Fetch all active users for dropdowns (no role filter)
+  const [allActiveUsers, userPermissions, editUser] = await Promise.all([
     db.user.findMany({
-      where: { 
-        status: 'active',
-        role: { name: { in: ['Admin', 'Manager'] } }
-      },
+      where: { status: 'active' },
       select: { id: true, name: true, position: true },
       orderBy: { name: 'asc' },
     }),
-    db.user.findMany({
-      where: { 
-        status: 'active',
-      },
-      select: { id: true, name: true, position: true },
-      orderBy: { name: 'asc' },
+    getCurrentUserPermissions(),
+    db.user.findUnique({
+      where: { id: session.sub },
+      select: { isAdmin: true, role: { select: { name: true } } },
     }),
   ]);
+  const projectManagers = allActiveUsers;
+  const salesEngineers = allActiveUsers;
+
+  const canViewFinancials =
+    editUser?.isAdmin ||
+    ['Admin', 'CEO'].includes(editUser?.role?.name ?? '') ||
+    userPermissions.includes('financial.view');
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -128,10 +130,11 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ProjectFormFull 
+            <ProjectFormFull
               project={project}
               projectManagers={projectManagers}
               salesEngineers={salesEngineers}
+              canViewFinancials={canViewFinancials ?? false}
             />
           </CardContent>
         </Card>
