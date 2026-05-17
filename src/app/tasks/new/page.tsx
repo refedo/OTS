@@ -10,7 +10,11 @@ export const metadata: Metadata = {
 };
 
 
-export default async function NewTaskPage() {
+export default async function NewTaskPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
   const cookieName = process.env.COOKIE_NAME || 'ots_session';
   const store = await cookies();
   const token = store.get(cookieName)?.value;
@@ -26,13 +30,15 @@ export default async function NewTaskPage() {
     redirect('/tasks');
   }
 
+  const params = await searchParams;
+
   // Fetch all active users for assignment dropdown
   const users = await prisma.user.findMany({
     where: { status: 'active' },
-    select: { 
-      id: true, 
-      name: true, 
-      email: true, 
+    select: {
+      id: true,
+      name: true,
+      email: true,
       position: true,
       departmentId: true,
       department: { select: { id: true, name: true } }
@@ -59,6 +65,21 @@ export default async function NewTaskPage() {
     orderBy: { name: 'asc' },
   });
 
+  // Pre-populate from URL params (e.g., when continuing from quick task dialog)
+  const initialTask = (params.title || params.projectId || params.scopeOfWorkId || params.assignedToId)
+    ? {
+        id: '',
+        title: params.title || '',
+        description: null,
+        assignedToId: params.assignedToId || null,
+        projectId: params.projectId || null,
+        priority: params.priority || 'Medium',
+        status: 'Pending',
+        dueDate: params.dueDate || null,
+        scopeOfWorkId: params.scopeOfWorkId || null,
+      }
+    : undefined;
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="container mx-auto p-6 lg:p-8 max-w-3xl max-lg:pt-20">
@@ -69,7 +90,7 @@ export default async function NewTaskPage() {
           </p>
         </div>
 
-        <TaskForm users={users} projects={projects} buildings={buildings} departments={departments} />
+        <TaskForm users={users} projects={projects} buildings={buildings} departments={departments} task={initialTask} />
       </div>
     </main>
   );

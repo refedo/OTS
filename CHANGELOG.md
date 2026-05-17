@@ -7,16 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [23.6.0] - 2026-05-08
+## [23.6.0] - 2026-05-17
 
-### Added
-- 
+### QC Material Receipts, Task Scope, MIR Numbering
 
-### Changed
-- 
+#### Added
+- **QC: PO receipt status in lookup dialog** — When searching for a PO to create a new MIR, each result now shows whether a receipt already exists. Finalized receipts (Inspected/Approved/Rejected) show a status badge and disable the Select button ("Already Received"). In-progress receipts show an "In Progress" badge with a "Resume" button that opens the existing MIR directly.
+- **QC: Delete MIR** — Admin and CEO roles can now force-delete a Material Inspection Receipt (including all items and attachments) via a trash icon in the MIR list with a confirmation dialog.
+- **Tasks: Scope in Quick Task dialog** — The Quick Task dialog (Ctrl+Shift+T) now includes Project and Scope of Work dropdowns. Scope loads automatically when a project is selected. Both fields are passed to the API on submit and pre-filled when continuing to the full form.
+- **Tasks: Scope without building in full form** — The Scope of Work dropdown in the full task form now appears whenever a project is selected, even without selecting a building. Scopes are fetched at the project level, so all scopes across the project's buildings are available.
 
-### Fixed
-- 
+#### Changed
+- **QC: MIR numbering — global serial, no monthly reset** — MIR sequence numbers (MIR-YYMM-NNNN) are now a global, ever-increasing serial. Previously the counter reset each month; now it never resets. All existing MIR records have been renumbered sequentially by creation date (YYMM stays accurate per record).
+- **Tasks: Full form pre-fill from Quick Task** — Continuing from Quick Task to the full form now pre-fills title, priority, due date, assigned user, project, and scope.
+
+#### Fixed
+- **QC: Select.Item empty value crash** — Fixed a React runtime error (`A <Select.Item /> must have a value prop that is not an empty string`) in the MIR "Create Receipt" dialog's project dropdown. This was causing the form to crash and the page to appear to reload after selecting a PO.
 
 ---
 

@@ -100,14 +100,17 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
 
   const subActivities = selectedMainActivity ? (SUB_ACTIVITIES[selectedMainActivity] ?? []) : [];
 
-  // Fetch scopes for the selected building
+  // Fetch scopes for the selected building, or project if no building selected
   useEffect(() => {
-    if (!selectedBuildingId) {
+    if (!selectedBuildingId && !selectedProjectId) {
       setAvailableScopes([]);
       setSelectedScopeId('');
       return;
     }
-    fetch(`/api/scope-of-work?buildingId=${selectedBuildingId}`)
+    const url = selectedBuildingId
+      ? `/api/scope-of-work?buildingId=${selectedBuildingId}`
+      : `/api/scope-of-work?projectId=${selectedProjectId}`;
+    fetch(url)
       .then((r) => r.ok ? r.json() : { scopes: [] })
       .then((json) => {
         const scopes: ScopeOption[] = (json.scopes ?? []).map((s: { id: string; scopeType: string; scopeLabel: string }) => ({
@@ -116,7 +119,6 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
           scopeLabel: s.scopeLabel,
         }));
         setAvailableScopes(scopes);
-        // Auto-select steel if it's the only scope and no scope already selected
         if (scopes.length === 1) {
           setSelectedScopeId(scopes[0].id);
         } else if (!scopes.find((s) => s.id === selectedScopeId)) {
@@ -126,7 +128,7 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
       })
       .catch(() => setAvailableScopes([]));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBuildingId]);
+  }, [selectedBuildingId, selectedProjectId]);
 
   const predecessorKey = selectedSubActivity ? SUB_ACTIVITY_DEPENDENCIES[selectedSubActivity] : undefined;
   const predecessorLabel = predecessorKey && selectedMainActivity
@@ -334,8 +336,8 @@ export function TaskForm({ users, projects, buildings = [], departments = [], ta
               )}
             </div>
 
-            {/* Scope of Work (shown when building is selected and scopes exist) */}
-            {selectedBuildingId && availableScopes.length > 0 && (
+            {/* Scope of Work (shown when project or building is selected and scopes exist) */}
+            {(selectedBuildingId || selectedProjectId) && availableScopes.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="scopeOfWorkId">Scope of Work</Label>
                 <select
