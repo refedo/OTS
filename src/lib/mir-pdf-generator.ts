@@ -43,8 +43,35 @@ function fmt(d: string | Date | null | undefined): string {
   });
 }
 
+function fmtTs(d: string | Date | null | undefined): string {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-SA-u-ca-gregory', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function val(v: string | null | undefined): string {
   return v || '—';
+}
+
+function shortId(id: string | null | undefined): string {
+  if (!id) return '—';
+  return id.replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+// Status → { label, rgb }
+function workflowStatusStyle(ws: string): { label: string; r: number; g: number; b: number } {
+  switch (ws) {
+    case 'Approved':  return { label: 'APPROVED',  r: 21,  g: 128, b: 61  };
+    case 'Rejected':  return { label: 'REJECTED',  r: 185, g: 28,  b: 28  };
+    case 'Inspected': return { label: 'INSPECTED', r: 180, g: 120, b: 0   };
+    case 'Reviewed':  return { label: 'REVIEWED',  r: 30,  g: 100, b: 200 };
+    default:          return { label: 'DRAFT',     r: 100, g: 100, b: 100 };
+  }
 }
 
 export type MIRItemPDFData = {
@@ -80,9 +107,21 @@ export type MIRPDFData = {
   supplierName?: string | null;
   receiptDate: string | Date;
   status: string;
+  workflowStatus: string;
   projectNumber?: string | null;
   projectName?: string | null;
   inspectorName: string;
+  inspectorId?: string | null;
+  submittedAt?: string | Date | null;
+  submittedByName?: string | null;
+  submittedById?: string | null;
+  reviewedAt?: string | Date | null;
+  reviewedByName?: string | null;
+  reviewedById?: string | null;
+  approvedAt?: string | Date | null;
+  approvedByName?: string | null;
+  approvedById?: string | null;
+  approvalNotes?: string | null;
   remarks?: string | null;
   items: MIRItemPDFData[];
 };
@@ -97,29 +136,37 @@ export async function generateMIRPDF(data: MIRPDFData): Promise<void> {
     `${data.receiptNumber} · ${FORM_REF}`
   );
 
-  // Receipt metadata
+  // Workflow status badge (inline with metadata)
+  const ws = workflowStatusStyle(data.workflowStatus || 'Draft');
+
+  // Receipt metadata (4 columns - compact row layout)
   pdf.addInfoGrid(
     {
-      'MIR No.': data.receiptNumber,
+      'MIR No.':      data.receiptNumber,
       'PO Reference': data.dolibarrPoRef,
-      'Supplier': val(data.supplierName),
+      'Supplier':     val(data.supplierName),
       'Receipt Date': fmt(data.receiptDate),
-      'Project': data.projectNumber ? `${data.projectNumber}${data.projectName ? ' — ' + data.projectName : ''}` : '—',
-      'Inspector': data.inspectorName,
-      'Status': data.status,
-      'Remarks': val(data.remarks),
+      'Project':      data.projectNumber
+        ? `${data.projectNumber}${data.projectName ? ' — ' + data.projectName : ''}`
+        : '—',
+      'Inspector':    data.inspectorName,
+      'Status':       data.status,
+      'Remarks':      val(data.remarks),
     },
     4
   );
 
+  // Workflow status pill — rendered as a colored label row
+  pdf.addWorkflowStatusBadge(ws.label, ws.r, ws.g, ws.b);
+
   pdf.addDivider();
 
-  // Items summary table
+  // ── Items Summary table ──────────────────────────────────────────────────
   pdf.addSectionHeader('Items Summary');
 
   const summaryHeaders = ['Item', 'Spec', 'Ordered', 'Received', 'Accepted', 'Rejected', 'MTC', 'Result'];
   const summaryRows = data.items.map(item => [
-    item.itemName.length > 35 ? item.itemName.slice(0, 33) + '…' : item.itemName,
+    item.itemName,
     val(item.specification),
     `${item.orderedQty} ${item.unit}`,
     `${item.receivedQty} ${item.unit}`,
@@ -129,9 +176,15 @@ export async function generateMIRPDF(data: MIRPDFData): Promise<void> {
     item.inspectionResult,
   ]);
 
-  pdf.addTable(summaryHeaders, summaryRows, { alternateRows: true });
+  // Explicit column widths to prevent overflow in landscape (267mm available)
+  pdf.addTableWithColumnWidths(
+    summaryHeaders,
+    summaryRows,
+    [85, 20, 22, 22, 22, 22, 28, 22],
+    { alternateRows: true }
+  );
 
-  // Detailed inspection per item
+  // ── Detailed inspection per item ─────────────────────────────────────────
   const hasAnyDetail = data.items.some(
     i =>
       i.surfaceCondition ||
@@ -158,60 +211,83 @@ export async function generateMIRPDF(data: MIRPDFData): Promise<void> {
 
       if (!hasDetail) continue;
 
-      pdf.addInfoGrid(
-        {
-          'Item': item.itemName.length > 50 ? item.itemName.slice(0, 48) + '…' : item.itemName,
-          'Result': item.inspectionResult,
-          'Surface': val(item.surfaceCondition),
-          'Dimension': val(item.dimensionStatus),
-          'Thickness': item.thicknessStatus ? `${item.thicknessStatus}${item.thicknessMeasured ? ' (' + item.thicknessMeasured + ')' : ''}` : '—',
-          'Specs': val(item.specsCompliance),
-          'Heat No.': val(item.heatNumber),
-          'Batch No.': val(item.batchNumber),
-          'MTC': item.mtcAvailable ? (item.mtcNumber || 'Yes') : 'No',
-          'MTC Uploaded': item.mtcAvailable ? 'Yes' : 'No',
-        },
-        5
-      );
+      const thicknessStr = item.thicknessStatus
+        ? `${item.thicknessStatus}${item.thicknessMeasured ? ' — ' + item.thicknessMeasured : ''}`
+        : '—';
 
-      if (item.inspectionResult === 'Rejected' && item.rejectionReason) {
+      const detailRows: string[][] = [
+        ['Surface',   val(item.surfaceCondition), 'Dimension', val(item.dimensionStatus)],
+        ['Thickness', thicknessStr,               'Specs',     val(item.specsCompliance)],
+        ['Heat No.',  val(item.heatNumber),        'Batch No.', val(item.batchNumber)],
+        ['MTC Cert.', item.mtcAvailable ? (item.mtcNumber || 'Yes') : 'No',
+         'MTC Uploaded', item.mtcAvailable ? 'Yes' : 'No'],
+      ];
+
+      pdf.addItemInspectionTable(item.itemName, item.inspectionResult, detailRows);
+
+      if (item.inspectionResult === 'Rejected' && item.rejectionReason)
         pdf.addLabelValue('Rejection Reason', item.rejectionReason);
-      }
-
-      if (item.surfaceNotes) pdf.addLabelValue('Surface Notes', item.surfaceNotes);
-      if (item.dimensionNotes) pdf.addLabelValue('Dimension Notes', item.dimensionNotes);
-      if (item.thicknessNotes) pdf.addLabelValue('Thickness Notes', item.thicknessNotes);
-      if (item.specsNotes) pdf.addLabelValue('Specs Notes', item.specsNotes);
-      if (item.remarks) pdf.addLabelValue('Item Remarks', item.remarks);
+      if (item.surfaceNotes)    pdf.addLabelValue('Surface Notes',   item.surfaceNotes);
+      if (item.dimensionNotes)  pdf.addLabelValue('Dimension Notes', item.dimensionNotes);
+      if (item.thicknessNotes)  pdf.addLabelValue('Thickness Notes', item.thicknessNotes);
+      if (item.specsNotes)      pdf.addLabelValue('Specs Notes',     item.specsNotes);
+      if (item.remarks)         pdf.addLabelValue('Item Remarks',    item.remarks);
 
       pdf.addDivider();
     }
   }
 
-  // Rejected items summary
+  // ── Rejected items summary ───────────────────────────────────────────────
   const rejectedItems = data.items.filter(i => i.inspectionResult === 'Rejected');
   if (rejectedItems.length > 0) {
     pdf.addSectionHeader('Rejected Items Summary');
 
     const rejHeaders = ['Item', 'Rejected Qty', 'Surface', 'Dimension', 'Thickness', 'Specs', 'Rejection Reason'];
     const rejRows = rejectedItems.map(item => [
-      item.itemName.length > 30 ? item.itemName.slice(0, 28) + '…' : item.itemName,
+      item.itemName,
       `${item.rejectedQty} ${item.unit}`,
       val(item.surfaceCondition),
       val(item.dimensionStatus),
-      item.thicknessStatus ? `${item.thicknessStatus}${item.thicknessMeasured ? ' (' + item.thicknessMeasured + ')' : ''}` : '—',
+      item.thicknessStatus
+        ? `${item.thicknessStatus}${item.thicknessMeasured ? ' (' + item.thicknessMeasured + ')' : ''}`
+        : '—',
       val(item.specsCompliance),
       val(item.rejectionReason),
     ]);
 
-    pdf.addTable(rejHeaders, rejRows, { alternateRows: true });
+    pdf.addTableWithColumnWidths(
+      rejHeaders,
+      rejRows,
+      [70, 24, 28, 28, 28, 28, 55],
+      { alternateRows: true }
+    );
   }
 
-  // Signature section
+  // ── Approval notes ───────────────────────────────────────────────────────
+  if (data.approvalNotes) {
+    pdf.addLabelValue('Approval Notes', data.approvalNotes);
+  }
+
+  // ── Signatures ───────────────────────────────────────────────────────────
   pdf.addSignatureSection([
-    { label: 'Inspector / Receiver', name: data.inspectorName, date: fmt(data.receiptDate) },
-    { label: 'QC Review', name: '', date: '' },
-    { label: 'Approved By', name: '', date: '' },
+    {
+      label:     'Inspector / Receiver',
+      name:      data.inspectorName,
+      userId:    shortId(data.inspectorId),
+      timestamp: data.submittedAt ? fmtTs(data.submittedAt) : fmt(data.receiptDate),
+    },
+    {
+      label:     'QC Reviewer',
+      name:      data.reviewedByName ?? '',
+      userId:    data.reviewedById ? shortId(data.reviewedById) : undefined,
+      timestamp: data.reviewedAt ? fmtTs(data.reviewedAt) : undefined,
+    },
+    {
+      label:     'Approved By',
+      name:      data.approvedByName ?? '',
+      userId:    data.approvedById ? shortId(data.approvedById) : undefined,
+      timestamp: data.approvedAt ? fmtTs(data.approvedAt) : undefined,
+    },
   ]);
 
   pdf.addFooter(FOOTER_BASE, FORM_REF);

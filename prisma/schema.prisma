@@ -141,8 +141,11 @@ model User {
   assignedNCRs               NCRReport[]                           @relation("NCRAssignedTo")
   closedNCRs                 NCRReport[]                           @relation("NCRClosedBy")
   materialInspections        MaterialInspection[]                  @relation("MaterialInspector")
-  materialInspectionReceipts MaterialInspectionReceipt[]           @relation("MIRInspector")
-  mirAttachments             MaterialInspectionReceiptAttachment[] @relation("MIRAttachmentUploader")
+  materialInspectionReceipts          MaterialInspectionReceipt[]           @relation("MIRInspector")
+  mirSubmittedReceipts                MaterialInspectionReceipt[]           @relation("MIRSubmittedBy")
+  mirReviewedReceipts                 MaterialInspectionReceipt[]           @relation("MIRReviewedBy")
+  mirApprovedReceipts                 MaterialInspectionReceipt[]           @relation("MIRApprovedBy")
+  mirAttachments                      MaterialInspectionReceiptAttachment[] @relation("MIRAttachmentUploader")
   weldingInspections         WeldingInspection[]                   @relation("WeldingInspector")
   dimensionalInspections     DimensionalInspection[]               @relation("DimensionalInspector")
   ndtInspections             NDTInspection[]                       @relation("NDTInspector")
@@ -1630,14 +1633,28 @@ model MaterialInspectionReceipt {
   // Overall status
   status String @default("In Progress")
 
+  // Workflow
+  workflowStatus String    @default("Draft") @map("workflow_status")
+  submittedAt    DateTime? @map("submitted_at")
+  submittedById  String?   @map("submitted_by_id") @db.Char(36)
+  reviewedAt     DateTime? @map("reviewed_at")
+  reviewedById   String?   @map("reviewed_by_id") @db.Char(36)
+  reviewNotes    String?   @map("review_notes") @db.Text
+  approvedAt     DateTime? @map("approved_at")
+  approvedById   String?   @map("approved_by_id") @db.Char(36)
+  approvalNotes  String?   @map("approval_notes") @db.Text
+
   // Notes
   remarks String? @db.Text
 
   // Relations
-  project     Project?                              @relation("MIRProject", fields: [projectId], references: [id], onDelete: SetNull)
-  inspector   User                                  @relation("MIRInspector", fields: [inspectorId], references: [id])
-  items       MaterialInspectionReceiptItem[]
-  attachments MaterialInspectionReceiptAttachment[]
+  project      Project?                              @relation("MIRProject", fields: [projectId], references: [id], onDelete: SetNull)
+  inspector    User                                  @relation("MIRInspector", fields: [inspectorId], references: [id])
+  submittedBy  User?                                 @relation("MIRSubmittedBy", fields: [submittedById], references: [id])
+  reviewedBy   User?                                 @relation("MIRReviewedBy", fields: [reviewedById], references: [id])
+  approvedBy   User?                                 @relation("MIRApprovedBy", fields: [approvedById], references: [id])
+  items        MaterialInspectionReceiptItem[]
+  attachments  MaterialInspectionReceiptAttachment[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1647,6 +1664,7 @@ model MaterialInspectionReceipt {
   @@index([inspectorId])
   @@index([receiptDate])
   @@index([status])
+  @@index([workflowStatus])
   @@map("material_inspection_receipts")
 }
 
