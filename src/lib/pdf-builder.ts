@@ -214,6 +214,8 @@ export class PDFReportBuilder {
 
     const entries = Object.entries(data);
     const columnWidth = (this.pageWidth - 2 * this.margin) / columns;
+    const labelWidth = 32;
+    const valueMaxWidth = columnWidth - labelWidth - 3;
     const lineHeight = 6;
     let col = 0;
     let row = 0;
@@ -229,7 +231,8 @@ export class PDFReportBuilder {
 
       this.doc.setFont(this.font, 'normal');
       this.doc.setTextColor(this.theme.textColor);
-      this.doc.text(String(value), x + 35, y);
+      const lines = this.doc.splitTextToSize(String(value), valueMaxWidth);
+      this.doc.text(lines[0] as string, x + labelWidth, y);
 
       col++;
       if (col >= columns) {
@@ -239,6 +242,123 @@ export class PDFReportBuilder {
     });
 
     this.currentY += Math.ceil(entries.length / columns) * lineHeight + 5;
+  }
+
+  addItemInspectionTable(
+    itemName: string,
+    result: string,
+    rows: string[][],
+  ): void {
+    this.checkPageBreak(45);
+
+    const resultColors: Record<string, [number, number, number]> = {
+      Accepted: [22, 163, 74],
+      Rejected: [220, 38, 38],
+      Pending:  [107, 114, 128],
+    };
+    const resultColor = resultColors[result] ?? [107, 114, 128];
+
+    // Item header bar
+    this.doc.setFillColor(240, 242, 245);
+    this.doc.rect(this.margin, this.currentY, this.pageWidth - 2 * this.margin, 8, 'F');
+    this.doc.setDrawColor(200, 200, 200);
+    this.doc.setLineWidth(0.2);
+    this.doc.rect(this.margin, this.currentY, this.pageWidth - 2 * this.margin, 8);
+
+    // Left accent bar
+    this.doc.setFillColor(...resultColor);
+    this.doc.rect(this.margin, this.currentY, 2, 8, 'F');
+
+    this.doc.setFontSize(8.5);
+    this.doc.setFont(this.font, 'bold');
+    this.doc.setTextColor(this.theme.textColor);
+    const truncated = itemName.length > 90 ? itemName.slice(0, 88) + '…' : itemName;
+    this.doc.text(truncated, this.margin + 5, this.currentY + 5.5);
+
+    // Result badge on right
+    this.doc.setFontSize(8);
+    this.doc.setFont(this.font, 'bold');
+    this.doc.setTextColor(...resultColor);
+    this.doc.text(result, this.pageWidth - this.margin - 2, this.currentY + 5.5, { align: 'right' });
+
+    this.currentY += 9;
+
+    autoTable(this.doc, {
+      body: rows,
+      startY: this.currentY,
+      margin: { left: this.margin + 2, right: this.margin },
+      theme: 'plain',
+      columnStyles: {
+        0: { cellWidth: 28, fontStyle: 'bold', textColor: [80, 80, 80], fontSize: 7.5 },
+        1: { cellWidth: 'auto', fontSize: 7.5 },
+        2: { cellWidth: 28, fontStyle: 'bold', textColor: [80, 80, 80], fontSize: 7.5 },
+        3: { cellWidth: 'auto', fontSize: 7.5 },
+      },
+      bodyStyles: { cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 } },
+      alternateRowStyles: { fillColor: [250, 251, 252] },
+    });
+
+    this.currentY = (this.doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 3;
+  }
+
+  addWorkflowStatusBadge(label: string, r: number, g: number, b: number): void {
+    this.checkPageBreak(10);
+
+    const badgeW = 40;
+    const badgeH = 6;
+    const x = this.pageWidth - this.margin - badgeW;
+    const y = this.currentY - 3;
+
+    this.doc.setFillColor(r, g, b);
+    this.doc.roundedRect(x, y, badgeW, badgeH, 1, 1, 'F');
+    this.doc.setFont(this.font, 'bold');
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.text(label, x + badgeW / 2, y + 4.2, { align: 'center' });
+    this.doc.setTextColor(this.theme.textColor);
+    this.currentY += 4;
+  }
+
+  addTableWithColumnWidths(
+    headers: string[],
+    rows: (string | number)[][],
+    columnWidths: (number | 'auto')[],
+    options?: {
+      headerBg?: string;
+      headerText?: string;
+      alternateRows?: boolean;
+    }
+  ): void {
+    this.checkPageBreak(30);
+
+    const columnStyles: Record<number, { cellWidth: number | 'auto' }> = {};
+    columnWidths.forEach((w, i) => { columnStyles[i] = { cellWidth: w }; });
+
+    autoTable(this.doc, {
+      head: [headers],
+      body: rows,
+      startY: this.currentY,
+      margin: { left: this.margin, right: this.margin },
+      theme: 'grid',
+      headStyles: {
+        fillColor: options?.headerBg || this.theme.primaryColor,
+        textColor: options?.headerText || this.theme.headerText,
+        fontStyle: 'bold',
+        font: this.font,
+        fontSize: 8,
+      },
+      bodyStyles: {
+        fontSize: 7.5,
+        textColor: this.theme.textColor,
+        font: this.font,
+        cellPadding: 2,
+        overflow: 'linebreak',
+      },
+      columnStyles,
+      alternateRowStyles: options?.alternateRows ? { fillColor: [248, 249, 250] } : undefined,
+    });
+
+    this.currentY = (this.doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
   }
 
   addTable(
@@ -310,40 +430,49 @@ export class PDFReportBuilder {
   }
 
   addSignatureSection(
-    signatures: { label: string; name?: string; date?: string }[]
+    signatures: { label: string; name?: string; userId?: string; date?: string; timestamp?: string }[]
   ): void {
-    this.checkPageBreak(35);
+    this.checkPageBreak(42);
 
     const sigWidth = (this.pageWidth - 2 * this.margin) / signatures.length;
 
     signatures.forEach((sig, index) => {
       const x = this.margin + index * sigWidth;
 
+      // Label
       this.doc.setFontSize(8);
       this.doc.setFont(this.font, 'bold');
       this.doc.setTextColor(this.theme.textColor);
       this.doc.text(sig.label, x, this.currentY);
 
+      // Signature line
       this.doc.setLineWidth(0.3);
       this.doc.setDrawColor(150, 150, 150);
-      this.doc.line(x, this.currentY + 16, x + sigWidth - 8, this.currentY + 16);
+      this.doc.line(x, this.currentY + 18, x + sigWidth - 8, this.currentY + 18);
 
       if (sig.name) {
-        this.doc.setFont(this.font, 'normal');
-        this.doc.setFontSize(7.5);
-        this.doc.setTextColor(80, 80, 80);
-        this.doc.text(sig.name, x, this.currentY + 20);
+        this.doc.setFont(this.font, 'bold');
+        this.doc.setFontSize(8);
+        this.doc.setTextColor(60, 60, 60);
+        this.doc.text(sig.name, x, this.currentY + 22);
       }
 
-      if (sig.date) {
+      if (sig.userId) {
         this.doc.setFont(this.font, 'normal');
-        this.doc.setFontSize(7.5);
+        this.doc.setFontSize(7);
         this.doc.setTextColor(120, 120, 120);
-        this.doc.text(sig.date, x, this.currentY + 24);
+        this.doc.text(`ID: ${sig.userId}`, x, this.currentY + 27);
+      }
+
+      if (sig.timestamp || sig.date) {
+        this.doc.setFont(this.font, 'normal');
+        this.doc.setFontSize(7);
+        this.doc.setTextColor(140, 140, 140);
+        this.doc.text(sig.timestamp ?? sig.date ?? '', x, sig.userId ? this.currentY + 31 : this.currentY + 27);
       }
     });
 
-    this.currentY += 32;
+    this.currentY += 40;
   }
 
   // formRef: e.g. "HEXA-FRM-004 · Procedure: Hexa-ISP-004"

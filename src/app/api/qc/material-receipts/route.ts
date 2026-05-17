@@ -70,6 +70,15 @@ export async function GET(request: NextRequest) {
           inspector: {
             select: { id: true, name: true, email: true },
           },
+          submittedBy: {
+            select: { id: true, name: true },
+          },
+          reviewedBy: {
+            select: { id: true, name: true },
+          },
+          approvedBy: {
+            select: { id: true, name: true },
+          },
           items: {
             include: {
               attachments: {
@@ -124,6 +133,15 @@ export async function GET(request: NextRequest) {
         inspector: {
           select: { id: true, name: true, email: true },
         },
+        submittedBy: {
+          select: { id: true, name: true },
+        },
+        reviewedBy: {
+          select: { id: true, name: true },
+        },
+        approvedBy: {
+          select: { id: true, name: true },
+        },
         items: {
           select: {
             id: true,
@@ -134,6 +152,8 @@ export async function GET(request: NextRequest) {
             rejectedQty: true,
             unit: true,
             inspectionResult: true,
+            mtcAvailable: true,
+            mtcFilePath: true,
           },
         },
       },
@@ -287,12 +307,11 @@ export async function PATCH(request: NextRequest) {
       where: { id: receiptId },
       data: updateData,
       include: {
-        project: {
-          select: { id: true, projectNumber: true, name: true },
-        },
-        inspector: {
-          select: { id: true, name: true, email: true },
-        },
+        project: { select: { id: true, projectNumber: true, name: true } },
+        inspector: { select: { id: true, name: true, email: true } },
+        submittedBy: { select: { id: true, name: true } },
+        reviewedBy: { select: { id: true, name: true } },
+        approvedBy: { select: { id: true, name: true } },
         items: true,
       },
     });

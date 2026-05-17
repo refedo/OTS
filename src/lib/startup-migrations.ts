@@ -231,6 +231,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── Project wizard: arch drawings received flag on Building ───────────────
   'add_building_arch_drawings.sql',   // archDrawingsReceived BOOLEAN on Building
+
+  // ── v29.0.0 — MIR Workflow (Inspector → Reviewer → Approver) ─────────────
+  'v29_0_mir_workflow.sql',           // workflow_status + submission/review/approval timestamps on MIR
 ];
 
 /**

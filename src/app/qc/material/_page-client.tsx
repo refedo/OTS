@@ -24,6 +24,10 @@ import {
   Printer,
   AlertTriangle,
   CheckCheck,
+  Send,
+  ShieldCheck,
+  ShieldX,
+  ClipboardCheck,
 } from 'lucide-react';
 import {
   Dialog,
@@ -82,6 +86,19 @@ type MaterialReceipt = {
   projectId?: string;
   receiptDate: string;
   status: string;
+  workflowStatus: string;
+  submittedAt?: string;
+  submittedById?: string;
+  submittedBy?: { id: string; name: string } | null;
+  reviewedAt?: string;
+  reviewedById?: string;
+  reviewedBy?: { id: string; name: string } | null;
+  approvedAt?: string;
+  approvedById?: string;
+  approvedBy?: { id: string; name: string } | null;
+  approvalNotes?: string;
+  reviewNotes?: string;
+  remarks?: string;
   items: ReceiptItem[];
   project?: {
     id: string;
@@ -159,6 +176,14 @@ export default function MaterialInspectionReceiptPage() {
 
   // PDF generation
   const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  // Workflow actions
+  const [workflowDialog, setWorkflowDialog] = useState<{
+    action: 'submit' | 'review' | 'approve' | 'reject';
+    receipt: MaterialReceipt;
+  } | null>(null);
+  const [workflowNotes, setWorkflowNotes] = useState('');
+  const [processingWorkflow, setProcessingWorkflow] = useState(false);
 
   useEffect(() => {
     fetchReceipts();
@@ -423,9 +448,21 @@ export default function MaterialInspectionReceiptPage() {
         supplierName: fullReceipt.supplierName,
         receiptDate: fullReceipt.receiptDate,
         status: fullReceipt.status,
+        workflowStatus: fullReceipt.workflowStatus ?? 'Draft',
         projectNumber: fullReceipt.project?.projectNumber,
         projectName: fullReceipt.project?.name,
         inspectorName: fullReceipt.inspector.name,
+        inspectorId: fullReceipt.inspector.id,
+        submittedAt: fullReceipt.submittedAt,
+        submittedByName: fullReceipt.submittedBy?.name,
+        submittedById: fullReceipt.submittedById,
+        reviewedAt: fullReceipt.reviewedAt,
+        reviewedByName: fullReceipt.reviewedBy?.name,
+        reviewedById: fullReceipt.reviewedById,
+        approvedAt: fullReceipt.approvedAt,
+        approvedByName: fullReceipt.approvedBy?.name,
+        approvedById: fullReceipt.approvedById,
+        approvalNotes: fullReceipt.approvalNotes,
         remarks: fullReceipt.remarks,
         items: fullReceipt.items,
       });
@@ -433,6 +470,35 @@ export default function MaterialInspectionReceiptPage() {
       console.error('Error generating PDF:', error);
     } finally {
       setGeneratingPdf(false);
+    }
+  };
+
+  const handleWorkflowAction = async () => {
+    if (!workflowDialog) return;
+    setProcessingWorkflow(true);
+    try {
+      const res = await fetch('/api/qc/material-receipts/workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiptId: workflowDialog.receipt.id,
+          action: workflowDialog.action,
+          notes: workflowNotes || undefined,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setWorkflowDialog(null);
+        setWorkflowNotes('');
+        if (selectedReceipt?.id === workflowDialog.receipt.id) {
+          setSelectedReceipt(updated);
+        }
+        fetchReceipts();
+      }
+    } catch {
+      // silently handled
+    } finally {
+      setProcessingWorkflow(false);
     }
   };
 
@@ -454,12 +520,10 @@ export default function MaterialInspectionReceiptPage() {
 
   const stats = {
     total: receipts.length,
-    inProgress: receipts.filter(r => r.status === 'In Progress').length,
-    partiallyReceived: receipts.filter(r =>
-      r.status === 'Partially Received' || r.status === 'Partially Accepted'
-    ).length,
-    completed: receipts.filter(r => r.status === 'Received and Accepted').length,
-    rejected: receipts.filter(r => r.status === 'Rejected').length,
+    draft: receipts.filter(r => !r.workflowStatus || r.workflowStatus === 'Draft').length,
+    inspected: receipts.filter(r => r.workflowStatus === 'Inspected' || r.workflowStatus === 'Reviewed').length,
+    approved: receipts.filter(r => r.workflowStatus === 'Approved').length,
+    rejected: receipts.filter(r => r.workflowStatus === 'Rejected').length,
   };
 
   const getStatusBadge = (status: string) => {
@@ -483,6 +547,21 @@ export default function MaterialInspectionReceiptPage() {
     if (status === 'Rejected') return 'border-b bg-red-50/40 dark:bg-red-950/10 hover:bg-red-50/60';
     if (status === 'Received and Accepted') return 'border-b bg-green-50/20 dark:bg-green-950/10 hover:bg-muted/30';
     return 'border-b hover:bg-muted/50';
+  };
+
+  const getWorkflowBadge = (wfStatus: string) => {
+    switch (wfStatus) {
+      case 'Approved':
+        return <Badge className="bg-green-500/15 text-green-700 border border-green-300 whitespace-nowrap font-semibold"><ShieldCheck className="h-3 w-3 mr-1" /> Approved</Badge>;
+      case 'Rejected':
+        return <Badge className="bg-red-500/15 text-red-700 border border-red-300 whitespace-nowrap font-semibold"><ShieldX className="h-3 w-3 mr-1" /> Rejected</Badge>;
+      case 'Inspected':
+        return <Badge className="bg-amber-500/15 text-amber-700 border border-amber-300 whitespace-nowrap"><ClipboardCheck className="h-3 w-3 mr-1" /> Inspected</Badge>;
+      case 'Reviewed':
+        return <Badge className="bg-blue-500/15 text-blue-700 border border-blue-300 whitespace-nowrap"><ClipboardCheck className="h-3 w-3 mr-1" /> Reviewed</Badge>;
+      default:
+        return <Badge className="bg-gray-500/10 text-gray-600 whitespace-nowrap"><Clock className="h-3 w-3 mr-1" /> Draft</Badge>;
+    }
   };
 
   const getInspectionResultBadge = (result: string) => {
@@ -550,7 +629,7 @@ export default function MaterialInspectionReceiptPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -559,26 +638,20 @@ export default function MaterialInspectionReceiptPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-            <p className="text-xs text-muted-foreground">In Progress</p>
+            <div className="text-2xl font-bold text-gray-500">{stats.draft}</div>
+            <p className="text-xs text-muted-foreground">Draft / In Progress</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-amber-600">{stats.partiallyReceived}</div>
-            <p className="text-xs text-muted-foreground">Partial</p>
+            <div className="text-2xl font-bold text-amber-600">{stats.inspected}</div>
+            <p className="text-xs text-muted-foreground">Awaiting Approval</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-            <p className="text-xs text-muted-foreground">Received & Accepted</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-            <p className="text-xs text-muted-foreground">Rejected</p>
+            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+            <p className="text-xs text-muted-foreground">Fully Approved</p>
           </CardContent>
         </Card>
       </div>
@@ -629,6 +702,7 @@ export default function MaterialInspectionReceiptPage() {
                   <th className="text-left p-3 font-medium">Project</th>
                   <th className="text-left p-3 font-medium">Date</th>
                   <th className="text-left p-3 font-medium">Status</th>
+                  <th className="text-left p-3 font-medium">Workflow</th>
                   <th className="text-center p-3 font-medium">Items</th>
                   <th className="text-center p-3 font-medium" title="MTC Received & Uploaded">MTC</th>
                   <th className="text-center p-3 font-medium">Actions</th>
@@ -637,7 +711,7 @@ export default function MaterialInspectionReceiptPage() {
               <tbody>
                 {filteredReceipts.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center p-8 text-muted-foreground">
+                    <td colSpan={10} className="text-center p-8 text-muted-foreground">
                       No material receipts found
                     </td>
                   </tr>
@@ -650,6 +724,7 @@ export default function MaterialInspectionReceiptPage() {
                       <td className="p-3 text-sm font-mono">{receipt.project?.projectNumber || '—'}</td>
                       <td className="p-3 text-sm">{new Date(receipt.receiptDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
                       <td className="p-3">{getStatusBadge(receipt.status)}</td>
+                      <td className="p-3">{getWorkflowBadge(receipt.workflowStatus ?? 'Draft')}</td>
                       <td className="p-3 text-center">
                         <Badge variant="secondary">{receipt.items.length}</Badge>
                       </td>
@@ -899,6 +974,111 @@ export default function MaterialInspectionReceiptPage() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Receipt Date</p>
                   <p className="font-medium">{new Date(selectedReceipt.receiptDate).toLocaleDateString('en-SA-u-ca-gregory')}</p>
+                </div>
+              </div>
+
+              {/* Workflow Status Panel */}
+              <div className={`rounded-lg border p-4 ${
+                selectedReceipt.workflowStatus === 'Approved' ? 'border-green-200 bg-green-50/40 dark:bg-green-950/10' :
+                selectedReceipt.workflowStatus === 'Rejected' ? 'border-red-200 bg-red-50/40 dark:bg-red-950/10' :
+                (selectedReceipt.workflowStatus === 'Inspected' || selectedReceipt.workflowStatus === 'Reviewed') ? 'border-amber-200 bg-amber-50/40 dark:bg-amber-950/10' :
+                'border-muted bg-muted/30'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">Workflow</span>
+                    {getWorkflowBadge(selectedReceipt.workflowStatus ?? 'Draft')}
+                  </div>
+                  {/* Workflow action buttons */}
+                  <div className="flex gap-2">
+                    {(!selectedReceipt.workflowStatus || selectedReceipt.workflowStatus === 'Draft') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 border-amber-400 text-amber-700 hover:bg-amber-50"
+                        onClick={() => setWorkflowDialog({ action: 'submit', receipt: selectedReceipt })}
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        Finalize & Submit
+                      </Button>
+                    )}
+                    {selectedReceipt.workflowStatus === 'Inspected' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 border-blue-400 text-blue-700 hover:bg-blue-50"
+                        onClick={() => setWorkflowDialog({ action: 'review', receipt: selectedReceipt })}
+                      >
+                        <ClipboardCheck className="h-3.5 w-3.5" />
+                        Mark Reviewed
+                      </Button>
+                    )}
+                    {(selectedReceipt.workflowStatus === 'Inspected' || selectedReceipt.workflowStatus === 'Reviewed') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 border-green-400 text-green-700 hover:bg-green-50"
+                          onClick={() => setWorkflowDialog({ action: 'approve', receipt: selectedReceipt })}
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 border-red-400 text-red-700 hover:bg-red-50"
+                          onClick={() => setWorkflowDialog({ action: 'reject', receipt: selectedReceipt })}
+                        >
+                          <ShieldX className="h-3.5 w-3.5" />
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Workflow history signatures */}
+                <div className="grid grid-cols-3 gap-4 text-xs">
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">Inspector / Receiver</p>
+                    <p className="font-medium">{selectedReceipt.inspector.name}</p>
+                    <p className="text-muted-foreground font-mono">ID: {selectedReceipt.inspector.id.replace(/-/g,'').slice(0,8).toUpperCase()}</p>
+                    {selectedReceipt.submittedAt && (
+                      <p className="text-muted-foreground">{new Date(selectedReceipt.submittedAt).toLocaleString('en-SA-u-ca-gregory')}</p>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">QC Reviewer</p>
+                    {selectedReceipt.reviewedBy ? (
+                      <>
+                        <p className="font-medium">{selectedReceipt.reviewedBy.name}</p>
+                        <p className="text-muted-foreground font-mono">ID: {selectedReceipt.reviewedBy.id.replace(/-/g,'').slice(0,8).toUpperCase()}</p>
+                        {selectedReceipt.reviewedAt && (
+                          <p className="text-muted-foreground">{new Date(selectedReceipt.reviewedAt).toLocaleString('en-SA-u-ca-gregory')}</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground italic">Pending</p>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">Approved By</p>
+                    {selectedReceipt.approvedBy ? (
+                      <>
+                        <p className="font-medium">{selectedReceipt.approvedBy.name}</p>
+                        <p className="text-muted-foreground font-mono">ID: {selectedReceipt.approvedBy.id.replace(/-/g,'').slice(0,8).toUpperCase()}</p>
+                        {selectedReceipt.approvedAt && (
+                          <p className="text-muted-foreground">{new Date(selectedReceipt.approvedAt).toLocaleString('en-SA-u-ca-gregory')}</p>
+                        )}
+                        {selectedReceipt.approvalNotes && (
+                          <p className="text-muted-foreground italic">&quot;{selectedReceipt.approvalNotes}&quot;</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground italic">Pending</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1459,6 +1639,74 @@ export default function MaterialInspectionReceiptPage() {
                 )}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Workflow Action Dialog */}
+      {workflowDialog && (
+        <Dialog open={!!workflowDialog} onOpenChange={() => { setWorkflowDialog(null); setWorkflowNotes(''); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {workflowDialog.action === 'submit' && <><Send className="h-5 w-5 text-amber-600" /> Finalize &amp; Submit MIR</>}
+                {workflowDialog.action === 'review' && <><ClipboardCheck className="h-5 w-5 text-blue-600" /> Confirm QC Review</>}
+                {workflowDialog.action === 'approve' && <><ShieldCheck className="h-5 w-5 text-green-600" /> Approve MIR</>}
+                {workflowDialog.action === 'reject' && <><ShieldX className="h-5 w-5 text-red-600" /> Reject MIR</>}
+              </DialogTitle>
+              <DialogDescription>
+                {workflowDialog.receipt.receiptNumber} — {workflowDialog.receipt.dolibarrPoRef}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {workflowDialog.action === 'submit' && (
+                <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+                  This will finalize the MIR and send it for approval. All items must be inspected. This action cannot be undone.
+                </div>
+              )}
+              {(workflowDialog.action === 'approve' || workflowDialog.action === 'reject' || workflowDialog.action === 'review') && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="wfNotes">
+                    {workflowDialog.action === 'reject' ? 'Rejection Reason *' : 'Notes (optional)'}
+                  </Label>
+                  <Textarea
+                    id="wfNotes"
+                    placeholder={workflowDialog.action === 'reject' ? 'Explain why this MIR is being rejected...' : 'Add any notes or comments...'}
+                    rows={3}
+                    value={workflowNotes}
+                    onChange={(e) => setWorkflowNotes(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setWorkflowDialog(null); setWorkflowNotes(''); }} disabled={processingWorkflow}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleWorkflowAction}
+                disabled={processingWorkflow || (workflowDialog.action === 'reject' && !workflowNotes.trim())}
+                className={
+                  workflowDialog.action === 'approve' ? 'bg-green-600 hover:bg-green-700' :
+                  workflowDialog.action === 'reject' ? 'bg-red-600 hover:bg-red-700' :
+                  workflowDialog.action === 'submit' ? 'bg-amber-600 hover:bg-amber-700' :
+                  ''
+                }
+              >
+                {processingWorkflow ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                ) : (
+                  <>
+                    {workflowDialog.action === 'submit' && <><Send className="mr-2 h-4 w-4" />Submit for Approval</>}
+                    {workflowDialog.action === 'review' && <><ClipboardCheck className="mr-2 h-4 w-4" />Confirm Review</>}
+                    {workflowDialog.action === 'approve' && <><ShieldCheck className="mr-2 h-4 w-4" />Approve MIR</>}
+                    {workflowDialog.action === 'reject' && <><ShieldX className="mr-2 h-4 w-4" />Reject MIR</>}
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
