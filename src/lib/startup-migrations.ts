@@ -228,6 +228,9 @@ const STARTUP_MIGRATIONS = [
 
   // ── v27.0.0 — Verification step notes & per-party status ────────────────
   'v27_0_validation_step_notes.sql',  // stepNotes + status columns on ProjectValidation
+
+  // ── Project wizard: arch drawings received flag on Building ───────────────
+  'add_building_arch_drawings.sql',   // archDrawingsReceived BOOLEAN on Building
 ];
 
 /**
