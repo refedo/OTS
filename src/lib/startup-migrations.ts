@@ -225,6 +225,9 @@ const STARTUP_MIGRATIONS = [
   'add_project_coating_systems.sql',  // ProjectCoatingSystem + ProjectCoatingSystemBuilding tables
   'add_project_setup_checklist.sql',  // ProjectSetupChecklist table (wizard kickoff Q&A)
   'v26_0_project_validation.sql',     // operationsManagerId on Project; ProjectValidation table; notification enum update
+
+  // ── v27.0.0 — Verification step notes & per-party status ────────────────
+  'v27_0_validation_step_notes.sql',  // stepNotes + status columns on ProjectValidation
 ];
 
 /**

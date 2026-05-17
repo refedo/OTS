@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { EntityTimeline } from '@/components/events/EntityTimeline';
 import {
   ArrowLeft,
@@ -26,6 +28,10 @@ import {
   CheckCircle2,
   Circle,
   ShieldCheck,
+  AlertTriangle,
+  CheckCheck,
+  AlertCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -272,49 +278,296 @@ function ScopeEditRow({ scope, onSaved }: { scope: any; onSaved: () => void }) {
 
 // ── Project Validation Panel ──────────────────────────────────────────────
 
+const WIZARD_STEPS = [
+  { step: 1, label: 'Project Info' },
+  { step: 2, label: 'Buildings' },
+  { step: 3, label: 'Scope Definition' },
+  { step: 4, label: 'Activities' },
+  { step: 5, label: 'Duration' },
+  { step: 6, label: 'Coating System' },
+  { step: 7, label: 'Payment Terms' },
+  { step: 8, label: 'Project Checklist' },
+  { step: 9, label: 'Technical Specs' },
+  { step: 10, label: 'Parts Upload' },
+];
+
+type StepNote = { status: 'verified' | 'needs_rectification' | 'pending'; note: string };
+type StepNotes = Record<string, StepNote>;
+
 type ValidationData = {
   salesValidatedById: string | null;
   salesValidatedAt: string | null;
   salesValidatedBy: { id: string; name: string } | null;
+  salesStepNotes: StepNotes | null;
+  salesStatus: string;
   projectsValidatedById: string | null;
   projectsValidatedAt: string | null;
   projectsValidatedBy: { id: string; name: string } | null;
+  projectsStepNotes: StepNotes | null;
+  projectsStatus: string;
   operationsValidatedById: string | null;
   operationsValidatedAt: string | null;
   operationsValidatedBy: { id: string; name: string } | null;
+  operationsStepNotes: StepNotes | null;
+  operationsStatus: string;
 } | null;
 
 type ValidationParty = 'sales' | 'projects' | 'operations';
 
-function ValidationCircle({
+function partyStatus(validation: ValidationData, party: ValidationParty): string {
+  if (!validation) return 'pending';
+  if (party === 'sales') return validation.salesStatus ?? 'pending';
+  if (party === 'projects') return validation.projectsStatus ?? 'pending';
+  return validation.operationsStatus ?? 'pending';
+}
+
+function partyStepNotes(validation: ValidationData, party: ValidationParty): StepNotes {
+  if (!validation) return {};
+  if (party === 'sales') return validation.salesStepNotes ?? {};
+  if (party === 'projects') return validation.projectsStepNotes ?? {};
+  return validation.operationsStepNotes ?? {};
+}
+
+function StatusIcon({ status, size = 'md' }: { status: string; size?: 'sm' | 'md' | 'lg' }) {
+  const sz = size === 'sm' ? 'size-4' : size === 'lg' ? 'size-14' : 'size-12';
+  if (status === 'verified') return <CheckCircle2 className={cn(sz, 'text-emerald-500 fill-emerald-50')} />;
+  if (status === 'needs_rectification') return <AlertTriangle className={cn(sz, 'text-amber-500 fill-amber-50')} />;
+  return <Circle className={cn(sz, 'text-slate-300')} />;
+}
+
+function VerificationDialog({
+  open,
+  onClose,
+  party,
   label,
-  validatedBy,
-  validatedAt,
-  canValidate,
-  onValidate,
-  submitting,
+  initialNotes,
+  onSave,
+  saving,
 }: {
+  open: boolean;
+  onClose: () => void;
+  party: ValidationParty;
   label: string;
-  validatedBy: { id: string; name: string } | null;
-  validatedAt: string | null;
-  canValidate: boolean;
-  onValidate: () => void;
-  submitting: boolean;
+  initialNotes: StepNotes;
+  onSave: (notes: StepNotes) => Promise<void>;
+  saving: boolean;
 }) {
-  const isValidated = !!validatedBy;
+  const [notes, setNotes] = useState<StepNotes>(() => {
+    const init: StepNotes = {};
+    WIZARD_STEPS.forEach(({ step }) => {
+      init[String(step)] = initialNotes[String(step)] ?? { status: 'pending', note: '' };
+    });
+    return init;
+  });
+
+  useEffect(() => {
+    if (open) {
+      const init: StepNotes = {};
+      WIZARD_STEPS.forEach(({ step }) => {
+        init[String(step)] = initialNotes[String(step)] ?? { status: 'pending', note: '' };
+      });
+      setNotes(init);
+    }
+  }, [open, initialNotes]);
+
+  function setStepStatus(step: number, status: StepNote['status']) {
+    setNotes((prev) => ({
+      ...prev,
+      [String(step)]: { ...prev[String(step)], status },
+    }));
+  }
+
+  function setStepNote(step: number, note: string) {
+    setNotes((prev) => ({
+      ...prev,
+      [String(step)]: { ...prev[String(step)], note },
+    }));
+  }
+
+  function verifyAll() {
+    const all: StepNotes = {};
+    WIZARD_STEPS.forEach(({ step }) => {
+      all[String(step)] = { status: 'verified', note: notes[String(step)]?.note ?? '' };
+    });
+    setNotes(all);
+  }
+
+  const allVerified = WIZARD_STEPS.every((s) => notes[String(s.step)]?.status === 'verified');
+  const anyNeedsRectification = WIZARD_STEPS.some((s) => notes[String(s.step)]?.status === 'needs_rectification');
+  const overallStatus = allVerified ? 'verified' : anyNeedsRectification ? 'needs_rectification' : 'pending';
 
   return (
-    <div className="flex flex-col items-center gap-2 min-w-[100px]">
-      {isValidated ? (
-        <div className="relative">
-          <CheckCircle2 className="size-12 text-emerald-500 fill-emerald-50" />
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !saving) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ClipboardList className="size-5" />
+            {label} Verification — Review Each Step
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-1 py-2">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-muted-foreground">
+              Mark each step as verified or flag points that need rectification.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 gap-1"
+              onClick={verifyAll}
+              disabled={saving}
+            >
+              <CheckCheck className="size-3.5" />
+              Verify All
+            </Button>
+          </div>
+
+          {WIZARD_STEPS.map(({ step, label: stepLabel }) => {
+            const sn = notes[String(step)] ?? { status: 'pending', note: '' };
+            return (
+              <div key={step} className={cn(
+                'rounded-lg border p-3 space-y-2 transition-colors',
+                sn.status === 'verified' ? 'border-emerald-200 bg-emerald-50/40' :
+                sn.status === 'needs_rectification' ? 'border-amber-200 bg-amber-50/40' :
+                'border-slate-200 bg-slate-50/30'
+              )}>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-slate-400 w-6 text-right shrink-0">{step}.</span>
+                  <span className="text-sm font-medium flex-1">{stepLabel}</span>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setStepStatus(step, 'verified')}
+                      className={cn(
+                        'flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium transition-colors',
+                        sn.status === 'verified'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-emerald-200 hover:text-emerald-700'
+                      )}
+                    >
+                      <CheckCircle2 className="size-3" />
+                      Verified
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStepStatus(step, 'needs_rectification')}
+                      className={cn(
+                        'flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium transition-colors',
+                        sn.status === 'needs_rectification'
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-amber-200 hover:text-amber-700'
+                      )}
+                    >
+                      <AlertTriangle className="size-3" />
+                      Needs Fix
+                    </button>
+                  </div>
+                </div>
+                {(sn.status === 'needs_rectification' || sn.note) && (
+                  <div className="ml-9">
+                    <Textarea
+                      placeholder={sn.status === 'needs_rectification' ? 'Describe what needs to be rectified…' : 'Optional remarks…'}
+                      value={sn.note}
+                      onChange={(e) => setStepNote(step, e.target.value)}
+                      rows={2}
+                      className="text-sm resize-none"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      ) : (
-        <Circle className="size-12 text-slate-300" />
-      )}
+
+        <div className={cn(
+          'flex items-center gap-2 p-3 rounded-lg text-sm font-medium',
+          overallStatus === 'verified' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+          overallStatus === 'needs_rectification' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+          'bg-slate-50 text-slate-600 border border-slate-200'
+        )}>
+          <StatusIcon status={overallStatus} size="sm" />
+          {overallStatus === 'verified' ? 'All steps verified — project is confirmed.' :
+           overallStatus === 'needs_rectification' ? 'Some steps need rectification before this project can proceed.' :
+           'Verification pending — please review all steps.'}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button
+            onClick={() => onSave(notes)}
+            disabled={saving || overallStatus === 'pending'}
+            className={cn(
+              overallStatus === 'needs_rectification'
+                ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                : ''
+            )}
+          >
+            {saving ? 'Saving…' : overallStatus === 'needs_rectification' ? 'Submit (Needs Rectification)' : 'Submit Verification'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RectificationPanel({
+  party,
+  label,
+  stepNotes,
+}: {
+  party: ValidationParty;
+  label: string;
+  stepNotes: StepNotes;
+}) {
+  const issues = WIZARD_STEPS.filter((s) => stepNotes[String(s.step)]?.status === 'needs_rectification');
+  if (issues.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-1.5">
+      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">{label} — Points Needing Rectification</p>
+      {issues.map(({ step, label: stepLabel }) => (
+        <div key={step} className="flex gap-2 bg-amber-50 border border-amber-200 rounded p-2">
+          <AlertCircle className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <span className="text-xs font-medium text-amber-800">{step}. {stepLabel}</span>
+            {stepNotes[String(step)]?.note && (
+              <p className="text-xs text-amber-700 mt-0.5">{stepNotes[String(step)].note}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ValidationCircle({
+  label,
+  party,
+  validatedBy,
+  validatedAt,
+  status,
+  stepNotes,
+  canValidate,
+  onOpenDialog,
+}: {
+  label: string;
+  party: ValidationParty;
+  validatedBy: { id: string; name: string } | null;
+  validatedAt: string | null;
+  status: string;
+  stepNotes: StepNotes;
+  canValidate: boolean;
+  onOpenDialog: () => void;
+}) {
+  const [showIssues, setShowIssues] = useState(false);
+  const issueCount = WIZARD_STEPS.filter((s) => stepNotes[String(s.step)]?.status === 'needs_rectification').length;
+
+  return (
+    <div className="flex flex-col items-center gap-2 min-w-[110px]">
+      <StatusIcon status={status} />
       <div className="text-center">
         <p className="text-xs font-semibold text-slate-700">{label}</p>
-        {isValidated ? (
+        {status === 'verified' && validatedBy ? (
           <>
             <p className="text-xs text-emerald-600 font-medium">{validatedBy.name}</p>
             {validatedAt && (
@@ -323,20 +576,41 @@ function ValidationCircle({
               </p>
             )}
           </>
+        ) : status === 'needs_rectification' ? (
+          <p className="text-xs text-amber-600 font-medium">{issueCount} point{issueCount !== 1 ? 's' : ''} flagged</p>
         ) : (
           <p className="text-xs text-slate-400">Pending</p>
         )}
       </div>
-      {canValidate && !isValidated && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-          onClick={onValidate}
-          disabled={submitting}
-        >
-          {submitting ? 'Saving…' : 'Verify'}
-        </Button>
+      <div className="flex flex-col gap-1 items-center">
+        {canValidate && (
+          <Button
+            size="sm"
+            variant="outline"
+            className={cn('h-7 text-xs', status === 'needs_rectification'
+              ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+            )}
+            onClick={onOpenDialog}
+          >
+            {status === 'pending' ? 'Verify' : 'Re-verify'}
+          </Button>
+        )}
+        {status === 'needs_rectification' && issueCount > 0 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2"
+            onClick={() => setShowIssues((v) => !v)}
+          >
+            {showIssues ? 'Hide issues' : 'View issues'}
+          </Button>
+        )}
+      </div>
+      {showIssues && (
+        <div className="w-full max-w-xs">
+          <RectificationPanel party={party} label={label} stepNotes={stepNotes} />
+        </div>
       )}
     </div>
   );
@@ -360,7 +634,8 @@ function ProjectValidationPanel({
   initialValidation: ValidationData;
 }) {
   const [validation, setValidation] = useState<ValidationData>(initialValidation);
-  const [submitting, setSubmitting] = useState<ValidationParty | null>(null);
+  const [dialogParty, setDialogParty] = useState<ValidationParty | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const canValidateParty = useCallback(
     (party: ValidationParty) => {
@@ -373,73 +648,100 @@ function ProjectValidationPanel({
     [isAdminOrCeo, currentUserId, salesEngineerId, projectManagerId, operationsManagerId]
   );
 
-  const handleValidate = async (party: ValidationParty) => {
-    setSubmitting(party);
+  const handleSave = async (notes: StepNotes) => {
+    if (!dialogParty) return;
+    setSubmitting(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ party }),
+        body: JSON.stringify({ party: dialogParty, stepNotes: notes }),
       });
       if (res.ok) {
         const updated = await res.json();
         setValidation(updated);
+        setDialogParty(null);
       }
     } finally {
-      setSubmitting(null);
+      setSubmitting(false);
     }
   };
 
-  const allValidated =
-    !!validation?.salesValidatedById &&
-    !!validation?.projectsValidatedById &&
-    !!validation?.operationsValidatedById;
+  const salesStatus = partyStatus(validation, 'sales');
+  const projectsStatus = partyStatus(validation, 'projects');
+  const operationsStatus = partyStatus(validation, 'operations');
+  const allVerified = salesStatus === 'verified' && projectsStatus === 'verified' && operationsStatus === 'verified';
+  const anyRectification = salesStatus === 'needs_rectification' || projectsStatus === 'needs_rectification' || operationsStatus === 'needs_rectification';
+
+  const overallBadge = allVerified
+    ? <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs ml-auto">Fully Verified</Badge>
+    : anyRectification
+    ? <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs ml-auto">Needs Rectification</Badge>
+    : null;
+
+  const borderClass = allVerified ? 'border-emerald-200 bg-emerald-50/30' : anyRectification ? 'border-amber-200 bg-amber-50/20' : 'border-slate-200';
 
   return (
-    <Card className={cn('border', allValidated ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200')}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className={cn('size-5', allValidated ? 'text-emerald-500' : 'text-slate-400')} />
-          <CardTitle className="text-base">Data Validation & Verification</CardTitle>
-          {allValidated && (
-            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs ml-auto">
-              Fully Verified
-            </Badge>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Each responsible party must confirm that the project data entered is correct before execution.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap justify-around gap-6">
-          <ValidationCircle
-            label="Sales"
-            validatedBy={validation?.salesValidatedBy ?? null}
-            validatedAt={validation?.salesValidatedAt ?? null}
-            canValidate={canValidateParty('sales')}
-            onValidate={() => handleValidate('sales')}
-            submitting={submitting === 'sales'}
-          />
-          <ValidationCircle
-            label="Projects"
-            validatedBy={validation?.projectsValidatedBy ?? null}
-            validatedAt={validation?.projectsValidatedAt ?? null}
-            canValidate={canValidateParty('projects')}
-            onValidate={() => handleValidate('projects')}
-            submitting={submitting === 'projects'}
-          />
-          <ValidationCircle
-            label="Operations"
-            validatedBy={validation?.operationsValidatedBy ?? null}
-            validatedAt={validation?.operationsValidatedAt ?? null}
-            canValidate={canValidateParty('operations')}
-            onValidate={() => handleValidate('operations')}
-            submitting={submitting === 'operations'}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <>
+      <Card className={cn('border', borderClass)}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className={cn('size-5', allVerified ? 'text-emerald-500' : anyRectification ? 'text-amber-500' : 'text-slate-400')} />
+            <CardTitle className="text-base">Data Validation & Verification</CardTitle>
+            {overallBadge}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Each responsible party must review and confirm the 10 setup steps before project execution.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap justify-around gap-6">
+            <ValidationCircle
+              label="Sales"
+              party="sales"
+              validatedBy={validation?.salesValidatedBy ?? null}
+              validatedAt={validation?.salesValidatedAt ?? null}
+              status={salesStatus}
+              stepNotes={partyStepNotes(validation, 'sales')}
+              canValidate={canValidateParty('sales')}
+              onOpenDialog={() => setDialogParty('sales')}
+            />
+            <ValidationCircle
+              label="Projects"
+              party="projects"
+              validatedBy={validation?.projectsValidatedBy ?? null}
+              validatedAt={validation?.projectsValidatedAt ?? null}
+              status={projectsStatus}
+              stepNotes={partyStepNotes(validation, 'projects')}
+              canValidate={canValidateParty('projects')}
+              onOpenDialog={() => setDialogParty('projects')}
+            />
+            <ValidationCircle
+              label="Operations"
+              party="operations"
+              validatedBy={validation?.operationsValidatedBy ?? null}
+              validatedAt={validation?.operationsValidatedAt ?? null}
+              status={operationsStatus}
+              stepNotes={partyStepNotes(validation, 'operations')}
+              canValidate={canValidateParty('operations')}
+              onOpenDialog={() => setDialogParty('operations')}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {dialogParty && (
+        <VerificationDialog
+          open={!!dialogParty}
+          onClose={() => setDialogParty(null)}
+          party={dialogParty}
+          label={dialogParty.charAt(0).toUpperCase() + dialogParty.slice(1)}
+          initialNotes={partyStepNotes(validation, dialogParty)}
+          onSave={handleSave}
+          saving={submitting}
+        />
+      )}
+    </>
   );
 }
 
