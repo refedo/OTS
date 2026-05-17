@@ -1,7 +1,7 @@
 -- Backfill MaterialInspectionReceipt status based on item inspection results
 -- Logic mirrors computeReceiptStatus() in items/route.ts
 
-UPDATE MaterialInspectionReceipt r
+UPDATE material_inspection_receipts r
 SET status = (
   SELECT
     CASE
@@ -18,7 +18,7 @@ SET status = (
         THEN 'Partially Received'
       ELSE 'In Progress'
     END
-  FROM MaterialInspectionReceiptItem i
+  FROM material_inspection_receipt_items i
   WHERE i.receiptId = r.id
 )
 WHERE r.deletedAt IS NULL OR r.deletedAt IS NOT NULL;
