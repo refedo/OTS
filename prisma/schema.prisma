@@ -678,10 +678,16 @@ model ProjectValidation {
 
   salesValidatedById     String?   @db.Char(36)
   salesValidatedAt       DateTime?
+  salesStepNotes         Json?
+  salesStatus            String    @default("pending") @db.VarChar(30)
   projectsValidatedById  String?   @db.Char(36)
   projectsValidatedAt    DateTime?
+  projectsStepNotes      Json?
+  projectsStatus         String    @default("pending") @db.VarChar(30)
   operationsValidatedById String?  @db.Char(36)
   operationsValidatedAt  DateTime?
+  operationsStepNotes    Json?
+  operationsStatus       String    @default("pending") @db.VarChar(30)
 
   project           Project @relation(fields: [projectId], references: [id])
   salesValidatedBy       User?    @relation("ValidationSalesBy", fields: [salesValidatedById], references: [id])

@@ -28,10 +28,13 @@ import { useDialog } from '@/contexts/DialogContext';
 type ValidationStatus = {
   salesValidatedById: string | null;
   salesValidatedBy: { id: string; name: string } | null;
+  salesStatus: string;
   projectsValidatedById: string | null;
   projectsValidatedBy: { id: string; name: string } | null;
+  projectsStatus: string;
   operationsValidatedById: string | null;
   operationsValidatedBy: { id: string; name: string } | null;
+  operationsStatus: string;
 } | null;
 
 type Project = {
@@ -53,30 +56,44 @@ type Project = {
   setupChecklist: { contractReceived: string | null } | null;
 };
 
+function ValidationDot({ status, label }: { status: string; label: string }) {
+  const cap = label.charAt(0).toUpperCase() + label.slice(1);
+  if (status === 'verified') {
+    return (
+      <CheckCircle2
+        className="size-3.5 text-emerald-500"
+        title={`${cap}: Verified`}
+      />
+    );
+  }
+  if (status === 'needs_rectification') {
+    return (
+      <AlertTriangle
+        className="size-3.5 text-amber-500"
+        title={`${cap}: Needs Rectification`}
+      />
+    );
+  }
+  return (
+    <Circle
+      className="size-3.5 text-slate-300"
+      title={`${cap}: Pending`}
+    />
+  );
+}
+
 function ValidationDots({ validation }: { validation: ValidationStatus }) {
   const dots = [
-    { key: 'sales', validated: !!validation?.salesValidatedById, name: validation?.salesValidatedBy?.name },
-    { key: 'projects', validated: !!validation?.projectsValidatedById, name: validation?.projectsValidatedBy?.name },
-    { key: 'operations', validated: !!validation?.operationsValidatedById, name: validation?.operationsValidatedBy?.name },
+    { key: 'sales', status: validation?.salesStatus ?? 'pending' },
+    { key: 'projects', status: validation?.projectsStatus ?? 'pending' },
+    { key: 'operations', status: validation?.operationsStatus ?? 'pending' },
   ];
 
   return (
-    <div className="flex items-center gap-1" title="Validation status: Sales · Projects · Operations">
-      {dots.map((dot) =>
-        dot.validated ? (
-          <CheckCircle2
-            key={dot.key}
-            className="size-3.5 text-emerald-500"
-            title={`${dot.key.charAt(0).toUpperCase() + dot.key.slice(1)}: ${dot.name}`}
-          />
-        ) : (
-          <Circle
-            key={dot.key}
-            className="size-3.5 text-slate-300"
-            title={`${dot.key.charAt(0).toUpperCase() + dot.key.slice(1)}: pending`}
-          />
-        )
-      )}
+    <div className="flex items-center gap-1" title="Verification status: Sales · Projects · Operations">
+      {dots.map((dot) => (
+        <ValidationDot key={dot.key} status={dot.status} label={dot.key} />
+      ))}
     </div>
   );
 }
@@ -720,7 +737,18 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                       </div>
                     </TableCell>
                     <TableCell>
-                      <ValidationDots validation={project.validation} />
+                      <div className="flex items-center gap-2">
+                        <ValidationDots validation={project.validation} />
+                        {project.validation && (
+                          project.validation.salesStatus === 'needs_rectification' ||
+                          project.validation.projectsStatus === 'needs_rectification' ||
+                          project.validation.operationsStatus === 'needs_rectification'
+                        ) && (
+                          <Link href={`/projects/${project.id}`} className="text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2 whitespace-nowrap" title="View rectification points">
+                            Resolve
+                          </Link>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
@@ -858,6 +886,20 @@ export function ProjectsClient({ restrictedModules = [] }: ProjectsClientProps) 
                     <p className="font-semibold">
                       {project.contractualTonnage} tons
                     </p>
+                  </div>
+                )}
+
+                {project.validation && (
+                  project.validation.salesStatus === 'needs_rectification' ||
+                  project.validation.projectsStatus === 'needs_rectification' ||
+                  project.validation.operationsStatus === 'needs_rectification'
+                ) && (
+                  <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-xs text-amber-800">
+                    <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+                    <span className="flex-1 font-medium">Needs rectification flagged</span>
+                    <Link href={`/projects/${project.id}`} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">
+                      Resolve →
+                    </Link>
                   </div>
                 )}
 
