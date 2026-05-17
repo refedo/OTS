@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,13 +15,15 @@ import {
   XCircle,
   Clock,
   Loader2,
-  FileText,
   Upload,
   Eye,
   Save,
   ExternalLink,
   Paperclip,
   FileBadge,
+  Printer,
+  AlertTriangle,
+  CheckCheck,
 } from 'lucide-react';
 import {
   Dialog,
@@ -62,6 +64,13 @@ type PurchaseOrderLine = {
   qty: number;
   subprice: number;
   total_ttc: number;
+};
+
+type Project = {
+  id: string;
+  projectNumber: string;
+  name: string;
+  status: string;
 };
 
 type MaterialReceipt = {
@@ -120,19 +129,22 @@ export default function MaterialInspectionReceiptPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  
+
   // PO Lookup
   const [showPOLookup, setShowPOLookup] = useState(false);
   const [poSearchQuery, setPoSearchQuery] = useState('');
   const [poSearchResults, setPoSearchResults] = useState<PurchaseOrder[]>([]);
   const [poSearching, setPoSearching] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
-  
+
+  // Projects for dropdown
+  const [projects, setProjects] = useState<Project[]>([]);
+
   // Receipt creation
   const [showCreateReceipt, setShowCreateReceipt] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedProject, setSelectedProject] = useState('');
-  
+
   // Receipt detail/inspection
   const [selectedReceipt, setSelectedReceipt] = useState<MaterialReceipt | null>(null);
   const [inspectingItem, setInspectingItem] = useState<ReceiptItem | null>(null);
@@ -145,8 +157,12 @@ export default function MaterialInspectionReceiptPage() {
   const [savingMtc, setSavingMtc] = useState(false);
   const [uploadingMtc, setUploadingMtc] = useState(false);
 
+  // PDF generation
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
   useEffect(() => {
     fetchReceipts();
+    fetchProjects();
   }, []);
 
   // Auto-search POs as user types with debounce
@@ -183,19 +199,27 @@ export default function MaterialInspectionReceiptPage() {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects?status=Active');
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.projects || data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
   const searchPurchaseOrders = async () => {
     if (!poSearchQuery.trim()) return;
-    
+
     try {
       setPoSearching(true);
       const response = await fetch(`/api/qc/material-receipts/lookup-po?search=${encodeURIComponent(poSearchQuery)}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('[PO Search] Response:', data);
-        console.log('[PO Search] Orders count:', data.orders?.length || 0);
         setPoSearchResults(data.orders || []);
-      } else {
-        console.error('[PO Search] Response not OK:', response.status);
       }
     } catch (error) {
       console.error('Error searching POs:', error);
@@ -212,11 +236,10 @@ export default function MaterialInspectionReceiptPage() {
 
   const handleCreateReceipt = async () => {
     if (!selectedPO) return;
-    
+
     try {
       setCreating(true);
-      
-      // Map PO lines to receipt items
+
       const items = selectedPO.lines.map((line) => ({
         dolibarrLineId: line.rowid?.toString(),
         dolibarrProductId: line.fk_product?.toString(),
@@ -245,7 +268,6 @@ export default function MaterialInspectionReceiptPage() {
         setSelectedPO(null);
         setSelectedProject('');
         fetchReceipts();
-        // Open the new receipt for inspection
         setSelectedReceipt(newReceipt);
       }
     } catch (error) {
@@ -280,9 +302,25 @@ export default function MaterialInspectionReceiptPage() {
     });
   };
 
+  // When inspection result changes to Accepted, auto-fill passing conditions
+  const handleInspectionResultChange = useCallback((value: string) => {
+    if (value === 'Accepted') {
+      setItemFormData(prev => ({
+        ...prev,
+        inspectionResult: value,
+        surfaceCondition: prev.surfaceCondition || 'Good',
+        dimensionStatus: prev.dimensionStatus || 'Within Tolerance',
+        thicknessStatus: prev.thicknessStatus || 'OK',
+        specsCompliance: prev.specsCompliance || 'Compliant',
+      }));
+    } else {
+      setItemFormData(prev => ({ ...prev, inspectionResult: value }));
+    }
+  }, []);
+
   const handleSaveItemInspection = async () => {
     if (!inspectingItem) return;
-    
+
     try {
       setSavingItem(true);
       const response = await fetch('/api/qc/material-receipts/items', {
@@ -296,7 +334,6 @@ export default function MaterialInspectionReceiptPage() {
 
       if (response.ok) {
         setInspectingItem(null);
-        // Refresh the receipt
         if (selectedReceipt) {
           const refreshResponse = await fetch(`/api/qc/material-receipts?id=${selectedReceipt.id}`);
           if (refreshResponse.ok) {
@@ -371,8 +408,35 @@ export default function MaterialInspectionReceiptPage() {
     }
   };
 
+  const handlePrintPDF = async (receipt: MaterialReceipt) => {
+    setGeneratingPdf(true);
+    try {
+      // Fetch full receipt details (with all item fields)
+      const res = await fetch(`/api/qc/material-receipts?id=${receipt.id}`);
+      if (!res.ok) throw new Error('Failed to fetch receipt');
+      const fullReceipt = await res.json();
+
+      const { generateMIRPDF } = await import('@/lib/mir-pdf-generator');
+      await generateMIRPDF({
+        receiptNumber: fullReceipt.receiptNumber,
+        dolibarrPoRef: fullReceipt.dolibarrPoRef,
+        supplierName: fullReceipt.supplierName,
+        receiptDate: fullReceipt.receiptDate,
+        status: fullReceipt.status,
+        projectNumber: fullReceipt.project?.projectNumber,
+        projectName: fullReceipt.project?.name,
+        inspectorName: fullReceipt.inspector.name,
+        remarks: fullReceipt.remarks,
+        items: fullReceipt.items,
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   const getMtcFileViewUrl = (filePath: string) => {
-    // Convert /uploads/mtc-certificates/file.pdf → /api/file/mtc-certificates/file.pdf
     return filePath.replace(/^\/uploads\//, '/api/file/');
   };
 
@@ -380,7 +444,8 @@ export default function MaterialInspectionReceiptPage() {
     const matchesSearch =
       receipt.receiptNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       receipt.dolibarrPoRef.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      receipt.supplierName?.toLowerCase().includes(searchQuery.toLowerCase());
+      receipt.supplierName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      receipt.project?.projectNumber?.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || receipt.status === statusFilter;
 
@@ -390,21 +455,34 @@ export default function MaterialInspectionReceiptPage() {
   const stats = {
     total: receipts.length,
     inProgress: receipts.filter(r => r.status === 'In Progress').length,
-    completed: receipts.filter(r => r.status === 'Completed').length,
-    partiallyReceived: receipts.filter(r => r.status === 'Partially Received').length,
+    partiallyReceived: receipts.filter(r =>
+      r.status === 'Partially Received' || r.status === 'Partially Accepted'
+    ).length,
+    completed: receipts.filter(r => r.status === 'Received and Accepted').length,
+    rejected: receipts.filter(r => r.status === 'Rejected').length,
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Completed':
-        return <Badge className="bg-green-500/10 text-green-600"><CheckCircle className="h-3 w-3 mr-1" /> Completed</Badge>;
-      case 'In Progress':
-        return <Badge className="bg-blue-500/10 text-blue-600"><Clock className="h-3 w-3 mr-1" /> In Progress</Badge>;
+      case 'Received and Accepted':
+        return <Badge className="bg-green-500/10 text-green-600 whitespace-nowrap"><CheckCheck className="h-3 w-3 mr-1" /> Received & Accepted</Badge>;
+      case 'Partially Accepted':
+        return <Badge className="bg-amber-500/10 text-amber-600 whitespace-nowrap"><AlertTriangle className="h-3 w-3 mr-1" /> Partially Accepted</Badge>;
       case 'Partially Received':
-        return <Badge className="bg-yellow-500/10 text-yellow-600"><Clock className="h-3 w-3 mr-1" /> Partial</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-600 whitespace-nowrap"><Clock className="h-3 w-3 mr-1" /> Partially Received</Badge>;
+      case 'Rejected':
+        return <Badge className="bg-red-500/10 text-red-700 whitespace-nowrap"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+      case 'In Progress':
+        return <Badge className="bg-blue-500/10 text-blue-600 whitespace-nowrap"><Clock className="h-3 w-3 mr-1" /> In Progress</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getRowClass = (status: string) => {
+    if (status === 'Rejected') return 'border-b bg-red-50/40 dark:bg-red-950/10 hover:bg-red-50/60';
+    if (status === 'Received and Accepted') return 'border-b bg-green-50/20 dark:bg-green-950/10 hover:bg-muted/30';
+    return 'border-b hover:bg-muted/50';
   };
 
   const getInspectionResultBadge = (result: string) => {
@@ -419,6 +497,29 @@ export default function MaterialInspectionReceiptPage() {
         return <Badge variant="outline">{result}</Badge>;
     }
   };
+
+  // MTC indicator for main table: green circle with check if mtcAvailable + mtcFilePath, else outline
+  const getMtcTableIndicator = (item: ReceiptItem) => {
+    if (item.mtcAvailable && item.mtcFilePath) {
+      return (
+        <span title={`MTC uploaded${item.mtcNumber ? ' — ' + item.mtcNumber : ''}`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white">
+          <CheckCircle className="h-3.5 w-3.5" />
+        </span>
+      );
+    }
+    if (item.mtcAvailable) {
+      return (
+        <span title={`MTC available${item.mtcNumber ? ' — ' + item.mtcNumber : ''} (not uploaded)`} className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-green-400 text-green-500">
+          <CheckCircle className="h-3 w-3" />
+        </span>
+      );
+    }
+    return <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-muted-foreground/30 text-muted-foreground/40 text-xs">—</span>;
+  };
+
+  // Check if receipt has any items with MTC uploaded
+  const receiptHasMtcUploaded = (receipt: MaterialReceipt) =>
+    receipt.items.some(i => i.mtcAvailable && i.mtcFilePath);
 
   if (loading) {
     return (
@@ -440,7 +541,7 @@ export default function MaterialInspectionReceiptPage() {
           <p className="text-muted-foreground mt-1">
             Receive and inspect materials from purchase orders
           </p>
-          <p className="text-muted-foreground/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-020 · Procedure: Hexa-ISP-013 · ISO §8.4</p>
+          <p className="text-muted-foreground/60 text-xs font-mono mt-0.5">Form: HEXA-FRM-016 · Procedure: Hexa-ISP-011 · ISO §8.4</p>
         </div>
         <Button onClick={() => setShowPOLookup(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -449,7 +550,7 @@ export default function MaterialInspectionReceiptPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -464,14 +565,20 @@ export default function MaterialInspectionReceiptPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-yellow-600">{stats.partiallyReceived}</div>
-            <p className="text-xs text-muted-foreground">Partially Received</p>
+            <div className="text-2xl font-bold text-amber-600">{stats.partiallyReceived}</div>
+            <p className="text-xs text-muted-foreground">Partial</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-            <p className="text-xs text-muted-foreground">Completed</p>
+            <p className="text-xs text-muted-foreground">Received & Accepted</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
+            <p className="text-xs text-muted-foreground">Rejected</p>
           </CardContent>
         </Card>
       </div>
@@ -490,14 +597,16 @@ export default function MaterialInspectionReceiptPage() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="In Progress">In Progress</SelectItem>
                 <SelectItem value="Partially Received">Partially Received</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="Partially Accepted">Partially Accepted</SelectItem>
+                <SelectItem value="Received and Accepted">Received and Accepted</SelectItem>
+                <SelectItem value="Rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -521,37 +630,62 @@ export default function MaterialInspectionReceiptPage() {
                   <th className="text-left p-3 font-medium">Date</th>
                   <th className="text-left p-3 font-medium">Status</th>
                   <th className="text-center p-3 font-medium">Items</th>
+                  <th className="text-center p-3 font-medium" title="MTC Received & Uploaded">MTC</th>
                   <th className="text-center p-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredReceipts.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center p-8 text-muted-foreground">
+                    <td colSpan={9} className="text-center p-8 text-muted-foreground">
                       No material receipts found
                     </td>
                   </tr>
                 ) : (
                   filteredReceipts.map((receipt) => (
-                    <tr key={receipt.id} className="border-b hover:bg-muted/50">
+                    <tr key={receipt.id} className={getRowClass(receipt.status)}>
                       <td className="p-3 font-mono text-sm font-semibold">{receipt.receiptNumber}</td>
                       <td className="p-3 text-sm font-mono">{receipt.dolibarrPoRef}</td>
                       <td className="p-3 text-sm">{receipt.supplierName || '—'}</td>
                       <td className="p-3 text-sm font-mono">{receipt.project?.projectNumber || '—'}</td>
-                      <td className="p-3 text-sm">{new Date(receipt.receiptDate).toLocaleDateString()}</td>
+                      <td className="p-3 text-sm">{new Date(receipt.receiptDate).toLocaleDateString('en-SA-u-ca-gregory')}</td>
                       <td className="p-3">{getStatusBadge(receipt.status)}</td>
                       <td className="p-3 text-center">
                         <Badge variant="secondary">{receipt.items.length}</Badge>
                       </td>
                       <td className="p-3 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedReceipt(receipt)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Inspect
-                        </Button>
+                        {receiptHasMtcUploaded(receipt) ? (
+                          <span title="MTC documents uploaded" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white">
+                            <CheckCircle className="h-3.5 w-3.5" />
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-muted-foreground/30 text-muted-foreground/40 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedReceipt(receipt)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePrintPDF(receipt)}
+                            disabled={generatingPdf}
+                            title="Export PDF"
+                          >
+                            {generatingPdf ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Printer className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -587,10 +721,9 @@ export default function MaterialInspectionReceiptPage() {
               )}
             </div>
 
-            {/* Search Results */}
             {poSearchQuery.trim() && !poSearching && poSearchResults.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                <p>No purchase orders found matching "{poSearchQuery}"</p>
+                <p>No purchase orders found matching &quot;{poSearchQuery}&quot;</p>
                 <p className="text-sm mt-1">Try a different search term</p>
               </div>
             )}
@@ -654,9 +787,27 @@ export default function MaterialInspectionReceiptPage() {
                   <p className="font-medium">{selectedPO.supplier_name || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Project</p>
+                  <p className="text-xs text-muted-foreground">PO Project Ref</p>
                   <p className="font-medium font-mono">{selectedPO.project_ref || '—'}</p>
                 </div>
+              </div>
+
+              {/* Project dropdown */}
+              <div className="space-y-2">
+                <Label htmlFor="projectSelect">Assign to Project</Label>
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger id="projectSelect">
+                    <SelectValue placeholder="Select project (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">— No Project —</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.projectNumber} — {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -710,10 +861,29 @@ export default function MaterialInspectionReceiptPage() {
         <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
           <DialogContent className="w-full sm:max-w-[95vw] md:max-w-5xl max-h-[92vh] flex flex-col p-0">
             <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
-              <DialogTitle className="text-lg">Material Receipt: {selectedReceipt.receiptNumber}</DialogTitle>
-              <DialogDescription>
-                PO: {selectedReceipt.dolibarrPoRef} | Supplier: {selectedReceipt.supplierName}
-              </DialogDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-lg">Material Receipt: {selectedReceipt.receiptNumber}</DialogTitle>
+                  <DialogDescription>
+                    PO: {selectedReceipt.dolibarrPoRef} | Supplier: {selectedReceipt.supplierName}
+                    {selectedReceipt.project && ` | Project: ${selectedReceipt.project.projectNumber}`}
+                  </DialogDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePrintPDF(selectedReceipt)}
+                  disabled={generatingPdf}
+                  className="gap-2 shrink-0"
+                >
+                  {generatingPdf ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Printer className="h-4 w-4" />
+                  )}
+                  Export PDF
+                </Button>
+              </div>
             </DialogHeader>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -728,14 +898,14 @@ export default function MaterialInspectionReceiptPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Receipt Date</p>
-                  <p className="font-medium">{new Date(selectedReceipt.receiptDate).toLocaleDateString()}</p>
+                  <p className="font-medium">{new Date(selectedReceipt.receiptDate).toLocaleDateString('en-SA-u-ca-gregory')}</p>
                 </div>
               </div>
 
               <div>
                 <h3 className="font-semibold mb-3">Items ({selectedReceipt.items.length})</h3>
                 <div className="border rounded-lg overflow-x-auto">
-                  <table className="w-full text-sm min-w-[700px]">
+                  <table className="w-full text-sm min-w-[800px]">
                     <thead>
                       <tr className="bg-muted/50 border-b">
                         <th className="text-left py-2.5 px-3 font-semibold">Item</th>
@@ -743,6 +913,9 @@ export default function MaterialInspectionReceiptPage() {
                         <th className="text-right py-2.5 px-3 font-semibold whitespace-nowrap">Received</th>
                         <th className="text-right py-2.5 px-3 font-semibold whitespace-nowrap">Accepted</th>
                         <th className="text-right py-2.5 px-3 font-semibold whitespace-nowrap">Rejected</th>
+                        <th className="text-center py-2.5 px-3 font-semibold">Surface</th>
+                        <th className="text-center py-2.5 px-3 font-semibold">Dims</th>
+                        <th className="text-center py-2.5 px-3 font-semibold">Specs</th>
                         <th className="text-center py-2.5 px-3 font-semibold">MTC</th>
                         <th className="text-center py-2.5 px-3 font-semibold">Result</th>
                         <th className="text-center py-2.5 px-3 font-semibold">Action</th>
@@ -750,11 +923,26 @@ export default function MaterialInspectionReceiptPage() {
                     </thead>
                     <tbody>
                       {selectedReceipt.items.map((item) => (
-                        <tr key={item.id} className="border-b hover:bg-muted/30">
+                        <tr
+                          key={item.id}
+                          className={
+                            item.inspectionResult === 'Rejected'
+                              ? 'border-b bg-red-50/40 dark:bg-red-950/10 hover:bg-red-50/60'
+                              : item.inspectionResult === 'Accepted'
+                              ? 'border-b bg-green-50/20 dark:bg-green-950/10 hover:bg-green-50/30'
+                              : 'border-b hover:bg-muted/30'
+                          }
+                        >
                           <td className="py-2.5 px-3">
                             <div className="font-medium">{item.itemName}</div>
                             {item.specification && (
                               <div className="text-xs text-muted-foreground mt-0.5">{item.specification}</div>
+                            )}
+                            {item.inspectionResult === 'Rejected' && item.rejectionReason && (
+                              <div className="text-xs text-red-600 mt-0.5 flex items-center gap-1">
+                                <XCircle className="h-3 w-3 shrink-0" />
+                                {item.rejectionReason}
+                              </div>
                             )}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono">{item.orderedQty} {item.unit}</td>
@@ -762,19 +950,51 @@ export default function MaterialInspectionReceiptPage() {
                           <td className="py-2.5 px-3 text-right font-mono text-green-600">{item.acceptedQty} {item.unit}</td>
                           <td className="py-2.5 px-3 text-right font-mono text-red-600">{item.rejectedQty} {item.unit}</td>
                           <td className="py-2.5 px-3 text-center">
+                            {item.surfaceCondition ? (
+                              <span className={`text-xs font-medium ${
+                                item.surfaceCondition === 'Good' ? 'text-green-600' :
+                                item.surfaceCondition === 'Unacceptable' ? 'text-red-600' :
+                                'text-amber-600'
+                              }`}>
+                                {item.surfaceCondition === 'Good' ? '✓' :
+                                 item.surfaceCondition === 'Unacceptable' ? '✗' :
+                                 '~'}
+                              </span>
+                            ) : <span className="text-muted-foreground/40">—</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {item.dimensionStatus ? (
+                              <span className={`text-xs font-medium ${
+                                item.dimensionStatus === 'Within Tolerance' ? 'text-green-600' :
+                                item.dimensionStatus === 'Out of Tolerance' ? 'text-red-600' :
+                                'text-amber-600'
+                              }`}>
+                                {item.dimensionStatus === 'Within Tolerance' ? '✓' :
+                                 item.dimensionStatus === 'Out of Tolerance' ? '✗' :
+                                 '~'}
+                              </span>
+                            ) : <span className="text-muted-foreground/40">—</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {item.specsCompliance ? (
+                              <span className={`text-xs font-medium ${
+                                item.specsCompliance === 'Compliant' ? 'text-green-600' :
+                                item.specsCompliance === 'Non-Compliant' ? 'text-red-600' :
+                                'text-amber-600'
+                              }`}>
+                                {item.specsCompliance === 'Compliant' ? '✓' :
+                                 item.specsCompliance === 'Non-Compliant' ? '✗' :
+                                 '~'}
+                              </span>
+                            ) : <span className="text-muted-foreground/40">—</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
                             <button
                               onClick={() => handleOpenMtcEdit(item)}
                               title={item.mtcAvailable ? (item.mtcNumber || 'Edit MTC') : 'Add MTC'}
                               className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                             >
-                              {item.mtcAvailable ? (
-                                <Badge className="bg-green-500/10 text-green-600 text-xs cursor-pointer hover:bg-green-500/20 gap-1">
-                                  {item.mtcFilePath && <Paperclip className="h-3 w-3" />}
-                                  {item.mtcNumber || 'Yes'}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs cursor-pointer hover:bg-muted">No</Badge>
-                              )}
+                              {getMtcTableIndicator(item)}
                             </button>
                           </td>
                           <td className="py-2.5 px-3 text-center">{getInspectionResultBadge(item.inspectionResult)}</td>
@@ -789,6 +1009,45 @@ export default function MaterialInspectionReceiptPage() {
                   </table>
                 </div>
               </div>
+
+              {/* Rejection summary */}
+              {selectedReceipt.items.some(i => i.inspectionResult === 'Rejected') && (
+                <div className="border border-red-200 dark:border-red-900 rounded-lg p-4 bg-red-50/40 dark:bg-red-950/10">
+                  <h4 className="font-semibold text-red-700 dark:text-red-400 mb-3 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Rejected Items Detail
+                  </h4>
+                  <div className="space-y-3">
+                    {selectedReceipt.items.filter(i => i.inspectionResult === 'Rejected').map((item) => (
+                      <div key={item.id} className="text-sm border-b border-red-100 dark:border-red-900/50 pb-3 last:border-0 last:pb-0">
+                        <div className="font-medium">{item.itemName}</div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1 text-xs text-muted-foreground">
+                          {item.surfaceCondition && item.surfaceCondition !== 'Good' && (
+                            <span>Surface: <span className="text-red-600 font-medium">{item.surfaceCondition}</span></span>
+                          )}
+                          {item.dimensionStatus && item.dimensionStatus !== 'Within Tolerance' && (
+                            <span>Dims: <span className="text-red-600 font-medium">{item.dimensionStatus}</span></span>
+                          )}
+                          {item.thicknessStatus && item.thicknessStatus !== 'OK' && (
+                            <span>Thickness: <span className="text-red-600 font-medium">{item.thicknessStatus}{item.thicknessMeasured ? ` (${item.thicknessMeasured})` : ''}</span></span>
+                          )}
+                          {item.specsCompliance && item.specsCompliance !== 'Compliant' && (
+                            <span>Specs: <span className="text-red-600 font-medium">{item.specsCompliance}</span></span>
+                          )}
+                          {!item.mtcAvailable && (
+                            <span className="text-red-600 font-medium">No MTC</span>
+                          )}
+                        </div>
+                        {item.rejectionReason && (
+                          <div className="mt-1 text-xs text-red-700 dark:text-red-400 italic">
+                            Reason: {item.rejectionReason}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -807,7 +1066,6 @@ export default function MaterialInspectionReceiptPage() {
             </DialogHeader>
 
             <div className="space-y-4 py-2">
-              {/* MTC Available toggle */}
               <div className="space-y-1.5">
                 <Label>MTC Available</Label>
                 <Select
@@ -826,7 +1084,6 @@ export default function MaterialInspectionReceiptPage() {
 
               {mtcFormData.mtcAvailable && (
                 <>
-                  {/* MTC Number */}
                   <div className="space-y-1.5">
                     <Label htmlFor="mtcNumberEdit">MTC Number</Label>
                     <Input
@@ -837,7 +1094,6 @@ export default function MaterialInspectionReceiptPage() {
                     />
                   </div>
 
-                  {/* Certificate file */}
                   <div className="space-y-1.5">
                     <Label>Certificate File</Label>
                     {mtcFormData.mtcFilePath ? (
@@ -941,7 +1197,7 @@ export default function MaterialInspectionReceiptPage() {
                     step="0.01"
                     min={0}
                     max={inspectingItem.orderedQty}
-                    value={itemFormData.receivedQty}
+                    value={itemFormData.receivedQty as string}
                     className={Number(itemFormData.receivedQty) > inspectingItem.orderedQty ? 'border-red-500 focus-visible:ring-red-500' : ''}
                     onChange={(e) => setItemFormData({ ...itemFormData, receivedQty: e.target.value })}
                   />
@@ -956,8 +1212,7 @@ export default function MaterialInspectionReceiptPage() {
                     type="number"
                     step="0.01"
                     min={0}
-                    max={itemFormData.receivedQty || inspectingItem.orderedQty}
-                    value={itemFormData.acceptedQty}
+                    value={itemFormData.acceptedQty as string}
                     onChange={(e) => setItemFormData({ ...itemFormData, acceptedQty: e.target.value })}
                   />
                 </div>
@@ -968,24 +1223,58 @@ export default function MaterialInspectionReceiptPage() {
                     type="number"
                     step="0.01"
                     min={0}
-                    max={itemFormData.receivedQty || inspectingItem.orderedQty}
-                    value={itemFormData.rejectedQty}
+                    value={itemFormData.rejectedQty as string}
                     onChange={(e) => setItemFormData({ ...itemFormData, rejectedQty: e.target.value })}
                   />
                 </div>
               </div>
-              {/* Qty sanity hint */}
               {itemFormData.receivedQty && (Number(itemFormData.acceptedQty) + Number(itemFormData.rejectedQty)) > Number(itemFormData.receivedQty) && (
                 <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 rounded-md -mt-2">
-                  Accepted + Rejected ({Number(itemFormData.acceptedQty) + Number(itemFormData.rejectedQty)}) exceeds Received ({itemFormData.receivedQty})
+                  Accepted + Rejected ({Number(itemFormData.acceptedQty) + Number(itemFormData.rejectedQty)}) exceeds Received ({itemFormData.receivedQty as string})
                 </p>
+              )}
+
+              {/* Inspection Result — moved up for smart auto-fill */}
+              <div className="space-y-2">
+                <Label htmlFor="inspectionResult" className="text-sm font-semibold">Inspection Result *</Label>
+                <Select
+                  value={itemFormData.inspectionResult as string}
+                  onValueChange={handleInspectionResultChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Accepted">Accepted</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+                {itemFormData.inspectionResult === 'Accepted' && (
+                  <p className="text-xs text-green-600 bg-green-50 dark:bg-green-950/20 px-3 py-1.5 rounded-md">
+                    All conditions auto-set to passing values. You may override below.
+                  </p>
+                )}
+              </div>
+
+              {itemFormData.inspectionResult === 'Rejected' && (
+                <div className="space-y-2">
+                  <Label htmlFor="rejectionReason" className="font-semibold">Rejection Reason *</Label>
+                  <Textarea
+                    id="rejectionReason"
+                    placeholder="Explain why this item was rejected..."
+                    rows={3}
+                    value={itemFormData.rejectionReason as string}
+                    onChange={(e) => setItemFormData({ ...itemFormData, rejectionReason: e.target.value })}
+                  />
+                </div>
               )}
 
               {/* Surface Condition */}
               <div className="space-y-2">
                 <Label htmlFor="surfaceCondition">Surface Condition</Label>
                 <Select
-                  value={itemFormData.surfaceCondition}
+                  value={itemFormData.surfaceCondition as string}
                   onValueChange={(value) => setItemFormData({ ...itemFormData, surfaceCondition: value })}
                 >
                   <SelectTrigger>
@@ -1001,7 +1290,7 @@ export default function MaterialInspectionReceiptPage() {
                 <Textarea
                   placeholder="Surface condition notes..."
                   rows={2}
-                  value={itemFormData.surfaceNotes}
+                  value={itemFormData.surfaceNotes as string}
                   onChange={(e) => setItemFormData({ ...itemFormData, surfaceNotes: e.target.value })}
                 />
               </div>
@@ -1010,7 +1299,7 @@ export default function MaterialInspectionReceiptPage() {
               <div className="space-y-2">
                 <Label htmlFor="dimensionStatus">Dimensional Check</Label>
                 <Select
-                  value={itemFormData.dimensionStatus}
+                  value={itemFormData.dimensionStatus as string}
                   onValueChange={(value) => setItemFormData({ ...itemFormData, dimensionStatus: value })}
                 >
                   <SelectTrigger>
@@ -1025,7 +1314,7 @@ export default function MaterialInspectionReceiptPage() {
                 <Textarea
                   placeholder="Dimensional check notes..."
                   rows={2}
-                  value={itemFormData.dimensionNotes}
+                  value={itemFormData.dimensionNotes as string}
                   onChange={(e) => setItemFormData({ ...itemFormData, dimensionNotes: e.target.value })}
                 />
               </div>
@@ -1035,7 +1324,7 @@ export default function MaterialInspectionReceiptPage() {
                 <div className="space-y-2">
                   <Label htmlFor="thicknessStatus">Thickness Status</Label>
                   <Select
-                    value={itemFormData.thicknessStatus}
+                    value={itemFormData.thicknessStatus as string}
                     onValueChange={(value) => setItemFormData({ ...itemFormData, thicknessStatus: value })}
                   >
                     <SelectTrigger>
@@ -1053,7 +1342,7 @@ export default function MaterialInspectionReceiptPage() {
                   <Input
                     id="thicknessMeasured"
                     placeholder="e.g., 12.5mm"
-                    value={itemFormData.thicknessMeasured}
+                    value={itemFormData.thicknessMeasured as string}
                     onChange={(e) => setItemFormData({ ...itemFormData, thicknessMeasured: e.target.value })}
                   />
                 </div>
@@ -1061,7 +1350,7 @@ export default function MaterialInspectionReceiptPage() {
               <Textarea
                 placeholder="Thickness check notes..."
                 rows={2}
-                value={itemFormData.thicknessNotes}
+                value={itemFormData.thicknessNotes as string}
                 onChange={(e) => setItemFormData({ ...itemFormData, thicknessNotes: e.target.value })}
               />
 
@@ -1069,7 +1358,7 @@ export default function MaterialInspectionReceiptPage() {
               <div className="space-y-2">
                 <Label htmlFor="specsCompliance">Specs Compliance</Label>
                 <Select
-                  value={itemFormData.specsCompliance}
+                  value={itemFormData.specsCompliance as string}
                   onValueChange={(value) => setItemFormData({ ...itemFormData, specsCompliance: value })}
                 >
                   <SelectTrigger>
@@ -1084,7 +1373,7 @@ export default function MaterialInspectionReceiptPage() {
                 <Textarea
                   placeholder="Specs compliance notes..."
                   rows={2}
-                  value={itemFormData.specsNotes}
+                  value={itemFormData.specsNotes as string}
                   onChange={(e) => setItemFormData({ ...itemFormData, specsNotes: e.target.value })}
                 />
               </div>
@@ -1111,7 +1400,7 @@ export default function MaterialInspectionReceiptPage() {
                   <Input
                     id="mtcNumber"
                     placeholder="MTC certificate number"
-                    value={itemFormData.mtcNumber}
+                    value={itemFormData.mtcNumber as string}
                     onChange={(e) => setItemFormData({ ...itemFormData, mtcNumber: e.target.value })}
                   />
                 </div>
@@ -1124,7 +1413,7 @@ export default function MaterialInspectionReceiptPage() {
                   <Input
                     id="heatNumber"
                     placeholder="Heat number"
-                    value={itemFormData.heatNumber}
+                    value={itemFormData.heatNumber as string}
                     onChange={(e) => setItemFormData({ ...itemFormData, heatNumber: e.target.value })}
                   />
                 </div>
@@ -1133,42 +1422,11 @@ export default function MaterialInspectionReceiptPage() {
                   <Input
                     id="batchNumber"
                     placeholder="Batch number"
-                    value={itemFormData.batchNumber}
+                    value={itemFormData.batchNumber as string}
                     onChange={(e) => setItemFormData({ ...itemFormData, batchNumber: e.target.value })}
                   />
                 </div>
               </div>
-
-              {/* Inspection Result */}
-              <div className="space-y-2">
-                <Label htmlFor="inspectionResult">Inspection Result *</Label>
-                <Select
-                  value={itemFormData.inspectionResult}
-                  onValueChange={(value) => setItemFormData({ ...itemFormData, inspectionResult: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Accepted">Accepted</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {itemFormData.inspectionResult === 'Rejected' && (
-                <div className="space-y-2">
-                  <Label htmlFor="rejectionReason">Rejection Reason</Label>
-                  <Textarea
-                    id="rejectionReason"
-                    placeholder="Explain why this item was rejected..."
-                    rows={3}
-                    value={itemFormData.rejectionReason}
-                    onChange={(e) => setItemFormData({ ...itemFormData, rejectionReason: e.target.value })}
-                  />
-                </div>
-              )}
 
               {/* General Remarks */}
               <div className="space-y-2">
@@ -1177,7 +1435,7 @@ export default function MaterialInspectionReceiptPage() {
                   id="remarks"
                   placeholder="Additional notes..."
                   rows={3}
-                  value={itemFormData.remarks}
+                  value={itemFormData.remarks as string}
                   onChange={(e) => setItemFormData({ ...itemFormData, remarks: e.target.value })}
                 />
               </div>
