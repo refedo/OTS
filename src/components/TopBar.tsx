@@ -23,6 +23,8 @@ interface UserPoints {
 }
 
 type UserOption = { id: string; name: string | null; email: string | null };
+type ProjectOption = { id: string; projectNumber: string; name: string };
+type ScopeOption = { id: string; scopeLabel: string };
 
 function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
@@ -30,7 +32,11 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
   const [priority, setPriority] = useState('Medium');
   const [dueDate, setDueDate] = useState('');
   const [assignedToId, setAssignedToId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [scopeOfWorkId, setScopeOfWorkId] = useState('');
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [scopes, setScopes] = useState<ScopeOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,10 +50,36 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
     } catch { /* non-fatal */ }
   }, []);
 
-  useEffect(() => { if (open) loadUsers(); }, [open, loadUsers]);
+  const loadProjects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/projects?status=Active&limit=200');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects ?? data ?? []);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => {
+    if (open) { loadUsers(); loadProjects(); }
+  }, [open, loadUsers, loadProjects]);
+
+  useEffect(() => {
+    if (!projectId) { setScopes([]); setScopeOfWorkId(''); return; }
+    fetch(`/api/scope-of-work?projectId=${projectId}`)
+      .then((r) => r.ok ? r.json() : { scopes: [] })
+      .then((data) => {
+        const s: ScopeOption[] = (data.scopes ?? []).map((sc: { id: string; scopeLabel: string }) => ({ id: sc.id, scopeLabel: sc.scopeLabel }));
+        setScopes(s);
+        if (s.length === 1) setScopeOfWorkId(s[0].id);
+        else setScopeOfWorkId('');
+      })
+      .catch(() => setScopes([]));
+  }, [projectId]);
 
   function reset() {
-    setTitle(''); setPriority('Medium'); setDueDate(''); setAssignedToId(''); setError(null);
+    setTitle(''); setPriority('Medium'); setDueDate(''); setAssignedToId('');
+    setProjectId(''); setScopeOfWorkId(''); setError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -64,6 +96,8 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
           priority,
           dueDate: dueDate || null,
           assignedToId: assignedToId || null,
+          projectId: projectId || null,
+          scopeOfWorkId: scopeOfWorkId || null,
           status: 'Pending',
         }),
       });
@@ -86,6 +120,8 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
     if (priority) params.set('priority', priority);
     if (dueDate) params.set('dueDate', dueDate);
     if (assignedToId) params.set('assignedToId', assignedToId);
+    if (projectId) params.set('projectId', projectId);
+    if (scopeOfWorkId) params.set('scopeOfWorkId', scopeOfWorkId);
     reset();
     onClose();
     router.push(`/tasks/new?${params.toString()}`);
@@ -152,6 +188,37 @@ function QuickTaskDialog({ open, onClose }: { open: boolean; onClose: () => void
               ))}
             </select>
           </div>
+          <div>
+            <Label htmlFor="qt-project">Project <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <select
+              id="qt-project"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="w-full border rounded-md h-10 px-3 text-sm bg-white"
+            >
+              <option value="">No Project</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.projectNumber} — {p.name}</option>
+              ))}
+            </select>
+          </div>
+          {projectId && scopes.length > 0 && (
+            <div>
+              <Label htmlFor="qt-scope">Scope of Work</Label>
+              <select
+                id="qt-scope"
+                value={scopeOfWorkId}
+                onChange={(e) => setScopeOfWorkId(e.target.value)}
+                disabled={scopes.length === 1}
+                className="w-full border rounded-md h-10 px-3 text-sm bg-white"
+              >
+                <option value="">No Scope</option>
+                {scopes.map((s) => (
+                  <option key={s.id} value={s.id}>{s.scopeLabel}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {error && (
             <p className="text-xs text-red-600 rounded border border-red-200 bg-red-50 px-3 py-2">{error}</p>
           )}

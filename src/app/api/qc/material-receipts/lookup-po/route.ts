@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession } from '@/lib/jwt';
 import { createDolibarrClient } from '@/lib/dolibarr/dolibarr-client';
+import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,8 +75,27 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    console.log('[PO Lookup] Returning', enrichedOrders.length, 'enriched orders');
-    return NextResponse.json({ orders: enrichedOrders });
+    // Find existing MIRs for these POs so UI can show receipt status
+    const poIds = enrichedOrders.map((o) => o.id.toString());
+    const existingMirs = await prisma.materialInspectionReceipt.findMany({
+      where: { dolibarrPoId: { in: poIds } },
+      select: {
+        id: true,
+        dolibarrPoId: true,
+        receiptNumber: true,
+        status: true,
+        workflowStatus: true,
+      },
+    });
+    const mirByPoId = new Map(existingMirs.map((m) => [m.dolibarrPoId, m]));
+
+    const ordersWithMir = enrichedOrders.map((o) => ({
+      ...o,
+      existingMir: mirByPoId.get(o.id.toString()) ?? null,
+    }));
+
+    console.log('[PO Lookup] Returning', ordersWithMir.length, 'enriched orders');
+    return NextResponse.json({ orders: ordersWithMir });
   } catch (error: any) {
     console.error('[API] PO lookup error:', error);
     return NextResponse.json(

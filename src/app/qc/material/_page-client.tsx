@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   ShieldX,
   ClipboardCheck,
+  Trash2,
 } from 'lucide-react';
 import {
   Dialog,
@@ -45,6 +46,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+type ExistingMir = {
+  id: string;
+  receiptNumber: string;
+  status: string;
+  workflowStatus: string | null;
+};
+
 type PurchaseOrder = {
   id: number;
   ref: string;
@@ -57,6 +65,7 @@ type PurchaseOrder = {
   fk_projet?: number;
   project_ref?: string;
   lines: PurchaseOrderLine[];
+  existingMir?: ExistingMir | null;
 };
 
 type PurchaseOrderLine = {
@@ -160,7 +169,7 @@ export default function MaterialInspectionReceiptPage() {
   // Receipt creation
   const [showCreateReceipt, setShowCreateReceipt] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [selectedProject, setSelectedProject] = useState('');
+  const [selectedProject, setSelectedProject] = useState('__none__');
 
   // Receipt detail/inspection
   const [selectedReceipt, setSelectedReceipt] = useState<MaterialReceipt | null>(null);
@@ -177,6 +186,13 @@ export default function MaterialInspectionReceiptPage() {
   // PDF generation
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
+  // Current user role (for admin/CEO delete access)
+  const [currentUserRole, setCurrentUserRole] = useState('');
+
+  // Delete MIR
+  const [deletingReceiptId, setDeletingReceiptId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   // Workflow actions
   const [workflowDialog, setWorkflowDialog] = useState<{
     action: 'submit' | 'review' | 'approve' | 'reject';
@@ -188,6 +204,10 @@ export default function MaterialInspectionReceiptPage() {
   useEffect(() => {
     fetchReceipts();
     fetchProjects();
+    fetch('/api/auth/session')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.role) setCurrentUserRole(data.role); })
+      .catch(() => {});
   }, []);
 
   // Auto-search POs as user types with debounce
@@ -282,7 +302,7 @@ export default function MaterialInspectionReceiptPage() {
           dolibarrPoId: selectedPO.id.toString(),
           dolibarrPoRef: selectedPO.ref,
           supplierName: selectedPO.supplier_name,
-          projectId: selectedProject || null,
+          projectId: (selectedProject && selectedProject !== '__none__') ? selectedProject : null,
           items,
         }),
       });
@@ -291,7 +311,7 @@ export default function MaterialInspectionReceiptPage() {
         const newReceipt = await response.json();
         setShowCreateReceipt(false);
         setSelectedPO(null);
-        setSelectedProject('');
+        setSelectedProject('__none__');
         fetchReceipts();
         setSelectedReceipt(newReceipt);
       }
@@ -499,6 +519,22 @@ export default function MaterialInspectionReceiptPage() {
       // silently handled
     } finally {
       setProcessingWorkflow(false);
+    }
+  };
+
+  const handleDeleteReceipt = async (receiptId: string) => {
+    setDeletingReceiptId(receiptId);
+    try {
+      const res = await fetch(`/api/qc/material-receipts?id=${receiptId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setConfirmDeleteId(null);
+        if (selectedReceipt?.id === receiptId) setSelectedReceipt(null);
+        fetchReceipts();
+      }
+    } catch {
+      // silently handled
+    } finally {
+      setDeletingReceiptId(null);
     }
   };
 
@@ -760,6 +796,17 @@ export default function MaterialInspectionReceiptPage() {
                               <Printer className="h-4 w-4" />
                             )}
                           </Button>
+                          {['Admin', 'CEO'].includes(currentUserRole) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setConfirmDeleteId(receipt.id)}
+                              title="Delete MIR"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -816,26 +863,65 @@ export default function MaterialInspectionReceiptPage() {
                       <th className="text-left py-2 px-3 font-medium">Project</th>
                       <th className="text-right py-2 px-3 font-medium">Total</th>
                       <th className="text-center py-2 px-3 font-medium">Items</th>
+                      <th className="text-center py-2 px-3 font-medium">Receipt Status</th>
                       <th className="text-center py-2 px-3 font-medium">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {poSearchResults.map((po) => (
-                      <tr key={po.id} className="border-b hover:bg-muted/50">
-                        <td className="py-2 px-3 font-mono font-semibold">{po.ref}</td>
-                        <td className="py-2 px-3">{po.supplier_name || '—'}</td>
-                        <td className="py-2 px-3 font-mono text-xs">{po.project_ref || '—'}</td>
-                        <td className="py-2 px-3 text-right">{Number(po.total_ttc).toLocaleString()}</td>
-                        <td className="py-2 px-3 text-center">
-                          <Badge variant="secondary">{po.lines?.length || 0}</Badge>
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          <Button size="sm" onClick={() => handleSelectPO(po)}>
-                            Select
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {poSearchResults.map((po) => {
+                      const mir = po.existingMir;
+                      const isFinalized = mir && ['Inspected', 'Reviewed', 'Approved', 'Rejected'].includes(mir.workflowStatus ?? '');
+                      const isInProgress = mir && !isFinalized;
+                      return (
+                        <tr key={po.id} className="border-b hover:bg-muted/50">
+                          <td className="py-2 px-3 font-mono font-semibold">{po.ref}</td>
+                          <td className="py-2 px-3">{po.supplier_name || '—'}</td>
+                          <td className="py-2 px-3 font-mono text-xs">{po.project_ref || '—'}</td>
+                          <td className="py-2 px-3 text-right">{Number(po.total_ttc).toLocaleString()}</td>
+                          <td className="py-2 px-3 text-center">
+                            <Badge variant="secondary">{po.lines?.length || 0}</Badge>
+                          </td>
+                          <td className="py-2 px-3 text-center space-y-1">
+                            {isFinalized && (
+                              <Badge className="bg-green-500/10 text-green-700 whitespace-nowrap text-xs">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {mir!.workflowStatus}
+                              </Badge>
+                            )}
+                            {isInProgress && (
+                              <Badge className="bg-amber-500/10 text-amber-700 whitespace-nowrap text-xs">
+                                <Clock className="h-3 w-3 mr-1" />
+                                In Progress — {mir!.receiptNumber}
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {isFinalized ? (
+                              <Button size="sm" variant="outline" disabled className="text-xs opacity-50">
+                                Already Received
+                              </Button>
+                            ) : isInProgress ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs border-amber-400 text-amber-700 hover:bg-amber-50"
+                                onClick={() => {
+                                  setShowPOLookup(false);
+                                  const existing = receipts.find(r => r.id === mir!.id);
+                                  if (existing) setSelectedReceipt(existing);
+                                }}
+                              >
+                                Resume
+                              </Button>
+                            ) : (
+                              <Button size="sm" onClick={() => handleSelectPO(po)}>
+                                Select
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -875,7 +961,7 @@ export default function MaterialInspectionReceiptPage() {
                     <SelectValue placeholder="Select project (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— No Project —</SelectItem>
+                    <SelectItem value="__none__">— No Project —</SelectItem>
                     {projects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.projectNumber} — {p.name}
@@ -1639,6 +1725,38 @@ export default function MaterialInspectionReceiptPage() {
                 )}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {confirmDeleteId && (
+        <Dialog open={!!confirmDeleteId} onOpenChange={() => setConfirmDeleteId(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <Trash2 className="h-5 w-5" /> Delete MIR
+              </DialogTitle>
+              <DialogDescription>
+                This will permanently delete the Material Inspection Receipt and all associated items and attachments. This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmDeleteId(null)} disabled={!!deletingReceiptId}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handleDeleteReceipt(confirmDeleteId)}
+                disabled={!!deletingReceiptId}
+              >
+                {deletingReceiptId ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</>
+                ) : (
+                  <><Trash2 className="mr-2 h-4 w-4" />Delete MIR</>
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

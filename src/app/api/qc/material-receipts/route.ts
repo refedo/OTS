@@ -6,39 +6,27 @@ import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-// Generate Material Inspection Receipt Number with retry for uniqueness
+// Generate Material Inspection Receipt Number with global serial (not monthly reset)
 async function generateReceiptNumber(retryCount = 0): Promise<string> {
   const now = new Date();
   const year = now.getFullYear().toString().slice(-2);
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  
-  const count = await prisma.materialInspectionReceipt.count({
-    where: {
-      createdAt: {
-        gte: startOfMonth,
-        lte: endOfMonth,
-      },
-    },
-  });
 
-  // Add retry offset to handle race conditions
+  const count = await prisma.materialInspectionReceipt.count();
+
+  // Global sequence — never resets
   const sequence = (count + 1 + retryCount).toString().padStart(4, '0');
   const receiptNumber = `MIR-${year}${month}-${sequence}`;
-  
-  // Check if this number already exists
+
   const existing = await prisma.materialInspectionReceipt.findUnique({
     where: { receiptNumber },
     select: { id: true },
   });
-  
+
   if (existing && retryCount < 10) {
-    // Number exists, retry with incremented count
     return generateReceiptNumber(retryCount + 1);
   }
-  
+
   return receiptNumber;
 }
 
@@ -275,6 +263,39 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create material inspection receipt' },
       { status: 500 }
     );
+  }
+}
+
+// DELETE - Force-delete a MIR (Admin and CEO only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const store = await cookies();
+    const token = store.get(process.env.COOKIE_NAME || 'ots_session')?.value;
+    const session = token ? verifySession(token) : null;
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!['Admin', 'CEO'].includes(session.role)) {
+      return NextResponse.json({ error: 'Forbidden — Admin or CEO role required' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const receiptId = searchParams.get('id');
+
+    if (!receiptId) {
+      return NextResponse.json({ error: 'Missing receipt id' }, { status: 400 });
+    }
+
+    await prisma.materialInspectionReceipt.delete({
+      where: { id: receiptId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting material inspection receipt:', error);
+    return NextResponse.json({ error: 'Failed to delete receipt' }, { status: 500 });
   }
 }
 
