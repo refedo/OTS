@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Calendar,
   Plus,
@@ -245,10 +246,19 @@ export default function MeetingsPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  const [showForm, setShowForm] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [showForm, setShowForm] = useState(searchParams.get('new') === '1');
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowForm(true);
+      router.replace('/meetings');
+    }
+  }, [searchParams, router]);
 
   const fetchMeetings = useCallback(async () => {
     setLoading(true);

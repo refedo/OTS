@@ -13,7 +13,9 @@ SET @col1 = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'project' LIMIT 1)
   )
 );
-PREPARE s1 FROM @col1; EXECUTE s1; DEALLOCATE PREPARE s1;
+PREPARE s1 FROM @col1;
+EXECUTE s1;
+DEALLOCATE PREPARE s1;
 
 -- Add FK index for operationsManagerId
 SET @idx1 = (
@@ -30,7 +32,9 @@ SET @idx1 = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'project' LIMIT 1)
   )
 );
-PREPARE si1 FROM @idx1; EXECUTE si1; DEALLOCATE PREPARE si1;
+PREPARE si1 FROM @idx1;
+EXECUTE si1;
+DEALLOCATE PREPARE si1;
 
 -- Create ProjectValidation table (only if it doesn't exist)
 SET @tbl_exists = (
@@ -66,7 +70,9 @@ SET @create_tbl = IF(
   ),
   'SELECT 1'
 );
-PREPARE stbl FROM @create_tbl; EXECUTE stbl; DEALLOCATE PREPARE stbl;
+PREPARE stbl FROM @create_tbl;
+EXECUTE stbl;
+DEALLOCATE PREPARE stbl;
 
 -- Add PROJECT_VALIDATION_REQUIRED to Notification.type enum (case-insensitive table lookup)
 SET @notif_table = (
@@ -93,7 +99,9 @@ SET @enum_alter = IF(
   ),
   'SELECT 1'
 );
-PREPARE senum FROM @enum_alter; EXECUTE senum; DEALLOCATE PREPARE senum;
+PREPARE senum FROM @enum_alter;
+EXECUTE senum;
+DEALLOCATE PREPARE senum;
 
 -- Add PROJECT_VALIDATION_REQUIRED to NotificationPreference.notificationType enum
 SET @pref_table = (
@@ -120,4 +128,6 @@ SET @enum_alter2 = IF(
   ),
   'SELECT 1'
 );
-PREPARE senum2 FROM @enum_alter2; EXECUTE senum2; DEALLOCATE PREPARE senum2;
+PREPARE senum2 FROM @enum_alter2;
+EXECUTE senum2;
+DEALLOCATE PREPARE senum2;

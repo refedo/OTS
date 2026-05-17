@@ -14,7 +14,9 @@ SET @col1 = (
     'ALTER TABLE fin_vat_payments ADD COLUMN dolibarr_id INT NULL AFTER id'
   )
 );
-PREPARE s1 FROM @col1; EXECUTE s1; DEALLOCATE PREPARE s1;
+PREPARE s1 FROM @col1;
+EXECUTE s1;
+DEALLOCATE PREPARE s1;
 
 SET @col2 = (
   SELECT IF(
@@ -28,7 +30,9 @@ SET @col2 = (
     "ALTER TABLE fin_vat_payments ADD COLUMN source ENUM('manual','dolibarr') NOT NULL DEFAULT 'manual' AFTER notes"
   )
 );
-PREPARE s2 FROM @col2; EXECUTE s2; DEALLOCATE PREPARE s2;
+PREPARE s2 FROM @col2;
+EXECUTE s2;
+DEALLOCATE PREPARE s2;
 
 SET @col3 = (
   SELECT IF(
@@ -42,7 +46,9 @@ SET @col3 = (
     'ALTER TABLE fin_vat_payments ADD COLUMN sync_hash VARCHAR(32) NULL'
   )
 );
-PREPARE s3 FROM @col3; EXECUTE s3; DEALLOCATE PREPARE s3;
+PREPARE s3 FROM @col3;
+EXECUTE s3;
+DEALLOCATE PREPARE s3;
 
 SET @idx1 = (
   SELECT IF(
@@ -56,7 +62,9 @@ SET @idx1 = (
     'ALTER TABLE fin_vat_payments ADD UNIQUE INDEX idx_dolibarr_id (dolibarr_id)'
   )
 );
-PREPARE si1 FROM @idx1; EXECUTE si1; DEALLOCATE PREPARE si1;
+PREPARE si1 FROM @idx1;
+EXECUTE si1;
+DEALLOCATE PREPARE si1;
 
 -- 2. Create fin_bank_transactions table
 SET @sql2 = (
@@ -86,4 +94,6 @@ SET @sql2 = (
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
   )
 );
-PREPARE s4 FROM @sql2; EXECUTE s4; DEALLOCATE PREPARE s4;
+PREPARE s4 FROM @sql2;
+EXECUTE s4;
+DEALLOCATE PREPARE s4;

@@ -1,4 +1,7 @@
 -- Add step-level notes and overall status to ProjectValidation
+-- Each PREPARE / EXECUTE / DEALLOCATE is on its own line so the startup
+-- migration runner sends them as three separate single-statement queries
+-- (multipleStatements: false only executes the first statement in a string).
 
 -- salesStepNotes
 SET @col_ssn = (
@@ -15,7 +18,9 @@ SET @col_ssn = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'projectvalidation' LIMIT 1)
   )
 );
-PREPARE s_ssn FROM @col_ssn; EXECUTE s_ssn; DEALLOCATE PREPARE s_ssn;
+PREPARE s_ssn FROM @col_ssn;
+EXECUTE s_ssn;
+DEALLOCATE PREPARE s_ssn;
 
 -- salesStatus
 SET @col_ss = (
@@ -32,7 +37,9 @@ SET @col_ss = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'projectvalidation' LIMIT 1)
   )
 );
-PREPARE s_ss FROM @col_ss; EXECUTE s_ss; DEALLOCATE PREPARE s_ss;
+PREPARE s_ss FROM @col_ss;
+EXECUTE s_ss;
+DEALLOCATE PREPARE s_ss;
 
 -- projectsStepNotes
 SET @col_psn = (
@@ -49,7 +56,9 @@ SET @col_psn = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'projectvalidation' LIMIT 1)
   )
 );
-PREPARE s_psn FROM @col_psn; EXECUTE s_psn; DEALLOCATE PREPARE s_psn;
+PREPARE s_psn FROM @col_psn;
+EXECUTE s_psn;
+DEALLOCATE PREPARE s_psn;
 
 -- projectsStatus
 SET @col_ps = (
@@ -66,7 +75,9 @@ SET @col_ps = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'projectvalidation' LIMIT 1)
   )
 );
-PREPARE s_ps FROM @col_ps; EXECUTE s_ps; DEALLOCATE PREPARE s_ps;
+PREPARE s_ps FROM @col_ps;
+EXECUTE s_ps;
+DEALLOCATE PREPARE s_ps;
 
 -- operationsStepNotes
 SET @col_osn = (
@@ -83,7 +94,9 @@ SET @col_osn = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'projectvalidation' LIMIT 1)
   )
 );
-PREPARE s_osn FROM @col_osn; EXECUTE s_osn; DEALLOCATE PREPARE s_osn;
+PREPARE s_osn FROM @col_osn;
+EXECUTE s_osn;
+DEALLOCATE PREPARE s_osn;
 
 -- operationsStatus
 SET @col_os = (
@@ -100,4 +113,6 @@ SET @col_os = (
      WHERE table_schema = DATABASE() AND LOWER(table_name) = 'projectvalidation' LIMIT 1)
   )
 );
-PREPARE s_os FROM @col_os; EXECUTE s_os; DEALLOCATE PREPARE s_os;
+PREPARE s_os FROM @col_os;
+EXECUTE s_os;
+DEALLOCATE PREPARE s_os;
