@@ -142,6 +142,7 @@ export const NAVIGATION_PERMISSIONS: NavigationPermissionMap = {
   '/financial/reports/supplier-invoice-report': ['financial.view'],
   '/financial/reports/po-invoice-linkage': ['financial.view', 'supply_chain.view'],
   '/financial/reports/coa-credit-balance': ['financial.view'],
+  '/financial/reports/procurement-by-product': ['financial.view'],
   '/financial/journal-entries': ['financial.view'],
   '/financial/manual-journal-entries': ['financial.manage', 'financial.view'],
   '/financial/account-mapping': ['financial.manage', 'financial.view'],
