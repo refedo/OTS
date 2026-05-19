@@ -98,6 +98,7 @@ import {
   PieChart,
   IdCard,
   LayoutList,
+  ShoppingCart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useLayoutEffect } from 'react';
@@ -403,6 +404,7 @@ const navigationSections: NavigationSection[] = [
       { name: 'Account Invoice Report', href: '/financial/reports/account-invoice-report', icon: FileBarChart2, newSince: '2026-04-29' },
       { name: 'Expenses Analysis', href: '/financial/reports/expenses-analysis', icon: Truck },
       { name: 'Expenses by Account', href: '/financial/reports/expenses-by-account', icon: FileSpreadsheet },
+      { name: 'Procurement by Product', href: '/financial/reports/procurement-by-product', icon: ShoppingCart, newSince: '2026-05-19' },
       { name: 'OTS Journal Entries', href: '/financial/reports/ots-journal-entries', icon: BookOpen },
       { name: 'Journal Entries', href: '/financial/journal-entries', icon: List },
       { name: 'Manual Entries', href: '/financial/manual-journal-entries', icon: BookOpen },
